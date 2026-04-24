@@ -9,10 +9,10 @@ export interface ProjectFile {
   file_type: string
   file_url: string
   file_source: string
-  resource_type?: string  // 资源类型：requirement, ui_mockup, api_doc, test_data, other
-  extract_status?: string  // 提取状态：completed, processing, pending, failed
-  is_active?: boolean     // 是否启用
-  description?: string    // 描述
+  resource_type?: string // 资源类型：requirement, ui_mockup, api_doc, test_data, other
+  extract_status?: string // 提取状态：completed, processing, pending, failed
+  is_active?: boolean // 是否启用
+  description?: string // 描述
   size?: number
   upload_time: string
 }
@@ -97,8 +97,8 @@ export const fileApi = {
 
     return request.post('/api/v1/file/upload', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+        'Content-Type': 'multipart/form-data',
+      },
     })
   },
 
@@ -149,13 +149,13 @@ export const fileApi = {
     if (iterationId) {
       formData.append('iteration_id', iterationId.toString())
     }
-    files.forEach(file => {
+    files.forEach((file) => {
       formData.append('files', file)
     })
     return request.post('/api/v1/file/batch-upload', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+        'Content-Type': 'multipart/form-data',
+      },
     })
   },
 
@@ -163,10 +163,10 @@ export const fileApi = {
   deleteFile: async (fileId: number, projectId: number): Promise<FileDeleteResponse> => {
     return request.delete(`/api/v1/file/${fileId}`, {
       params: {
-        project_id: projectId
-      }
+        project_id: projectId,
+      },
     })
-  }
+  },
 }
 
 // 保持向后兼容

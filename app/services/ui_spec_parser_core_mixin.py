@@ -72,7 +72,7 @@ class UISpecCoreMixin:
         image_bytes = self._read_image_bytes(image_path)
         if not image_bytes:
             return False, {}, "图片读取失败"
-        if self.parse_mode == "text":
+        if self.parse_mode == settings.PARSE_MODE_TEXT:
             return await self._parse_with_text_mode(image_bytes, screen_name_hint)
         return await self._parse_with_vision_mode(image_bytes, screen_name_hint)
 

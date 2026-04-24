@@ -25,7 +25,9 @@
               <div class="env-option">
                 <span class="env-name">{{ env.name }}</span>
                 <span class="env-url">{{ env.url }}</span>
-                <span class="env-account" v-if="env.username">账号: {{ env.username }} / 密码: ••••••</span>
+                <span class="env-account" v-if="env.username"
+                  >账号: {{ env.username }} / 密码: ••••••</span
+                >
               </div>
             </el-option>
           </el-select>
@@ -38,6 +40,11 @@
               class="init-switch"
             />
           </el-tooltip>
+        </div>
+
+        <div class="journey-actions">
+          <el-button plain @click="goToTaskList">任务列表</el-button>
+          <el-button plain @click="goToTestPointManagement">测试点管理</el-button>
         </div>
 
         <!-- 执行控制按钮 -->
@@ -77,9 +84,7 @@
         </el-button-group>
 
         <!-- 可见模式配置 -->
-        <el-button @click="showConfigDialog = true" icon="Setting">
-          可见模式配置
-        </el-button>
+        <el-button @click="showConfigDialog = true" icon="Setting"> 可见模式配置 </el-button>
       </div>
     </div>
 
@@ -124,10 +129,10 @@
             :key="index"
             class="step-item"
             :class="{
-              'active': currentStepIndex === index,
-              'success': step.status === 'passed',
-              'failed': step.status === 'failed',
-              'running': step.status === 'running'
+              active: currentStepIndex === index,
+              success: step.status === 'passed',
+              failed: step.status === 'failed',
+              running: step.status === 'running',
             }"
             @click="selectStep(index)"
           >
@@ -147,7 +152,9 @@
             <div class="step-icon">
               <el-icon v-if="step.status === 'passed'"><CircleCheck /></el-icon>
               <el-icon v-else-if="step.status === 'failed'"><CircleClose /></el-icon>
-              <el-icon v-else-if="step.status === 'running'" class="is-loading"><Loading /></el-icon>
+              <el-icon v-else-if="step.status === 'running'" class="is-loading"
+                ><Loading
+              /></el-icon>
               <el-icon v-else><ArrowRight /></el-icon>
             </div>
             <!-- 失败步骤操作按钮 -->
@@ -189,7 +196,7 @@
           >
             <div
               class="timeline-step"
-              :class="{ 'active': currentStepIndex === index }"
+              :class="{ active: currentStepIndex === index }"
               @click="selectStep(index)"
             >
               <div class="step-action">{{ step.action }}</div>
@@ -225,7 +232,7 @@
                 left: currentStep.element_highlight.x + 'px',
                 top: currentStep.element_highlight.y + 'px',
                 width: currentStep.element_highlight.width + 'px',
-                height: currentStep.element_highlight.height + 'px'
+                height: currentStep.element_highlight.height + 'px',
               }"
             ></div>
           </div>
@@ -253,29 +260,55 @@
         />
 
         <!-- 失败分析详情 -->
-        <div class="failure-analysis-detail" v-if="currentStepIndex >= 0 && failureAnalysisMap[currentStepIndex]">
+        <div
+          class="failure-analysis-detail"
+          v-if="currentStepIndex >= 0 && failureAnalysisMap[currentStepIndex]"
+        >
           <div class="analysis-header">
             <el-icon><Warning /></el-icon>
             <span>失败原因分析</span>
           </div>
           <div class="analysis-body">
-            <p><strong>建议类型：</strong>
-              <el-tag :type="ISSUE_TYPE_COLORS[failureAnalysisMap[currentStepIndex].suggested_type]" size="small">
+            <p>
+              <strong>建议类型：</strong>
+              <el-tag
+                :type="ISSUE_TYPE_COLORS[failureAnalysisMap[currentStepIndex].suggested_type]"
+                size="small"
+              >
                 {{ ISSUE_TYPE_LABELS[failureAnalysisMap[currentStepIndex].suggested_type] }}
               </el-tag>
-              <span class="confidence">置信度: {{ (failureAnalysisMap[currentStepIndex].confidence * 100).toFixed(0) }}%</span>
+              <span class="confidence"
+                >置信度:
+                {{ (failureAnalysisMap[currentStepIndex].confidence * 100).toFixed(0) }}%</span
+              >
             </p>
             <p>{{ failureAnalysisMap[currentStepIndex].reason }}</p>
-            <div v-if="failureAnalysisMap[currentStepIndex].case_issue_indicators.length > 0" class="indicators">
+            <div
+              v-if="failureAnalysisMap[currentStepIndex].case_issue_indicators.length > 0"
+              class="indicators"
+            >
               <p><strong>用例问题指标：</strong></p>
               <ul>
-                <li v-for="(ind, i) in failureAnalysisMap[currentStepIndex].case_issue_indicators" :key="i">{{ ind }}</li>
+                <li
+                  v-for="(ind, i) in failureAnalysisMap[currentStepIndex].case_issue_indicators"
+                  :key="i"
+                >
+                  {{ ind }}
+                </li>
               </ul>
             </div>
-            <div v-if="failureAnalysisMap[currentStepIndex].bug_issue_indicators.length > 0" class="indicators">
+            <div
+              v-if="failureAnalysisMap[currentStepIndex].bug_issue_indicators.length > 0"
+              class="indicators"
+            >
               <p><strong>Bug问题指标：</strong></p>
               <ul>
-                <li v-for="(ind, i) in failureAnalysisMap[currentStepIndex].bug_issue_indicators" :key="i">{{ ind }}</li>
+                <li
+                  v-for="(ind, i) in failureAnalysisMap[currentStepIndex].bug_issue_indicators"
+                  :key="i"
+                >
+                  {{ ind }}
+                </li>
               </ul>
             </div>
             <div class="issue-type-switch">
@@ -351,7 +384,11 @@
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="回放控制" name="replay" v-if="executionStatus?.status === 'completed'">
+          <el-tab-pane
+            label="回放控制"
+            name="replay"
+            v-if="executionStatus?.status === 'completed'"
+          >
             <div class="replay-controls">
               <el-button-group>
                 <el-button @click="startReplay" type="primary">
@@ -377,18 +414,10 @@
     </div>
 
     <!-- 可见模式配置对话框 -->
-    <el-dialog
-      v-model="showConfigDialog"
-      title="可见模式配置"
-      width="600px"
-    >
+    <el-dialog v-model="showConfigDialog" title="可见模式配置" width="600px">
       <el-form :model="visibilityConfig" label-width="150px">
         <el-form-item label="无头模式">
-          <el-switch
-            v-model="visibilityConfig.headless"
-            active-text="启用"
-            inactive-text="禁用"
-          />
+          <el-switch v-model="visibilityConfig.headless" active-text="启用" inactive-text="禁用" />
           <div class="form-tip">禁用后浏览器窗口可见</div>
         </el-form-item>
 
@@ -410,52 +439,62 @@
         </el-form-item>
 
         <el-form-item label="视频帧率" v-if="visibilityConfig.recordVideo">
-          <el-slider v-model="visibilityConfig.videoFps" :min="15" :max="60" :step="15" show-stops />
+          <el-slider
+            v-model="visibilityConfig.videoFps"
+            :min="15"
+            :max="60"
+            :step="15"
+            show-stops
+          />
           <span>{{ visibilityConfig.videoFps }} fps</span>
         </el-form-item>
 
         <el-form-item label="MCP定位引擎">
           <el-switch v-model="useMcpMode" active-text="MCP" inactive-text="VLM" />
-          <div style="margin-top: 4px; font-size: 12px; color: #909399;">
+          <div style="margin-top: 4px; font-size: 12px; color: #909399">
             启用Playwright MCP定位引擎，支持更精准的元素识别和自愈
           </div>
         </el-form-item>
         <el-form-item label="执行模式">
-            <el-radio-group v-model="executionMode">
-              <el-radio value="smart">智能模式（推荐）</el-radio>
-              <el-radio value="realtime">实时识别模式</el-radio>
-              <el-radio value="preprocess">预处理模式</el-radio>
-              <el-radio value="mobile_smart">移动端智能模式</el-radio>
-              <el-radio value="mobile_realtime">移动端实时模式</el-radio>
-            </el-radio-group>
-            <div style="margin-top: 4px; font-size: 12px; color: #909399;">
-              <template v-if="executionMode === 'smart'">优先使用缓存定位，失败后AI实时识别</template>
-              <template v-else-if="executionMode === 'realtime'">直接执行，无需预先补充元素定位</template>
-              <template v-else-if="executionMode === 'preprocess'">需要先批量补充元素定位信息才能执行</template>
-              <template v-else-if="executionMode === 'mobile_smart'">移动端：优先使用缓存定位，失败后AI实时识别（ADB）</template>
-              <template v-else-if="executionMode === 'mobile_realtime'">移动端：直接执行，AI实时识别元素（ADB）</template>
-            </div>
-          </el-form-item>
+          <el-radio-group v-model="executionMode">
+            <el-radio value="smart">智能模式（推荐）</el-radio>
+            <el-radio value="realtime">实时识别模式</el-radio>
+            <el-radio value="preprocess">预处理模式</el-radio>
+            <el-radio value="mobile_smart">移动端智能模式</el-radio>
+            <el-radio value="mobile_realtime">移动端实时模式</el-radio>
+          </el-radio-group>
+          <div style="margin-top: 4px; font-size: 12px; color: #909399">
+            <template v-if="executionMode === 'smart'">优先使用缓存定位，失败后AI实时识别</template>
+            <template v-else-if="executionMode === 'realtime'"
+              >直接执行，无需预先补充元素定位</template
+            >
+            <template v-else-if="executionMode === 'preprocess'"
+              >需要先批量补充元素定位信息才能执行</template
+            >
+            <template v-else-if="executionMode === 'mobile_smart'"
+              >移动端：优先使用缓存定位，失败后AI实时识别（ADB）</template
+            >
+            <template v-else-if="executionMode === 'mobile_realtime'"
+              >移动端：直接执行，AI实时识别元素（ADB）</template
+            >
+          </div>
+        </el-form-item>
         <el-form-item label="目标设备" v-if="executionMode.startsWith('mobile_')">
           <el-select
             v-model="mobileDeviceId"
             placeholder="选择已连接的设备"
             :loading="loadingDevices"
             @focus="loadConnectedDevices"
-            style="width: 100%;"
+            style="width: 100%"
           >
             <el-option
-              v-for="device in connectedDevices.filter(d => d.state === 'device')"
+              v-for="device in connectedDevices.filter((d) => d.state === 'device')"
               :key="device.udid"
               :label="`${device.model || device.udid} (${device.udid})`"
               :value="device.udid"
             />
           </el-select>
-          <el-alert
-            type="warning"
-            :closable="false"
-            style="margin-top: 8px;"
-          >
+          <el-alert type="warning" :closable="false" style="margin-top: 8px">
             请确保设备已通过ADB连接，且已开启USB调试模式
           </el-alert>
         </el-form-item>
@@ -486,16 +525,32 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  ArrowLeft, VideoPlay, VideoPause, CircleClose,
-  CircleCheck, Loading, ArrowRight, MagicStick,
-  Warning
+  ArrowLeft,
+  VideoPlay,
+  VideoPause,
+  CircleClose,
+  CircleCheck,
+  Loading,
+  ArrowRight,
+  MagicStick,
+  Warning,
 } from '@element-plus/icons-vue'
 import {
-  startTestExecution, pauseTestExecution, resumeTestExecution,
-  stopTestExecution, getExecutionStatus, getExecutionLogs,
-  getStepScreenshot, getVisibilityConfig,
-  updateVisibilityConfig, startReplay as startReplayApi, pauseReplay as pauseReplayApi, stopReplay as stopReplayApi,
-  analyzeFailure, type FailureAnalysisResult, getConnectedDevices
+  startTestExecution,
+  pauseTestExecution,
+  resumeTestExecution,
+  stopTestExecution,
+  getExecutionStatus,
+  getExecutionLogs,
+  getStepScreenshot,
+  getVisibilityConfig,
+  updateVisibilityConfig,
+  startReplay as startReplayApi,
+  pauseReplay as pauseReplayApi,
+  stopReplay as stopReplayApi,
+  analyzeFailure,
+  type FailureAnalysisResult,
+  getConnectedDevices,
 } from '@/api/testExecution'
 import testTaskApi from '@/api/testTask'
 import request from '@/utils/request'
@@ -532,14 +587,16 @@ const videoPlayer = ref<HTMLVideoElement>()
 const visibilityConfig = ref({
   headless: true,
   recordVideo: false,
-  videoFps: 30
+  videoFps: 30,
 })
 const videoResolution = ref('1280x720')
 
 // 环境选择与初始化控制
 const targetEnv = ref('test')
 const autoInitEnabled = ref(true)
-const executionMode = ref<'preprocess' | 'realtime' | 'smart' | 'mobile_realtime' | 'mobile_smart'>('smart')
+const executionMode = ref<'preprocess' | 'realtime' | 'smart' | 'mobile_realtime' | 'mobile_smart'>(
+  'smart'
+)
 const mobileDeviceId = ref<string>('')
 const connectedDevices = ref<Array<{ udid: string; model?: string; state: string }>>([])
 const loadingDevices = ref(false)
@@ -554,13 +611,98 @@ const issueTypeMap = ref<Record<number, 'case_issue' | 'product_bug' | 'needs_re
 const ISSUE_TYPE_LABELS: Record<string, string> = {
   case_issue: '用例问题',
   product_bug: 'Bug问题',
-  needs_review: '待人工判断'
+  needs_review: '待人工判断',
 }
 
 const ISSUE_TYPE_COLORS: Record<string, string> = {
   case_issue: 'warning',
   product_bug: 'danger',
-  needs_review: 'info'
+  needs_review: 'info',
+}
+
+function unwrapApiResponse<T = any>(response: any): { code?: number; data?: T; message?: string } {
+  if (response && typeof response === 'object') {
+    if (
+      typeof response.code !== 'undefined' ||
+      typeof response.message !== 'undefined' ||
+      typeof response.msg !== 'undefined'
+    ) {
+      return {
+        code: response.code,
+        data: response.data,
+        message: response.message || response.msg,
+      } as { code?: number; data?: T; message?: string }
+    }
+
+    if (
+      response.data &&
+      typeof response.data === 'object' &&
+      (typeof response.data.code !== 'undefined' ||
+        typeof response.data.message !== 'undefined' ||
+        typeof response.data.msg !== 'undefined')
+    ) {
+      return {
+        code: response.data.code,
+        data: response.data.data,
+        message: response.data.message || response.data.msg,
+      } as { code?: number; data?: T; message?: string }
+    }
+  }
+
+  return {
+    code: 200,
+    data: response as T,
+    message: '',
+  }
+}
+
+function getTaskPayload() {
+  return taskInfo.value?.task || taskInfo.value || null
+}
+
+function syncTaskInfoStatus(status: number) {
+  if (!taskInfo.value) {
+    return
+  }
+
+  if (taskInfo.value?.task) {
+    taskInfo.value = {
+      ...taskInfo.value,
+      task: {
+        ...taskInfo.value.task,
+        status,
+      },
+    }
+    return
+  }
+
+  taskInfo.value = {
+    ...taskInfo.value,
+    status,
+  }
+}
+
+function buildExecutionStatusFallback() {
+  const taskStatus = Number(getTaskPayload()?.status)
+  const statusMap: Record<number, string> = {
+    0: 'pending',
+    1: 'running',
+    2: 'completed',
+    3: 'failed',
+    4: 'stopped',
+  }
+  const fallbackStatus = statusMap[taskStatus]
+
+  if (!fallbackStatus) {
+    return null
+  }
+
+  return {
+    status: fallbackStatus,
+    current_step: Number(executionStatus.value?.current_step || 0),
+    total_steps: Number(executionStatus.value?.total_steps || 0),
+    estimated_time_remaining: executionStatus.value?.estimated_time_remaining,
+  }
 }
 
 // WebSocket连接
@@ -569,8 +711,10 @@ let wsConnection: any = null
 // 计算属性
 const progressPercentage = computed(() => {
   if (!executionStatus.value) return 0
-  const { current_step = 0, total_steps = 1 } = executionStatus.value
-  return Math.round((current_step / total_steps) * 100)
+  const currentStep = Number(executionStatus.value.current_step || 0)
+  const totalSteps = Number(executionStatus.value.total_steps || 0)
+  if (totalSteps <= 0) return 0
+  return Math.round((currentStep / totalSteps) * 100)
 })
 
 const progressStatus = computed(() => {
@@ -582,24 +726,24 @@ const progressStatus = computed(() => {
 
 const statusText = computed(() => {
   const statusMap: Record<string, string> = {
-    'pending': '等待执行',
-    'running': '执行中',
-    'paused': '已暂停',
-    'completed': '执行完成',
-    'failed': '执行失败',
-    'stopped': '已停止'
+    pending: '等待执行',
+    running: '执行中',
+    paused: '已暂停',
+    completed: '执行完成',
+    failed: '执行失败',
+    stopped: '已停止',
   }
   return statusMap[executionStatus.value?.status] || '未知状态'
 })
 
 const statusTagType = computed(() => {
   const typeMap: Record<string, any> = {
-    'pending': 'info',
-    'running': 'primary',
-    'paused': 'warning',
-    'completed': 'success',
-    'failed': 'danger',
-    'stopped': 'info'
+    pending: 'info',
+    running: 'primary',
+    paused: 'warning',
+    completed: 'success',
+    failed: 'danger',
+    stopped: 'info',
   }
   return typeMap[executionStatus.value?.status] || 'info'
 })
@@ -612,24 +756,28 @@ const currentStep = computed(() => {
 const loadTaskInfo = async () => {
   try {
     const res = await testTaskApi.getTaskDetail(taskId.value)
-    if (res.data.code === 200) {
-      taskInfo.value = res.data.data
-      const taskData = res.data.data.task || res.data.data
+    const body = unwrapApiResponse<any>(res)
+    if (body.code === 200 && body.data) {
+      taskInfo.value = body.data
+      const taskData = body.data.task || body.data
       const projectId = taskData?.project_id
 
       if (projectId) {
         const projectRes = await request.get(`/api/v1/project/${projectId}`)
-        if (projectRes?.data?.code === 200 && projectRes.data.data) {
-          const projectData = projectRes.data.data
+        const projectBody = unwrapApiResponse<any>(projectRes)
+        if (projectBody.code === 200 && projectBody.data) {
+          const projectData = projectBody.data
           const webEnvConfigs = projectData?.web_env_configs
           if (webEnvConfigs && typeof webEnvConfigs === 'object') {
-            const options = Object.entries(webEnvConfigs).map(([name, cfg]: [string, any]) => ({
-              name,
-              url: cfg?.url || '',
-              username: cfg?.username || ''
-            })).filter(opt => opt.url)
+            const options = Object.entries(webEnvConfigs)
+              .map(([name, cfg]: [string, any]) => ({
+                name,
+                url: cfg?.url || '',
+                username: cfg?.username || '',
+              }))
+              .filter((opt) => opt.url)
             envOptions.value = options
-            if (options.some(o => o.name === 'test')) {
+            if (options.some((o) => o.name === 'test')) {
               targetEnv.value = 'test'
             } else if (options.length > 0) {
               targetEnv.value = options[0].name
@@ -638,19 +786,33 @@ const loadTaskInfo = async () => {
         }
       }
     }
+    return taskInfo.value
   } catch (error) {
     console.error('加载任务信息失败:', error)
     ElMessage.error('加载任务信息失败')
+    return null
   }
 }
 
 const loadExecutionStatus = async () => {
   try {
     const res = await getExecutionStatus(taskId.value)
-    if (res.data.code === 200) {
-      executionStatus.value = res.data.data
+    const body = unwrapApiResponse<any>(res)
+    if (body.code === 200 && body.data) {
+      executionStatus.value = body.data
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.response?.status === 404) {
+      if (!getTaskPayload()) {
+        await loadTaskInfo()
+      }
+
+      const fallbackStatus = buildExecutionStatusFallback()
+      if (fallbackStatus) {
+        executionStatus.value = fallbackStatus
+      }
+      return
+    }
     console.error('加载执行状态失败:', error)
   }
 }
@@ -658,8 +820,9 @@ const loadExecutionStatus = async () => {
 const loadExecutionLogs = async () => {
   try {
     const res = await getExecutionLogs(taskId.value)
-    if (res.data.code === 200) {
-      executionLogs.value = res.data.data.logs || []
+    const body = unwrapApiResponse<any>(res)
+    if (body.code === 200) {
+      executionLogs.value = body.data?.logs || []
       nextTick(() => {
         scrollToBottom()
       })
@@ -694,8 +857,9 @@ const loadConnectedDevices = async () => {
   loadingDevices.value = true
   try {
     const res = await getConnectedDevices()
-    if (res.data?.code === 200) {
-      connectedDevices.value = res.data.data || []
+    const body = unwrapApiResponse<any[]>(res)
+    if (body.code === 200) {
+      connectedDevices.value = body.data || []
     }
   } catch (error) {
     console.error('获取设备列表失败:', error)
@@ -718,14 +882,23 @@ const startExecution = async () => {
       skipInit: !autoInitEnabled.value,
       executionMode: executionMode.value,
       mobileDeviceId: executionMode.value.startsWith('mobile_') ? mobileDeviceId.value : undefined,
-      use_mcp: useMcpMode.value
+      use_mcp: useMcpMode.value,
     })
-    if (res.data.code === 200) {
+    const body = unwrapApiResponse<any>(res)
+    if (body.code === 200) {
+      syncTaskInfoStatus(1)
+      executionStatus.value = {
+        ...executionStatus.value,
+        status: body.data?.status || 'running',
+        current_step: Number(executionStatus.value?.current_step || 0),
+        total_steps: Number(executionStatus.value?.total_steps || 0),
+      }
       ElMessage.success('开始执行')
+      await loadTaskInfo()
       await loadExecutionStatus()
       connectWebSocketForRealtimeUpdate()
     } else {
-      ElMessage.error(res.data.message || '开始执行失败')
+      ElMessage.error(body.message || '开始执行失败')
     }
   } catch (error) {
     console.error('开始执行失败:', error)
@@ -739,7 +912,8 @@ const pauseExecution = async () => {
   controlLoading.value = true
   try {
     const res = await pauseTestExecution(taskId.value)
-    if (res.data.code === 200) {
+    const body = unwrapApiResponse<any>(res)
+    if (body.code === 200) {
       ElMessage.success('已暂停')
       await loadExecutionStatus()
     }
@@ -755,7 +929,8 @@ const resumeExecution = async () => {
   controlLoading.value = true
   try {
     const res = await resumeTestExecution(taskId.value)
-    if (res.data.code === 200) {
+    const body = unwrapApiResponse<any>(res)
+    if (body.code === 200) {
       ElMessage.success('已恢复')
       await loadExecutionStatus()
     }
@@ -770,11 +945,12 @@ const resumeExecution = async () => {
 const stopExecution = async () => {
   try {
     await ElMessageBox.confirm('确定要停止执行吗？', '确认', {
-      type: 'warning'
+      type: 'warning',
     })
     controlLoading.value = true
     const res = await stopTestExecution(taskId.value)
-    if (res.data.code === 200) {
+    const body = unwrapApiResponse<any>(res)
+    if (body.code === 200) {
       ElMessage.success('已停止')
       await loadExecutionStatus()
     }
@@ -794,31 +970,31 @@ const selectStep = (index: number) => {
 
 const getStepStatusType = (status: string) => {
   const typeMap: Record<string, any> = {
-    'passed': 'success',
-    'failed': 'danger',
-    'running': 'primary',
-    'pending': 'info',
-    'skipped': 'warning'
+    passed: 'success',
+    failed: 'danger',
+    running: 'primary',
+    pending: 'info',
+    skipped: 'warning',
   }
   return typeMap[status] || 'info'
 }
 
 const getStepStatusText = (status: string) => {
   const textMap: Record<string, string> = {
-    'passed': '通过',
-    'failed': '失败',
-    'running': '执行中',
-    'pending': '等待',
-    'skipped': '跳过'
+    passed: '通过',
+    failed: '失败',
+    running: '执行中',
+    pending: '等待',
+    skipped: '跳过',
   }
   return textMap[status] || status
 }
 
 const getTimelineItemType = (status: string) => {
   const typeMap: Record<string, any> = {
-    'passed': 'success',
-    'failed': 'danger',
-    'running': 'primary'
+    passed: 'success',
+    failed: 'danger',
+    running: 'primary',
   }
   return typeMap[status] || ''
 }
@@ -848,7 +1024,33 @@ const scrollToBottom = () => {
 }
 
 const goBack = () => {
-  router.back()
+  goToTaskList()
+}
+
+const currentProjectId = computed(() => {
+  const taskData = taskInfo.value?.task || taskInfo.value
+  return Number(taskData?.project_id || route.query.project_id || 0)
+})
+
+const goToTaskList = () => {
+  if (currentProjectId.value) {
+    router.push(`/home/task/list/${currentProjectId.value}`)
+    return
+  }
+  router.push('/home/project')
+}
+
+const goToTestPointManagement = () => {
+  if (currentProjectId.value) {
+    router.push({
+      path: '/home/case/test-point-management',
+      query: {
+        projectId: String(currentProjectId.value),
+      },
+    })
+    return
+  }
+  router.push('/home/case/test-point-management')
 }
 
 const handleAnalyzeFailure = async (step: any, index: number) => {
@@ -889,7 +1091,7 @@ const handleCorrectCase = (step: any, index: number) => {
   const query: Record<string, string> = {
     correction: 'true',
     stepIndex: String(index),
-    issueType: issueTypeMap.value[index] || 'case_issue'
+    issueType: issueTypeMap.value[index] || 'case_issue',
   }
   if (analysis) {
     query.failureReason = encodeURIComponent(analysis.reason || '')
@@ -897,7 +1099,7 @@ const handleCorrectCase = (step: any, index: number) => {
   }
   router.push({
     path: `/home/case/detail/${caseId}`,
-    query
+    query,
   })
 }
 
@@ -905,18 +1107,23 @@ const saveVisibilityConfig = async () => {
   saveConfigLoading.value = true
   try {
     const [width, height] = videoResolution.value.split('x').map(Number)
-    const res = await updateVisibilityConfig('task', {
-      headless: visibilityConfig.value.headless,
-      recordVideo: visibilityConfig.value.recordVideo,
-      videoResolution: [width, height],
-      videoFps: visibilityConfig.value.videoFps
-    }, taskId.value)
+    const res = await updateVisibilityConfig(
+      'task',
+      {
+        headless: visibilityConfig.value.headless,
+        recordVideo: visibilityConfig.value.recordVideo,
+        videoResolution: [width, height],
+        videoFps: visibilityConfig.value.videoFps,
+      },
+      taskId.value
+    )
 
-    if (res.data.code === 200) {
+    const body = unwrapApiResponse<any>(res)
+    if (body.code === 200) {
       ElMessage.success('配置已保存')
       showConfigDialog.value = false
     } else {
-      ElMessage.error(res.data.message || '保存失败')
+      ElMessage.error(body.message || '保存失败')
     }
   } catch (error) {
     console.error('保存配置失败:', error)
@@ -929,8 +1136,9 @@ const saveVisibilityConfig = async () => {
 const loadVisibilityConfig = async () => {
   try {
     const res = await getVisibilityConfig('task', taskId.value)
-    if (res.data.code === 200) {
-      const config = res.data.data
+    const body = unwrapApiResponse<any>(res)
+    if (body.code === 200 && body.data) {
+      const config = body.data
       visibilityConfig.value.headless = config.headless
       visibilityConfig.value.recordVideo = config.record_video
       visibilityConfig.value.videoFps = config.video_fps
@@ -962,7 +1170,7 @@ const connectWebSocketForRealtimeUpdate = () => {
     },
     onError: (error: any) => {
       console.error('WebSocket错误:', error)
-    }
+    },
   })
 }
 
@@ -1032,12 +1240,16 @@ watch(currentStepIndex, () => {
 })
 
 // 生命周期
-onMounted(() => {
-  loadTaskInfo()
-  loadExecutionStatus()
+const initializePage = async () => {
+  await loadTaskInfo()
+  await loadExecutionStatus()
   loadExecutionLogs()
   loadVisibilityConfig()
   connectWebSocketForRealtimeUpdate()
+}
+
+onMounted(() => {
+  void initializePage()
 })
 
 onUnmounted(() => {
@@ -1053,12 +1265,19 @@ onUnmounted(() => {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background:
+    radial-gradient(circle at top right, rgba(64, 158, 255, 0.1), transparent 28%),
+    linear-gradient(180deg, #f7faff 0%, #f3f6fb 100%);
 
   .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    padding: 20px 24px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 249, 255, 0.98) 100%);
+    box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
 
     .header-left {
       display: flex;
@@ -1068,6 +1287,7 @@ onUnmounted(() => {
       .page-title {
         margin: 0;
         font-size: 20px;
+        color: #1f2d3d;
       }
     }
 
@@ -1090,14 +1310,22 @@ onUnmounted(() => {
           --el-switch-on-color: #409eff;
         }
       }
+
+      .journey-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
     }
   }
 
   .execution-progress {
     margin-bottom: 20px;
-    padding: 15px;
-    background: #f5f7fa;
-    border-radius: 8px;
+    padding: 18px 20px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(247, 250, 255, 0.96) 100%);
+    border: 1px solid rgba(220, 230, 241, 0.9);
+    border-radius: 20px;
+    box-shadow: 0 12px 28px rgba(31, 45, 61, 0.06);
 
     .progress-text {
       font-size: 14px;
@@ -1125,15 +1353,15 @@ onUnmounted(() => {
 
     .steps-panel {
       width: 300px;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.98) 100%);
+      border-radius: 20px;
+      box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
       display: flex;
       flex-direction: column;
 
       .panel-header {
-        padding: 15px;
-        border-bottom: 1px solid #ebeef5;
+        padding: 18px 18px 16px;
+        border-bottom: 1px solid rgba(228, 235, 243, 0.92);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -1154,16 +1382,16 @@ onUnmounted(() => {
           align-items: flex-start;
           padding: 12px;
           margin-bottom: 8px;
-          border-radius: 6px;
+          border-radius: 14px;
           cursor: pointer;
           transition: all 0.3s;
 
           &:hover {
-            background: #f5f7fa;
+            background: rgba(64, 158, 255, 0.06);
           }
 
           &.active {
-            background: #ecf5ff;
+            background: rgba(64, 158, 255, 0.1);
             border-left: 3px solid #409eff;
           }
 
@@ -1239,16 +1467,16 @@ onUnmounted(() => {
 
         .timeline-step {
           cursor: pointer;
-          padding: 8px;
-          border-radius: 4px;
+          padding: 10px;
+          border-radius: 12px;
           transition: background 0.3s;
 
           &:hover {
-            background: #f5f7fa;
+            background: rgba(64, 158, 255, 0.06);
           }
 
           &.active {
-            background: #ecf5ff;
+            background: rgba(64, 158, 255, 0.1);
           }
 
           .step-action {
@@ -1266,15 +1494,15 @@ onUnmounted(() => {
 
     .screenshot-panel {
       flex: 1;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.98) 100%);
+      border-radius: 20px;
+      box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
       display: flex;
       flex-direction: column;
 
       .panel-header {
-        padding: 15px;
-        border-bottom: 1px solid #ebeef5;
+        padding: 18px 18px 16px;
+        border-bottom: 1px solid rgba(228, 235, 243, 0.92);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -1291,7 +1519,7 @@ onUnmounted(() => {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #f5f7fa;
+        background: linear-gradient(180deg, #f7faff 0%, #f3f6fb 100%);
         overflow: auto;
 
         .screenshot-wrapper {
@@ -1302,8 +1530,8 @@ onUnmounted(() => {
           .screenshot-image {
             max-width: 100%;
             max-height: 100%;
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 12px;
+            box-shadow: 0 18px 36px rgba(31, 45, 61, 0.16);
             cursor: zoom-in;
           }
 
@@ -1319,8 +1547,8 @@ onUnmounted(() => {
 
       .ai-analysis {
         padding: 15px;
-        border-top: 1px solid #ebeef5;
-        background: #f5f7fa;
+        border-top: 1px solid rgba(228, 235, 243, 0.92);
+        background: linear-gradient(180deg, #f7faff 0%, #f3f7fd 100%);
 
         .analysis-header {
           display: flex;
@@ -1340,9 +1568,9 @@ onUnmounted(() => {
 
     .side-panel {
       width: 350px;
-      background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.98) 100%);
+      border-radius: 20px;
+      box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
       display: flex;
       flex-direction: column;
 
@@ -1360,15 +1588,15 @@ onUnmounted(() => {
       .logs-container {
         height: 100%;
         overflow-y: auto;
-        padding: 10px;
+          padding: 14px;
         font-family: 'Courier New', monospace;
         font-size: 12px;
         line-height: 1.6;
 
         .log-item {
-          margin-bottom: 4px;
-          padding: 4px;
-          border-radius: 3px;
+            margin-bottom: 6px;
+            padding: 8px 10px;
+            border-radius: 10px;
 
           &.info {
             color: #409eff;
@@ -1474,8 +1702,25 @@ onUnmounted(() => {
   }
 }
 
+@media (max-width: 1280px) {
+  .test-execution-page {
+    height: auto;
+    min-height: 100vh;
+
+    .main-content {
+      flex-direction: column;
+
+      .steps-panel,
+      .side-panel {
+        width: 100%;
+      }
+    }
+  }
+}
+
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -1493,7 +1738,8 @@ onUnmounted(() => {
 }
 
 @keyframes highlight-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(245, 108, 108, 0.4);
   }
   50% {

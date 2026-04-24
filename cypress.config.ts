@@ -9,5 +9,5 @@ export default defineConfig({
   },
   video: false,
   screenshotOnRunFailure: true,
-  chromeWebSecurity: false
+  chromeWebSecurity: false,
 })

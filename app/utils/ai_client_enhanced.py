@@ -22,36 +22,37 @@ from app.utils.ai_client_formatter import (
     normalize_new_format,
     normalize_old_format,
 )
-from app.utils.ai_client_prompt import (
-    build_weight_model,
-    sanitize_input,
-    build_ui_spec_description,
-    build_ui_specs_description,
-    build_project_env_info,
-)
 
 
 def generate_test_case_enhanced(context: Dict[str, Any]) -> Dict[str, Any]:
-    requirement = sanitize_input(context.get('requirement', ''))
-    test_points = context.get('test_points', [])
-    ui_specs = context.get('ui_specs', [])
-    project_config = context.get('project_config', {})
-    has_requirement = bool(requirement and requirement.strip())
-    has_ui = bool(ui_specs)
-    has_test_point = bool(test_points)
-    weight_desc, weight_example, weight_warning = build_weight_model(has_requirement, has_ui, has_test_point)
-    ui_desc = build_ui_specs_description(ui_specs) if has_ui else "无UI原型图解析结果"
-    env_desc = build_project_env_info(project_config)
-    test_points_text = ""
-    if test_points:
-        test_points_text = "## 测试点列表\n"
-        for i, tp in enumerate(test_points):
-            module = tp.get('module', '')
-            function = tp.get('function', '')
-            point = tp.get('point', '')
-            priority = tp.get('priority', 2)
-            test_points_text += f"{i+1}. [{module} - {function}] {point} (优先级:{priority})\n"
-    prompt = f"""你是一名高级测试工程师，请根据以下信息生成一个高质量的测试用例。
+    graph_prompt = context.get('graph_prompt')
+    if graph_prompt:
+        prompt = graph_prompt
+    else:
+        from app.utils.ai_client_prompt import (
+            sanitize_input, build_weight_model,
+            build_ui_specs_description, build_project_env_info
+        )
+        requirement = sanitize_input(context.get('requirement', ''))
+        test_points = context.get('test_points', [])
+        ui_specs = context.get('ui_specs', [])
+        project_config = context.get('project_config', {})
+        has_requirement = bool(requirement and requirement.strip())
+        has_ui = bool(ui_specs)
+        has_test_point = bool(test_points)
+        weight_desc, weight_example, weight_warning = build_weight_model(has_requirement, has_ui, has_test_point)
+        ui_desc = build_ui_specs_description(ui_specs) if has_ui else "无UI原型图解析结果"
+        env_desc = build_project_env_info(project_config)
+        test_points_text = ""
+        if test_points:
+            test_points_text = "## 测试点列表\n"
+            for i, tp in enumerate(test_points):
+                module = tp.get('module', '')
+                function = tp.get('function', '')
+                point = tp.get('point', '')
+                priority = tp.get('priority', 2)
+                test_points_text += f"{i+1}. [{module} - {function}] {point} (优先级:{priority})\n"
+        prompt = f"""你是一名高级测试工程师，请根据以下信息生成一个高质量的测试用例。
 
 {weight_desc}
 
@@ -88,9 +89,11 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> Dict[str, Any]:
   "case_type": "ui_automation/manual/api_automation/performance/security",
   "test_category": "与case_type保持一致",
   "priority": "P0/P2/P3",
+  "test_data": {{"normal": {{}}, "boundary": {{}}, "abnormal": {{}}}},
   "steps": [
     {{
-      "step": 1,
+      "step": "1",
+      "description": "步骤1描述",
       "action": "具体的业务操作描述",
       "action_type": "click/input/navigate/verify/wait/scroll/hover/select/captcha/refresh/keypress",
       "input_value": "输入值（仅input类型有值，其他为空字符串）",
@@ -98,7 +101,6 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> Dict[str, Any]:
       "expected_result": "该步骤的预期验证条件"
     }}
   ],
-  "expected_results": ["步骤1的预期验证条件", "步骤2的预期验证条件"],
   "expected_result": "所有步骤预期结果的汇总描述"
 }}
 
@@ -108,7 +110,9 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> Dict[str, Any]:
 3. **用例类型**：ui_automation(UI交互)/manual(人工判断)/api_automation(接口验证)/performance(性能)/security(安全)
 4. **优先级**：P0(核心功能)/P2(一般验证)/P3(边界异常)
 5. **覆盖要求**：必须覆盖需求文档所有功能点；每个测试点至少一个用例；有UI原型图时操作对象须与UI元素对应
+6. **格式统一**：step字段为字符串类型；必须包含test_data字段（normal/boundary/abnormal三个空对象）
 """
+
     client = get_ai_client()
     max_retries = 3
     for attempt in range(max_retries):

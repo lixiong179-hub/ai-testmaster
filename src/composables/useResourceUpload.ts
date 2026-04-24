@@ -11,20 +11,20 @@ import { RESOURCE_CONFIG } from '@/constants/resource'
 import type { Resource } from './useResourceList'
 
 interface ResourceFormData {
-  id: number | null;
-  project_id: number | '';
-  name: string;
-  resource_type: string;
-  file: File | null;
-  description: string;
-  is_active: boolean;
-  iteration_id: number | null;
+  id: number | null
+  project_id: number | ''
+  name: string
+  resource_type: string
+  file: File | null
+  description: string
+  is_active: boolean
+  iteration_id: number | null
 }
 
 interface ApiResponseData {
-  code?: number;
-  data?: unknown;
-  total?: number;
+  code?: number
+  data?: unknown
+  total?: number
 }
 
 export function useResourceUpload(
@@ -35,7 +35,7 @@ export function useResourceUpload(
   const fileDialogVisible = ref(false)
   const fileDialogMode = ref<'add' | 'edit'>('add')
   const fileFormRef = ref<FormInstance>()
-  const uploadRef = ref<InstanceType<typeof import('element-plus')['ElUpload']>>()
+  const uploadRef = ref<InstanceType<(typeof import('element-plus'))['ElUpload']>>()
   const submitting = ref(false)
 
   // ✅ 强制确保弹窗初始化时关闭（解决自动打开的问题）
@@ -54,21 +54,22 @@ export function useResourceUpload(
     file: null,
     description: '',
     is_active: true,
-    iteration_id: null
+    iteration_id: null,
   })
 
   // 表单验证规则
   const fileFormRules = {
     project_id: [{ required: true, message: '请选择项目', trigger: 'change' }],
     name: [{ required: true, message: '请输入资源名称', trigger: 'blur' }],
-    resource_type: [{ required: true, message: '请选择资源类型', trigger: 'change' }]
+    resource_type: [{ required: true, message: '请选择资源类型', trigger: 'change' }],
   }
 
   // 计算属性：弹窗标题
-  const fileDialogTitle = computed(() => fileDialogMode.value === 'add' ? '上传文件' : '编辑文件')
+  const fileDialogTitle = computed(() => (fileDialogMode.value === 'add' ? '上传文件' : '编辑文件'))
 
   // 内部辅助：是否为批量上传模式
-  const checkIsBatchUpload = (): boolean => fileFormData.resource_type === 'ui_mockup' && fileDialogMode.value === 'add'
+  const checkIsBatchUpload = (): boolean =>
+    fileFormData.resource_type === 'ui_mockup' && fileDialogMode.value === 'add'
 
   /**
    * 打开新增文件弹窗
@@ -125,7 +126,7 @@ export function useResourceUpload(
     fileFormData.file = null
     fileFormData.description = ''
     fileFormData.is_active = true
-    fileFormData.iteration_id = null  // 重置为null，避免ElOption收到undefined
+    fileFormData.iteration_id = null // 重置为null，避免ElOption收到undefined
     selectedFile.value = null
     selectedFiles.value = []
   }
@@ -171,7 +172,8 @@ export function useResourceUpload(
    * 获取当前选中迭代的名称
    */
   const getCurrentIterationName = (): string => {
-    if (fileFormData.iteration_id === null || fileFormData.iteration_id === undefined) return '未选择'
+    if (fileFormData.iteration_id === null || fileFormData.iteration_id === undefined)
+      return '未选择'
     if (fileFormData.iteration_id === RESOURCE_CONFIG.ITERATION_UNCLASSIFIED) return '未分类'
     return iterationManager.getIterationNameById(fileFormData.iteration_id)
   }
@@ -201,7 +203,7 @@ export function useResourceUpload(
         const response = await request.put(`/api/v1/file/${fileFormData.id}`, {
           resource_type: fileFormData.resource_type,
           description: fileFormData.description,
-          iteration_id: fileFormData.iteration_id
+          iteration_id: fileFormData.iteration_id,
         })
         if ((response as ApiResponseData)?.code === 200) {
           ElMessage.success('文件信息更新成功')
@@ -225,13 +227,17 @@ export function useResourceUpload(
           undefined,
           // ✅ 修复：使用统一的iteration_id转换逻辑
           fileFormData.iteration_id !== null
-            ? (fileFormData.iteration_id === RESOURCE_CONFIG.ITERATION_UNCLASSIFIED ? -1 : fileFormData.iteration_id)
+            ? fileFormData.iteration_id === RESOURCE_CONFIG.ITERATION_UNCLASSIFIED
+              ? -1
+              : fileFormData.iteration_id
             : undefined
         )
 
         const result = response?.data || response
         if (result?.total > 0) {
-          ElMessage.success(`成功上传 ${result.total} 张UI原型图到迭代 "${getCurrentIterationName()}"`)
+          ElMessage.success(
+            `成功上传 ${result.total} 张UI原型图到迭代 "${getCurrentIterationName()}"`
+          )
         } else {
           ElMessage.warning('上传完成，但未成功创建任何屏幕记录')
         }
@@ -254,12 +260,15 @@ export function useResourceUpload(
       formData.append('description', fileFormData.description || '')
       // ✅ 修复：使用统一的iteration_id转换逻辑
       if (fileFormData.iteration_id !== null) {
-        const iterationValue = fileFormData.iteration_id === RESOURCE_CONFIG.ITERATION_UNCLASSIFIED ? -1 : fileFormData.iteration_id
+        const iterationValue =
+          fileFormData.iteration_id === RESOURCE_CONFIG.ITERATION_UNCLASSIFIED
+            ? -1
+            : fileFormData.iteration_id
         formData.append('iteration_id', iterationValue.toString())
       }
 
       const response = await request.post('/api/v1/file/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
       })
 
       if ((response as ApiResponseData)?.code === 200 || response?.data) {
@@ -281,13 +290,17 @@ export function useResourceUpload(
     fileFormRef,
     uploadRef,
     submitting,
-    get isSubmitting() { return submitting.value === true },
+    get isSubmitting() {
+      return submitting.value === true
+    },
     selectedFile,
     selectedFiles,
     fileFormData,
     fileFormRules,
     fileDialogTitle,
-    get isBatchUpload() { return fileFormData.resource_type === 'ui_mockup' && fileDialogMode.value === 'add' },
+    get isBatchUpload() {
+      return fileFormData.resource_type === 'ui_mockup' && fileDialogMode.value === 'add'
+    },
 
     handleAddFile,
     handleEdit,
@@ -296,6 +309,6 @@ export function useResourceUpload(
     handleFileRemove,
     handleExceed,
     handleFileSubmit,
-    getCurrentIterationName
+    getCurrentIterationName,
   })
 }

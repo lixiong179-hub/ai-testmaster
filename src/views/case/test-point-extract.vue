@@ -3,20 +3,17 @@
     <!-- 页面标题 -->
     <div class="page-header">
       <div class="header-left">
-        <h2>测试点提取</h2>
+        <div>
+          <h2>测试点提取向导</h2>
+          <p class="page-subtitle">用于复杂提取与兼容场景，日常维护请优先使用测试点管理</p>
+        </div>
         <div class="step-nav-buttons" v-if="currentStep > 0 || currentStep < 3">
-          <el-button 
-            :disabled="currentStep === 0" 
-            @click="goToPrevStep"
-            round
-            plain
-            size="small"
-          >
+          <el-button :disabled="currentStep === 0" @click="goToPrevStep" round plain size="small">
             <el-icon><ArrowLeft /></el-icon>
             上一步
           </el-button>
-          <el-button 
-            :disabled="currentStep === 3" 
+          <el-button
+            :disabled="currentStep === 3"
             @click="goToNextStep"
             type="primary"
             round
@@ -27,11 +24,25 @@
           </el-button>
         </div>
       </div>
-      <el-button @click="handleBack">
-        <el-icon><ArrowLeft /></el-icon>
-        返回列表
-      </el-button>
+      <div class="header-actions">
+        <el-button type="primary" plain @click="goToManagement">
+          <el-icon><List /></el-icon>
+          前往测试点管理
+        </el-button>
+        <el-button @click="handleBack">
+          <el-icon><ArrowLeft /></el-icon>
+          返回列表
+        </el-button>
+      </div>
     </div>
+
+    <el-alert
+      title="该页面已调整为高级提取向导。XMind 导入、日常增删改查和常规批量生成已统一到“测试点管理”页。"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="mode-alert"
+    />
 
     <!-- 步骤条 -->
     <div class="steps-wrapper steps-enhanced">
@@ -57,7 +68,7 @@
             </div>
           </template>
         </el-step>
-        <el-step title="管理测试点" description="编辑与管理">
+        <el-step title="校验结果" description="审核并保存">
           <template #icon>
             <div class="step-icon-custom">
               <el-icon><List /></el-icon>
@@ -72,7 +83,7 @@
       <!-- 左侧：操作区 -->
       <div class="left-panel">
         <transition name="slide-fade" mode="out-in">
-        <!-- 步骤1：选择项目 -->
+          <!-- 步骤1：选择项目 -->
           <div v-if="currentStep === 0" key="step1" class="step-content">
             <div class="step-title step-title-gradient">
               <el-icon><FolderOpened /></el-icon>
@@ -87,14 +98,22 @@
                     <el-icon :size="64" color="#409EFF"><FolderOpened /></el-icon>
                   </div>
                   <div class="floating-icons">
-                    <div class="float-icon float-1"><el-icon :size="24"><Document /></el-icon></div>
-                    <div class="float-icon float-2"><el-icon :size="20"><MagicStick /></el-icon></div>
-                    <div class="float-icon float-3"><el-icon :size="22"><DataAnalysis /></el-icon></div>
+                    <div class="float-icon float-1">
+                      <el-icon :size="24"><Document /></el-icon>
+                    </div>
+                    <div class="float-icon float-2">
+                      <el-icon :size="20"><MagicStick /></el-icon>
+                    </div>
+                    <div class="float-icon float-3">
+                      <el-icon :size="22"><DataAnalysis /></el-icon>
+                    </div>
                   </div>
                 </div>
                 <div class="guide-content">
                   <h3 class="guide-title">选择您的项目</h3>
-                  <p class="guide-description">选择一个项目后，AI将帮助您自动提取测试点，提升测试效率</p>
+                  <p class="guide-description">
+                    选择一个项目后，AI将帮助您自动提取测试点，提升测试效率
+                  </p>
                 </div>
                 <div class="project-select-enhanced">
                   <el-select
@@ -128,20 +147,26 @@
                       <div class="wf-number">1</div>
                       <span>选择项目</span>
                     </div>
-                    <div class="wf-arrow"><el-icon><ArrowRight /></el-icon></div>
+                    <div class="wf-arrow">
+                      <el-icon><ArrowRight /></el-icon>
+                    </div>
                     <div class="wf-step">
                       <div class="wf-number">2</div>
                       <span>上传需求</span>
                     </div>
-                    <div class="wf-arrow"><el-icon><ArrowRight /></el-icon></div>
+                    <div class="wf-arrow">
+                      <el-icon><ArrowRight /></el-icon>
+                    </div>
                     <div class="wf-step">
                       <div class="wf-number">3</div>
                       <span>AI提取</span>
                     </div>
-                    <div class="wf-arrow"><el-icon><ArrowRight /></el-icon></div>
+                    <div class="wf-arrow">
+                      <el-icon><ArrowRight /></el-icon>
+                    </div>
                     <div class="wf-step">
                       <div class="wf-number">4</div>
-                      <span>管理测试点</span>
+                      <span>校验结果</span>
                     </div>
                   </div>
                 </div>
@@ -157,36 +182,48 @@
                     <div class="project-info-main">
                       <h3 class="project-name-large">{{ selectedProjectInfo?.name }}</h3>
                       <div class="project-meta-tags">
-                        <el-tag type="primary" effect="plain" size="small">ID: {{ selectedProjectInfo?.id }}</el-tag>
-                        <el-tag type="success" effect="plain" size="small">{{ files.length }} 个资源文件</el-tag>
+                        <el-tag type="primary" effect="plain" size="small"
+                          >ID: {{ selectedProjectInfo?.id }}</el-tag
+                        >
+                        <el-tag type="success" effect="plain" size="small"
+                          >{{ files.length }} 个资源文件</el-tag
+                        >
                       </div>
                     </div>
                   </div>
                   <div class="project-card-body">
                     <div class="info-grid">
                       <div class="grid-item">
-                        <div class="grid-icon"><el-icon :size="28" color="#409EFF"><Files /></el-icon></div>
+                        <div class="grid-icon">
+                          <el-icon :size="28" color="#409EFF"><Files /></el-icon>
+                        </div>
                         <div class="grid-content">
                           <div class="grid-value">{{ files.length }}</div>
                           <div class="grid-label">资源文件</div>
                         </div>
                       </div>
                       <div class="grid-item">
-                        <div class="grid-icon"><el-icon :size="28" color="#67C23A"><Document /></el-icon></div>
+                        <div class="grid-icon">
+                          <el-icon :size="28" color="#67C23A"><Document /></el-icon>
+                        </div>
                         <div class="grid-content">
                           <div class="grid-value">{{ getResourceTypeCount('requirement') }}</div>
                           <div class="grid-label">需求文档</div>
                         </div>
                       </div>
                       <div class="grid-item">
-                        <div class="grid-icon"><el-icon :size="28" color="#E6A23C"><Picture /></el-icon></div>
+                        <div class="grid-icon">
+                          <el-icon :size="28" color="#E6A23C"><Picture /></el-icon>
+                        </div>
                         <div class="grid-content">
                           <div class="grid-value">{{ getResourceTypeCount('ui_mockup') }}</div>
                           <div class="grid-label">UI原型</div>
                         </div>
                       </div>
                       <div class="grid-item">
-                        <div class="grid-icon"><el-icon :size="28" color="#F56C6C"><DocumentCopy /></el-icon></div>
+                        <div class="grid-icon">
+                          <el-icon :size="28" color="#F56C6C"><DocumentCopy /></el-icon>
+                        </div>
                         <div class="grid-content">
                           <div class="grid-value">{{ getResourceTypeCount('api_doc') }}</div>
                           <div class="grid-label">API文档</div>
@@ -258,7 +295,10 @@
                 </div>
               </div>
               <div v-else class="empty-hint">
-                <el-empty description="该项目暂无上传文件，请先在「资源管理」中添加" :image-size="120" />
+                <el-empty
+                  description="该项目暂无上传文件，请先在「资源管理」中添加"
+                  :image-size="120"
+                />
               </div>
             </div>
           </div>
@@ -273,10 +313,14 @@
               <!-- 已选资源信息 -->
               <div v-if="selectedResource" class="selected-resource-card">
                 <div class="resource-summary">
-                  <el-icon :size="32"><component :is="getResourceIcon(selectedResource.resource_type)" /></el-icon>
+                  <el-icon :size="32"
+                    ><component :is="getResourceIcon(selectedResource.resource_type)"
+                  /></el-icon>
                   <div>
                     <div class="resource-name">{{ selectedResource.display_name }}</div>
-                    <div class="resource-meta">{{ selectedResource.type_label }} · {{ selectedResource.size_text }}</div>
+                    <div class="resource-meta">
+                      {{ selectedResource.type_label }} · {{ selectedResource.size_text }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -321,7 +365,9 @@
                   </div>
                   <div class="success-info">
                     <h3 class="success-title">提取成功！</h3>
-                    <p class="success-desc">共提取 <strong>{{ testPoints.length }}</strong> 个测试点</p>
+                    <p class="success-desc">
+                      共提取 <strong>{{ testPoints.length }}</strong> 个测试点
+                    </p>
                   </div>
                 </div>
                 <div class="success-stats-grid">
@@ -344,7 +390,7 @@
                 </div>
                 <div class="success-actions">
                   <el-button type="primary" size="large" @click="goToNextStep">
-                    下一步：管理测试点
+                    下一步：校验结果
                     <el-icon><ArrowRight /></el-icon>
                   </el-button>
                   <el-button size="large" @click="retryExtract" plain>
@@ -366,7 +412,12 @@
                     <p class="ready-text">AI将自动分析需求文档并提取测试点</p>
                   </template>
                   <template #default>
-                    <el-button type="primary" size="large" @click="startExtract" :disabled="!selectedResource">
+                    <el-button
+                      type="primary"
+                      size="large"
+                      @click="startExtract"
+                      :disabled="!selectedResource"
+                    >
                       <el-icon><MagicStick /></el-icon>
                       开始提取
                     </el-button>
@@ -376,11 +427,11 @@
             </div>
           </div>
 
-          <!-- 步骤4：管理测试点 -->
+          <!-- 步骤4：校验与保存 -->
           <div v-else-if="currentStep === 3" key="step4" class="step-content step-full">
             <div class="step-title">
               <el-icon><List /></el-icon>
-              <span>管理测试点 (共{{ savedFromDb ? dbTotal : testPoints.length }}个)</span>
+              <span>校验提取结果 (共{{ savedFromDb ? dbTotal : testPoints.length }}个)</span>
             </div>
             <div class="step-body">
               <!-- 批量操作工具栏 -->
@@ -392,7 +443,12 @@
                     :closable="false"
                     show-icon
                   />
-                  <el-button type="danger" size="small" @click="batchDeleteTestPoints" :loading="batchDeleting">
+                  <el-button
+                    type="danger"
+                    size="small"
+                    @click="batchDeleteTestPoints"
+                    :loading="batchDeleting"
+                  >
                     <el-icon><Delete /></el-icon>
                     批量删除
                   </el-button>
@@ -401,11 +457,15 @@
                 <div class="action-buttons">
                   <el-button type="success" @click="saveToDatabase" :loading="saving">
                     <el-icon><Check /></el-icon>
-                    保存用例
+                    保存测试点
                   </el-button>
                   <el-button type="primary" @click="generateTestCases">
                     <el-icon><MagicStick /></el-icon>
-                    生成测试用例
+                    进入 AI 生成
+                  </el-button>
+                  <el-button @click="goToManagement" :disabled="!currentProjectId">
+                    <el-icon><List /></el-icon>
+                    回到测试点管理
                   </el-button>
                 </div>
               </div>
@@ -437,7 +497,12 @@
                   </el-table-column>
                   <el-table-column label="操作" width="180" fixed="right">
                     <template #default="{ row }">
-                      <el-button type="primary" size="small" @click="editTestPoint(row)" :loading="updating">
+                      <el-button
+                        type="primary"
+                        size="small"
+                        @click="editTestPoint(row)"
+                        :loading="updating"
+                      >
                         <el-icon><Edit /></el-icon>编辑
                       </el-button>
                       <el-popconfirm title="确定删除此测试点？" @confirm="deleteTestPoint(row)">
@@ -452,7 +517,13 @@
                 </el-table>
 
                 <!-- 分页 -->
-                <div class="pagination-wrapper" v-if="(savedFromDb && dbTotal > pageSize) || (!savedFromDb && testPoints.length > pageSize)">
+                <div
+                  class="pagination-wrapper"
+                  v-if="
+                    (savedFromDb && dbTotal > pageSize) ||
+                    (!savedFromDb && testPoints.length > pageSize)
+                  "
+                >
                   <el-pagination
                     v-model:current-page="currentPage"
                     :page-size="pageSize"
@@ -489,26 +560,32 @@
                   <el-icon :size="56" color="#fff"><MagicStick /></el-icon>
                 </div>
               </div>
-              <h3 class="welcome-title">AI 智能测试点提取</h3>
-              <p class="welcome-desc">基于人工智能技术，自动从需求文档中提取测试点</p>
-              
+              <h3 class="welcome-title">高级测试点提取向导</h3>
+              <p class="welcome-desc">适用于复杂资源筛选、兼容旧流程和逐步提取场景</p>
+
               <div class="feature-list">
                 <div class="feature-item">
-                  <div class="feature-icon"><el-icon :size="20" color="#409EFF"><Document /></el-icon></div>
+                  <div class="feature-icon">
+                    <el-icon :size="20" color="#409EFF"><Document /></el-icon>
+                  </div>
                   <div class="feature-text">
                     <div class="feature-name">智能解析</div>
                     <div class="feature-desc">自动识别需求文档结构</div>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <div class="feature-icon"><el-icon :size="20" color="#67C23A"><MagicStick /></el-icon></div>
+                  <div class="feature-icon">
+                    <el-icon :size="20" color="#67C23A"><MagicStick /></el-icon>
+                  </div>
                   <div class="feature-text">
                     <div class="feature-name">AI 提取</div>
                     <div class="feature-desc">智能生成测试点</div>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <div class="feature-icon"><el-icon :size="20" color="#E6A23C"><DataAnalysis /></el-icon></div>
+                  <div class="feature-icon">
+                    <el-icon :size="20" color="#E6A23C"><DataAnalysis /></el-icon>
+                  </div>
                   <div class="feature-text">
                     <div class="feature-name">数据分析</div>
                     <div class="feature-desc">多维度统计分析</div>
@@ -531,7 +608,7 @@
                     <span class="summary-id">ID: {{ selectedProjectInfo.id }}</span>
                   </div>
                 </div>
-                
+
                 <div class="summary-stats">
                   <div class="summary-stat-item">
                     <div class="stat-icon-wrapper stat-blue">
@@ -558,17 +635,26 @@
                   <div class="preview-list-title">资源类型分布</div>
                   <div class="preview-type-items">
                     <div class="type-item">
-                      <div class="type-bar type-requirement" :style="{ width: getResourceTypePercentage('requirement') + '%' }"></div>
+                      <div
+                        class="type-bar type-requirement"
+                        :style="{ width: getResourceTypePercentage('requirement') + '%' }"
+                      ></div>
                       <span class="type-label">需求文档</span>
                       <span class="type-count">{{ getResourceTypeCount('requirement') }}</span>
                     </div>
                     <div class="type-item">
-                      <div class="type-bar type-ui" :style="{ width: getResourceTypePercentage('ui_mockup') + '%' }"></div>
+                      <div
+                        class="type-bar type-ui"
+                        :style="{ width: getResourceTypePercentage('ui_mockup') + '%' }"
+                      ></div>
                       <span class="type-label">UI原型</span>
                       <span class="type-count">{{ getResourceTypeCount('ui_mockup') }}</span>
                     </div>
                     <div class="type-item">
-                      <div class="type-bar type-api" :style="{ width: getResourceTypePercentage('api_doc') + '%' }"></div>
+                      <div
+                        class="type-bar type-api"
+                        :style="{ width: getResourceTypePercentage('api_doc') + '%' }"
+                      ></div>
                       <span class="type-label">API文档</span>
                       <span class="type-count">{{ getResourceTypeCount('api_doc') }}</span>
                     </div>
@@ -590,7 +676,11 @@
           </div>
 
           <!-- 步骤2右侧：资源详情预览 -->
-          <div v-else-if="currentStep === 1 && selectedResource" key="preview2" class="preview-card">
+          <div
+            v-else-if="currentStep === 1 && selectedResource"
+            key="preview2"
+            class="preview-card"
+          >
             <div class="preview-header">
               <el-icon><View /></el-icon>
               <span>资源详情</span>
@@ -605,7 +695,10 @@
                 <div class="detail-info">
                   <div class="detail-name">{{ selectedResource.display_name }}</div>
                   <div class="detail-meta">
-                    <el-tag :type="getResourceTypeTagType(selectedResource.resource_type)" size="small">
+                    <el-tag
+                      :type="getResourceTypeTagType(selectedResource.resource_type)"
+                      size="small"
+                    >
                       {{ getResourceTypeLabel(selectedResource.resource_type) }}
                     </el-tag>
                   </div>
@@ -631,7 +724,11 @@
           </div>
 
           <!-- 步骤2右侧：未选择资源提示 -->
-          <div v-else-if="currentStep === 1 && !selectedResource" key="preview2-empty" class="preview-card preview-empty">
+          <div
+            v-else-if="currentStep === 1 && !selectedResource"
+            key="preview2-empty"
+            class="preview-card preview-empty"
+          >
             <el-empty description="请从左侧选择一个需求资源" :image-size="100" />
           </div>
 
@@ -639,7 +736,9 @@
           <div v-else-if="currentStep === 2" key="preview3" class="preview-card">
             <div class="preview-header">
               <el-icon><DataAnalysis /></el-icon>
-              <span>{{ extracting ? '提取中...' : testPoints.length > 0 ? '提取结果' : '等待提取' }}</span>
+              <span>{{
+                extracting ? '提取中...' : testPoints.length > 0 ? '提取结果' : '等待提取'
+              }}</span>
             </div>
             <div class="preview-body">
               <div v-if="extracting" class="stats-skeleton">
@@ -670,7 +769,11 @@
                 <div class="module-distribution">
                   <div class="distribution-title">模块分布</div>
                   <div class="module-list">
-                    <div v-for="(count, module) in getModuleDistribution()" :key="module" class="module-item">
+                    <div
+                      v-for="(count, module) in getModuleDistribution()"
+                      :key="module"
+                      class="module-item"
+                    >
                       <span class="module-name">{{ module }}</span>
                       <span class="module-count">{{ count }}</span>
                     </div>
@@ -699,19 +802,19 @@
               <div class="guide-list">
                 <div class="guide-item">
                   <el-icon color="#67C23A"><Check /></el-icon>
-                  <span>支持批量选择和删除测试点</span>
+                  <span>支持逐条校验提取结果后再保存</span>
                 </div>
                 <div class="guide-item">
                   <el-icon color="#409EFF"><Edit /></el-icon>
-                  <span>可编辑单个测试点的详细信息</span>
+                  <span>可编辑单个测试点后再入库</span>
                 </div>
                 <div class="guide-item">
                   <el-icon color="#E6A23C"><FolderAdd /></el-icon>
-                  <span>保存到数据库以便后续使用</span>
+                  <span>建议保存后回测试点管理继续日常维护</span>
                 </div>
                 <div class="guide-item">
                   <el-icon color="#F56C6C"><MagicStick /></el-icon>
-                  <span>一键生成完整测试用例</span>
+                  <span>仅在需要高级流程时再进入 AI 生成页</span>
                 </div>
               </div>
               <div class="quick-stats" v-if="testPoints.length > 0">
@@ -731,12 +834,7 @@
     </div>
 
     <!-- 编辑测试点对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      title="编辑测试点"
-      width="600px"
-      destroy-on-close
-    >
+    <el-dialog v-model="dialogVisible" title="编辑测试点" width="600px" destroy-on-close>
       <el-form :model="editForm" label-width="120px">
         <el-form-item label="模块" required>
           <el-input v-model="editForm.module" placeholder="如：登录模块" />
@@ -771,9 +869,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowLeft,
   ArrowRight,
@@ -796,103 +894,103 @@ import {
   Picture,
   DocumentCopy,
   RefreshLeft,
-  CircleCheckFilled
-} from '@element-plus/icons-vue';
-import request from '@/utils/request';
-import { testPointApi } from '@/api/testPoint';
+  CircleCheckFilled,
+} from '@element-plus/icons-vue'
+import request from '@/utils/request'
+import { testPointApi } from '@/api/testPoint'
 
 // ==================== 类型定义 ====================
 
 interface TestPoint {
-  id: number;
-  module: string;
-  function: string;
-  point: string;
-  priority: number;
-  ai_prompt?: string;
-  create_time?: string;
-  _raw?: any;
+  id: number
+  module: string
+  function: string
+  point: string
+  priority: number
+  ai_prompt?: string
+  create_time?: string
+  _raw?: any
 }
 
 interface Project {
-  id: number;
-  name: string;
+  id: number
+  name: string
 }
 
 interface File {
-  id: number;
-  project_id: number;
-  file_name: string;
-  file_url: string;
-  file_type: string;
-  size: number;
-  upload_time: string;
-  file_source: string;
-  resource_type?: string;
+  id: number
+  project_id: number
+  file_name: string
+  file_url: string
+  file_type: string
+  size: number
+  upload_time: string
+  file_source: string
+  resource_type?: string
 }
 
 interface ResourceRow {
-  source: 'file';
-  id: number;
-  project_id: number;
-  display_name: string;
-  resource_type: string;
-  type_label: string;
-  size_text: string;
-  time_text: string;
+  source: 'file'
+  id: number
+  project_id: number
+  display_name: string
+  resource_type: string
+  type_label: string
+  size_text: string
+  time_text: string
 }
 
 interface TestPointListResponse {
-  code: number;
+  code: number
   data?: {
-    items: TestPoint[];
-    total: number;
-  };
-  message?: string;
+    items: TestPoint[]
+    total: number
+  }
+  message?: string
 }
 
 // ==================== 路由 ====================
 
-const router = useRouter();
-const route = useRoute();
+const router = useRouter()
+const route = useRoute()
 
 // ==================== 步骤控制 ====================
 
-const currentStep = ref(0);
+const currentStep = ref(0)
 
 // ==================== 表单与状态 ====================
 
 const formData = reactive({
-  project_id: '' as number | ''
-});
+  project_id: '' as number | '',
+})
 
-const projects = ref<Project[]>([]);
-const files = ref<File[]>([]);
-const selectedResource = ref<ResourceRow | null>(null);
-const testPoints = ref<TestPoint[]>([]);
-const extracting = ref(false);
-const saving = ref(false);
-const batchDeleting = ref(false);
-const deleting = ref(false);
-const savedFromDb = ref(false);
-const loadingTestPoints = ref(false);
+const projects = ref<Project[]>([])
+const files = ref<File[]>([])
+const selectedResource = ref<ResourceRow | null>(null)
+const testPoints = ref<TestPoint[]>([])
+const extracting = ref(false)
+const saving = ref(false)
+const batchDeleting = ref(false)
+const deleting = ref(false)
+const savedFromDb = ref(false)
+const loadingTestPoints = ref(false)
 
 // 多选相关
-const selectedRows = ref<any[]>([]);
-const testPointTable = ref();
-const currentPage = ref(1);
-const pageSize = ref(10);
-const dbTotal = ref(0);
+const selectedRows = ref<any[]>([])
+const testPointTable = ref()
+const currentPage = ref(1)
+const pageSize = ref(10)
+const dbTotal = ref(0)
 
 // 进度相关
-const progress = ref(0);
-const progressText = ref('准备提取...');
-const progressInterval = ref<ReturnType<typeof setInterval> | null>(null);
+const progress = ref(0)
+const progressText = ref('准备提取...')
+const progressInterval = ref<ReturnType<typeof setInterval> | null>(null)
 
 // 错误与对话框
-const errorMessage = ref('');
-const dialogVisible = ref(false);
-const resourceTypeFilter = ref('');
+const errorMessage = ref('')
+const dialogVisible = ref(false)
+const resourceTypeFilter = ref('')
 
 // 编辑表单
 const editForm = reactive<TestPoint>({
@@ -900,19 +998,23 @@ const editForm = reactive<TestPoint>({
   module: '',
   function: '',
   point: '',
-  priority: 2
-});
+  priority: 2,
+})
 
-const editingIndex = ref(-1);
-const updating = ref(false);
+const editingIndex = ref(-1)
+const updating = ref(false)
 
 // ==================== 计算属性 ====================
 
 // 已选项目信息
 const selectedProjectInfo = computed(() => {
-  if (!formData.project_id) return null;
-  return projects.value.find(p => p.id === formData.project_id) || null;
-});
+  if (!formData.project_id) return null
+  return projects.value.find((p) => p.id === formData.project_id) || null
+})
+
+const currentProjectId = computed(() => {
+  return formData.project_id ? Number(formData.project_id) : 0
+})
 
 // 资源行数据
 const resourceRows = computed<ResourceRow[]>(() => {
@@ -924,201 +1026,204 @@ const resourceRows = computed<ResourceRow[]>(() => {
     resource_type: f.resource_type || 'other',
     type_label: getResourceTypeLabel(f.resource_type || 'other'),
     size_text: formatFileSize(f.size),
-    time_text: f.upload_time
-  }));
-});
+    time_text: f.upload_time,
+  }))
+})
 
 // 过滤后的资源列表
 const filteredResourceRows = computed(() => {
-  if (!resourceTypeFilter.value) return resourceRows.value;
-  return resourceRows.value.filter(r => r.resource_type === resourceTypeFilter.value);
-});
+  if (!resourceTypeFilter.value) return resourceRows.value
+  return resourceRows.value.filter((r) => r.resource_type === resourceTypeFilter.value)
+})
 
 // 进度状态
 const progressStatus = computed(() => {
-  if (progress.value === 100) return 'success';
-  if (errorMessage.value) return 'exception';
-  return '';
-});
+  if (progress.value === 100) return 'success'
+  if (errorMessage.value) return 'exception'
+  return ''
+})
 
 // 分页后的测试点
 const paginatedTestPoints = computed(() => {
-  if (savedFromDb.value) return testPoints.value;
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  return testPoints.value.slice(start, end);
-});
+  if (savedFromDb.value) return testPoints.value
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return testPoints.value.slice(start, end)
+})
 
 // ==================== API调用方法 ====================
 
 // 获取项目列表
 const getProjects = async () => {
   try {
-    const response = await request.get('/api/v1/project/list');
+    const response = await request.get('/api/v1/project/list')
     if (response && response.data && response.data.items) {
-      projects.value = response.data.items.filter((project: Project) => project.name !== '默认项目');
+      projects.value = response.data.items.filter((project: Project) => project.name !== '默认项目')
     } else {
-      projects.value = [];
+      projects.value = []
     }
   } catch (error) {
-    console.error('获取项目列表失败:', error);
-    projects.value = [];
+    console.error('获取项目列表失败:', error)
+    projects.value = []
   }
-};
+}
 
 // 加载上传文件
 const loadResources = async (projectId: number) => {
   try {
-    const fileRes = await request.get(`/api/v1/file/list/${projectId}`);
+    const fileRes = await request.get(`/api/v1/file/list/${projectId}`)
     if (fileRes && fileRes.data && fileRes.data.items) {
-      files.value = fileRes.data.items;
+      files.value = fileRes.data.items
     } else {
-      files.value = [];
+      files.value = []
     }
   } catch (error) {
-    console.error('获取文件列表失败:', error);
-    files.value = [];
+    console.error('获取文件列表失败:', error)
+    files.value = []
   }
-};
+}
 
 // 加载已保存的测试点
 const loadSavedTestPoints = async (projectId: number, page = 1) => {
-  loadingTestPoints.value = true;
+  loadingTestPoints.value = true
   try {
-    const response: TestPointListResponse = await request.get(`/api/v1/test-point/list/${projectId}`, {
-      params: { page, page_size: pageSize.value }
-    });
+    const response: TestPointListResponse = await request.get(
+      `/api/v1/test-point/list/${projectId}`,
+      {
+        params: { page, page_size: pageSize.value },
+      }
+    )
     if (response?.code === 200 && response.data) {
-      testPoints.value = (response.data.items || []) as TestPoint[];
-      dbTotal.value = response.data.total || 0;
-      savedFromDb.value = true;
-      currentPage.value = page;
-      console.log(`从数据库加载了 ${testPoints.value.length} 个测试点，共 ${dbTotal.value} 个`);
+      testPoints.value = (response.data.items || []) as TestPoint[]
+      dbTotal.value = response.data.total || 0
+      savedFromDb.value = true
+      currentPage.value = page
+      console.log(`从数据库加载了 ${testPoints.value.length} 个测试点，共 ${dbTotal.value} 个`)
     } else {
-      console.error('加载测试点失败，响应异常:', response);
+      console.error('加载测试点失败，响应异常:', response)
     }
   } catch (error: any) {
-    console.error('加载测试点失败:', error);
+    console.error('加载测试点失败:', error)
   } finally {
-    loadingTestPoints.value = false;
+    loadingTestPoints.value = false
   }
-};
+}
 
 // ==================== 事件处理 ====================
 
 // 处理项目变更
 const handleProjectChange = async (projectId: number) => {
   if (projectId) {
-    await loadResources(projectId);
-    selectedResource.value = null;
-    testPoints.value = [];
-    savedFromDb.value = false;
-    dbTotal.value = 0;
-    currentPage.value = 1;
-    errorMessage.value = '';
-    await loadSavedTestPoints(projectId);
+    await loadResources(projectId)
+    selectedResource.value = null
+    testPoints.value = []
+    savedFromDb.value = false
+    dbTotal.value = 0
+    currentPage.value = 1
+    errorMessage.value = ''
+    await loadSavedTestPoints(projectId)
   } else {
-    files.value = [];
-    selectedResource.value = null;
-    testPoints.value = [];
-    savedFromDb.value = false;
-    dbTotal.value = 0;
-    currentPage.value = 1;
+    files.value = []
+    selectedResource.value = null
+    testPoints.value = []
+    savedFromDb.value = false
+    dbTotal.value = 0
+    currentPage.value = 1
   }
-};
+}
 
 // 选择资源行
 const handleResourceSelect = (row: ResourceRow) => {
-  selectedResource.value = row;
-};
+  selectedResource.value = row
+}
 
 // 跳转到提取步骤
 const goToExtract = (row?: ResourceRow) => {
-  const target = row ?? selectedResource.value;
+  const target = row ?? selectedResource.value
   if (!target) {
-    ElMessage.warning('请先选择需求文件');
-    return;
+    ElMessage.warning('请先选择需求文件')
+    return
   }
-  selectedResource.value = target;
-  currentStep.value = 2;
-};
+  selectedResource.value = target
+  currentStep.value = 2
+}
 
 // 开始提取
 const startExtract = () => {
   if (!selectedResource.value) {
-    ElMessage.warning('请先选择需求文件');
-    return;
+    ElMessage.warning('请先选择需求文件')
+    return
   }
-  extractTestPoints();
-};
+  extractTestPoints()
+}
 
 // 重试提取
 const retryExtract = () => {
-  errorMessage.value = '';
-  extractTestPoints();
-};
+  errorMessage.value = ''
+  extractTestPoints()
+}
 
 // 步骤导航
 const goToNextStep = () => {
   // 前置校验：确保当前步骤的必要操作已完成
   if (currentStep.value === 0 && !formData.project_id) {
-    ElMessage.warning('请先选择项目');
-    return;
+    ElMessage.warning('请先选择项目')
+    return
   }
   if (currentStep.value === 1 && !selectedResource.value) {
-    ElMessage.warning('请先选择需求资源');
-    return;
+    ElMessage.warning('请先选择需求资源')
+    return
   }
   if (currentStep.value < 3) {
-    currentStep.value++;
+    currentStep.value++
   }
-};
+}
 
 const goToPrevStep = () => {
   if (currentStep.value > 0) {
-    currentStep.value--;
+    currentStep.value--
   }
-};
+}
 
 // 分页处理
 const handlePageChange = (page: number) => {
   if (savedFromDb.value && formData.project_id) {
-    loadSavedTestPoints(Number(formData.project_id), page);
+    loadSavedTestPoints(Number(formData.project_id), page)
   } else {
-    currentPage.value = page;
+    currentPage.value = page
   }
-};
+}
 
 // ==================== 核心业务逻辑 ====================
 
 // 提取测试点
 const extractTestPoints = async () => {
-  const target = selectedResource.value;
+  const target = selectedResource.value
   if (!target) {
-    ElMessage.warning('请先选择需求文件');
-    return;
+    ElMessage.warning('请先选择需求文件')
+    return
   }
 
   // 防重复点击：如果正在提取中则忽略
   if (extracting.value) {
-    ElMessage.warning('正在提取中，请稍候');
-    return;
+    ElMessage.warning('正在提取中，请稍候')
+    return
   }
 
   // 清空之前的状态
-  testPoints.value = [];
-  savedFromDb.value = false;
-  dbTotal.value = 0;
-  currentPage.value = 1;
-  errorMessage.value = '';
-  extracting.value = true;
-  progress.value = 0;
-  progressText.value = '正在读取文件内容...';
+  testPoints.value = []
+  savedFromDb.value = false
+  dbTotal.value = 0
+  currentPage.value = 1
+  errorMessage.value = ''
+  extracting.value = true
+  progress.value = 0
+  progressText.value = '正在读取文件内容...'
 
   // 清理可能残留的定时器
   if (progressInterval.value) {
-    clearInterval(progressInterval.value);
-    progressInterval.value = null;
+    clearInterval(progressInterval.value)
+    progressInterval.value = null
   }
 
   const PHASES = [
@@ -1126,30 +1231,32 @@ const extractTestPoints = async () => {
     { end: 40, text: '正在解析文档结构...' },
     { end: 65, text: 'AI 正在分析需求并提取测试点...' },
     { end: 85, text: '正在整理测试点数据...' },
-  ];
-  let phaseIndex = 0;
+  ]
+  let phaseIndex = 0
 
   progressInterval.value = setInterval(() => {
     if (phaseIndex < PHASES.length) {
-      const targetProgress = PHASES[phaseIndex].end;
+      const targetProgress = PHASES[phaseIndex].end
       if (progress.value < targetProgress) {
-        progress.value = Math.round(Math.min(progress.value + Math.random() * 4 + 1, targetProgress));
-        progressText.value = PHASES[phaseIndex].text;
+        progress.value = Math.round(
+          Math.min(progress.value + Math.random() * 4 + 1, targetProgress)
+        )
+        progressText.value = PHASES[phaseIndex].text
       } else {
-        phaseIndex++;
+        phaseIndex++
       }
     }
-  }, 300);
+  }, 300)
 
   try {
-    progressText.value = PHASES[PHASES.length - 1].text;
+    progressText.value = PHASES[PHASES.length - 1].text
 
-    const response = await request.post('/api/v1/test-point/extract', {
-      file_id: target.id
-    });
+    const response = await testPointApi.extract({
+      file_id: target.id,
+    })
 
-    if (response && response.data && response.data.items) {
-      testPoints.value = response.data.items.map((item: any, index: number) => ({
+    if (response && response.items) {
+      testPoints.value = response.items.map((item: any, index: number) => ({
         id: item.id || index + 1,
         module: item.module || '',
         function: item.function || '',
@@ -1157,82 +1264,82 @@ const extractTestPoints = async () => {
         priority: item.priority || 2,
         ai_prompt: item.ai_prompt,
         create_time: item.create_time,
-        _raw: item
-      }));
-      savedFromDb.value = false;
-      ElMessage.success(`测试点提取成功，共 ${testPoints.value.length} 个`);
+        _raw: item,
+      }))
+      savedFromDb.value = false
+      ElMessage.success(`测试点提取成功，共 ${testPoints.value.length} 个`)
     } else {
-      ElMessage.warning('未提取到测试点');
+      ElMessage.warning('未提取到测试点')
     }
 
-    clearInterval(progressInterval.value);
-    progressInterval.value = null;
-    progress.value = 100;
-    progressText.value = `提取完成！共 ${testPoints.value.length} 个测试点`;
+    clearInterval(progressInterval.value)
+    progressInterval.value = null
+    progress.value = 100
+    progressText.value = `提取完成！共 ${testPoints.value.length} 个测试点`
   } catch (error: any) {
     if (progressInterval.value) {
-      clearInterval(progressInterval.value);
-      progressInterval.value = null;
+      clearInterval(progressInterval.value)
+      progressInterval.value = null
     }
     // 失败时不显示100%，保持当前进度或重置为0
-    progress.value = 0;
+    progress.value = 0
     // 错误信息脱敏：不直接暴露后端内部细节
-    const detail = error.response?.data?.detail;
+    const detail = error.response?.data?.detail
     if (typeof detail === 'string' && !detail.includes('traceback') && !detail.includes('stack')) {
-      errorMessage.value = detail.length > 200 ? detail.slice(0, 200) + '...' : detail;
+      errorMessage.value = detail.length > 200 ? detail.slice(0, 200) + '...' : detail
     } else if (error.response?.data?.message) {
-      errorMessage.value = error.response.data.message;
+      errorMessage.value = error.response.data.message
     } else {
-      errorMessage.value = '测试点提取失败，请检查网络连接或稍后重试';
+      errorMessage.value = '测试点提取失败，请检查网络连接或稍后重试'
     }
 
-    ElMessage.error('提取失败，请查看错误信息');
+    ElMessage.error('提取失败，请查看错误信息')
   } finally {
-    extracting.value = false;
+    extracting.value = false
   }
-};
+}
 
 // 取消提取
 const handleCancel = () => {
   ElMessageBox.confirm('确定要取消提取吗？', '取消确认', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
-    type: 'warning'
+    type: 'warning',
   }).then(() => {
     // 清理定时器防止内存泄漏
     if (progressInterval.value) {
-      clearInterval(progressInterval.value);
-      progressInterval.value = null;
+      clearInterval(progressInterval.value)
+      progressInterval.value = null
     }
-    extracting.value = false;
-    progress.value = 0;
-    progressText.value = '已取消';
-    ElMessage.info('提取已取消');
-  });
-};
+    extracting.value = false
+    progress.value = 0
+    progressText.value = '已取消'
+    ElMessage.info('提取已取消')
+  })
+}
 
 // ==================== 多选和批量操作 ====================
 
 const handleSelectionChange = (rows: any[]) => {
-  selectedRows.value = rows;
-};
+  selectedRows.value = rows
+}
 
 const clearSelection = () => {
-  selectedRows.value = [];
+  selectedRows.value = []
   if (testPointTable.value) {
-    testPointTable.value.clearSelection();
+    testPointTable.value.clearSelection()
   }
-};
+}
 
 const batchDeleteTestPoints = async () => {
   if (selectedRows.value.length === 0) {
-    ElMessage.warning('请先选择要删除的测试点');
-    return;
+    ElMessage.warning('请先选择要删除的测试点')
+    return
   }
 
   if (!formData.project_id) {
-    ElMessage.warning('请先选择项目');
-    return;
+    ElMessage.warning('请先选择项目')
+    return
   }
 
   try {
@@ -1242,68 +1349,65 @@ const batchDeleteTestPoints = async () => {
       {
         confirmButtonText: '确定删除',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'warning',
       }
-    );
+    )
 
-    batchDeleting.value = true;
+    batchDeleting.value = true
 
-    const ids = selectedRows.value.map(row => row.id);
+    const ids = selectedRows.value.map((row) => row.id)
 
-    const result = await testPointApi.batchDelete(
-      Number(formData.project_id),
-      ids
-    );
+    const result = await testPointApi.batchDelete(Number(formData.project_id), ids)
 
     if (result.code === 200) {
-      ElMessage.success(result.message || `成功删除 ${result.data.deleted_count} 个测试点`);
+      ElMessage.success(result.message || `成功删除 ${result.data.deleted_count} 个测试点`)
 
-      clearSelection();
+      clearSelection()
 
       if (savedFromDb.value) {
-        await loadSavedTestPoints(Number(formData.project_id), currentPage.value);
+        await loadSavedTestPoints(Number(formData.project_id), currentPage.value)
       } else {
-        const deletedIds = new Set(ids);
-        testPoints.value = testPoints.value.filter(item => !deletedIds.has(item.id));
+        const deletedIds = new Set(ids)
+        testPoints.value = testPoints.value.filter((item) => !deletedIds.has(item.id))
       }
     } else {
-      throw new Error(result.message || '批量删除失败');
+      throw new Error(result.message || '批量删除失败')
     }
   } catch (error: any) {
     if (error !== 'cancel') {
-      console.error('批量删除失败:', error);
-      ElMessage.error(error?.response?.data?.detail || error?.message || '批量删除失败，请稍后重试');
+      console.error('批量删除失败:', error)
+      ElMessage.error(error?.response?.data?.detail || error?.message || '批量删除失败，请稍后重试')
     }
   } finally {
-    batchDeleting.value = false;
+    batchDeleting.value = false
   }
-};
+}
 
 // ==================== 编辑功能 ====================
 
 const editTestPoint = (testPoint: TestPoint) => {
-  const index = testPoints.value.findIndex(item => item.id === testPoint.id);
-  editingIndex.value = index;
-  editForm.id = testPoint.id;
-  editForm.module = testPoint.module;
-  editForm.function = testPoint.function || '';
-  editForm.point = testPoint.point;
-  editForm.priority = testPoint.priority || 2;
-  dialogVisible.value = true;
-};
+  const index = testPoints.value.findIndex((item) => item.id === testPoint.id)
+  editingIndex.value = index
+  editForm.id = testPoint.id
+  editForm.module = testPoint.module
+  editForm.function = testPoint.function || ''
+  editForm.point = testPoint.point
+  editForm.priority = testPoint.priority || 2
+  dialogVisible.value = true
+}
 
 const saveTestPoint = async () => {
   if (!editForm.module || !editForm.point) {
-    ElMessage.warning('请填写完整的测试点信息');
-    return;
+    ElMessage.warning('请填写完整的测试点信息')
+    return
   }
 
   try {
-    updating.value = true;
+    updating.value = true
 
-    const index = editingIndex.value;
+    const index = editingIndex.value
     if (index !== -1 && index < testPoints.value.length) {
-      const currentPoint = testPoints.value[index];
+      const currentPoint = testPoints.value[index]
 
       if (currentPoint.id && savedFromDb.value && formData.project_id) {
         const result = await testPointApi.update(currentPoint.id, {
@@ -1312,175 +1416,184 @@ const saveTestPoint = async () => {
           function: editForm.function || '',
           point: editForm.point,
           priority: editForm.priority,
-          ai_prompt: currentPoint.ai_prompt
-        });
+          ai_prompt: currentPoint.ai_prompt,
+        })
 
         if (result.code === 200) {
           testPoints.value[index] = {
             ...result.data,
             ai_prompt: result.data.ai_prompt ?? undefined,
-            _raw: result.data
-          };
-          ElMessage.success('测试点更新成功');
-          dialogVisible.value = false;
+            _raw: result.data,
+          }
+          ElMessage.success('测试点更新成功')
+          dialogVisible.value = false
 
-          await loadSavedTestPoints(Number(formData.project_id), currentPage.value);
+          await loadSavedTestPoints(Number(formData.project_id), currentPage.value)
         } else {
-          throw new Error(result.message || '更新失败');
+          throw new Error(result.message || '更新失败')
         }
       } else {
-        testPoints.value[index] = { ...editForm };
-        ElMessage.success('测试点更新成功（本地）');
-        dialogVisible.value = false;
+        testPoints.value[index] = { ...editForm }
+        ElMessage.success('测试点更新成功（本地）')
+        dialogVisible.value = false
       }
     }
   } catch (error: any) {
-    console.error('保存测试点失败:', error);
-    ElMessage.error(error?.response?.data?.detail || error?.message || '保存失败，请稍后重试');
+    console.error('保存测试点失败:', error)
+    ElMessage.error(error?.response?.data?.detail || error?.message || '保存失败，请稍后重试')
   } finally {
-    updating.value = false;
+    updating.value = false
   }
-};
+}
 
 // ==================== 删除功能 ====================
 
 const deleteTestPoint = async (testPoint: TestPoint) => {
   try {
     if (!formData.project_id) {
-      ElMessage.warning('请先选择项目');
-      return;
+      ElMessage.warning('请先选择项目')
+      return
     }
 
-    deleting.value = true;
+    deleting.value = true
 
     if (testPoint.id && savedFromDb.value) {
-      const result = await testPointApi.delete(
-        testPoint.id,
-        Number(formData.project_id)
-      );
+      const result = await testPointApi.delete(testPoint.id, Number(formData.project_id))
 
       if (result.code === 200) {
-        ElMessage.success('删除成功');
-        let targetPage = currentPage.value;
-        const totalAfterDelete = dbTotal.value - 1;
-        const maxPage = Math.max(1, Math.ceil(totalAfterDelete / pageSize.value));
+        ElMessage.success('删除成功')
+        let targetPage = currentPage.value
+        const totalAfterDelete = dbTotal.value - 1
+        const maxPage = Math.max(1, Math.ceil(totalAfterDelete / pageSize.value))
         if (targetPage > maxPage) {
-          targetPage = maxPage;
+          targetPage = maxPage
         }
-        await loadSavedTestPoints(Number(formData.project_id), targetPage);
+        await loadSavedTestPoints(Number(formData.project_id), targetPage)
       } else {
-        ElMessage.error(result.message || '删除失败');
+        ElMessage.error(result.message || '删除失败')
       }
     } else {
-      const index = testPoints.value.findIndex(item => item.id === testPoint.id);
+      const index = testPoints.value.findIndex((item) => item.id === testPoint.id)
       if (index !== -1) {
-        testPoints.value.splice(index, 1);
+        testPoints.value.splice(index, 1)
       }
-      ElMessage.success('删除成功（本地）');
+      ElMessage.success('删除成功（本地）')
     }
   } catch (error: any) {
-    console.error('删除测试点失败:', error);
-    ElMessage.error(error?.response?.data?.detail || error?.message || '删除失败，请稍后重试');
+    console.error('删除测试点失败:', error)
+    ElMessage.error(error?.response?.data?.detail || error?.message || '删除失败，请稍后重试')
   } finally {
-    deleting.value = false;
+    deleting.value = false
   }
-};
+}
 
 // ==================== 保存与生成 ====================
 
 const saveToDatabase = async () => {
   if (testPoints.value.length === 0) {
-    ElMessage.warning('没有可保存的测试点');
-    return;
+    ElMessage.warning('没有可保存的测试点')
+    return
   }
 
-  const projectId = selectedResource.value?.project_id || (formData.project_id ? Number(formData.project_id) : 0);
+  const projectId =
+    selectedResource.value?.project_id || (formData.project_id ? Number(formData.project_id) : 0)
   if (!projectId) {
-    ElMessage.warning('请先选择项目');
-    return;
+    ElMessage.warning('请先选择项目')
+    return
   }
 
-  saving.value = true;
+  saving.value = true
   try {
     const rawData = testPoints.value
-      .map(tp => tp._raw || {
-        module: tp.module,
-        function: tp.function,
-        point: tp.point,
-        priority: tp.priority
-      })
-      .filter(raw => raw && raw.module && raw.point);
+      .map(
+        (tp) =>
+          tp._raw || {
+            module: tp.module,
+            function: tp.function,
+            point: tp.point,
+            priority: tp.priority,
+          }
+      )
+      .filter((raw) => raw && raw.module && raw.point)
 
     if (rawData.length === 0) {
-      ElMessage.warning('没有有效的测试点数据');
-      saving.value = false;
-      return;
+      ElMessage.warning('没有有效的测试点数据')
+      saving.value = false
+      return
     }
 
-    const response: any = await request.post(
-      '/api/v1/test-point/batch-save',
-      rawData,
-      {
-        params: { project_id: projectId },
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
+    const response = await testPointApi.batchSave(projectId, rawData)
 
     if (response?.code === 200) {
-      ElMessage.success(response?.message || `成功保存 ${rawData.length} 个测试点`);
-      savedFromDb.value = true;
-      await loadSavedTestPoints(projectId);
+      ElMessage.success(response?.message || `成功保存 ${rawData.length} 个测试点`)
+      savedFromDb.value = true
+      await loadSavedTestPoints(projectId)
     } else {
-      ElMessage.error(response?.msg || response?.message || '保存失败');
+      ElMessage.error(response?.message || '保存失败')
     }
   } catch (error: any) {
-    console.error('保存测试点失败:', error);
-    ElMessage.error(error.response?.data?.detail || error.response?.data?.message || '保存到数据库失败');
+    console.error('保存测试点失败:', error)
+    ElMessage.error(
+      error.response?.data?.detail || error.response?.data?.message || '保存到数据库失败'
+    )
   } finally {
-    saving.value = false;
+    saving.value = false
   }
-};
+}
 
 const generateTestCases = () => {
   if (testPoints.value.length === 0) {
-    ElMessage.warning('请先提取或加载测试点');
-    return;
+    ElMessage.warning('请先提取或加载测试点')
+    return
   }
 
-  const projectId = selectedResource.value?.project_id || (formData.project_id ? Number(formData.project_id) : 0);
+  const projectId =
+    selectedResource.value?.project_id || (formData.project_id ? Number(formData.project_id) : 0)
   if (!projectId) {
-    ElMessage.warning('请先选择项目');
-    return;
+    ElMessage.warning('请先选择项目')
+    return
   }
 
   const query: Record<string, string> = {
     project_id: String(projectId),
-    test_point_ids: JSON.stringify(testPoints.value.map(tp => tp.id))
-  };
-
-  if (selectedResource.value) {
-    query.file_id = String(selectedResource.value.id);
-    query.filename = selectedResource.value.display_name;
+    test_point_ids: JSON.stringify(testPoints.value.map((tp) => tp.id)),
   }
 
-  router.push({ path: '/home/case/ai-generate', query });
-};
+  if (selectedResource.value) {
+    query.file_id = String(selectedResource.value.id)
+    query.filename = selectedResource.value.display_name
+  }
+
+  router.push({ path: '/home/case/ai-generate', query })
+}
 
 // ==================== 辅助方法 ====================
 
 const handleBack = () => {
-  router.push('/home/case');
-};
+  goToManagement()
+}
+
+const goToManagement = () => {
+  const query: Record<string, string> = {}
+  const projectId = currentProjectId.value
+  if (projectId) {
+    query.projectId = String(projectId)
+  }
+  router.push({
+    path: '/home/case/test-point-management',
+    query,
+  })
+}
 
 const formatFileSize = (size: number): string => {
   if (size < 1024) {
-    return size + ' B';
+    return size + ' B'
   } else if (size < 1024 * 1024) {
-    return (size / 1024).toFixed(2) + ' KB';
+    return (size / 1024).toFixed(2) + ' KB'
   } else {
-    return (size / (1024 * 1024)).toFixed(2) + ' MB';
+    return (size / (1024 * 1024)).toFixed(2) + ' MB'
   }
-};
+}
 
 const getResourceTypeLabel = (type: string) => {
   const labelMap: Record<string, string> = {
@@ -1488,10 +1601,10 @@ const getResourceTypeLabel = (type: string) => {
     ui_mockup: 'UI原型图',
     api_doc: 'API文档',
     test_data: '测试数据',
-    other: '其他'
-  };
-  return labelMap[type] || type;
-};
+    other: '其他',
+  }
+  return labelMap[type] || type
+}
 
 const getResourceTypeTagType = (type: string) => {
   const tagMap: Record<string, string> = {
@@ -1499,10 +1612,10 @@ const getResourceTypeTagType = (type: string) => {
     ui_mockup: 'warning',
     api_doc: 'success',
     test_data: 'info',
-    other: 'info'
-  };
-  return tagMap[type] || 'info';
-};
+    other: 'info',
+  }
+  return tagMap[type] || 'info'
+}
 
 const getResourceIcon = (type: string) => {
   const iconMap: Record<string, string> = {
@@ -1510,86 +1623,86 @@ const getResourceIcon = (type: string) => {
     ui_mockup: 'Picture',
     api_doc: 'DocumentCopy',
     test_data: 'Files',
-    other: 'Document'
-  };
-  return iconMap[type] || 'Document';
-};
+    other: 'Document',
+  }
+  return iconMap[type] || 'Document'
+}
 
 const getPriorityTagType = (priority: number | string) => {
-  const p = Number(priority);
-  if (p === 1) return 'danger';
-  if (p === 2) return 'warning';
-  return 'info';
-};
+  const p = Number(priority)
+  if (p === 1) return 'danger'
+  if (p === 2) return 'warning'
+  return 'info'
+}
 
 const getPriorityLabel = (priority: number | string) => {
-  const p = Number(priority);
-  if (p === 1) return '高';
-  if (p === 2) return '中';
-  return '低';
-};
+  const p = Number(priority)
+  if (p === 1) return '高'
+  if (p === 2) return '中'
+  return '低'
+}
 
 const getPriorityCount = (priority: number): number => {
-  return testPoints.value.filter(tp => tp.priority === priority).length;
-};
+  return testPoints.value.filter((tp) => tp.priority === priority).length
+}
 
 const getModuleDistribution = (): Record<string, number> => {
-  const distribution: Record<string, number> = {};
-  testPoints.value.forEach(tp => {
-    const module = tp.module || '未分类';
-    distribution[module] = (distribution[module] || 0) + 1;
-  });
-  return distribution;
-};
+  const distribution: Record<string, number> = {}
+  testPoints.value.forEach((tp) => {
+    const module = tp.module || '未分类'
+    distribution[module] = (distribution[module] || 0) + 1
+  })
+  return distribution
+}
 
 const getResourceTypeCount = (type: string): number => {
-  return files.value.filter(f => f.resource_type === type).length;
-};
+  return files.value.filter((f) => f.resource_type === type).length
+}
 
 const getResourceTypePercentage = (type: string): number => {
-  const total = files.value.length;
-  if (total === 0) return 0;
-  return Math.round((getResourceTypeCount(type) / total) * 100);
-};
+  const total = files.value.length
+  if (total === 0) return 0
+  return Math.round((getResourceTypeCount(type) / total) * 100)
+}
 
 const moduleCount = computed(() => {
-  const modules = new Set(testPoints.value.map(tp => tp.module || '未分类'));
-  return modules.size;
-});
+  const modules = new Set(testPoints.value.map((tp) => tp.module || '未分类'))
+  return modules.size
+})
 
 // ==================== 初始化 ====================
 
 onMounted(async () => {
-  await getProjects();
+  await getProjects()
 
-  const idParam = Number(route.query.file_id);
-  const projectIdParam = Number(route.query.project_id);
+  const idParam = Number(route.query.file_id)
+  const projectIdParam = Number(route.query.project_id)
 
   if (projectIdParam) {
-    formData.project_id = projectIdParam;
-    await loadResources(projectIdParam);
-    await loadSavedTestPoints(projectIdParam);
+    formData.project_id = projectIdParam
+    await loadResources(projectIdParam)
+    await loadSavedTestPoints(projectIdParam)
     if (idParam) {
-      const row = resourceRows.value.find((r) => r.id === idParam);
+      const row = resourceRows.value.find((r) => r.id === idParam)
       if (row) {
-        selectedResource.value = row;
+        selectedResource.value = row
       }
     }
   }
-});
+})
 
 onUnmounted(() => {
   if (progressInterval.value) {
-    clearInterval(progressInterval.value);
-    progressInterval.value = null;
+    clearInterval(progressInterval.value)
+    progressInterval.value = null
   }
-});
+})
 </script>
 
 <style>
 /* ==================== 全局设计令牌（非scoped，确保:root生效） ==================== */
 .test-point-extract-container {
-  --primary-color: #409EFF;
+  --primary-color: #409eff;
   --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --border-radius: 12px;
   --border-radius-sm: 8px;
@@ -1644,6 +1757,22 @@ onUnmounted(() => {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.page-subtitle {
+  margin: 6px 0 0;
+  color: #606266;
+  font-size: 14px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.mode-alert {
+  margin-bottom: var(--spacing-xl);
 }
 
 .page-header .el-button {
@@ -1732,7 +1861,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #409EFF 0%, #67C23A 100%);
+  background: linear-gradient(90deg, #409eff 0%, #67c23a 100%);
 }
 
 .right-panel {
@@ -1753,7 +1882,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #F56C6C 0%, #E6A23C 50%, #409EFF 100%);
+  background: linear-gradient(90deg, #f56c6c 0%, #e6a23c 50%, #409eff 100%);
 }
 
 .right-panel-enhanced {
@@ -1776,17 +1905,17 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-lg) var(--spacing-xl);
-  border-bottom: 1px solid #EBEEF5;
+  border-bottom: 1px solid #ebeef5;
   font-size: 18px;
   font-weight: 600;
   color: #303133;
-  background: #FAFAFA;
+  background: #fafafa;
   position: relative;
 }
 
 .step-title-gradient {
   background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-  border-bottom: 2px solid #E4E7ED;
+  border-bottom: 2px solid #e4e7ed;
 }
 
 .step-title .el-icon {
@@ -1842,8 +1971,13 @@ onUnmounted(() => {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px) translateZ(0); }
-  50% { transform: translateY(-10px) translateZ(0); }
+  0%,
+  100% {
+    transform: translateY(0px) translateZ(0);
+  }
+  50% {
+    transform: translateY(-10px) translateZ(0);
+  }
 }
 
 .floating-icons {
@@ -1872,28 +2006,35 @@ onUnmounted(() => {
 .float-icon.float-1 {
   top: 10px;
   right: -10px;
-  color: #409EFF;
+  color: #409eff;
   animation-delay: 0s;
 }
 
 .float-icon.float-2 {
   bottom: 15px;
   left: -15px;
-  color: #67C23A;
+  color: #67c23a;
   animation-delay: 1s;
 }
 
 .float-icon.float-3 {
   bottom: -5px;
   right: 20px;
-  color: #E6A23C;
+  color: #e6a23c;
   animation-delay: 2s;
 }
 
 @keyframes floatIcon {
-  0%, 100% { transform: translateY(0) translateZ(0) rotate(0deg); }
-  33% { transform: translateY(-8px) translateZ(0) rotate(5deg); }
-  66% { transform: translateY(4px) translateZ(0) rotate(-3deg); }
+  0%,
+  100% {
+    transform: translateY(0) translateZ(0) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-8px) translateZ(0) rotate(5deg);
+  }
+  66% {
+    transform: translateY(4px) translateZ(0) rotate(-3deg);
+  }
 }
 
 .guide-content {
@@ -1944,7 +2085,7 @@ onUnmounted(() => {
   padding: var(--spacing-lg);
   background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
   border-radius: var(--border-radius-sm);
-  border: 1px solid #E4E7ED;
+  border: 1px solid #e4e7ed;
 }
 
 .workflow-steps {
@@ -1982,7 +2123,7 @@ onUnmounted(() => {
 }
 
 .wf-arrow {
-  color: #C0C4CC;
+  color: #c0c4cc;
   font-size: 16px;
 }
 
@@ -1996,7 +2137,7 @@ onUnmounted(() => {
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-md);
   overflow: hidden;
-  border: 1px solid #E4E7ED;
+  border: 1px solid #e4e7ed;
 }
 
 .project-card-header {
@@ -2057,14 +2198,14 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
   border-radius: var(--border-radius-sm);
   text-align: center;
-  border: 1px solid #EBEEF5;
+  border: 1px solid #ebeef5;
   transition: all 0.3s ease;
 }
 
 .grid-item:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-md);
-  border-color: #409EFF;
+  border-color: #409eff;
 }
 
 .grid-icon {
@@ -2086,8 +2227,8 @@ onUnmounted(() => {
 
 .project-card-footer {
   padding: var(--spacing-lg) var(--spacing-xl);
-  background: #FAFAFA;
-  border-top: 1px solid #EBEEF5;
+  background: #fafafa;
+  border-top: 1px solid #ebeef5;
   display: flex;
   justify-content: space-between;
   gap: var(--spacing-md);
@@ -2122,7 +2263,7 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-lg);
-  border: 2px solid #EBEEF5;
+  border: 2px solid #ebeef5;
   border-radius: var(--border-radius);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2154,7 +2295,7 @@ onUnmounted(() => {
 
 .resource-item.active {
   border-color: var(--primary-color);
-  background: linear-gradient(135deg, #ECF5FF 0%, #D9ECFF 100%);
+  background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
   box-shadow: 0 4px 16px rgba(64, 158, 255, 0.2);
 }
 
@@ -2177,7 +2318,7 @@ onUnmounted(() => {
 
 .resource-item:hover .resource-icon,
 .resource-item.active .resource-icon {
-  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
   color: white;
   transform: scale(1.05);
 }
@@ -2227,11 +2368,11 @@ onUnmounted(() => {
 
 /* ==================== 已选资源卡片 ==================== */
 .selected-resource-card {
-  background: linear-gradient(135deg, #ECF5FF 0%, #D9ECFF 100%);
+  background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
   border-radius: var(--border-radius);
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-lg);
-  border: 2px solid #B3D8FF;
+  border: 2px solid #b3d8ff;
   box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
 }
 
@@ -2267,7 +2408,7 @@ onUnmounted(() => {
   padding: var(--spacing-lg);
   background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
   border-radius: var(--border-radius);
-  border: 1px solid #EBEEF5;
+  border: 1px solid #ebeef5;
 }
 
 .progress-section {
@@ -2293,8 +2434,13 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 /* ==================== 提取错误 ==================== */
@@ -2342,7 +2488,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #67C23A 0%, #85ce61 100%);
+  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
   border-radius: 50%;
   box-shadow: 0 4px 12px rgba(103, 194, 58, 0.3);
 }
@@ -2365,7 +2511,7 @@ onUnmounted(() => {
 }
 
 .success-desc strong {
-  color: #67C23A;
+  color: #67c23a;
   font-size: 18px;
 }
 
@@ -2401,17 +2547,37 @@ onUnmounted(() => {
   margin-top: var(--spacing-xs);
 }
 
-.stat-high { background: #fef0f0; border: 1px solid #fde2e2; }
-.stat-high .stat-number { color: #F56C6C; }
+.stat-high {
+  background: #fef0f0;
+  border: 1px solid #fde2e2;
+}
+.stat-high .stat-number {
+  color: #f56c6c;
+}
 
-.stat-medium { background: #fdf6ec; border: 1px solid #faecd8; }
-.stat-medium .stat-number { color: #E6A23C; }
+.stat-medium {
+  background: #fdf6ec;
+  border: 1px solid #faecd8;
+}
+.stat-medium .stat-number {
+  color: #e6a23c;
+}
 
-.stat-low { background: #f0f9eb; border: 1px solid #e1f3d8; }
-.stat-low .stat-number { color: #67C23A; }
+.stat-low {
+  background: #f0f9eb;
+  border: 1px solid #e1f3d8;
+}
+.stat-low .stat-number {
+  color: #67c23a;
+}
 
-.stat-modules { background: #ecf5ff; border: 1px solid #d9ecff; }
-.stat-modules .stat-number { color: #409EFF; }
+.stat-modules {
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+}
+.stat-modules .stat-number {
+  color: #409eff;
+}
 
 .success-actions {
   display: flex;
@@ -2457,7 +2623,7 @@ onUnmounted(() => {
   padding: var(--spacing-lg);
   background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
   border-radius: var(--border-radius);
-  border: 1px solid #E4E7ED;
+  border: 1px solid #e4e7ed;
   box-shadow: var(--shadow-sm);
 }
 
@@ -2487,7 +2653,7 @@ onUnmounted(() => {
 .table-wrapper {
   overflow-x: auto;
   border-radius: var(--border-radius-sm);
-  border: 1px solid #EBEEF5;
+  border: 1px solid #ebeef5;
   box-shadow: var(--shadow-sm);
 }
 
@@ -2502,7 +2668,7 @@ onUnmounted(() => {
 }
 
 .table-wrapper :deep(.el-table tr:hover > td.el-table__cell) {
-  background-color: #ECF5FF !important;
+  background-color: #ecf5ff !important;
 }
 
 .pagination-wrapper {
@@ -2585,14 +2751,14 @@ onUnmounted(() => {
   padding: var(--spacing-md);
   background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
   border-radius: var(--border-radius-sm);
-  border: 1px solid #EBEEF5;
+  border: 1px solid #ebeef5;
   transition: all 0.3s ease;
 }
 
 .feature-item:hover {
   transform: translateX(4px);
   box-shadow: var(--shadow-sm);
-  border-color: #409EFF;
+  border-color: #409eff;
 }
 
 .feature-icon {
@@ -2628,9 +2794,9 @@ onUnmounted(() => {
   justify-content: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-md) var(--spacing-lg);
-  background: linear-gradient(135deg, #FFF8E6 0%, #FFF4D9 100%);
+  background: linear-gradient(135deg, #fff8e6 0%, #fff4d9 100%);
   border-radius: var(--border-radius-sm);
-  border: 1px solid #FFE4B3;
+  border: 1px solid #ffe4b3;
   color: #909399;
   font-size: 13px;
 }
@@ -2645,7 +2811,7 @@ onUnmounted(() => {
   border-radius: var(--border-radius);
   padding: var(--spacing-lg);
   box-shadow: var(--shadow-md);
-  border: 1px solid #E4E7ED;
+  border: 1px solid #e4e7ed;
   margin-bottom: var(--spacing-lg);
 }
 
@@ -2655,7 +2821,7 @@ onUnmounted(() => {
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
   padding-bottom: var(--spacing-lg);
-  border-bottom: 2px solid #F2F6FC;
+  border-bottom: 2px solid #f2f6fc;
 }
 
 .summary-info {
@@ -2704,11 +2870,11 @@ onUnmounted(() => {
 }
 
 .stat-icon-wrapper.stat-blue {
-  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
 }
 
 .stat-icon-wrapper.stat-green {
-  background: linear-gradient(135deg, #67C23A 0%, #85ce61 100%);
+  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
 }
 
 .stat-detail {
@@ -2731,7 +2897,7 @@ onUnmounted(() => {
 .summary-stat-divider {
   width: 1px;
   height: 40px;
-  background: #E4E7ED;
+  background: #e4e7ed;
 }
 
 .resource-preview-list {
@@ -2766,15 +2932,15 @@ onUnmounted(() => {
 }
 
 .type-requirement {
-  background: linear-gradient(90deg, #409EFF 0%, #66b1ff 100%);
+  background: linear-gradient(90deg, #409eff 0%, #66b1ff 100%);
 }
 
 .type-ui {
-  background: linear-gradient(90deg, #E6A23C 0%, #F0C78A 100%);
+  background: linear-gradient(90deg, #e6a23c 0%, #f0c78a 100%);
 }
 
 .type-api {
-  background: linear-gradient(90deg, #67C23A 0%, #85ce61 100%);
+  background: linear-gradient(90deg, #67c23a 0%, #85ce61 100%);
 }
 
 .type-label {
@@ -2791,9 +2957,9 @@ onUnmounted(() => {
 
 .next-action-card {
   padding: var(--spacing-lg);
-  background: linear-gradient(135deg, #ECF5FF 0%, #D9ECFF 100%);
+  background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
   border-radius: var(--border-radius);
-  border: 2px solid #B3D8FF;
+  border: 2px solid #b3d8ff;
   text-align: center;
 }
 
@@ -2802,7 +2968,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: var(--spacing-sm);
-  color: #409EFF;
+  color: #409eff;
   font-size: 14px;
   font-weight: 600;
   margin-bottom: var(--spacing-md);
@@ -2814,7 +2980,7 @@ onUnmounted(() => {
   font-size: 15px !important;
   font-weight: 700 !important;
   padding: 14px 20px !important;
-  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%) !important;
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%) !important;
   border: none !important;
   transition: all 0.3s ease !important;
 }
@@ -2829,7 +2995,7 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-lg) var(--spacing-xl);
-  border-bottom: 1px solid #EBEEF5;
+  border-bottom: 1px solid #ebeef5;
   font-size: 16px;
   font-weight: 600;
   color: #303133;
@@ -2854,12 +3020,12 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md) 0;
-  border-bottom: 1px solid #F2F6FC;
+  border-bottom: 1px solid #f2f6fc;
   transition: all 0.3s ease;
 }
 
 .info-item:hover {
-  background: #FAFAFA;
+  background: #fafafa;
   padding-left: var(--spacing-sm);
   padding-right: var(--spacing-sm);
   margin-left: calc(-1 * var(--spacing-sm));
@@ -2892,7 +3058,7 @@ onUnmounted(() => {
 .next-step-hint {
   margin-top: var(--spacing-xl);
   padding-top: var(--spacing-lg);
-  border-top: 2px solid #E4E7ED;
+  border-top: 2px solid #e4e7ed;
   text-align: center;
 }
 
@@ -2902,7 +3068,7 @@ onUnmounted(() => {
   font-weight: 700;
   font-size: 15px;
   padding: 14px 20px;
-  background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
   border: none;
   transition: all 0.3s ease;
 }
@@ -2994,8 +3160,12 @@ onUnmounted(() => {
 }
 
 @keyframes shimmer {
-  0% { transform: rotate(0deg) translateZ(0); }
-  100% { transform: rotate(360deg) translateZ(0); }
+  0% {
+    transform: rotate(0deg) translateZ(0);
+  }
+  100% {
+    transform: rotate(360deg) translateZ(0);
+  }
 }
 
 .stat-card .stat-number {
@@ -3022,7 +3192,7 @@ onUnmounted(() => {
   color: #303133;
   margin-bottom: var(--spacing-md);
   padding-left: var(--spacing-sm);
-  border-left: 3px solid #409EFF;
+  border-left: 3px solid #409eff;
 }
 
 .distribution-items {
@@ -3038,7 +3208,7 @@ onUnmounted(() => {
   padding: var(--spacing-md);
   background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
   border-radius: var(--border-radius-sm);
-  border: 1px solid #EBEEF5;
+  border: 1px solid #ebeef5;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -3054,19 +3224,19 @@ onUnmounted(() => {
 }
 
 .dist-item.high {
-  border-left: 3px solid #F56C6C;
+  border-left: 3px solid #f56c6c;
 }
 
 .dist-item.high::before {
-  background: #F56C6C;
+  background: #f56c6c;
 }
 
 .dist-item.medium {
-  border-left: 3px solid #E6A23C;
+  border-left: 3px solid #e6a23c;
 }
 
 .dist-item.medium::before {
-  background: #E6A23C;
+  background: #e6a23c;
 }
 
 .dist-item.low {
@@ -3109,13 +3279,13 @@ onUnmounted(() => {
   font-size: 13px;
   background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
   border-radius: 6px;
-  border: 1px solid #EBEEF5;
+  border: 1px solid #ebeef5;
   transition: all 0.3s ease;
 }
 
 .module-item:hover {
-  background: #ECF5FF;
-  border-color: #B3D8FF;
+  background: #ecf5ff;
+  border-color: #b3d8ff;
   transform: translateX(4px);
 }
 
@@ -3151,14 +3321,14 @@ onUnmounted(() => {
   color: #606266;
   background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
   border-radius: var(--border-radius-sm);
-  border: 1px solid #EBEEF5;
+  border: 1px solid #ebeef5;
   transition: all 0.3s ease;
 }
 
 .guide-item:hover {
   transform: translateX(4px);
   box-shadow: var(--shadow-sm);
-  border-color: #409EFF;
+  border-color: #409eff;
 }
 
 .quick-stats {
@@ -3166,15 +3336,15 @@ onUnmounted(() => {
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-md);
   padding-top: var(--spacing-lg);
-  border-top: 2px solid #E4E7ED;
+  border-top: 2px solid #e4e7ed;
 }
 
 .quick-stat-item {
   text-align: center;
   padding: var(--spacing-lg);
-  background: linear-gradient(135deg, #ECF5FF 0%, #D9ECFF 100%);
+  background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
   border-radius: var(--border-radius-sm);
-  border: 2px solid #B3D8FF;
+  border: 2px solid #b3d8ff;
   transition: all 0.3s ease;
 }
 

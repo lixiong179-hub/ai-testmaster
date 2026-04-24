@@ -22,7 +22,7 @@
           </div>
         </div>
       </template>
-      
+
       <div v-if="report" class="report-content">
         <!-- 报告基本信息 -->
         <el-card shadow="hover" class="mb-4">
@@ -59,12 +59,12 @@
             </el-row>
           </el-form>
         </el-card>
-        
+
         <!-- 报告统计 -->
         <ReportStat :report="report" />
-        
+
         <!-- 用例详情表格 -->
-        <ReportTable 
+        <ReportTable
           :testCases="report.test_cases || []"
           :total="report.total_cases || 0"
           @pageChange="handlePageChange"
@@ -92,8 +92,16 @@ const reportStore = useReportStore()
 const exportLoading = ref(false)
 
 // 计算属性
-const reportId = computed(() => Number(route.query.id))
-const projectId = computed(() => Number(route.query.project_id))
+const reportId = computed(() => {
+  const id = Number(route.query.id)
+  return isNaN(id) || id <= 0 ? 0 : id
+})
+
+const projectId = computed(() => {
+  const id = Number(route.query.project_id)
+  return isNaN(id) || id <= 0 ? 0 : id
+})
+
 const report = computed(() => reportStore.currentReport)
 
 // 返回列表
@@ -110,15 +118,15 @@ const handlePageChange = (page: number, pageSize: number) => {
 // 处理导出PDF
 const handleExportPDF = async () => {
   if (!reportId.value) return
-  
+
   exportLoading.value = true
   try {
     const loadingInstance = ElLoading.service({
       lock: true,
       text: '正在导出PDF...',
-      background: 'rgba(0, 0, 0, 0.7)'
+      background: 'rgba(0, 0, 0, 0.7)',
     })
-    
+
     const response = await reportStore.exportReportPDF(reportId.value, projectId.value)
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
@@ -129,7 +137,7 @@ const handleExportPDF = async () => {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    
+
     loadingInstance.close()
     ElMessage.success('导出PDF成功')
   } catch (error: any) {
@@ -142,15 +150,15 @@ const handleExportPDF = async () => {
 // 处理导出HTML
 const handleExportHTML = async () => {
   if (!reportId.value) return
-  
+
   exportLoading.value = true
   try {
     const loadingInstance = ElLoading.service({
       lock: true,
       text: '正在导出HTML...',
-      background: 'rgba(0, 0, 0, 0.7)'
+      background: 'rgba(0, 0, 0, 0.7)',
     })
-    
+
     const response = await reportStore.exportReportHTML(reportId.value, projectId.value)
     const blob = new Blob([response.data], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
@@ -161,7 +169,7 @@ const handleExportHTML = async () => {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    
+
     loadingInstance.close()
     ElMessage.success('导出HTML成功')
   } catch (error: any) {
@@ -173,12 +181,20 @@ const handleExportHTML = async () => {
 
 // 获取报告详情
 const fetchReportDetail = async () => {
-  if (!reportId.value) return
-  
+  if (!reportId.value) {
+    ElMessage.error('报告ID无效')
+    return
+  }
+
+  if (!projectId.value) {
+    ElMessage.error('项目ID无效')
+    return
+  }
+
   try {
     await reportStore.fetchReportDetail(reportId.value, projectId.value)
-  } catch (error) {
-    ElMessage.error('获取报告详情失败')
+  } catch (error: any) {
+    ElMessage.error(error.message || '获取报告详情失败')
   }
 }
 

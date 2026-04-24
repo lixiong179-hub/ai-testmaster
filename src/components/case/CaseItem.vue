@@ -1,15 +1,15 @@
 <template>
-  <el-card class="case-item case-card" :class="{ 'failed': caseItem.generate_status === 2 }">
+  <el-card class="case-item case-card" :class="{ failed: caseItem.generate_status === 2 }">
     <template #header>
       <div class="case-header">
         <div class="case-info">
           <span class="case-no">{{ caseItem.case_no }}</span>
-          <span 
-            class="case-priority" 
+          <span
+            class="case-priority"
             :class="{
-              'high': caseItem.priority === 1,
-              'medium': caseItem.priority === 2,
-              'low': caseItem.priority === 3
+              high: caseItem.priority === 1,
+              medium: caseItem.priority === 2,
+              low: caseItem.priority === 3,
             }"
           >
             {{ priorityText(caseItem.priority) }}
@@ -20,7 +20,7 @@
         </div>
       </div>
     </template>
-    
+
     <div class="case-content">
       <h3 class="case-title">{{ caseItem.title }}</h3>
       <div class="case-meta">
@@ -28,12 +28,7 @@
           <el-icon><Folder /></el-icon>
           {{ caseItem.module }}
         </span>
-        <el-tag
-          :type="caseTypeTagType"
-          size="small"
-          effect="plain"
-          class="case-type-tag"
-        >
+        <el-tag :type="caseTypeTagType" size="small" effect="plain" class="case-type-tag">
           {{ caseTypeLabel }}
         </el-tag>
         <span class="case-meta-item">
@@ -60,8 +55,12 @@
             <ul class="steps-list">
               <li v-for="(step, index) in caseItem.steps" :key="index">
                 <span class="step-number">{{ step.step_number || step.step || index + 1 }}</span>
-                <span class="step-content">{{ step.action }}{{ step.param ? ` (${step.param})` : '' }}</span>
-                <span v-if="(step as any).expected" class="step-expected">→ {{ (step as any).expected }}</span>
+                <span class="step-content"
+                  >{{ step.action }}{{ step.param ? ` (${step.param})` : '' }}</span
+                >
+                <span v-if="(step as any).expected" class="step-expected"
+                  >→ {{ (step as any).expected }}</span
+                >
               </li>
             </ul>
           </div>
@@ -77,7 +76,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="case-actions">
       <el-button type="primary" size="small" @click="viewDetail">
         <el-icon><View /></el-icon>
@@ -87,9 +86,9 @@
         <el-icon><DocumentCopy /></el-icon>
         复制用例
       </el-button>
-      <el-button 
-        type="warning" 
-        size="small" 
+      <el-button
+        type="warning"
+        size="small"
         v-if="caseItem.generate_status === 2"
         @click="retryGenerate"
       >
@@ -105,102 +104,102 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { 
-  Folder, 
-  Clock, 
-  Document, 
-  List, 
-  SuccessFilled, 
-  View, 
-  DocumentCopy, 
-  Refresh, 
-  Delete 
-} from '@element-plus/icons-vue';
-import type { TestCase } from '@/types/testCase';
+import { computed } from 'vue'
+import {
+  Folder,
+  Clock,
+  Document,
+  List,
+  SuccessFilled,
+  View,
+  DocumentCopy,
+  Refresh,
+  Delete,
+} from '@element-plus/icons-vue'
+import type { TestCase } from '@/types/testCase'
 
 const props = defineProps<{
-  caseItem: TestCase;
-}>();
+  caseItem: TestCase
+}>()
 
 const emit = defineEmits<{
-  (e: 'viewDetail', caseId: number): void;
-  (e: 'copyCase', caseItem: TestCase): void;
-  (e: 'retryGenerate', caseId: number): void;
-  (e: 'deleteCase', caseId: number): void;
-}>();
+  (e: 'viewDetail', caseId: number): void
+  (e: 'copyCase', caseItem: TestCase): void
+  (e: 'retryGenerate', caseId: number): void
+  (e: 'deleteCase', caseId: number): void
+}>()
 
 const CASE_TYPE_MAP: Record<string, { label: string; tagType: string }> = {
-  'ui_automation': { label: 'UI自动化', tagType: 'success' },
-  'manual': { label: '手工测试', tagType: 'info' },
-  'api_automation': { label: 'API自动化', tagType: '' },
-  'performance': { label: '性能测试', tagType: 'warning' },
-  'security': { label: '安全测试', tagType: 'danger' },
-  'UI': { label: 'UI自动化', tagType: 'success' },
-  'API': { label: 'API自动化', tagType: '' },
-  '功能': { label: '手工测试', tagType: 'info' },
-  '功能测试': { label: '手工测试', tagType: 'info' },
-  'functional': { label: '手工测试', tagType: 'info' },
-  '接口': { label: 'API自动化', tagType: '' },
-};
+  ui_automation: { label: 'UI自动化', tagType: 'success' },
+  manual: { label: '手工测试', tagType: 'info' },
+  api_automation: { label: 'API自动化', tagType: '' },
+  performance: { label: '性能测试', tagType: 'warning' },
+  security: { label: '安全测试', tagType: 'danger' },
+  UI: { label: 'UI自动化', tagType: 'success' },
+  API: { label: 'API自动化', tagType: '' },
+  功能: { label: '手工测试', tagType: 'info' },
+  功能测试: { label: '手工测试', tagType: 'info' },
+  functional: { label: '手工测试', tagType: 'info' },
+  接口: { label: 'API自动化', tagType: '' },
+}
 
 const caseTypeLabel = computed(() => {
-  const type = props.caseItem.case_type || '';
-  return CASE_TYPE_MAP[type]?.label || type;
-});
+  const type = props.caseItem.case_type || ''
+  return CASE_TYPE_MAP[type]?.label || type
+})
 
 const caseTypeTagType = computed(() => {
-  const type = props.caseItem.case_type || '';
-  return CASE_TYPE_MAP[type]?.tagType || 'info';
-});
+  const type = props.caseItem.case_type || ''
+  return CASE_TYPE_MAP[type]?.tagType || 'info'
+})
 
 const priorityText = (priority: number | undefined): string => {
   const map: Record<number, string> = {
     1: '高',
     2: '中',
-    3: '低'
-  };
-  return map[priority ?? 2] || '中';
-};
+    3: '低',
+  }
+  return map[priority ?? 2] || '中'
+}
 
 const statusText = (status: number | undefined): string => {
   const map: Record<number, string> = {
     0: '生成中',
     1: '生成成功',
-    2: '生成失败'
-  };
-  return map[status ?? 0] || '未知';
-};
+    2: '生成失败',
+  }
+  return map[status ?? 0] || '未知'
+}
 
 const statusClass = (status: number | undefined): string => {
   const map: Record<number, string> = {
     0: 'status-processing',
     1: 'status-success',
-    2: 'status-failed'
-  };
-  return map[status ?? 0] || '';
-};
+    2: 'status-failed',
+  }
+  return map[status ?? 0] || ''
+}
 
 const formatTime = (time: string | undefined): string => {
-  if (!time) return '';
-  return new Date(time).toLocaleString();
-};
+  if (!time) return ''
+  return new Date(time).toLocaleString()
+}
 
 const viewDetail = () => {
-  emit('viewDetail', props.caseItem.id);
-};
+  emit('viewDetail', props.caseItem.id)
+}
 
 const copyCase = () => {
-  emit('copyCase', props.caseItem);
-};
+  emit('copyCase', props.caseItem)
+}
 
 const retryGenerate = () => {
-  emit('retryGenerate', props.caseItem.id);
-};
+  emit('retryGenerate', props.caseItem.id)
+}
 
 const deleteCase = () => {
-  emit('deleteCase', props.caseItem.id);
-};
+  emit('deleteCase', props.caseItem.id)
+}
 </script>
 
 <style>

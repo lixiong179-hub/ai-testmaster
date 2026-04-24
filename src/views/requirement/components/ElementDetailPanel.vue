@@ -8,17 +8,9 @@
       </div>
     </template>
     <div class="elements-list">
-      <div
-        v-for="(element, index) in sortedElements"
-        :key="index"
-        class="element-item"
-      >
+      <div v-for="(element, index) in sortedElements" :key="index" class="element-item">
         <div class="element-main">
-          <el-tag
-            :type="getElementTypeColor(element.type)"
-            size="small"
-            class="element-type-tag"
-          >
+          <el-tag :type="getElementTypeColor(element.type)" size="small" class="element-type-tag">
             <el-icon v-if="element.type === 'button'"><Pointer /></el-icon>
             <el-icon v-else-if="element.type === 'input'"><Edit /></el-icon>
             <el-icon v-else-if="element.type === 'icon'"><Star /></el-icon>
@@ -28,13 +20,17 @@
             {{ element.type }}
           </el-tag>
           <span class="element-label">{{ element.label }}</span>
-          <el-tag v-if="element.semantic_hint" size="small" type="info">{{ element.semantic_hint }}</el-tag>
+          <el-tag v-if="element.semantic_hint" size="small" type="info">{{
+            element.semantic_hint
+          }}</el-tag>
         </div>
         <div class="element-meta" v-if="element.description">
           <span class="element-desc">{{ element.description }}</span>
           <span class="element-position" v-if="element.position">
             位置: ({{ element.position.x }}, {{ element.position.y }})
-            <span v-if="element.position.width">尺寸: {{ element.position.width }}x{{ element.position.height }}</span>
+            <span v-if="element.position.width"
+              >尺寸: {{ element.position.width }}x{{ element.position.height }}</span
+            >
           </span>
           <el-tag v-if="element.interactive" size="small" type="success">可交互</el-tag>
           <el-tag v-if="element.state" size="small" type="warning">{{ element.state }}</el-tag>
@@ -55,10 +51,22 @@ const props = defineProps<{
 
 const getElementTypeColor = (type: string) => {
   const colorMap: Record<string, string> = {
-    button: 'primary', input: 'warning', text: 'info', icon: '',
-    link: '', image: 'success', container: 'info', navigation: '',
-    list_item: '', checkbox: 'success', radio: 'success', switch: 'success',
-    slider: 'warning', form: 'primary', dropdown: 'warning', video: 'danger'
+    button: 'primary',
+    input: 'warning',
+    text: 'info',
+    icon: '',
+    link: '',
+    image: 'success',
+    container: 'info',
+    navigation: '',
+    list_item: '',
+    checkbox: 'success',
+    radio: 'success',
+    switch: 'success',
+    slider: 'warning',
+    form: 'primary',
+    dropdown: 'warning',
+    video: 'danger',
   }
   return colorMap[type] || 'info'
 }
@@ -85,15 +93,16 @@ const sortedElements = computed(() => {
 .elements-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 300px;
+  gap: 10px;
+  max-height: 360px;
   overflow-y: auto;
+  padding-right: 4px;
 }
 
 .element-item {
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: #fafafa;
-  border-radius: 6px;
+  border-radius: 10px;
   border: 1px solid #ebeef5;
 }
 
@@ -111,6 +120,8 @@ const sortedElements = computed(() => {
 .element-label {
   font-weight: 500;
   color: #303133;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .element-meta {
@@ -127,5 +138,15 @@ const sortedElements = computed(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+@media (max-width: 768px) {
+  .elements-list {
+    max-height: none;
+  }
+
+  .element-item {
+    padding: 10px 12px;
+  }
 }
 </style>

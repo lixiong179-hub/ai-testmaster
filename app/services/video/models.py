@@ -13,6 +13,15 @@ class VideoStatus(str, Enum):
     EXPIRED = "expired"
 
 
+class VideoRecordStatus(str, Enum):
+    """兼容旧测试导出的录像状态枚举。"""
+
+    PENDING = "pending"
+    RECORDING = "recording"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 @dataclass
 class VideoInfo:
     id: int

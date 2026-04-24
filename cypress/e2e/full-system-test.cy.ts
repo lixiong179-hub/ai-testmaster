@@ -11,8 +11,8 @@ describe('AI TestMaster 全流程系统测试', () => {
       url: 'http://localhost:8001/api/v1/auth/login',
       body: {
         username: 'admin',
-        password: 'password123'
-      }
+        password: 'password123',
+      },
     }).then((response) => {
       expect(response.status).to.eq(200)
       expect(response.body.code).to.eq(200)
@@ -87,7 +87,12 @@ describe('AI TestMaster 全流程系统测试', () => {
   describe('步骤3: 项目1 - 上传需求文档', () => {
     it('应该成功上传需求文档', () => {
       // 进入项目1详情页
-      cy.get('table').contains('td', project1Name).parent('tr').find('button').contains('查看').click()
+      cy.get('table')
+        .contains('td', project1Name)
+        .parent('tr')
+        .find('button')
+        .contains('查看')
+        .click()
       cy.wait(2000)
 
       // 点击管理需求按钮
@@ -101,7 +106,7 @@ describe('AI TestMaster 全流程系统测试', () => {
       // 上传文件
       cy.get('input[type="file"]').attachFile({
         filePath: 'test-requirements.docx',
-        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       })
 
       // 等待上传完成
@@ -134,9 +139,14 @@ describe('AI TestMaster 全流程系统测试', () => {
       // 返回到项目详情页
       cy.get('button').contains('返回列表').click()
       cy.wait(1000)
-      
+
       // 重新进入项目详情页
-      cy.get('table').contains('td', project1Name).parent('tr').find('button').contains('查看').click()
+      cy.get('table')
+        .contains('td', project1Name)
+        .parent('tr')
+        .find('button')
+        .contains('查看')
+        .click()
       cy.wait(2000)
 
       // 点击管理测试用例按钮
@@ -190,9 +200,14 @@ describe('AI TestMaster 全流程系统测试', () => {
       // 返回到项目详情页
       cy.get('button').contains('返回列表').click()
       cy.wait(1000)
-      
+
       // 重新进入项目详情页
-      cy.get('table').contains('td', project1Name).parent('tr').find('button').contains('查看').click()
+      cy.get('table')
+        .contains('td', project1Name)
+        .parent('tr')
+        .find('button')
+        .contains('查看')
+        .click()
       cy.wait(2000)
 
       // 点击管理测试任务按钮
@@ -236,9 +251,14 @@ describe('AI TestMaster 全流程系统测试', () => {
       // 返回到项目详情页
       cy.get('button').contains('返回列表').click()
       cy.wait(1000)
-      
+
       // 重新进入项目详情页
-      cy.get('table').contains('td', project1Name).parent('tr').find('button').contains('查看').click()
+      cy.get('table')
+        .contains('td', project1Name)
+        .parent('tr')
+        .find('button')
+        .contains('查看')
+        .click()
       cy.wait(2000)
 
       // 点击查看测试报告按钮
@@ -292,7 +312,12 @@ describe('AI TestMaster 全流程系统测试', () => {
 
     it('项目2应该能够独立上传需求和生成用例', () => {
       // 进入项目2详情页
-      cy.get('table').contains('td', project2Name).parent('tr').find('button').contains('查看').click()
+      cy.get('table')
+        .contains('td', project2Name)
+        .parent('tr')
+        .find('button')
+        .contains('查看')
+        .click()
       cy.wait(2000)
 
       // 点击管理需求按钮
@@ -306,7 +331,7 @@ describe('AI TestMaster 全流程系统测试', () => {
       // 上传文件
       cy.get('input[type="file"]').attachFile({
         filePath: 'test-requirements.docx',
-        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       })
 
       // 等待上传完成
@@ -324,7 +349,12 @@ describe('AI TestMaster 全流程系统测试', () => {
       cy.wait(2000)
 
       // 进入项目1详情页
-      cy.get('table').contains('td', project1Name).parent('tr').find('button').contains('查看').click()
+      cy.get('table')
+        .contains('td', project1Name)
+        .parent('tr')
+        .find('button')
+        .contains('查看')
+        .click()
       cy.wait(2000)
 
       // 点击管理测试用例按钮
@@ -342,7 +372,12 @@ describe('AI TestMaster 全流程系统测试', () => {
       cy.wait(2000)
 
       // 进入项目2详情页
-      cy.get('table').contains('td', project2Name).parent('tr').find('button').contains('查看').click()
+      cy.get('table')
+        .contains('td', project2Name)
+        .parent('tr')
+        .find('button')
+        .contains('查看')
+        .click()
       cy.wait(2000)
 
       // 点击管理测试用例按钮
@@ -388,7 +423,7 @@ describe('AI TestMaster 全流程系统测试', () => {
       cy.request({
         method: 'GET',
         url: 'http://localhost:8001/api/v1/project/list',
-        failOnStatusCode: false
+        failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.eq(401)
       })
@@ -424,13 +459,23 @@ describe('AI TestMaster 全流程系统测试', () => {
       cy.wait(2000)
 
       // 删除项目1
-      cy.get('table').contains('td', project1Name).parent('tr').find('button').contains('删除').click()
+      cy.get('table')
+        .contains('td', project1Name)
+        .parent('tr')
+        .find('button')
+        .contains('删除')
+        .click()
       cy.wait(500)
       cy.get('button').contains('确定').click()
       cy.wait(1000)
 
       // 删除项目2
-      cy.get('table').contains('td', project2Name).parent('tr').find('button').contains('删除').click()
+      cy.get('table')
+        .contains('td', project2Name)
+        .parent('tr')
+        .find('button')
+        .contains('删除')
+        .click()
       cy.wait(500)
       cy.get('button').contains('确定').click()
       cy.wait(1000)

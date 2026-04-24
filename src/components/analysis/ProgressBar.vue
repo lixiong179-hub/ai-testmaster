@@ -4,12 +4,7 @@
       <span class="progress-title">{{ title }}</span>
       <span class="progress-percentage">{{ progress }}%</span>
     </div>
-    <el-progress 
-      :percentage="progress" 
-      :status="status" 
-      :stroke-width="15"
-      :format="() => ''"
-    />
+    <el-progress :percentage="progress" :status="status" :stroke-width="15" :format="() => ''" />
     <div class="progress-message" v-if="message">
       {{ message }}
     </div>
@@ -20,21 +15,21 @@
 defineProps({
   title: {
     type: String,
-    default: '分析进度'
+    default: '分析进度',
   },
   progress: {
     type: Number,
-    default: 0
+    default: 0,
   },
   message: {
     type: String,
-    default: ''
+    default: '',
   },
   status: {
     type: String as () => 'success' | 'exception' | 'warning' | '',
-    default: ''
-  }
-});
+    default: '',
+  },
+})
 </script>
 
 <style scoped>

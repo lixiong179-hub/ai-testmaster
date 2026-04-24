@@ -36,11 +36,7 @@ export interface ReportListResponse {
 // 报告API封装
 const reportApi = {
   // 获取报告列表
-  getReports: (params: {
-    page?: number
-    page_size?: number
-    project_id?: number
-  }) => {
+  getReports: (params: { page?: number; page_size?: number; project_id?: number }) => {
     return request.get<ReportListResponse>('/api/v1/report', { params })
   },
 
@@ -58,7 +54,7 @@ const reportApi = {
   exportReportPDF: (id: number, project_id: number) => {
     return request.get(`/api/v1/report/${id}/export`, {
       params: { project_id, format: 'pdf' },
-      responseType: 'blob'
+      responseType: 'blob',
     })
   },
 
@@ -66,9 +62,9 @@ const reportApi = {
   exportReportHTML: (id: number, project_id: number) => {
     return request.get(`/api/v1/report/${id}/export`, {
       params: { project_id, format: 'html' },
-      responseType: 'blob'
+      responseType: 'blob',
     })
-  }
+  },
 }
 
 export default reportApi

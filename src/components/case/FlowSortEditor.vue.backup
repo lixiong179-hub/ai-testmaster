@@ -1,0 +1,324 @@
+<template>
+  <div class="flow-sort-editor">
+    <div class="editor-toolbar">
+      <el-radio-group v-model="sortMode" size="small" @change="handleModeChange">
+        <el-radio-button value="linear">线性排序</el-radio-button>
+        <el-radio-button value="graph">流程图排序</el-radio-button>
+      </el-radio-group>
+      <div v-if="sortMode === 'graph'" class="toolbar-actions">
+        <el-button size="small" @click="handleAutoLayout">
+          <el-icon><Grid /></el-icon>
+          自动布局
+        </el-button>
+        <el-button size="small" @click="handlePreviewPrompt">
+          <el-icon><View /></el-icon>
+          预览 Prompt
+        </el-button>
+      </div>
+    </div>
+
+    <div v-if="sortMode === 'linear'" class="linear-mode">
+      <slot name="linear" />
+    </div>
+
+    <div v-else class="graph-mode">
+      <VueFlow
+        v-model:nodes="vueFlowNodes"
+        v-model:edges="vueFlowEdges"
+        :default-viewport="{ x: 0, y: 0, zoom: 1 }"
+        :min-zoom="0.2"
+        :max-zoom="4"
+        fit-view-on-init
+        @connect="onConnect"
+        @node-drag-stop="onNodeDragStop"
+        @edge-update="onEdgeUpdate"
+      >
+        <Background />
+        <Controls />
+        <MiniMap />
+        <template #node-custom="nodeProps">
+          <FlowNodeCard
+            :data="nodeProps.data"
+            @update:flow-type="(type: string) => handleFlowTypeChange(nodeProps.id, type)"
+            @preview="handleNodePreview(nodeProps.data)"
+          />
+        </template>
+      </VueFlow>
+    </div>
+
+    <EdgeConditionDialog
+      v-model:visible="conditionDialogVisible"
+      :edge-data="currentEdgeForm"
+      @confirm="onEdgeConditionConfirm"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, watch } from 'vue'
+import { VueFlow, type Connection, type Edge, type Node } from '@vue-flow/core'
+import { Background, Controls, MiniMap } from '@vue-flow/additional-components'
+import { Grid, View } from '@element-plus/icons-vue'
+import FlowNodeCard from './FlowNodeCard.vue'
+import EdgeConditionDialog from './EdgeConditionDialog.vue'
+import type { FlowNodeData, FlowEdgeData } from '@/store/flowSort'
+import type { UIScreen } from '@/api/uiPrototype'
+
+const props = defineProps<{
+  screens: UIScreen[]
+  initialMode?: 'linear' | 'graph'
+  moduleInfo?: { name: string; description: string }
+}>()
+
+const emit = defineEmits<{
+  'update:sort-data': [data: { mode: string; nodes: FlowNodeData[]; edges: FlowEdgeData[] }]
+  'preview-prompt': []
+  'preview-screen': [screen: { screen_id: number; screen_name: string; image_url?: string }]
+}>()
+
+const sortMode = ref<'linear' | 'graph'>(props.initialMode || 'graph')
+const conditionDialogVisible = ref(false)
+const currentConnection = ref<{ source: string; target: string } | null>(null)
+const currentEdgeForm = ref<{ edge_type: 'normal' | 'branch' | 'exception' | 'bypass'; condition: string } | null>(null)
+
+const vueFlowNodes = ref<Node[]>([])
+const vueFlowEdges = ref<Edge[]>([])
+
+const EDGE_STYLES: Record<string, { stroke: string; strokeDasharray?: string }> = {
+  normal: { stroke: '#409eff' },
+  branch: { stroke: '#67c23a' },
+  exception: { stroke: '#f56c6c', strokeDasharray: '5 5' },
+  bypass: { stroke: '#e6a23c', strokeDasharray: '3 3' }
+}
+
+const emitSortData = () => {
+  const flowNodes: FlowNodeData[] = vueFlowNodes.value.map(node => ({
+    id: node.id,
+    screen_id: node.data.screen_id,
+    screen_name: node.data.screen_name,
+    summary: node.data.summary,
+    ui_spec_elements: node.data.ui_spec_elements,
+    flow_type: node.data.flow_type,
+    image_url: node.data.image_url,
+    position: node.position
+  }))
+
+  const flowEdges: FlowEdgeData[] = vueFlowEdges.value.map(edge => {
+    const sourceScreenId = vueFlowNodes.value.find(n => n.id === edge.source)?.data.screen_id
+    const targetScreenId = vueFlowNodes.value.find(n => n.id === edge.target)?.data.screen_id
+
+    return {
+      id: edge.id,
+      source: String(sourceScreenId || edge.source),
+      target: String(targetScreenId || edge.target),
+      edge_type: edge.data?.edge_type || 'normal',
+      condition: edge.data?.condition,
+      label: typeof edge.label === 'string' ? edge.label : String(edge.label || '')
+    }
+  })
+
+  emit('update:sort-data', {
+    mode: sortMode.value,
+    nodes: flowNodes,
+    edges: flowEdges
+  })
+}
+
+watch(() => props.screens, (newScreens) => {
+  vueFlowNodes.value = newScreens.map((screen, index) => ({
+    id: `node_${screen.id}`,
+    type: 'custom',
+    position: { x: index * 280, y: 0 },
+    data: {
+      screen_id: screen.id,
+      screen_name: screen.screen_name,
+      summary: screen.summary,
+      ui_spec_elements: screen.ui_spec?.elements || [],
+      flow_type: 'main' as const,
+      image_url: screen.original_file_path ? `/api/v1/file/preview-screen/${screen.id}` : ''
+    }
+  }))
+  vueFlowEdges.value = []
+  emitSortData()
+}, { immediate: true })
+
+watch(() => props.moduleInfo, (info) => {
+  if (info) {
+    emitSortData()
+  }
+})
+
+const handleModeChange = () => {
+  emitSortData()
+}
+
+const onConnect = (connection: Connection) => {
+  currentConnection.value = {
+    source: connection.source,
+    target: connection.target
+  }
+  currentEdgeForm.value = null
+  conditionDialogVisible.value = true
+}
+
+const onEdgeConditionConfirm = (edgeData: { edge_type: string; condition: string | null; label: string }) => {
+  if (!currentConnection.value) return
+
+  const style = EDGE_STYLES[edgeData.edge_type] || EDGE_STYLES.normal
+  const newEdge: Edge = {
+    id: `edge_${Date.now()}`,
+    source: currentConnection.value.source,
+    target: currentConnection.value.target,
+    type: 'default',
+    animated: edgeData.edge_type !== 'normal',
+    style,
+    label: edgeData.label,
+    data: {
+      edge_type: edgeData.edge_type,
+      condition: edgeData.condition
+    }
+  }
+
+  vueFlowEdges.value = [...vueFlowEdges.value, newEdge]
+  conditionDialogVisible.value = false
+  currentConnection.value = null
+  emitSortData()
+}
+
+const onEdgeUpdate = () => {
+  emitSortData()
+}
+
+const onNodeDragStop = () => {
+  emitSortData()
+}
+
+const handleFlowTypeChange = (nodeId: string, type: string) => {
+  const node = vueFlowNodes.value.find(n => n.id === nodeId)
+  if (node) {
+    node.data = { ...node.data, flow_type: type }
+    emitSortData()
+  }
+}
+
+const handleNodePreview = (data: { screen_id: number; screen_name: string; image_url?: string }) => {
+  emit('preview-screen', data)
+}
+
+const handleAutoLayout = () => {
+  const mainNodes = vueFlowNodes.value.filter(n => n.data.flow_type === 'main')
+  const otherNodes = vueFlowNodes.value.filter(n => n.data.flow_type !== 'main')
+
+  mainNodes.forEach((node, index) => {
+    node.position = { x: index * 280, y: 0 }
+  })
+
+  const branchYOffsets: Record<string, number> = {}
+  otherNodes.forEach((node) => {
+    const sourceEdge = vueFlowEdges.value.find(e => e.target === node.id)
+    const sourceNode = sourceEdge ? vueFlowNodes.value.find(n => n.id === sourceEdge.source) : null
+    const sourceX = sourceNode?.position.x ?? 0
+    const sourceId = sourceNode?.id ?? ''
+
+    if (!branchYOffsets[sourceId]) {
+      branchYOffsets[sourceId] = 200
+    } else {
+      branchYOffsets[sourceId] += 200
+    }
+
+    node.position = { x: sourceX, y: branchYOffsets[sourceId] }
+  })
+
+  vueFlowNodes.value = [...vueFlowNodes.value]
+  emitSortData()
+}
+
+const handlePreviewPrompt = () => {
+  emit('preview-prompt')
+}
+
+const getFlowSortSubmitData = () => {
+  if (sortMode.value !== 'graph') {
+    return { mode: 'linear' as const, flow_sort_data: null }
+  }
+
+  const sortedNodes = [...vueFlowNodes.value].sort((a, b) => {
+    if (a.data.flow_type === 'main' && b.data.flow_type !== 'main') return -1
+    if (a.data.flow_type !== 'main' && b.data.flow_type === 'main') return 1
+    return a.position.x - b.position.x
+  })
+
+  return {
+    mode: 'graph' as const,
+    flow_sort_data: {
+      nodes: sortedNodes.map((node, index) => ({
+        screen_id: node.data.screen_id,
+        screen_order: index + 1,
+        flow_type: node.data.flow_type,
+        screen_name: node.data.screen_name,
+        ui_spec_elements: node.data.ui_spec_elements || [],
+        summary: node.data.summary || ''
+      })),
+      edges: vueFlowEdges.value.map(edge => {
+        const sourceScreenId = vueFlowNodes.value.find(n => n.id === edge.source)?.data.screen_id
+        const targetScreenId = vueFlowNodes.value.find(n => n.id === edge.target)?.data.screen_id
+
+        if (!sourceScreenId || !targetScreenId) {
+          console.warn(`[FlowSortEditor] 连线 ${edge.id} 的 source/target 节点不存在，跳过`)
+          return null
+        }
+
+        return {
+          source: String(sourceScreenId),
+          target: String(targetScreenId),
+          edge_type: edge.data?.edge_type || 'normal',
+          condition: edge.data?.condition || '',
+          label: typeof edge.label === 'string' ? edge.label : String(edge.label || '')
+        }
+      }).filter((e): e is NonNullable<typeof e> => e !== null),
+      module_info: props.moduleInfo || { name: '', description: '' }
+    }
+  }
+}
+
+defineExpose({
+  getFlowSortSubmitData,
+  sortMode
+})
+</script>
+
+<style scoped lang="scss">
+.flow-sort-editor {
+  height: 600px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  .editor-toolbar {
+    padding: 12px;
+    background: #fafafa;
+    border-bottom: 1px solid #e4e7ed;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .toolbar-actions {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+  }
+
+  .linear-mode {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .graph-mode {
+    flex: 1;
+    height: calc(100% - 56px);
+  }
+}
+</style>

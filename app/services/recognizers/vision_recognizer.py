@@ -1,3 +1,4 @@
+
 """视觉识别器 - 使用AI视觉模型识别页面元素。
 """
 import json
@@ -8,6 +9,7 @@ from loguru import logger
 
 from app.interfaces.element_recognizer import ElementRecognizer, RecognitionResult
 from app.utils.unified_vision_model import UnifiedVisionModel
+from app.core.constants import LOGIN_KEYWORDS
 
 
 class VisionRecognizer(ElementRecognizer):
@@ -33,7 +35,7 @@ class VisionRecognizer(ElementRecognizer):
                 locator_type="vision",
                 locator_value="",
                 confidence=0,
-                raw_result={"error": str(e)}
+                raw_result={"error": "截图失败"}
             )
 
         if not screenshot:
@@ -93,7 +95,7 @@ class VisionRecognizer(ElementRecognizer):
             return RecognitionResult(locator_type="vision", locator_value="", confidence=0)
         except Exception as e:
             logger.error(f"元素识别发生错误: {e}")
-            return RecognitionResult(locator_type="vision", locator_value="", confidence=0, raw_result={"error": str(e)})
+            return RecognitionResult(locator_type="vision", locator_value="", confidence=0, raw_result={"error": "识别失败"})
 
     async def batch_recognize(self, browser, operations: List[str]) -> List[RecognitionResult]:
         results = []

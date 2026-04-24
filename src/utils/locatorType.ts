@@ -15,7 +15,7 @@ export const getLocatorTypeLabel = (type: string): string => {
     text: '文本定位',
     css: 'CSS选择器',
     ref: '引用定位',
-    xpath: 'XPath'
+    xpath: 'XPath',
   }
   return labels[type] || type
 }
@@ -32,7 +32,7 @@ export const getLocatorTypeTagType = (type: string): string => {
     text: 'success',
     css: '',
     ref: 'info',
-    xpath: ''
+    xpath: '',
   }
   return types[type] || 'info'
 }

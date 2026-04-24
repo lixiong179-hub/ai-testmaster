@@ -22,6 +22,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints.ui_prototype.project_endpoints import router as project_router
 from app.api.v1.endpoints.ui_prototype.screen_endpoints import router as screen_router
+from app.api.v1.endpoints.ui_prototype.screen_endpoints_manage import router as screen_manage_router
 from app.api.v1.endpoints.ui_prototype.parse_endpoints import router as parse_router
 from app.api.v1.endpoints.ui_prototype.helpers import UPLOAD_DIR, _ensure_upload_dir, _build_screen_response
 
@@ -29,6 +30,7 @@ router: APIRouter = APIRouter(prefix="/ui-prototype", tags=["UI原型管理"])
 
 router.include_router(project_router)
 router.include_router(screen_router)
+router.include_router(screen_manage_router)
 router.include_router(parse_router)
 
 __all__: list[str] = [

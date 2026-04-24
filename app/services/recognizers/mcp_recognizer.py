@@ -56,7 +56,7 @@ class MCPRecognizer(ElementRecognizer):
                 locator_type="mcp",
                 locator_value="",
                 confidence=0,
-                raw_result={"error": str(e)}
+                raw_result={"error": "获取页面快照失败"}
             )
 
         if not snapshot:
@@ -113,7 +113,7 @@ class MCPRecognizer(ElementRecognizer):
             logger.error(f"批量识别获取Accessibility Tree失败: {e}")
             return [
                 RecognitionResult(locator_type="mcp", locator_value="", confidence=0,
-                                  raw_result={"error": str(e)})
+                                  raw_result={"error": "获取页面快照失败"})
                 for _ in operations
             ]
 

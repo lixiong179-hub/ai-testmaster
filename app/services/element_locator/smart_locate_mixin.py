@@ -7,6 +7,7 @@ from app.services.selector_registry import SelectorRegistry
 from app.services.recognizers.mcp_recognizer import MCPRecognizer
 from app.interfaces.element_recognizer import RecognitionResult
 from app.core.config import settings
+from app.core.constants import LOGIN_KEYWORDS
 
 
 class SmartLocateMixin:
@@ -150,7 +151,7 @@ class SmartLocateMixin:
     def _build_recognition_prompt(self, action_description: str, action_type: Optional[str] = None) -> str:
         base_prompt = f"请仔细分析这个页面截图，精确定位以下操作的目标元素：\n\n操作描述: {action_description}\n\n"
 
-        login_keywords = ["登录", "用户名", "密码", "验证码", "login", "username", "password"]
+        login_keywords = LOGIN_KEYWORDS
         is_login_page = any(kw in action_description.lower() for kw in login_keywords)
 
         if is_login_page:

@@ -123,7 +123,7 @@ async def fetch_link_content(
         logger.error(f"获取链接内容失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取链接内容失败: {str(e)}"
+            detail="获取链接内容失败"
         )
 
 

@@ -16,7 +16,7 @@ export interface WebSocketConnection {
 }
 
 // 消息处理器类型
-type MessageHandler = (data: unknown) => void;
+type MessageHandler = (data: unknown) => void
 
 /**
  * WebSocket客户端类
@@ -53,7 +53,7 @@ class WebSocketClient {
         this.send({
           type: 'subscribe',
           task_id: taskId,
-          project_id: projectId
+          project_id: projectId,
         })
       }
 
@@ -62,7 +62,7 @@ class WebSocketClient {
           const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
 
           // 触发所有注册的处理器
-          this.messageHandlers.forEach(handler => {
+          this.messageHandlers.forEach((handler) => {
             try {
               handler(data)
             } catch (error) {
@@ -197,14 +197,14 @@ export function connectWebSocket(
 ): WebSocketConnection {
   // 从localStorage获取token
   const token = localStorage.getItem('token')
-  
+
   // 构建WebSocket URL
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
   const wsUrl = `${protocol}//${host}/ws${path}`
-  
+
   const ws = token ? new WebSocket(wsUrl, [token]) : new WebSocket(wsUrl)
-  
+
   ws.onopen = () => {
     options.onOpen?.()
   }
@@ -225,14 +225,14 @@ export function connectWebSocket(
   ws.onerror = (error) => {
     options.onError?.(error)
   }
-  
+
   return {
     ws,
     close: () => {
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close()
       }
-    }
+    },
   }
 }
 
@@ -249,10 +249,7 @@ export function disconnectWebSocket(connection: WebSocketConnection): void {
  * @param connection WebSocket连接对象
  * @param data 要发送的数据
  */
-export function sendWebSocketMessage(
-  connection: WebSocketConnection,
-  data: string | object
-): void {
+export function sendWebSocketMessage(connection: WebSocketConnection, data: string | object): void {
   if (connection.ws.readyState === WebSocket.OPEN) {
     const message = typeof data === 'string' ? data : JSON.stringify(data)
     connection.ws.send(message)

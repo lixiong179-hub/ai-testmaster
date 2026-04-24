@@ -10,7 +10,12 @@ from app.crud.test_point import (
     get_test_points_count,
     batch_create_test_points,
 )
-from tests.helpers import createTestProject, createTestUser
+from app.crud.test_point_management import (
+    get_requirements_by_project,
+    get_test_point_list_stats,
+)
+from app.models.requirement import Requirement
+from tests.helpers import createTestProject, createTestUser, createTestTestCase
 
 
 class TestCreateTestPoint:
@@ -53,6 +58,18 @@ class TestCreateTestPoint:
             priority=3,
         )
         assert point.ai_prompt is None
+
+    def test_create_test_point_with_created_by(self, db, testProject):
+        point = create_test_point(
+            db=db,
+            project_id=testProject.id,
+            module="creator",
+            function="creator func",
+            point="creator point",
+            priority=2,
+            created_by="qa_admin",
+        )
+        assert point.created_by == "qa_admin"
 
     def test_create_test_point_boundary_priority(self, db, testProject):
         for p in [1, 2, 3]:
@@ -367,3 +384,125 @@ class TestBatchCreateTestPoints:
     def test_batch_create_empty_list(self, db, testProject):
         points = batch_create_test_points(db=db, project_id=testProject.id, test_points_data=[])
         assert points == []
+
+
+class TestTestPointManagementCrud:
+    def test_get_test_point_list_stats_counts_cases(self, db, testProject, testUser):
+        high_point = create_test_point(
+            db=db,
+            project_id=testProject.id,
+            module="stats_module",
+            function="high function",
+            point="high point",
+            priority=1,
+            created_by=testUser.username,
+        )
+        medium_point = create_test_point(
+            db=db,
+            project_id=testProject.id,
+            module="stats_module",
+            function="medium function",
+            point="medium point",
+            priority=2,
+            created_by=testUser.username,
+        )
+        create_test_point(
+            db=db,
+            project_id=testProject.id,
+            module="stats_module",
+            function="low function",
+            point="low point",
+            priority=3,
+            created_by=testUser.username,
+        )
+        createTestTestCase(
+            db=db,
+            projectId=testProject.id,
+            case_no=f"CASE-{uuid.uuid4().hex[:8]}",
+            module="stats_module",
+            precondition="",
+            steps_json=[],
+            expected_result="ok",
+            priority=1,
+            case_type="manual",
+            test_point_id=high_point.id,
+        )
+        createTestTestCase(
+            db=db,
+            projectId=testProject.id,
+            case_no=f"CASE-{uuid.uuid4().hex[:8]}",
+            module="stats_module",
+            precondition="",
+            steps_json=[],
+            expected_result="ok",
+            priority=2,
+            case_type="manual",
+            test_point_id=medium_point.id,
+        )
+
+        stats = get_test_point_list_stats(
+            db=db,
+            project_id=testProject.id,
+            user_id=testUser.id,
+            module="stats_module",
+        )
+
+        assert stats["total"] == 3
+        assert stats["high_priority_count"] == 1
+        assert stats["medium_priority_count"] == 1
+        assert stats["low_priority_count"] == 1
+        assert stats["generated_case_count"] == 2
+
+    def test_get_requirements_by_project_returns_project_scoped_items(self, db, testProject, testUser):
+        other_user = createTestUser(db=db)
+        other_project = createTestProject(db=db, userId=other_user.id)
+        visible_requirement = Requirement(
+            project_id=testProject.id,
+            req_no=f"REQ-{uuid.uuid4().hex[:8]}",
+            title="Visible requirement",
+            description="visible",
+            priority=1,
+            status="draft",
+        )
+        hidden_requirement = Requirement(
+            project_id=other_project.id,
+            req_no=f"REQ-{uuid.uuid4().hex[:8]}",
+            title="Hidden requirement",
+            description="hidden",
+            priority=1,
+            status="draft",
+        )
+        db.add_all([visible_requirement, hidden_requirement])
+        db.flush()
+
+        requirements = get_requirements_by_project(
+            db=db,
+            project_id=testProject.id,
+            user_id=testUser.id,
+        )
+
+        assert [item.id for item in requirements] == [visible_requirement.id]
+
+    def test_batch_create_uses_default_created_by(self, db, testProject):
+        data = [
+            {
+                "module": "creator_mod",
+                "function": "creator func 1",
+                "point": "creator point 1",
+                "priority": 1,
+            },
+            {
+                "module": "creator_mod",
+                "function": "creator func 2",
+                "point": "creator point 2",
+                "priority": 2,
+            },
+        ]
+        points = batch_create_test_points(
+            db=db,
+            project_id=testProject.id,
+            test_points_data=data,
+            created_by="batch_user",
+        )
+        assert len(points) == 2
+        assert all(point.created_by == "batch_user" for point in points)

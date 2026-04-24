@@ -29,6 +29,7 @@ from app.utils.report_utils import ReportUtils
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from typing import Optional
+from loguru import logger
 
 router = APIRouter(prefix="/report", tags=["测试报告管理"])
 
@@ -64,9 +65,10 @@ async def generate_test_report(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"生成报告失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"生成报告失败: {str(e)}"
+            detail="生成报告失败"
         )
 
 @router.get("/", response_model=TestReportList)
@@ -195,9 +197,10 @@ async def export_test_report(
             }
         )
     except Exception as e:
+        logger.error(f"导出报告失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"导出报告失败: {str(e)}"
+            detail="导出报告失败"
         )
 
 @router.delete("/{report_id}")

@@ -194,7 +194,7 @@ async def upload_file(
                 logger.info(f"已清理失败的文件: {saved_file_path}")
             except OSError as cleanup_error:
                 logger.warning(f"清理文件失败: {cleanup_error}")
-        raise HTTPException(status_code=500, detail=f"上传文件失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="上传文件失败")
 
 
 @router.post("/submit-url", response_model=dict)
@@ -264,4 +264,5 @@ async def update_file_sort(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"更新排序失败: {str(e)}")
+        logger.error(f"更新排序失败: {e}")
+        raise HTTPException(status_code=500, detail="更新排序失败")

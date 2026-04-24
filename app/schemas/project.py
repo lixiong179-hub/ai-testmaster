@@ -214,6 +214,19 @@ class TestObjectInfoResponse(BaseModel):
     业务用途：旧版API返回被测对象信息，包装在code/message/data结构中
     对应API：GET /api/v1/projects/{project_id}/test-object
     """
-    code: int = Field(200, description="状态码")  # HTTP状态码，默认200
-    message: str = Field("获取成功", description="消息")  # 操作结果消息
-    data: Optional[TestObjectInfo] = Field(None, description="被测对象信息")  # 被测对象详情，可能为空
+    code: int = Field(200, description="状态码")
+    message: str = Field("获取成功", description="消息")
+    data: Optional[TestObjectInfo] = Field(None, description="被测对象信息")
+
+
+class ProjectConfigUpdate(BaseModel):
+    """
+    更新项目配置请求模型
+
+    业务用途：更新项目的类型、Web环境配置和/或设备配置
+    对应API：PUT /api/v1/projects/{project_id}/config
+    验证规则：所有字段可选，支持部分更新
+    """
+    project_type: Optional[str] = Field(None, description="项目类型: web/app")
+    web_env_configs: Optional[WebEnvConfigs] = Field(None, description="Web端多环境配置")
+    device_config: Optional[DeviceConfig] = Field(None, description="C端设备配置")

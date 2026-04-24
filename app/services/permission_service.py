@@ -31,7 +31,8 @@ from sqlalchemy.orm import Session
 from app.models.user import Permission, Role, user_role
 from app.schemas.user import PermissionCreate, PermissionUpdate
 from app.core.exception import BaseAPIException
-from app.services.user_role_service import UserService, RoleService
+from app.services.user_service.user_service import UserService
+from app.services.role_service.role_service import RoleService
 
 
 class PermissionService:

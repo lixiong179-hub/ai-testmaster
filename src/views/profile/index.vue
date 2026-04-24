@@ -6,7 +6,7 @@
           <h2>个人中心</h2>
         </div>
       </template>
-      
+
       <el-tabs v-model="activeTab">
         <!-- 基本信息 -->
         <el-tab-pane label="基本信息" name="basic">
@@ -33,7 +33,7 @@
             </el-form-item>
           </el-form>
         </el-tab-pane>
-        
+
         <!-- 修改密码 -->
         <el-tab-pane label="修改密码" name="password">
           <el-form
@@ -58,7 +58,7 @@
             </el-form-item>
           </el-form>
         </el-tab-pane>
-        
+
         <!-- 登录日志 -->
         <el-tab-pane label="登录日志" name="logs">
           <div class="log-filter">
@@ -76,7 +76,7 @@
               搜索
             </el-button>
           </div>
-          
+
           <el-table :data="loginLogs" style="width: 100%" v-loading="logsLoading">
             <el-table-column prop="id" label="ID" width="80" />
             <el-table-column prop="username" label="用户名" />
@@ -91,7 +91,7 @@
               </template>
             </el-table-column>
           </el-table>
-          
+
           <div class="pagination">
             <el-pagination
               v-model:current-page="logsPagination.page"
@@ -130,7 +130,7 @@ const userInfo = reactive<User>({
   status: true,
   last_login_time: null,
   created_at: '',
-  roles: []
+  roles: [],
 })
 
 // 修改密码表单
@@ -138,16 +138,14 @@ const passwordFormRef = ref()
 const passwordForm = reactive({
   oldPassword: '',
   newPassword: '',
-  confirmPassword: ''
+  confirmPassword: '',
 })
 
 const passwordRules = {
-  oldPassword: [
-    { required: true, message: '请输入当前密码', trigger: 'blur' }
-  ],
+  oldPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
   newPassword: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+    { min: 6, message: '密码长度至少6位', trigger: 'blur' },
   ],
   confirmPassword: [
     { required: true, message: '请确认新密码', trigger: 'blur' },
@@ -159,9 +157,9 @@ const passwordRules = {
           callback()
         }
       },
-      trigger: 'blur'
-    }
-  ]
+      trigger: 'blur',
+    },
+  ],
 }
 
 // 登录日志
@@ -170,7 +168,7 @@ const logDateRange = ref<[Date, Date] | null>(null)
 const logsPagination = reactive<Pagination>({
   page: 1,
   size: 10,
-  total: 0
+  total: 0,
 })
 
 // 加载用户信息
@@ -192,8 +190,8 @@ const loadLoginLogs = async () => {
         skip: (logsPagination.page - 1) * logsPagination.size,
         limit: logsPagination.size,
         start_date: logDateRange.value?.[0]?.toISOString(),
-        end_date: logDateRange.value?.[1]?.toISOString()
-      }
+        end_date: logDateRange.value?.[1]?.toISOString(),
+      },
     })
     loginLogs.value = response.data
     // 假设返回的数据包含total字段
@@ -208,21 +206,21 @@ const loadLoginLogs = async () => {
 // 修改密码
 const changePassword = async () => {
   if (!passwordFormRef.value) return
-  
+
   await passwordFormRef.value.validate(async (valid: boolean) => {
     if (valid) {
       loading.value = true
       try {
         await axios.post('/api/v1/user/change-password', {
           old_password: passwordForm.oldPassword,
-          new_password: passwordForm.newPassword
+          new_password: passwordForm.newPassword,
         })
         ElMessage.success('密码修改成功，请重新登录')
         // 重置表单
         Object.assign(passwordForm, {
           oldPassword: '',
           newPassword: '',
-          confirmPassword: ''
+          confirmPassword: '',
         })
         // 实际项目中应该跳转到登录页
       } catch (error: any) {
@@ -294,40 +292,40 @@ onMounted(() => {
   .profile {
     padding: 10px;
   }
-  
+
   .card-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .log-filter {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .log-filter .el-date-picker {
     width: 100%;
   }
-  
+
   .el-table {
     font-size: 12px;
   }
-  
+
   .el-table th,
   .el-table td {
     padding: 8px 4px;
   }
-  
+
   .pagination {
     margin-top: 10px;
   }
-  
+
   :deep(.el-pagination) {
     font-size: 12px;
   }
-  
+
   :deep(.el-pagination__sizes .el-input__inner) {
     width: 80px;
   }

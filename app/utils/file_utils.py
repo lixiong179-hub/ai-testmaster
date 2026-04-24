@@ -34,6 +34,8 @@
     - requests: URL可达性验证
 """
 import os
+import shutil
+import time
 import ipaddress
 import socket
 import requests
@@ -233,6 +235,35 @@ def get_file_size(file_path: str) -> int:
     if os.path.exists(file_path):
         return os.path.getsize(file_path) // 1024
     return 0
+
+
+def ensure_dir(dir_path: str) -> None:
+    """兼容旧测试导出的目录创建工具。"""
+
+    os.makedirs(dir_path, exist_ok=True)
+
+
+def clean_old_files(dir_path: str, max_age_seconds: int = 24 * 60 * 60) -> int:
+    """兼容旧测试导出的旧文件清理工具。"""
+
+    if not os.path.exists(dir_path):
+        return 0
+
+    removed_count = 0
+    now = time.time()
+    for entry in os.scandir(dir_path):
+        try:
+            if now - entry.stat().st_mtime <= max_age_seconds:
+                continue
+            if entry.is_dir():
+                shutil.rmtree(entry.path)
+            else:
+                os.remove(entry.path)
+            removed_count += 1
+        except OSError:
+            continue
+
+    return removed_count
 
 
 def parse_file(file_path: str, file_type: str) -> Dict[str, Any]:

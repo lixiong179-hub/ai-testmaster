@@ -1,6 +1,7 @@
 import uuid
 import pytest
-from app.services.user_role_service import UserService, RoleService, pwd_context
+from app.services.user_service.user_service import UserService, pwd_context
+from app.services.role_service.role_service import RoleService
 from app.services.permission_service import PermissionService, UserRoleService, RBACService
 from app.schemas.user import UserCreate, UserUpdate, RoleCreate, RoleUpdate, PermissionCreate, PermissionUpdate
 from app.core.exception import BaseAPIException

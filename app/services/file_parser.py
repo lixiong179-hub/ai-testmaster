@@ -29,6 +29,7 @@ import os
 import re
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
+from loguru import logger
 
 
 class FileParser(ABC):
@@ -122,7 +123,8 @@ class DocParser(FileParser):
         except ImportError:
             return "需要安装 python-docx 库来解析Word文档"
         except Exception as e:
-            return f"解析Word文档失败: {str(e)}"
+            logger.error(f"解析Word文档失败: {e}")
+            return "解析Word文档失败"
 
 
 class DocxParser(FileParser):
@@ -147,7 +149,8 @@ class DocxParser(FileParser):
         except ImportError:
             return "需要安装 python-docx 库来解析Word文档"
         except Exception as e:
-            return f"解析Word文档失败: {str(e)}"
+            logger.error(f"解析Word文档失败: {e}")
+            return "解析Word文档失败"
 
 
 class PdfParser(FileParser):
@@ -174,7 +177,37 @@ class PdfParser(FileParser):
         except ImportError:
             return "需要安装 PyPDF2 库来解析PDF文档"
         except Exception as e:
-            return f"解析PDF文档失败: {str(e)}"
+            logger.error(f"解析PDF文档失败: {e}")
+            return "解析PDF文档失败"
+
+
+class XmindFileParser(FileParser):
+    """XMind文件解析器 - 将结构化数据转为JSON文本字符串。
+
+    适配FileParser的parse接口，将XmindParser返回的
+    List[Dict]转为JSON字符串，供FileContentExtractor使用。
+    XMind导入的专用API（/import-xmind）直接调用XmindParser，
+    不经过此适配器。
+    """
+
+    def parse(self, file_path: str) -> str:
+        """解析XMind文件，返回JSON格式文本。
+
+        Args:
+            file_path: .xmind文件路径。
+
+        Returns:
+            测试点列表的JSON字符串，解析失败时返回错误信息。
+        """
+        try:
+            import json
+            from app.services.xmind_parser import XmindParser
+            parser = XmindParser()
+            result = parser.parse(file_path)
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"解析XMind文件失败: {e}")
+            return f"解析XMind文件失败: {e}"
 
 
 class FileParserFactory:
@@ -186,6 +219,7 @@ class FileParserFactory:
         - .doc: Word文档（旧格式）
         - .docx: Word文档（新格式）
         - .pdf: PDF文档
+        - .xmind: XMind思维导图（返回JSON字符串）
 
     使用方式:
         content = FileParserFactory.parse_file("/path/to/file.pdf")
@@ -206,7 +240,8 @@ class FileParserFactory:
             '.md': MdParser(),
             '.doc': DocParser(),
             '.docx': DocxParser(),
-            '.pdf': PdfParser()
+            '.pdf': PdfParser(),
+            '.xmind': XmindFileParser()
         }
         return parsers.get(file_extension.lower())
 

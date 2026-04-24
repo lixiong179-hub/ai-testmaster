@@ -1,5 +1,5 @@
 """
-OCR诊断脚本 - 测试PaddleOCR是否正常工作
+OCR诊断脚本 - 测试RapidOCR是否正常工作
 """
 import sys
 import os
@@ -8,14 +8,14 @@ print("=" * 60)
 print("OCR 诊断测试")
 print("=" * 60)
 
-# 1. 检查PaddleOCR是否安装
-print("\n[1] 检查PaddleOCR安装...")
+# 1. 检查RapidOCR是否安装
+print("\n[1] 检查RapidOCR安装...")
 try:
-    import paddleocr
-    print(f"    ✓ PaddleOCR已安装: {paddleocr.__version__}")
+    from rapidocr_onnxruntime import RapidOCR
+    print("    ✓ RapidOCR已安装")
 except ImportError as e:
-    print(f"    ✗ PaddleOCR未安装: {e}")
-    print("    解决方案: pip install paddleocr paddlepaddle")
+    print(f"    ✗ RapidOCR未安装: {e}")
+    print("    解决方案: pip install rapidocr-onnxruntime")
     sys.exit(1)
 
 # 2. 检查OpenCV是否安装
@@ -39,16 +39,15 @@ except ImportError as e:
 # 4. 测试OCR初始化
 print("\n[4] 测试OCR初始化...")
 try:
-    from paddleocr import PaddleOCR
-    print("    正在初始化PaddleOCR (首次可能需要下载模型)...")
-    ocr = PaddleOCR(use_angle_cls=True, lang='ch', use_gpu=False, show_log=False)
-    print("    ✓ PaddleOCR初始化成功")
+    print("    正在初始化RapidOCR (首次可能需要下载模型)...")
+    ocr = RapidOCR()
+    print("    ✓ RapidOCR初始化成功")
 except Exception as e:
-    print(f"    ✗ PaddleOCR初始化失败: {e}")
+    print(f"    ✗ RapidOCR初始化失败: {e}")
     sys.exit(1)
 
-# 5. 测试图片解码
-print("\n[5] 测试图片解码...")
+# 5. 测试图片解码与OCR识别
+print("\n[5] 测试图片解码与OCR识别...")
 test_image_path = os.path.join(os.path.dirname(__file__), "uploads", "ui_prototypes", "1")
 if os.path.exists(test_image_path):
     # 找到第一个图片文件
@@ -65,6 +64,22 @@ if os.path.exists(test_image_path):
 
             if img is not None:
                 print(f"    ✓ 图片解码成功: {img.shape}")
+                
+                # 测试OCR识别
+                print("\n[6] 测试OCR文字识别...")
+                try:
+                    result, elapse = ocr(img)
+                    if result:
+                        print(f"    ✓ OCR识别成功，耗时: {elapse}")
+                        print(f"    共识别 {len(result)} 个文本块:")
+                        for item in result:
+                            text = item[1]
+                            confidence = item[2]
+                            print(f"      - [{confidence:.2f}] {text}")
+                    else:
+                        print("    ✗ OCR识别结果为空")
+                except Exception as e:
+                    print(f"    ✗ OCR识别失败: {e}")
             else:
                 print(f"    ✗ 图片解码失败")
             break

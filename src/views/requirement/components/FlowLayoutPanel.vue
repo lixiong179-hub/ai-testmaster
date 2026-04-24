@@ -35,15 +35,13 @@
     </template>
     <div class="constraints-list">
       <div v-for="(constraint, index) in layoutConstraints" :key="index" class="constraint-item">
-        <el-tag
-          :type="getPriorityColor(constraint.priority)"
-          size="small"
-          class="priority-tag"
-        >
+        <el-tag :type="getPriorityColor(constraint.priority)" size="small" class="priority-tag">
           {{ constraint.priority }}
         </el-tag>
         <span class="constraint-text">{{ constraint.constraint }}</span>
-        <span v-if="constraint.target" class="constraint-target">目标: {{ constraint.target }}</span>
+        <span v-if="constraint.target" class="constraint-target"
+          >目标: {{ constraint.target }}</span
+        >
       </div>
     </div>
   </el-collapse-item>
@@ -59,7 +57,10 @@
       <div v-if="visualStyle.background_color" class="style-item">
         <span class="style-label">背景色</span>
         <span class="style-value">
-          <span class="color-swatch" :style="{ backgroundColor: visualStyle.background_color }"></span>
+          <span
+            class="color-swatch"
+            :style="{ backgroundColor: visualStyle.background_color }"
+          ></span>
           {{ visualStyle.background_color }}
         </span>
       </div>
@@ -124,7 +125,7 @@ const getPriorityColor = (priority: string) => {
   const colorMap: Record<string, string> = {
     high: 'danger',
     medium: 'warning',
-    low: 'info'
+    low: 'info',
   }
   return colorMap[priority] || 'info'
 }
@@ -156,10 +157,11 @@ const getPriorityColor = (priority: string) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 13px;
+  flex-wrap: wrap;
 }
 
 .flow-from,
@@ -184,10 +186,11 @@ const getPriorityColor = (priority: string) => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 13px;
+  flex-wrap: wrap;
 }
 
 .priority-tag {
@@ -214,10 +217,11 @@ const getPriorityColor = (priority: string) => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 13px;
+  flex-wrap: wrap;
 }
 
 .style-label {
@@ -247,5 +251,17 @@ const getPriorityColor = (priority: string) => {
 
 .warning-item {
   margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .nav-actions,
+  .constraint-target {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .visual-style-content {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

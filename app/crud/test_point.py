@@ -42,7 +42,9 @@ def create_test_point(
     function: str,
     point: str,
     priority: int,
-    ai_prompt: Optional[str] = None
+    ai_prompt: Optional[str] = None,
+    created_by: Optional[str] = None,
+    requirement_id: Optional[int] = None,
 ) -> TestPoint:
     """
     创建测试点
@@ -58,6 +60,8 @@ def create_test_point(
         point: 测试点描述，具体需要测试的场景或条件
         priority: 优先级，1=高/2=中/3=低
         ai_prompt: AI分析时的提示词（可选），用于引导AI生成更精准的测试用例
+        created_by: 创建人用户名（可选）
+        requirement_id: 关联需求ID（可选）
 
     Returns:
         TestPoint: 创建成功后的测试点对象（已commit并refresh）
@@ -68,7 +72,9 @@ def create_test_point(
         function=function,
         point=point,
         priority=priority,
-        ai_prompt=ai_prompt
+        ai_prompt=ai_prompt,
+        created_by=created_by,
+        requirement_id=requirement_id,
     )
     db.add(db_test_point)
     db.commit()
@@ -287,7 +293,9 @@ def get_test_points_count(
 def batch_create_test_points(
     db: Session,
     project_id: int,
-    test_points_data: List[Dict[str, Any]]
+    test_points_data: List[Dict[str, Any]],
+    created_by: Optional[str] = None,
+    commit: bool = True,
 ) -> List[TestPoint]:
     """
     批量创建测试点
@@ -300,7 +308,9 @@ def batch_create_test_points(
         project_id: 所属项目ID，所有测试点归属同一项目
         test_points_data: 测试点数据列表，每条数据为字典格式，
             必含字段: module, function, point, priority
-            可选字段: ai_prompt
+            可选字段: ai_prompt, requirement_id, created_by
+        created_by: 默认创建人用户名；当单条数据未显式传入 created_by 时使用
+        commit: 是否在函数内提交事务，默认提交
 
     Returns:
         List[TestPoint]: 创建成功的测试点列表
@@ -323,15 +333,21 @@ def batch_create_test_points(
             function=data['function'],
             point=data['point'],
             priority=data['priority'],
-            ai_prompt=data.get('ai_prompt')  # 可选字段，缺失时为None
+            ai_prompt=data.get('ai_prompt'),  # 可选字段，缺失时为None
+            created_by=data.get('created_by', created_by),
+            requirement_id=data.get('requirement_id'),
         )
         db.add(test_point)  # 加入session但不commit
         test_points.append(test_point)
 
-    # 统一提交：将多次IO合并为一次事务提交，提升批量写入性能
-    db.commit()
-    # 逐条refresh获取数据库生成的字段（id、create_time等）
-    for test_point in test_points:
-        db.refresh(test_point)
+    # 统一flush，确保批量创建后对象已分配主键
+    db.flush()
+
+    if commit:
+        # 统一提交：将多次IO合并为一次事务提交，提升批量写入性能
+        db.commit()
+        # 逐条refresh获取数据库生成的字段（id、create_time等）
+        for test_point in test_points:
+            db.refresh(test_point)
 
     return test_points

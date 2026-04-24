@@ -133,7 +133,7 @@ async def execution_websocket(
 
 
 @router.get("/ws/stats")
-async def get_websocket_stats():
+async def get_websocket_stats() -> dict:
     """
     获取WebSocket连接统计
     

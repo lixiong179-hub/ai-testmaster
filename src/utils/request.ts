@@ -1,37 +1,47 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import axios, {
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from 'axios'
 import { debounce, throttle } from './debounce'
 
 // 接口类型超时配置（毫秒）
 const TIMEOUT_CONFIG = {
-  default: 30000,      // 普通接口 30秒
-  ai: 120000,          // AI接口 2分钟
-  upload: 60000,       // 文件上传 60秒
-  export: 60000,       // 数据导出 60秒
+  default: 30000, // 普通接口 30秒
+  ai: 120000, // AI接口 2分钟
+  upload: 60000, // 文件上传 60秒
+  export: 60000, // 数据导出 60秒
 }
 
 // 根据URL判断接口类型并返回对应超时时间
 function getTimeoutByUrl(url?: string): number {
   if (!url) return TIMEOUT_CONFIG.default
-  
+
   const lowerUrl = url.toLowerCase()
-  
+
   // AI相关接口
-  if (lowerUrl.includes('/ai/') || 
-      lowerUrl.includes('/analyze') || 
-      lowerUrl.includes('/generate') ||
-      lowerUrl.includes('/extract') ||
-      lowerUrl.includes('/test-point') ||
-      lowerUrl.includes('/test-case')) {
+  if (
+    lowerUrl.includes('/ai/') ||
+    lowerUrl.includes('/analyze') ||
+    lowerUrl.includes('/generate') ||
+    lowerUrl.includes('/extract') ||
+    lowerUrl.includes('/test-point') ||
+    lowerUrl.includes('/test-case') ||
+    lowerUrl.includes('/parse')
+  ) {
     return TIMEOUT_CONFIG.ai
   }
-  
+
   // 文件上传/导出接口
-  if (lowerUrl.includes('/upload') || 
-      lowerUrl.includes('/export') ||
-      lowerUrl.includes('/import')) {
+  if (
+    lowerUrl.includes('/upload') ||
+    lowerUrl.includes('/export') ||
+    lowerUrl.includes('/import')
+  ) {
     return TIMEOUT_CONFIG.upload
   }
-  
+
   return TIMEOUT_CONFIG.default
 }
 
@@ -59,8 +69,8 @@ const service: AxiosInstance = axios.create({
   baseURL: import.meta.env?.VITE_API_BASE_URL || '',
   timeout: TIMEOUT_CONFIG.default,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 })
 
 // 请求拦截器
@@ -70,7 +80,7 @@ service.interceptors.request.use(
     if (!config.timeout || config.timeout === TIMEOUT_CONFIG.default) {
       config.timeout = getTimeoutByUrl(config.url)
     }
-    
+
     // 添加token
     const token = localStorage.getItem('token')
     if (token) {
@@ -87,11 +97,14 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response: AxiosResponse) => {
+    // 对于 blob 类型的响应，直接返回原始响应
+    if (response.config.responseType === 'blob') {
+      return response
+    }
     const res = response.data as ApiResponse
     return res as unknown as AxiosResponse
   },
   (error) => {
-
     // 处理401错误，跳转到登录页面
     if (error.response && error.response.status === 401) {
       // 清除本地存储的token
@@ -110,7 +123,9 @@ service.interceptors.response.use(
     } else if (Array.isArray(detail)) {
       errorDetail = detail.map((d: ValidationErrorDetail) => d.msg || String(d)).join('; ')
     }
-    const customError = new Error(errorDetail || error.response?.data?.message || error.message) as CustomApiError
+    const customError = new Error(
+      errorDetail || error.response?.data?.message || error.message
+    ) as CustomApiError
     customError.response = error.response
     customError.code = error.code
 
@@ -123,28 +138,36 @@ export const typedRequest = {
   get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     return service.get(url, config) as unknown as Promise<ApiResponse<T>>
   },
-  
-  post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+
+  post<T = unknown>(
+    url: string,
+    data?: unknown,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
     return service.post(url, data, config) as unknown as Promise<ApiResponse<T>>
   },
-  
-  put<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+
+  put<T = unknown>(
+    url: string,
+    data?: unknown,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
     return service.put(url, data, config) as unknown as Promise<ApiResponse<T>>
   },
-  
+
   delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     return service.delete(url, config) as unknown as Promise<ApiResponse<T>>
-  }
+  },
 }
 
 // 防抖处理的请求方法
 export const debouncedRequest = debounce((config: AxiosRequestConfig) => {
-  return service(config);
-}, 300);
+  return service(config)
+}, 300)
 
 // 节流处理的请求方法
 export const throttledRequest = throttle((config: AxiosRequestConfig) => {
-  return service(config);
-}, 1000);
+  return service(config)
+}, 1000)
 
 export default service

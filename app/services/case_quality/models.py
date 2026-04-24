@@ -89,3 +89,28 @@ class QualityReport:
             "suggestions": self.suggestions,
             "analyzed_at": self.analyzed_at.isoformat(),
         }
+
+
+@dataclass
+class CaseQualityAnalysisRequest:
+    """兼容旧测试导出的质量分析请求模型。"""
+
+    project_id: int
+    test_case_ids: List[int] = field(default_factory=list)
+    include_complexity: bool = True
+    include_redundancy: bool = True
+    include_coverage: bool = True
+
+
+@dataclass
+class CaseQualityReport:
+    """兼容旧测试导出的聚合质量报告模型。"""
+
+    project_id: int
+    total_cases: int = 0
+    complexity_score: float = 0.0
+    redundancy_score: float = 0.0
+    coverage_score: float = 0.0
+    overall_score: float = 0.0
+    suggestions: List[str] = field(default_factory=list)
+    analyzed_at: datetime = field(default_factory=datetime.now)

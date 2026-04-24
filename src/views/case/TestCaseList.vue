@@ -12,21 +12,11 @@
         <div class="header-right">
           <!-- 批量操作按钮 -->
           <template v-if="selectedCases.length > 0">
-            <el-tag type="warning" class="batch-tag">
-              已选择 {{ selectedCases.length }} 条
-            </el-tag>
-            <el-button
-              type="danger"
-              :icon="Delete"
-              @click="handleBatchDelete"
-            >
+            <el-tag type="warning" class="batch-tag"> 已选择 {{ selectedCases.length }} 条 </el-tag>
+            <el-button type="danger" :icon="Delete" @click="handleBatchDelete">
               批量删除
             </el-button>
-            <el-button
-              @click="clearSelection"
-            >
-              取消选择
-            </el-button>
+            <el-button @click="clearSelection"> 取消选择 </el-button>
           </template>
           <!-- 撤销删除按钮 -->
           <el-button
@@ -92,7 +82,10 @@
       <!-- 统计数据区域 -->
       <div v-else class="stats-section" v-loading="loading">
         <div class="stats-cards">
-          <div class="stat-card stat-total" @click="filter = { module: '', priority: null, case_type: '', keyword: '' }; handleFilterChange()">
+          <div
+            class="stat-card stat-total"
+            @click="applyStatsCardFilter(null)"
+          >
             <div class="stat-icon">
               <el-icon><Document /></el-icon>
             </div>
@@ -101,7 +94,10 @@
               <span class="stat-label">全部用例</span>
             </div>
           </div>
-          <div class="stat-card stat-success" @click="filter = { ...filter, case_type: '' }; handleFilterChange()">
+          <div
+            class="stat-card stat-success"
+            @click="applyStatsCardFilter('')"
+          >
             <div class="stat-icon">
               <el-icon><SuccessFilled /></el-icon>
             </div>
@@ -110,7 +106,10 @@
               <span class="stat-label">生成成功</span>
             </div>
           </div>
-          <div class="stat-card stat-failed" @click="filter = { ...filter, case_type: '' }; handleFilterChange()">
+          <div
+            class="stat-card stat-failed"
+            @click="applyStatsCardFilter('')"
+          >
             <div class="stat-icon">
               <el-icon><CircleCloseFilled /></el-icon>
             </div>
@@ -119,7 +118,10 @@
               <span class="stat-label">生成失败</span>
             </div>
           </div>
-          <div class="stat-card stat-manual" @click="filter = { ...filter, case_type: 'manual' }; handleFilterChange()">
+          <div
+            class="stat-card stat-manual"
+            @click="applyStatsCardFilter('manual')"
+          >
             <div class="stat-icon">
               <el-icon><Edit /></el-icon>
             </div>
@@ -128,7 +130,10 @@
               <span class="stat-label">手工测试</span>
             </div>
           </div>
-          <div class="stat-card stat-ui" @click="filter = { ...filter, case_type: 'ui_automation' }; handleFilterChange()">
+          <div
+            class="stat-card stat-ui"
+            @click="applyStatsCardFilter('ui_automation')"
+          >
             <div class="stat-icon">
               <el-icon><Monitor /></el-icon>
             </div>
@@ -137,7 +142,10 @@
               <span class="stat-label">UI自动化</span>
             </div>
           </div>
-          <div class="stat-card stat-api" @click="filter = { ...filter, case_type: 'api_automation' }; handleFilterChange()">
+          <div
+            class="stat-card stat-api"
+            @click="applyStatsCardFilter('api_automation')"
+          >
             <div class="stat-icon">
               <el-icon><Connection /></el-icon>
             </div>
@@ -151,13 +159,28 @@
         <div class="priority-distribution">
           <span class="priority-label">优先级分布：</span>
           <div class="priority-bar">
-            <div class="priority-segment high" :style="{ width: (highPriorityCount / Math.max(filteredTestCases.length, 1) * 100) + '%' }">
+            <div
+              class="priority-segment high"
+              :style="{
+                width: (highPriorityCount / Math.max(filteredTestCases.length, 1)) * 100 + '%',
+              }"
+            >
               <span v-if="highPriorityCount > 0">P0 {{ highPriorityCount }}</span>
             </div>
-            <div class="priority-segment medium" :style="{ width: (mediumPriorityCount / Math.max(filteredTestCases.length, 1) * 100) + '%' }">
+            <div
+              class="priority-segment medium"
+              :style="{
+                width: (mediumPriorityCount / Math.max(filteredTestCases.length, 1)) * 100 + '%',
+              }"
+            >
               <span v-if="mediumPriorityCount > 0">P2 {{ mediumPriorityCount }}</span>
             </div>
-            <div class="priority-segment low" :style="{ width: (lowPriorityCount / Math.max(filteredTestCases.length, 1) * 100) + '%' }">
+            <div
+              class="priority-segment low"
+              :style="{
+                width: (lowPriorityCount / Math.max(filteredTestCases.length, 1)) * 100 + '%',
+              }"
+            >
               <span v-if="lowPriorityCount > 0">P3 {{ lowPriorityCount }}</span>
             </div>
           </div>
@@ -296,11 +319,7 @@
             >
               搜索
             </el-button>
-            <el-button
-              :icon="RefreshRight"
-              :disabled="!hasActiveFilter"
-              @click="resetFilter"
-            >
+            <el-button :icon="RefreshRight" :disabled="!hasActiveFilter" @click="resetFilter">
               重置
             </el-button>
           </div>
@@ -404,145 +423,166 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Search, RefreshRight, FolderOpened, Document, Delete, Grid, List, Filter, ArrowUp, ArrowDown, SuccessFilled, CircleCloseFilled, Edit, Monitor, Connection } from '@element-plus/icons-vue';
-import CaseItem from '@/components/case/CaseItem.vue';
-import { useCaseStore } from '@/store/case';
-import type { TestCase } from '@/types/testCase';
-import request from '@/utils/request';
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  Plus,
+  Search,
+  RefreshRight,
+  FolderOpened,
+  Document,
+  Delete,
+  Grid,
+  List,
+  Filter,
+  ArrowUp,
+  ArrowDown,
+  SuccessFilled,
+  CircleCloseFilled,
+  Edit,
+  Monitor,
+  Connection,
+} from '@element-plus/icons-vue'
+import CaseItem from '@/components/case/CaseItem.vue'
+import { useCaseStore } from '@/store/case'
+import type { TestCase } from '@/types/testCase'
+import request from '@/utils/request'
 
-const route = useRoute();
-const router = useRouter();
-const caseStore = useCaseStore();
+const route = useRoute()
+const router = useRouter()
+const caseStore = useCaseStore()
 
 // 状态
-const loading = ref(false);
-const viewMode = ref<'list' | 'grid'>('list');
-const filterExpanded = ref(true);
+const loading = ref(false)
+const viewMode = ref<'list' | 'grid'>('list')
+const filterExpanded = ref(true)
 
 // 项目列表
-const projectList = ref<any[]>([]);
-const selectedProjectId = ref<number | null>(null);
+const projectList = ref<any[]>([])
+const selectedProjectId = ref<number | null>(null)
 
 // 需求文件列表
-const requirementFileList = ref<any[]>([]);
-const selectedRequirementFileId = ref<number | null>(null);
+const requirementFileList = ref<any[]>([])
+const selectedRequirementFileId = ref<number | null>(null)
 
 // 筛选条件
 const filter = ref({
   module: '',
   priority: null as number | null,
   case_type: '',
-  keyword: ''
-});
+  keyword: '',
+})
 
 // 分页状态
 const pagination = ref({
   currentPage: 1,
-  pageSize: 10
-});
+  pageSize: 10,
+})
 
 // 批量选择状态
-const selectedCases = ref<number[]>([]);
+const selectedCases = ref<number[]>([])
 
 // 是否全选当前页 - 只读computed
 const isAllSelected = computed((): boolean => {
-  if (paginatedTestCases.value.length === 0) return false;
-  return paginatedTestCases.value.every(item => selectedCases.value.includes(item.id));
-});
+  if (paginatedTestCases.value.length === 0) return false
+  return paginatedTestCases.value.every((item) => selectedCases.value.includes(item.id))
+})
 
 // 是否半选状态
 const isIndeterminate = computed(() => {
-  if (paginatedTestCases.value.length === 0) return false;
-  const selectedCount = paginatedTestCases.value.filter(item => selectedCases.value.includes(item.id)).length;
-  return selectedCount > 0 && selectedCount < paginatedTestCases.value.length;
-});
+  if (paginatedTestCases.value.length === 0) return false
+  const selectedCount = paginatedTestCases.value.filter((item) =>
+    selectedCases.value.includes(item.id)
+  ).length
+  return selectedCount > 0 && selectedCount < paginatedTestCases.value.length
+})
 
 // 使用 Set 优化查找性能
-const selectedCasesSet = computed(() => new Set(selectedCases.value));
+const selectedCasesSet = computed(() => new Set(selectedCases.value))
 
 // 判断是否已选择
 const isSelected = (id: number) => {
-  return selectedCasesSet.value.has(id);
-};
+  return selectedCasesSet.value.has(id)
+}
 
 // 处理单个用例的选择
 const handleCaseSelect = (val: boolean, id: number) => {
   if (val) {
     if (!selectedCases.value.includes(id)) {
-      selectedCases.value.push(id);
+      selectedCases.value.push(id)
     }
   } else {
-    selectedCases.value = selectedCases.value.filter(caseId => caseId !== id);
+    selectedCases.value = selectedCases.value.filter((caseId) => caseId !== id)
   }
-};
+}
 
 // 全选/取消全选当前页
 const handleSelectAll = (val: boolean) => {
   if (val) {
     // 添加当前页所有未选择的项
-    paginatedTestCases.value.forEach(item => {
+    paginatedTestCases.value.forEach((item) => {
       if (!selectedCases.value.includes(item.id)) {
-        selectedCases.value.push(item.id);
+        selectedCases.value.push(item.id)
       }
-    });
+    })
   } else {
     // 移除当前页所有项
-    const currentPageIds = paginatedTestCases.value.map(item => item.id);
-    selectedCases.value = selectedCases.value.filter(id => !currentPageIds.includes(id));
+    const currentPageIds = paginatedTestCases.value.map((item) => item.id)
+    selectedCases.value = selectedCases.value.filter((id) => !currentPageIds.includes(id))
   }
-};
+}
 
 // 选择所有页
 const handleSelectAllPages = () => {
-  filteredTestCases.value.forEach(item => {
+  filteredTestCases.value.forEach((item) => {
     if (!selectedCases.value.includes(item.id)) {
-      selectedCases.value.push(item.id);
+      selectedCases.value.push(item.id)
     }
-  });
-};
+  })
+}
 
 // 清空选择
 const clearSelection = () => {
-  selectedCases.value = [];
-};
+  selectedCases.value = []
+}
 
 // 存储最近删除的用例ID，用于撤销
-const recentlyDeletedIds = ref<number[]>([]);
+const recentlyDeletedIds = ref<number[]>([])
 
 // 撤销删除
 const handleUndoDelete = async () => {
   if (recentlyDeletedIds.value.length === 0) {
-    ElMessage.warning('没有可撤销的删除操作');
-    return;
+    ElMessage.warning('没有可撤销的删除操作')
+    return
   }
 
   try {
-    loading.value = true;
-    const result = await caseStore.batchRestoreTestCases(recentlyDeletedIds.value);
-    loading.value = false;
+    loading.value = true
+    const result = await caseStore.batchRestoreTestCases(recentlyDeletedIds.value)
+    loading.value = false
 
     // 清空已记录的删除ID
-    recentlyDeletedIds.value = [];
+    recentlyDeletedIds.value = []
 
     if (result.fail_count === 0 && result.not_found_count === 0) {
-      ElMessage.success(`成功恢复 ${result.success_count} 个测试用例`);
+      ElMessage.success(`成功恢复 ${result.success_count} 个测试用例`)
     } else {
-      ElMessage.warning(`恢复完成：成功 ${result.success_count} 个，失败 ${result.fail_count} 个，未找到 ${result.not_found_count} 个`);
+      ElMessage.warning(
+        `恢复完成：成功 ${result.success_count} 个，失败 ${result.fail_count} 个，未找到 ${result.not_found_count} 个`
+      )
     }
   } catch (error) {
-    loading.value = false;
-    ElMessage.error('撤销删除失败，请稍后重试');
+    loading.value = false
+    ElMessage.error('撤销删除失败，请稍后重试')
   }
-};
+}
 
 // 批量删除
 const handleBatchDelete = () => {
   if (selectedCases.value.length === 0) {
-    ElMessage.warning('请先选择要删除的用例');
-    return;
+    ElMessage.warning('请先选择要删除的用例')
+    return
   }
 
   ElMessageBox.confirm(
@@ -552,348 +592,378 @@ const handleBatchDelete = () => {
       confirmButtonText: '确定删除',
       cancelButtonText: '取消',
       type: 'warning',
-      confirmButtonClass: 'el-button--danger'
+      confirmButtonClass: 'el-button--danger',
     }
-  ).then(async () => {
-    loading.value = true;
+  )
+    .then(async () => {
+      loading.value = true
 
-    try {
-      // 调用批量删除API
-      const result = await caseStore.batchDeleteTestCases(selectedCases.value);
+      try {
+        // 调用批量删除API
+        const result = await caseStore.batchDeleteTestCases(selectedCases.value)
 
-      loading.value = false;
+        loading.value = false
 
-      // 记录删除的ID用于撤销
-      if (result.deleted_ids && result.deleted_ids.length > 0) {
-        recentlyDeletedIds.value = result.deleted_ids;
-      }
+        // 记录删除的ID用于撤销
+        if (result.deleted_ids && result.deleted_ids.length > 0) {
+          recentlyDeletedIds.value = result.deleted_ids
+        }
 
-      // 清空选择
-      selectedCases.value = [];
+        // 清空选择
+        selectedCases.value = []
 
-      if (result.fail_count === 0 && result.not_found_count === 0) {
-        // 显示带撤销按钮的成功消息
-        ElMessage.success({
-          message: `成功删除 ${result.success_count} 个测试用例`,
-          duration: 5000,
-          showClose: true
-        });
-      } else {
-        // 显示详细结果弹窗
-        ElMessageBox.alert(
-          `<div style="text-align: center;">
+        if (result.fail_count === 0 && result.not_found_count === 0) {
+          // 显示带撤销按钮的成功消息
+          ElMessage.success({
+            message: `成功删除 ${result.success_count} 个测试用例`,
+            duration: 5000,
+            showClose: true,
+          })
+        } else {
+          // 显示详细结果弹窗
+          ElMessageBox.alert(
+            `<div style="text-align: center;">
             <div style="font-size: 48px; margin-bottom: 16px;">${result.success_count === 0 ? '❌' : '⚠️'}</div>
             <div style="font-size: 18px; margin-bottom: 12px;">删除完成</div>
             <div style="color: #67c23a; margin-bottom: 8px;">✓ 成功：${result.success_count} 个</div>
             ${result.fail_count > 0 ? `<div style="color: #f56c6c; margin-bottom: 8px;">✗ 失败：${result.fail_count} 个</div>` : ''}
             ${result.not_found_count > 0 ? `<div style="color: #e6a23c;">⚠ 未找到：${result.not_found_count} 个</div>` : ''}
           </div>`,
-          '删除结果',
-          {
-            confirmButtonText: '确定',
-            dangerouslyUseHTMLString: true,
-            type: result.success_count === 0 ? 'error' : 'warning'
-          }
-        );
-      }
+            '删除结果',
+            {
+              confirmButtonText: '确定',
+              dangerouslyUseHTMLString: true,
+              type: result.success_count === 0 ? 'error' : 'warning',
+            }
+          )
+        }
 
-      // 检查当前页是否还有数据，如果没有则回到上一页
-      const currentPageData = paginatedTestCases.value;
-      if (currentPageData.length === 0 && pagination.value.currentPage > 1) {
-        pagination.value.currentPage--;
+        // 检查当前页是否还有数据，如果没有则回到上一页
+        const currentPageData = paginatedTestCases.value
+        if (currentPageData.length === 0 && pagination.value.currentPage > 1) {
+          pagination.value.currentPage--
+        }
+      } catch (error) {
+        loading.value = false
+        ElMessage.error('批量删除失败，请稍后重试')
       }
-    } catch (error) {
-      loading.value = false;
-      ElMessage.error('批量删除失败，请稍后重试');
-    }
-  }).catch(() => {});
-};
+    })
+    .catch(() => {})
+}
 
 // 计算属性
 const hasActiveFilter = computed(() => {
-  return filter.value.module ||
-         filter.value.priority !== null ||
-         filter.value.keyword ||
-         filter.value.case_type ||
-         selectedRequirementFileId.value !== null;
-});
+  return (
+    filter.value.module ||
+    filter.value.priority !== null ||
+    filter.value.keyword ||
+    filter.value.case_type ||
+    selectedRequirementFileId.value !== null
+  )
+})
 
 // 统计数据计算
 const successCount = computed(() => {
-  return caseStore.testCases.filter(c => c.generate_status === 1).length;
-});
+  return caseStore.testCases.filter((c) => c.generate_status === 1).length
+})
 
 const failedCount = computed(() => {
-  return caseStore.testCases.filter(c => c.generate_status === 2).length;
-});
+  return caseStore.testCases.filter((c) => c.generate_status === 2).length
+})
 
 const manualCount = computed(() => {
-  const MANUAL_TYPES = ['manual', '功能', '功能测试', 'functional'];
-  return caseStore.testCases.filter(c => MANUAL_TYPES.includes(c.case_type)).length;
-});
+  const MANUAL_TYPES = ['manual', '功能', '功能测试', 'functional']
+  return caseStore.testCases.filter((c) => MANUAL_TYPES.includes(c.case_type)).length
+})
 
 const uiCount = computed(() => {
-  const UI_TYPES = ['ui_automation', 'UI', 'UI自动化'];
-  return caseStore.testCases.filter(c => UI_TYPES.includes(c.case_type)).length;
-});
+  const UI_TYPES = ['ui_automation', 'UI', 'UI自动化']
+  return caseStore.testCases.filter((c) => UI_TYPES.includes(c.case_type)).length
+})
 
 const apiCount = computed(() => {
-  const API_TYPES = ['api_automation', 'API', '接口'];
-  return caseStore.testCases.filter(c => API_TYPES.includes(c.case_type)).length;
-});
+  const API_TYPES = ['api_automation', 'API', '接口']
+  return caseStore.testCases.filter((c) => API_TYPES.includes(c.case_type)).length
+})
 
 const highPriorityCount = computed(() => {
-  return caseStore.testCases.filter(c => c.priority === 1).length;
-});
+  return caseStore.testCases.filter((c) => c.priority === 1).length
+})
 
 const mediumPriorityCount = computed(() => {
-  return caseStore.testCases.filter(c => c.priority === 2).length;
-});
+  return caseStore.testCases.filter((c) => c.priority === 2).length
+})
 
 const lowPriorityCount = computed(() => {
-  return caseStore.testCases.filter(c => c.priority === 3).length;
-});
+  return caseStore.testCases.filter((c) => c.priority === 3).length
+})
 
 // 分页后的测试用例
 const paginatedTestCases = computed(() => {
-  const start = (pagination.value.currentPage - 1) * pagination.value.pageSize;
-  const end = start + pagination.value.pageSize;
-  return filteredTestCases.value.slice(start, end);
-});
+  const start = (pagination.value.currentPage - 1) * pagination.value.pageSize
+  const end = start + pagination.value.pageSize
+  return filteredTestCases.value.slice(start, end)
+})
 
 // 分页事件处理
 const handleSizeChange = (size: number) => {
-  pagination.value.pageSize = size;
-  pagination.value.currentPage = 1; // 切换每页条数时重置到第一页
-};
+  pagination.value.pageSize = size
+  pagination.value.currentPage = 1 // 切换每页条数时重置到第一页
+}
 
 const handleCurrentChange = (page: number) => {
-  pagination.value.currentPage = page;
-};
+  pagination.value.currentPage = page
+}
 
 // 获取项目列表
 const fetchProjectList = async () => {
   try {
-    const response = await request.get('/api/v1/project/list');
+    const response = await request.get('/api/v1/project/list')
     if (response?.data?.items) {
-      projectList.value = response.data.items.filter((p: any) => p.name !== '默认项目');
+      projectList.value = response.data.items.filter((p: any) => p.name !== '默认项目')
     }
   } catch (error) {
-    console.error('获取项目列表失败:', error);
+    console.error('获取项目列表失败:', error)
   }
-};
+}
 
 // 获取需求文件列表
 const fetchRequirementFileList = async (projectId: number) => {
   if (!projectId) {
-    requirementFileList.value = [];
-    return;
+    requirementFileList.value = []
+    return
   }
   try {
-    const response = await request.get(`/api/v1/file/list/${projectId}`);
+    const response = await request.get(`/api/v1/file/list/${projectId}`)
     // 处理多种可能的响应格式
-    let files: any[] = [];
+    let files: any[] = []
     if (Array.isArray(response)) {
-      files = response;
+      files = response
     } else if (response?.data && Array.isArray(response.data)) {
-      files = response.data;
+      files = response.data
     } else if (response?.data?.items && Array.isArray(response.data.items)) {
-      files = response.data.items;
+      files = response.data.items
     }
     // 只显示需求文档类型的文件
-    requirementFileList.value = files.filter((file: any) =>
-      file.resource_type === 'requirement' || file.file_type?.includes('requirement')
-    );
+    requirementFileList.value = files.filter(
+      (file: any) => file.resource_type === 'requirement' || file.file_type?.includes('requirement')
+    )
   } catch (error) {
-    console.error('获取需求文件列表失败:', error);
-    requirementFileList.value = [];
+    console.error('获取需求文件列表失败:', error)
+    requirementFileList.value = []
   }
-};
+}
 
 // 项目变更处理
 const handleProjectChange = async (projectId: number | null) => {
   // 先清空选择，避免 Checkbox 状态混乱
-  selectedCases.value = [];
-  recentlyDeletedIds.value = [];
+  selectedCases.value = []
+  recentlyDeletedIds.value = []
 
   // 重置所有筛选条件和分页
-  filter.value = { module: '', priority: null, case_type: '', keyword: '' };
-  selectedRequirementFileId.value = null;
-  requirementFileList.value = [];
-  pagination.value.currentPage = 1;
+  filter.value = { module: '', priority: null, case_type: '', keyword: '' }
+  selectedRequirementFileId.value = null
+  requirementFileList.value = []
+  pagination.value.currentPage = 1
 
   if (projectId) {
-    loading.value = true;
+    loading.value = true
     try {
-      await fetchRequirementFileList(projectId);
-      await caseStore.fetchTestCases(projectId);
+      await fetchRequirementFileList(projectId)
+      await caseStore.fetchTestCases(projectId)
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   } else {
-    caseStore.testCases = [];
+    caseStore.testCases = []
   }
-};
+}
 
 // 需求文件变更处理 - 使用前端过滤，与模块/优先级筛选保持一致
 const handleRequirementFileChange = () => {
   // 重置到第一页
-  pagination.value.currentPage = 1;
-};
+  pagination.value.currentPage = 1
+}
 
 // 筛选处理
 const handleFilterChange = () => {
   // 重置到第一页
-  pagination.value.currentPage = 1;
-};
+  pagination.value.currentPage = 1
+}
+
+const applyStatsCardFilter = (caseType: string | null) => {
+  if (caseType === null) {
+    filter.value = { module: '', priority: null, case_type: '', keyword: '' }
+  } else {
+    filter.value = { ...filter.value, case_type: caseType }
+  }
+  handleFilterChange()
+}
 
 // 重置筛选
 const resetFilter = () => {
-  filter.value = { module: '', priority: null, case_type: '', keyword: '' };
-  selectedRequirementFileId.value = null;
-  pagination.value.currentPage = 1;
+  filter.value = { module: '', priority: null, case_type: '', keyword: '' }
+  selectedRequirementFileId.value = null
+  pagination.value.currentPage = 1
   // 重新加载当前项目的全部用例
   if (selectedProjectId.value) {
-    caseStore.fetchTestCases(selectedProjectId.value);
+    caseStore.fetchTestCases(selectedProjectId.value)
   }
-};
+}
 
 // 模块列表
 const modules = computed(() => {
-  const moduleSet = new Set<string>();
-  caseStore.testCases.forEach(caseItem => {
-    if (caseItem.module) moduleSet.add(caseItem.module);
-  });
-  return Array.from(moduleSet).sort();
-});
+  const moduleSet = new Set<string>()
+  caseStore.testCases.forEach((caseItem) => {
+    if (caseItem.module) moduleSet.add(caseItem.module)
+  })
+  return Array.from(moduleSet).sort()
+})
 
 // 筛选后的测试用例
 const filteredTestCases = computed(() => {
-  let filtered = caseStore.testCases;
+  let filtered = caseStore.testCases
 
   // 按需求文件筛选
   if (selectedRequirementFileId.value !== null) {
-    filtered = filtered.filter(caseItem =>
-      (caseItem as any).requirement_file_id === selectedRequirementFileId.value
-    );
+    filtered = filtered.filter(
+      (caseItem) => (caseItem as any).requirement_file_id === selectedRequirementFileId.value
+    )
   }
 
   if (filter.value.module) {
-    filtered = filtered.filter(caseItem => caseItem.module === filter.value.module);
+    filtered = filtered.filter((caseItem) => caseItem.module === filter.value.module)
   }
 
   if (filter.value.priority !== null) {
-    filtered = filtered.filter(caseItem => caseItem.priority === filter.value.priority);
+    filtered = filtered.filter((caseItem) => caseItem.priority === filter.value.priority)
   }
 
   if (filter.value.case_type) {
-    filtered = filtered.filter(caseItem => caseItem.case_type === filter.value.case_type);
+    filtered = filtered.filter((caseItem) => caseItem.case_type === filter.value.case_type)
   }
 
   if (filter.value.keyword) {
-    const keyword = filter.value.keyword.toLowerCase();
-    filtered = filtered.filter(caseItem =>
-      (caseItem.title && caseItem.title.toLowerCase().includes(keyword)) ||
-      (caseItem.case_no && caseItem.case_no.toLowerCase().includes(keyword))
-    );
+    const keyword = filter.value.keyword.toLowerCase()
+    filtered = filtered.filter(
+      (caseItem) =>
+        (caseItem.title && caseItem.title.toLowerCase().includes(keyword)) ||
+        (caseItem.case_no && caseItem.case_no.toLowerCase().includes(keyword))
+    )
   }
 
-  return filtered;
-});
+  return filtered
+})
 
 // 跳转到AI生成页面
 const goToAIGenerate = () => {
-  const projectId = selectedProjectId.value || Number(route.params.projectId);
+  const projectId = selectedProjectId.value || Number(route.params.projectId)
   if (projectId) {
     router.push({
       path: '/home/case/ai-generate',
-      query: { project_id: String(projectId) }
-    });
+      query: { project_id: String(projectId) },
+    })
   }
-};
+}
 
 // 查看用例详情
 const viewDetail = (caseId: number) => {
-  router.push(`/home/case/detail/${caseId}`);
-};
+  router.push(`/home/case/detail/${caseId}`)
+}
 
 // 复制用例
 const copyCase = (caseItem: TestCase) => {
-  const caseText = `用例编号: ${caseItem.case_no}\n` +
+  const caseText =
+    `用例编号: ${caseItem.case_no}\n` +
     `模块: ${caseItem.module}\n` +
     `标题: ${caseItem.title}\n` +
     `前置条件: ${caseItem.precondition}\n` +
-    `测试步骤:\n${caseItem.steps?.map(step => `${step.step_number}. ${step.action}`).join('\n')}\n` +
+    `测试步骤:\n${caseItem.steps?.map((step) => `${step.step_number}. ${step.action}`).join('\n')}\n` +
     `预期结果: ${caseItem.expected_result}\n` +
     `优先级: ${priorityText(caseItem.priority)}\n` +
-    `用例类型: ${caseItem.case_type}`;
-  
-  navigator.clipboard.writeText(caseText).then(() => {
-    ElMessage.success('用例已复制到剪贴板');
-  }).catch(() => {
-    ElMessage.error('复制失败');
-  });
-};
+    `用例类型: ${caseItem.case_type}`
+
+  navigator.clipboard
+    .writeText(caseText)
+    .then(() => {
+      ElMessage.success('用例已复制到剪贴板')
+    })
+    .catch(() => {
+      ElMessage.error('复制失败')
+    })
+}
 
 // 重试生成单个用例
 const retryGenerate = async (caseId: number) => {
-  const projectId = selectedProjectId.value || Number(route.params.projectId);
+  const projectId = selectedProjectId.value || Number(route.params.projectId)
   if (projectId) {
-    await caseStore.retryFailedCases(projectId, [caseId]);
-    ElMessage.success('重试生成成功');
+    await caseStore.retryFailedCases(projectId, [caseId])
+    ElMessage.success('重试生成成功')
   }
-};
+}
 
 // 删除用例
 const deleteCase = (caseId: number) => {
   ElMessageBox.confirm('确定要删除这个测试用例吗？', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async () => {
-    const success = await caseStore.deleteTestCase(caseId);
-    if (success) {
-      ElMessage.success('删除成功');
-      // 如果该用例在选中列表中，移除它
-      const index = selectedCases.value.indexOf(caseId);
-      if (index > -1) {
-        selectedCases.value.splice(index, 1);
+    type: 'warning',
+  })
+    .then(async () => {
+      const success = await caseStore.deleteTestCase(caseId)
+      if (success) {
+        ElMessage.success('删除成功')
+        // 如果该用例在选中列表中，移除它
+        const index = selectedCases.value.indexOf(caseId)
+        if (index > -1) {
+          selectedCases.value.splice(index, 1)
+        }
+        // 检查当前页是否还有数据，如果没有则回到上一页
+        const currentPageData = paginatedTestCases.value
+        if (currentPageData.length === 0 && pagination.value.currentPage > 1) {
+          pagination.value.currentPage--
+        }
+      } else {
+        ElMessage.error('删除失败')
       }
-      // 检查当前页是否还有数据，如果没有则回到上一页
-      const currentPageData = paginatedTestCases.value;
-      if (currentPageData.length === 0 && pagination.value.currentPage > 1) {
-        pagination.value.currentPage--;
-      }
-    } else {
-      ElMessage.error('删除失败');
-    }
-  }).catch(() => {});
-};
+    })
+    .catch(() => {})
+}
 
 // 优先级文本
 const priorityText = (priority: number): string => {
-  const map: Record<number, string> = { 1: '高', 2: '中', 3: '低' };
-  return map[priority] || '中';
-};
+  const map: Record<number, string> = { 1: '高', 2: '中', 3: '低' }
+  return map[priority] || '中'
+}
 
 // 页面加载
 onMounted(async () => {
-  await fetchProjectList();
+  await fetchProjectList()
 
   // 如果有项目ID参数，直接加载
-  const routeProjectId = Number(route.params.projectId);
+  const routeProjectId = Number(route.params.projectId)
   if (routeProjectId) {
-    selectedProjectId.value = routeProjectId;
-    await handleProjectChange(routeProjectId);
+    selectedProjectId.value = routeProjectId
+    await handleProjectChange(routeProjectId)
   }
-});
+})
 
 // 监听筛选条件变化，清空选择
-watch([selectedProjectId, selectedRequirementFileId, () => filter.value.module, () => filter.value.priority, () => filter.value.keyword], () => {
-  // 立即清空选择，避免 Checkbox 组件状态混乱
-  selectedCases.value = [];
-  recentlyDeletedIds.value = []; // 同时清空撤销记录
-}, { deep: true, flush: 'sync' });
+watch(
+  [
+    selectedProjectId,
+    selectedRequirementFileId,
+    () => filter.value.module,
+    () => filter.value.priority,
+    () => filter.value.keyword,
+  ],
+  () => {
+    // 立即清空选择，避免 Checkbox 组件状态混乱
+    selectedCases.value = []
+    recentlyDeletedIds.value = [] // 同时清空撤销记录
+  },
+  { deep: true, flush: 'sync' }
+)
 </script>
 
 <style scoped>

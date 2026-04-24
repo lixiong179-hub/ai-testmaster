@@ -8,8 +8,8 @@ describe('AI TestMaster API 接口测试', () => {
       url: 'http://localhost:8001/api/v1/auth/login',
       body: {
         username: 'admin',
-        password: 'password123'
-      }
+        password: 'password123',
+      },
     }).then((response) => {
       expect(response.status).to.eq(200)
       expect(response.body.code).to.eq(200)
@@ -24,8 +24,8 @@ describe('AI TestMaster API 接口测试', () => {
         url: 'http://localhost:8001/api/v1/auth/login',
         body: {
           username: 'admin',
-          password: 'password123'
-        }
+          password: 'password123',
+        },
       }).then((response) => {
         expect(response.status).to.eq(200)
         expect(response.body.code).to.eq(200)
@@ -39,15 +39,13 @@ describe('AI TestMaster API 接口测试', () => {
         url: 'http://localhost:8001/api/v1/auth/login',
         body: {
           username: 'admin',
-          password: 'wrong_password'
+          password: 'wrong_password',
         },
-        failOnStatusCode: false
+        failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.eq(401)
       })
     })
-
-
   })
 
   describe('项目接口测试', () => {
@@ -59,13 +57,13 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'POST',
         url: 'http://localhost:8001/api/v1/project/create',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
         },
         body: {
           name: `API测试项目_${timestamp}`,
-          description: '用于API测试的项目'
-        }
+          description: '用于API测试的项目',
+        },
       }).then((response) => {
         expect(response.status).to.eq(200)
         expect(response.body.code).to.eq(200)
@@ -79,12 +77,12 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'GET',
         url: 'http://localhost:8001/api/v1/project/list',
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          Authorization: `Bearer ${authToken}`,
         },
         qs: {
           page: 1,
-          page_size: 10
-        }
+          page_size: 10,
+        },
       }).then((response) => {
         expect(response.status).to.eq(200)
         expect(response.body.code).to.eq(200)
@@ -98,8 +96,8 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'GET',
         url: `http://localhost:8001/api/v1/project/${projectId}`,
         headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+          Authorization: `Bearer ${authToken}`,
+        },
       }).then((response) => {
         expect(response.status).to.eq(200)
         expect(response.body.code).to.eq(200)
@@ -112,8 +110,8 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'DELETE',
         url: `http://localhost:8001/api/v1/project/${projectId}`,
         headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+          Authorization: `Bearer ${authToken}`,
+        },
       }).then((response) => {
         expect(response.status).to.eq(200)
         expect(response.body.code).to.eq(200)
@@ -132,13 +130,13 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'POST',
         url: 'http://localhost:8001/api/v1/project/create',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
         },
         body: {
           name: `需求测试项目_${timestamp}`,
-          description: '用于需求测试的项目'
-        }
+          description: '用于需求测试的项目',
+        },
       }).then((response) => {
         projectId = response.body.data.project_id
       })
@@ -149,15 +147,15 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'POST',
         url: 'http://localhost:8001/api/v1/file/submit-url',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
         },
         body: {
           project_id: projectId,
           url: 'https://www.baidu.com',
-          file_type: 'url'
+          file_type: 'url',
         },
-        failOnStatusCode: false
+        failOnStatusCode: false,
       }).then((response) => {
         // URL验证可能会失败，但我们只检查接口是否正常工作
         expect(response.status).to.be.oneOf([200, 400])
@@ -170,8 +168,8 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'DELETE',
         url: `http://localhost:8001/api/v1/project/${projectId}`,
         headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+          Authorization: `Bearer ${authToken}`,
+        },
       })
     })
   })
@@ -186,13 +184,13 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'POST',
         url: 'http://localhost:8001/api/v1/project/create',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
         },
         body: {
           name: `测试用例测试项目_${timestamp}`,
-          description: '用于测试用例测试的项目'
-        }
+          description: '用于测试用例测试的项目',
+        },
       }).then((response) => {
         projectId = response.body.data.project_id
       })
@@ -203,11 +201,11 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'GET',
         url: 'http://localhost:8001/api/v1/test_cases/',
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          Authorization: `Bearer ${authToken}`,
         },
         qs: {
-          project_id: projectId
-        }
+          project_id: projectId,
+        },
       }).then((response) => {
         expect(response.status).to.eq(200)
         expect(response.body.code).to.eq(200)
@@ -220,8 +218,8 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'DELETE',
         url: `http://localhost:8001/api/v1/project/${projectId}`,
         headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+          Authorization: `Bearer ${authToken}`,
+        },
       })
     })
   })
@@ -236,13 +234,13 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'POST',
         url: 'http://localhost:8001/api/v1/project/create',
         headers: {
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
         },
         body: {
           name: `测试任务测试项目_${timestamp}`,
-          description: '用于测试任务测试的项目'
-        }
+          description: '用于测试任务测试的项目',
+        },
       }).then((response) => {
         projectId = response.body.data.project_id
       })
@@ -253,12 +251,12 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'POST',
         url: 'http://localhost:8001/api/v1/test-task',
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          Authorization: `Bearer ${authToken}`,
         },
         qs: {
           project_id: projectId,
-          task_name: '测试任务'
-        }
+          task_name: '测试任务',
+        },
       }).then((response) => {
         expect(response.status).to.eq(200)
         expect(response.body).to.have.property('id')
@@ -270,8 +268,8 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'GET',
         url: 'http://localhost:8001/api/v1/test-task',
         headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+          Authorization: `Bearer ${authToken}`,
+        },
       }).then((response) => {
         expect(response.status).to.eq(200)
         // 测试任务列表接口返回的是 { total: 0, items: [] } 格式
@@ -286,8 +284,8 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'DELETE',
         url: `http://localhost:8001/api/v1/project/${projectId}`,
         headers: {
-          'Authorization': `Bearer ${authToken}`
-        }
+          Authorization: `Bearer ${authToken}`,
+        },
       })
     })
   })
@@ -298,13 +296,13 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'GET',
         url: 'http://localhost:8001/api/v1/report',
         headers: {
-          'Authorization': `Bearer ${authToken}`
+          Authorization: `Bearer ${authToken}`,
         },
         qs: {
           project_id: 1,
           page: 1,
-          page_size: 10
-        }
+          page_size: 10,
+        },
       }).then((response) => {
         expect(response.status).to.eq(200)
         // 测试报告接口返回的是TestReportList模型，不是标准的code/message/data格式
@@ -320,9 +318,9 @@ describe('AI TestMaster API 接口测试', () => {
         method: 'GET',
         url: 'http://localhost:8001/api/v1/project/list',
         headers: {
-          'Authorization': 'Bearer invalid_token'
+          Authorization: 'Bearer invalid_token',
         },
-        failOnStatusCode: false
+        failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.eq(401)
       })
@@ -332,7 +330,7 @@ describe('AI TestMaster API 接口测试', () => {
       cy.request({
         method: 'GET',
         url: 'http://localhost:8001/api/v1/project/list',
-        failOnStatusCode: false
+        failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.eq(401)
       })

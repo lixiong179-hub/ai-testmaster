@@ -44,7 +44,10 @@ export function useIterationManager() {
     try {
       const arr = Array.isArray(iterations.value) ? iterations.value : []
       const validArr = arr
-        .filter((it: Iteration) => it && typeof it === 'object' && it.id != null && Number.isInteger(it.id))
+        .filter(
+          (it: Iteration) =>
+            it && typeof it === 'object' && it.id != null && Number.isInteger(it.id)
+        )
         .map((it: Iteration) => ({
           id: it.id,
           project_id: it.project_id,
@@ -55,7 +58,7 @@ export function useIterationManager() {
           start_date: it.start_date || null,
           end_date: it.end_date || null,
           create_time: it.create_time || new Date().toISOString(),
-          update_time: it.update_time || new Date().toISOString()
+          update_time: it.update_time || new Date().toISOString(),
         }))
       return validArr
     } catch {
@@ -86,14 +89,14 @@ export function useIterationManager() {
     description: '',
     status: 'planning' as string,
     start_date: '',
-    end_date: ''
+    end_date: '',
   })
 
   // 表单验证规则
   const iterationFormRules = {
     name: [{ required: true, message: '请输入代表迭名称', trigger: 'blur' }],
     version: [{ required: true, message: '请输入版本号', trigger: 'blur' }],
-    status: [{ required: true, message: '请选择状态', trigger: 'change' }]
+    status: [{ required: true, message: '请选择状态', trigger: 'change' }],
   }
 
   /**
@@ -105,7 +108,8 @@ export function useIterationManager() {
     const resObj = res as Record<string, unknown>
     if (Array.isArray(resObj.items)) return resObj.items as Record<string, unknown>[]
     const d = resObj.data
-    if (d && typeof d === 'object' && Array.isArray((d as Record<string, unknown>).items)) return (d as Record<string, unknown>).items as Record<string, unknown>[]
+    if (d && typeof d === 'object' && Array.isArray((d as Record<string, unknown>).items))
+      return (d as Record<string, unknown>).items as Record<string, unknown>[]
     return []
   }
 
@@ -123,30 +127,38 @@ export function useIterationManager() {
       const items = extractListItems(response)
       iterations.value = items as unknown as Iteration[]
 
-      await Promise.all((items as unknown as Iteration[]).map(async (it: Iteration) => {
-        try {
-          const [fileRes, protoRes] = await Promise.all([
-            fileApi.getFileList(projectId, it.id, 1, 1),
-            uiPrototypeApi.getUIPrototypeProjectList(projectId, 1, 1, it.id)
-          ])
+      await Promise.all(
+        (items as unknown as Iteration[]).map(async (it: Iteration) => {
+          try {
+            const [fileRes, protoRes] = await Promise.all([
+              fileApi.getFileList(projectId, it.id, 1, 1),
+              uiPrototypeApi.getUIPrototypeProjectList(projectId, 1, 1, it.id),
+            ])
 
-          const fileData = fileRes as unknown as Record<string, unknown>
-          const fileResponseData = fileData?.data as Record<string, unknown> | undefined
-          const fileTotal = (fileResponseData?.total as number) || (extractListItems(fileRes).length > 0 ? (fileResponseData?.total as number) || 0 : 0)
+            const fileData = fileRes as unknown as Record<string, unknown>
+            const fileResponseData = fileData?.data as Record<string, unknown> | undefined
+            const fileTotal =
+              (fileResponseData?.total as number) ||
+              (extractListItems(fileRes).length > 0 ? (fileResponseData?.total as number) || 0 : 0)
 
-          const protoData = protoRes as unknown as Record<string, unknown>
-          const protoResponseData = protoData?.data as Record<string, unknown> | undefined
-          const protoTotal = (protoResponseData?.total as number) || (extractListItems(protoRes).length > 0 ? (protoResponseData?.total as number) || 0 : 0)
+            const protoData = protoRes as unknown as Record<string, unknown>
+            const protoResponseData = protoData?.data as Record<string, unknown> | undefined
+            const protoTotal =
+              (protoResponseData?.total as number) ||
+              (extractListItems(protoRes).length > 0
+                ? (protoResponseData?.total as number) || 0
+                : 0)
 
-          iterationStats.value[it.id] = {
-            files: fileTotal,
-            prototypes: protoTotal
+            iterationStats.value[it.id] = {
+              files: fileTotal,
+              prototypes: protoTotal,
+            }
+          } catch (e) {
+            console.warn(`获取迭代 ${it.name} 统计失败:`, e)
+            iterationStats.value[it.id] = { files: 0, prototypes: 0 }
           }
-        } catch (e) {
-          console.warn(`获取迭代 ${it.name} 统计失败:`, e)
-          iterationStats.value[it.id] = { files: 0, prototypes: 0 }
-        }
-      }))
+        })
+      )
     } catch (error) {
       console.error('获取迭代列表失败:', error)
       iterations.value = []
@@ -236,7 +248,10 @@ export function useIterationManager() {
   /**
    * 处理迭代操作命令（编辑/删除）
    */
-  const handleIterationCommand = async (command: string, iteration: Iteration): Promise<boolean> => {
+  const handleIterationCommand = async (
+    command: string,
+    iteration: Iteration
+  ): Promise<boolean> => {
     if (command === 'edit') {
       handleEditIteration(iteration)
       return false // 不需要刷新
@@ -275,7 +290,7 @@ export function useIterationManager() {
           description: iterationFormData.description || undefined,
           status: iterationFormData.status,
           start_date: iterationFormData.start_date || undefined,
-          end_date: iterationFormData.end_date || undefined
+          end_date: iterationFormData.end_date || undefined,
         }
         await iterationApi.updateIteration(iterationFormData.id, updateData)
         ElMessage.success(`迭代 "${iterationFormData.name}" 更新成功`)
@@ -291,7 +306,7 @@ export function useIterationManager() {
           description: iterationFormData.description || undefined,
           status: iterationFormData.status,
           start_date: iterationFormData.start_date || undefined,
-          end_date: iterationFormData.end_date || undefined
+          end_date: iterationFormData.end_date || undefined,
         }
         await iterationApi.createIteration(createData)
         ElMessage.success(`迭代 "${iterationFormData.name}" 创建成功`)
@@ -329,7 +344,7 @@ export function useIterationManager() {
       planning: 'info',
       active: 'success',
       completed: '',
-      archived: 'warning'
+      archived: 'warning',
     }
     return typeMap[status] || 'info'
   }
@@ -342,7 +357,7 @@ export function useIterationManager() {
       planning: '规划中',
       active: '进行中',
       completed: '已完成',
-      archived: '已归档'
+      archived: '已归档',
     }
     return textMap[status] || status
   }
@@ -354,7 +369,7 @@ export function useIterationManager() {
     if (selectedIterationId.value === null) return '全部资源'
     if (selectedIterationId.value === 0) return '未分类资源'
     // 查找具体迭代的名称和版本
-    const iteration = iterations.value.find(it => it.id === selectedIterationId.value)
+    const iteration = iterations.value.find((it) => it.id === selectedIterationId.value)
     return iteration ? `${iteration.name} (${iteration.version})` : '资源列表'
   }
 
@@ -363,7 +378,7 @@ export function useIterationManager() {
    */
   const getIterationNameById = (id: number): string => {
     if (id === 0) return '未分类'
-    const it = iterations.value.find(i => i.id === id)
+    const it = iterations.value.find((i) => i.id === id)
     return it ? it.name : '未知迭代'
   }
 
@@ -408,7 +423,9 @@ export function useIterationManager() {
 
     safeIterations,
     validIterationsForSelect,
-    get isSubmitting() { return submitting.value === true },
+    get isSubmitting() {
+      return submitting.value === true
+    },
 
     loadIterations,
     handleSelectIteration,
@@ -423,6 +440,6 @@ export function useIterationManager() {
     getIterationStatusText,
     getCurrentIterationTitle,
     getIterationNameById,
-    showError
+    showError,
   })
 }

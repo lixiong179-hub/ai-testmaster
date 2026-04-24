@@ -1,19 +1,25 @@
 <template>
   <div class="task-list">
-    <el-card shadow="hover">
+    <el-card class="task-card" shadow="hover">
       <template #header>
         <div class="card-header">
-          <span>测试任务列表</span>
-          <el-button type="primary" @click="createTask">
-            <el-icon><Plus /></el-icon>
-            创建任务
-          </el-button>
+          <div>
+            <div class="card-title">测试任务列表</div>
+            <div class="card-subtitle">查看任务进度、执行结果和关键状态，适合作为项目任务总览入口。</div>
+          </div>
+          <div class="header-actions">
+            <el-button plain @click="goToTestPointManagement">测试点管理</el-button>
+            <el-button type="primary" @click="createTask">
+              <el-icon><Plus /></el-icon>
+              创建任务
+            </el-button>
+          </div>
         </div>
       </template>
 
       <div class="filter-bar">
-        <el-select v-model="filter.status" placeholder="按状态筛选" clearable style="width: 150px;">
-          <el-option label="全部" :value="null" />
+        <el-select v-model="filter.status" placeholder="按状态筛选" clearable class="status-filter">
+          <el-option label="全部" value="" />
           <el-option label="等待执行" :value="0" />
           <el-option label="执行中" :value="1" />
           <el-option label="执行完成" :value="2" />
@@ -24,12 +30,14 @@
           <el-icon><Refresh /></el-icon>
           刷新
         </el-button>
+        <el-tag effect="plain" type="info">共 {{ total }} 条任务</el-tag>
       </div>
 
       <el-table
+        class="task-table"
         v-loading="loading"
         :data="taskList"
-        style="width: 100%; margin-top: 10px;"
+        style="width: 100%; margin-top: 10px"
         border
         stripe
         @row-click="handleRowClick"
@@ -71,7 +79,7 @@
         <el-table-column prop="create_time" label="创建时间" width="160" />
         <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #default="scope">
-            <el-space>
+            <el-space class="task-actions" wrap>
               <el-button
                 v-if="scope.row.status === 0"
                 type="success"
@@ -88,11 +96,7 @@
               >
                 停止
               </el-button>
-              <el-button
-                type="primary"
-                size="small"
-                @click.stop="viewTask(scope.row)"
-              >
+              <el-button type="primary" size="small" @click.stop="viewTask(scope.row)">
                 详情
               </el-button>
               <el-button
@@ -106,6 +110,19 @@
             </el-space>
           </template>
         </el-table-column>
+        <template #empty>
+          <div class="task-empty-state">
+            <div class="task-empty-title">当前项目还没有测试任务</div>
+            <div class="task-empty-text">可以先创建任务，随后在这里统一查看执行进度、结果和日志。</div>
+            <div class="task-empty-actions">
+              <el-button plain @click="goToTestPointManagement">先去测试点管理</el-button>
+              <el-button type="primary" @click="createTask">
+                <el-icon><Plus /></el-icon>
+                创建首个任务
+              </el-button>
+            </div>
+          </div>
+        </template>
       </el-table>
 
       <div class="pagination" v-if="total > 0">
@@ -124,114 +141,123 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { SuccessFilled, CircleCloseFilled, Plus, Refresh } from '@element-plus/icons-vue';
-import { useTaskStore } from '../../store/task';
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { SuccessFilled, CircleCloseFilled, Plus, Refresh } from '@element-plus/icons-vue'
+import { useTaskStore } from '../../store/task'
 
-const router = useRouter();
-const route = useRoute();
-const taskStore = useTaskStore();
+const router = useRouter()
+const route = useRoute()
+const taskStore = useTaskStore()
 
 // 项目ID
 const projectId = computed(() => {
-  return Number(route.params.projectId) || 0;
-});
+  return Number(route.params.projectId) || 0
+})
 
 // 加载状态
-const loading = computed(() => taskStore.loading);
+const loading = computed(() => taskStore.loading)
 
 // 筛选条件
 const filter = ref({
-  status: undefined as number | undefined
-});
+  status: '' as string | number | undefined,
+})
 
 // 分页
-const page = ref(1);
-const pageSize = ref(10);
-const total = ref(0);
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 
 // 任务列表
-const taskList = computed(() => taskStore.taskList);
+const taskList = computed(() => taskStore.taskList)
 
 // 任务状态文本
 const taskStatusText = (status: number): string => {
-  return taskStore.taskStatusText(status);
-};
+  return taskStore.taskStatusText(status)
+}
 
 // 任务状态颜色
 const taskStatusColor = (status: number): string => {
-  return taskStore.taskStatusColor(status);
-};
+  return taskStore.taskStatusColor(status)
+}
 
 // 进度颜色
 const getProgressColor = (progress: number): string => {
-  if (progress < 30) return '#409EFF';
-  if (progress < 70) return '#E6A23C';
-  return '#67C23A';
-};
+  if (progress < 30) return '#409EFF'
+  if (progress < 70) return '#E6A23C'
+  return '#67C23A'
+}
 
 // 进度状态
 const getProgressStatus = (task: any): string | undefined => {
-  if (task.status === 3) return 'exception';
-  if (task.status === 2 && task.fail_count === 0) return 'success';
-  return undefined;
-};
+  if (task.status === 3) return 'exception'
+  if (task.status === 2 && task.fail_count === 0) return 'success'
+  return undefined
+}
 
 // 行点击
 const handleRowClick = (row: any) => {
-  viewTask(row);
-};
+  viewTask(row)
+}
 
 // 处理分页大小变化
 const handleSizeChange = (size: number) => {
-  pageSize.value = size;
-  fetchTaskList();
-};
+  pageSize.value = size
+  fetchTaskList()
+}
 
 // 处理页码变化
 const handleCurrentChange = (current: number) => {
-  page.value = current;
-  fetchTaskList();
-};
+  page.value = current
+  fetchTaskList()
+}
 
 // 获取任务列表
 const fetchTaskList = async () => {
   try {
     const params: any = {
       page: page.value,
-      page_size: pageSize.value
-    };
+      page_size: pageSize.value,
+    }
 
     if (projectId.value) {
-      params.project_id = projectId.value;
+      params.project_id = projectId.value
     }
 
-    if (filter.value.status !== undefined) {
-      params.status = filter.value.status;
+    if (filter.value.status !== undefined && filter.value.status !== '') {
+      params.status = filter.value.status
     }
 
-    const result = await taskStore.fetchTaskList(params);
-    const items = Array.isArray(result?.items) ? result.items : [];
+    const result = await taskStore.fetchTaskList(params)
+    const items = Array.isArray(result?.items) ? result.items : []
     if (items.length !== taskStore.taskList.length) {
-      taskStore.taskList = items;
+      taskStore.taskList = items
     }
-    total.value = result?.total || 0;
+    total.value = result?.total || 0
   } catch (error: any) {
-    ElMessage.error(error.message || '获取任务列表失败');
+    ElMessage.error(error.message || '获取任务列表失败')
   }
-};
+}
 
 // 创建任务
 const createTask = () => {
-  router.push(`/home/task/create/${projectId.value}`);
-};
+  router.push(`/home/task/create/${projectId.value}`)
+}
+
+const goToTestPointManagement = () => {
+  router.push({
+    path: '/home/case/test-point-management',
+    query: {
+      projectId: String(projectId.value),
+    },
+  })
+}
 
 // 查看任务详情
 const viewTask = (task: any) => {
-  router.push(`/home/task/detail/${task.id}?project_id=${projectId.value}`);
-};
+  router.push(`/home/task/detail/${task.id}?project_id=${projectId.value}`)
+}
 
 // 启动任务
 const startTask = async (task: any) => {
@@ -239,18 +265,18 @@ const startTask = async (task: any) => {
     await ElMessageBox.confirm('确定要启动此任务吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning'
-    });
+      type: 'warning',
+    })
 
-    await taskStore.startTask(task.id, projectId.value);
-    ElMessage.success('任务已开始执行');
-    fetchTaskList();
+    await taskStore.startTask(task.id, projectId.value)
+    ElMessage.success('任务已开始执行')
+    fetchTaskList()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '启动任务失败');
+      ElMessage.error(error.message || '启动任务失败')
     }
   }
-};
+}
 
 // 停止任务
 const stopTask = async (task: any) => {
@@ -258,18 +284,18 @@ const stopTask = async (task: any) => {
     await ElMessageBox.confirm('确定要停止此任务吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning'
-    });
+      type: 'warning',
+    })
 
-    await taskStore.stopTask(task.id, projectId.value);
-    ElMessage.success('任务已停止');
-    fetchTaskList();
+    await taskStore.stopTask(task.id, projectId.value)
+    ElMessage.success('任务已停止')
+    fetchTaskList()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '停止任务失败');
+      ElMessage.error(error.message || '停止任务失败')
     }
   }
-};
+}
 
 // 删除任务确认
 const deleteTaskConfirm = async (task: any) => {
@@ -280,24 +306,24 @@ const deleteTaskConfirm = async (task: any) => {
       {
         confirmButtonText: '确定删除',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'warning',
       }
-    );
+    )
 
-    await taskStore.deleteTask(task.id, projectId.value);
-    ElMessage.success('任务删除成功');
-    fetchTaskList();
+    await taskStore.deleteTask(task.id, projectId.value)
+    ElMessage.success('任务删除成功')
+    fetchTaskList()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除任务失败');
+      ElMessage.error(error.message || '删除任务失败')
     }
   }
-};
+}
 
 // 生命周期
 onMounted(() => {
-  fetchTaskList();
-});
+  fetchTaskList()
+})
 </script>
 
 <style scoped>
@@ -305,10 +331,34 @@ onMounted(() => {
   padding: 20px;
 }
 
+.task-card {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.card-subtitle {
+  margin-top: 6px;
+  color: #7a8594;
+  line-height: 1.6;
 }
 
 .filter-bar {
@@ -316,6 +366,11 @@ onMounted(() => {
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.status-filter {
+  width: 170px;
 }
 
 .result-summary {
@@ -332,9 +387,48 @@ onMounted(() => {
   font-weight: 500;
 }
 
+.task-actions {
+  justify-content: center;
+}
+
+.task-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 16px;
+  text-align: center;
+}
+
+.task-empty-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.task-empty-text {
+  max-width: 420px;
+  color: #7a8594;
+  line-height: 1.6;
+}
+
+.task-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
 .pagination {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 </style>

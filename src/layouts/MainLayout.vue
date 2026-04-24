@@ -40,8 +40,11 @@
           <el-menu-item index="/home/case">
             <span>用例列表</span>
           </el-menu-item>
+          <el-menu-item index="/home/case/test-point-management">
+            <span>测试点管理</span>
+          </el-menu-item>
           <el-menu-item index="/home/case/test-point-extract">
-            <span>测试点提取</span>
+            <span>测试点提取向导</span>
           </el-menu-item>
           <el-menu-item index="/home/case/ai-generate">
             <span>AI生成用例</span>
@@ -74,17 +77,13 @@
         </el-sub-menu>
       </el-menu>
     </div>
-    
+
     <!-- 主内容区 -->
     <div class="main-container">
       <!-- 顶部导航 -->
       <div class="top-nav">
         <div class="nav-left">
-          <el-button
-            link
-            @click="toggleSidebar"
-            class="sidebar-toggle"
-          >
+          <el-button link @click="toggleSidebar" class="sidebar-toggle">
             <el-icon><Menu /></el-icon>
           </el-button>
           <el-breadcrumb separator="/" class="breadcrumb">
@@ -116,7 +115,7 @@
           </el-dropdown>
         </div>
       </div>
-      
+
       <!-- 内容区域 -->
       <div class="main-content">
         <router-view />
@@ -129,7 +128,19 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { HomeFilled, DataAnalysis, Setting, Menu, ArrowDown, ArrowUp, User, SwitchButton, Message, Check, Timer } from '@element-plus/icons-vue'
+import {
+  HomeFilled,
+  DataAnalysis,
+  Setting,
+  Menu,
+  ArrowDown,
+  ArrowUp,
+  User,
+  SwitchButton,
+  Message,
+  Check,
+  Timer,
+} from '@element-plus/icons-vue'
 
 // 路由实例
 const router = useRouter()
@@ -167,38 +178,39 @@ const activeMenu = computed(() => {
 const breadcrumbList = ref<{ path: string; name: string }[]>([])
 
 // 更新面包屑
-  const updateBreadcrumb = (path: string) => {
-    const breadcrumbMap: Record<string, string> = {
-      '/home/dashboard': '仪表盘',
-      '/home/project': '项目列表',
-      '/home/project/detail': '项目详情',
-      '/home/requirement': '资源管理',
-      '/home/requirement/upload': '上传需求',
-      '/home/requirement/ui-prototype': 'UI原型图',
-      '/home/case': '测试用例管理',
-      '/home/case/test-point-extract': '测试点提取',
-      '/home/case/ai-generate': 'AI生成用例',
-      '/home/task': '测试任务管理',
-      '/home/report': '测试报告',
-      '/home/system': '系统管理',
-      '/home/system/user': '用户管理',
-      '/home/system/role': '角色管理'
-    }
-    
-    const pathParts = path.split('/').filter(Boolean)
-    const result: { path: string; name: string }[] = []
-    let currentPath = ''
-    
-    for (let i = 0; i < pathParts.length; i++) {
-      currentPath += '/' + pathParts[i]
-      const name = breadcrumbMap[currentPath]
-      if (name) {
-        result.push({ path: currentPath, name })
-      }
-    }
-    
-    breadcrumbList.value = result
+const updateBreadcrumb = (path: string) => {
+  const breadcrumbMap: Record<string, string> = {
+    '/home/dashboard': '仪表盘',
+    '/home/project': '项目列表',
+    '/home/project/detail': '项目详情',
+    '/home/requirement': '资源管理',
+    '/home/requirement/upload': '上传需求',
+    '/home/requirement/ui-prototype': 'UI原型图',
+    '/home/case': '测试用例管理',
+    '/home/case/test-point-management': '测试点管理',
+    '/home/case/test-point-extract': '测试点提取向导',
+    '/home/case/ai-generate': 'AI生成用例',
+    '/home/task': '测试任务管理',
+    '/home/report': '测试报告',
+    '/home/system': '系统管理',
+    '/home/system/user': '用户管理',
+    '/home/system/role': '角色管理',
   }
+
+  const pathParts = path.split('/').filter(Boolean)
+  const result: { path: string; name: string }[] = []
+  let currentPath = ''
+
+  for (let i = 0; i < pathParts.length; i++) {
+    currentPath += '/' + pathParts[i]
+    const name = breadcrumbMap[currentPath]
+    if (name) {
+      result.push({ path: currentPath, name })
+    }
+  }
+
+  breadcrumbList.value = result
+}
 
 // 监听路由变化，更新面包屑
 watch(
@@ -374,7 +386,7 @@ const handleLogout = () => {
   .main-layout {
     flex-direction: column;
   }
-  
+
   .sidebar {
     width: 100%;
     height: auto;
@@ -382,44 +394,44 @@ const handleLogout = () => {
     overflow: hidden;
     transition: max-height 0.3s;
   }
-  
+
   .sidebar.expanded {
     max-height: 100vh;
   }
-  
+
   .logo {
     padding: 15px;
   }
-  
+
   .logo h3 {
     font-size: 16px;
   }
-  
+
   .sidebar-menu {
     max-height: calc(100vh - 60px);
     overflow-y: auto;
   }
-  
+
   .sidebar-menu .el-menu-item,
   .sidebar-menu .el-sub-menu__title {
     height: 50px;
     line-height: 50px;
     margin: 0 5px;
   }
-  
+
   .top-nav {
     padding: 0 10px;
     height: 50px;
   }
-  
+
   .breadcrumb {
     display: none;
   }
-  
+
   .username {
     display: none;
   }
-  
+
   .main-content {
     padding: 10px;
   }

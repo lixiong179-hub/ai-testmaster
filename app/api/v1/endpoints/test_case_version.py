@@ -56,20 +56,19 @@ async def get_test_case_versions(
 ):
     """
     获取测试用例版本列表
-
     查询指定测试用例的所有历史版本，按创建时间倒序排列。
-
     路径参数:
         - test_case_id: 测试用例ID
-
     响应格式: 版本列表，包含版本号、创建时间和变更摘要
-
     权限要求: 需要Bearer令牌认证
-
     Raises:
         HTTPException 404: 测试用例不存在
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    from app.models.project import Project
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        Project.user_id == current_user.id
+    ).first()
     if not test_case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -117,19 +116,27 @@ async def get_test_case_version_detail(
 ):
     """
     获取指定版本详情
-
     查询测试用例指定版本的完整信息，包括步骤和测试数据。
-
     路径参数:
         - test_case_id: 测试用例ID
         - version_id: 版本ID
-
     权限要求: 需要Bearer令牌认证
-
     Raises:
         HTTPException 404: 版本不存在
     """
     from app.models.test_case_version import TestCaseVersion
+    from app.models.project import Project
+    # 首先验证用例所属项目是否属于当前用户
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+    
     version = db.query(TestCaseVersion).filter(
         TestCaseVersion.id == version_id,
         TestCaseVersion.test_case_id == test_case_id
@@ -164,21 +171,21 @@ async def restore_test_case_version(
 ):
     """
     恢复到指定版本
-
     将测试用例恢复到指定历史版本的内容，同时创建新的版本记录。
-
     路径参数:
         - test_case_id: 测试用例ID
         - version_id: 目标版本ID
-
     权限要求: 需要Bearer令牌认证
-
     Raises:
         HTTPException 404: 用例或版本不存在
     """
     from app.models.test_case_version import TestCaseVersion
+    from app.models.project import Project
 
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        Project.user_id == current_user.id
+    ).first()
     if not test_case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -239,7 +246,7 @@ async def restore_test_case_version(
         logger.error(f"恢复测试用例版本失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"恢复版本失败: {str(e)}"
+            detail="恢复版本失败"
         )
 
 
@@ -251,14 +258,22 @@ async def export_markdown(
 ):
     """
     导出Markdown格式
-
     将指定测试用例导出为Markdown格式文本。
-
     路径参数:
         - test_case_id: 测试用例ID
-
     权限要求: 需要Bearer令牌认证
     """
+    from app.models.project import Project
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+    
     try:
         from app.services.test_case_view_service import TestCaseViewService
         service = TestCaseViewService(db)
@@ -268,7 +283,7 @@ async def export_markdown(
         logger.error(f"导出Markdown失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"导出Markdown失败: {str(e)}"
+            detail="导出Markdown失败"
         )
 
 
@@ -280,14 +295,22 @@ async def export_html(
 ):
     """
     导出HTML格式
-
     将指定测试用例导出为HTML格式文本。
-
     路径参数:
         - test_case_id: 测试用例ID
-
     权限要求: 需要Bearer令牌认证
     """
+    from app.models.project import Project
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+    
     try:
         from app.services.test_case_view_service import TestCaseViewService
         service = TestCaseViewService(db)
@@ -297,7 +320,7 @@ async def export_html(
         logger.error(f"导出HTML失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"导出HTML失败: {str(e)}"
+            detail="导出HTML失败"
         )
 
 
@@ -309,14 +332,22 @@ async def export_python(
 ):
     """
     导出Python自动化脚本
-
     将指定测试用例导出为Python自动化测试脚本。
-
     路径参数:
         - test_case_id: 测试用例ID
-
     权限要求: 需要Bearer令牌认证
     """
+    from app.models.project import Project
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+    
     try:
         from app.services.test_case_view_service import TestCaseViewService
         service = TestCaseViewService(db)
@@ -326,7 +357,7 @@ async def export_python(
         logger.error(f"导出Python失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"导出Python失败: {str(e)}"
+            detail="导出Python失败"
         )
 
 
@@ -338,14 +369,22 @@ async def export_json(
 ):
     """
     导出JSON格式
-
     将指定测试用例的技术视图导出为JSON格式。
-
     路径参数:
         - test_case_id: 测试用例ID
-
     权限要求: 需要Bearer令牌认证
     """
+    from app.models.project import Project
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+    
     try:
         from app.services.test_case_view_service import TestCaseViewService
         service = TestCaseViewService(db)
@@ -355,5 +394,5 @@ async def export_json(
         logger.error(f"导出JSON失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"导出JSON失败: {str(e)}"
+            detail="导出JSON失败"
         )

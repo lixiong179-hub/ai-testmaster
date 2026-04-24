@@ -54,7 +54,7 @@ def get_client_ip(request: Request) -> str:
 
 @router.get("/captcha", response_model=dict)
 @router.get("/captcha/generate", response_model=dict)
-async def get_captcha():
+async def get_captcha() -> dict:
     """
     获取验证码（开发模式）
 

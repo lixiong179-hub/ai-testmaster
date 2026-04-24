@@ -10,12 +10,14 @@ export function useScreenImageUrl() {
       return imageCache.get(screen.id) ?? ''
     }
     try {
-      const token = localStorage.getItem('token')
-      const response: Blob = await request.get(`/api/v1/file/preview-screen/${screen.id}`, {
+      const response = await request.get(`/api/v1/file/preview-screen/${screen.id}`, {
         responseType: 'blob',
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
-      const blob = response instanceof Blob ? response : new Blob([response], { type: 'image/jpeg' })
+      // 响应拦截器已经返回了原始响应，我们需要从 response.data 中获取 blob
+      const blob =
+        response.data instanceof Blob
+          ? response.data
+          : new Blob([response.data], { type: 'image/jpeg' })
       const url = URL.createObjectURL(blob)
       imageCache.set(screen.id, url)
       return url
@@ -25,7 +27,7 @@ export function useScreenImageUrl() {
   }
 
   const cleanupImageCache = () => {
-    imageCache.forEach(url => {
+    imageCache.forEach((url) => {
       if (url.startsWith('blob:')) {
         URL.revokeObjectURL(url)
       }

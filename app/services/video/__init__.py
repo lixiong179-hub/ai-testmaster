@@ -82,8 +82,12 @@ class VideoService(
         return cls._instance
 
 
+VideoRecordService = VideoService
+
+
 __all__ = [
     'VideoService',
+    'VideoRecordService',
     'VideoInfo',
     'VideoStatus',
     'CRUDMixin',

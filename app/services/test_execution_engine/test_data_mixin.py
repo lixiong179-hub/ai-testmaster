@@ -1,108 +1,82 @@
 """测试数据Mixin - 管理测试执行过程中的数据参数化解析。
+
+负责创建参数化解析器、生成步骤测试数据、替换操作描述中的参数占位符。
+与TestDataService和TestDataParameterizer协作完成测试数据的参数化。
 """
-import re
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from loguru import logger
+
+from app.services.test_data.parameterizer_mixin import TestDataParameterizer
+from app.services.test_data_parameterizer import ParameterContext
 
 
 class TestDataMixin:
 
-    def _create_parameterizer(self, test_data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, str]]:
-        if not test_data:
+    def _create_parameterizer(self, execution_id: int, case_id: int) -> Optional[TestDataParameterizer]:
+        """创建参数化解析器。
+
+        Args:
+            execution_id: 执行ID
+            case_id: 用例ID
+
+        Returns:
+            参数化解析器，未启用时返回None
+        """
+        if not self.enable_test_data_param or not self.test_data_service:
             return None
-        parameterized = {}
-        for key, value in test_data.items():
-            if isinstance(value, str):
-                parameterized[key] = value
-            elif isinstance(value, (int, float)):
-                parameterized[key] = str(value)
-            elif isinstance(value, dict):
-                for sub_key, sub_value in value.items():
-                    compound_key = f"{key}.{sub_key}"
-                    parameterized[compound_key] = str(sub_value) if not isinstance(sub_value, str) else sub_value
-            elif isinstance(value, list):
-                for i, item in enumerate(value):
-                    indexed_key = f"{key}[{i}]"
-                    parameterized[indexed_key] = str(item) if not isinstance(item, str) else item
-        return parameterized
+
+        context = ParameterContext(
+            execution_id=f"EXEC_{execution_id}"
+        )
+        return TestDataParameterizer(context)
 
     def _generate_step_test_data(
         self,
-        step,
-        global_test_data: Optional[Dict[str, Any]] = None
-    ) -> Optional[Dict[str, str]]:
-        step_test_data = {}
+        step_id: int,
+        parameterizer: Optional[TestDataParameterizer] = None
+    ) -> Dict[str, str]:
+        """生成步骤的测试数据。
 
-        if global_test_data:
-            parameterized = self._create_parameterizer(global_test_data)
-            if parameterized:
-                step_test_data.update(parameterized)
+        Args:
+            step_id: 步骤ID
+            parameterizer: 参数化解析器
 
-        if hasattr(step, 'test_data') and step.test_data:
-            if isinstance(step.test_data, dict):
-                step_parameterized = self._create_parameterizer(step.test_data)
-                if step_parameterized:
-                    step_test_data.update(step_parameterized)
-            elif isinstance(step.test_data, str):
-                try:
-                    import json
-                    parsed = json.loads(step.test_data)
-                    if isinstance(parsed, dict):
-                        step_parameterized = self._create_parameterizer(parsed)
-                        if step_parameterized:
-                            step_test_data.update(step_parameterized)
-                except (json.JSONDecodeError, ValueError):
-                    pass
+        Returns:
+            字段名到值的映射
+        """
+        if not self.enable_test_data_param or not self.test_data_service:
+            return {}
 
-        return step_test_data if step_test_data else None
+        try:
+            return self.test_data_service.generate_step_data(step_id, parameterizer)
+        except Exception as e:
+            logger.warning(f"生成测试数据失败: {e}")
+            return {}
 
     def _substitute_parameters_in_action(
         self,
-        action_text: str,
+        action: str,
         test_data: Dict[str, str]
     ) -> str:
-        if not test_data or not action_text:
-            return action_text
+        """替换操作描述中的参数占位符。
 
-        result = action_text
+        支持 ${field_name} 格式的占位符替换。
 
-        pattern = r'\{\{(\w+(?:\.\w+)*(?:\[\d+\])*)\}\}'
-        matches = re.findall(pattern, action_text)
+        Args:
+            action: 操作描述
+            test_data: 测试数据
 
-        for match in matches:
-            placeholder = "{{" + match + "}}"
-            value = test_data.get(match)
-            if value is not None:
-                result = result.replace(placeholder, value)
-                logger.debug(f"参数替换: {placeholder} -> {value}")
-            else:
-                parts = match.split('.')
-                current = test_data
-                found = True
-                for part in parts:
-                    bracket_match = re.match(r'(\w+)\[(\d+)\]', part)
-                    if bracket_match:
-                        key = bracket_match.group(1)
-                        index = int(bracket_match.group(2))
-                        if isinstance(current, dict) and key in current:
-                            current = current[key]
-                            if isinstance(current, list) and index < len(current):
-                                current = current[index]
-                            else:
-                                found = False
-                                break
-                        else:
-                            found = False
-                            break
-                    else:
-                        if isinstance(current, dict) and part in current:
-                            current = current[part]
-                        else:
-                            found = False
-                            break
+        Returns:
+            替换后的操作描述
+        """
+        if not test_data:
+            return action
 
-                if found and isinstance(current, str):
-                    result = result.replace(placeholder, current)
-                    logger.debug(f"嵌套参数替换: {placeholder} -> {current}")
+        result = action
+        for field_name, value in test_data.items():
+            placeholder = f"${{{field_name}}}"
+            if placeholder in result:
+                result = result.replace(placeholder, str(value))
+                logger.info(f"替换参数 {placeholder} -> {value}")
 
         return result

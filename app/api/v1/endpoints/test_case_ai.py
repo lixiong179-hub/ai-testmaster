@@ -1,20 +1,36 @@
-from typing import Optional, List
+"""
+测试用例AI生成端点模块
+
+本模块定义AI生成测试用例的API端点，包括基础生成和增强模式生成。
+
+路由前缀: /testCase（由父模块test_case.py注册）
+标签: 测试用例管理
+
+端点概览:
+    - POST /ai-generate         - AI生成测试用例
+    - POST /ai-generate-enhanced - AI增强模式生成测试用例
+
+权限要求: 所有端点需要Bearer令牌认证
+
+业务说明:
+    - AI生成调用DeepSeek API，需配置DEEPSEEK_API_KEY
+    - 增强模式支持上下文注入（需求内容/UI描述/测试点）
+"""
+from typing import Optional, List, Literal
 from datetime import datetime
 import asyncio
 import json
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.models.test_case import TestCase, TestStep, TestCasePreconditionStep
+from app.models.test_case import TestCase, TestStep
 from app.models.user import User
 from app.models.project import Project
-from app.api.v1.endpoints.auth import oauth2_scheme, get_current_user
+from app.api.v1.endpoints.auth import get_current_user
 from app.utils.ai_client import (
     generate_test_case,
     generate_test_case_enhanced,
-    parse_precondition_to_steps,
     AIServiceError,
     AIAuthenticationError,
     AIRateLimitError,
@@ -23,11 +39,23 @@ from app.utils.ai_client import (
     AIResponseFormatError
 )
 from app.utils.test_case_helpers import convert_steps_to_response
-from app.schemas.test_case import PreconditionStepBatchSave, PreconditionStepResponse
+from app.utils.test_case_helpers import build_test_case_response
 from app.core.exception import create_response
+from app.core.constants import TestCasePriority
+from app.schemas.test_case import FlowSortDataSchema
 from loguru import logger
 
 router = APIRouter()
+
+
+def _map_ai_priority_to_value(priority: str) -> int:
+    """将AI返回优先级映射为数据库整数值（保持兼容默认中优先级）。"""
+    priority_map = {
+        "high": TestCasePriority.HIGH.value,
+        "medium": TestCasePriority.MEDIUM.value,
+        "low": TestCasePriority.LOW.value,
+    }
+    return priority_map.get(priority, TestCasePriority.MEDIUM.value)
 
 
 class AIGenerateRequest(BaseModel):
@@ -48,29 +76,26 @@ class AIGenerateRequest(BaseModel):
 async def ai_generate_test_case(
     request_data: AIGenerateRequest,
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    current_user: User = Depends(get_current_user)
 ):
+    """AI生成测试用例"""
     project_id = request_data.project_id
     description = request_data.description
 
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.user_id == current_user.id
+    ).first()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="项目不存在"
         )
 
-    if not description or len(description.strip()) < 10:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="描述不能为空且至少需要10个字符"
-        )
-
     try:
         generated_case = generate_test_case(description)
 
-        priority_map = {"high": 1, "medium": 2, "low": 3}
-        priority_value = priority_map.get(generated_case["priority"], 2)
+        priority_value = _map_ai_priority_to_value(generated_case["priority"])
 
         new_test_case = TestCase(
             project_id=project_id,
@@ -120,59 +145,31 @@ async def ai_generate_test_case(
         db.commit()
         db.refresh(new_test_case)
 
-        from app.utils.test_case_helpers import build_test_case_response
         return create_response(data=build_test_case_response(new_test_case))
     except AIAuthenticationError as e:
         db.rollback()
         logger.error(f"AI认证失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"AI服务认证失败: {e.message}。请检查 .env 文件中的 DEEPSEEK_API_KEY 是否正确。"
-        )
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI服务认证失败，请检查API密钥")
     except AIRateLimitError as e:
         db.rollback()
         logger.error(f"AI请求频率限制: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"AI服务请求频率过高: {e.message}。请稍后重试。"
-        )
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="AI服务请求频率过高，请稍后重试")
     except AITimeoutError as e:
         db.rollback()
         logger.error(f"AI请求超时: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail=f"AI服务请求超时: {e.message}。请稍后重试。"
-        )
-    except AIResponseFormatError as e:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="AI服务请求超时，请稍后重试")
+    except (AIResponseFormatError, AIResponseParseError) as e:
         db.rollback()
-        logger.error(f"AI响应格式错误: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI响应格式错误: {e.message}。请稍后重试或联系管理员。"
-        )
-    except AIResponseParseError as e:
-        db.rollback()
-        logger.error(f"AI响应解析失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"AI响应解析失败: {e.message}。请稍后重试或联系管理员。"
-        )
+        logger.error(f"AI响应错误: {e}")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI响应格式错误，请稍后重试")
     except AIServiceError as e:
         db.rollback()
         logger.error(f"AI服务错误: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"AI服务错误: {e.message}"
-        )
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI服务暂时不可用")
     except Exception as e:
         db.rollback()
         logger.error(f"AI生成测试用例失败: {e}")
-        import traceback
-        logger.error(f"错误详情: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"AI生成失败: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI生成失败")
 
 
 class AIGenerateEnhancedRequest(BaseModel):
@@ -184,6 +181,8 @@ class AIGenerateEnhancedRequest(BaseModel):
     enhanced_mode: bool = True
     context: Optional[dict] = None
     ui_screen_ids: Optional[List[int]] = None
+    mode: Literal['linear', 'graph'] = Field(default='linear', description="排序模式：linear=线性/graph=流程图")
+    flow_sort_data: Optional[FlowSortDataSchema] = Field(None, description="流程图排序数据（graph模式必填）")
 
     @field_validator('case_type')
     @classmethod
@@ -219,22 +218,20 @@ class AIGenerateEnhancedRequest(BaseModel):
 async def ai_generate_test_case_enhanced(
     request_data: AIGenerateEnhancedRequest,
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    current_user: User = Depends(get_current_user)
 ):
+    """AI增强模式生成测试用例"""
     project_id = request_data.project_id
     description = request_data.description
 
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.user_id == current_user.id
+    ).first()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="项目不存在"
-        )
-
-    if not description or len(description.strip()) < 5:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="描述不能为空且至少需要5个字符"
         )
 
     try:
@@ -258,7 +255,7 @@ async def ai_generate_test_case_enhanced(
             raw_ui_desc = context.get('ui_description', '')
             ui_specs = context.get('ui_specs', [])
 
-            generated_case = await asyncio.to_thread(generate_test_case_enhanced, {
+            ai_context = {
                 'requirement_content': context.get('requirement_content', ''),
                 'ui_description': raw_ui_desc,
                 'ui_spec': ui_specs[0].get('ui_spec', {}) if ui_specs else {},
@@ -267,7 +264,39 @@ async def ai_generate_test_case_enhanced(
                 'case_type': request_data.case_type,
                 'exec_mode': request_data.exec_mode,
                 'project_config': context.get('project_config')
-            })
+            }
+
+            if request_data.mode == 'graph' and request_data.flow_sort_data:
+                from app.services.case_generation_prompt_builder import PromptBuilder
+
+                logger.info(
+                    f"AI生成增强模式 - graph模式: "
+                    f"nodes={len(request_data.flow_sort_data.nodes)}, "
+                    f"edges={len(request_data.flow_sort_data.edges)}"
+                )
+
+                ui_specs_text = ""
+                if ui_specs:
+                    ui_specs_parts = []
+                    for idx, spec in enumerate(ui_specs, 1):
+                        spec_data = spec.get('ui_spec', {})
+                        ui_specs_parts.append(
+                            f"屏幕 {idx}: {json.dumps(spec_data, ensure_ascii=False, default=str)}"
+                        )
+                    ui_specs_text = "\n".join(ui_specs_parts)
+
+                graph_prompt = PromptBuilder.build_graph_prompt(
+                    nodes=[n.model_dump() for n in request_data.flow_sort_data.nodes],
+                    edges=[e.model_dump() for e in request_data.flow_sort_data.edges],
+                    module_info=request_data.flow_sort_data.module_info,
+                    requirement_content=context.get('requirement_content', ''),
+                    test_point_json=json.dumps(test_point, ensure_ascii=False),
+                    ui_specs_text=ui_specs_text
+                )
+                ai_context['graph_prompt'] = graph_prompt
+                logger.info(f"AI生成增强模式 - graph_prompt长度: {len(graph_prompt)}字符")
+
+            generated_case = await asyncio.to_thread(generate_test_case_enhanced, ai_context)
         else:
             generated_case = await asyncio.to_thread(generate_test_case, description)
 
@@ -292,124 +321,7 @@ async def ai_generate_test_case_enhanced(
         })
     except Exception as e:
         logger.error(f"AI增强模式生成测试用例失败: {e}")
-        import traceback
-        logger.error(f"错误详情: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"AI生成失败: {str(e)}"
+            detail="AI生成失败"
         )
-
-
-@router.get("/{case_id}/precondition-steps")
-async def get_precondition_steps(
-    case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
-    if not test_case:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
-
-    steps = db.query(TestCasePreconditionStep).filter(
-        TestCasePreconditionStep.test_case_id == case_id
-    ).order_by(TestCasePreconditionStep.step_number).all()
-
-    return create_response(data=[PreconditionStepResponse.model_validate(s) for s in steps])
-
-
-@router.put("/{case_id}/precondition-steps")
-async def batch_save_precondition_steps(
-    case_id: int,
-    request: PreconditionStepBatchSave,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
-    if not test_case:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
-
-    db.query(TestCasePreconditionStep).filter(
-        TestCasePreconditionStep.test_case_id == case_id
-    ).delete()
-
-    for i, step_data in enumerate(request.steps):
-        step = TestCasePreconditionStep(
-            test_case_id=case_id,
-            step_number=step_data.step_number or (i + 1),
-            action=step_data.action,
-            expected_result=step_data.expected_result or "",
-            action_type=step_data.action_type,
-            input_value=step_data.input_value,
-            target_element=step_data.target_element,
-            has_locator=0,
-            locator_status="pending"
-        )
-        db.add(step)
-
-    db.commit()
-
-    steps = db.query(TestCasePreconditionStep).filter(
-        TestCasePreconditionStep.test_case_id == case_id
-    ).order_by(TestCasePreconditionStep.step_number).all()
-
-    return create_response(data=[PreconditionStepResponse.model_validate(s) for s in steps])
-
-
-@router.post("/{case_id}/parse-precondition")
-async def parse_precondition(
-    case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
-    if not test_case:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
-
-    if not test_case.precondition:
-        return create_response(data=[], msg="前置条件为空，无需解析")
-
-    project_url = ""
-    if test_case.project_id:
-        project = db.query(Project).filter(Project.id == test_case.project_id).first()
-        if project:
-            project_url = getattr(project, 'test_object_url', '') or ''
-
-    try:
-        steps = await parse_precondition_to_steps(
-            precondition_text=test_case.precondition,
-            project_url=project_url
-        )
-
-        if steps:
-            db.query(TestCasePreconditionStep).filter(
-                TestCasePreconditionStep.test_case_id == case_id
-            ).delete()
-
-            for i, step_data in enumerate(steps):
-                pc_step = TestCasePreconditionStep(
-                    test_case_id=case_id,
-                    step_number=step_data.get('step_number', i + 1),
-                    action=step_data.get('action', ''),
-                    expected_result=step_data.get('expected_result', ''),
-                    action_type=step_data.get('action_type', ''),
-                    input_value=step_data.get('input_value', ''),
-                    target_element=step_data.get('target_element', ''),
-                    has_locator=0,
-                    locator_status="pending"
-                )
-                db.add(pc_step)
-
-            db.commit()
-
-            saved_steps = db.query(TestCasePreconditionStep).filter(
-                TestCasePreconditionStep.test_case_id == case_id
-            ).order_by(TestCasePreconditionStep.step_number).all()
-
-            return create_response(
-                data=[PreconditionStepResponse.model_validate(s) for s in saved_steps],
-                msg=f"解析成功，生成 {len(steps)} 个步骤"
-            )
-
-        return create_response(data=[], msg="解析成功，但未生成步骤")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI解析前置条件失败: {str(e)}")

@@ -1,9 +1,12 @@
 <template>
   <div class="project-list">
-    <el-card>
+    <el-card class="project-card">
       <template #header>
         <div class="card-header">
-          <span>项目列表</span>
+          <div>
+            <div class="card-title">项目列表</div>
+            <div class="card-subtitle">从项目进入任务、执行与测试点管理，是整条测试业务链路的起点。</div>
+          </div>
           <el-button type="primary" @click="openCreateDialog">创建项目</el-button>
         </div>
       </template>
@@ -13,16 +16,18 @@
           v-model="searchKeyword"
           placeholder="搜索项目名称"
           clearable
-          style="width: 300px"
+          class="search-input"
           @keyup.enter="handleSearch"
         >
           <template #append>
             <el-button @click="handleSearch">搜索</el-button>
           </template>
         </el-input>
+        <el-tag effect="plain" type="info">共 {{ projectStore.total }} 个项目</el-tag>
       </div>
 
       <el-table
+        class="project-table"
         v-loading="projectStore.loading"
         :data="filteredProjects"
         style="width: 100%"
@@ -50,12 +55,27 @@
           </template>
         </el-table-column>
         <el-table-column prop="create_time" label="创建时间" width="180" />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="scope">
-            <el-button size="small" @click="goToDetail(scope.row.id)">详情</el-button>
-            <el-button size="small" type="danger" @click="confirmDelete(scope.row.id)">删除</el-button>
+            <el-space wrap>
+              <el-button size="small" @click="goToDetail(scope.row.id)">详情</el-button>
+              <el-button size="small" type="primary" plain @click="goToTaskList(scope.row.id)">任务</el-button>
+              <el-button size="small" type="success" plain @click="goToTestPointManagement(scope.row.id)"
+                >测试点</el-button
+              >
+              <el-button size="small" type="danger" @click="confirmDelete(scope.row.id)"
+              >删除</el-button
+              >
+            </el-space>
           </template>
         </el-table-column>
+        <template #empty>
+          <div class="project-empty-state">
+            <div class="project-empty-title">还没有可用项目</div>
+            <div class="project-empty-text">建议先创建项目，后续任务、执行与测试点管理都会围绕项目展开。</div>
+            <el-button type="primary" @click="openCreateDialog">创建首个项目</el-button>
+          </div>
+        </template>
       </el-table>
 
       <div class="pagination">
@@ -72,11 +92,7 @@
     </el-card>
 
     <!-- 创建项目对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      title="创建项目"
-      width="700px"
-    >
+    <el-dialog v-model="dialogVisible" title="创建项目" width="700px">
       <el-form :model="projectForm" :rules="projectRules" ref="projectFormRef" label-width="100px">
         <el-form-item label="项目名称" prop="name">
           <el-input v-model="projectForm.name" placeholder="请输入项目名称" />
@@ -106,13 +122,27 @@
           <el-form-item label="测试环境">
             <el-row :gutter="10">
               <el-col :span="10">
-                <el-input v-model="projectForm.web_env_configs.test.url" placeholder="测试环境URL" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.test.url"
+                  placeholder="测试环境URL"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.test.username" placeholder="账号" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.test.username"
+                  placeholder="账号"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.test.password" type="password" placeholder="密码" show-password autocomplete="new-password" />
+                <el-input
+                  v-model="projectForm.web_env_configs.test.password"
+                  type="password"
+                  placeholder="密码"
+                  show-password
+                  autocomplete="new-password"
+                />
               </el-col>
             </el-row>
           </el-form-item>
@@ -121,13 +151,27 @@
           <el-form-item label="灰度环境">
             <el-row :gutter="10">
               <el-col :span="10">
-                <el-input v-model="projectForm.web_env_configs.staging.url" placeholder="灰度环境URL" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.staging.url"
+                  placeholder="灰度环境URL"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.staging.username" placeholder="账号" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.staging.username"
+                  placeholder="账号"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.staging.password" type="password" placeholder="密码" show-password autocomplete="new-password" />
+                <el-input
+                  v-model="projectForm.web_env_configs.staging.password"
+                  type="password"
+                  placeholder="密码"
+                  show-password
+                  autocomplete="new-password"
+                />
               </el-col>
             </el-row>
           </el-form-item>
@@ -136,13 +180,27 @@
           <el-form-item label="正式环境">
             <el-row :gutter="10">
               <el-col :span="10">
-                <el-input v-model="projectForm.web_env_configs.prod.url" placeholder="正式环境URL" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.prod.url"
+                  placeholder="正式环境URL"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.prod.username" placeholder="账号" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.prod.username"
+                  placeholder="账号"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.prod.password" type="password" placeholder="密码" show-password autocomplete="new-password" />
+                <el-input
+                  v-model="projectForm.web_env_configs.prod.password"
+                  type="password"
+                  placeholder="密码"
+                  show-password
+                  autocomplete="new-password"
+                />
               </el-col>
             </el-row>
           </el-form-item>
@@ -188,13 +246,13 @@ const projectForm = ref({
   web_env_configs: {
     test: { url: '', username: '', password: '' },
     staging: { url: '', username: '', password: '' },
-    prod: { url: '', username: '', password: '' }
-  }
+    prod: { url: '', username: '', password: '' },
+  },
 })
 
 const projectRules = {
   name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
-  project_type: [{ required: true, message: '请选择项目类型', trigger: 'change' }]
+  project_type: [{ required: true, message: '请选择项目类型', trigger: 'change' }],
 }
 
 // 过滤项目列表
@@ -202,7 +260,7 @@ const filteredProjects = computed(() => {
   if (!searchKeyword.value) {
     return projectStore.projects
   }
-  return projectStore.projects.filter(project =>
+  return projectStore.projects.filter((project) =>
     project.name.toLowerCase().includes(searchKeyword.value.toLowerCase())
   )
 })
@@ -212,7 +270,7 @@ const getStatusType = (status: number) => {
   const statusMap: Record<number, string> = {
     0: 'info',
     1: 'success',
-    2: 'warning'
+    2: 'warning',
   }
   return statusMap[status] || 'info'
 }
@@ -222,7 +280,7 @@ const getStatusText = (status: number) => {
   const statusMap: Record<number, string> = {
     0: '未激活',
     1: '正常',
-    2: '归档'
+    2: '归档',
   }
   return statusMap[status] || '未知'
 }
@@ -254,8 +312,8 @@ const openCreateDialog = () => {
     web_env_configs: {
       test: { url: '', username: '', password: '' },
       staging: { url: '', username: '', password: '' },
-      prod: { url: '', username: '', password: '' }
-    }
+      prod: { url: '', username: '', password: '' },
+    },
   }
   dialogVisible.value = true
 }
@@ -269,7 +327,8 @@ const createProject = async () => {
         name: projectForm.value.name,
         description: projectForm.value.description,
         project_type: projectForm.value.project_type,
-        web_env_configs: projectForm.value.project_type === 'web' ? projectForm.value.web_env_configs : undefined
+        web_env_configs:
+          projectForm.value.project_type === 'web' ? projectForm.value.web_env_configs : undefined,
       })
       if (projectId) {
         dialogVisible.value = false
@@ -284,17 +343,32 @@ const goToDetail = (projectId: number) => {
   router.push(`/home/project/detail?id=${projectId}`)
 }
 
+const goToTaskList = (projectId: number) => {
+  router.push(`/home/task/list/${projectId}`)
+}
+
+const goToTestPointManagement = (projectId: number) => {
+  router.push({
+    path: '/home/case/test-point-management',
+    query: {
+      projectId: String(projectId),
+    },
+  })
+}
+
 // 确认删除项目
 const confirmDelete = (projectId: number) => {
   ElMessageBox.confirm('确定要删除此项目吗？删除后将级联删除关联的文件、测试点和用例。', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
-    type: 'warning'
-  }).then(async () => {
-    await projectStore.deleteProject(projectId)
-  }).catch(() => {
-    // 取消删除
+    type: 'warning',
   })
+    .then(async () => {
+      await projectStore.deleteProject(projectId)
+    })
+    .catch(() => {
+      // 取消删除
+    })
 }
 
 // 页面加载时获取项目列表
@@ -308,14 +382,40 @@ onMounted(() => {
   padding: 20px;
 }
 
+.project-card {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.card-subtitle {
+  margin-top: 6px;
+  color: #7a8594;
+  line-height: 1.6;
 }
 
 .search-bar {
   margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.search-input {
+  width: 300px;
 }
 
 .pagination {
@@ -324,8 +424,40 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+.project-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 16px;
+  text-align: center;
+}
+
+.project-empty-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.project-empty-text {
+  max-width: 420px;
+  color: #7a8594;
+  line-height: 1.6;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .card-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-input {
+    width: 100%;
+  }
 }
 </style>

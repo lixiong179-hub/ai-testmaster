@@ -1,22 +1,11 @@
 """
 需求链接CRUD端点模块
 
-本模块定义需求链接的增删改查API端点，管理测试用例与需求之间的关联关系。
-
-路由前缀: /requirement-link（由父模块requirement_link.py注册）
+路由前缀: /requirement-link（由父模块注册）
 标签: 需求链接
 
-端点概览:
-    - POST   /                          - 创建需求链接
-    - GET    /list                      - 获取需求链接列表
-    - GET    /{link_id}                 - 获取链接详情
-    - DELETE /{link_id}                 - 删除需求链接
-
-权限要求: 所有端点需要Bearer令牌认证
-
-业务说明:
-    - 需求链接建立测试用例与需求条目的关联
-    - 支持一对多关联（一个需求关联多个用例）
+端点: POST /, GET /list/{project_id}, GET /{link_id}, PUT /{link_id}, DELETE /{link_id}
+权限: Bearer令牌认证
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
@@ -129,7 +118,7 @@ async def create_requirement_link(
         logger.error(f"创建需求链接失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"创建需求链接失败: {str(e)}"
+            detail="创建需求链接失败"
         )
 
 
@@ -182,7 +171,7 @@ async def get_requirement_links(
         logger.error(f"获取需求链接列表失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取需求链接列表失败: {str(e)}"
+            detail="获取需求链接列表失败"
         )
 
 
@@ -215,7 +204,7 @@ async def get_requirement_link_detail(
         logger.error(f"获取需求链接详情失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取需求链接详情失败: {str(e)}"
+            detail="获取需求链接详情失败"
         )
 
 
@@ -243,27 +232,15 @@ async def update_requirement_link(
                 detail="无权限操作此项目"
             )
         update_data = link_data.model_dump(exclude_unset=True)
-        if any(k in update_data for k in ['username', 'password', 'token', 'api_key', 'cookie']):
+        auth_fields = ['username', 'password', 'token', 'api_key', 'api_key_header', 'cookie']
+        if any(k in update_data for k in auth_fields):
             auth_config = dict(link.auth_config) if link.auth_config else {}
-            if update_data.get('username') is not None:
-                auth_config['username'] = update_data.pop('username')
-            if update_data.get('password') is not None:
-                auth_config['password'] = update_data.pop('password')
-            if update_data.get('token') is not None:
-                auth_config['token'] = update_data.pop('token')
-            if update_data.get('api_key') is not None:
-                auth_config['api_key'] = update_data.pop('api_key')
-            if update_data.get('api_key_header') is not None:
-                auth_config['api_key_header'] = update_data.pop('api_key_header')
-            if update_data.get('cookie') is not None:
-                auth_config['cookie'] = update_data.pop('cookie')
+            for field in auth_fields:
+                if update_data.get(field) is not None:
+                    auth_config[field] = update_data.pop(field)
             update_data['auth_config'] = auth_config
-        update_data.pop('username', None)
-        update_data.pop('password', None)
-        update_data.pop('token', None)
-        update_data.pop('api_key', None)
-        update_data.pop('api_key_header', None)
-        update_data.pop('cookie', None)
+        for field in auth_fields:
+            update_data.pop(field, None)
         if 'link_type' in update_data and update_data['link_type']:
             update_data['link_type'] = update_data['link_type'].value
         if 'auth_type' in update_data and update_data['auth_type']:
@@ -280,7 +257,7 @@ async def update_requirement_link(
         logger.error(f"更新需求链接失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"更新需求链接失败: {str(e)}"
+            detail="更新需求链接失败"
         )
 
 
@@ -313,5 +290,5 @@ async def delete_requirement_link(
         logger.error(f"删除需求链接失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"删除需求链接失败: {str(e)}"
+            detail="删除需求链接失败"
         )

@@ -63,6 +63,7 @@ class TestCase(Base):
     case_no = Column(String(50), nullable=False, unique=True, comment="用例编号，如'PROJ1-CASE001'")   # 用例编号，全局唯一，格式为 项目前缀-CASE序号
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID，多项目隔离核心")  # 项目ID，级联删除
     requirement_file_id = Column(Integer, ForeignKey("project_files.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联需求文件ID，用于按需求筛选")  # 需求文件ID，SET NULL保留用例
+    test_point_id = Column(Integer, ForeignKey("test_points.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联测试点ID")  # 测试点ID，兼容历史数据允许为空
     module = Column(String(100), nullable=False, comment="关联测试点模块")                             # 模块名称，与测试点的module对应
     title = Column(String(255), nullable=False, comment="用例标题")                                    # 用例标题，简要描述测试场景
     precondition = Column(Text, nullable=False, comment="前置条件")                                    # 前置条件文本描述

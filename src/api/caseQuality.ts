@@ -22,7 +22,7 @@ export const analyzeProjectQuality = (projectId: number) => {
  */
 export const getCaseQualityTrend = (caseId: number, days: number = 30) => {
   return request.get(`/api/v1/quality/cases/${caseId}/quality/trend`, {
-    params: { days }
+    params: { days },
   })
 }
 

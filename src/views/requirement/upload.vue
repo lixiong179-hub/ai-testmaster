@@ -7,10 +7,15 @@
           <el-button type="primary" @click="goBack">返回列表</el-button>
         </div>
       </template>
-      
+
       <el-form :model="form" label-width="80px">
         <el-form-item label="项目选择">
-          <el-select v-model="form.project_id" placeholder="请选择项目" style="width: 100%" @change="handleProjectChange">
+          <el-select
+            v-model="form.project_id"
+            placeholder="请选择项目"
+            style="width: 100%"
+            @change="handleProjectChange"
+          >
             <el-option
               v-for="project in projects"
               :key="project.id"
@@ -56,7 +61,7 @@
             </template>
           </el-upload>
         </el-form-item>
-        
+
         <el-form-item label="需求描述">
           <el-input
             type="textarea"
@@ -65,11 +70,9 @@
             :rows="4"
           />
         </el-form-item>
-        
+
         <el-form-item>
-          <el-button type="primary" @click="handleUpload" :loading="loading">
-            上传需求
-          </el-button>
+          <el-button type="primary" @click="handleUpload" :loading="loading"> 上传需求 </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -98,7 +101,7 @@ const loading = ref(false)
 const form = ref({
   project_id: '' as number | '',
   iteration_id: undefined as number | undefined, // 所属迭代ID
-  description: ''
+  description: '',
 })
 
 // 获取项目列表
@@ -165,8 +168,8 @@ const handleUpload = async () => {
 
     await axios.post('/api/v1/file/upload', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+        'Content-Type': 'multipart/form-data',
+      },
     })
 
     ElMessage.success('需求上传成功')

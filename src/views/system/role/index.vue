@@ -10,7 +10,7 @@
           </el-button>
         </div>
       </template>
-      
+
       <!-- 搜索 -->
       <div class="search-box">
         <el-input
@@ -23,11 +23,13 @@
             <el-icon><Search /></el-icon>
           </template>
           <template #append>
-            <el-button @click="handleSearch"><el-icon><Search /></el-icon></el-button>
+            <el-button @click="handleSearch"
+              ><el-icon><Search /></el-icon
+            ></el-button>
           </template>
         </el-input>
       </div>
-      
+
       <!-- 角色列表 -->
       <el-table :data="roles" style="width: 100%" v-loading="loading">
         <el-table-column prop="id" label="ID" width="80" />
@@ -44,16 +46,25 @@
             <el-button size="small" @click="openEditDialog(scope.row)" v-permission="'role:update'">
               编辑
             </el-button>
-            <el-button size="small" @click="assignPermission(scope.row)" v-permission="'role:update'">
+            <el-button
+              size="small"
+              @click="assignPermission(scope.row)"
+              v-permission="'role:update'"
+            >
               分配权限
             </el-button>
-            <el-button size="small" type="danger" @click="deleteRole(scope.row)" v-permission="'role:delete'">
+            <el-button
+              size="small"
+              type="danger"
+              @click="deleteRole(scope.row)"
+              v-permission="'role:delete'"
+            >
               删除
             </el-button>
           </template>
         </el-table-column>
       </el-table>
-      
+
       <!-- 分页 -->
       <div class="pagination">
         <el-pagination
@@ -67,19 +78,10 @@
         />
       </div>
     </el-card>
-    
+
     <!-- 新增/编辑角色对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="500px"
-    >
-      <el-form
-        ref="roleFormRef"
-        :model="roleForm"
-        :rules="roleRules"
-        label-width="100px"
-      >
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px">
+      <el-form ref="roleFormRef" :model="roleForm" :rules="roleRules" label-width="100px">
         <el-form-item label="角色名称" prop="name">
           <el-input v-model="roleForm.name" placeholder="请输入角色名称" />
         </el-form-item>
@@ -94,13 +96,9 @@
         </span>
       </template>
     </el-dialog>
-    
+
     <!-- 分配权限对话框 -->
-    <el-dialog
-      v-model="permissionDialogVisible"
-      title="分配权限"
-      width="600px"
-    >
+    <el-dialog v-model="permissionDialogVisible" title="分配权限" width="600px">
       <el-form>
         <el-form-item label="角色">
           <el-tag>{{ currentRole?.name }}</el-tag>
@@ -114,7 +112,7 @@
             default-expand-all
             :props="{
               label: 'name',
-              children: 'children'
+              children: 'children',
             }"
           />
         </el-form-item>
@@ -142,7 +140,7 @@ const roles = ref<Role[]>([])
 const pagination = reactive<Pagination>({
   page: 1,
   size: 10,
-  total: 0
+  total: 0,
 })
 
 // 搜索
@@ -159,17 +157,15 @@ const roleFormRef = ref()
 const roleForm = reactive<RoleForm>({
   name: '',
   desc: '',
-  permissions: []
+  permissions: [],
 })
 
 const roleRules = {
   name: [
     { required: true, message: '请输入角色名称', trigger: 'blur' },
-    { min: 1, max: 50, message: '角色名称长度1-50位', trigger: 'blur' }
+    { min: 1, max: 50, message: '角色名称长度1-50位', trigger: 'blur' },
   ],
-  desc: [
-    { max: 200, message: '角色描述长度不超过200位', trigger: 'blur' }
-  ]
+  desc: [{ max: 200, message: '角色描述长度不超过200位', trigger: 'blur' }],
 }
 
 // 权限管理
@@ -186,8 +182,8 @@ const loadRoles = async () => {
       params: {
         skip: (pagination.page - 1) * pagination.size,
         limit: pagination.size,
-        search: searchQuery.value
-      }
+        search: searchQuery.value,
+      },
     })
     roles.value = response.data
     // 假设返回的数据包含total字段
@@ -214,27 +210,27 @@ const loadPermissions = async () => {
 const buildPermissionTree = (permissions: Permission[]): any[] => {
   const tree: any[] = []
   const map: { [key: number]: any } = {}
-  
+
   // 构建节点映射
-  permissions.forEach(perm => {
+  permissions.forEach((perm) => {
     map[perm.id] = {
       id: perm.id,
       code: perm.code,
       name: perm.name,
       type: perm.type,
-      children: []
+      children: [],
     }
   })
-  
+
   // 构建树结构
-  permissions.forEach(perm => {
+  permissions.forEach((perm) => {
     if (perm.parent_id === null) {
       tree.push(map[perm.id])
     } else if (map[perm.parent_id]) {
       map[perm.parent_id].children.push(map[perm.id])
     }
   })
-  
+
   return tree
 }
 
@@ -262,7 +258,7 @@ const openAddDialog = () => {
   Object.assign(roleForm, {
     name: '',
     desc: '',
-    permissions: []
+    permissions: [],
   })
   dialogVisible.value = true
 }
@@ -274,7 +270,7 @@ const openEditDialog = (role: Role) => {
   Object.assign(roleForm, {
     name: role.name,
     desc: role.desc,
-    permissions: role.permissions || []
+    permissions: role.permissions || [],
   })
   currentRole.value = role
   dialogVisible.value = true
@@ -283,7 +279,7 @@ const openEditDialog = (role: Role) => {
 // 保存角色
 const saveRole = async () => {
   if (!roleFormRef.value) return
-  
+
   await roleFormRef.value.validate(async (valid: boolean) => {
     if (valid) {
       try {
@@ -307,32 +303,30 @@ const saveRole = async () => {
 
 // 删除角色
 const deleteRole = (role: Role) => {
-  ElMessageBox.confirm(
-    `确定要删除角色 ${role.name} 吗？`,
-    '确认操作',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(async () => {
-    try {
-      await axios.delete(`/api/v1/user/role/${role.id}`)
-      ElMessage.success('角色删除成功')
-      loadRoles()
-    } catch (error) {
-      ElMessage.error('删除失败')
-    }
-  }).catch(() => {
-    // 取消操作
+  ElMessageBox.confirm(`确定要删除角色 ${role.name} 吗？`, '确认操作', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
   })
+    .then(async () => {
+      try {
+        await axios.delete(`/api/v1/user/role/${role.id}`)
+        ElMessage.success('角色删除成功')
+        loadRoles()
+      } catch (error) {
+        ElMessage.error('删除失败')
+      }
+    })
+    .catch(() => {
+      // 取消操作
+    })
 }
 
 // 分配权限
 const assignPermission = async (role: Role) => {
   currentRole.value = role
   selectedPermissions.value = role.permissions || []
-  
+
   // 加载权限列表
   await loadPermissions()
   permissionDialogVisible.value = true
@@ -341,10 +335,10 @@ const assignPermission = async (role: Role) => {
 // 保存权限分配
 const savePermissions = async () => {
   if (!currentRole.value) return
-  
+
   try {
     await axios.put(`/api/v1/user/role/${currentRole.value.id}`, {
-      permissions: selectedPermissions.value
+      permissions: selectedPermissions.value,
     })
     ElMessage.success('权限分配成功')
     permissionDialogVisible.value = false
@@ -404,42 +398,42 @@ onMounted(() => {
   .role-management {
     padding: 10px;
   }
-  
+
   .card-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .search-box {
     max-width: 100%;
   }
-  
+
   .el-table {
     font-size: 12px;
   }
-  
+
   .el-table th,
   .el-table td {
     padding: 8px 4px;
   }
-  
+
   .pagination {
     margin-top: 10px;
   }
-  
+
   :deep(.el-pagination) {
     font-size: 12px;
   }
-  
+
   :deep(.el-pagination__sizes .el-input__inner) {
     width: 80px;
   }
-  
+
   .el-dialog {
     width: 90% !important;
   }
-  
+
   :deep(.el-tree) {
     font-size: 12px;
   }

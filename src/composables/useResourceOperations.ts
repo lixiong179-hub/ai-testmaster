@@ -22,7 +22,7 @@ export function useResourceOperations(
   const handleAnalyze = (row: Resource) => {
     const baseQuery: Record<string, string> = {
       project_id: String(row.project_id),
-      filename: row.name
+      filename: row.name,
     }
 
     if (row.resource_type === 'ui_mockup' && row.source_type === 'ui_prototype') {
@@ -40,7 +40,10 @@ export function useResourceOperations(
     }
 
     // 携带迭代信息
-    if (row.iteration_id || (iterationManager.selectedIterationId !== null && iterationManager.selectedIterationId !== 0)) {
+    if (
+      row.iteration_id ||
+      (iterationManager.selectedIterationId !== null && iterationManager.selectedIterationId !== 0)
+    ) {
       baseQuery.iteration_id = String(row.iteration_id || iterationManager.selectedIterationId)
 
       const iterId = row.iteration_id || iterationManager.selectedIterationId
@@ -50,9 +53,22 @@ export function useResourceOperations(
       }
     }
 
+    if (row.resource_type === 'ui_mockup' && row.source_type === 'ui_prototype') {
+      router.push({
+        path: '/home/case/test-point-extract',
+        query: baseQuery,
+      })
+      return
+    }
+
     router.push({
-      path: '/home/case/test-point-extract',
-      query: baseQuery
+      path: '/home/case/test-point-management',
+      query: {
+        projectId: baseQuery.project_id,
+        file_id: baseQuery.file_id,
+        openExtract: '1',
+        filename: baseQuery.filename,
+      },
     })
   }
 
@@ -64,7 +80,8 @@ export function useResourceOperations(
     // 构建更详细的确认消息
     let confirmMessage = ''
     if (row.resource_type === 'ui_mockup' && row.source_type === 'ui_prototype') {
-      confirmMessage = `确定要删除UI原型项目 "${row.name}" 吗？\n\n` +
+      confirmMessage =
+        `确定要删除UI原型项目 "${row.name}" 吗？\n\n` +
         `该操作将同时删除：\n` +
         `- 其下所有 ${row.screen_count || 0} 张图片\n` +
         `- 相关的测试用例关联数据\n\n` +
@@ -86,7 +103,7 @@ export function useResourceOperations(
       await ElMessageBox.confirm(confirmMessage, '删除确认', {
         type: 'warning',
         confirmButtonText: '确定删除',
-        cancelButtonText: '取消'
+        cancelButtonText: '取消',
       })
 
       if (row.resource_type === 'ui_mockup' && row.source_type === 'ui_prototype') {
@@ -118,18 +135,23 @@ export function useResourceOperations(
       const query: Record<string, string> = {
         project_id: String(row.project_id),
         prototype_project_id: String(row.prototype_project_id || row.id),
-        name: row.name
+        name: row.name,
       }
-      if (iterationManager.selectedIterationId !== null && iterationManager.selectedIterationId > 0) {
+      if (
+        iterationManager.selectedIterationId !== null &&
+        iterationManager.selectedIterationId > 0
+      ) {
         query.iteration_id = String(iterationManager.selectedIterationId)
-        const iteration = iterationManager.iterations.find((it: Iteration) => it.id === iterationManager.selectedIterationId)
+        const iteration = iterationManager.iterations.find(
+          (it: Iteration) => it.id === iterationManager.selectedIterationId
+        )
         if (iteration) {
           query.iteration_name = iteration.name
         }
       }
       router.push({
         path: '/home/requirement/ui-prototype',
-        query
+        query,
       })
       return false // 不需要打开弹窗
     }
@@ -139,6 +161,6 @@ export function useResourceOperations(
   return {
     handleAnalyze,
     handleDelete,
-    handleEditNavigation
+    handleEditNavigation,
   }
 }

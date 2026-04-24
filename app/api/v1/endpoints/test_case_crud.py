@@ -1,7 +1,7 @@
 """
 测试用例CRUD端点模块
 
-本模块定义测试用例的基础增删改查API端点，包括单条和批量操作。
+本模块定义测试用例的基础增删改查API端点，包括单条操作。
 
 路由前缀: /testCase（由父模块test_case.py注册）
 标签: 测试用例管理
@@ -9,8 +9,6 @@
 端点概览:
     - POST   /                    - 创建测试用例（含步骤和测试数据）
     - GET    /                    - 查询测试用例列表（分页、按项目/需求文件筛选）
-    - POST   /batch-restore       - 批量恢复已删除的用例
-    - POST   /batch-delete        - 批量软删除用例
     - GET    /{test_case_id}      - 获取用例详情
     - PUT    /{test_case_id}      - 更新用例（含步骤重建）
     - DELETE /{test_case_id}      - 软删除单个用例
@@ -27,7 +25,6 @@ from typing import Optional
 from datetime import datetime
 import json
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.test_case import (
@@ -35,8 +32,9 @@ from app.schemas.test_case import (
 )
 from app.models.test_case import TestCase, TestStep
 from app.models.test_data import TestData, DataType, GenerationRule
+from app.models.project import Project
 from app.models.user import User
-from app.api.v1.endpoints.auth import oauth2_scheme, get_current_user
+from app.api.v1.endpoints.auth import get_current_user
 from app.utils.test_case_helpers import build_test_case_response
 from app.core.exception import create_response
 from loguru import logger
@@ -48,26 +46,20 @@ router = APIRouter()
 async def create_test_case(
     test_case: TestCaseCreate,
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    创建测试用例
+    """创建测试用例（含步骤和测试数据，编号自动生成）"""
+    # 验证用户对项目的访问权限
+    project = db.query(Project).filter(
+        Project.id == test_case.project_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此项目"
+        )
 
-    创建新的测试用例，同时创建关联的测试步骤和测试数据记录。
-    用例编号自动生成，格式为 CASE{project_id}-{时间戳}。
-
-    请求参数(TestCaseCreate):
-        - project_id: 所属项目ID（必填）
-        - title: 用例标题（必填）
-        - module: 所属模块
-        - precondition: 前置条件
-        - steps: 测试步骤列表（含测试数据）
-        - expected_result: 预期结果
-        - priority: 优先级（1-高/2-中/3-低）
-        - case_type: 用例类型
-
-    权限要求: 需要Bearer令牌认证
-    """
     new_test_case = TestCase(
         project_id=test_case.project_id,
         case_no=test_case.case_no if test_case.case_no else f"CASE{test_case.project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
@@ -147,24 +139,29 @@ async def get_test_cases(
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    查询测试用例列表
+    """查询测试用例列表（分页，按项目/需求文件筛选，排除已删除，只返回用户有权访问的项目的用例）"""
+    authorized_project_ids_query = db.query(Project.id).filter(
+        Project.user_id == current_user.id
+    )
 
-    分页查询测试用例，支持按项目ID和需求文件ID筛选。
-    默认排除已软删除的用例。
+    query = db.query(TestCase).filter(TestCase.is_deleted.is_(False))
 
-    请求参数:
-        - project_id: 项目ID（可选，筛选指定项目的用例）
-        - requirement_file_id: 需求文件ID（可选）
-        - page: 页码（默认1）
-        - page_size: 每页数量（默认10，最大100）
+    # 限制只查询用户有权访问的项目
+    query = query.filter(TestCase.project_id.in_(authorized_project_ids_query))
 
-    权限要求: 需要Bearer令牌认证
-    """
-    query = db.query(TestCase).filter(TestCase.is_deleted == False)
     if project_id:
+        # 额外验证项目ID是否属于当前用户
+        project_access = db.query(Project.id).filter(
+            Project.id == project_id,
+            Project.user_id == current_user.id
+        ).first()
+        if not project_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限访问此项目"
+            )
         query = query.filter(TestCase.project_id == project_id)
     if requirement_file_id:
         query = query.filter(TestCase.requirement_file_id == requirement_file_id)
@@ -186,184 +183,19 @@ async def get_test_cases(
     )
 
 
-class BatchRestoreRequest(BaseModel):
-    """批量恢复请求模型，限制单次最多恢复500个用例"""
-    caseIds: list[int]
-
-    @field_validator('caseIds')
-    @classmethod
-    def validate_case_ids(cls, v: list[int]) -> list[int]:
-        if not v:
-            raise ValueError('用例ID列表不能为空')
-        if len(v) > 500:
-            raise ValueError(f'一次最多恢复500个用例，当前: {len(v)}')
-        return v
-
-
-@router.post("/batch-restore")
-async def batch_restore_test_cases(
-    request: BatchRestoreRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    批量恢复已删除的测试用例
-
-    将已软删除的用例恢复为正常状态，清除删除时间标记。
-    单次最多恢复500个用例。
-
-    请求参数(BatchRestoreRequest):
-        - caseIds: 用例ID列表（最多500个）
-
-    响应格式:
-        - successCount: 成功恢复数量
-        - failCount: 失败数量
-        - notFoundIds: 未找到的用例ID列表
-
-    权限要求: 需要Bearer令牌认证
-    """
-    case_ids = request.caseIds
-    success_count = 0
-    fail_count = 0
-    not_found_ids = []
-
-    deleted_cases = db.query(TestCase).filter(
-        TestCase.id.in_(case_ids),
-        TestCase.is_deleted == True
-    ).all()
-
-    existing_ids = {case.id for case in deleted_cases}
-    not_found_ids = [id for id in case_ids if id not in existing_ids]
-
-    restored_case_ids = []
-    for test_case in deleted_cases:
-        try:
-            test_case.is_deleted = False
-            test_case.deleted_at = None
-            success_count += 1
-            restored_case_ids.append(test_case.id)
-        except Exception as e:
-            logger.error(f"恢复用例 {test_case.id} 失败: {e}")
-            fail_count += 1
-
-    db.commit()
-
-    logger.info(
-        f"[批量恢复] 用户ID={current_user.id}, 用户名={current_user.username}, "
-        f"恢复用例IDs={restored_case_ids}, 成功={success_count}, 失败={fail_count}, 未找到={len(not_found_ids)}"
-    )
-
-    return create_response(data={
-        "successCount": success_count,
-        "failCount": fail_count,
-        "notFoundCount": len(not_found_ids),
-        "notFoundIds": not_found_ids,
-        "restoredIds": restored_case_ids,
-        "total": len(case_ids),
-        "message": f"恢复完成：成功 {success_count} 个，失败 {fail_count} 个，未找到 {len(not_found_ids)} 个"
-    })
-
-
-class BatchDeleteRequest(BaseModel):
-    """批量删除请求模型，限制单次最多删除500个用例"""
-    caseIds: list[int]
-
-    @field_validator('caseIds')
-    @classmethod
-    def validate_case_ids(cls, v: list[int]) -> list[int]:
-        if not v:
-            raise ValueError('用例ID列表不能为空')
-        if len(v) > 500:
-            raise ValueError(f'一次最多删除500个用例，当前: {len(v)}')
-        return v
-
-
-@router.post("/batch-delete")
-async def batch_delete_test_cases(
-    request: BatchDeleteRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    批量软删除测试用例
-
-    将指定用例标记为已删除（is_deleted=True），记录删除时间。
-    单次最多删除500个用例。已删除的用例可通过批量恢复接口恢复。
-
-    请求参数(BatchDeleteRequest):
-        - caseIds: 用例ID列表（最多500个）
-
-    响应格式:
-        - successCount: 成功删除数量
-        - failCount: 失败数量
-        - notFoundIds: 未找到的用例ID列表
-
-    权限要求: 需要Bearer令牌认证
-    """
-    from datetime import datetime as dt
-
-    case_ids = request.caseIds
-    success_count = 0
-    fail_count = 0
-    not_found_ids = []
-
-    existing_cases = db.query(TestCase).filter(
-        TestCase.id.in_(case_ids),
-        TestCase.is_deleted == False
-    ).all()
-
-    existing_ids = {case.id for case in existing_cases}
-    not_found_ids = [id for id in case_ids if id not in existing_ids]
-
-    deleted_case_ids = []
-    for test_case in existing_cases:
-        try:
-            test_case.is_deleted = True
-            test_case.deleted_at = dt.utcnow()
-            success_count += 1
-            deleted_case_ids.append(test_case.id)
-        except Exception as e:
-            logger.error(f"删除用例 {test_case.id} 失败: {e}")
-            fail_count += 1
-
-    db.commit()
-
-    logger.info(
-        f"[批量删除] 用户ID={current_user.id}, 用户名={current_user.username}, "
-        f"删除用例IDs={deleted_case_ids}, 成功={success_count}, 失败={fail_count}, 未找到={len(not_found_ids)}"
-    )
-
-    return create_response(data={
-        "successCount": success_count,
-        "failCount": fail_count,
-        "notFoundCount": len(not_found_ids),
-        "notFoundIds": not_found_ids,
-        "deletedIds": deleted_case_ids,
-        "total": len(case_ids),
-        "message": f"删除完成：成功 {success_count} 个，失败 {fail_count} 个，未找到 {len(not_found_ids)} 个"
-    })
-
-
 @router.get("/{test_case_id}")
 async def get_test_case(
     test_case_id: int,
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    获取测试用例详情
-
-    根据ID查询单个测试用例的完整信息，包括步骤和测试数据。
-
-    路径参数:
-        - test_case_id: 测试用例ID
-
-    权限要求: 需要Bearer令牌认证
-
-    Raises:
-        HTTPException 404: 测试用例不存在
-    """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    """获取测试用例详情（含步骤和测试数据，只允许访问用户有权访问的项目的用例）"""
+    # 先验证用例所属项目是否属于当前用户
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        Project.user_id == current_user.id
+    ).first()
+    
     if not test_case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -378,26 +210,16 @@ async def update_test_case(
     test_case_id: int,
     test_case_update: TestCaseUpdate,
     db: Session = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    更新测试用例
-
-    更新指定测试用例的信息。若步骤数据发生变更，先删除旧步骤再重建。
-    仅更新请求体中明确提供的字段（部分更新）。
-
-    路径参数:
-        - test_case_id: 测试用例ID
-
-    请求参数(TestCaseUpdate): 支持部分更新，仅传入需修改的字段
-
-    权限要求: 需要Bearer令牌认证
-
-    Raises:
-        HTTPException 404: 测试用例不存在
-        HTTPException 500: 更新失败
-    """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted == False).first()
+    """更新测试用例（部分更新，步骤变更时重建，只允许操作用户有权访问的项目的用例）"""
+    # 先验证用例所属项目是否属于当前用户
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
+        Project.user_id == current_user.id
+    ).first()
+    
     if not test_case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -444,7 +266,7 @@ async def update_test_case(
         logger.error(f"更新测试用例失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"更新测试用例失败: {str(e)}"
+            detail="更新测试用例失败"
         )
 
 
@@ -454,21 +276,12 @@ async def delete_test_case(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    软删除测试用例
-
-    将指定测试用例标记为已删除（is_deleted=True），记录删除时间。
-    已删除的用例可通过批量恢复接口恢复。
-
-    路径参数:
-        - test_case_id: 测试用例ID
-
-    权限要求: 需要Bearer令牌认证
-
-    Raises:
-        HTTPException 404: 测试用例不存在
-    """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    """软删除测试用例（is_deleted标记，可批量恢复）"""
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
+        Project.user_id == current_user.id
+    ).first()
     if not test_case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -3,7 +3,13 @@
     <el-card class="filter-card">
       <el-form :inline="true" :model="resourceList.filterForm">
         <el-form-item label="项目">
-          <el-select v-model="resourceList.filterForm.project_id" placeholder="请先选择项目" style="width: 200px" clearable filterable>
+          <el-select
+            v-model="resourceList.filterForm.project_id"
+            placeholder="请先选择项目"
+            style="width: 200px"
+            clearable
+            filterable
+          >
             <el-option
               v-for="project in projects"
               :key="project.id"
@@ -13,7 +19,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="类型">
-          <el-select v-model="resourceList.filterForm.resource_type" placeholder="全部" style="width: 150px" clearable @change="resourceList.handleSearch">
+          <el-select
+            v-model="resourceList.filterForm.resource_type"
+            placeholder="全部"
+            style="width: 150px"
+            clearable
+            @change="resourceList.handleSearch"
+          >
             <el-option
               v-for="option in RESOURCE_TYPE_OPTIONS"
               :key="option.value"
@@ -33,7 +45,12 @@
       <div class="iteration-panel">
         <div class="iteration-panel-header">
           <span class="panel-title">迭代版本</span>
-          <el-button type="primary" size="small" @click="handleAddIterationWrapper" :disabled="!resourceList.filterForm.project_id">
+          <el-button
+            type="primary"
+            size="small"
+            @click="handleAddIterationWrapper"
+            :disabled="!resourceList.filterForm.project_id"
+          >
             <el-icon><Plus /></el-icon>
             新建迭代
           </el-button>
@@ -51,7 +68,10 @@
           </div>
 
           <!-- 迭代列表：仅当有数据时渲染 -->
-          <template v-for="(iteration, index) in safeIterationsArray" :key="'panel-' + (iteration?.id ?? index)">
+          <template
+            v-for="(iteration, index) in safeIterationsArray"
+            :key="'panel-' + (iteration?.id ?? index)"
+          >
             <div
               v-if="iteration && iteration.id"
               class="iteration-card"
@@ -65,7 +85,13 @@
                 </div>
 
                 <div class="iteration-stats" v-if="iteration && iteration.id">
-                  <span class="stat-item" v-if="getIterationStats(iteration.id).files > 0 || getIterationStats(iteration.id).prototypes > 0">
+                  <span
+                    class="stat-item"
+                    v-if="
+                      getIterationStats(iteration.id).files > 0 ||
+                      getIterationStats(iteration.id).prototypes > 0
+                    "
+                  >
                     <el-icon><Document /></el-icon>
                     {{ getIterationStats(iteration.id).files }} 个文档
                   </span>
@@ -76,11 +102,19 @@
                 </div>
 
                 <div class="iteration-meta">
-                  <el-tag :type="iterationManager.getIterationStatusType(iteration?.status)" size="small">
+                  <el-tag
+                    :type="iterationManager.getIterationStatusType(iteration?.status)"
+                    size="small"
+                  >
                     {{ iterationManager.getIterationStatusText(iteration?.status) }}
                   </el-tag>
                   <span @click.stop>
-                    <el-dropdown trigger="click" @command="(cmd: string) => iteration && handleIterationCommandWrapper(cmd, iteration)">
+                    <el-dropdown
+                      trigger="click"
+                      @command="
+                        (cmd: string) => iteration && handleIterationCommandWrapper(cmd, iteration)
+                      "
+                    >
                       <el-icon class="more-icon"><MoreFilled /></el-icon>
                       <template #dropdown>
                         <el-dropdown-menu>
@@ -100,13 +134,13 @@
             :class="{ active: iterationManager.selectedIterationId === 0 }"
             @click="handleSelectIterationAndRefresh(0)"
           >
-          <div class="iteration-card-info">
-            <div class="iteration-name-row">
-              <span class="iteration-name">未分类</span>
-              <el-tag size="small" type="info" class="version-tag">无迭代</el-tag>
+            <div class="iteration-card-info">
+              <div class="iteration-name-row">
+                <span class="iteration-name">未分类</span>
+                <el-tag size="small" type="info" class="version-tag">无迭代</el-tag>
+              </div>
             </div>
           </div>
-        </div>
         </div>
 
         <div class="iteration-empty" v-if="!resourceList.filterForm.project_id">
@@ -137,14 +171,22 @@
             <div class="resource-header">
               <span class="resource-title">{{ iterationManager.getCurrentIterationTitle() }}</span>
               <div class="resource-actions">
-                <el-button type="success" @click="handleAddFileWrapper" :disabled="!resourceList.filterForm.project_id">
+                <el-button
+                  type="success"
+                  @click="handleAddFileWrapper"
+                  :disabled="!resourceList.filterForm.project_id"
+                >
                   <el-icon><Upload /></el-icon>
                   上传文件
                 </el-button>
               </div>
             </div>
           </template>
-          <el-table :data="resourceList.resources" style="width: 100%" v-loading="resourceList.isLoading">
+          <el-table
+            :data="resourceList.resources"
+            style="width: 100%"
+            v-loading="resourceList.isLoading"
+          >
             <el-table-column prop="id" label="ID" width="80" />
             <el-table-column prop="name" label="资源名称" min-width="200">
               <template #default="{ row }">
@@ -199,16 +241,26 @@
             </el-table-column>
             <el-table-column label="操作" width="200" fixed="right">
               <template #default="{ row }">
-                <el-button type="primary" size="small" @click="resourceOperations.handleAnalyze(row)">AI分析</el-button>
+                <el-button
+                  type="primary"
+                  size="small"
+                  @click="resourceOperations.handleAnalyze(row)"
+                  >AI分析</el-button
+                >
                 <el-button type="info" size="small" @click="handleEditWrapper(row)">
                   {{ row.resource_type === 'ui_mockup' ? '查看' : '编辑' }}
                 </el-button>
-                <el-button type="danger" size="small" @click="resourceOperations.handleDelete(row)">删除</el-button>
+                <el-button type="danger" size="small" @click="resourceOperations.handleDelete(row)"
+                  >删除</el-button
+                >
               </template>
             </el-table-column>
           </el-table>
 
-          <div class="empty-resources" v-if="!resourceList.isLoading && resourceList.resources.length === 0">
+          <div
+            class="empty-resources"
+            v-if="!resourceList.isLoading && resourceList.resources.length === 0"
+          >
             <el-icon :size="60" color="#d0d5dd"><Files /></el-icon>
             <p class="empty-title">暂无资源</p>
             <p class="empty-desc">该迭代下还没有上传任何资源</p>
@@ -240,9 +292,19 @@
       width="600px"
       :close-on-click-modal="false"
     >
-      <el-form ref="fileFormLocalRef" :model="resourceUpload.fileFormData" :rules="resourceUpload.fileFormRules" label-width="120px">
+      <el-form
+        ref="fileFormLocalRef"
+        :model="resourceUpload.fileFormData"
+        :rules="resourceUpload.fileFormRules"
+        label-width="120px"
+      >
         <el-form-item label="项目" prop="project_id">
-          <el-select v-model="resourceUpload.fileFormData.project_id" placeholder="请选择项目" style="width: 100%" :disabled="resourceUpload.fileDialogMode === 'edit'">
+          <el-select
+            v-model="resourceUpload.fileFormData.project_id"
+            placeholder="请选择项目"
+            style="width: 100%"
+            :disabled="resourceUpload.fileDialogMode === 'edit'"
+          >
             <el-option
               v-for="project in projects"
               :key="project.id"
@@ -253,7 +315,15 @@
         </el-form-item>
 
         <!-- 迭代选择器：仅在"全部"视图下或编辑模式下显示 -->
-        <el-form-item label="所属迭代" prop="iteration_id" v-if="resourceList.filterForm.project_id && (iterationManager.selectedIterationId === null || resourceUpload.fileDialogMode === 'edit')">
+        <el-form-item
+          label="所属迭代"
+          prop="iteration_id"
+          v-if="
+            resourceList.filterForm.project_id &&
+            (iterationManager.selectedIterationId === null ||
+              resourceUpload.fileDialogMode === 'edit')
+          "
+        >
           <el-select
             v-model="resourceUpload.fileFormData.iteration_id"
             placeholder="请选择所属迭代"
@@ -276,7 +346,10 @@
         </el-form-item>
 
         <!-- 已选迭代提示：在具体迭代或未分类视图下显示 -->
-        <el-form-item label="所属迭代" v-if="resourceList.filterForm.project_id && iterationManager.selectedIterationId !== null">
+        <el-form-item
+          label="所属迭代"
+          v-if="resourceList.filterForm.project_id && iterationManager.selectedIterationId !== null"
+        >
           <div class="iteration-hint">
             <el-tag v-if="iterationManager.selectedIterationId === 0" type="info">未分类</el-tag>
             <el-tag v-else type="success">{{ iterationManager.getCurrentIterationTitle() }}</el-tag>
@@ -284,11 +357,18 @@
         </el-form-item>
 
         <el-form-item label="资源名称" prop="name">
-          <el-input v-model="resourceUpload.fileFormData.name" placeholder="如：需求文档v1.2、洪恩UI原型图v1.0" />
+          <el-input
+            v-model="resourceUpload.fileFormData.name"
+            placeholder="如：需求文档v1.2、洪恩UI原型图v1.0"
+          />
         </el-form-item>
 
         <el-form-item label="资源类型" prop="resource_type">
-          <el-select v-model="resourceUpload.fileFormData.resource_type" placeholder="请选择资源类型" style="width: 100%">
+          <el-select
+            v-model="resourceUpload.fileFormData.resource_type"
+            placeholder="请选择资源类型"
+            style="width: 100%"
+          >
             <el-option
               v-for="option in RESOURCE_TYPE_OPTIONS"
               :key="option.value"
@@ -314,34 +394,50 @@
           >
             <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
             <div class="el-upload__text" v-if="resourceUpload.isBatchUpload">
-              拖拽文件到此处，或<em>点击上传</em>（最多{{ RESOURCE_CONFIG.MAX_BATCH_UPLOAD }}张，支持ZIP压缩包）
+              拖拽文件到此处，或<em>点击上传</em>（最多{{
+                RESOURCE_CONFIG.MAX_BATCH_UPLOAD
+              }}张，支持ZIP压缩包）
             </div>
-            <div class="el-upload__text" v-else>
-              拖拽文件到此处，或<em>点击上传</em>
-            </div>
+            <div class="el-upload__text" v-else>拖拽文件到此处，或<em>点击上传</em></div>
             <template #tip>
               <div class="el-upload__tip" v-if="resourceUpload.isBatchUpload">
-                支持批量上传UI原型图：png, jpg, jpeg, gif, webp, bmp 格式，最多{{ RESOURCE_CONFIG.MAX_BATCH_UPLOAD }}张；也支持上传ZIP压缩包，系统将自动解压提取图片
+                支持批量上传UI原型图：png, jpg, jpeg, gif, webp, bmp 格式，最多{{
+                  RESOURCE_CONFIG.MAX_BATCH_UPLOAD
+                }}张；也支持上传ZIP压缩包，系统将自动解压提取图片
               </div>
               <div class="el-upload__tip" v-else>
-                支持 txt, doc, docx, pdf, md, xlsx, xls, csv, json, yaml, png, jpg, gif, zip, rar 格式
+                支持 txt, doc, docx, pdf, md, xlsx, xls, csv, json, yaml, png, jpg, gif, zip, rar
+                格式
               </div>
             </template>
           </el-upload>
         </el-form-item>
 
         <el-form-item label="描述">
-          <el-input v-model="resourceUpload.fileFormData.description" type="textarea" :rows="2" placeholder="资源描述（可选）" />
+          <el-input
+            v-model="resourceUpload.fileFormData.description"
+            type="textarea"
+            :rows="2"
+            placeholder="资源描述（可选）"
+          />
         </el-form-item>
 
-        <el-form-item v-if="resourceUpload.fileDialogMode !== 'add' || !resourceUpload.isBatchUpload" label="启用状态">
+        <el-form-item
+          v-if="resourceUpload.fileDialogMode !== 'add' || !resourceUpload.isBatchUpload"
+          label="启用状态"
+        >
           <el-switch v-model="resourceUpload.fileFormData.is_active" />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="resourceUpload.fileDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleFileSubmitWrapper" :loading="resourceUpload.isSubmitting">确定</el-button>
+        <el-button
+          type="primary"
+          @click="handleFileSubmitWrapper"
+          :loading="resourceUpload.isSubmitting"
+          >确定</el-button
+        >
       </template>
     </el-dialog>
 
@@ -352,18 +448,35 @@
       width="520px"
       :close-on-click-modal="false"
     >
-      <el-form ref="iterationFormLocalRef" :model="iterationManager.iterationFormData" :rules="iterationManager.iterationFormRules" label-width="100px">
+      <el-form
+        ref="iterationFormLocalRef"
+        :model="iterationManager.iterationFormData"
+        :rules="iterationManager.iterationFormRules"
+        label-width="100px"
+      >
         <el-form-item label="迭代名称" prop="name">
-          <el-input v-model="iterationManager.iterationFormData.name" placeholder="请输入迭代名称" />
+          <el-input
+            v-model="iterationManager.iterationFormData.name"
+            placeholder="请输入迭代名称"
+          />
         </el-form-item>
         <el-form-item label="版本号" prop="version">
           <el-input v-model="iterationManager.iterationFormData.version" placeholder="如 v1.0" />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="iterationManager.iterationFormData.description" type="textarea" :rows="2" placeholder="迭代描述（可选）" />
+          <el-input
+            v-model="iterationManager.iterationFormData.description"
+            type="textarea"
+            :rows="2"
+            placeholder="迭代描述（可选）"
+          />
         </el-form-item>
         <el-form-item label="状态" prop="status">
-          <el-select v-model="iterationManager.iterationFormData.status" placeholder="请选择状态" style="width: 100%">
+          <el-select
+            v-model="iterationManager.iterationFormData.status"
+            placeholder="请选择状态"
+            style="width: 100%"
+          >
             <el-option
               v-for="option in ITERATION_STATUS_OPTIONS"
               :key="option.value"
@@ -394,7 +507,12 @@
 
       <template #footer>
         <el-button @click="iterationManager.iterationDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleIterationSubmitWrapper" :loading="iterationManager.isSubmitting">确定</el-button>
+        <el-button
+          type="primary"
+          @click="handleIterationSubmitWrapper"
+          :loading="iterationManager.isSubmitting"
+          >确定</el-button
+        >
       </template>
     </el-dialog>
   </div>
@@ -403,13 +521,28 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload, UploadFilled, Plus, MoreFilled, FolderOpened, Document, Picture, Files } from '@element-plus/icons-vue'
+import {
+  Upload,
+  UploadFilled,
+  Plus,
+  MoreFilled,
+  FolderOpened,
+  Document,
+  Picture,
+  Files,
+} from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { useIterationManager, type SafeIteration } from '@/composables/useIterationManager'
 import { useResourceList } from '@/composables/useResourceList'
 import { useResourceUpload } from '@/composables/useResourceUpload'
 import { useResourceOperations } from '@/composables/useResourceOperations'
-import { RESOURCE_CONFIG, RESOURCE_TYPE_OPTIONS, ITERATION_STATUS_OPTIONS, SINGLE_FILE_ACCEPT, BATCH_FILE_ACCEPT } from '@/constants/resource'
+import {
+  RESOURCE_CONFIG,
+  RESOURCE_TYPE_OPTIONS,
+  ITERATION_STATUS_OPTIONS,
+  SINGLE_FILE_ACCEPT,
+  BATCH_FILE_ACCEPT,
+} from '@/constants/resource'
 
 interface Project {
   id: number
@@ -449,14 +582,16 @@ const fileFormLocalRef = ref()
 
 // 辅助计算属性 - 用于解决模板类型推断问题
 const safeIterationsArray = computed(() => iterationManager.safeIterations as SafeIteration[])
-const validIterationsForSelectArray = computed(() => iterationManager.validIterationsForSelect as SafeIteration[])
+const validIterationsForSelectArray = computed(
+  () => iterationManager.validIterationsForSelect as SafeIteration[]
+)
 
 // 辅助函数 - 安全访问迭代统计信息
 const getIterationStats = (id: number) => {
   const stats = (iterationManager.iterationStats as any).value?.[id]
   return {
     files: stats?.files ?? 0,
-    prototypes: stats?.prototypes ?? 0
+    prototypes: stats?.prototypes ?? 0,
   }
 }
 
@@ -468,7 +603,9 @@ const projects = ref<Project[]>([])
  */
 const getProjects = async () => {
   try {
-    const response = await request.get('/api/v1/project/list', { params: { page: 1, page_size: 100 } })
+    const response = await request.get('/api/v1/project/list', {
+      params: { page: 1, page_size: 100 },
+    })
     if (response && response.data && response.data.items) {
       projects.value = response.data.items.filter((p: Project) => p.name !== '默认项目')
     } else {
@@ -596,30 +733,36 @@ const handleReset = async () => {
 }
 
 // 监听项目变化
-watch(() => resourceList.filterForm.project_id, async () => {
-  resourceList.pagination.page = 1
-  iterationManager.selectedIterationId = null
-  if (resourceList.filterForm.project_id) {
-    await iterationManager.loadIterations(Number(resourceList.filterForm.project_id))
-  } else {
-    await iterationManager.loadIterations(0)
+watch(
+  () => resourceList.filterForm.project_id,
+  async () => {
+    resourceList.pagination.page = 1
+    iterationManager.selectedIterationId = null
+    if (resourceList.filterForm.project_id) {
+      await iterationManager.loadIterations(Number(resourceList.filterForm.project_id))
+    } else {
+      await iterationManager.loadIterations(0)
+    }
+    await resourceList.getResources()
   }
-  await resourceList.getResources()
-})
+)
 
 // 监听资源类型变化（用于清空已选文件）
-watch(() => resourceUpload.fileFormData.resource_type, () => {
-  resourceUpload.selectedFile = null
-  resourceUpload.selectedFiles = []
-  resourceUpload.fileFormData.file = null
-  if (resourceUpload.uploadRef) {
-    resourceUpload.uploadRef.clearFiles()
+watch(
+  () => resourceUpload.fileFormData.resource_type,
+  () => {
+    resourceUpload.selectedFile = null
+    resourceUpload.selectedFiles = []
+    resourceUpload.fileFormData.file = null
+    if (resourceUpload.uploadRef) {
+      resourceUpload.uploadRef.clearFiles()
+    }
   }
-})
+)
 
 // 页面初始化
-let isInitializing = true  // 标记是否正在初始化
-let initTimer: ReturnType<typeof setTimeout> | null = null  // 初始化定时器引用
+let isInitializing = true // 标记是否正在初始化
+let initTimer: ReturnType<typeof setTimeout> | null = null // 初始化定时器引用
 
 onMounted(async () => {
   // ✅ 强制关闭所有弹窗（解决自动打开的问题）
@@ -666,21 +809,27 @@ onUnmounted(() => {
 })
 
 // ✅ Watch 监控：在初始化阶段阻止弹窗自动打开
-watch(() => iterationManager.iterationDialogVisible, (newVal) => {
-  if (isInitializing && newVal === true) {
-    nextTick(() => {
-      iterationManager.iterationDialogVisible = false
-    })
+watch(
+  () => iterationManager.iterationDialogVisible,
+  (newVal) => {
+    if (isInitializing && newVal === true) {
+      nextTick(() => {
+        iterationManager.iterationDialogVisible = false
+      })
+    }
   }
-})
+)
 
-watch(() => resourceUpload.fileDialogVisible, (newVal) => {
-  if (isInitializing && newVal === true) {
-    nextTick(() => {
-      resourceUpload.fileDialogVisible = false
-    })
+watch(
+  () => resourceUpload.fileDialogVisible,
+  (newVal) => {
+    if (isInitializing && newVal === true) {
+      nextTick(() => {
+        resourceUpload.fileDialogVisible = false
+      })
+    }
   }
-})
+)
 </script>
 
 <style scoped>

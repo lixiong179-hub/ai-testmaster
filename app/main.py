@@ -1,10 +1,10 @@
-import logging
 import os
 import secrets
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings, init_directories
+from app.core.logging import setup_logging
 from app.core.exception import register_exception_handlers
 from app.core.rate_limit import RateLimitMiddleware
 from app.db.database import init_db
@@ -12,8 +12,9 @@ from app.db.database import PrimarySessionLocal
 from app.models.user import User
 from app.utils.jwt_utils import get_password_hash
 from app.api.v1.endpoints import auth, project, file, test_task, report, test_point, user, websocket, test_case, batch_locator, test_data, execution_visualization, case_quality, execution, visibility, requirement_link, ui_prototype, iteration
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+setup_logging(log_level=settings.LOG_LEVEL)
 
 
 @asynccontextmanager
@@ -104,7 +105,7 @@ app.add_middleware(
 # 注册全局异常处理器
 register_exception_handlers(app)
 
-# 注册API路由
+# 注册API路由（所有模块均自带prefix，此处统一添加/api/v1前缀）
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(project.router, prefix="/api/v1")
 app.include_router(test_point.router, prefix="/api/v1")
@@ -117,9 +118,9 @@ app.include_router(requirement_link.router, prefix="/api/v1")
 app.include_router(batch_locator.router, prefix="/api/v1")
 app.include_router(test_data.router, prefix="/api/v1")
 app.include_router(execution_visualization.router, prefix="/api/v1")
-app.include_router(case_quality.router, prefix="/api/v1/quality")
-app.include_router(execution.router, prefix="/api")
-app.include_router(visibility.router, prefix="/api")
+app.include_router(case_quality.router, prefix="/api/v1")
+app.include_router(execution.router, prefix="/api/v1")
+app.include_router(visibility.router, prefix="/api/v1")
 app.include_router(report.router, prefix="/api/v1")
 app.include_router(ui_prototype.router, prefix="/api/v1")
 app.include_router(iteration.router, prefix="/api/v1")

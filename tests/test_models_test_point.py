@@ -66,6 +66,7 @@ class TestTestPointModel:
         db.commit()
         db.refresh(tp)
         assert tp.requirement_id is None
+        assert tp.created_by is None
         assert tp.ai_prompt is None
         db.delete(tp)
         db.commit()
