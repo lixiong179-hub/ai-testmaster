@@ -94,5 +94,5 @@ class UISpecUploadMixin:
                 ui_prototype_crud.update_prototype_project_stats(self.db, prototype_project_id)
             return screen_ids, f"成功创建{len(screen_ids)}个屏幕记录"
         except Exception as e:
-            logger.error(f"上传并创建屏幕失败: {str(e)}")
-            return screen_ids, f"上传失败: {str(e)}"
+            logger.error(f"上传并创建屏幕失败: {e}")
+            return screen_ids, "上传失败"

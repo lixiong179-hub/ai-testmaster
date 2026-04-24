@@ -153,7 +153,7 @@ async def analyze_case_quality(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"用例质量分析失败: {e}")
-        raise HTTPException(status_code=500, detail=f"分析失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="分析失败")
 
 
 @router.get("/projects/{project_id}/quality", response_model=ProjectQualitySummarySchema)
@@ -169,7 +169,7 @@ async def analyze_project_quality(
         return summary
     except Exception as e:
         logger.error(f"项目质量分析失败: {e}")
-        raise HTTPException(status_code=500, detail=f"分析失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="分析失败")
 
 
 @router.get("/cases/{case_id}/quality/trend")
@@ -196,7 +196,7 @@ async def get_case_quality_trend(
         }
     except Exception as e:
         logger.error(f"获取趋势失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取趋势失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取趋势失败")
 
 
 @router.post("/cases/{case_id}/optimize-locators")

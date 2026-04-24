@@ -25,7 +25,7 @@
 """
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime
+from datetime import date, datetime
 
 
 class TestPointExtractRequest(BaseModel):
@@ -75,7 +75,10 @@ class TestPointResponse(TestPointBase):
     """
     id: int  # 测试点主键ID，与TestPoint.id对应
     project_id: int  # 所属项目ID，与TestPoint.project_id对应
+    requirement_id: Optional[int] = None  # 关联需求ID，历史数据允许为空
     create_time: datetime  # 创建时间，与TestPoint.create_time对应
+    created_by: Optional[str] = None  # 创建人用户名
+    test_case_count: int = 0  # 关联测试用例数量
 
     class Config:
         # 启用ORM模式，支持从TestPoint Model直接读取属性
@@ -103,6 +106,13 @@ class TestPointListRequest(BaseModel):
     project_id: int = Field(..., description="项目ID")  # 必填，项目隔离查询
     module: Optional[str] = Field(None, description="模块名称")  # 可选，按模块筛选
     priority: Optional[int] = Field(None, ge=1, le=3, description="优先级")  # 可选，按优先级筛选
+    created_by: Optional[str] = Field(None, description="创建人用户名")  # 可选，按创建人筛选
+    requirement_id: Optional[int] = Field(None, description="关联需求ID")  # 可选，按需求筛选
+    keyword: Optional[str] = Field(None, description="关键词，匹配模块/功能/测试点")  # 可选，模糊搜索
+    created_from: Optional[date] = Field(None, description="创建开始日期")  # 可选，起始日期
+    created_to: Optional[date] = Field(None, description="创建结束日期")  # 可选，结束日期
+    sort_by: str = Field("create_time", description="排序字段")  # 默认按创建时间排序
+    sort_order: str = Field("desc", description="排序方向：asc/desc")  # 默认倒序
     page: int = Field(1, ge=1, description="页码")  # 页码，默认第1页
     page_size: int = Field(10, ge=1, le=100, description="每页数量")  # 每页数量，默认10，最大100
 
@@ -118,6 +128,24 @@ class TestPointListResponse(BaseModel):
     items: List[TestPointResponse]  # 当前页的测试点列表
     page: int  # 当前页码
     page_size: int  # 每页数量
+
+
+class TestPointListStatsResponse(BaseModel):
+    """测试点列表统计响应模型。"""
+
+    total: int = Field(..., description="当前筛选条件下的测试点总数")
+    high_priority_count: int = Field(..., description="高优先级测试点数量")
+    medium_priority_count: int = Field(..., description="中优先级测试点数量")
+    low_priority_count: int = Field(..., description="低优先级测试点数量")
+    generated_case_count: int = Field(..., description="已生成关联用例总数")
+
+
+class TestPointRequirementOptionResponse(BaseModel):
+    """测试点筛选所需的需求选项。"""
+
+    id: int = Field(..., description="需求ID")
+    req_no: str = Field(..., description="需求编号")
+    title: str = Field(..., description="需求标题")
 
 
 class AnalysisProgress(BaseModel):
@@ -145,3 +173,101 @@ class TestPointUpdate(BaseModel):
     point: Optional[str] = Field(None, min_length=1, max_length=500, description="测试点描述")  # 可选
     priority: Optional[int] = Field(None, ge=1, le=3, description="优先级：1高/2中/3低")  # 可选
     ai_prompt: Optional[str] = Field(None, description="AI提示词")  # 可选
+
+
+class TestPointXmindPreviewItem(BaseModel):
+    """XMind 导入预览项。
+
+    业务用途：XMind 文件解析后的单条测试点预览数据
+    对应API：POST /api/v1/test-point/import-xmind (preview=true) 响应子项
+
+    字段说明:
+        - module: 必填，一级主题映射
+        - function: 可选，二级主题映射（无子节点时可能为空）
+        - point: 必填，三级主题映射
+        - priority: 必填，1高/2中/3低
+    """
+    module: str = Field(..., min_length=1, max_length=100, description="模块名称")
+    function: Optional[str] = Field(None, max_length=200, description="功能名称")
+    point: str = Field(..., min_length=1, max_length=500, description="测试点描述")
+    priority: int = Field(..., ge=1, le=3, description="优先级：1高/2中/3低")
+
+
+class TestPointXmindPreviewCaseStep(BaseModel):
+    """XMind 导入预览中的测试用例步骤。"""
+
+    step_number: int = Field(..., ge=1, description="步骤序号")
+    action: str = Field(..., min_length=1, description="操作步骤")
+    expected_result: str = Field("", description="步骤预期结果")
+
+
+class TestPointXmindPreviewCaseItem(BaseModel):
+    """XMind 导入预览中的测试用例项。"""
+
+    module: str = Field(..., min_length=1, max_length=100, description="模块名称")
+    function: str = Field(..., min_length=1, max_length=200, description="功能名称")
+    title: str = Field(..., min_length=1, max_length=255, description="用例标题")
+    precondition: str = Field("", description="前置条件")
+    expected_result: str = Field("", description="总体预期结果")
+    priority: int = Field(..., ge=1, le=3, description="优先级：1高/2中/3低")
+    step_count: int = Field(..., ge=0, description="步骤数")
+    steps: List[TestPointXmindPreviewCaseStep] = Field(default_factory=list, description="步骤列表")
+
+
+class TestPointXmindPreviewResponse(BaseModel):
+    """XMind 导入预览响应模型。
+
+    业务用途：预览模式下返回解析结果，不写入数据库
+    对应API：POST /api/v1/test-point/import-xmind (preview=true)
+    """
+    preview_mode: str = Field("test_points", description="预览模式：test_points 或 test_cases")
+    total: int = Field(..., description="解析出的测试点总数")
+    items: List[TestPointXmindPreviewItem] = Field(..., description="测试点列表")
+    case_total: int = Field(0, description="解析出的测试用例总数")
+    case_items: List[TestPointXmindPreviewCaseItem] = Field(default_factory=list, description="测试用例列表")
+    skipped_count: int = Field(0, description="跳过数量")
+    skipped_reasons: List[str] = Field(default_factory=list, description="跳过原因列表")
+
+
+class TestPointXmindImportResponse(BaseModel):
+    """XMind 导入结果响应模型。
+
+    业务用途：导入模式下返回写入结果统计
+    对应API：POST /api/v1/test-point/import-xmind (preview=false)
+    """
+    saved_count: int = Field(..., description="成功保存数量")
+    saved_case_count: int = Field(0, description="成功保存的测试用例数量")
+    total_parsed: int = Field(..., description="解析总数")
+    skipped_count: int = Field(0, description="跳过数量")
+    skipped_reasons: List[str] = Field(default_factory=list, description="跳过原因列表")
+
+
+class TestPointBatchGenerateRequest(BaseModel):
+    """测试点批量生成测试用例请求模型。"""
+
+    project_id: int = Field(..., description="项目ID")
+    test_point_ids: List[int] = Field(..., min_length=1, description="测试点ID列表")
+    case_type: Optional[str] = Field(None, description="用例类型，可选")
+
+
+class TestPointRelatedCaseResponse(BaseModel):
+    """测试点关联测试用例响应模型。"""
+
+    id: int = Field(..., description="测试用例ID")
+    case_no: str = Field(..., description="用例编号")
+    title: str = Field(..., description="用例标题")
+    module: str = Field(..., description="模块名称")
+    priority: int = Field(..., description="优先级")
+    case_type: Optional[str] = Field(None, description="用例类型")
+    generate_status: int = Field(..., description="生成状态")
+    create_time: datetime = Field(..., description="创建时间")
+
+    class Config:
+        from_attributes = True
+
+
+class TestPointRelatedCaseListResponse(BaseModel):
+    """测试点关联测试用例列表响应模型。"""
+
+    total: int = Field(..., description="关联用例总数")
+    items: List[TestPointRelatedCaseResponse] = Field(..., description="关联用例列表")

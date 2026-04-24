@@ -7,9 +7,10 @@
 标签: 测试用例管理
 
 子模块概览:
-    - test_case_crud: 用例基础CRUD（创建/查询/更新/删除/批量操作）
+    - test_case_crud: 用例基础CRUD（创建/查询/更新/删除）
+    - test_case_crud_batch: 用例批量操作（批量恢复/批量删除）
     - test_case_workflow: 用例工作流与纠正状态管理
-    - test_case_status: 用例状态相关接口（已合并到workflow模块）
+    - test_case_status: 用例状态相关接口
     - test_case_version: 用例版本管理与导出
     - test_case_ai: AI生成测试用例
     - test_case_ai_enhanced: AI增强模式生成
@@ -19,21 +20,27 @@
 """
 from fastapi import APIRouter
 from app.api.v1.endpoints.test_case_crud import router as crud_router
+from app.api.v1.endpoints.test_case_crud_batch import router as crud_batch_router
 from app.api.v1.endpoints.test_case_workflow import router as workflow_router
 from app.api.v1.endpoints.test_case_status import router as status_router
 from app.api.v1.endpoints.test_case_version import router as version_router
 from app.api.v1.endpoints.test_case_ai import router as ai_router
 from app.api.v1.endpoints.test_case_ai_enhanced import router as ai_enhanced_router
 from app.api.v1.endpoints.test_case_ai_batch import router as ai_batch_router
+from app.api.v1.endpoints.test_case_ai_context import router as ai_context_router
+from app.api.v1.endpoints.test_case_ai_precondition import router as ai_precondition_router
 
 # 测试用例管理路由，包含CRUD、工作流、版本、AI生成等子模块
 router = APIRouter(prefix="/testCase", tags=["测试用例管理"])
 
 # 注册各子模块路由
 router.include_router(crud_router)
+router.include_router(crud_batch_router)
 router.include_router(workflow_router)
 router.include_router(status_router)
 router.include_router(version_router)
 router.include_router(ai_router)
 router.include_router(ai_enhanced_router)
 router.include_router(ai_batch_router)
+router.include_router(ai_context_router)
+router.include_router(ai_precondition_router)

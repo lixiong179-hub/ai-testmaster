@@ -10,7 +10,7 @@
           </el-button>
         </div>
       </template>
-      
+
       <!-- 搜索和筛选 -->
       <div class="search-filter">
         <el-row :gutter="20">
@@ -25,7 +25,9 @@
                 <el-icon><Search /></el-icon>
               </template>
               <template #append>
-                <el-button @click="handleSearch"><el-icon><Search /></el-icon></el-button>
+                <el-button @click="handleSearch"
+                  ><el-icon><Search /></el-icon
+                ></el-button>
               </template>
             </el-input>
           </el-col>
@@ -40,7 +42,7 @@
           </el-col>
         </el-row>
       </div>
-      
+
       <!-- 用户列表 -->
       <el-table :data="users" style="width: 100%" v-loading="loading">
         <el-table-column prop="id" label="ID" width="80" />
@@ -69,13 +71,17 @@
             >
               {{ scope.row.status ? '禁用' : '启用' }}
             </el-button>
-            <el-button size="small" @click="assignRole(scope.row)" v-permission="'user:assign_role'">
+            <el-button
+              size="small"
+              @click="assignRole(scope.row)"
+              v-permission="'user:assign_role'"
+            >
               分配角色
             </el-button>
           </template>
         </el-table-column>
       </el-table>
-      
+
       <!-- 分页 -->
       <div class="pagination">
         <el-pagination
@@ -89,19 +95,10 @@
         />
       </div>
     </el-card>
-    
+
     <!-- 新增/编辑用户对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="500px"
-    >
-      <el-form
-        ref="userFormRef"
-        :model="userForm"
-        :rules="userRules"
-        label-width="100px"
-      >
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px">
+      <el-form ref="userFormRef" :model="userForm" :rules="userRules" label-width="100px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="userForm.username" placeholder="请输入用户名" />
         </el-form-item>
@@ -112,7 +109,12 @@
           <el-input v-model="userForm.phone" placeholder="请输入手机号" />
         </el-form-item>
         <el-form-item label="密码" prop="password" v-if="!editMode">
-          <el-input v-model="userForm.password" type="password" placeholder="请输入密码" show-password />
+          <el-input
+            v-model="userForm.password"
+            type="password"
+            placeholder="请输入密码"
+            show-password
+          />
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-switch v-model="userForm.status" />
@@ -125,30 +127,16 @@
         </span>
       </template>
     </el-dialog>
-    
+
     <!-- 分配角色对话框 -->
-    <el-dialog
-      v-model="roleDialogVisible"
-      title="分配角色"
-      width="400px"
-    >
+    <el-dialog v-model="roleDialogVisible" title="分配角色" width="400px">
       <el-form>
         <el-form-item label="用户">
           <el-tag>{{ currentUser?.username }}</el-tag>
         </el-form-item>
         <el-form-item label="角色">
-          <el-select
-            v-model="selectedRoles"
-            multiple
-            placeholder="请选择角色"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="role in roles"
-              :key="role.id"
-              :label="role.name"
-              :value="role.id"
-            />
+          <el-select v-model="selectedRoles" multiple placeholder="请选择角色" style="width: 100%">
+            <el-option v-for="role in roles" :key="role.id" :label="role.name" :value="role.id" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -175,7 +163,7 @@ const users = ref<User[]>([])
 const pagination = reactive<Pagination>({
   page: 1,
   size: 10,
-  total: 0
+  total: 0,
 })
 
 // 搜索和筛选
@@ -195,26 +183,26 @@ const userForm = reactive<UserForm>({
   email: '',
   phone: '',
   password: '',
-  status: true
+  status: true,
 })
 
 const userRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 50, message: '用户名长度3-50位', trigger: 'blur' }
+    { min: 3, max: 50, message: '用户名长度3-50位', trigger: 'blur' },
   ],
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
   ],
   phone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
-  ]
+    { min: 6, message: '密码长度至少6位', trigger: 'blur' },
+  ],
 }
 
 // 角色管理
@@ -229,11 +217,11 @@ const loadUsers = async () => {
     const response = await axios.get('/api/v1/user', {
       params: {
         skip: (pagination.page - 1) * pagination.size,
-        limit: pagination.size
-      }
+        limit: pagination.size,
+      },
     })
     // 兼容不同格式的响应
-    users.value = Array.isArray(response.data) ? response.data : (response.data?.data || [])
+    users.value = Array.isArray(response.data) ? response.data : response.data?.data || []
     // 假设返回的数据包含total字段
     pagination.total = response.headers['x-total-count'] || users.value.length
   } catch (error) {
@@ -287,7 +275,7 @@ const openAddDialog = () => {
     email: '',
     phone: '',
     password: '',
-    status: true
+    status: true,
   })
   dialogVisible.value = true
 }
@@ -300,7 +288,7 @@ const openEditDialog = (user: User) => {
     username: user.username,
     email: user.email,
     phone: user.phone,
-    status: user.status
+    status: user.status,
   })
   dialogVisible.value = true
 }
@@ -308,7 +296,7 @@ const openEditDialog = (user: User) => {
 // 保存用户
 const saveUser = async () => {
   if (!userFormRef.value) return
-  
+
   await userFormRef.value.validate(async (valid: boolean) => {
     if (valid) {
       try {
@@ -332,34 +320,32 @@ const saveUser = async () => {
 
 // 切换用户状态
 const toggleStatus = async (user: User) => {
-  ElMessageBox.confirm(
-    `确定要${user.status ? '禁用' : '启用'}该用户吗？`,
-    '确认操作',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(async () => {
-    try {
-      await axios.put(`/api/v1/user/${user.id}`, {
-        status: !user.status
-      })
-      ElMessage.success(`${user.status ? '禁用' : '启用'}成功`)
-      loadUsers()
-    } catch (error) {
-      ElMessage.error('操作失败')
-    }
-  }).catch(() => {
-    // 取消操作
+  ElMessageBox.confirm(`确定要${user.status ? '禁用' : '启用'}该用户吗？`, '确认操作', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
   })
+    .then(async () => {
+      try {
+        await axios.put(`/api/v1/user/${user.id}`, {
+          status: !user.status,
+        })
+        ElMessage.success(`${user.status ? '禁用' : '启用'}成功`)
+        loadUsers()
+      } catch (error) {
+        ElMessage.error('操作失败')
+      }
+    })
+    .catch(() => {
+      // 取消操作
+    })
 }
 
 // 分配角色
 const assignRole = async (user: User) => {
   currentUser.value = user
   selectedRoles.value = []
-  
+
   // 加载用户当前角色
   try {
     const response = await axios.get(`/api/v1/user/${user.id}`)
@@ -369,7 +355,7 @@ const assignRole = async (user: User) => {
   } catch (error) {
     ElMessage.error('获取用户角色失败')
   }
-  
+
   // 加载角色列表
   await loadRoles()
   roleDialogVisible.value = true
@@ -378,14 +364,14 @@ const assignRole = async (user: User) => {
 // 保存角色分配
 const saveRoles = async () => {
   if (!currentUser.value) return
-  
+
   try {
     // 先清除所有角色
     // 实际项目中应该提供批量操作接口
     for (const roleId of selectedRoles.value) {
       await axios.post('/api/v1/user/role/assign', {
         user_id: currentUser.value?.id,
-        role_id: roleId
+        role_id: roleId,
       })
     }
     ElMessage.success('角色分配成功')
@@ -447,34 +433,34 @@ onMounted(() => {
   .user-management {
     padding: 10px;
   }
-  
+
   .card-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .search-filter {
     padding: 10px;
   }
-  
+
   .el-table {
     font-size: 12px;
   }
-  
+
   .el-table th,
   .el-table td {
     padding: 8px 4px;
   }
-  
+
   .pagination {
     margin-top: 10px;
   }
-  
+
   :deep(.el-pagination) {
     font-size: 12px;
   }
-  
+
   :deep(.el-pagination__sizes .el-input__inner) {
     width: 80px;
   }

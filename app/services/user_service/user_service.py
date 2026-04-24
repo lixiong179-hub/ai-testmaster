@@ -1,30 +1,29 @@
-"""用户与角色核心服务模块 - 提供用户认证、CRUD及角色管理能力。
 
-本模块包含用户服务和角色服务两个核心类，负责平台中用户账户的
-创建、认证、更新、删除，以及角色的全生命周期管理。密码安全
-通过passlib的bcrypt方案实现。
+"""用户服务 - 处理用户认证、密码管理与CRUD操作。
 
-核心类:
-    - UserService: 用户服务，处理用户认证与CRUD操作
-    - RoleService: 角色服务，处理角色CRUD与权限分配
+职责:
+    - 密码验证与哈希生成
+    - 用户创建（含唯一性校验）
+    - 用户认证（登录验证）
+    - 用户信息查询与更新
+    - 用户删除（级联清理角色关联）
 
-依赖关系:
-    - app.models.user: User/Role/user_role ORM模型
-    - app.schemas.user: 请求参数校验Schema
-    - passlib.context.CryptContext: bcrypt密码哈希
-    - sqlalchemy: 数据库查询与事务管理
+使用场景:
+    - 登录认证流程中调用authenticate_user
+    - 用户管理页面调用CRUD方法
+    - 权限校验前通过get_user_by_id获取用户信息
 
-设计说明:
-    采用静态方法设计，服务层不持有状态，数据库会话由调用方传入，
-    符合无状态服务原则，便于测试和并发调用。
+设计意图:
+    全部采用静态方法，服务不持有可变状态，数据库会话由调用方
+    传入管理，确保事务边界清晰，避免长事务问题。
 """
 from typing import Optional, List
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
-from app.models.user import User, Role, user_role
-from app.schemas.user import UserCreate, UserUpdate, RoleCreate, RoleUpdate
+from app.models.user import User
+from app.schemas.user import UserCreate, UserUpdate
 from app.core.exception import BaseAPIException
 
 # bcrypt密码加密上下文，deprecated="auto"表示自动迁移旧哈希格式
@@ -32,24 +31,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class UserService:
-    """用户服务 - 处理用户认证、密码管理与CRUD操作。
-
-    职责:
-        - 密码验证与哈希生成
-        - 用户创建（含唯一性校验）
-        - 用户认证（登录验证）
-        - 用户信息查询与更新
-        - 用户删除（级联清理角色关联）
-
-    使用场景:
-        - 登录认证流程中调用authenticate_user
-        - 用户管理页面调用CRUD方法
-        - 权限校验前通过get_user_by_id获取用户信息
-
-    设计意图:
-        全部采用静态方法，服务不持有可变状态，数据库会话由调用方
-        传入管理，确保事务边界清晰，避免长事务问题。
-    """
+    """用户服务 - 处理用户认证、密码管理与CRUD操作。"""
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -240,27 +222,12 @@ class UserService:
 
     @staticmethod
     def delete_user(db: Session, user_id: int) -> bool:
-        """删除用户及其角色关联关系。
-
-        先清理user_role关联表中的记录，再删除用户本体，
-        避免外键约束冲突。
-
-        Args:
-            db: 数据库会话。
-            user_id: 待删除的用户ID。
-
-        Returns:
-            删除成功返回True。
-
-        Raises:
-            BaseAPIException: 用户不存在(404)。
-        """
+        """删除用户及其角色关联关系。"""
+        from app.models.user import user_role as user_role_table
         user = UserService.get_user_by_id(db, user_id)
         if not user:
             raise BaseAPIException("用户不存在", code=404)
-
-        # 先清理用户-角色关联，再删除用户，保证数据一致性
-        db.execute(delete(user_role).where(user_role.c.user_id == user_id))
+        db.execute(delete(user_role_table).where(user_role_table.c.user_id == user_id))
         db.delete(user)
         db.commit()
         return True
@@ -278,135 +245,3 @@ class UserService:
             User实例列表。
         """
         return db.execute(select(User).offset(skip).limit(limit)).scalars().all()
-
-
-class RoleService:
-    """角色服务 - 处理角色CRUD与权限分配。
-
-    职责:
-        - 角色创建（含名称唯一性校验）
-        - 角色查询与更新
-        - 角色删除（级联清理用户关联）
-
-    使用场景:
-        - 角色管理页面调用CRUD方法
-        - 权限配置时创建/更新角色及其权限列表
-
-    设计意图:
-        与UserService保持一致的静态方法设计，数据库会话
-        由调用方管理，确保事务边界清晰。
-    """
-
-    @staticmethod
-    def create_role(db: Session, role_in: RoleCreate | dict) -> Role:
-        """创建新角色，含名称唯一性校验。
-
-        Args:
-            db: 数据库会话。
-            role_in: 角色创建参数，支持RoleCreate Schema或dict。
-
-        Returns:
-            创建成功的Role ORM实例。
-
-        Raises:
-            BaseAPIException: 角色名称已存在(400)。
-        """
-        # 参数适配
-        if isinstance(role_in, dict):
-            role_in = RoleCreate(**role_in)
-
-        # 校验角色名称唯一性
-        existing_role = db.execute(select(Role).where(Role.name == role_in.name)).scalars().first()
-        if existing_role:
-            raise BaseAPIException("角色名称已存在", code=400)
-
-        db_role = Role(name=role_in.name, desc=role_in.desc, permissions=role_in.permissions)
-        db.add(db_role)
-        db.commit()
-        db.refresh(db_role)
-        return db_role
-
-    @staticmethod
-    def get_role_by_id(db: Session, role_id: int) -> Optional[Role]:
-        """根据角色ID查询角色。
-
-        Args:
-            db: 数据库会话。
-            role_id: 角色唯一标识。
-
-        Returns:
-            Role实例，不存在时返回None。
-        """
-        return db.execute(select(Role).where(Role.id == role_id)).scalars().first()
-
-    @staticmethod
-    def update_role(db: Session, role_id: int, role_in: RoleUpdate | dict) -> Role:
-        """更新角色信息，仅修改传入的字段（部分更新）。
-
-        Args:
-            db: 数据库会话。
-            role_id: 待更新的角色ID。
-            role_in: 更新参数，支持RoleUpdate Schema或dict。
-
-        Returns:
-            更新后的Role实例。
-
-        Raises:
-            BaseAPIException: 角色不存在(404)。
-        """
-        # 参数适配
-        if isinstance(role_in, dict):
-            role_in = RoleUpdate(**role_in)
-
-        role = RoleService.get_role_by_id(db, role_id)
-        if not role:
-            raise BaseAPIException("角色不存在", code=404)
-
-        # 部分更新，未传入字段保持原值
-        update_data = role_in.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(role, field, value)
-        db.commit()
-        db.refresh(role)
-        return role
-
-    @staticmethod
-    def delete_role(db: Session, role_id: int) -> bool:
-        """删除角色及其用户关联关系。
-
-        先清理user_role关联表中的记录，再删除角色本体，
-        避免外键约束冲突。
-
-        Args:
-            db: 数据库会话。
-            role_id: 待删除的角色ID。
-
-        Returns:
-            删除成功返回True。
-
-        Raises:
-            BaseAPIException: 角色不存在(404)。
-        """
-        role = RoleService.get_role_by_id(db, role_id)
-        if not role:
-            raise BaseAPIException("角色不存在", code=404)
-
-        # 先清理用户-角色关联，再删除角色，保证数据一致性
-        db.execute(delete(user_role).where(user_role.c.role_id == role_id))
-        db.delete(role)
-        db.commit()
-        return True
-
-    @staticmethod
-    def get_roles(db: Session, skip: int = 0, limit: int = 100) -> List[Role]:
-        """分页查询角色列表。
-
-        Args:
-            db: 数据库会话。
-            skip: 跳过的记录数，用于分页偏移。
-            limit: 每页最大记录数，默认100。
-
-        Returns:
-            Role实例列表。
-        """
-        return db.execute(select(Role).offset(skip).limit(limit)).scalars().all()

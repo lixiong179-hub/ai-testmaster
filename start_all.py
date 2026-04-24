@@ -8,6 +8,43 @@ import subprocess
 import time
 import socket
 import threading
+import locale
+
+
+def setup_console_encoding():
+    """在 Windows 下统一控制台和 Python 输出编码，避免中文日志乱码"""
+    if os.name != "nt":
+        return
+
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleOutputCP(65001)
+        kernel32.SetConsoleCP(65001)
+    except Exception:
+        pass
+
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
+def build_subprocess_env():
+    """统一子进程编码环境，保证 Python 子进程输出 UTF-8"""
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    return env
+
+
+def get_subprocess_encoding():
+    """获取子进程输出流的读取编码"""
+    return "utf-8" if os.name == "nt" else locale.getpreferredencoding(False) or "utf-8"
 
 def check_port(port):
     """检查端口是否被占用"""
@@ -49,9 +86,14 @@ def kill_port_process(port):
 
 def log_output(process, prefix):
     """实时输出进程日志"""
-    for line in iter(process.stdout.readline, b''):
+    for line in iter(process.stdout.readline, ""):
         if line:
-            print(f"[{prefix}] {line.decode('utf-8', errors='ignore').rstrip()}")
+            print(f"[{prefix}] {line.rstrip()}")
+
+
+setup_console_encoding()
+SUBPROCESS_ENV = build_subprocess_env()
+SUBPROCESS_ENCODING = get_subprocess_encoding()
 
 def wait_for_service(name, host, port, max_wait=30):
     """等待服务启动"""
@@ -111,7 +153,11 @@ celery_process = subprocess.Popen(
     [sys.executable, "-m", "celery", "-A", "app.tasks.test_task", "worker", "--loglevel=info", "-P", "solo"],
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
-    bufsize=1
+    bufsize=1,
+    text=True,
+    encoding=SUBPROCESS_ENCODING,
+    errors="replace",
+    env=SUBPROCESS_ENV,
 )
 
 # 启动 Celery 日志线程
@@ -138,7 +184,11 @@ backend_process = subprocess.Popen(
     [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
-    bufsize=1
+    bufsize=1,
+    text=True,
+    encoding=SUBPROCESS_ENCODING,
+    errors="replace",
+    env=SUBPROCESS_ENV,
 )
 
 # 启动后端日志线程
@@ -167,7 +217,11 @@ frontend_process = subprocess.Popen(
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     bufsize=1,
-    shell=True
+    shell=True,
+    text=True,
+    encoding=SUBPROCESS_ENCODING,
+    errors="replace",
+    env=SUBPROCESS_ENV,
 )
 
 # 启动前端日志线程

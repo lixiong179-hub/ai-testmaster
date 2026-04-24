@@ -42,9 +42,9 @@ class UISpecParseMixin:
                 ui_prototype_crud.update_ui_screen_parse_status(self.db, screen_id, "failed", error)
                 return False, error
         except Exception as e:
-            logger.error(f"解析屏幕失败: {str(e)}")
+            logger.error(f"解析屏幕失败: {e}")
             ui_prototype_crud.update_ui_screen_parse_status(self.db, screen_id, "failed", str(e))
-            return False, str(e)
+            return False, "解析失败"
 
     async def batch_parse_screens(
         self,

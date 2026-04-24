@@ -36,8 +36,8 @@
 - PreconditionStep系列 -> app.models.test_case.TestCasePreconditionStep
 - ExecutionHistoryItem -> app.models.test_case.TestCaseExecution
 """
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import List, Optional, Dict, Any, Union, Literal
 from datetime import datetime
 
 
@@ -344,3 +344,79 @@ class PreconditionStepBatchSave(BaseModel):
     对应API：POST /api/v1/test-cases/{case_id}/precondition-steps/batch
     """
     steps: List[PreconditionStepCreate] = Field(..., description="前置条件步骤列表")  # 必填，步骤列表
+
+
+# ==================== 流程图排序相关Schema ====================
+
+class FlowNodeSchema(BaseModel):
+    """流程图节点Schema - 接收前端传递的排序数据
+
+    业务用途：接收前端流程图编辑器中每个截图节点的排序和分类信息
+    验证规则：screen_id/screen_order必填且>0，flow_type为枚举值
+    与前端映射：对应 FlowNodeSubmitData 接口
+    """
+    screen_id: int = Field(..., gt=0, description="UI屏幕ID")
+    screen_order: int = Field(..., gt=0, description="前端排序序号，从1开始")
+    flow_type: Literal['main', 'branch', 'exception', 'bypass'] = Field(
+        ..., description="流程类型：main=主干/branch=分支/exception=异常/bypass=旁路"
+    )
+    main_order: Optional[int] = Field(None, gt=0, description="主干显式顺序，仅main节点使用")
+    screen_name: str = Field(..., min_length=1, max_length=200, description="屏幕名称")
+    ocr_text: Optional[str] = Field(None, max_length=5000, description="OCR识别的页面文本")
+    ui_spec_elements: Optional[List[Dict[str, Any]]] = Field(None, description="UI元素列表（从ui_spec提取）")
+    summary: Optional[str] = Field(None, max_length=1000, description="AI解析摘要")
+
+    @field_validator('screen_name')
+    @classmethod
+    def screen_name_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError('screen_name不能为纯空白字符')
+        return v.strip()
+
+
+class FlowEdgeSchema(BaseModel):
+    """流程图连线Schema - 接收前端传递的连线关系
+
+    业务用途：接收前端流程图编辑器中节点间的连线关系和条件
+    验证规则：source/target必填，edge_type为枚举值
+    与前端映射：对应 FlowEdgeSubmitData 接口
+    """
+    source: str = Field(..., min_length=1, description="源节点screen_id的字符串形式")
+    target: str = Field(..., min_length=1, description="目标节点screen_id的字符串形式")
+    edge_type: Literal['normal', 'branch', 'exception', 'bypass'] = Field(
+        ..., description="连线类型：normal=正常/branch=分支/exception=异常/bypass=旁路"
+    )
+    condition: Optional[str] = Field(None, max_length=500, description="触发条件/异常场景")
+    label: str = Field(..., min_length=1, max_length=100, description="连线显示标签")
+
+    @field_validator('label')
+    @classmethod
+    def label_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError('label不能为纯空白字符')
+        return v.strip()
+
+    @model_validator(mode='after')
+    def validate_condition_for_special_edges(self) -> 'FlowEdgeSchema':
+        if self.edge_type != 'normal' and not (self.condition or '').strip():
+            label_map = {
+                'branch': '触发条件',
+                'exception': '异常场景',
+                'bypass': '出现时机',
+            }
+            raise ValueError(f"{label_map.get(self.edge_type, '条件')}不能为空")
+        if self.condition is not None:
+            self.condition = self.condition.strip()
+        return self
+
+
+class FlowSortDataSchema(BaseModel):
+    """流程图排序完整数据Schema
+
+    业务用途：接收前端流程图编辑器输出的完整排序数据
+    验证规则：nodes至少1个，edges可为空
+    与前端映射：对应 FlowSortSubmitData 接口
+    """
+    nodes: List[FlowNodeSchema] = Field(..., min_length=1, description="节点列表")
+    edges: List[FlowEdgeSchema] = Field(default_factory=list, description="连线列表")
+    module_info: Optional[Dict[str, Any]] = Field(None, description="模块基础信息")

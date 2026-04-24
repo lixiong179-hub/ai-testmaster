@@ -144,6 +144,7 @@ class TestTestCaseModel:
     def test_test_case_relationships(self):
         assert hasattr(TestCase, 'project')
         assert hasattr(TestCase, 'test_steps')
+        assert hasattr(TestCase, 'test_point')
 
 
 class TestTestStepModel:

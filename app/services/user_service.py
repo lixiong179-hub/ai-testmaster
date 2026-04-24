@@ -12,10 +12,12 @@
     - pwd_context: bcrypt密码加密上下文
 
 依赖关系:
-    - app.services.user_role_service: 用户与角色的核心业务逻辑
+    - app.services.user_service.user_service: 用户核心业务逻辑
+    - app.services.role_service.role_service: 角色核心业务逻辑
     - app.services.permission_service: 权限体系与RBAC实现
 """
-from app.services.user_role_service import UserService, RoleService, pwd_context
+from app.services.user_service.user_service import UserService, pwd_context
+from app.services.role_service.role_service import RoleService
 from app.services.permission_service import PermissionService, UserRoleService, RBACService
 
 

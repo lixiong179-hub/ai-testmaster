@@ -228,8 +228,9 @@ async def extract_file_content(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"提取文件内容失败: {e}")
         raise HTTPException(
-            status_code=500, detail=f"提取文件内容失败: {str(e)}"
+            status_code=500, detail="提取文件内容失败"
         )
 
 

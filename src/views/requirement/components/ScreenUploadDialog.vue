@@ -47,16 +47,19 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:visible': [value: boolean]
-  'submit': [files: File[]]
+  submit: [files: File[]]
 }>()
 
 const appendFiles = ref<File[]>([])
 
-watch(() => props.visible, (val) => {
-  if (val) {
-    appendFiles.value = []
+watch(
+  () => props.visible,
+  (val) => {
+    if (val) {
+      appendFiles.value = []
+    }
   }
-})
+)
 
 const updateFileList = (_file: File, fileList: File[]) => {
   appendFiles.value = fileList.map((f: File & { raw?: File }) => f.raw || f)

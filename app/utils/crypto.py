@@ -166,3 +166,15 @@ def mask_password(password: str) -> str:
 # 便捷函数别名，提供更简洁的调用方式
 encrypt = encrypt_password
 decrypt = decrypt_password
+
+
+def verify_password(plain_password: str, encrypted_password: str) -> bool:
+    """兼容旧测试导出的密码校验函数。"""
+
+    if not plain_password and not encrypted_password:
+        return True
+
+    try:
+        return decrypt_password(encrypted_password) == plain_password
+    except Exception:
+        return False

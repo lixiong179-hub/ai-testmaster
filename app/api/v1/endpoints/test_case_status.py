@@ -184,7 +184,7 @@ async def transition_test_case_workflow(
         logger.error(f"工作流状态转换失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"工作流状态转换失败: {str(e)}"
+            detail="工作流状态转换失败"
         )
 
 
@@ -290,7 +290,7 @@ async def start_correction(
     except Exception as e:
         db.rollback()
         logger.error(f"开始纠正失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"开始纠正失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="开始纠正失败")
 
 
 @router.post("/{test_case_id}/submit-verification")
@@ -339,4 +339,4 @@ async def submit_verification(
     except Exception as e:
         db.rollback()
         logger.error(f"提交验证失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"提交验证失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="提交验证失败")

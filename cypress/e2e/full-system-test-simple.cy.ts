@@ -11,8 +11,8 @@ describe('AI TestMaster 全流程系统测试', () => {
       url: 'http://localhost:8001/api/v1/auth/login',
       body: {
         username: 'admin',
-        password: 'password123'
-      }
+        password: 'password123',
+      },
     }).then((response) => {
       expect(response.status).to.eq(200)
       expect(response.body.code).to.eq(200)
@@ -216,9 +216,9 @@ describe('AI TestMaster 全流程系统测试', () => {
         method: 'GET',
         url: 'http://localhost:8001/api/v1/project/list',
         headers: {
-          'Authorization': 'Bearer invalid_token'
+          Authorization: 'Bearer invalid_token',
         },
-        failOnStatusCode: false
+        failOnStatusCode: false,
       }).then((response) => {
         // 验证返回401未授权或422验证错误
         expect(response.status).to.be.oneOf([401, 422])
@@ -255,8 +255,8 @@ describe('AI TestMaster 全流程系统测试', () => {
         url: 'http://localhost:8001/api/v1/auth/login',
         body: {
           username: 'admin',
-          password: 'password123'
-        }
+          password: 'password123',
+        },
       }).then((response) => {
         authToken = response.body.data.access_token
       })

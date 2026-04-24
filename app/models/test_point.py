@@ -48,6 +48,7 @@ class TestPoint(Base):
     point = Column(String(500), nullable=False, comment="测试点描述，如'输入错误密码登录'")               # 三级分类：具体测试关注点
     priority = Column(Integer, nullable=False, comment="优先级：1高2中3低")                             # 优先级，1=高，2=中，3=低
     create_time = Column(DateTime, default=utcnow, nullable=False, comment="创建时间")                  # 创建时间，UTC时区
+    created_by = Column(String(100), nullable=True, comment="创建人用户名")                              # 创建人用户名，兼容历史数据允许为空
     ai_prompt = Column(Text, nullable=True, comment="AI分析时的提示词")                                 # AI生成用例时的额外提示信息
 
     # 关联关系 - 通过project_id隔离

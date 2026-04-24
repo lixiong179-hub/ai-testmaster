@@ -84,10 +84,14 @@ export interface UIScreen {
 }
 
 export interface UIScreenListResponse {
-  total: number
-  items: UIScreen[]
-  page: number
-  page_size: number
+  code: number
+  msg: string
+  data: {
+    total: number
+    items: UIScreen[]
+    page: number
+    page_size: number
+  }
 }
 
 export interface UIPrototypeUploadResponse {
@@ -144,7 +148,7 @@ export const uiPrototypeApi = {
       project_id: projectId,
       name,
       description,
-      source
+      source,
     })
   },
 
@@ -164,13 +168,13 @@ export const uiPrototypeApi = {
     if (iterationId) {
       formData.append('iteration_id', iterationId.toString())
     }
-    files.forEach(file => {
+    files.forEach((file) => {
       formData.append('files', file)
     })
     return request.post('/api/v1/ui-prototype/upload', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+        'Content-Type': 'multipart/form-data',
+      },
     })
   },
 
@@ -187,21 +191,15 @@ export const uiPrototypeApi = {
     return request.get(`/api/v1/ui-prototype/screens/${projectId}`, { params })
   },
 
-  getUIScreenDetail: async (
-    screenId: number
-  ): Promise<UIScreenDetailResponse> => {
+  getUIScreenDetail: async (screenId: number): Promise<UIScreenDetailResponse> => {
     return request.get(`/api/v1/ui-prototype/screen/${screenId}`)
   },
 
-  deleteUIScreen: async (
-    screenId: number
-  ): Promise<UIDeleteResponse> => {
+  deleteUIScreen: async (screenId: number): Promise<UIDeleteResponse> => {
     return request.delete(`/api/v1/ui-prototype/screen/${screenId}`)
   },
 
-  deleteUIPrototypeProject: async (
-    prototypeProjectId: number
-  ): Promise<UIDeleteResponse> => {
+  deleteUIPrototypeProject: async (prototypeProjectId: number): Promise<UIDeleteResponse> => {
     return request.delete(`/api/v1/ui-prototype/project/${prototypeProjectId}`)
   },
 
@@ -213,7 +211,7 @@ export const uiPrototypeApi = {
     return request.post('/api/v1/ui-prototype/parse', {
       screen_ids: screenIds,
       prototype_project_id: prototypeProjectId,
-      parse_mode: parseMode
+      parse_mode: parseMode,
     })
   },
 
@@ -222,9 +220,9 @@ export const uiPrototypeApi = {
     screenOrder: number
   ): Promise<UIScreenOrderResponse> => {
     return request.put(`/api/v1/ui-prototype/screen/${screenId}/order`, {
-      screen_order: screenOrder
+      screen_order: screenOrder,
     })
-  }
+  },
 }
 
 export const UIPrototypeAPI = uiPrototypeApi

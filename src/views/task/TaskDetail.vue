@@ -39,7 +39,7 @@
           </el-col>
         </el-row>
 
-        <el-row :gutter="20" style="margin-top: 15px;">
+        <el-row :gutter="20" style="margin-top: 15px">
           <el-col :span="8">
             <div class="info-item">
               <label>开始时间：</label>
@@ -67,7 +67,7 @@
       </div>
 
       <!-- 执行进度 -->
-      <div class="execution-progress" style="margin-top: 20px;" v-if="taskDetail">
+      <div class="execution-progress" style="margin-top: 20px" v-if="taskDetail">
         <div class="progress-header">
           <span class="progress-label">执行进度</span>
           <span class="progress-time" v-if="taskDetail.status === 1">
@@ -104,7 +104,7 @@
       </div>
 
       <!-- 操作按钮 -->
-      <div class="action-buttons" style="margin-top: 20px;" v-if="taskDetail">
+      <div class="action-buttons" style="margin-top: 20px" v-if="taskDetail">
         <el-space>
           <el-button
             v-if="taskDetail.status === 0"
@@ -144,12 +144,24 @@
           </el-radio-group>
           <div class="mode-desc">
             <template v-if="executionMode === 'smart'">优先使用缓存定位，失败后AI实时识别</template>
-            <template v-else-if="executionMode === 'realtime'">直接执行，无需预先补充元素定位</template>
-            <template v-else-if="executionMode === 'preprocess'">需要先批量补充元素定位信息才能执行</template>
-            <template v-else-if="executionMode === 'mobile_smart'">移动端：优先缓存定位+AI兜底（ADB）</template>
-            <template v-else-if="executionMode === 'mobile_realtime'">移动端：AI实时识别（ADB）</template>
+            <template v-else-if="executionMode === 'realtime'"
+              >直接执行，无需预先补充元素定位</template
+            >
+            <template v-else-if="executionMode === 'preprocess'"
+              >需要先批量补充元素定位信息才能执行</template
+            >
+            <template v-else-if="executionMode === 'mobile_smart'"
+              >移动端：优先缓存定位+AI兜底（ADB）</template
+            >
+            <template v-else-if="executionMode === 'mobile_realtime'"
+              >移动端：AI实时识别（ADB）</template
+            >
           </div>
-          <div v-if="executionMode.startsWith('mobile_')" class="mobile-device-selector" style="margin-top: 8px;">
+          <div
+            v-if="executionMode.startsWith('mobile_')"
+            class="mobile-device-selector"
+            style="margin-top: 8px"
+          >
             <span class="mode-label">目标设备：</span>
             <el-select
               v-model="mobileDeviceId"
@@ -157,16 +169,16 @@
               :loading="loadingDevices"
               @focus="loadConnectedDevices"
               size="small"
-              style="width: 260px;"
+              style="width: 260px"
             >
               <el-option
-                v-for="device in connectedDevices.filter(d => d.state === 'device')"
+                v-for="device in connectedDevices.filter((d) => d.state === 'device')"
                 :key="device.udid"
                 :label="`${device.model || device.udid} (${device.udid})`"
                 :value="device.udid"
               />
             </el-select>
-            <el-alert type="warning" :closable="false" style="margin-top: 8px; font-size: 12px;">
+            <el-alert type="warning" :closable="false" style="margin-top: 8px; font-size: 12px">
               请确保设备已通过ADB连接，且已开启USB调试模式
             </el-alert>
           </div>
@@ -174,14 +186,14 @@
       </div>
 
       <!-- 执行结果 -->
-      <div class="execution-results" style="margin-top: 20px;">
+      <div class="execution-results" style="margin-top: 20px">
         <el-collapse v-model="activeNames">
           <el-collapse-item title="执行结果" name="results">
             <template #title>
               <span class="collapse-title">
                 <el-icon><List /></el-icon>
                 执行结果
-                <el-tag size="small" type="info" style="margin-left: 8px;">
+                <el-tag size="small" type="info" style="margin-left: 8px">
                   {{ taskResults.length }} 条
                 </el-tag>
               </span>
@@ -190,7 +202,7 @@
             <el-table
               v-loading="loading"
               :data="taskResults"
-              style="width: 100%;"
+              style="width: 100%"
               border
               stripe
               max-height="400"
@@ -212,12 +224,7 @@
               <el-table-column label="操作" width="280" align="center">
                 <template #default="scope">
                   <el-space>
-                    <el-button
-                      type="info"
-                      size="small"
-                      link
-                      @click="viewCaseLog(scope.row)"
-                    >
+                    <el-button type="info" size="small" link @click="viewCaseLog(scope.row)">
                       查看日志
                     </el-button>
                     <el-button
@@ -247,7 +254,7 @@
       </div>
 
       <!-- 实时日志 -->
-      <div class="execution-logs" style="margin-top: 20px;">
+      <div class="execution-logs" style="margin-top: 20px">
         <el-collapse v-model="logActiveNames">
           <el-collapse-item title="执行日志" name="logs">
             <template #title>
@@ -258,7 +265,7 @@
                   v-if="executionLogs.length > 0"
                   :value="executionLogs.length"
                   type="primary"
-                  style="margin-left: 8px;"
+                  style="margin-left: 8px"
                 />
               </span>
             </template>
@@ -272,12 +279,12 @@
                 <el-icon><Download /></el-icon>
                 导出日志
               </el-button>
-              <el-checkbox v-model="autoScroll" size="small" style="margin-left: 10px;">
+              <el-checkbox v-model="autoScroll" size="small" style="margin-left: 10px">
                 自动滚动
               </el-checkbox>
             </div>
 
-            <el-scrollbar style="height: 400px;" ref="scrollbarRef">
+            <el-scrollbar style="height: 400px" ref="scrollbarRef">
               <div class="log-container" ref="logContainerRef">
                 <div
                   v-for="(item, index) in executionLogs"
@@ -304,12 +311,7 @@
     </el-card>
 
     <!-- 日志详情弹窗 -->
-    <el-dialog
-      v-model="logDialogVisible"
-      title="用例执行日志"
-      width="80%"
-      top="5vh"
-    >
+    <el-dialog v-model="logDialogVisible" title="用例执行日志" width="80%" top="5vh">
       <div class="case-log">
         <pre>{{ currentCaseLog }}</pre>
       </div>
@@ -320,19 +322,14 @@
     </el-dialog>
 
     <!-- 截图预览弹窗 -->
-    <el-dialog
-      v-model="screenshotDialogVisible"
-      title="失败截图"
-      width="80%"
-      top="5vh"
-    >
+    <el-dialog v-model="screenshotDialogVisible" title="失败截图" width="80%" top="5vh">
       <div class="screenshot-preview">
         <el-image
           v-if="currentScreenshot"
           :src="currentScreenshot"
           :preview-src-list="[currentScreenshot]"
           fit="contain"
-          style="max-height: 70vh;"
+          style="max-height: 70vh"
         />
         <div v-else class="no-screenshot">
           <el-empty description="暂无截图" />
@@ -341,12 +338,7 @@
     </el-dialog>
 
     <!-- 错误详情弹窗 -->
-    <el-dialog
-      v-model="errorDialogVisible"
-      title="错误详情"
-      width="60%"
-      top="10vh"
-    >
+    <el-dialog v-model="errorDialogVisible" title="错误详情" width="60%" top="10vh">
       <div class="error-detail">
         <pre>{{ currentError }}</pre>
       </div>
@@ -355,9 +347,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
-import { useRoute } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Refresh,
   VideoPlay,
@@ -366,160 +358,162 @@ import {
   List,
   Document,
   Delete,
-  Loading
-} from '@element-plus/icons-vue';
-import { useTaskStore } from '../../store/task';
-import { wsClient } from '../../utils/websocket';
-import { getConnectedDevices } from '@/api/testExecution';
+  Loading,
+} from '@element-plus/icons-vue'
+import { useTaskStore } from '../../store/task'
+import { wsClient } from '../../utils/websocket'
+import { getConnectedDevices } from '@/api/testExecution'
 
-const route = useRoute();
-const taskStore = useTaskStore();
+const route = useRoute()
+const taskStore = useTaskStore()
 
 // 任务ID
 const taskId = computed(() => {
-  return Number(route.params.taskId) || 0;
-});
+  return Number(route.params.taskId) || 0
+})
 
 // 项目ID
 const projectId = computed(() => {
-  return Number(route.query.project_id) || 0;
-});
+  return Number(route.query.project_id) || 0
+})
 
 // 加载状态
-const loading = computed(() => taskStore.loading);
-const actionLoading = ref(false);
-const executionMode = ref<'preprocess' | 'realtime' | 'smart' | 'mobile_realtime' | 'mobile_smart'>('smart')
+const loading = computed(() => taskStore.loading)
+const actionLoading = ref(false)
+const executionMode = ref<'preprocess' | 'realtime' | 'smart' | 'mobile_realtime' | 'mobile_smart'>(
+  'smart'
+)
 const mobileDeviceId = ref<string>('')
 const connectedDevices = ref<Array<{ udid: string; model?: string; state: string }>>([])
 const loadingDevices = ref(false)
 
 // 折叠面板
-const activeNames = ref(['results']);
-const logActiveNames = ref(['logs']);
+const activeNames = ref(['results'])
+const logActiveNames = ref(['logs'])
 
 // 自动滚动
-const autoScroll = ref(true);
+const autoScroll = ref(true)
 
 // 日志容器
-const scrollbarRef = ref<any>(null);
-const logContainerRef = ref<HTMLElement | null>(null);
+const scrollbarRef = ref<any>(null)
+const logContainerRef = ref<HTMLElement | null>(null)
 
 // 弹窗状态
-const logDialogVisible = ref(false);
-const currentCaseLog = ref('');
-const screenshotDialogVisible = ref(false);
-const currentScreenshot = ref('');
-const errorDialogVisible = ref(false);
-const currentError = ref('');
+const logDialogVisible = ref(false)
+const currentCaseLog = ref('')
+const screenshotDialogVisible = ref(false)
+const currentScreenshot = ref('')
+const errorDialogVisible = ref(false)
+const currentError = ref('')
 
 // 轮询定时器
-let pollTimer: number | null = null;
+let pollTimer: number | null = null
 
 // 任务详情
-const taskDetail = computed(() => taskStore.taskDetail);
+const taskDetail = computed(() => taskStore.taskDetail)
 
 // 执行结果
-const taskResults = computed(() => taskStore.taskResults);
+const taskResults = computed(() => taskStore.taskResults)
 
 // 执行日志
-const executionLogs = computed(() => taskStore.executionLogs);
+const executionLogs = computed(() => taskStore.executionLogs)
 
 // 任务通过率
 const taskPassRate = computed(() => {
-  if (!taskDetail.value) return 0;
-  const { total_count, success_count } = taskDetail.value;
-  return total_count > 0 ? Math.round((success_count / total_count) * 100) : 0;
-});
+  if (!taskDetail.value) return 0
+  const { total_count, success_count } = taskDetail.value
+  return total_count > 0 ? Math.round((success_count / total_count) * 100) : 0
+})
 
 // 任务状态文本
 const taskStatusText = (status: number): string => {
-  return taskStore.taskStatusText(status);
-};
+  return taskStore.taskStatusText(status)
+}
 
 // 任务状态颜色
 const taskStatusColor = (status: number): string => {
-  return taskStore.taskStatusColor(status);
-};
+  return taskStore.taskStatusColor(status)
+}
 
 // 执行状态文本
 const execStatusText = (status: number): string => {
-  return taskStore.execStatusText(status);
-};
+  return taskStore.execStatusText(status)
+}
 
 // 执行状态颜色
 const execStatusColor = (status: number): string => {
-  return taskStore.execStatusColor(status);
-};
+  return taskStore.execStatusColor(status)
+}
 
 // 日志状态文本
 const logStatusText = (status: number): string => {
-  return taskStore.logStatusText(status);
-};
+  return taskStore.logStatusText(status)
+}
 
 // 日志状态颜色
 const logStatusColor = (status: number): string => {
-  return taskStore.logStatusColor(status);
-};
+  return taskStore.logStatusColor(status)
+}
 
 // 获取日志样式
 const getLogItemClass = (status: number): string => {
-  if (status === 3) return 'log-warning';
-  if (status === 2) return 'log-error';
-  if (status === 1) return 'log-success';
-  return '';
-};
+  if (status === 3) return 'log-warning'
+  if (status === 2) return 'log-error'
+  if (status === 1) return 'log-success'
+  return ''
+}
 
 // 进度颜色
 const getProgressColor = (progress: number): string => {
-  if (progress < 30) return '#409EFF';
-  if (progress < 70) return '#E6A23C';
-  return '#67C23A';
-};
+  if (progress < 30) return '#409EFF'
+  if (progress < 70) return '#E6A23C'
+  return '#67C23A'
+}
 
 // 进度状态
 const getProgressStatus = (): string | undefined => {
-  if (!taskDetail.value) return undefined;
-  if (taskDetail.value.status === 3) return 'exception';
-  if (taskDetail.value.status === 2 && taskDetail.value.fail_count === 0) return 'success';
-  return undefined;
-};
+  if (!taskDetail.value) return undefined
+  if (taskDetail.value.status === 3) return 'exception'
+  if (taskDetail.value.status === 2 && taskDetail.value.fail_count === 0) return 'success'
+  return undefined
+}
 
 // 格式化时间
 const formatTime = (timestamp: string): string => {
-  if (!timestamp) return '-';
-  const date = new Date(timestamp);
+  if (!timestamp) return '-'
+  const date = new Date(timestamp)
   return date.toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
-  });
-};
+    second: '2-digit',
+  })
+}
 
 // 获取任务详情
 const fetchTaskDetail = async () => {
   try {
-    await taskStore.fetchTaskDetail(taskId.value, projectId.value);
+    await taskStore.fetchTaskDetail(taskId.value, projectId.value)
   } catch (error: any) {
-    ElMessage.error(error.message || '获取任务详情失败');
+    ElMessage.error(error.message || '获取任务详情失败')
   }
-};
+}
 
 // 获取执行结果
 const fetchTaskResults = async () => {
   try {
-    await taskStore.fetchTaskResults(taskId.value, projectId.value);
+    await taskStore.fetchTaskResults(taskId.value, projectId.value)
   } catch (error: any) {
-    console.error('获取执行结果失败:', error);
+    console.error('获取执行结果失败:', error)
   }
-};
+}
 
 // 刷新所有数据
 const refreshAll = async () => {
-  await Promise.all([fetchTaskDetail(), fetchTaskResults()]);
-};
+  await Promise.all([fetchTaskDetail(), fetchTaskResults()])
+}
 
 // 启动任务
 const loadConnectedDevices = async () => {
@@ -542,23 +536,23 @@ const startTask = async () => {
     return
   }
   try {
-    actionLoading.value = true;
+    actionLoading.value = true
     await taskStore.startTask(
       taskId.value,
       projectId.value,
       executionMode.value,
       executionMode.value.startsWith('mobile_') ? mobileDeviceId.value : undefined
-    );
-    ElMessage.success('任务已启动');
-    await fetchTaskDetail();
+    )
+    ElMessage.success('任务已启动')
+    await fetchTaskDetail()
     // 开始轮询
-    startPolling();
+    startPolling()
   } catch (error: any) {
-    ElMessage.error(error.message || '启动任务失败');
+    ElMessage.error(error.message || '启动任务失败')
   } finally {
-    actionLoading.value = false;
+    actionLoading.value = false
   }
-};
+}
 
 // 停止任务
 const stopTask = async () => {
@@ -566,141 +560,145 @@ const stopTask = async () => {
     await ElMessageBox.confirm('确定要停止此任务吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning'
-    });
+      type: 'warning',
+    })
 
-    actionLoading.value = true;
-    await taskStore.stopTask(taskId.value, projectId.value);
-    ElMessage.success('任务已停止');
-    await fetchTaskDetail();
-    stopPolling();
+    actionLoading.value = true
+    await taskStore.stopTask(taskId.value, projectId.value)
+    ElMessage.success('任务已停止')
+    await fetchTaskDetail()
+    stopPolling()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '停止任务失败');
+      ElMessage.error(error.message || '停止任务失败')
     }
   } finally {
-    actionLoading.value = false;
+    actionLoading.value = false
   }
-};
+}
 
 // 导出结果
 const exportResults = () => {
   if (taskResults.value.length === 0) {
-    ElMessage.warning('暂无结果可导出');
-    return;
+    ElMessage.warning('暂无结果可导出')
+    return
   }
 
-  const results = taskResults.value.map(result => ({
+  const results = taskResults.value.map((result) => ({
     case_no: result.case_no,
     case_id: result.case_id,
     exec_status: execStatusText(result.exec_status),
     exec_time: result.exec_time || '-',
-    error_msg: result.error_msg || ''
-  }));
+    error_msg: result.error_msg || '',
+  }))
 
   const csv = [
     ['用例编号', '用例ID', '执行状态', '执行时长', '错误信息'].join(','),
-    ...results.map(r => [r.case_no, r.case_id, r.exec_status, r.exec_time, `"${r.error_msg}"`].join(','))
-  ].join('\n');
+    ...results.map((r) =>
+      [r.case_no, r.case_id, r.exec_status, r.exec_time, `"${r.error_msg}"`].join(',')
+    ),
+  ].join('\n')
 
-  downloadFile(csv, `task_${taskId.value}_results.csv`, 'text/csv');
-};
+  downloadFile(csv, `task_${taskId.value}_results.csv`, 'text/csv')
+}
 
 // 查看用例日志
 const viewCaseLog = (result: any) => {
-  currentCaseLog.value = result.exec_log || '暂无日志';
-  logDialogVisible.value = true;
-};
+  currentCaseLog.value = result.exec_log || '暂无日志'
+  logDialogVisible.value = true
+}
 
 // 复制日志
 const copyLog = async () => {
   try {
-    await navigator.clipboard.writeText(currentCaseLog.value);
-    ElMessage.success('日志已复制到剪贴板');
+    await navigator.clipboard.writeText(currentCaseLog.value)
+    ElMessage.success('日志已复制到剪贴板')
   } catch {
-    ElMessage.error('复制失败');
+    ElMessage.error('复制失败')
   }
-};
+}
 
 // 查看截图
 const viewScreenshot = (result: any) => {
   if (result.screenshot_url) {
-    currentScreenshot.value = result.screenshot_url;
-    screenshotDialogVisible.value = true;
+    currentScreenshot.value = result.screenshot_url
+    screenshotDialogVisible.value = true
   } else {
-    ElMessage.warning('暂无截图');
+    ElMessage.warning('暂无截图')
   }
-};
+}
 
 // 查看错误
 const viewError = (result: any) => {
-  currentError.value = result.error_msg || '暂无错误信息';
-  errorDialogVisible.value = true;
-};
+  currentError.value = result.error_msg || '暂无错误信息'
+  errorDialogVisible.value = true
+}
 
 // 清空日志
 const clearLogs = () => {
-  taskStore.clearExecutionLogs();
-};
+  taskStore.clearExecutionLogs()
+}
 
 // 导出日志
 const exportLogs = () => {
   if (executionLogs.value.length === 0) {
-    ElMessage.warning('暂无日志可导出');
-    return;
+    ElMessage.warning('暂无日志可导出')
+    return
   }
 
-  const logs = executionLogs.value.map(log => {
-    return `[${formatTime(log.timestamp)}] [${logStatusText(log.status)}] ${log.case_no ? `[${log.case_no}] ` : ''}${log.log}`;
-  }).join('\n');
+  const logs = executionLogs.value
+    .map((log) => {
+      return `[${formatTime(log.timestamp)}] [${logStatusText(log.status)}] ${log.case_no ? `[${log.case_no}] ` : ''}${log.log}`
+    })
+    .join('\n')
 
-  downloadFile(logs, `task_${taskId.value}_logs.txt`, 'text/plain');
-};
+  downloadFile(logs, `task_${taskId.value}_logs.txt`, 'text/plain')
+}
 
 // 下载文件
 const downloadFile = (content: string, filename: string, type: string) => {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
+  const blob = new Blob([content], { type })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 
 // 滚动到底部
 const scrollToBottom = () => {
   if (autoScroll.value && logContainerRef.value) {
     nextTick(() => {
       if (scrollbarRef.value) {
-        scrollbarRef.value.setScrollTop(logContainerRef.value!.scrollHeight);
+        scrollbarRef.value.setScrollTop(logContainerRef.value!.scrollHeight)
       }
-    });
+    })
   }
-};
+}
 
 // 开始轮询
 const startPolling = () => {
-  if (pollTimer) return;
+  if (pollTimer) return
   pollTimer = window.setInterval(async () => {
-    await fetchTaskDetail();
-    await fetchTaskResults();
+    await fetchTaskDetail()
+    await fetchTaskResults()
     // 如果任务结束，停止轮询
     if (taskDetail.value && taskDetail.value.status !== 1) {
-      stopPolling();
+      stopPolling()
     }
-  }, 3000);
-};
+  }, 3000)
+}
 
 // 停止轮询
 const stopPolling = () => {
   if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
+    clearInterval(pollTimer)
+    pollTimer = null
   }
-};
+}
 
 // WebSocket 消息处理
 const handleWsMessage = (data: any) => {
@@ -712,8 +710,8 @@ const handleWsMessage = (data: any) => {
       case_no: data.case_no,
       status: data.status,
       log: data.log,
-      timestamp: data.timestamp || new Date().toISOString()
-    });
+      timestamp: data.timestamp || new Date().toISOString(),
+    })
   } else if (data.type === 'progress') {
     taskStore.updateExecutionProgress({
       task_id: taskId.value,
@@ -722,59 +720,65 @@ const handleWsMessage = (data: any) => {
       fail_count: data.fail_count,
       current_case: data.current_case,
       total_cases: data.total_cases,
-      timestamp: new Date().toISOString()
-    });
+      timestamp: new Date().toISOString(),
+    })
   } else if (data.type === 'status') {
-    taskStore.updateTaskStatus(taskId.value, data.status);
+    taskStore.updateTaskStatus(taskId.value, data.status)
     if (data.status !== 1) {
-      stopPolling();
+      stopPolling()
     }
   }
-};
+}
 
 // 监听日志变化
-watch(() => taskStore.executionLogs.length, () => {
-  scrollToBottom();
-});
+watch(
+  () => taskStore.executionLogs.length,
+  () => {
+    scrollToBottom()
+  }
+)
 
 // 监听任务状态
-watch(() => taskDetail.value?.status, (newStatus) => {
-  if (newStatus === 1) {
-    startPolling();
-  } else {
-    stopPolling();
+watch(
+  () => taskDetail.value?.status,
+  (newStatus) => {
+    if (newStatus === 1) {
+      startPolling()
+    } else {
+      stopPolling()
+    }
   }
-});
+)
 
 // 生命周期
 onMounted(async () => {
   // 清除之前的状态
-  taskStore.clearExecutionLogs();
+  taskStore.clearExecutionLogs()
 
   // 获取任务详情和执行结果
-  await fetchTaskDetail();
-  await fetchTaskResults();
+  await fetchTaskDetail()
+  await fetchTaskResults()
 
   // 如果任务正在执行，开始轮询
   if (taskDetail.value?.status === 1) {
-    startPolling();
+    startPolling()
   }
 
   // 连接WebSocket
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token')
   if (token) {
-    wsClient.connect(taskId.value, projectId.value, token);
-    wsClient.onMessage(handleWsMessage);
+    wsClient.connect(taskId.value, projectId.value, token)
+    wsClient.onMessage(handleWsMessage)
   }
-});
+})
 
 // 组件卸载时
 onUnmounted(() => {
-  stopPolling();
-  wsClient.offMessage(handleWsMessage);
-  wsClient.disconnect();
-  taskStore.clearExecutionLogs();
-});
+  stopPolling()
+  wsClient.offMessage(handleWsMessage)
+  wsClient.disconnect()
+  taskStore.clearExecutionLogs()
+})
 </script>
 
 <style scoped>
@@ -846,7 +850,7 @@ onUnmounted(() => {
 }
 
 .progress-time {
-  color: #409EFF;
+  color: #409eff;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -883,11 +887,11 @@ onUnmounted(() => {
 }
 
 .stat-item.success .stat-value {
-  color: #67C23A;
+  color: #67c23a;
 }
 
 .stat-item.danger .stat-value {
-  color: #F56C6C;
+  color: #f56c6c;
 }
 
 .stat-label {
@@ -959,17 +963,17 @@ onUnmounted(() => {
 
 .log-item.log-success {
   background: #f0f9eb;
-  border-left-color: #67C23A;
+  border-left-color: #67c23a;
 }
 
 .log-item.log-error {
   background: #fef0f0;
-  border-left-color: #F56C6C;
+  border-left-color: #f56c6c;
 }
 
 .log-item.log-warning {
   background: #fdf6ec;
-  border-left-color: #E6A23C;
+  border-left-color: #e6a23c;
 }
 
 .log-header {
@@ -987,7 +991,7 @@ onUnmounted(() => {
 
 .log-case {
   font-weight: 700;
-  color: #409EFF;
+  color: #409eff;
 }
 
 .log-content {
@@ -1044,7 +1048,7 @@ onUnmounted(() => {
   font-family: 'Courier New', Courier, monospace;
   font-size: 13px;
   line-height: 1.6;
-  color: #F56C6C;
+  color: #f56c6c;
   white-space: pre-wrap;
   word-break: break-all;
 }

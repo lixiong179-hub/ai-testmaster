@@ -25,7 +25,7 @@ export function useWebSocket(): UseWebSocketReturn {
     }
 
     socket.onmessage = (event: MessageEvent) => {
-      messageHandlers.forEach(handler => {
+      messageHandlers.forEach((handler) => {
         try {
           handler(event)
         } catch (e) {
@@ -35,7 +35,7 @@ export function useWebSocket(): UseWebSocketReturn {
     }
 
     socket.onerror = (event: Event) => {
-      errorHandlers.forEach(handler => {
+      errorHandlers.forEach((handler) => {
         try {
           handler(event)
         } catch (e) {
@@ -89,6 +89,6 @@ export function useWebSocket(): UseWebSocketReturn {
     send,
     onMessage,
     onError,
-    isConnected
+    isConnected,
   }
 }

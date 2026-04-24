@@ -157,7 +157,7 @@ async def create_iteration(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"创建迭代失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="创建迭代失败")
 
 
 @router.get("/list/{project_id}", response_model=dict)
@@ -194,7 +194,7 @@ async def get_iterations(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取迭代列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取迭代列表失败")
 
 
 @router.get("/{iteration_id}", response_model=dict)
@@ -217,7 +217,7 @@ async def get_iteration(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取迭代详情失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取迭代详情失败")
 
 
 @router.put("/{iteration_id}", response_model=dict)
@@ -256,7 +256,7 @@ async def update_iteration(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"更新迭代失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="更新迭代失败")
 
 
 @router.delete("/{iteration_id}", response_model=dict)

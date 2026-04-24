@@ -56,7 +56,7 @@ export const iterationApi = {
     pageSize: number = 100
   ): Promise<IterationListResponse> => {
     return request.get(`/api/v1/iteration/list/${projectId}`, {
-      params: { page, page_size: pageSize }
+      params: { page, page_size: pageSize },
     })
   },
 
@@ -75,9 +75,11 @@ export const iterationApi = {
     return request.put(`/api/v1/iteration/${iterationId}`, data)
   },
 
-  deleteIteration: async (iterationId: number): Promise<{ code: number; message: string; data: {} }> => {
+  deleteIteration: async (
+    iterationId: number
+  ): Promise<{ code: number; message: string; data: {} }> => {
     return request.delete(`/api/v1/iteration/${iterationId}`)
-  }
+  },
 }
 
 export const IterationAPI = iterationApi

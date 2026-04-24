@@ -53,7 +53,7 @@ async def get_test_case_technical_view(
         raise
     except Exception as e:
         logger.error(f"获取技术视图失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"获取技术视图失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取技术视图失败")
 
 
 @router.get("/{test_case_id}/business-view")
@@ -72,7 +72,7 @@ async def get_test_case_business_view(
         raise
     except Exception as e:
         logger.error(f"获取业务视图失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"获取业务视图失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取业务视图失败")
 
 
 @router.get("/{test_case_id}/locator-coverage")
@@ -87,7 +87,7 @@ async def get_locator_coverage(
         return create_response(data=coverage)
     except Exception as e:
         logger.error(f"获取定位覆盖率失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"获取定位覆盖率失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取定位覆盖率失败")
 
 
 @router.get("/{test_case_id}/view-statistics")
@@ -102,7 +102,7 @@ async def get_view_statistics(
         return create_response(data=statistics)
     except Exception as e:
         logger.error(f"获取视图统计失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"获取视图统计失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取视图统计失败")
 
 
 class BatchViewConfigRequest(BaseModel):
@@ -130,7 +130,7 @@ async def batch_update_view_config(
         return create_response(data={"updated_count": updated_count})
     except Exception as e:
         logger.error(f"批量更新视图配置失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"批量更新视图配置失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="批量更新视图配置失败")
 
 
 class StepViewConfigRequest(BaseModel):
@@ -151,7 +151,7 @@ async def update_step_view_config(
         return create_response(data={"success": success})
     except Exception as e:
         logger.error(f"更新步骤视图配置失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"更新步骤视图配置失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新步骤视图配置失败")
 
 
 @router.post("/steps/{step_id}/locator")
@@ -215,7 +215,7 @@ async def add_step_locator(
     except Exception as e:
         db.rollback()
         logger.error(f"添加定位信息失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"添加定位信息失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="添加定位信息失败")
 
 
 class TechnicalViewEditRequest(BaseModel):
@@ -314,4 +314,4 @@ async def update_technical_view(
     except Exception as e:
         db.rollback()
         logger.error(f"更新技术视图失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"更新技术视图失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新技术视图失败")

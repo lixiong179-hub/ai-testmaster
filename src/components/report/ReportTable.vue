@@ -17,7 +17,7 @@
           </el-dropdown>
         </div>
       </template>
-      
+
       <el-table
         :data="testCases"
         style="width: 100%"
@@ -45,7 +45,7 @@
           </template>
         </el-table-column>
       </el-table>
-      
+
       <div class="pagination" v-if="total > 0">
         <el-pagination
           v-model:current-page="page"
@@ -84,9 +84,9 @@ const pageSize = ref(10)
 // 获取状态类型
 const getStatusType = (status: string) => {
   const statusMap: Record<string, string> = {
-    'passed': 'success',
-    'failed': 'danger',
-    'skipped': 'warning'
+    passed: 'success',
+    failed: 'danger',
+    skipped: 'warning',
   }
   return statusMap[status] || 'info'
 }

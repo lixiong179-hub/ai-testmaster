@@ -209,6 +209,11 @@ class Settings(BaseSettings):
     QWEN_API_KEY: str = ""
     QWEN_MODEL: str = "qwen-vl-plus"
 
+    # ==================== 解析模式常量 ====================
+    # UI原型解析的两种模式：text(使用OCR+文本模型) / vision(使用视觉模型)
+    PARSE_MODE_TEXT: str = "text"
+    PARSE_MODE_VISION: str = "vision"
+
     # 智谱GLM - 清华系模型，多模态能力强
     ZHIPU_API_KEY: str = ""
     ZHIPU_MODEL: str = "glm-4v-plus"
@@ -225,6 +230,13 @@ class Settings(BaseSettings):
     MIMO_API_KEY: str = ""
     MIMO_MODEL: str = "mimo-v2.5"
     MIMO_BASE_URL: str = "https://token-plan-cn.xiaomimimo.com/v1"
+
+    # ==================== 文本模型配置（OCR结构化） ====================
+    # 用于 text 模式的 OCR 结果结构化，未来可替换为其他文本模型
+    TEXT_MODEL_DEFAULT: str = "deepseek"  # 默认文本模型
+    TEXT_MODEL_API_KEY: str = ""  # 文本模型 API Key（与 DEEPSEEK_API_KEY 相同）
+    TEXT_MODEL_API_URL: str = "https://api.deepseek.com"  # API 端点（base_url）
+    TEXT_MODEL_NAME: str = "deepseek-chat"  # 模型名称
 
     # ==================== AI自愈配置 ====================
     # AI自愈功能：当测试步骤执行失败时，AI自动尝试修复定位器或操作

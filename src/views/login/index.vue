@@ -1,8 +1,10 @@
 <template>
   <div class="login-container">
     <div class="login-form-wrapper">
+      <div class="login-kicker">AI Test Platform</div>
       <h2 class="login-title">AI TestMaster 登录</h2>
-      
+      <p class="login-subtitle">统一访问测试点管理、执行工作台与智能生成能力</p>
+
       <!-- 登录方式切换 -->
       <div class="login-tabs">
         <el-tabs v-model="activeTab" class="login-tabs">
@@ -24,7 +26,7 @@
                   </template>
                 </el-input>
               </el-form-item>
-              
+
               <el-form-item label="密码" prop="password">
                 <el-input
                   v-model="loginForm.password"
@@ -37,13 +39,13 @@
                   </template>
                 </el-input>
               </el-form-item>
-              
+
               <el-form-item label="验证码" prop="code">
                 <div class="code-input-wrapper">
                   <el-input
                     v-model="loginForm.code"
                     :placeholder="isMobile ? '验证码' : '请输入验证码'"
-                    style="width: 60%"
+                    class="code-input"
                   >
                     <template #prefix>
                       <el-icon><Message /></el-icon>
@@ -54,26 +56,26 @@
                     v-if="captchaImage"
                     :src="'data:image/png;base64,' + captchaImage"
                     @click="refreshCaptcha"
-                    style="width: 35%; margin-left: 5%; height: 40px; cursor: pointer; border-radius: 4px; object-fit: contain; background: #f5f7fa"
+                    class="captcha-surface"
                     alt="点击刷新验证码"
                   />
                   <canvas
                     v-else
                     ref="captchaCanvas"
                     @click="refreshCaptcha"
-                    style="width: 35%; margin-left: 5%; height: 40px; cursor: pointer; background: #f5f7fa; border-radius: 4px"
+                    class="captcha-surface"
                     width="150"
                     height="40"
                   ></canvas>
                 </div>
               </el-form-item>
-              
+
               <el-form-item>
                 <el-checkbox v-model="loginForm.remember" class="remember-checkbox">
                   记住密码
                 </el-checkbox>
               </el-form-item>
-              
+
               <el-form-item>
                 <el-button
                   type="primary"
@@ -86,7 +88,7 @@
               </el-form-item>
             </el-form>
           </el-tab-pane>
-          
+
           <el-tab-pane label="手机登录" name="phone">
             <el-form
               ref="phoneFormRef"
@@ -105,7 +107,7 @@
                   </template>
                 </el-input>
               </el-form-item>
-              
+
               <el-form-item label="验证码" prop="code">
                 <div class="code-input-wrapper">
                   <el-input
@@ -121,19 +123,19 @@
                     type="primary"
                     :disabled="phoneCountdown > 0"
                     @click="getPhoneCode"
-                    style="width: 35%; margin-left: 5%"
+                  class="code-action"
                   >
                     {{ phoneCountdown > 0 ? `${phoneCountdown}s后重试` : '获取验证码' }}
                   </el-button>
                 </div>
               </el-form-item>
-              
+
               <el-form-item>
                 <el-checkbox v-model="phoneForm.remember" class="remember-checkbox">
                   记住手机号
                 </el-checkbox>
               </el-form-item>
-              
+
               <el-form-item>
                 <el-button
                   type="primary"
@@ -171,7 +173,7 @@ const activeTab = ref('account')
 // 服务端验证码相关
 const captchaId = ref('')
 const captchaCode = ref('')
-const captchaImage = ref('')  // 服务端返回的base64图片
+const captchaImage = ref('') // 服务端返回的base64图片
 
 // 移动端检测
 const isMobile = ref(false)
@@ -182,7 +184,10 @@ const checkMobile = () => {
 // 生成验证码 - 从服务端获取（返回base64图片）
 const refreshCaptcha = async () => {
   try {
-    const response = await request.get('/api/v1/auth/captcha/generate') as { code: number; data: { captcha_id: string; image?: string; code?: string } }
+    const response = (await request.get('/api/v1/auth/captcha/generate')) as {
+      code: number
+      data: { captcha_id: string; image?: string; code?: string }
+    }
     if (response && response.code === 200 && response.data) {
       captchaId.value = response.data.captcha_id
 
@@ -241,20 +246,20 @@ const drawCaptchaOnCanvas = (code: string) => {
 const fallbackCaptcha = () => {
   const canvas = captchaCanvas.value
   if (!canvas) return
-  
+
   const ctx = canvas.getContext('2d')
   if (!ctx) return
-  
+
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-  
+
   const code = Math.floor(1000 + Math.random() * 9000).toString()
   captchaCode.value = code
-  captchaImage.value = ''  // 切换到canvas模式
+  captchaImage.value = '' // 切换到canvas模式
   captchaId.value = '' // 降级模式不使用服务端验证
-  
+
   ctx.fillStyle = '#f5f7fa'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
-  
+
   for (let i = 0; i < 5; i++) {
     ctx.strokeStyle = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`
     ctx.beginPath()
@@ -262,11 +267,11 @@ const fallbackCaptcha = () => {
     ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height)
     ctx.stroke()
   }
-  
+
   ctx.font = '24px Arial'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  
+
   for (let i = 0; i < code.length; i++) {
     ctx.fillStyle = `rgb(${Math.random() * 100 + 50}, ${Math.random() * 100 + 50}, ${Math.random() * 100 + 50})`
     const x = (i + 0.5) * (canvas.width / code.length)
@@ -297,7 +302,7 @@ const loginForm = reactive<LoginFormType>({
   username: '',
   password: '',
   code: '',
-  remember: false
+  remember: false,
 })
 
 // 手机登录表单
@@ -308,33 +313,31 @@ const phoneCountdown = ref(0)
 const phoneForm = reactive({
   phone: '',
   code: '',
-  remember: false
+  remember: false,
 })
 
 // 表单验证规则
 const loginRules = {
-  username: [
-    { required: true, message: '请输入账号或手机号', trigger: 'blur' }
-  ],
+  username: [{ required: true, message: '请输入账号或手机号', trigger: 'blur' }],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+    { min: 6, message: '密码长度至少6位', trigger: 'blur' },
   ],
   code: [
     { required: true, message: '请输入验证码', trigger: 'blur' },
-    { min: 4, max: 4, message: '验证码为4位数字', trigger: 'blur' }
-  ]
+    { min: 4, max: 4, message: '验证码为4位数字', trigger: 'blur' },
+  ],
 }
 
 const phoneRules = {
   phone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' },
   ],
   code: [
     { required: true, message: '请输入验证码', trigger: 'blur' },
-    { min: 4, max: 4, message: '验证码为4位数字', trigger: 'blur' }
-  ]
+    { min: 4, max: 4, message: '验证码为4位数字', trigger: 'blur' },
+  ],
 }
 
 // 加密存储
@@ -343,7 +346,7 @@ const encryptStorage = (key: string, value: unknown): void => {
     const jsonString = JSON.stringify(value)
     const encoder = new TextEncoder()
     const data = encoder.encode(jsonString)
-    const binString = Array.from(data, byte => String.fromCharCode(byte)).join('')
+    const binString = Array.from(data, (byte) => String.fromCharCode(byte)).join('')
     const encrypted = btoa(binString)
     localStorage.setItem(key, encrypted)
   } catch (error) {
@@ -357,7 +360,7 @@ const decryptStorage = (key: string): unknown => {
     const encrypted = localStorage.getItem(key)
     if (encrypted) {
       const binString = atob(encrypted)
-      const bytes = Uint8Array.from(binString, c => c.charCodeAt(0))
+      const bytes = Uint8Array.from(binString, (c) => c.charCodeAt(0))
       const decoder = new TextDecoder()
       return JSON.parse(decoder.decode(bytes))
     }
@@ -405,18 +408,18 @@ const handleLogin = async () => {
         const formData = new URLSearchParams()
         formData.append('username', loginForm.username)
         formData.append('password', loginForm.password)
-        
+
         // 如果有服务端验证码ID，则发送给后端校验
         if (captchaId.value) {
           formData.append('captcha_id', captchaId.value)
           formData.append('captcha_code', loginForm.code)
         }
 
-        const response = await request.post(loginUrl, formData, {
+        const response = (await request.post(loginUrl, formData, {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }) as unknown as ApiResponse
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        })) as unknown as ApiResponse
 
         // 增强响应数据校验和错误提示
         if (!response) {
@@ -428,10 +431,13 @@ const handleLogin = async () => {
           localStorage.setItem('token', loginResponse.data.access_token)
 
           try {
-            const userRes = await request.get('/api/v1/auth/me') as any
+            const userRes = (await request.get('/api/v1/auth/me')) as any
             const userData = userRes?.data || userRes
             if (userData) {
-              const permissions = userData.permissions || userData.roles?.flatMap((r: any) => r.permissions || []) || []
+              const permissions =
+                userData.permissions ||
+                userData.roles?.flatMap((r: any) => r.permissions || []) ||
+                []
               localStorage.setItem('userInfo', JSON.stringify(signPermissions(permissions)))
             }
           } catch {
@@ -454,7 +460,9 @@ const handleLogin = async () => {
         } else if (response.code === 400) {
           throw new Error(response.msg || response.message || '请求参数错误')
         } else {
-          throw new Error(response.msg || response.message || `登录失败（状态码: ${response.code || '未知'}）`)
+          throw new Error(
+            response.msg || response.message || `登录失败（状态码: ${response.code || '未知'}）`
+          )
         }
       } catch (error: any) {
         // 统一错误处理
@@ -490,7 +498,7 @@ const handleLogin = async () => {
 // 处理手机登录
 const handlePhoneLogin = async () => {
   if (!phoneFormRef.value) return
-  
+
   await phoneFormRef.value.validate(async (valid: boolean) => {
     if (valid) {
       phoneLoading.value = true
@@ -499,23 +507,31 @@ const handlePhoneLogin = async () => {
         const formData = new URLSearchParams()
         formData.append('username', phoneForm.phone)
         formData.append('password', 'phone-login') // 手机登录特殊处理
-        
-        const response = await request.post('/api/v1/auth/login', formData, {
+
+        const response = (await request.post('/api/v1/auth/login', formData, {
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        }) as unknown as ApiResponse
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        })) as unknown as ApiResponse
 
         // 存储token
         const formResponse = response as { code: number; data: { access_token: string } }
-        if (formResponse && formResponse.code === 200 && formResponse.data && formResponse.data.access_token) {
+        if (
+          formResponse &&
+          formResponse.code === 200 &&
+          formResponse.data &&
+          formResponse.data.access_token
+        ) {
           localStorage.setItem('token', formResponse.data.access_token)
 
           try {
-            const userRes = await request.get('/api/v1/auth/me') as any
+            const userRes = (await request.get('/api/v1/auth/me')) as any
             const userData = userRes?.data || userRes
             if (userData) {
-              const permissions = userData.permissions || userData.roles?.flatMap((r: any) => r.permissions || []) || []
+              const permissions =
+                userData.permissions ||
+                userData.roles?.flatMap((r: any) => r.permissions || []) ||
+                []
               localStorage.setItem('userInfo', JSON.stringify(signPermissions(permissions)))
             }
           } catch {
@@ -525,16 +541,16 @@ const handlePhoneLogin = async () => {
           ElMessage.error('登录失败，返回数据格式错误')
           return
         }
-        
+
         // 记住手机号
         if (phoneForm.remember) {
           encryptStorage('rememberedPhone', {
-            phone: phoneForm.phone
+            phone: phoneForm.phone,
           })
         } else {
           localStorage.removeItem('rememberedPhone')
         }
-        
+
         // 暂时不获取用户信息，直接跳转到仪表盘
         // 后续可以在仪表盘页面或全局导航守卫中获取用户信息
         ElMessage.success('登录成功')
@@ -555,21 +571,42 @@ const handlePhoneLogin = async () => {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .login-form-wrapper {
   width: 400px;
   padding: 40px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(31, 45, 61, 0.24);
+  backdrop-filter: blur(12px);
+}
+
+.login-kicker {
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #409eff;
 }
 
 .login-title {
   text-align: center;
-  margin-bottom: 30px;
-  color: #303133;
+  margin-bottom: 8px;
+  color: #1f2d3d;
+}
+
+.login-subtitle {
+  text-align: center;
+  margin: 0 0 28px;
+  color: #6b7684;
+  line-height: 1.6;
 }
 
 .login-tabs {
@@ -583,10 +620,37 @@ const handlePhoneLogin = async () => {
 .code-input-wrapper {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.code-input {
+  width: 60%;
+}
+
+.captcha-surface,
+.code-action {
+  width: 35%;
+  height: 40px;
+}
+
+.captcha-surface {
+  cursor: pointer;
+  border-radius: 14px;
+  object-fit: contain;
+  background: linear-gradient(180deg, #f7faff 0%, #eef4fb 100%);
+  box-shadow: inset 0 0 0 1px rgba(220, 230, 241, 0.9);
 }
 
 .remember-checkbox {
   margin-left: 10px;
+}
+
+:deep(.login-tabs .el-tabs__nav-wrap::after) {
+  background-color: rgba(228, 235, 243, 0.9);
+}
+
+:deep(.login-tabs .el-tabs__item) {
+  font-weight: 600;
 }
 
 /* 移动端适配 */
@@ -597,50 +661,46 @@ const handlePhoneLogin = async () => {
     padding: 30px 20px;
     margin: 0 10px;
   }
-  
+
   .login-title {
     font-size: 20px;
     margin-bottom: 25px;
   }
-  
+
   :deep(.el-form-item) {
     margin-bottom: 20px;
   }
-  
+
   :deep(.el-form-item__label) {
     display: none;
   }
-  
+
   :deep(.el-form-item__content) {
     margin-left: 0 !important;
     justify-content: center;
   }
-  
+
   :deep(.el-input__inner) {
     height: 44px;
     line-height: 44px;
   }
-  
+
   .code-input-wrapper {
     flex-direction: column;
     gap: 10px;
   }
-  
-  .code-input-wrapper .el-input {
-    width: 100% !important;
+
+  .code-input,
+  .captcha-surface,
+  .code-action {
+    width: 100%;
   }
-  
-  .code-input-wrapper .el-button {
-    width: 100% !important;
-    margin-left: 0 !important;
-    height: 44px;
-  }
-  
+
   :deep(.el-button--primary) {
     height: 44px;
     font-size: 16px;
   }
-  
+
   .remember-checkbox {
     margin-left: 0;
     text-align: center;

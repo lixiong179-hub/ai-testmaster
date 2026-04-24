@@ -203,6 +203,25 @@ class TestExecutionResult:
         }
 
 
+@dataclass
+class ExecutionConfig:
+    """兼容旧测试导出的执行配置模型。"""
+
+    timeout: int = 30
+    retry_count: int = 0
+    screenshot_on_failure: bool = False
+
+
+@dataclass
+class ExecutionResult:
+    """兼容旧测试导出的执行结果模型。"""
+
+    status: str
+    duration: float = 0.0
+    steps_passed: int = 0
+    steps_failed: int = 0
+
+
 def handle_execution_errors(func):
     """执行错误处理装饰器 - 统一异常转换和日志记录。
 

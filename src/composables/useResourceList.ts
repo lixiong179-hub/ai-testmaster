@@ -32,7 +32,9 @@ export interface FilterForm {
   resource_type: string
 }
 
-export function useResourceList(iterationManager: ReturnType<typeof import('./useIterationManager').useIterationManager>) {
+export function useResourceList(
+  iterationManager: ReturnType<typeof import('./useIterationManager').useIterationManager>
+) {
   // 状态定义
   const resources = ref<Resource[]>([])
   const total = ref(0)
@@ -40,12 +42,12 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
 
   const pagination = reactive({
     page: 1,
-    pageSize: 10
+    pageSize: 10,
   })
 
   const filterForm = reactive<FilterForm>({
     project_id: '' as number | '',
-    resource_type: ''
+    resource_type: '',
   })
 
   /**
@@ -78,7 +80,11 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
         return d as Record<string, unknown>[]
       }
 
-      if (typeof d === 'object' && d !== null && Array.isArray((d as Record<string, unknown>).items)) {
+      if (
+        typeof d === 'object' &&
+        d !== null &&
+        Array.isArray((d as Record<string, unknown>).items)
+      ) {
         return (d as Record<string, unknown>).items as Record<string, unknown>[]
       }
     }
@@ -119,9 +125,9 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
           // 直接将 iteration_id 和分页参数传给后端，由后端筛选
           const fileRes = await fileApi.getFileList(
             projectId,
-            iterationParam,  // 传递迭代筛选参数
+            iterationParam, // 传递迭代筛选参数
             pagination.page,
-            pagination.pageSize  // 传递分页参数
+            pagination.pageSize // 传递分页参数
           )
           const fileItems = extractListItems(fileRes)
             .filter((item: Record<string, unknown>) => {
@@ -141,7 +147,7 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
               created_at: item.upload_time as string | undefined,
               upload_time: item.upload_time as string | undefined,
               iteration_id: item.iteration_id as number | undefined,
-              source_type: 'file' as const
+              source_type: 'file' as const,
             }))
           allItems = allItems.concat(fileItems)
         } catch (e) {
@@ -156,26 +162,25 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
             projectId,
             pagination.page,
             pagination.pageSize,
-            iterationParam  // 传递迭代筛选参数
+            iterationParam // 传递迭代筛选参数
           )
-          const protoItems = extractListItems(protoRes)
-            .map((item: Record<string, unknown>) => ({
-              id: item.id as number,
-              project_id: item.project_id as number,
-              name: item.name as string,
-              resource_type: 'ui_mockup',
-              file_url: undefined,
-              file_type: undefined,
-              is_active: true,
-              size: undefined,
-              created_at: item.create_time as string | undefined,
-              upload_time: item.create_time as string | undefined,
-              iteration_id: item.iteration_id as number | undefined,
-              screen_count: (item.screen_count as number) || 0,
-              prototype_project_id: item.id as number,
-              source_type: 'ui_prototype' as const,
-              description: item.description as string | undefined
-            }))
+          const protoItems = extractListItems(protoRes).map((item: Record<string, unknown>) => ({
+            id: item.id as number,
+            project_id: item.project_id as number,
+            name: item.name as string,
+            resource_type: 'ui_mockup',
+            file_url: undefined,
+            file_type: undefined,
+            is_active: true,
+            size: undefined,
+            created_at: item.create_time as string | undefined,
+            upload_time: item.create_time as string | undefined,
+            iteration_id: item.iteration_id as number | undefined,
+            screen_count: (item.screen_count as number) || 0,
+            prototype_project_id: item.id as number,
+            source_type: 'ui_prototype' as const,
+            description: item.description as string | undefined,
+          }))
           allItems = allItems.concat(protoItems)
         } catch (e) {
           console.warn('获取UI原型项目列表失败:', e)
@@ -192,7 +197,7 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
       // 设置总数和当前页数据（增加防御性检查，确保100%是数组）
       const finalItems = Array.isArray(allItems) ? allItems : []
       total.value = finalItems.length
-      resources.value = finalItems  // 确保 resources.value 始终是数组
+      resources.value = finalItems // 确保 resources.value 始终是数组
     } catch (error) {
       console.error('获取资源列表失败:', error)
       resources.value = []
@@ -249,7 +254,7 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
       ui_mockup: 'warning',
       api_doc: 'success',
       test_data: 'info',
-      other: 'info'
+      other: 'info',
     }
     return typeMap[type] || 'info'
   }
@@ -263,7 +268,7 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
       ui_mockup: 'UI原型图',
       api_doc: 'API文档',
       test_data: '测试数据',
-      other: '其他'
+      other: '其他',
     }
     return labelMap[type] || type
   }
@@ -272,7 +277,9 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
     resources,
     total,
     loading,
-    get isLoading() { return loading.value === true },
+    get isLoading() {
+      return loading.value === true
+    },
     pagination,
     filterForm,
 
@@ -282,6 +289,6 @@ export function useResourceList(iterationManager: ReturnType<typeof import('./us
     handleSizeChange,
     handleCurrentChange,
     getResourceTypeTagType,
-    getResourceTypeLabel
+    getResourceTypeLabel,
   })
 }

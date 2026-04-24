@@ -8,7 +8,8 @@
             <h2 class="prototype-title">{{ prototypeName }}</h2>
             <div class="header-tags">
               <el-tag v-if="currentIteration" type="info" size="small" effect="plain">
-                {{ currentIteration.name }}{{ currentIteration.version ? ` (${currentIteration.version})` : '' }}
+                {{ currentIteration.name
+                }}{{ currentIteration.version ? ` (${currentIteration.version})` : '' }}
               </el-tag>
               <el-tag v-else-if="iterationName" type="info" size="small" effect="plain">
                 {{ iterationName }}
@@ -26,7 +27,7 @@
               </el-radio-group>
             </div>
             <div class="action-buttons">
-              <el-button type="primary" @click="handleBatchParse" :loading="parsing" :disabled="screens.length === 0">
+              <el-button type="primary" @click="handleBatchParse" :disabled="screens.length === 0">
                 {{ parseMode === 'text' ? '文本模型一键解析' : 'AI视觉解析' }}
               </el-button>
               <el-button type="success" @click="handleAddScreens">
@@ -47,7 +48,43 @@
       </div>
     </el-card>
 
+    <div class="overview-strip">
+      <div class="overview-card overview-card-primary">
+        <div class="overview-label">屏幕总数</div>
+        <div class="overview-value">{{ screens.length }}</div>
+        <div class="overview-desc">当前原型版本下的全部页面截图</div>
+      </div>
+      <div class="overview-card">
+        <div class="overview-label">已解析</div>
+        <div class="overview-value">{{ completedScreenCount }}</div>
+        <div class="overview-desc">可查看元素和流程详情</div>
+      </div>
+      <div class="overview-card">
+        <div class="overview-label">待处理</div>
+        <div class="overview-value">{{ pendingScreenCount }}</div>
+        <div class="overview-desc">尚未完成解析的页面</div>
+      </div>
+      <div class="overview-card">
+        <div class="overview-label">解析失败</div>
+        <div class="overview-value">{{ failedScreenCount }}</div>
+        <div class="overview-desc">建议重新发起解析</div>
+      </div>
+    </div>
+
     <el-card class="content-card" v-loading="loading" shadow="never">
+      <div class="content-head">
+        <div class="content-head-main">
+          <div class="content-title">屏幕列表</div>
+          <div class="content-subtitle">
+            点击卡片查看详情，解析完成后可在弹层中查看元素、流程与布局信息。
+          </div>
+        </div>
+        <div class="content-tags">
+          <el-tag type="success" effect="plain">已解析 {{ completedScreenCount }}</el-tag>
+          <el-tag type="warning" effect="plain">待处理 {{ pendingScreenCount }}</el-tag>
+          <el-tag type="danger" effect="plain">失败 {{ failedScreenCount }}</el-tag>
+        </div>
+      </div>
       <ScreenCardGrid
         :screens="screens"
         :image-urls="screenImageUrls"
@@ -70,6 +107,15 @@
       :uploading="uploading"
       @submit="handleUploadSubmit"
     />
+
+    <AIParseLoading
+      :visible="parsing"
+      :parse-mode="parseMode"
+      :total-count="pendingScreensCount"
+      :processed-count="processedScreensCount"
+      :show-cancel-button="true"
+      @cancel="handleCancelParse"
+    />
   </div>
 </template>
 
@@ -82,11 +128,12 @@ import { uiPrototypeApi } from '@/api/uiPrototype'
 import type { UIScreen } from '@/api/uiPrototype'
 import { iterationApi } from '@/api/iteration'
 import type { Iteration } from '@/api/iteration'
-import { getQueryParam, isScreenListResponse } from '@/composables/useParseStatus'
+import { getRouteQueryParam, isUIScreenListResponse } from '@/composables/uiPrototypeHelpers'
 import { useScreenImageUrl } from '@/composables/useScreenImageUrl'
 import ScreenCardGrid from './components/ScreenCardGrid.vue'
 import ScreenPreviewDialog from './components/ScreenPreviewDialog.vue'
 import ScreenUploadDialog from './components/ScreenUploadDialog.vue'
+import AIParseLoading from '@/components/loading/AIParseLoading.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -108,12 +155,39 @@ const parsing = ref(false)
 const uploading = ref(false)
 const screens = ref<UIScreen[]>([])
 const screenImageUrls = ref<Record<number, string>>({})
+const pendingScreensIds = ref<number[]>([])
 
 const previewVisible = ref(false)
 const previewScreen = ref<UIScreen | null>(null)
 
 const uploadDialogVisible = ref(false)
 const parseMode = ref<'text' | 'vision'>('text')
+
+const pendingScreensCount = computed(() => pendingScreensIds.value.length)
+
+const completedScreenCount = computed(() => {
+  return screens.value.filter((screen) => screen.parse_status === 'completed').length
+})
+
+const failedScreenCount = computed(() => {
+  return screens.value.filter((screen) => screen.parse_status === 'failed').length
+})
+
+const pendingScreenCount = computed(() => {
+  return screens.value.filter(
+    (screen) =>
+      !screen.parse_status || screen.parse_status === 'pending' || screen.parse_status === 'running'
+  ).length
+})
+
+const processedScreensCount = computed(() => {
+  if (!pendingScreensIds.value.length) return 0
+  return screens.value.filter(
+    (s) =>
+      pendingScreensIds.value.includes(s.id!) &&
+      (s.parse_status === 'completed' || s.parse_status === 'failed')
+  ).length
+})
 
 const goBack = () => {
   router.push('/home/requirement')
@@ -125,13 +199,13 @@ const loadIterationDetail = async () => {
       id: iterationId.value,
       project_id: projectId.value,
       name: iterationName.value,
-      version: getQueryParam(route.query.iteration_version),
+      version: getRouteQueryParam(route.query.iteration_version),
       description: '',
       status: '',
       start_date: '',
       end_date: '',
       create_time: '',
-      update_time: ''
+      update_time: '',
     }
     return
   }
@@ -157,12 +231,9 @@ const loadScreens = async () => {
 
   loading.value = true
   try {
-    const res = await uiPrototypeApi.getUIScreenList(
-      projectId.value,
-      prototypeProjectId.value
-    )
+    const res = await uiPrototypeApi.getUIScreenList(projectId.value, prototypeProjectId.value)
     let screenList: UIScreen[] = []
-    if (isScreenListResponse(res)) {
+    if (isUIScreenListResponse(res)) {
       const responseData = (res as unknown as { data: { items: UIScreen[] } }).data
       screenList = responseData?.items || []
     } else if (Array.isArray(res)) {
@@ -171,8 +242,8 @@ const loadScreens = async () => {
     screens.value = screenList
 
     const imagePromises = screens.value
-      .filter(s => s.id && s.original_file_path)
-      .map(screen => getImageUrl(screen).then(url => ({ id: screen.id, url })))
+      .filter((s) => s.id && s.original_file_path)
+      .map((screen) => getImageUrl(screen).then((url) => ({ id: screen.id, url })))
     const results = await Promise.all(imagePromises)
     results.forEach(({ id, url }) => {
       if (id && url) screenImageUrls.value[id] = url
@@ -199,32 +270,41 @@ const handlePreviewScreen = async (screen: UIScreen) => {
 
 const handleParseScreen = async (screen: UIScreen) => {
   try {
+    pendingScreensIds.value = [screen.id!]
+    parsing.value = true
     await uiPrototypeApi.parseUIScreens([screen.id], prototypeProjectId.value, parseMode.value)
     ElMessage.success('解析任务已启动')
     await pollParseStatus()
   } catch (error: unknown) {
     const err = error as { response?: { data?: { detail?: string } } }
     ElMessage.error(err?.response?.data?.detail || '解析失败')
+  } finally {
+    parsing.value = false
+    pendingScreensIds.value = []
   }
 }
 
 const handleBatchParse = async () => {
-  const pendingScreens = screens.value.filter(s => s.parse_status === 'pending' || s.parse_status === 'failed')
+  const pendingScreens = screens.value.filter(
+    (s) => s.parse_status === 'pending' || s.parse_status === 'failed'
+  )
   if (pendingScreens.length === 0) {
     ElMessage.info('所有图片已解析完成')
     return
   }
 
   try {
+    pendingScreensIds.value = pendingScreens.map((s) => s.id!)
     parsing.value = true
     await uiPrototypeApi.parseUIScreens(
-      pendingScreens.map(s => s.id),
+      pendingScreens.map((s) => s.id),
       prototypeProjectId.value,
       parseMode.value
     )
-    const messageText = parseMode.value === 'text'
-      ? `已启动 ${pendingScreens.length} 张图片的文本模型一键解析`
-      : `已启动 ${pendingScreens.length} 张图片的AI视觉解析`
+    const messageText =
+      parseMode.value === 'text'
+        ? `已启动 ${pendingScreens.length} 张图片的文本模型一键解析`
+        : `已启动 ${pendingScreens.length} 张图片的AI视觉解析`
     ElMessage.success(messageText)
     await pollParseStatus()
   } catch (error: unknown) {
@@ -232,35 +312,43 @@ const handleBatchParse = async () => {
     ElMessage.error(err?.response?.data?.detail || '批量解析失败')
   } finally {
     parsing.value = false
+    pendingScreensIds.value = []
   }
+}
+
+const handleCancelParse = () => {
+  ElMessage.info('解析任务已取消')
+  parsing.value = false
+  pendingScreensIds.value = []
 }
 
 const pollParseStatus = async (maxAttempts: number = 40) => {
   const currentScreenId = previewScreen.value?.id
-  for (let i = 0; i < maxAttempts; i++) {
+  for (let i = 0; i < maxAttempts && parsing.value; i++) {
     const delay = i < 5 ? 2000 : i < 15 ? 5000 : 10000
-    await new Promise(resolve => setTimeout(resolve, delay))
+    await new Promise((resolve) => setTimeout(resolve, delay))
     await loadScreens()
     if (currentScreenId) {
-      const updatedScreen = screens.value.find(s => s.id === currentScreenId)
+      const updatedScreen = screens.value.find((s) => s.id === currentScreenId)
       if (updatedScreen) {
         previewScreen.value = updatedScreen
       }
     }
     const allDone = screens.value.every(
-      s => s.parse_status === 'completed' || s.parse_status === 'failed'
+      (s) => s.parse_status === 'completed' || s.parse_status === 'failed'
     )
-    if (allDone) break
+    if (allDone) {
+      ElMessage.success('所有图片解析完成！')
+      break
+    }
   }
 }
 
 const handleDeleteScreen = async (screen: UIScreen) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除图片 "${screen.screen_name}" 吗？`,
-      '删除确认',
-      { type: 'warning' }
-    )
+    await ElMessageBox.confirm(`确定要删除图片 "${screen.screen_name}" 吗？`, '删除确认', {
+      type: 'warning',
+    })
     await uiPrototypeApi.deleteUIScreen(screen.id)
     ElMessage.success('删除成功')
     loadScreens()
@@ -319,17 +407,178 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.ui-prototype-container { padding: 20px; }
-.header-card { margin-bottom: 16px; border: none; background: #fafbfc; }
-.page-header { display: flex; flex-direction: column; gap: 12px; }
-.header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-.header-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.prototype-title { margin: 0; font-size: 20px; font-weight: 600; color: #1a1d21; }
-.header-tags { display: flex; align-items: center; gap: 8px; }
-.header-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.parse-mode-wrapper { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #ffffff; border-radius: 8px; border: 1px solid #e8ecf0; }
-.parse-mode-label { font-size: 13px; color: #6b7280; font-weight: 500; white-space: nowrap; }
-.action-buttons { display: flex; gap: 10px; }
-.vision-alert { border-radius: 8px; }
-.content-card { min-height: 400px; border: none; background: #ffffff; }
+.ui-prototype-container {
+  padding: 20px;
+  background: linear-gradient(180deg, #f7f9fc 0%, #f3f6fb 100%);
+  min-height: 100%;
+}
+
+.header-card {
+  margin-bottom: 16px;
+  border: none;
+  background: linear-gradient(135deg, #fafbfc 0%, #f5f8fc 100%);
+}
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.prototype-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a1d21;
+}
+.header-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.parse-mode-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e8ecf0;
+}
+
+.parse-mode-label {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.vision-alert {
+  border-radius: 10px;
+}
+
+.overview-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.overview-card {
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #e8ecf0;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.overview-card-primary {
+  background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+  border-color: #dbeafe;
+}
+
+.overview-label {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.overview-value {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 8px;
+}
+
+.overview-desc {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #909399;
+}
+
+.content-card {
+  min-height: 400px;
+  border: none;
+  background: #ffffff;
+  border-radius: 18px;
+}
+
+.content-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.content-head-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.content-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 6px;
+}
+
+.content-subtitle {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #6b7280;
+}
+
+.content-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1100px) {
+  .overview-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .ui-prototype-container {
+    padding: 16px;
+  }
+
+  .content-head {
+    flex-direction: column;
+  }
+
+  .overview-strip {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

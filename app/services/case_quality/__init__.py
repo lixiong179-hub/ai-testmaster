@@ -7,6 +7,7 @@
     - CaseQualityAnalyzer: 用例质量分析器主类
 
 Mixin组合:
+    - AnalyzerMixin: 质量分析主入口（analyze_case_quality等）
     - SuggestionMixin: 改进建议生成
     - RedundancyMixin: 冗余度检测
     - CoverageMixin: 覆盖度评估
@@ -18,6 +19,8 @@ Mixin组合:
     - 冗余度: 步骤重复、逻辑重复、数据重复
     - 建议: 基于评估结果的改进建议
 """
+from sqlalchemy.orm import Session
+
 from app.services.case_quality.models import (
     ComplexityScore,
     RedundancyScore,
@@ -28,9 +31,11 @@ from app.services.case_quality.complexity_mixin import ComplexityMixin
 from app.services.case_quality.coverage_mixin import CoverageMixin
 from app.services.case_quality.redundancy_mixin import RedundancyMixin
 from app.services.case_quality.suggestion_mixin import SuggestionMixin
+from app.services.case_quality.analyzer_mixin import AnalyzerMixin
 
 
 class CaseQualityAnalyzer(
+    AnalyzerMixin,
     SuggestionMixin,
     RedundancyMixin,
     CoverageMixin,
@@ -39,7 +44,7 @@ class CaseQualityAnalyzer(
     """用例质量分析器 - 组合复杂度/覆盖度/冗余度/建议四个评估维度。
 
     继承顺序（MRO）:
-        SuggestionMixin -> RedundancyMixin -> CoverageMixin -> ComplexityMixin
+        AnalyzerMixin -> SuggestionMixin -> RedundancyMixin -> CoverageMixin -> ComplexityMixin
 
     使用场景:
         - 用例生成后自动评估质量
@@ -47,9 +52,13 @@ class CaseQualityAnalyzer(
         - 用例优化建议
     """
 
-    def __init__(self):
-        """初始化用例质量分析器。"""
-        self._scores: list = []  # 各维度评分缓存
+    def __init__(self, db: Session):
+        """初始化用例质量分析器。
+
+        Args:
+            db: 数据库会话。
+        """
+        self.db = db
 
 
 __all__ = [
@@ -62,4 +71,5 @@ __all__ = [
     'CoverageMixin',
     'RedundancyMixin',
     'SuggestionMixin',
+    'AnalyzerMixin',
 ]

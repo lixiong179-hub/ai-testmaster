@@ -79,7 +79,7 @@ async def review_case(
     except Exception as e:
         db.rollback()
         logger.error(f"审核用例失败 {case_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"审核失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="审核失败")
 
 
 @router.get("/cases/{case_id}/review")
@@ -193,7 +193,7 @@ async def edit_case(
     except Exception as e:
         db.rollback()
         logger.error(f"编辑用例失败 {case_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"编辑失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="编辑失败")
 
 
 @router.put("/cases/{case_id}/steps/{step_id}")
@@ -241,7 +241,7 @@ async def edit_case_step(
     except Exception as e:
         db.rollback()
         logger.error(f"编辑步骤失败 {case_id}/{step_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"编辑失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="编辑失败")
 
 
 @router.get("/projects/{project_id}/cost-statistics")
@@ -256,7 +256,8 @@ async def get_project_cost_statistics(
         summary = service.get_cost_summary(project_id)
         return summary
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取成本统计失败: {str(e)}")
+        logger.error(f"获取成本统计失败: {e}")
+        raise HTTPException(status_code=500, detail="获取成本统计失败")
 
 
 @router.get("/projects/{project_id}/cost-report")
@@ -299,7 +300,8 @@ async def get_project_cost_report(
             "generated_at": report.generated_at.isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"生成成本报表失败: {str(e)}")
+        logger.error(f"生成成本报表失败: {e}")
+        raise HTTPException(status_code=500, detail="生成成本报表失败")
 
 
 @router.get("/cases/{case_id}/cost-statistics")
@@ -329,4 +331,5 @@ async def get_case_cost_statistics(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取成本统计失败: {str(e)}")
+        logger.error(f"获取成本统计失败: {e}")
+        raise HTTPException(status_code=500, detail="获取成本统计失败")

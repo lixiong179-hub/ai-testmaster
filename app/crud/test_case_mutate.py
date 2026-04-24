@@ -30,8 +30,31 @@
 """
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from app.models.test_case import TestCase
+from app.models.test_case import TestCase, TestStep
 from app.crud.test_case_query import get_test_case_by_id
+
+
+def _create_test_steps(
+    db: Session,
+    test_case_id: int,
+    steps: List[Dict[str, Any]],
+) -> None:
+    """为测试用例创建结构化步骤记录。"""
+    for index, step_data in enumerate(steps, start=1):
+        if not isinstance(step_data, dict):
+            continue
+        step = TestStep(
+            test_case_id=test_case_id,
+            step_number=index,
+            action=step_data.get("action", ""),
+            expected_result=step_data.get("expected_result", ""),
+            action_type=step_data.get("action_type") or None,
+            input_value=step_data.get("input_value") or None,
+            target_element=step_data.get("target_element") or None,
+            is_business_view=1,
+            is_technical_view=1,
+        )
+        db.add(step)
 
 
 def create_test_case(
@@ -88,6 +111,8 @@ def create_test_case(
         generate_status=generate_status
     )
     db.add(db_test_case)
+    db.flush()
+    _create_test_steps(db, db_test_case.id, steps if isinstance(steps, list) else [])
     db.commit()
     db.refresh(db_test_case)
     return db_test_case
@@ -163,7 +188,8 @@ def delete_test_case(
 def batch_create_test_cases(
     db: Session,
     project_id: int,
-    test_cases_data: List[Dict[str, Any]]
+    test_cases_data: List[Dict[str, Any]],
+    commit: bool = True,
 ) -> List[TestCase]:
     """
     批量创建测试用例
@@ -176,7 +202,8 @@ def batch_create_test_cases(
         project_id: 所属项目ID，所有用例归属同一项目
         test_cases_data: 用例数据列表，每条数据为字典格式，
             必含字段: case_no, module, title, precondition, steps, expected_result, priority, case_type
-            可选字段: exec_script, generate_status
+            可选字段: exec_script, generate_status, test_point_id, test_category
+        commit: 是否在函数内提交事务，默认提交
 
     Returns:
         List[TestCase]: 创建成功的测试用例列表
@@ -198,6 +225,7 @@ def batch_create_test_cases(
         test_case = TestCase(
             case_no=data['case_no'],
             project_id=project_id,
+            test_point_id=data.get('test_point_id'),
             module=data['module'],
             title=data['title'],
             precondition=data['precondition'],
@@ -205,14 +233,22 @@ def batch_create_test_cases(
             expected_result=data['expected_result'],
             priority=data['priority'],
             case_type=data['case_type'],
+            test_category=data.get('test_category'),
             exec_script=data.get('exec_script'),  # 可选字段，缺失时为None
             generate_status=data.get('generate_status', 0)  # 可选字段，默认0=待生成
         )
         db.add(test_case)  # 加入session但不commit
         test_cases.append(test_case)
-    # 统一提交：将多次IO合并为一次事务提交，提升批量写入性能
-    db.commit()
-    # 逐条refresh获取数据库生成的字段（id、create_time等）
-    for test_case in test_cases:
-        db.refresh(test_case)
+
+    db.flush()
+
+    for test_case, data in zip(test_cases, test_cases_data):
+        _create_test_steps(db, test_case.id, data.get('steps', []))
+
+    if commit:
+        # 统一提交：将多次IO合并为一次事务提交，提升批量写入性能
+        db.commit()
+        # 逐条refresh获取数据库生成的字段（id、create_time等）
+        for test_case in test_cases:
+            db.refresh(test_case)
     return test_cases

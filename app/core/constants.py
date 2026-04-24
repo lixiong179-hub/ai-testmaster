@@ -32,7 +32,7 @@
     - 每个枚举值都有明确的业务语义，禁止使用无意义数字
 """
 from enum import Enum, IntEnum
-from typing import List
+from typing import List, Tuple
 
 
 # ==================== 测试用例相关枚举 ====================
@@ -410,6 +410,17 @@ class ResponseCode(IntEnum):
     SERVER_ERROR = 500         # 服务器内部错误（未预期的运行时异常）
 
 
+class HTTPStatus(IntEnum):
+    """兼容旧测试导出的HTTP状态码枚举。"""
+
+    OK = 200
+    CREATED = 201
+    BAD_REQUEST = 400
+    UNAUTHORIZED = 401
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+
+
 # ==================== 常用默认值 ====================
 # 以下常量为各枚举的默认值，用于创建新记录时设置初始状态
 # 集中定义避免在业务代码中硬编码枚举值
@@ -535,3 +546,48 @@ class Environment(str, Enum):
     DEV = "dev"    # 开发环境：本地开发调试，宽松安全策略
     TEST = "test"  # 测试环境：CI/CD和自动化测试，适度安全策略
     PROD = "prod"  # 生产环境：线上服务，严格安全策略
+
+
+# ==================== 元素识别相关常量 ====================
+
+LOGIN_KEYWORDS: List[str] = ["登录", "用户名", "密码", "验证码", "login", "username", "password"]
+"""登录页面关键词列表，用于识别登录相关操作并生成针对性提示词。
+
+使用场景：
+    - 视觉识别器判断当前操作是否属于登录场景
+    - 智能定位策略为登录页面生成更精确的元素定位提示
+    - 元素定位服务构建识别提示词时检测登录关键词
+
+关联关系：
+    - element_locator_service._build_recognition_prompt 引用此常量
+    - recognizers/vision_recognizer._build_recognition_prompt 引用此常量
+    - element_locator/smart_locate_mixin._build_recognition_prompt 引用此常量
+"""
+
+AUTH_FAILURE_KEYWORDS: Tuple[str, ...] = (
+    "unauthorized", "forbidden", "permission", "认证失败", "无权限", "权限", "登录",
+    "invalid", "incorrect", "expired", "token"
+)
+"""认证失败关键词元组，用于检测JSON响应中是否包含认证失败的典型标识。
+
+使用场景：
+    - link_fetcher_service._detect_auth_failure_in_json 引用此常量
+    - link_fetcher_content_mixin._detect_auth_failure_in_json 引用此常量
+"""
+
+
+class TestTaskStatus(str, Enum):
+    """兼容旧测试导出的任务状态枚举。"""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class TestCaseStatus(str, Enum):
+    """兼容旧测试导出的用例启用状态枚举。"""
+
+    DRAFT = "draft"
+    ENABLED = "enabled"
+    DISABLED = "disabled"

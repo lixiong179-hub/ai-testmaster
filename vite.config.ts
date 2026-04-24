@@ -7,8 +7,8 @@ export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
-    }
+      '@': path.resolve(__dirname, './src'),
+    },
   },
   server: {
     port: 3000,
@@ -21,9 +21,9 @@ export default defineConfig({
           proxy.on('error', (err, req, res) => {
             // 代理错误处理
           })
-        }
-      }
-    }
+        },
+      },
+    },
   },
   build: {
     target: 'es2015',
@@ -31,17 +31,17 @@ export default defineConfig({
     terserOptions: {
       compress: {
         drop_console: true,
-        drop_debugger: true
-      }
+        drop_debugger: true,
+      },
     },
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['vue', 'vue-router', 'pinia'],
           element: ['element-plus'],
-          echarts: ['echarts']
-        }
-      }
-    }
-  }
+          echarts: ['echarts'],
+        },
+      },
+    },
+  },
 })

@@ -196,7 +196,7 @@ class TaskExecutionMixin:
             return {"status": result.status, "result_id": result.id}
         except Exception as e:
             logger.error(f"执行用例异常 {case.id}: {e}")
-            return {"status": "failed", "error": str(e)}
+            return {"status": "failed", "error": "执行失败"}
 
     async def _run_case_by_mode(
         self, case: TestCase, mode: str, db: Session
@@ -222,16 +222,23 @@ class TaskExecutionMixin:
                 try:
                     from app.services.test_execution_engine import TestExecutionEngineV2
                     engine = TestExecutionEngineV2(db=db)
-                    return await engine.execute_test_task(case.id, execution_mode="smart")
+                    result = await engine.execute_test_case(
+                        test_case=case,
+                        project_id=case.project_id,
+                        execution_mode="smart"
+                    )
+                    status = "passed" if result.status.value == "passed" else "failed"
+                    return {"status": status, "duration": result.duration_ms}
                 except Exception as e:
                     return {"status": "failed", "error_message": f"Web执行器加载失败: {e}"}
             elif mode == "mobile":
                 # 移动端执行器尚未配置
-                return {"status": "failed", "error_message": "移动端执行器未配置"}
+                raise NotImplementedError("移动端执行器尚未实现")
             elif mode == "api":
                 # API执行器尚未实现
-                return {"status": "failed", "error_message": "API执行器尚未实现"}
+                raise NotImplementedError("API执行器尚未实现")
             else:
                 return {"status": "failed", "error_message": f"不支持的执行模式: {mode}"}
         except Exception as e:
-            return {"status": "failed", "error_message": str(e)}
+            logger.error(f"执行模式分发异常: {e}")
+            return {"status": "failed", "error_message": "执行失败"}

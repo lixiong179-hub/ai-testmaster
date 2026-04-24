@@ -133,7 +133,7 @@ async def create_test_data(
         logger.error(f"创建测试数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"创建失败: {str(e)}"
+            detail="创建失败"
         )
 
 
@@ -223,7 +223,7 @@ async def generate_step_data(
         logger.error(f"生成步骤数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"生成失败: {str(e)}"
+            detail="生成失败"
         )
 
 
@@ -247,5 +247,5 @@ async def auto_generate_test_data(
         logger.error(f"自动生成测试数据失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"生成失败: {str(e)}"
+            detail="生成失败"
         )

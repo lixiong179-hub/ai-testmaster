@@ -111,7 +111,8 @@ async def batch_save_test_points(
         saved_test_points = batch_create_test_points(
             db=db,
             project_id=project_id,
-            test_points_data=valid_points
+            test_points_data=valid_points,
+            created_by=current_user.username,
         )
         logger.info(f"批量保存测试点成功: {len(saved_test_points)}/{len(valid_points)} 个 (用户: {current_user.username})")
         return {
@@ -139,7 +140,7 @@ async def batch_save_test_points(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"保存失败: {str(e)}"
+            detail="保存失败"
         )
 
 
@@ -179,12 +180,15 @@ async def update_test_point(
             "data": TestPointResponse(
                 id=test_point.id,
                 project_id=test_point.project_id,
+                requirement_id=test_point.requirement_id,
                 module=test_point.module,
                 function=test_point.function,
                 point=test_point.point,
                 priority=test_point.priority,
                 ai_prompt=test_point.ai_prompt,
-                create_time=test_point.create_time
+                create_time=test_point.create_time,
+                created_by=test_point.created_by,
+                test_case_count=0,
             )
         }
     except HTTPException:

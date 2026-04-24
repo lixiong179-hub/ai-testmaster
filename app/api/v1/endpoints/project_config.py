@@ -22,12 +22,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.schemas.project import TestObjectInfoUpdate
+from app.schemas.project import TestObjectInfoUpdate, ProjectConfigUpdate
 from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.utils.crypto import encrypt_password, mask_password
 from app.core.exception import create_response
+from loguru import logger
 import json
 
 router = APIRouter()
@@ -117,13 +118,14 @@ async def get_project_config(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取项目配置失败: {str(e)}")
+        logger.error(f"获取项目配置失败: {e}")
+        raise HTTPException(status_code=500, detail="获取项目配置失败")
 
 
 @router.put("/{project_id}/config", response_model=dict)
 async def update_project_config(
     project_id: int,
-    config_data: dict,
+    config_data: ProjectConfigUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -136,7 +138,7 @@ async def update_project_config(
     路径参数:
         - project_id: 项目ID
 
-    请求参数(dict):
+    请求参数(ProjectConfigUpdate):
         - project_type: 项目类型（可选）
         - web_env_configs: Web环境配置（可选）
         - device_config: 设备配置（可选）
@@ -153,13 +155,11 @@ async def update_project_config(
         ).first()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
-        if 'project_type' in config_data:
-            project.project_type = config_data['project_type']
-        # 处理Web环境配置更新，密码字段加密
-        if 'web_env_configs' in config_data:
-            web_configs_input = config_data['web_env_configs']
+        if config_data.project_type is not None:
+            project.project_type = config_data.project_type
+        if config_data.web_env_configs is not None:
+            web_configs_input = config_data.web_env_configs.model_dump(exclude_none=True)
             if web_configs_input:
-                # 合并已有配置，保留未更新的环境
                 existing_configs = {}
                 if project.web_env_configs:
                     try:
@@ -168,18 +168,16 @@ async def update_project_config(
                         pass
                 for env_name in ['test', 'staging', 'prod']:
                     if env_name in web_configs_input and web_configs_input[env_name]:
-                        env_data = web_configs_input[env_name].copy()
-                        password = env_data.get('password')
-                        # 仅加密非已加密的密码（gAAAAA为Fernet加密后的前缀）
+                        env_data = web_configs_input[env_name].copy() if isinstance(web_configs_input[env_name], dict) else web_configs_input[env_name]
+                        password = env_data.get('password') if isinstance(env_data, dict) else None
                         if password and not password.startswith('gAAAAA'):
                             env_data['password'] = encrypt_password(password)
                         existing_configs[env_name] = env_data
                 project.web_env_configs = json.dumps(existing_configs)
             else:
                 project.web_env_configs = None
-        # 处理设备配置更新
-        if 'device_config' in config_data:
-            device_config = config_data['device_config']
+        if config_data.device_config is not None:
+            device_config = config_data.device_config.model_dump(exclude_none=True)
             if device_config:
                 project.device_config = json.dumps(device_config)
             else:
@@ -198,7 +196,8 @@ async def update_project_config(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"更新项目配置失败: {str(e)}")
+        logger.error(f"更新项目配置失败: {e}")
+        raise HTTPException(status_code=500, detail="更新项目配置失败，请检查参数")
 
 
 @router.get("/{project_id}/test-object", response_model=dict)
@@ -259,7 +258,8 @@ async def get_test_object(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取被测对象失败: {str(e)}")
+        logger.error(f"获取被测对象失败: {e}")
+        raise HTTPException(status_code=500, detail="获取被测对象失败")
 
 
 @router.put("/{project_id}/test-object", response_model=dict)
@@ -340,4 +340,5 @@ async def update_test_object(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"更新被测对象失败: {str(e)}")
+        logger.error(f"更新被测对象失败: {e}")
+        raise HTTPException(status_code=500, detail="更新被测对象失败")

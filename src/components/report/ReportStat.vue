@@ -6,7 +6,7 @@
           <span>测试统计</span>
         </div>
       </template>
-      
+
       <div class="stats-container">
         <!-- 统计卡片 -->
         <el-row :gutter="20" class="mb-4">
@@ -43,7 +43,7 @@
             </el-card>
           </el-col>
         </el-row>
-        
+
         <!-- 图表区域 -->
         <el-row :gutter="20">
           <el-col :span="12">
@@ -81,7 +81,7 @@ let lineChartInstance: echarts.ECharts | null = null
 // 初始化饼图
 const initPieChart = () => {
   if (!pieChart.value) return
-  
+
   pieChartInstance = echarts.init(pieChart.value)
   updatePieChart()
 }
@@ -89,15 +89,15 @@ const initPieChart = () => {
 // 更新饼图
 const updatePieChart = () => {
   if (!pieChartInstance || !props.report) return
-  
+
   const option = {
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b}: {c} ({d}%)'
+      formatter: '{a} <br/>{b}: {c} ({d}%)',
     },
     legend: {
       orient: 'vertical',
-      left: 'left'
+      left: 'left',
     },
     series: [
       {
@@ -107,26 +107,30 @@ const updatePieChart = () => {
         data: [
           { value: props.report.passed_cases, name: '通过', itemStyle: { color: '#67c23a' } },
           { value: props.report.failed_cases, name: '失败', itemStyle: { color: '#f56c6c' } },
-          { value: props.report.total_cases - props.report.passed_cases - props.report.failed_cases, name: '其他', itemStyle: { color: '#909399' } }
+          {
+            value: props.report.total_cases - props.report.passed_cases - props.report.failed_cases,
+            name: '其他',
+            itemStyle: { color: '#909399' },
+          },
         ],
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
             shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
-          }
-        }
-      }
-    ]
+            shadowColor: 'rgba(0, 0, 0, 0.5)',
+          },
+        },
+      },
+    ],
   }
-  
+
   pieChartInstance.setOption(option)
 }
 
 // 初始化折线图
 const initLineChart = () => {
   if (!lineChart.value) return
-  
+
   lineChartInstance = echarts.init(lineChart.value)
   updateLineChart()
 }
@@ -134,66 +138,70 @@ const initLineChart = () => {
 // 更新折线图
 const updateLineChart = () => {
   if (!lineChartInstance || !props.report) return
-  
+
   // 模拟通过率趋势数据
   const mockData = [
     { name: '第1轮', value: 75 },
     { name: '第2轮', value: 80 },
     { name: '第3轮', value: 85 },
     { name: '第4轮', value: 90 },
-    { name: '第5轮', value: props.report.pass_rate }
+    { name: '第5轮', value: props.report.pass_rate },
   ]
-  
+
   const option = {
     tooltip: {
-      trigger: 'axis'
+      trigger: 'axis',
     },
     xAxis: {
       type: 'category',
-      data: mockData.map(item => item.name)
+      data: mockData.map((item) => item.name),
     },
     yAxis: {
       type: 'value',
       min: 0,
       max: 100,
       axisLabel: {
-        formatter: '{value}%'
-      }
+        formatter: '{value}%',
+      },
     },
     series: [
       {
-        data: mockData.map(item => item.value),
+        data: mockData.map((item) => item.value),
         type: 'line',
         smooth: true,
         itemStyle: {
-          color: '#409eff'
+          color: '#409eff',
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             {
               offset: 0,
-              color: 'rgba(64, 158, 255, 0.5)'
+              color: 'rgba(64, 158, 255, 0.5)',
             },
             {
               offset: 1,
-              color: 'rgba(64, 158, 255, 0.1)'
-            }
-          ])
-        }
-      }
-    ]
+              color: 'rgba(64, 158, 255, 0.1)',
+            },
+          ]),
+        },
+      },
+    ],
   }
-  
+
   lineChartInstance.setOption(option)
 }
 
 // 监听报告数据变化
-watch(() => props.report, () => {
-  nextTick(() => {
-    updatePieChart()
-    updateLineChart()
-  })
-}, { deep: true })
+watch(
+  () => props.report,
+  () => {
+    nextTick(() => {
+      updatePieChart()
+      updateLineChart()
+    })
+  },
+  { deep: true }
+)
 
 // 监听窗口大小变化
 const handleResize = () => {

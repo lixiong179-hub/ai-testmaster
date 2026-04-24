@@ -90,7 +90,9 @@ export const getBatchRecordReport = (caseId: number): Promise<BatchRecordReport>
 /**
  * 取消批量记录任务
  */
-export const cancelBatchRecord = (caseId: number): Promise<{ success: boolean; message: string }> => {
+export const cancelBatchRecord = (
+  caseId: number
+): Promise<{ success: boolean; message: string }> => {
   return request.post(`/batch-locator/cases/${caseId}/batch-record-cancel`)
 }
 
@@ -109,7 +111,7 @@ export const batchLocatorApi = {
   getBatchRecordStatus,
   getBatchRecordReport,
   cancelBatchRecord,
-  listBatchTasks
+  listBatchTasks,
 }
 
 export default batchLocatorApi

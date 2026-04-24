@@ -46,8 +46,11 @@ async def parse_ui_screens(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    logger.info(f"[parse_ui_screens] 收到请求! parse_request: {parse_request}")
+    logger.info(f"current_user: {current_user.username}, id: {current_user.id}")
     try:
         if not parse_request.screen_ids:
+            logger.warning("parse_request.screen_ids 为空!")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="请选择要解析的屏幕",
@@ -55,14 +58,17 @@ async def parse_ui_screens(
 
         screen = None
         if parse_request.screen_ids:
+            logger.info(f"查询屏幕 id: {parse_request.screen_ids[0]}")
             screen = ui_prototype_crud.get_ui_screen_by_id(
                 db, parse_request.screen_ids[0]
             )
             if not screen:
+                logger.error(f"屏幕 {parse_request.screen_ids[0]} 不存在!")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"屏幕 {parse_request.screen_ids[0]} 不存在",
                 )
+            logger.info(f"找到屏幕: id={screen.id}, project_id={screen.project_id}, original_file_path={screen.original_file_path}")
             project = (
                 db.query(Project)
                 .filter(
@@ -73,10 +79,12 @@ async def parse_ui_screens(
             )
 
             if not project:
+                logger.error(f"无权限操作项目! project_id={screen.project_id}")
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="无权限操作此项目",
                 )
+            logger.info(f"权限校验通过!")
 
         if not screen:
             raise HTTPException(
@@ -84,24 +92,31 @@ async def parse_ui_screens(
                 detail="请提供有效的屏幕ID",
             )
 
+        logger.info(f"创建 UISpecParsePipeline...")
         pipeline = UISpecParsePipeline(
             db, screen.project_id, current_user.id, UPLOAD_DIR, parse_mode=parse_request.parse_mode
         )
+        logger.info(f"调用 pipeline.batch_parse_screens, screen_ids: {parse_request.screen_ids}")
         result = await pipeline.batch_parse_screens(parse_request.screen_ids)
+        logger.info(f"batch_parse_screens 完成! result: {result}")
 
         if parse_request.prototype_project_id:
             ui_prototype_crud.update_prototype_project_stats(
                 db, parse_request.prototype_project_id
             )
 
+        logger.info(f"返回响应!")
         return create_response(
             data=result,
             msg=f"解析完成，成功{result['success']}个，失败{result['failed']}个"
         )
-    except HTTPException:
+    except HTTPException as e:
+        logger.warning(f"HTTPException 抛出: status_code={e.status_code}, detail={e.detail}")
         raise
     except Exception as e:
         logger.error(f"解析UI屏幕失败: {e}")
+        import traceback
+        logger.error(f"堆栈: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="解析UI屏幕失败，请稍后重试"

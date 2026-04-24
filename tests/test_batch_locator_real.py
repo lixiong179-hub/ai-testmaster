@@ -27,6 +27,8 @@ from app.api.v1.endpoints.batch_locator import (
     BatchRecordStatusResponse
 )
 
+pytestmark = [pytest.mark.integration, pytest.mark.real_browser]
+
 
 # ============================================================================
 # 测试数据类

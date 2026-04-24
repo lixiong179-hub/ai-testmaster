@@ -150,7 +150,7 @@ const projectApi = {
     page_size?: number
   }): Promise<ProjectListResponse> => {
     return projectApi.getProjects(params)
-  }
+  },
 }
 
 export default projectApi

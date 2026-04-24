@@ -32,6 +32,7 @@ from app.models.user import User
 from app.crud.file import get_project_files
 from app.utils.crypto import encrypt_password, mask_password
 from app.core.exception import create_response
+from loguru import logger
 import json
 
 router = APIRouter()
@@ -115,13 +116,14 @@ async def create_project(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"创建项目失败: {str(e)}")
+        logger.error(f"创建项目失败: {e}")
+        raise HTTPException(status_code=500, detail="创建项目失败")
 
 
 @router.get("/list", response_model=dict)
 async def get_projects(
     page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(10, ge=1, le=100, description="每页数量"),
+    page_size: int = Query(10, ge=1, le=1000, description="每页数量"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -132,7 +134,7 @@ async def get_projects(
 
     请求参数:
         - page: 页码（默认1）
-        - page_size: 每页数量（默认10，最大100）
+        - page_size: 每页数量（默认10，最大1000）
 
     响应格式:
         - items: 项目列表
@@ -159,7 +161,8 @@ async def get_projects(
             msg="获取成功"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取项目列表失败: {str(e)}")
+        logger.error(f"获取项目列表失败: {e}")
+        raise HTTPException(status_code=500, detail="获取项目列表失败")
 
 
 @router.get("/{project_id}", response_model=dict)
@@ -228,7 +231,8 @@ async def get_project(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取项目详情失败: {str(e)}")
+        logger.error(f"获取项目详情失败: {e}")
+        raise HTTPException(status_code=500, detail="获取项目详情失败")
 
 
 @router.delete("/{project_id}", response_model=dict)
@@ -264,4 +268,5 @@ async def delete_project(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"删除项目失败: {str(e)}")
+        logger.error(f"删除项目失败: {e}")
+        raise HTTPException(status_code=500, detail="删除项目失败")

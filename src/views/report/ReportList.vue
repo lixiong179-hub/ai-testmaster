@@ -6,7 +6,7 @@
           <span>测试报告列表</span>
         </div>
       </template>
-      
+
       <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="项目">
           <el-select v-model="searchForm.project_id" placeholder="请选择项目" style="width: 200px">
@@ -22,7 +22,7 @@
           <el-button type="primary" @click="getReports">查询</el-button>
         </el-form-item>
       </el-form>
-      
+
       <el-table :data="reports" style="width: 100%" border stripe>
         <el-table-column prop="id" label="报告ID" width="80" />
         <el-table-column prop="name" label="报告名称" min-width="200" />
@@ -30,16 +30,12 @@
         <el-table-column prop="passed_cases" label="通过数" width="100" />
         <el-table-column prop="failed_cases" label="失败数" width="100" />
         <el-table-column prop="pass_rate" label="通过率" width="100">
-          <template #default="scope">
-            {{ scope.row.pass_rate.toFixed(2) }}%
-          </template>
+          <template #default="scope"> {{ scope.row.pass_rate.toFixed(2) }}% </template>
         </el-table-column>
         <el-table-column prop="created_at" label="生成时间" width="180" />
         <el-table-column label="操作" width="250">
           <template #default="scope">
-            <el-button type="primary" size="small" @click="handleView(scope.row)">
-              查看
-            </el-button>
+            <el-button type="primary" size="small" @click="handleView(scope.row)"> 查看 </el-button>
             <el-dropdown trigger="click">
               <el-button type="success" size="small">
                 导出 <el-icon class="el-icon--right"><arrow-down /></el-icon>
@@ -57,7 +53,7 @@
           </template>
         </el-table-column>
       </el-table>
-      
+
       <div class="pagination" v-if="total > 0">
         <el-pagination
           v-model:current-page="page"
@@ -93,7 +89,7 @@ const projects = ref<Project[]>([])
 const page = ref(1)
 const pageSize = ref(10)
 const searchForm = ref({
-  project_id: '' as number | ''
+  project_id: '' as number | '',
 })
 
 // 计算属性
@@ -105,7 +101,7 @@ const getProjects = async () => {
   try {
     const response = await projectApi.getProjects({ page: 1, page_size: 100 })
     projects.value = response.data.items
-    
+
     // 如果URL中有project_id参数，设置为默认值
     const projectId = route.query.project_id
     if (projectId) {
@@ -123,7 +119,7 @@ const getReports = async () => {
     await reportStore.fetchReports({
       page: page.value,
       page_size: pageSize.value,
-      project_id: searchForm.value.project_id || undefined
+      project_id: searchForm.value.project_id || undefined,
     })
   } catch (error) {
     ElMessage.error('获取报告列表失败')
@@ -147,7 +143,10 @@ const handleView = (report: any) => {
     ElMessage.error('报告缺少项目ID，无法查看详情')
     return
   }
-  router.push({ path: `/home/report/detail`, query: { id: report.id, project_id: report.project_id } })
+  router.push({
+    path: `/home/report/detail`,
+    query: { id: report.id, project_id: report.project_id },
+  })
 }
 
 // 处理导出PDF（需要project_id）
@@ -202,15 +201,11 @@ const handleDelete = (report: any) => {
     ElMessage.error('报告缺少项目ID，无法删除')
     return
   }
-  ElMessageBox.confirm(
-    '确定要删除这个报告吗？',
-    '警告',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(async () => {
+  ElMessageBox.confirm('确定要删除这个报告吗？', '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(async () => {
     try {
       await reportStore.deleteReport(report.id, report.project_id)
       ElMessage.success('删除成功')

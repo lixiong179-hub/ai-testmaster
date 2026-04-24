@@ -16,7 +16,7 @@ export type {
   TestCaseGenerateRequest,
   TestCaseListResponse,
   TestCaseRetryRequest,
-  ImportResult
+  ImportResult,
 } from './case'
 
 // 测试任务 API
@@ -37,16 +37,12 @@ export type {
   DeviceInfo,
   DeviceConfig,
   ProjectConfig,
-  ProjectConfigResponse
+  ProjectConfigResponse,
 } from './project'
 
 // 报告 API
 export { default as reportApi, default as reportApiDefault } from './report'
-export type {
-  Report,
-  TestCaseResult,
-  ReportListResponse
-} from './report'
+export type { Report, TestCaseResult, ReportListResponse } from './report'
 
 // 需求链接 API (模块暂未实现，注释导出)
 // export { RequirementLinkAPI, default as requirementLinkApi } from './requirementLink'
@@ -80,7 +76,7 @@ export {
   seekTo,
   setReplaySpeed,
   getVisibilityConfig,
-  updateVisibilityConfig
+  updateVisibilityConfig,
 } from './testExecution'
 
 // 测试数据 API
@@ -91,7 +87,7 @@ export type {
   TestDataUpdateRequest,
   StepTestDataResponse,
   GenerateStepDataResponse,
-  AutoGenerateResponse
+  AutoGenerateResponse,
 } from './testData'
 export { DataType, GenerationRule, dataTypeOptions, generationRuleOptions } from './testData'
 
@@ -101,7 +97,7 @@ export type {
   TestPoint,
   TestPointAnalyzeRequest,
   TestPointListResponse,
-  AnalysisProgress
+  AnalysisProgress,
 } from './testPoint'
 
 // 用例质量 API
@@ -112,7 +108,7 @@ export {
   estimateCaseCost,
   optimizeCaseLocators,
   getProjectCostSummary,
-  batchAnalyzeCases
+  batchAnalyzeCases,
 } from './caseQuality'
 
 // 批量定位器 API
@@ -123,7 +119,7 @@ export {
   getBatchRecordStatus,
   getBatchRecordReport,
   cancelBatchRecord,
-  listBatchTasks
+  listBatchTasks,
 } from './batchLocator'
 export type {
   BatchRecordRequest,
@@ -131,7 +127,7 @@ export type {
   BatchRecordStatus,
   StepResult,
   BatchRecordReport,
-  BatchTask
+  BatchTask,
 } from './batchLocator'
 
 // 用例视图 API
@@ -141,7 +137,7 @@ export type {
   LocatorInfo,
   TechnicalStep,
   TechnicalView,
-  ViewStatistics
+  ViewStatistics,
 } from './testCaseView'
 
 // 文件 API
@@ -152,5 +148,5 @@ export type {
   FileListResponse,
   FileUploadResponse,
   UrlSubmitResponse,
-  FileDeleteResponse
+  FileDeleteResponse,
 } from './file'

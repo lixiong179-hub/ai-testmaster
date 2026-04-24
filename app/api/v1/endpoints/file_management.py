@@ -36,6 +36,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.schemas.file import FileUpdateRequest
 from app.api.v1.endpoints.file_upload import _file_to_dict
+from loguru import logger
 
 router = APIRouter()
 
@@ -83,8 +84,9 @@ async def get_all_files(
             },
         }
     except Exception as e:
+        logger.error(f"获取文件列表失败: {e}")
         raise HTTPException(
-            status_code=500, detail=f"获取文件列表失败: {str(e)}"
+            status_code=500, detail="获取文件列表失败"
         )
 
 
@@ -142,8 +144,9 @@ async def get_file_list(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"获取文件列表失败: {e}")
         raise HTTPException(
-            status_code=500, detail=f"获取文件列表失败: {str(e)}"
+            status_code=500, detail="获取文件列表失败"
         )
 
 
@@ -220,7 +223,8 @@ async def update_file(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"更新文件失败: {str(e)}")
+        logger.error(f"更新文件失败: {e}")
+        raise HTTPException(status_code=500, detail="更新文件失败")
 
 
 @router.delete("/{file_id}", response_model=dict)
@@ -265,4 +269,5 @@ async def delete_file(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"删除文件失败: {str(e)}")
+        logger.error(f"删除文件失败: {e}")
+        raise HTTPException(status_code=500, detail="删除文件失败")

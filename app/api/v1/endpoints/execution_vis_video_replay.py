@@ -35,6 +35,7 @@ from app.api.v1.endpoints.execution_vis_schemas import (
     ReplayControlRequest,
     ReplayStatusResponse
 )
+from loguru import logger
 
 router = APIRouter()
 
@@ -133,9 +134,10 @@ async def create_replay_session(
         )
         return ReplaySessionResponse(**session_info)
     except Exception as e:
+        logger.error(f"创建回放会话失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"创建回放会话失败: {str(e)}"
+            detail="创建回放会话失败"
         )
 
 

@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia'
-import { ProjectAPI, Project, ProjectCreateRequest, ProjectListResponse, ProjectDetailResponse } from '@/api/project'
+import {
+  ProjectAPI,
+  Project,
+  ProjectCreateRequest,
+  ProjectListResponse,
+  ProjectDetailResponse,
+} from '@/api/project'
 import { FileAPI, ProjectFile, UrlSubmitRequest } from '@/api/file'
 import { ElMessage } from 'element-plus'
 
@@ -16,13 +22,13 @@ export const useProjectStore = defineStore('project', {
     loading: false,
     currentPage: 1,
     pageSize: 10,
-    total: 0
+    total: 0,
   }),
 
   getters: {
     getProjectById: (state) => (id: number) => {
-      return state.projects.find(project => project.id === id)
-    }
+      return state.projects.find((project) => project.id === id)
+    },
   },
 
   actions: {
@@ -31,11 +37,11 @@ export const useProjectStore = defineStore('project', {
       try {
         console.log('开始获取项目列表，参数:', {
           page: this.currentPage,
-          page_size: this.pageSize
+          page_size: this.pageSize,
         })
         const response: ProjectListResponse = await ProjectAPI.getProjectList({
           page: this.currentPage,
-          page_size: this.pageSize
+          page_size: this.pageSize,
         })
         console.log('获取项目列表成功，响应:', response)
         this.projects = response?.data?.items || []
@@ -69,7 +75,7 @@ export const useProjectStore = defineStore('project', {
         const response: ProjectDetailResponse = await ProjectAPI.getProjectDetail(projectId)
         this.currentProject = response?.data || null
         const rawFiles = response?.data?.files || []
-        this.projectFiles = rawFiles.map(f => ({
+        this.projectFiles = rawFiles.map((f) => ({
           id: f.id,
           project_id: projectId,
           file_name: f.file_name,
@@ -77,7 +83,7 @@ export const useProjectStore = defineStore('project', {
           file_url: f.file_url,
           file_source: f.file_source,
           size: f.size,
-          upload_time: f.upload_time
+          upload_time: f.upload_time,
         }))
       } catch (error: unknown) {
         ElMessage.error(getErrorMessage(error, '获取项目详情失败'))
@@ -146,6 +152,6 @@ export const useProjectStore = defineStore('project', {
       this.currentPage = 1
       this.pageSize = 10
       this.total = 0
-    }
-  }
+    },
+  },
 })

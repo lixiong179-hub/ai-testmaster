@@ -16,27 +16,27 @@
           description="系统将自动遍历测试用例的所有步骤，AI识别每个步骤的目标元素并记录定位信息。"
           show-icon
           :closable="false"
-          style="margin-bottom: 20px;"
+          style="margin-bottom: 20px"
         />
-        
+
         <el-form :model="config" label-width="150px">
           <el-form-item label="跳过已有定位">
             <el-switch v-model="config.skip_existing" />
             <span class="form-tip">开启后，已记录定位的步骤将自动跳过</span>
           </el-form-item>
-          
+
           <el-form-item label="执行前置操作">
             <el-switch v-model="config.execute_precondition" />
             <span class="form-tip">开启后，系统将自动启动浏览器并登录</span>
           </el-form-item>
           <el-form-item label="MCP定位引擎">
             <el-switch v-model="config.use_mcp" active-text="MCP" inactive-text="VLM" />
-            <div class="form-tip" style="margin-top: 4px; font-size: 12px; color: #909399;">
+            <div class="form-tip" style="margin-top: 4px; font-size: 12px; color: #909399">
               启用Playwright MCP定位引擎，支持role/text/css等多种定位策略
             </div>
           </el-form-item>
         </el-form>
-        
+
         <div class="config-actions">
           <el-button @click="visible = false">取消</el-button>
           <el-button type="primary" @click="startBatchRecord" :loading="starting">
@@ -44,21 +44,21 @@
           </el-button>
         </div>
       </div>
-      
+
       <!-- 执行进度 -->
       <div v-else-if="isRunning" class="task-progress">
         <div class="progress-header">
           <el-icon class="loading-icon"><Loading /></el-icon>
           <span class="status-text">正在批量补充元素定位...</span>
         </div>
-        
-        <el-progress 
-          :percentage="progress" 
+
+        <el-progress
+          :percentage="progress"
           :stroke-width="20"
           :status="progressStatus"
           class="main-progress"
         />
-        
+
         <div class="progress-stats">
           <div class="stat-item">
             <span class="stat-label">总步骤：</span>
@@ -77,28 +77,32 @@
             <span class="stat-value error">{{ failedCount }}</span>
           </div>
         </div>
-        
+
         <div class="current-step" v-if="currentStepInfo">
           <span class="step-label">当前步骤：</span>
           <span class="step-action">{{ currentStepInfo }}</span>
         </div>
-        
+
         <div class="progress-actions">
           <el-button type="danger" @click="cancelBatchRecord" :loading="cancelling">
             取消任务
           </el-button>
         </div>
       </div>
-      
+
       <!-- 完成报告 -->
       <div v-else-if="report" class="task-report">
         <div class="report-header" :class="report.status">
-          <el-icon v-if="report.status === 'completed'" class="status-icon success"><CircleCheck /></el-icon>
-          <el-icon v-else-if="report.status === 'failed'" class="status-icon error"><CircleClose /></el-icon>
+          <el-icon v-if="report.status === 'completed'" class="status-icon success"
+            ><CircleCheck
+          /></el-icon>
+          <el-icon v-else-if="report.status === 'failed'" class="status-icon error"
+            ><CircleClose
+          /></el-icon>
           <el-icon v-else class="status-icon warning"><Warning /></el-icon>
           <span class="status-text">{{ reportStatusText }}</span>
         </div>
-        
+
         <div class="report-stats">
           <div class="stat-row">
             <span class="stat-label">总步骤数：</span>
@@ -121,13 +125,13 @@
             <span class="stat-value">{{ formatDuration(report.duration) }}</span>
           </div>
         </div>
-        
+
         <!-- 步骤详情 -->
         <div class="step-details" v-if="report.step_results && report.step_results.length > 0">
           <h4>步骤详情</h4>
           <el-collapse>
-            <el-collapse-item 
-              v-for="step in report.step_results" 
+            <el-collapse-item
+              v-for="step in report.step_results"
               :key="step.step_id"
               :title="`步骤 ${step.step_number}: ${step.action}`"
             >
@@ -164,7 +168,7 @@
             </el-collapse-item>
           </el-collapse>
         </div>
-        
+
         <div class="report-actions">
           <el-button @click="visible = false">关闭</el-button>
           <el-button type="primary" @click="resetAndRestart">重新执行</el-button>
@@ -189,19 +193,19 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  'success': []
+  success: []
 }>()
 
 const visible = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: (value) => emit('update:modelValue', value),
 })
 
 // 任务配置
 const config = ref({
   skip_existing: true,
   execute_precondition: true,
-  use_mcp: true
+  use_mcp: true,
 })
 
 // 任务状态
@@ -229,9 +233,9 @@ const progressStatus = computed(() => {
 const reportStatusText = computed(() => {
   if (!report.value) return ''
   const statusMap: Record<string, string> = {
-    'completed': '批量补充完成',
-    'failed': '批量补充失败',
-    'cancelled': '任务已取消'
+    completed: '批量补充完成',
+    failed: '批量补充失败',
+    cancelled: '任务已取消',
   }
   return statusMap[report.value.status] || '未知状态'
 })
@@ -258,14 +262,14 @@ const resetState = () => {
 }
 
 // 开始批量记录
-const batchRecordCleanup = ref<(() => void) | null>(null);
+const batchRecordCleanup = ref<(() => void) | null>(null)
 
 const startBatchRecord = async () => {
   starting.value = true
 
   if (batchRecordCleanup.value) {
-    batchRecordCleanup.value();
-    batchRecordCleanup.value = null;
+    batchRecordCleanup.value()
+    batchRecordCleanup.value = null
   }
 
   try {
@@ -277,7 +281,7 @@ const startBatchRecord = async () => {
       ElMessage.success('批量补充任务已启动')
 
       // 连接WebSocket
-      disconnect();
+      disconnect()
       connect(`batch_${props.caseId}`)
 
       // 监听WebSocket消息
@@ -309,7 +313,7 @@ const handleProgressUpdate = (data: any) => {
     completedSteps.value++
     progress.value = Math.round(data.progress || 0)
     currentStepInfo.value = `步骤 ${data.step_number}: ${data.message}`
-    
+
     if (data.success) {
       successCount.value++
     } else {
@@ -341,11 +345,15 @@ const startStatusPolling = () => {
       stopStatusPolling()
       return
     }
-    
+
     try {
       const status = await batchLocatorApi.getBatchRecordStatus(props.caseId)
-      
-      if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
+
+      if (
+        status.status === 'completed' ||
+        status.status === 'failed' ||
+        status.status === 'cancelled'
+      ) {
         stopStatusPolling()
         loadReport()
       }
@@ -369,7 +377,7 @@ const loadReport = async () => {
     report.value = reportData
     isRunning.value = false
     progress.value = 100
-    
+
     if (reportData.status === 'completed') {
       emit('success')
     }
@@ -384,13 +392,13 @@ const cancelBatchRecord = async () => {
     await ElMessageBox.confirm('确定要取消批量补充任务吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning'
+      type: 'warning',
     })
-    
+
     cancelling.value = true
-    
+
     const response = await batchLocatorApi.cancelBatchRecord(props.caseId)
-    
+
     if (response.success) {
       ElMessage.success('任务已取消')
       stopStatusPolling()
@@ -433,8 +441,8 @@ const formatDuration = (seconds: number): string => {
 // 组件卸载时清理
 onUnmounted(() => {
   if (batchRecordCleanup.value) {
-    batchRecordCleanup.value();
-    batchRecordCleanup.value = null;
+    batchRecordCleanup.value()
+    batchRecordCleanup.value = null
   }
   stopStatusPolling()
   disconnect()
@@ -452,7 +460,7 @@ onUnmounted(() => {
     color: #909399;
     font-size: 12px;
   }
-  
+
   .config-actions {
     margin-top: 30px;
     text-align: right;
@@ -465,72 +473,72 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     margin-bottom: 30px;
-    
+
     .loading-icon {
       font-size: 24px;
       color: #409eff;
       margin-right: 10px;
       animation: rotating 2s linear infinite;
     }
-    
+
     .status-text {
       font-size: 16px;
       color: #303133;
     }
   }
-  
+
   .main-progress {
     margin-bottom: 30px;
   }
-  
+
   .progress-stats {
     display: flex;
     justify-content: space-around;
     margin-bottom: 20px;
-    
+
     .stat-item {
       text-align: center;
-      
+
       .stat-label {
         color: #909399;
         font-size: 14px;
       }
-      
+
       .stat-value {
         display: block;
         font-size: 24px;
         font-weight: bold;
         color: #303133;
         margin-top: 5px;
-        
+
         &.success {
           color: #67c23a;
         }
-        
+
         &.error {
           color: #f56c6c;
         }
       }
     }
   }
-  
+
   .current-step {
     text-align: center;
     margin-bottom: 20px;
     padding: 15px;
     background: #f5f7fa;
     border-radius: 4px;
-    
+
     .step-label {
       color: #909399;
     }
-    
+
     .step-action {
       color: #409eff;
       font-weight: 500;
     }
   }
-  
+
   .progress-actions {
     text-align: center;
   }
@@ -544,107 +552,107 @@ onUnmounted(() => {
     margin-bottom: 30px;
     padding: 20px;
     border-radius: 8px;
-    
+
     &.completed {
       background: #f0f9eb;
     }
-    
+
     &.failed {
       background: #fef0f0;
     }
-    
+
     &.cancelled {
       background: #fdf6ec;
     }
-    
+
     .status-icon {
       font-size: 32px;
       margin-right: 10px;
-      
+
       &.success {
         color: #67c23a;
       }
-      
+
       &.error {
         color: #f56c6c;
       }
-      
+
       &.warning {
         color: #e6a23c;
       }
     }
-    
+
     .status-text {
       font-size: 18px;
       font-weight: 500;
     }
   }
-  
+
   .report-stats {
     background: #f5f7fa;
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
-    
+
     .stat-row {
       display: flex;
       justify-content: space-between;
       margin-bottom: 10px;
-      
+
       &:last-child {
         margin-bottom: 0;
       }
-      
+
       .stat-label {
         color: #606266;
       }
-      
+
       .stat-value {
         font-weight: 500;
         color: #303133;
-        
+
         &.success {
           color: #67c23a;
         }
-        
+
         &.error {
           color: #f56c6c;
         }
-        
+
         &.info {
           color: #909399;
         }
       }
     }
   }
-  
+
   .step-details {
     margin-bottom: 20px;
-    
+
     h4 {
       margin-bottom: 15px;
       color: #303133;
     }
-    
+
     .step-detail-content {
       padding: 10px;
-      
+
       .detail-row {
         margin-bottom: 8px;
-        
+
         .detail-label {
           color: #909399;
           display: inline-block;
           width: 100px;
         }
-        
+
         .detail-value {
           color: #606266;
         }
       }
     }
   }
-  
+
   .report-actions {
     text-align: right;
   }

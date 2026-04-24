@@ -275,4 +275,5 @@ async def batch_upload_files(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"批量上传失败: {str(e)}")
+        logger.error(f"批量上传失败: {e}")
+        raise HTTPException(status_code=500, detail="批量上传失败")

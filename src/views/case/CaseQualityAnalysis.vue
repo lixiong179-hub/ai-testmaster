@@ -34,22 +34,34 @@
           <div class="score-details">
             <div class="score-item">
               <div class="score-item-label">复杂度</div>
-              <el-progress :percentage="qualityReport.complexity.total_score" :color="getScoreColor(qualityReport.complexity.total_score)" />
+              <el-progress
+                :percentage="qualityReport.complexity.total_score"
+                :color="getScoreColor(qualityReport.complexity.total_score)"
+              />
               <div class="score-item-value">{{ qualityReport.complexity.total_score }}分</div>
             </div>
             <div class="score-item">
               <div class="score-item-label">冗余度</div>
-              <el-progress :percentage="qualityReport.redundancy.total_score" :color="getScoreColor(qualityReport.redundancy.total_score)" />
+              <el-progress
+                :percentage="qualityReport.redundancy.total_score"
+                :color="getScoreColor(qualityReport.redundancy.total_score)"
+              />
               <div class="score-item-value">{{ qualityReport.redundancy.total_score }}分</div>
             </div>
             <div class="score-item">
               <div class="score-item-label">覆盖率</div>
-              <el-progress :percentage="qualityReport.coverage.total_score" :color="getScoreColor(qualityReport.coverage.total_score)" />
+              <el-progress
+                :percentage="qualityReport.coverage.total_score"
+                :color="getScoreColor(qualityReport.coverage.total_score)"
+              />
               <div class="score-item-value">{{ qualityReport.coverage.total_score }}分</div>
             </div>
             <div class="score-item">
               <div class="score-item-label">成本效率</div>
-              <el-progress :percentage="getCostScore(qualityReport.cost)" :color="getScoreColor(getCostScore(qualityReport.cost))" />
+              <el-progress
+                :percentage="getCostScore(qualityReport.cost)"
+                :color="getScoreColor(getCostScore(qualityReport.cost))"
+              />
               <div class="score-item-value">{{ getCostScore(qualityReport.cost) }}分</div>
             </div>
           </div>
@@ -75,7 +87,13 @@
               <div class="metric-item">
                 <div class="metric-label">步骤数量评分</div>
                 <el-progress :percentage="qualityReport.complexity.step_count_score" />
-                <div class="metric-desc">{{ qualityReport.complexity.step_count_score >= 20 ? '步骤数量适中' : '步骤数量过多，建议拆分' }}</div>
+                <div class="metric-desc">
+                  {{
+                    qualityReport.complexity.step_count_score >= 20
+                      ? '步骤数量适中'
+                      : '步骤数量过多，建议拆分'
+                  }}
+                </div>
               </div>
               <div class="metric-item">
                 <div class="metric-label">操作类型多样性</div>
@@ -97,7 +115,10 @@
             <template #header>
               <div class="card-header">
                 <span>冗余度分析</span>
-                <el-tag v-if="qualityReport.redundancy.redundant_step_indices.length > 0" type="warning">
+                <el-tag
+                  v-if="qualityReport.redundancy.redundant_step_indices.length > 0"
+                  type="warning"
+                >
                   发现{{ qualityReport.redundancy.redundant_step_indices.length }}个冗余步骤
                 </el-tag>
                 <el-tag v-else type="success">无冗余</el-tag>
@@ -116,7 +137,10 @@
                 <div class="metric-label">不必要步骤评分</div>
                 <el-progress :percentage="qualityReport.redundancy.unnecessary_steps_score" />
               </div>
-              <div v-if="qualityReport.redundancy.redundant_step_indices.length > 0" class="redundant-steps">
+              <div
+                v-if="qualityReport.redundancy.redundant_step_indices.length > 0"
+                class="redundant-steps"
+              >
                 <div class="redundant-title">冗余步骤索引:</div>
                 <el-tag
                   v-for="index in qualityReport.redundancy.redundant_step_indices"
@@ -147,15 +171,24 @@
                   <span>元素定位覆盖率</span>
                   <span class="coverage-value">{{ qualityReport.coverage.locator_coverage }}%</span>
                 </div>
-                <el-progress :percentage="qualityReport.coverage.locator_coverage" :color="getCoverageColor(qualityReport.coverage.locator_coverage)" />
+                <el-progress
+                  :percentage="qualityReport.coverage.locator_coverage"
+                  :color="getCoverageColor(qualityReport.coverage.locator_coverage)"
+                />
                 <div class="coverage-desc">
-                  {{ qualityReport.coverage.locator_coverage >= 80 ? '定位信息完整' : '建议补充元素定位，降低AI视觉成本' }}
+                  {{
+                    qualityReport.coverage.locator_coverage >= 80
+                      ? '定位信息完整'
+                      : '建议补充元素定位，降低AI视觉成本'
+                  }}
                 </div>
               </div>
               <div class="coverage-item">
                 <div class="coverage-header">
                   <span>执行历史覆盖率</span>
-                  <span class="coverage-value">{{ qualityReport.coverage.execution_coverage }}%</span>
+                  <span class="coverage-value"
+                    >{{ qualityReport.coverage.execution_coverage }}%</span
+                  >
                 </div>
                 <el-progress :percentage="qualityReport.coverage.execution_coverage" />
                 <div class="coverage-desc">执行次数越多，用例越稳定</div>
@@ -163,11 +196,20 @@
               <div class="coverage-item">
                 <div class="coverage-header">
                   <span>断言覆盖率</span>
-                  <span class="coverage-value">{{ qualityReport.coverage.assertion_coverage }}%</span>
+                  <span class="coverage-value"
+                    >{{ qualityReport.coverage.assertion_coverage }}%</span
+                  >
                 </div>
-                <el-progress :percentage="qualityReport.coverage.assertion_coverage" :color="getCoverageColor(qualityReport.coverage.assertion_coverage)" />
+                <el-progress
+                  :percentage="qualityReport.coverage.assertion_coverage"
+                  :color="getCoverageColor(qualityReport.coverage.assertion_coverage)"
+                />
                 <div class="coverage-desc">
-                  {{ qualityReport.coverage.assertion_coverage >= 30 ? '验证点充足' : '建议增加验证步骤' }}
+                  {{
+                    qualityReport.coverage.assertion_coverage >= 30
+                      ? '验证点充足'
+                      : '建议增加验证步骤'
+                  }}
                 </div>
               </div>
             </div>
@@ -194,21 +236,31 @@
                 </div>
                 <div class="cost-item highlight">
                   <div class="cost-label">潜在节省</div>
-                  <div class="cost-value savings">{{ qualityReport.cost.potential_savings }}单位</div>
+                  <div class="cost-value savings">
+                    {{ qualityReport.cost.potential_savings }}单位
+                  </div>
                 </div>
               </div>
-              <div class="cost-suggestions" v-if="qualityReport.cost.optimization_suggestions.length > 0">
+              <div
+                class="cost-suggestions"
+                v-if="qualityReport.cost.optimization_suggestions.length > 0"
+              >
                 <div class="suggestions-title">成本优化建议:</div>
                 <div
                   v-for="(suggestion, index) in qualityReport.cost.optimization_suggestions"
                   :key="index"
                   class="suggestion-item"
                 >
-                  <el-tag :type="suggestion.priority === 'high' ? 'danger' : 'warning'" size="small">
+                  <el-tag
+                    :type="suggestion.priority === 'high' ? 'danger' : 'warning'"
+                    size="small"
+                  >
                     {{ suggestion.type }}
                   </el-tag>
                   <span class="suggestion-desc">{{ suggestion.description }}</span>
-                  <span class="suggestion-savings">可节省{{ suggestion.potential_savings }}单位</span>
+                  <span class="suggestion-savings"
+                    >可节省{{ suggestion.potential_savings }}单位</span
+                  >
                 </div>
               </div>
             </div>
@@ -218,12 +270,11 @@
     </div>
 
     <!-- 优化建议对话框 -->
-    <el-dialog
-      v-model="showOptimizationDialog"
-      title="优化建议"
-      width="800px"
-    >
-      <div v-if="qualityReport && qualityReport.optimization_suggestions.length > 0" class="optimization-list">
+    <el-dialog v-model="showOptimizationDialog" title="优化建议" width="800px">
+      <div
+        v-if="qualityReport && qualityReport.optimization_suggestions.length > 0"
+        class="optimization-list"
+      >
         <div
           v-for="(suggestion, index) in qualityReport.optimization_suggestions"
           :key="index"
@@ -331,18 +382,18 @@ const getCostScore = (cost: any) => {
 
 const getComplexityTagType = (level: string) => {
   const typeMap: Record<string, any> = {
-    'low': 'success',
-    'medium': 'warning',
-    'high': 'danger'
+    low: 'success',
+    medium: 'warning',
+    high: 'danger',
   }
   return typeMap[level] || 'info'
 }
 
 const getComplexityText = (level: string) => {
   const textMap: Record<string, string> = {
-    'low': '低复杂度',
-    'medium': '中复杂度',
-    'high': '高复杂度'
+    low: '低复杂度',
+    medium: '中复杂度',
+    high: '高复杂度',
   }
   return textMap[level] || '未知'
 }
@@ -355,9 +406,9 @@ const getCoverageColor = (coverage: number) => {
 
 const getPriorityType = (priority: string) => {
   const typeMap: Record<string, any> = {
-    'high': 'danger',
-    'medium': 'warning',
-    'low': 'info'
+    high: 'danger',
+    medium: 'warning',
+    low: 'info',
   }
   return typeMap[priority] || 'info'
 }
@@ -424,19 +475,19 @@ onMounted(async () => {
             font-weight: bold;
 
             &.excellent {
-              color: #67C23A;
+              color: #67c23a;
             }
 
             &.good {
-              color: #E6A23C;
+              color: #e6a23c;
             }
 
             &.fair {
-              color: #409EFF;
+              color: #409eff;
             }
 
             &.poor {
-              color: #F56C6C;
+              color: #f56c6c;
             }
           }
         }

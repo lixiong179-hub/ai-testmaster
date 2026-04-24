@@ -18,7 +18,9 @@
     - 截图按步骤序号关联
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Body
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from typing import Optional
 from app.utils.db_time import utcnow
 from app.db.database import get_db
 from app.models.user import User
@@ -32,6 +34,16 @@ from app.core.exception import create_response
 from loguru import logger
 
 router = APIRouter()
+
+
+class SeekReplayRequest(BaseModel):
+    """回放跳转请求模型"""
+    timestamp: float = Field(0, description="跳转时间点（秒）")
+
+
+class SpeedReplayRequest(BaseModel):
+    """回放速度设置请求模型"""
+    speed: float = Field(1.0, description="播放速度倍率")
 
 
 @router.get("/replay/{execution_id}")
@@ -48,7 +60,7 @@ async def get_replay_session(
         return create_response(code=404, message="回放会话不存在")
     except Exception as e:
         logger.error(f"获取回放会话失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"获取回放会话失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取回放会话失败")
 
 
 @router.post("/replay/{execution_id}/start")
@@ -63,7 +75,7 @@ async def start_replay(
         return create_response(message="回放已开始")
     except Exception as e:
         logger.error(f"开始回放失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"开始回放失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="开始回放失败")
 
 
 @router.post("/replay/{execution_id}/pause")
@@ -78,7 +90,7 @@ async def pause_replay(
         return create_response(message="回放已暂停")
     except Exception as e:
         logger.error(f"暂停回放失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"暂停回放失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="暂停回放失败")
 
 
 @router.post("/replay/{execution_id}/resume")
@@ -93,7 +105,7 @@ async def resume_replay(
         return create_response(message="回放已恢复")
     except Exception as e:
         logger.error(f"恢复回放失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"恢复回放失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="恢复回放失败")
 
 
 @router.post("/replay/{execution_id}/stop")
@@ -108,41 +120,41 @@ async def stop_replay(
         return create_response(message="回放已停止")
     except Exception as e:
         logger.error(f"停止回放失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"停止回放失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="停止回放失败")
 
 
 @router.post("/replay/{execution_id}/seek")
 async def seek_replay(
     execution_id: str,
-    data: dict,
+    data: SeekReplayRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        timestamp = data.get("timestamp", 0)
+        timestamp = data.timestamp
         service = get_execution_replay_service()
         await service.seek_to(execution_id, timestamp)
         return create_response(message=f"已跳转到 {timestamp}s")
     except Exception as e:
         logger.error(f"跳转失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"跳转失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="跳转失败")
 
 
 @router.post("/replay/{execution_id}/speed")
 async def set_replay_speed(
     execution_id: str,
-    data: dict,
+    data: SpeedReplayRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        speed = data.get("speed", 1.0)
+        speed = data.speed
         service = get_execution_replay_service()
         await service.set_speed(execution_id, speed)
         return create_response(message=f"速度已设置为 {speed}x")
     except Exception as e:
         logger.error(f"设置速度失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"设置速度失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="设置速度失败")
 
 
 @router.post("/results/{result_id}/analyze-failure")
@@ -169,7 +181,7 @@ async def analyze_failure(
         raise
     except Exception as e:
         logger.error(f"分析失败原因异常: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"分析失败原因异常: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="分析失败原因异常")
 
 
 def _perform_failure_analysis(result: TestResult, test_case: TestCase, db: Session) -> dict:
@@ -301,4 +313,4 @@ async def create_quick_verify_task(
     except Exception as e:
         db.rollback()
         logger.error(f"创建快速验证任务失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"创建快速验证任务失败: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建快速验证任务失败")

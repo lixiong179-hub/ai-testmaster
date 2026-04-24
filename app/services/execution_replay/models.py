@@ -19,6 +19,24 @@ class ReplayEventType(str, Enum):
     ERROR = "error"
 
 
+class SessionStatus(str, Enum):
+    """兼容旧测试导出的回放会话状态枚举。"""
+
+    PENDING = "pending"
+    PLAYING = "playing"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+
+
+class ActionType(str, Enum):
+    """兼容旧测试导出的动作类型枚举。"""
+
+    CLICK = "click"
+    INPUT = "input"
+    SCROLL = "scroll"
+    NAVIGATE = "navigate"
+
+
 @dataclass
 class ReplayEvent:
     timestamp: float
