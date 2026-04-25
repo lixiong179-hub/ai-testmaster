@@ -64,7 +64,8 @@ async def get_all_files(
             query = query.filter(ProjectFile.resource_type == resource_type)
 
         if iteration_id is not None:
-            if iteration_id == -1:
+            if iteration_id <= 0:
+                # <=0 统一视为"未关联迭代"，查询 IS NULL
                 query = query.filter(ProjectFile.iteration_id.is_(None))
             else:
                 query = query.filter(ProjectFile.iteration_id == iteration_id)
@@ -122,7 +123,8 @@ async def get_file_list(
             query = query.filter(ProjectFile.resource_type == resource_type)
 
         if iteration_id is not None:
-            if iteration_id == -1:
+            if iteration_id <= 0:
+                # <=0 统一视为"未关联迭代"，查询 IS NULL
                 query = query.filter(ProjectFile.iteration_id.is_(None))
             else:
                 query = query.filter(ProjectFile.iteration_id == iteration_id)

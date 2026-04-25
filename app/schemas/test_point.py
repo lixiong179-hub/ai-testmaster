@@ -38,6 +38,23 @@ class TestPointExtractRequest(BaseModel):
     file_id: int = Field(..., description="项目文件 ID（必填）")  # 必填，指定从哪个文件提取测试点
 
 
+class TestPointExtractFromUiRequest(BaseModel):
+    """
+    从UI原型屏幕提取测试点请求模型
+
+    业务用途：基于已解析的UI原型屏幕，通过AI从ui_spec中提取测试点
+    对应API：POST /api/v1/test-point/extract-from-ui
+
+    三维提取策略：
+        - 页面维度：每个screen的页面功能、区域结构
+        - 可交互元素维度：按钮、输入框、链接等交互操作
+        - 流程边维度：页面间跳转、导航关系
+    """
+    project_id: int = Field(..., description="项目ID（必填）")  # 必填，项目隔离
+    ui_screen_ids: List[int] = Field(..., min_length=1, description="UI原型屏幕ID列表（至少1个）")  # 必填，指定从哪些屏幕提取
+    iteration_id: Optional[int] = Field(None, description="关联迭代ID（可选）")  # 可选，关联迭代
+
+
 class TestPointBase(BaseModel):
     """
     测试点基础模型

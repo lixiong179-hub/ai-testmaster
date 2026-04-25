@@ -14,6 +14,9 @@ import { uiPrototypeApi } from '@/api/uiPrototype'
  * - null: 显示项目下所有资源（"全部"）
  * - 0: 仅显示未分类的资源（iteration_id 为 NULL）
  * - 具体数字 (>0): 显示特定迭代下的资源
+ *
+ * 注意：前端内部使用 0 表示"未分类"选择状态，
+ * 发送到后端时通过 getIterationIdParam 转换为合适的参数值。
  */
 export type IterationSelection = null | 0 | number
 
@@ -176,7 +179,7 @@ export function useIterationManager() {
   /**
    * 将前端迭代筛选状态转换为后端API参数
    * - null → undefined（不传参数，后端返回全部）
-   * - 0 → -1（后端约定：-1 表示筛选"未分类"资源）
+   * - 0 → 0（后端约定：<=0 表示筛选"未分类"资源，即 iteration_id IS NULL）
    * - 具体数字 → 直接返回该迭代ID
    */
   const getIterationIdParam = (): number | undefined => {
@@ -184,7 +187,7 @@ export function useIterationManager() {
       return undefined // 不传参数，后端返回全部
     }
     if (selectedIterationId.value === 0) {
-      return -1 // 后端约定：-1 表示筛选"未分类"
+      return 0 // 后端约定：<=0 表示筛选"未分类"
     }
     return selectedIterationId.value // 返回具体的迭代ID
   }

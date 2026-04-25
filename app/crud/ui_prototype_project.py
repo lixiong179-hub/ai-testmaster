@@ -26,8 +26,9 @@ UI原型项目CRUD操作模块
     - 所有写操作均自动commit
 
 迭代过滤约定：
-    - iteration_id=-1 表示查询未关联迭代的记录（iteration_id IS NULL）
-    - 其他值按迭代ID精确匹配
+    - iteration_id=None（显式传入）：查询未关联迭代的记录（iteration_id IS NULL）
+    - iteration_id=正整数：按迭代ID精确匹配
+    - 不传 iteration_id：不过滤迭代
 """
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
@@ -88,7 +89,7 @@ def get_ui_prototype_projects_by_project(
     获取项目的UI原型项目列表（JOIN权限隔离+迭代过滤）
 
     通过JOIN Project表实现用户权限隔离，支持按迭代ID过滤。
-    支持特殊值iteration_id=-1查询未关联迭代的记录。
+    支持显式传入 iteration_id=None 查询未关联迭代的记录。
 
     Args:
         db: 数据库会话
@@ -96,7 +97,7 @@ def get_ui_prototype_projects_by_project(
         user_id: 用户ID，通过JOIN Project实现权限隔离
         skip: 跳过记录数
         limit: 返回记录上限
-        iteration_id: 迭代ID（可选），-1表示查询未关联迭代的记录
+        iteration_id: 迭代ID（可选），None表示查询未关联迭代的记录，正整数按迭代ID匹配
 
     Returns:
         List[UIPrototypeProject]: UI原型项目列表
@@ -109,9 +110,10 @@ def get_ui_prototype_projects_by_project(
             Project.user_id == user_id,
         )
     )
-    # 迭代过滤：-1表示未关联迭代的记录，其他值按迭代ID精确匹配
+    # 迭代过滤：None表示未关联迭代的记录，正整数按迭代ID精确匹配
     if iteration_id is not None:
-        if iteration_id == -1:
+        if iteration_id <= 0:
+            # 兼容旧调用：<=0 的值统一视为"未关联迭代"，查询 IS NULL
             query = query.filter(UIPrototypeProject.iteration_id.is_(None))
         else:
             query = query.filter(
@@ -149,7 +151,8 @@ def get_ui_prototype_projects_count(
         )
     )
     if iteration_id is not None:
-        if iteration_id == -1:
+        if iteration_id <= 0:
+            # 兼容旧调用：<=0 的值统一视为"未关联迭代"，查询 IS NULL
             query = query.filter(UIPrototypeProject.iteration_id.is_(None))
         else:
             query = query.filter(

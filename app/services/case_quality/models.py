@@ -54,6 +54,14 @@ class CoverageScore:
     score: float = 0.0
     level: str = "low"
 
+    # 多维覆盖率字段
+    requirement_coverage_rate: float = 0.0
+    ui_element_coverage_rate: float = 0.0
+    locator_coverage_rate: float = 0.0
+    requirement_details: Dict[str, Any] = field(default_factory=dict)
+    ui_element_details: Dict[str, Any] = field(default_factory=dict)
+    locator_details: Dict[str, Any] = field(default_factory=dict)
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "total_elements": self.total_elements,
@@ -62,6 +70,12 @@ class CoverageScore:
             "coverage_rate": round(self.coverage_rate, 2),
             "score": round(self.score, 2),
             "level": self.level,
+            "requirement_coverage_rate": round(self.requirement_coverage_rate, 4),
+            "ui_element_coverage_rate": round(self.ui_element_coverage_rate, 4),
+            "locator_coverage_rate": round(self.locator_coverage_rate, 4),
+            "requirement_details": self.requirement_details,
+            "ui_element_details": self.ui_element_details,
+            "locator_details": self.locator_details,
         }
 
 

@@ -108,9 +108,9 @@ class FileUpdateRequest(BaseModel):
     resource_type: Optional[ResourceType] = Field(None, description="资源类型")  # 可选，更新资源分类
     description: Optional[str] = Field(None, description="文件描述")  # 可选，更新文件描述
     is_active: Optional[bool] = Field(None, description="是否激活")  # 可选，软删除/恢复
-    # 支持修改迭代归属，0或null表示未分类
+    # 支持修改迭代归属，null或省略表示未分类
     iteration_id: Optional[int] = Field(
-        None, description="迭代ID（0或null表示未分类）"
+        None, description="迭代ID（null或省略表示未分类）"
     )  # 可选，将文件归属到指定迭代
 
 

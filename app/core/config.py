@@ -650,14 +650,12 @@ def init_directories() -> None:
         None（正常）或空列表（异常时）。返回值包含创建/确认的目录路径列表。
 
     注意：
-        - /tmp/ui_prototypes为临时目录，系统重启后可能丢失
-        - UI_PROTOTYPE_UPLOAD_DIR通过getattr安全访问，兼容配置项缺失的情况
+        - UI原型目录通过settings.UI_PROTOTYPE_UPLOAD_DIR配置，跨平台兼容
     """
     try:
         upload_dir = Path(settings.UPLOAD_DIR).resolve()
-        ui_prototype_dir = Path(getattr(settings, 'UI_PROTOTYPE_UPLOAD_DIR', '/tmp/ui_prototypes')).resolve()
-        temp_ui_prototype_dir = Path('/tmp/ui_prototypes').resolve()  # 临时目录，用于UI原型临时处理
-        directories = [upload_dir, ui_prototype_dir, temp_ui_prototype_dir]
+        ui_prototype_dir = Path(settings.UI_PROTOTYPE_UPLOAD_DIR).resolve()
+        directories = [upload_dir, ui_prototype_dir]
 
         for directory in directories:
             if not directory.exists():

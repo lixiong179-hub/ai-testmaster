@@ -170,13 +170,14 @@ const handleUpload = () => {
 
 // 处理AI分析
 const handleAnalyze = (file: ProjectFile) => {
-  // 跳转到测试点提取页面，并传递文件信息
+  // 跳转到测试点管理页，并传递文件信息以打开提取对话框
   router.push({
-    path: '/home/case/test-point-extract',
+    path: '/home/case/test-point-management',
     query: {
-      project_id: file.project_id,
-      file_id: file.id,
-      filename: file.file_name
+      projectId: String(file.project_id),
+      file_id: String(file.id),
+      filename: file.file_name,
+      openExtract: '1',
     }
   })
 }

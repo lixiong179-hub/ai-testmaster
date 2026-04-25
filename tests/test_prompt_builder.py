@@ -8,7 +8,7 @@ PromptBuilder 单元测试
 - _find_main_step: 步骤查找
 """
 import pytest
-from app.services.case_generation_prompt_builder import PromptBuilder, _safe_int, _find_main_step
+from app.services.prompt_builder import PromptBuilder, _safe_int, _find_main_step
 
 
 class TestSafeInt:

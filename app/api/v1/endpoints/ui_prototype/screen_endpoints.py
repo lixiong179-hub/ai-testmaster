@@ -118,7 +118,7 @@ async def upload_ui_screens(
             )
 
         if iteration_id is not None and prototype_project_id is None:
-            db_iteration_id = None if iteration_id <= 0 else iteration_id
+            db_iteration_id = iteration_id if iteration_id > 0 else None
             proto_project = ui_prototype_crud.create_ui_prototype_project(
                 db=db,
                 project_id=project_id,
@@ -128,7 +128,7 @@ async def upload_ui_screens(
             )
             prototype_project_id = proto_project.id
         elif iteration_id is not None and prototype_project_id is not None:
-            db_iteration_id = None if iteration_id <= 0 else iteration_id
+            db_iteration_id = iteration_id if iteration_id > 0 else None
             proto_project = (
                 db.query(UIPrototypeProject)
                 .filter(UIPrototypeProject.id == prototype_project_id)

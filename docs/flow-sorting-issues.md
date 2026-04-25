@@ -67,7 +67,7 @@ API 端点调用 `generate_test_case_enhanced` 时，未将 `flow_sort_data` 转
 在 API 端点中增加逻辑：
 ```python
 if request_data.mode == 'graph' and request_data.flow_sort_data:
-    from app.services.case_generation_prompt_builder import PromptBuilder
+    from app.services.prompt_builder import PromptBuilder
     graph_prompt = PromptBuilder.build_graph_prompt(
         nodes=[n.model_dump() for n in request_data.flow_sort_data.nodes],
         edges=[e.model_dump() for e in request_data.flow_sort_data.edges],

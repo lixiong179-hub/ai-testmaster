@@ -5,8 +5,8 @@
 import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, UploadFile as ElUploadFile } from 'element-plus'
+import { fileApi } from '@/api/file'
 import { uiPrototypeApi } from '@/api/uiPrototype'
-import request from '@/utils/request'
 import { RESOURCE_CONFIG } from '@/constants/resource'
 import type { Resource } from './useResourceList'
 
@@ -178,6 +178,84 @@ export function useResourceUpload(
     return iterationManager.getIterationNameById(fileFormData.iteration_id)
   }
 
+  const getNormalizedIterationId = (): number | undefined => {
+    if (
+      fileFormData.iteration_id === null ||
+      fileFormData.iteration_id === RESOURCE_CONFIG.ITERATION_UNCLASSIFIED
+    ) {
+      return undefined
+    }
+    return fileFormData.iteration_id
+  }
+
+  const finalizeSubmitSuccess = (): void => {
+    fileDialogVisible.value = false
+    refreshResources()
+  }
+
+  const submitEditFile = async (): Promise<void> => {
+    if (!fileFormData.id) {
+      return
+    }
+
+    const response = await fileApi.updateFile(fileFormData.id, {
+      resource_type: fileFormData.resource_type,
+      description: fileFormData.description,
+      iteration_id: getNormalizedIterationId() ?? null,
+    })
+
+    if ((response as ApiResponseData)?.code === 200) {
+      ElMessage.success('文件信息更新成功')
+    }
+
+    finalizeSubmitSuccess()
+  }
+
+  const submitBatchUpload = async (): Promise<void> => {
+    if (!selectedFiles.value || selectedFiles.value.length === 0) {
+      ElMessage.warning('请选择文件')
+      return
+    }
+
+    const response = await uiPrototypeApi.uploadUIScreens(
+      fileFormData.project_id as number,
+      selectedFiles.value,
+      fileFormData.name || 'UI原型图',
+      undefined,
+      getNormalizedIterationId()
+    )
+
+    const result = response?.data || response
+    if (result?.total > 0) {
+      ElMessage.success(`成功上传 ${result.total} 张UI原型图到迭代 "${getCurrentIterationName()}"`)
+    } else {
+      ElMessage.warning('上传完成，但未成功创建任何屏幕记录')
+    }
+
+    finalizeSubmitSuccess()
+  }
+
+  const submitSingleFile = async (): Promise<void> => {
+    if (!selectedFile.value && fileDialogMode.value === 'add') {
+      ElMessage.warning('请选择文件')
+      return
+    }
+
+    const response = await fileApi.uploadFile(
+      fileFormData.project_id as number,
+      selectedFile.value as File,
+      fileFormData.resource_type,
+      fileFormData.description || '',
+      getNormalizedIterationId()
+    )
+
+    if ((response as ApiResponseData)?.code === 200 || response?.data) {
+      ElMessage.success(`文件 "${fileFormData.name}" 上传成功`)
+    }
+
+    finalizeSubmitSuccess()
+  }
+
   /**
    * 提交文件表单（上传或编辑）
    * @param externalFormRef 可选的外部表单 ref，如果提供则使用它进行验证
@@ -198,85 +276,17 @@ export function useResourceUpload(
 
     submitting.value = true
     try {
-      // 编辑模式
       if (fileDialogMode.value === 'edit' && fileFormData.id) {
-        const response = await request.put(`/api/v1/file/${fileFormData.id}`, {
-          resource_type: fileFormData.resource_type,
-          description: fileFormData.description,
-          iteration_id: fileFormData.iteration_id,
-        })
-        if ((response as ApiResponseData)?.code === 200) {
-          ElMessage.success('文件信息更新成功')
-        }
-        fileDialogVisible.value = false
-        refreshResources()
+        await submitEditFile()
         return
       }
 
-      // 批量上传UI原型图
       if (checkIsBatchUpload()) {
-        if (!selectedFiles.value || selectedFiles.value.length === 0) {
-          ElMessage.warning('请选择文件')
-          return
-        }
-
-        const response = await uiPrototypeApi.uploadUIScreens(
-          fileFormData.project_id as number,
-          selectedFiles.value,
-          fileFormData.name || 'UI原型图',
-          undefined,
-          // ✅ 修复：使用统一的iteration_id转换逻辑
-          fileFormData.iteration_id !== null
-            ? fileFormData.iteration_id === RESOURCE_CONFIG.ITERATION_UNCLASSIFIED
-              ? -1
-              : fileFormData.iteration_id
-            : undefined
-        )
-
-        const result = response?.data || response
-        if (result?.total > 0) {
-          ElMessage.success(
-            `成功上传 ${result.total} 张UI原型图到迭代 "${getCurrentIterationName()}"`
-          )
-        } else {
-          ElMessage.warning('上传完成，但未成功创建任何屏幕记录')
-        }
-
-        fileDialogVisible.value = false
-        refreshResources()
+        await submitBatchUpload()
         return
       }
 
-      // 单文件上传
-      if (!selectedFile.value && fileDialogMode.value === 'add') {
-        ElMessage.warning('请选择文件')
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('file', selectedFile.value as File)
-      formData.append('project_id', fileFormData.project_id.toString())
-      formData.append('resource_type', fileFormData.resource_type)
-      formData.append('description', fileFormData.description || '')
-      // ✅ 修复：使用统一的iteration_id转换逻辑
-      if (fileFormData.iteration_id !== null) {
-        const iterationValue =
-          fileFormData.iteration_id === RESOURCE_CONFIG.ITERATION_UNCLASSIFIED
-            ? -1
-            : fileFormData.iteration_id
-        formData.append('iteration_id', iterationValue.toString())
-      }
-
-      const response = await request.post('/api/v1/file/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-
-      if ((response as ApiResponseData)?.code === 200 || response?.data) {
-        ElMessage.success(`文件 "${fileFormData.name}" 上传成功`)
-      }
-
-      fileDialogVisible.value = false
-      refreshResources()
+      await submitSingleFile()
     } catch (error: unknown) {
       iterationManager.showError('上传文件', error)
     } finally {

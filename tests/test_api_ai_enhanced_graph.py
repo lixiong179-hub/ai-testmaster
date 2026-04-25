@@ -10,13 +10,13 @@ AI增强端点集成测试 - 流程图模式
 """
 import pytest
 from pydantic import ValidationError
-from app.api.v1.endpoints.test_case_ai_enhanced import (
+from app.api.v1.endpoints.test_case_ai import (
     AIGenerateEnhancedRequest,
     _build_graph_prompt_data,
     _build_linear_prompt_data,
     _format_case_response,
     MAX_FLOW_NODES,
-    MAX_FLOW_EDGES
+    MAX_FLOW_EDGES,
 )
 from app.schemas.test_case import FlowSortDataSchema, FlowNodeSchema, FlowEdgeSchema
 

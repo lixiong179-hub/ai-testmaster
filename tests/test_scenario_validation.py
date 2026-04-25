@@ -21,7 +21,7 @@ S9: 消息通知设置
 S10: 系统登录
 """
 import pytest
-from app.services.case_generation_prompt_builder import PromptBuilder
+from app.services.prompt_builder import PromptBuilder
 
 
 class TestScenarioQueryManagement:

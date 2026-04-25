@@ -13,12 +13,12 @@ import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi import HTTPException
 from starlette.responses import StreamingResponse
-from app.api.v1.endpoints.test_case_ai_enhanced import (
-    ai_enhanced_generate_stream,
+from app.api.v1.endpoints.test_case_ai_stream import ai_enhanced_generate_stream
+from app.api.v1.endpoints.test_case_ai import (
     AIGenerateEnhancedRequest,
     _build_graph_prompt_data,
     _build_linear_prompt_data,
-    _format_case_response
+    _format_case_response,
 )
 from app.schemas.test_case import FlowSortDataSchema, FlowNodeSchema, FlowEdgeSchema
 
@@ -34,7 +34,7 @@ class TestStreamEndpointFormat:
             description="测试描述，至少需要五个字符"
         )
 
-        with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case') as mock_gen:
+        with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case') as mock_gen:
             mock_gen.return_value = {
                 'title': '测试用例',
                 'steps': [{'step': '1', 'description': '步骤1'}]

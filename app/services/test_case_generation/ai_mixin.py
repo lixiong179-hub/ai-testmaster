@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.services.test_case_generation.base_mixin import (
     ContentSanitizer, TEST_CATEGORY_MANUAL, TEST_CATEGORY_UI_AUTO
 )
-from app.services.test_case_generation.ai_prompt_builder import build_generation_prompt
+from app.services.prompt_builder import PromptBuilder
 from app.services.test_case_generation.ai_response_parser import parse_ai_response
 
 
@@ -56,7 +56,7 @@ class TestCaseGenerationAiMixin:
         import asyncio
 
         test_point = context.get("test_point", {})
-        prompt = build_generation_prompt(
+        prompt = PromptBuilder.build_linear_prompt(
             requirement_content=context.get("requirement_content", ""),
             ui_description=context.get("ui_description", ""),
             module=test_point.get("module", "未知模块"),

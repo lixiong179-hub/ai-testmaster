@@ -332,7 +332,7 @@
           >
             <el-option
               label="不归属任何迭代（未分类）"
-              :value="RESOURCE_CONFIG.ITERATION_UNCLASSIFIED"
+              :value="null"
             />
             <template v-if="Array.isArray(validIterationsForSelectArray)">
               <el-option
@@ -356,14 +356,22 @@
           </div>
         </el-form-item>
 
-        <el-form-item label="资源名称" prop="name">
+        <el-form-item
+          v-if="resourceUpload.fileDialogMode === 'edit'"
+          label="资源名称"
+          prop="name"
+        >
           <el-input
             v-model="resourceUpload.fileFormData.name"
             placeholder="如：需求文档v1.2、洪恩UI原型图v1.0"
           />
         </el-form-item>
 
-        <el-form-item label="资源类型" prop="resource_type">
+        <el-form-item
+          v-if="resourceUpload.fileDialogMode === 'edit'"
+          label="资源类型"
+          prop="resource_type"
+        >
           <el-select
             v-model="resourceUpload.fileFormData.resource_type"
             placeholder="请选择资源类型"
@@ -378,39 +386,16 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item v-if="resourceUpload.fileDialogMode === 'add'" label="选择文件" prop="file">
-          <el-upload
-            ref="resourceUpload.uploadRef"
-            class="upload-component"
-            action=""
-            :auto-upload="false"
-            :limit="resourceUpload.isBatchUpload ? RESOURCE_CONFIG.MAX_BATCH_UPLOAD : 1"
-            :multiple="resourceUpload.isBatchUpload"
-            :on-change="resourceUpload.handleFileChange"
-            :on-remove="resourceUpload.handleFileRemove"
-            :on-exceed="resourceUpload.handleExceed"
-            :accept="resourceUpload.isBatchUpload ? BATCH_FILE_ACCEPT : SINGLE_FILE_ACCEPT"
-            drag
-          >
-            <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-            <div class="el-upload__text" v-if="resourceUpload.isBatchUpload">
-              拖拽文件到此处，或<em>点击上传</em>（最多{{
-                RESOURCE_CONFIG.MAX_BATCH_UPLOAD
-              }}张，支持ZIP压缩包）
-            </div>
-            <div class="el-upload__text" v-else>拖拽文件到此处，或<em>点击上传</em></div>
-            <template #tip>
-              <div class="el-upload__tip" v-if="resourceUpload.isBatchUpload">
-                支持批量上传UI原型图：png, jpg, jpeg, gif, webp, bmp 格式，最多{{
-                  RESOURCE_CONFIG.MAX_BATCH_UPLOAD
-                }}张；也支持上传ZIP压缩包，系统将自动解压提取图片
-              </div>
-              <div class="el-upload__tip" v-else>
-                支持 txt, doc, docx, pdf, md, xlsx, xls, csv, json, yaml, png, jpg, gif, zip, rar
-                格式
-              </div>
-            </template>
-          </el-upload>
+        <el-form-item v-if="resourceUpload.fileDialogMode === 'add'" label="选择文件">
+          <RequirementUploader
+            ref="uploaderRef"
+            :project-id="resourceUpload.fileFormData.project_id"
+            :iteration-id="resourceUpload.fileFormData.iteration_id ?? null"
+            :description="resourceUpload.fileFormData.description"
+            :show-upload-button="false"
+            @success="handleBatchUploadSuccess"
+            @error="handleBatchUploadError"
+          />
         </el-form-item>
 
         <el-form-item label="描述">
@@ -423,7 +408,7 @@
         </el-form-item>
 
         <el-form-item
-          v-if="resourceUpload.fileDialogMode !== 'add' || !resourceUpload.isBatchUpload"
+          v-if="resourceUpload.fileDialogMode === 'edit'"
           label="启用状态"
         >
           <el-switch v-model="resourceUpload.fileFormData.is_active" />
@@ -435,7 +420,7 @@
         <el-button
           type="primary"
           @click="handleFileSubmitWrapper"
-          :loading="resourceUpload.isSubmitting"
+          :loading="isFileSubmitting"
           >确定</el-button
         >
       </template>
@@ -523,7 +508,6 @@ import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Upload,
-  UploadFilled,
   Plus,
   MoreFilled,
   FolderOpened,
@@ -540,9 +524,9 @@ import {
   RESOURCE_CONFIG,
   RESOURCE_TYPE_OPTIONS,
   ITERATION_STATUS_OPTIONS,
-  SINGLE_FILE_ACCEPT,
-  BATCH_FILE_ACCEPT,
 } from '@/constants/resource'
+import RequirementUploader from '@/components/RequirementUploader.vue'
+import type { FileBatchUploadResponse } from '@/api/file'
 
 interface Project {
   id: number
@@ -579,6 +563,9 @@ const iterationFormLocalRef = ref()
 
 // 文件表单本地 ref（解决模板 ref 绑定 composable 内部 ref 的问题）
 const fileFormLocalRef = ref()
+
+// RequirementUploader 组件 ref
+const uploaderRef = ref<InstanceType<typeof RequirementUploader> | null>(null)
 
 // 辅助计算属性 - 用于解决模板类型推断问题
 const safeIterationsArray = computed(() => iterationManager.safeIterations as SafeIteration[])
@@ -654,26 +641,45 @@ const handleAddFileWrapper = () => {
   if (iterationManager.selectedIterationId !== null && iterationManager.selectedIterationId !== 0) {
     resourceUpload.fileFormData.iteration_id = iterationManager.selectedIterationId
   } else if (iterationManager.selectedIterationId === 0) {
-    // "未分类"视图：默认选择"不归属任何迭代"，隐藏选择器
-    resourceUpload.fileFormData.iteration_id = 0
+    // "未分类"视图下，不设置 iteration_id（null 表示未关联迭代）
+    resourceUpload.fileFormData.iteration_id = null
   } else {
-    // "全部"视图（selectedIterationId为null）：显示选择器，让用户自己选择
     resourceUpload.fileFormData.iteration_id = null
   }
 
   resourceUpload.fileDialogVisible = true
+
+  // 弹窗渲染后清空上传组件
+  nextTick(() => {
+    uploaderRef.value?.clearFiles()
+  })
 }
 
 /**
  * 包装方法：提交文件表单
+ * 新增模式：使用 RequirementUploader 批量上传
+ * 编辑模式：使用 composable 更新文件元信息
  */
 const handleFileSubmitWrapper = async () => {
-  if (!fileFormLocalRef.value) {
-    ElMessage.error('表单初始化失败，请刷新页面重试')
+  if (resourceUpload.fileDialogMode === 'edit') {
+    if (!fileFormLocalRef.value) {
+      ElMessage.error('表单初始化失败，请刷新页面重试')
+      return
+    }
+    await resourceUpload.handleFileSubmit(fileFormLocalRef.value)
     return
   }
 
-  await resourceUpload.handleFileSubmit(fileFormLocalRef.value)
+  // 新增模式：通过 RequirementUploader 上传
+  if (!uploaderRef.value) {
+    ElMessage.error('上传组件初始化失败，请刷新页面重试')
+    return
+  }
+  if (uploaderRef.value.fileCount === 0) {
+    ElMessage.warning('请选择文件')
+    return
+  }
+  await uploaderRef.value.upload()
 }
 
 /**
@@ -682,10 +688,28 @@ const handleFileSubmitWrapper = async () => {
 const handleEditWrapper = (row: Resource) => {
   const shouldOpenDialog = resourceOperations.handleEditNavigation(row)
   if (shouldOpenDialog) {
-    // 需要在弹窗中编辑
     resourceUpload.handleEdit(row)
   }
 }
+
+/** 批量上传成功回调 */
+const handleBatchUploadSuccess = (_data: FileBatchUploadResponse): void => {
+  resourceUpload.fileDialogVisible = false
+  resourceList.getResources()
+}
+
+/** 批量上传失败回调 */
+const handleBatchUploadError = (_error: unknown): void => {
+  // 错误提示已由 RequirementUploader 内部处理
+}
+
+/** 文件提交按钮 loading 状态 */
+const isFileSubmitting = computed(() => {
+  if (resourceUpload.fileDialogMode === 'edit') {
+    return resourceUpload.isSubmitting
+  }
+  return uploaderRef.value?.uploading ?? false
+})
 
 /**
  * 包装方法：处理迭代操作命令
@@ -744,19 +768,6 @@ watch(
       await iterationManager.loadIterations(0)
     }
     await resourceList.getResources()
-  }
-)
-
-// 监听资源类型变化（用于清空已选文件）
-watch(
-  () => resourceUpload.fileFormData.resource_type,
-  () => {
-    resourceUpload.selectedFile = null
-    resourceUpload.selectedFiles = []
-    resourceUpload.fileFormData.file = null
-    if (resourceUpload.uploadRef) {
-      resourceUpload.uploadRef.clearFiles()
-    }
   }
 )
 

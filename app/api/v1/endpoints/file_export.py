@@ -160,11 +160,7 @@ def _extract_images_from_zip(
                     else:
                         display_name = basename
 
-                    db_iteration_id = (
-                        None
-                        if (iteration_id is None or iteration_id <= 0)
-                        else iteration_id
-                    )
+                    db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
                     new_file = file_crud.create_project_file(
                         db=db,
                         project_id=project_id,

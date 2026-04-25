@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional, Tuple
 from loguru import logger
 from app.utils.unified_vision_model import UnifiedVisionModel
 from app.core.config import settings
-from app.services.ui_spec_prompts import (
+from app.services.prompt_builder import (
     SINGLE_IMAGE_PROMPT,
     MULTI_IMAGE_FLOW_PROMPT,
     BATCH_SUMMARY_PROMPT,
@@ -22,10 +22,9 @@ class UISpecCoreMixin:
             resolved = Path(image_path).resolve()
             allowed_dirs = [
                 Path(settings.UPLOAD_DIR).resolve(),
-                Path(getattr(settings, 'UI_PROTOTYPE_UPLOAD_DIR', '/tmp/ui_prototypes')).resolve(),
-                Path('/tmp/ui_prototypes').resolve(),
+                Path(settings.UI_PROTOTYPE_UPLOAD_DIR).resolve(),
             ]
-            is_allowed = any(str(resolved).startswith(str(allowed_dir)) for allowed_dir in allowed_dirs)
+            is_allowed = any(resolved.is_relative_to(allowed_dir) for allowed_dir in allowed_dirs)
             if not is_allowed:
                 logger.error(f"路径遍历攻击拦截: {image_path}")
                 return None

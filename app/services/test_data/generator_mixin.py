@@ -19,7 +19,7 @@
 依赖关系:
     - app.utils.ai_client: AI客户端工具
     - app.core.config: 配置管理（API密钥、模型名称等）
-    - app.services.test_data.prompt_builder: Prompt构建
+    - app.services.prompt_builder: Prompt构建
     - app.services.test_data.response_handler: 响应解析与验证
 
 AI生成流程:
@@ -43,7 +43,7 @@ from app.services.test_data.constants import (
     DATA_TYPE_PHONE, DATA_TYPE_DATE, DATA_TYPE_ENUM,
     DATA_TYPE_BOOLEAN, DATA_TYPE_CUSTOM,
 )
-from app.services.test_data.prompt_builder import build_generation_prompt
+from app.services.prompt_builder import PromptBuilder
 from app.services.test_data.response_handler import parse_ai_response, validate_generated_data
 
 
@@ -111,7 +111,7 @@ class GeneratorMixin:
         """
         import httpx
 
-        prompt = build_generation_prompt(field_definitions, count, context, data_type)
+        prompt = PromptBuilder().for_test_data(field_definitions, count, context, data_type)
 
         headers = {
             "Content-Type": "application/json",

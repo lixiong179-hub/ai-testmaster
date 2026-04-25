@@ -76,6 +76,18 @@ export interface FileDeleteResponse {
   data: {}
 }
 
+export interface FileUpdateRequest {
+  resource_type: string
+  description?: string
+  iteration_id?: number | null
+}
+
+export interface FileUpdateResponse {
+  code: number
+  message: string
+  data?: ProjectFile
+}
+
 // 文件管理API
 export const fileApi = {
   // 上传文件
@@ -91,7 +103,7 @@ export const fileApi = {
     formData.append('file', file)
     formData.append('resource_type', resourceType)
     formData.append('description', description)
-    if (iterationId) {
+    if (iterationId !== undefined && iterationId !== null) {
       formData.append('iteration_id', iterationId.toString())
     }
 
@@ -110,7 +122,7 @@ export const fileApi = {
   // 获取所有文件列表
   getAllFiles: async (iterationId?: number): Promise<FileListResponse> => {
     const params: Record<string, string | number> = {}
-    if (iterationId) {
+    if (iterationId !== undefined && iterationId !== null) {
       params.iteration_id = iterationId
     }
     return request.get('/api/v1/file/list', { params })
@@ -124,7 +136,7 @@ export const fileApi = {
     pageSize: number = 100
   ): Promise<FileListResponse> => {
     const params: Record<string, string | number> = { page, page_size: pageSize }
-    if (iterationId) {
+    if (iterationId !== undefined && iterationId !== null) {
       params.iteration_id = iterationId
     }
     return request.get(`/api/v1/file/list/${projectId}`, { params })
@@ -146,7 +158,7 @@ export const fileApi = {
     if (name) {
       formData.append('name', name)
     }
-    if (iterationId) {
+    if (iterationId !== undefined && iterationId !== null) {
       formData.append('iteration_id', iterationId.toString())
     }
     files.forEach((file) => {
@@ -157,6 +169,11 @@ export const fileApi = {
         'Content-Type': 'multipart/form-data',
       },
     })
+  },
+
+  // 更新文件信息
+  updateFile: async (fileId: number, data: FileUpdateRequest): Promise<FileUpdateResponse> => {
+    return request.put(`/api/v1/file/${fileId}`, data)
   },
 
   // 删除文件

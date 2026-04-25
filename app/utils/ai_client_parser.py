@@ -342,11 +342,51 @@ def extract_value(value_part: str) -> Optional[Any]:
     return value_part if value_part else None
 
 
+# ==================== test_category 关键词映射常量 ====================
+# 各测试类别的中英文+同义词关键词库，用于 infer_test_category 匹配
+
+TEST_CATEGORY_API_KEYWORDS: Tuple[str, ...] = (
+    '调用接口', 'API', '接口', 'HTTP', 'JSON', '请求', '响应', '状态码', '断言',
+    'request', 'response', 'endpoint', 'rest', 'restful', 'status code',
+)
+"""api_automation类别关键词：API接口调用与验证"""
+
+TEST_CATEGORY_MANUAL_KEYWORDS: Tuple[str, ...] = (
+    '手工', '人工', '审核', '主观', '体验', '感受', '满意度', '美观',
+    'manual', 'human', 'review', 'subjective',
+)
+"""manual类别关键词：人工判断与审核"""
+
+TEST_CATEGORY_PERFORMANCE_KEYWORDS: Tuple[str, ...] = (
+    '响应时间', '并发', '吞吐量', '性能', '负载', '压力', '延迟', 'QPS', 'TPS', '资源占用',
+    'performance', 'throughput', 'latency', 'load', 'stress', 'concurrent',
+)
+"""performance类别关键词：性能与压力测试"""
+
+TEST_CATEGORY_SECURITY_KEYWORDS: Tuple[str, ...] = (
+    'XSS', 'SQL注入', 'CSRF', '权限绕过', '越权', '加密', '解密', '漏洞', '注入攻击', '安全', '认证绕过',
+    'injection', 'vulnerability', 'exploit', 'security', 'authentication bypass',
+)
+"""security类别关键词：安全漏洞与渗透测试"""
+
+TEST_CATEGORY_UI_KEYWORDS: Tuple[str, ...] = (
+    '点击', '输入', '导航', '滚动', '悬停', '选择', '截图', '页面', '按钮', '输入框',
+    'click', 'input', 'navigate', 'scroll', 'hover', 'select', 'screenshot', 'page', 'button',
+)
+"""ui_automation类别关键词：UI交互操作"""
+
+TEST_CATEGORY_CHECK_KEYWORDS: Tuple[str, ...] = (
+    '查看', '检查', '确认', '验证',
+    'check', 'inspect', 'examine',
+)
+"""检查类关键词：用于区分手工测试与UI自动化"""
+
+
 def infer_test_category(steps: List[Dict]) -> Tuple[str, str]:
     """根据测试步骤关键词推断测试类型
 
     通过分析步骤中的action、action_type和expected_result字段，
-    匹配预定义的关键词库来推断最合适的测试类别。
+    匹配预定义的中英文+同义词关键词库来推断最合适的测试类别。
 
     推断优先级（安全 > 性能 > API > 手工 > UI自动化）：
     - security: 包含XSS、SQL注入、CSRF等安全关键词
@@ -361,13 +401,6 @@ def infer_test_category(steps: List[Dict]) -> Tuple[str, str]:
     Returns:
         Tuple[str, str]: (test_category, case_type) 测试类别和用例类型
     """
-    # 各类别的关键词库
-    api_keywords = ['调用接口', 'API', '接口', 'HTTP', 'JSON', '请求', '响应', '状态码', '断言']
-    manual_keywords = ['手工', '人工', '审核', '主观', '体验', '感受', '满意度', '美观']
-    performance_keywords = ['响应时间', '并发', '吞吐量', '性能', '负载', '压力', '延迟', 'QPS', 'TPS', '资源占用']
-    security_keywords = ['XSS', 'SQL注入', 'CSRF', '权限绕过', '越权', '加密', '解密', '漏洞', '注入攻击', '安全', '认证绕过']
-    ui_keywords = ['点击', '输入', '导航', '滚动', '悬停', '选择', '截图', '页面', '按钮', '输入框']
-    check_keywords = ['查看', '检查', '确认', '验证']
     has_api = has_manual = has_performance = has_security = has_ui = has_check = False
     # 遍历所有步骤，合并action和expected_result进行关键词匹配
     for step in steps:
@@ -375,18 +408,21 @@ def infer_test_category(steps: List[Dict]) -> Tuple[str, str]:
         action_type = step.get('action_type', '')
         expected = step.get('expected_result', '')
         combined = f"{action} {expected}"
-        if any(kw in combined for kw in api_keywords):
+        if any(kw in combined for kw in TEST_CATEGORY_API_KEYWORDS):
             has_api = True
-        if any(kw in combined for kw in manual_keywords):
+        if any(kw in combined for kw in TEST_CATEGORY_MANUAL_KEYWORDS):
             has_manual = True
-        if any(kw in combined for kw in performance_keywords):
+        if any(kw in combined for kw in TEST_CATEGORY_PERFORMANCE_KEYWORDS):
             has_performance = True
-        if any(kw in combined for kw in security_keywords):
+        if any(kw in combined for kw in TEST_CATEGORY_SECURITY_KEYWORDS):
             has_security = True
         # UI判断：action中包含UI关键词，或action_type属于UI操作枚举
-        if any(kw in action for kw in ui_keywords) or action_type in ['click', 'input', 'navigate', 'scroll', 'hover', 'select', 'captcha', 'refresh', 'keypress']:
+        if any(kw in action for kw in TEST_CATEGORY_UI_KEYWORDS) or action_type in [
+            'click', 'input', 'navigate', 'scroll', 'hover', 'select',
+            'captcha', 'refresh', 'keypress',
+        ]:
             has_ui = True
-        if any(kw in action for kw in check_keywords):
+        if any(kw in action for kw in TEST_CATEGORY_CHECK_KEYWORDS):
             has_check = True
     # 按优先级返回测试类别
     if has_security:
@@ -401,34 +437,100 @@ def infer_test_category(steps: List[Dict]) -> Tuple[str, str]:
         return ('ui_automation', 'ui_automation')
 
 
+# ==================== action_type 关键词映射常量 ====================
+# 每个操作类型对应一组中英文+同义词关键词，用于 infer_action_type 匹配
+# 命名规则: ACTION_TYPE_KEYWORDS_{枚举值大写}
+
+ACTION_TYPE_KEYWORDS_INPUT: Tuple[str, ...] = (
+    '输入', '填写', '录入', '键入', 'input', 'type', 'enter', 'fill', 'write', 'set',
+)
+"""input操作关键词：向输入框填入文本内容"""
+
+ACTION_TYPE_KEYWORDS_CLICK: Tuple[str, ...] = (
+    '点击', '按下', '单击', 'click', 'press', 'tap',
+)
+"""click操作关键词：单击页面元素"""
+
+ACTION_TYPE_KEYWORDS_NAVIGATE: Tuple[str, ...] = (
+    '导航', '访问', '打开', '跳转', 'navigate', 'open', 'goto', 'go to', 'visit',
+)
+"""navigate操作关键词：跳转到指定URL"""
+
+ACTION_TYPE_KEYWORDS_VERIFY: Tuple[str, ...] = (
+    '验证', '检查', '确认', 'verify', 'check', 'assert', 'validate', 'confirm',
+)
+"""verify操作关键词：断言页面元素状态或文本内容"""
+
+ACTION_TYPE_KEYWORDS_WAIT: Tuple[str, ...] = (
+    '等待', 'wait', 'sleep', 'pause',
+)
+"""wait操作关键词：等待元素出现或消失"""
+
+ACTION_TYPE_KEYWORDS_SCROLL: Tuple[str, ...] = (
+    '滚动', 'scroll', 'swipe',
+)
+"""scroll操作关键词：滚动页面到指定位置"""
+
+ACTION_TYPE_KEYWORDS_HOVER: Tuple[str, ...] = (
+    '悬停', 'hover', 'mouseover',
+)
+"""hover操作关键词：鼠标悬停在元素上"""
+
+ACTION_TYPE_KEYWORDS_SELECT: Tuple[str, ...] = (
+    '选择', 'select', 'choose', 'pick',
+)
+"""select操作关键词：从下拉列表中选择选项"""
+
+ACTION_TYPE_KEYWORDS_REFRESH: Tuple[str, ...] = (
+    '刷新', 'refresh', 'reload',
+)
+"""refresh操作关键词：刷新当前页面"""
+
+ACTION_TYPE_KEYWORDS_KEYPRESS: Tuple[str, ...] = (
+    '按键', 'keypress', 'keydown', 'press key',
+)
+"""keypress操作关键词：模拟键盘按键"""
+
+ACTION_TYPE_KEYWORDS_CAPTCHA: Tuple[str, ...] = (
+    '验证码', 'captcha', '滑块',
+)
+"""captcha操作关键词：处理图形验证码或滑块验证"""
+
+
 def infer_action_type(action: str) -> str:
     """根据操作描述推断action_type枚举值
 
-    通过中文关键词匹配，将自然语言的操作描述映射为标准化的action_type。
+    通过中英文+同义词关键词匹配，将自然语言的操作描述映射为标准化的action_type。
     未匹配到任何关键词时默认返回'click'。
 
     Args:
-        action: 操作描述文本（如"输入用户名"、"点击提交按钮"）
+        action: 操作描述文本（如"输入用户名"、"click submit button"、"打开页面"）
 
     Returns:
-        str: 标准化的action_type枚举值（input/click/navigate/verify/wait/scroll/hover/select）
+        str: 标准化的action_type枚举值（input/click/navigate/verify/wait/scroll/hover/select/refresh/keypress/captcha）
     """
-    if any(kw in action for kw in ('输入', '填写', '录入', '键入')):
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_INPUT):
         return 'input'
-    if any(kw in action for kw in ('点击', '按下', '单击')):
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_CLICK):
         return 'click'
-    if any(kw in action for kw in ('导航', '访问', '打开')):
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_NAVIGATE):
         return 'navigate'
-    if any(kw in action for kw in ('验证', '检查', '确认')):
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_VERIFY):
         return 'verify'
-    if '等待' in action:
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_WAIT):
         return 'wait'
-    if '滚动' in action:
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_SCROLL):
         return 'scroll'
-    if '悬停' in action:
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_HOVER):
         return 'hover'
-    if '选择' in action:
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_SELECT):
         return 'select'
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_REFRESH):
+        return 'refresh'
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_KEYPRESS):
+        return 'keypress'
+    if any(kw in action for kw in ACTION_TYPE_KEYWORDS_CAPTCHA):
+        return 'captcha'
     # 默认为点击操作
     return 'click'
 

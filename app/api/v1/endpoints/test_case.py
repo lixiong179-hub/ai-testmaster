@@ -12,9 +12,8 @@
     - test_case_workflow: 用例工作流与纠正状态管理
     - test_case_status: 用例状态相关接口
     - test_case_version: 用例版本管理与导出
-    - test_case_ai: AI生成测试用例
-    - test_case_ai_enhanced: AI增强模式生成
-    - test_case_ai_batch: AI批量生成测试用例
+    - test_case_ai: AI生成测试用例（非流式）
+    - test_case_ai_stream: AI流式生成测试用例
 
 所有端点均需要Bearer令牌认证。
 """
@@ -25,10 +24,7 @@ from app.api.v1.endpoints.test_case_workflow import router as workflow_router
 from app.api.v1.endpoints.test_case_status import router as status_router
 from app.api.v1.endpoints.test_case_version import router as version_router
 from app.api.v1.endpoints.test_case_ai import router as ai_router
-from app.api.v1.endpoints.test_case_ai_enhanced import router as ai_enhanced_router
-from app.api.v1.endpoints.test_case_ai_batch import router as ai_batch_router
-from app.api.v1.endpoints.test_case_ai_context import router as ai_context_router
-from app.api.v1.endpoints.test_case_ai_precondition import router as ai_precondition_router
+from app.api.v1.endpoints.test_case_ai_stream import router as ai_stream_router
 
 # 测试用例管理路由，包含CRUD、工作流、版本、AI生成等子模块
 router = APIRouter(prefix="/testCase", tags=["测试用例管理"])
@@ -40,7 +36,4 @@ router.include_router(workflow_router)
 router.include_router(status_router)
 router.include_router(version_router)
 router.include_router(ai_router)
-router.include_router(ai_enhanced_router)
-router.include_router(ai_batch_router)
-router.include_router(ai_context_router)
-router.include_router(ai_precondition_router)
+router.include_router(ai_stream_router)

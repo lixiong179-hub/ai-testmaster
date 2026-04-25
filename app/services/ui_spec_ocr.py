@@ -9,7 +9,7 @@ UI规格格式。
 
 依赖关系:
     - app.utils.ocr_extractor: OCR文字提取引擎
-    - app.services.ui_spec_prompts: TEXT_STRUCTURE_PROMPT模板
+    - app.services.prompt_builder: TEXT_STRUCTURE_PROMPT模板
 
 解析流程:
     1. 使用OCR引擎提取图片中的文字（纯文本或带位置信息）
@@ -24,7 +24,7 @@ import time
 from typing import Dict, Any, Optional
 from loguru import logger
 from app.utils.ocr_extractor import OCRExtractor, OCRExtractorError
-from app.services.ui_spec_prompts import TEXT_STRUCTURE_PROMPT
+from app.services.prompt_builder import TEXT_STRUCTURE_PROMPT
 
 
 class UISpecOCR:
