@@ -143,10 +143,17 @@ export type {
 // 文件 API
 export { fileApi, FileAPI, default } from './file'
 export type {
+  ApiResponse,
   ProjectFile,
   UrlSubmitRequest,
+  FileListData,
   FileListResponse,
+  FileUploadResultData,
   FileUploadResponse,
   UrlSubmitResponse,
+  FileBatchUploadData,
+  FileBatchUploadResponse,
   FileDeleteResponse,
+  FileUpdateRequest,
+  FileUpdateResponse,
 } from './file'

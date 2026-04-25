@@ -25,7 +25,7 @@ from app.services.element_locator.locator_query_mixin import LocatorQueryMixin
 from app.services.element_locator.locator_record_mixin import LocatorRecordMixin
 from app.services.element_locator.selector_generation_mixin import SelectorGenerationMixin
 from app.services.element_locator.smart_locate_mixin import SmartLocateMixin
-from app.utils.browser_controller import BrowserController
+from app.utils.browser_controller_v2 import BrowserControllerV2 as BrowserController
 from app.utils.unified_vision_model import UnifiedVisionModel
 from app.interfaces.element_recognizer import ElementRecognizer
 from app.services.recognizers.mcp_recognizer import MCPRecognizer

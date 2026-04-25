@@ -86,6 +86,7 @@ export interface XmindPreviewResponse {
   case_items: XmindPreviewCaseItem[]
   skipped_count: number
   skipped_reasons: string[]
+  ai_timeout?: boolean
 }
 
 export interface XmindImportResponse {
@@ -94,6 +95,7 @@ export interface XmindImportResponse {
   total_parsed: number
   skipped_count: number
   skipped_reasons: string[]
+  ai_timeout?: boolean
 }
 
 function unwrapApiPayload<T>(response: TestPointApiResponse<T> | T): T {
@@ -287,12 +289,14 @@ export const testPointApi = {
   importXmind: async (
     file: File,
     projectId: number,
-    preview: boolean = false
+    preview: boolean = false,
+    aiEnhance: boolean = false
   ): Promise<XmindPreviewResponse | XmindImportResponse> => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('project_id', String(projectId))
     formData.append('preview', String(preview))
+    formData.append('ai_enhance', String(aiEnhance))
     const response = (await request.post('/api/v1/test-point/import-xmind', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })) as

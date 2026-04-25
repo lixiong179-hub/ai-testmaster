@@ -294,6 +294,44 @@ class TestFieldTruncation:
         assert len(result[0]["point"]) <= XmindParser.POINT_MAX_LEN
 
 
+class TestExtractPaths:
+    """extract_paths 路径提取测试。"""
+
+    def test_extract_paths_basic(self, parser: XmindParser, valid_xmind: str) -> None:
+        paths = parser.extract_paths(valid_xmind)
+        assert len(paths) == 2
+        assert paths[0] == ["登录模块", "账号密码登录", "点击登录按钮"]
+        assert paths[1] == ["登录模块", "账号密码登录", "输入密码"]
+
+    def test_extract_paths_empty_file(self, parser: XmindParser, empty_xmind: str) -> None:
+        paths = parser.extract_paths(empty_xmind)
+        assert paths == []
+
+    def test_extract_paths_deep_nesting(self, parser: XmindParser, deep_nesting_xmind: str) -> None:
+        paths = parser.extract_paths(deep_nesting_xmind)
+        assert len(paths) == 1
+        assert paths[0] == ["L1模块", "L2节点", "L3节点", "L4节点", "L5节点", "L6节点"]
+
+    def test_extract_paths_second_level_leaf(self, parser: XmindParser, tmp_path) -> None:
+        l2 = _build_topic("直接叶子功能", "l2")
+        l1 = _build_topic("模块A", "l1", children_xml=l2)
+        content = _build_content_xml(l1)
+        xmind_file = _create_xmind_file(str(tmp_path / "second_level_paths.xmind"), content)
+        paths = parser.extract_paths(xmind_file)
+        assert len(paths) == 1
+        assert paths[0] == ["模块A", "直接叶子功能"]
+
+    def test_extract_paths_skips_empty_module(self, parser: XmindParser, tmp_path) -> None:
+        l2 = _build_topic("功能A", "l2")
+        l1_empty = _build_topic("", "l1-empty", children_xml=l2)
+        l1_valid = _build_topic("模块B", "l1-valid", children_xml=l2)
+        content = _build_content_xml(l1_empty + l1_valid)
+        xmind_file = _create_xmind_file(str(tmp_path / "skip_empty_module.xmind"), content)
+        paths = parser.extract_paths(xmind_file)
+        assert len(paths) == 1
+        assert paths[0][0] == "模块B"
+
+
 class TestSampleFile:
     """样例文件解析测试。"""
 

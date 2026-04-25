@@ -190,13 +190,7 @@ watch(
     if (!val) return
     formData.value = {
       ...createDefaultFormData(),
-      ...props.initialData,
-      parent_main_node_id: props.initialData?.parent_main_node_id || '',
-      trigger_condition: props.initialData?.trigger_condition || '',
-      pre_action: props.initialData?.pre_action || '',
-      expected_result: props.initialData?.expected_result || '',
-      bypass_reason: props.initialData?.bypass_reason || '',
-      note: props.initialData?.note || '',
+      ...(props.initialData || {}),
     }
   },
   { immediate: true }

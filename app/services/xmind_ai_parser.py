@@ -17,8 +17,10 @@ from loguru import logger
 from openai import OpenAI
 
 from app.core.config import settings
+from app.utils.ai_client_core import AITimeoutError, _detect_ai_error
 
 BATCH_SIZE = 10
+DEFAULT_AI_TIMEOUT = 60
 
 SYSTEM_PROMPT = """\
 你是一名资深测试工程师，擅长将思维导图路径转换为结构化测试用例。
@@ -162,11 +164,13 @@ class XmindAIParser:
         base_url: Optional[str] = None,
         model: Optional[str] = None,
         batch_size: int = BATCH_SIZE,
+        timeout: int = DEFAULT_AI_TIMEOUT,
     ) -> None:
         self._api_key = api_key or settings.DEEPSEEK_API_KEY
         self._base_url = base_url or "https://api.deepseek.com"
         self._model = model or settings.DEEPSEEK_MODEL
         self._batch_size = batch_size
+        self._timeout = timeout
         self._client: Optional[OpenAI] = None
 
     @property
@@ -175,6 +179,7 @@ class XmindAIParser:
             self._client = OpenAI(
                 api_key=self._api_key,
                 base_url=self._base_url,
+                timeout=self._timeout,
             )
         return self._client
 
@@ -229,5 +234,9 @@ class XmindAIParser:
             logger.debug(f"AI 响应长度: {len(content)} 字符")
             return _parse_ai_response(content, len(batch))
         except Exception as exc:
-            logger.error(f"AI 调用失败: {exc}")
+            ai_error = _detect_ai_error(exc)
+            if isinstance(ai_error, AITimeoutError):
+                logger.warning(f"AI 调用超时（{self._timeout}秒）: {exc}")
+            else:
+                logger.error(f"AI 调用失败: {exc}")
             return None

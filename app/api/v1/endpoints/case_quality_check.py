@@ -92,6 +92,8 @@ class ProjectQualitySummarySchema(BaseModel):
     project_id: int
     total_cases: int
     average_score: float
+    project_requirement_coverage: float = 0.0
+    project_requirement_details: Optional[dict] = None
     reports: List[QualityReportSchema] = []
 
 
