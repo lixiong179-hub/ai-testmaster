@@ -395,6 +395,47 @@ class TestImportXmindFull:
         assert data["data"]["saved_case_count"] == 0
 
 
+class TestImportXmindAiEnhance:
+    """AI增强模式测试。
+
+    使用无效 API Key 触发 AI 调用失败，验证降级到普通解析逻辑。
+    不 Mock 任何内部方法，通过构造函数注入无效配置实现异常触发。
+    """
+
+    def test_ai_enhance_with_invalid_key_falls_back_to_normal_parse(
+        self, client, auth_headers, test_project, valid_xmind
+    ) -> None:
+        """AI增强模式在API调用失败时应降级到普通解析。"""
+        with open(valid_xmind, "rb") as f:
+            resp = client.post(
+                "/api/v1/test-point/import-xmind",
+                files={"file": ("test.xmind", f, "application/octet-stream")},
+                data={"project_id": str(test_project), "preview": "true", "ai_enhance": "true"},
+                headers=auth_headers,
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert data["data"]["preview_mode"] == "test_points"
+        assert data["data"]["total"] >= 1
+
+    def test_ai_enhance_false_uses_normal_path(
+        self, client, auth_headers, test_project, valid_xmind
+    ) -> None:
+        with open(valid_xmind, "rb") as f:
+            resp = client.post(
+                "/api/v1/test-point/import-xmind",
+                files={"file": ("test.xmind", f, "application/octet-stream")},
+                data={"project_id": str(test_project), "preview": "true", "ai_enhance": "false"},
+                headers=auth_headers,
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["code"] == 200
+        assert data["data"]["preview_mode"] == "test_points"
+
+
 class TestImportXmindValidation:
     """文件校验测试。"""
 

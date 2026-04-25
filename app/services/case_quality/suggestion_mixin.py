@@ -162,8 +162,14 @@ class SuggestionMixin:
     ) -> float:
         """计算综合评分。
 
-        权重分配：复杂度 0.3 + 冗余度 0.3 + 覆盖度 0.4
-        覆盖度内部已按 requirement/ui_element/locator 三维度加权，
+        权重分配 v2（重校准）：复杂度 0.2 + 冗余度 0.4 + 覆盖度 0.4
+
+        权重设计 rationale：
+            - 冗余度高 = 真实浪费（重复用例可合并/数据驱动化），应严格扣分 → 0.4
+            - 复杂度高未必是问题（端到端集成用例本就需要多步骤），权重压低 → 0.2
+            - 覆盖度是综合三维度的复合指标，保持最高权重 → 0.4
+
+        覆盖度内部已按 requirement(0.3) + ui_element(0.3) + locator(0.4) 加权，
         此处直接使用 coverage.score（0~10）。
 
         Args:
@@ -174,8 +180,8 @@ class SuggestionMixin:
         Returns:
             float: 综合评分 0~100。
         """
-        COMPLEXITY_WEIGHT = 0.3
-        REDUNDANCY_WEIGHT = 0.3
+        COMPLEXITY_WEIGHT = 0.2
+        REDUNDANCY_WEIGHT = 0.4
         COVERAGE_WEIGHT = 0.4
 
         complexityNormalized = max(0, 10 - complexity.score) / 10

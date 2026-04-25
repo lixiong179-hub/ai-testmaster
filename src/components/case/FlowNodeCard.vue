@@ -45,7 +45,7 @@
     </div>
 
     <div class="node-image" @click="handlePreview">
-      <div v-if="imageLoading && !imageLoadError" class="image-skeleton">
+      <div v-if="imageLoading && !imageLoadError && data.image_url" class="image-skeleton">
         <el-icon class="loading-icon"><Loading /></el-icon>
       </div>
       <img
@@ -59,7 +59,7 @@
       />
       <div v-if="!data.image_url || imageLoadError" class="image-placeholder">
         <el-icon :size="36"><Picture /></el-icon>
-        <span v-if="imageLoadError" class="error-text">加载失败</span>
+        <span class="placeholder-text">{{ imageLoadError ? '加载失败' : '暂无图片' }}</span>
       </div>
       <transition name="fade">
         <div v-if="!imageLoadError && data.image_url" class="image-overlay">
@@ -239,6 +239,10 @@ const handlePreview = () => {
       transition: all 0.2s ease;
       border-radius: 6px;
       font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      overflow: hidden;
 
       &.tag-animated {
         transform: scale(1.05);
@@ -246,6 +250,7 @@ const handlePreview = () => {
 
       .tag-icon {
         margin-right: 4px;
+        flex-shrink: 0;
       }
     }
 

@@ -94,17 +94,6 @@ export interface UIScreenListResponse {
   }
 }
 
-export interface UIPrototypeProjectListResponse {
-  code: number
-  message?: string
-  data: {
-    items: UIPrototypeProject[]
-    total: number
-    page?: number
-    page_size?: number
-  }
-}
-
 export interface UIPrototypeUploadResponse {
   code: number
   message: string
@@ -141,9 +130,9 @@ export const uiPrototypeApi = {
     page: number = 1,
     pageSize: number = 100,
     iterationId?: number
-  ): Promise<UIPrototypeProjectListResponse> => {
+  ): Promise<UIPrototypeProject[]> => {
     const params: Record<string, string | number> = { page, page_size: pageSize }
-    if (iterationId !== undefined && iterationId !== null) {
+    if (iterationId) {
       params.iteration_id = iterationId
     }
     return request.get(`/api/v1/ui-prototype/project/list/${projectId}`, { params })
@@ -173,10 +162,10 @@ export const uiPrototypeApi = {
     const formData = new FormData()
     formData.append('project_id', projectId.toString())
     formData.append('prototype_name', prototypeName)
-    if (prototypeProjectId !== undefined && prototypeProjectId !== null) {
+    if (prototypeProjectId) {
       formData.append('prototype_project_id', prototypeProjectId.toString())
     }
-    if (iterationId !== undefined && iterationId !== null) {
+    if (iterationId) {
       formData.append('iteration_id', iterationId.toString())
     }
     files.forEach((file) => {
@@ -196,7 +185,7 @@ export const uiPrototypeApi = {
     pageSize: number = 100
   ): Promise<UIScreenListResponse> => {
     const params: Record<string, string | number> = { page, page_size: pageSize }
-    if (prototypeProjectId !== undefined && prototypeProjectId !== null) {
+    if (prototypeProjectId) {
       params.prototype_project_id = prototypeProjectId
     }
     return request.get(`/api/v1/ui-prototype/screens/${projectId}`, { params })

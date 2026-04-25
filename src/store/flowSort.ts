@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
+export interface FlowMetaData {
+  parent_main_node_id?: string
+  trigger_condition?: string
+  pre_action?: string
+  expected_result?: string
+  bypass_reason?: string
+  note?: string
+}
+
 export interface FlowNodeData {
   id: string
   screen_id: number
@@ -17,6 +26,7 @@ export interface FlowNodeData {
   main_order?: number
   image_url?: string
   position: { x: number; y: number }
+  flow_meta?: FlowMetaData
 }
 
 export interface FlowEdgeData {
@@ -26,6 +36,9 @@ export interface FlowEdgeData {
   edge_type: 'normal' | 'branch' | 'exception' | 'bypass'
   condition?: string
   label: string
+  trigger_action?: string
+  pre_action?: string
+  note?: string
 }
 
 export interface FlowSortData {

@@ -1,5 +1,12 @@
 import request from '@/utils/request'
 
+// 通用 API 响应泛型
+export interface ApiResponse<T> {
+  code: number
+  message: string
+  data: T
+}
+
 // 文件类型定义
 export interface ProjectFile {
   id: number
@@ -25,56 +32,36 @@ export interface UrlSubmitRequest {
   description?: string
 }
 
-export interface FileListResponse {
-  code: number
-  message: string
-  data: {
-    items: ProjectFile[]
-    total: number
-  }
+export interface FileListData {
+  items: ProjectFile[]
+  total: number
 }
 
-export interface FileUploadResponse {
-  code: number
-  message: string
-  data: {
-    file_id: number
-    file_name: string
-    file_type: string
-    file_url: string
-    size: number
-    upload_time: string
-  }
+export type FileListResponse = ApiResponse<FileListData>
+
+export interface FileUploadResultData {
+  file_id: number
+  file_name: string
+  file_type: string
+  file_url: string
+  upload_time: string
+  size?: number
 }
 
-export interface UrlSubmitResponse {
-  code: number
-  message: string
-  data: {
-    file_id: number
-    file_name: string
-    file_type: string
-    file_url: string
-    upload_time: string
-  }
+export type FileUploadResponse = ApiResponse<FileUploadResultData>
+
+export type UrlSubmitResponse = ApiResponse<Omit<FileUploadResultData, 'size'>>
+
+export interface FileBatchUploadData {
+  uploaded_files: ProjectFile[]
+  failed_files: { file_name: string; reason: string }[]
+  success_count: number
+  fail_count: number
 }
 
-export interface FileBatchUploadResponse {
-  code: number
-  message: string
-  data: {
-    uploaded_files: ProjectFile[]
-    failed_files: { file_name: string; reason: string }[]
-    success_count: number
-    fail_count: number
-  }
-}
+export type FileBatchUploadResponse = ApiResponse<FileBatchUploadData>
 
-export interface FileDeleteResponse {
-  code: number
-  message: string
-  data: {}
-}
+export type FileDeleteResponse = ApiResponse<undefined>
 
 export interface FileUpdateRequest {
   resource_type: string
@@ -82,11 +69,7 @@ export interface FileUpdateRequest {
   iteration_id?: number | null
 }
 
-export interface FileUpdateResponse {
-  code: number
-  message: string
-  data?: ProjectFile
-}
+export type FileUpdateResponse = ApiResponse<ProjectFile | undefined>
 
 // 文件管理API
 export const fileApi = {
@@ -103,7 +86,7 @@ export const fileApi = {
     formData.append('file', file)
     formData.append('resource_type', resourceType)
     formData.append('description', description)
-    if (iterationId !== undefined && iterationId !== null) {
+    if (iterationId != null) {
       formData.append('iteration_id', iterationId.toString())
     }
 
@@ -122,7 +105,7 @@ export const fileApi = {
   // 获取所有文件列表
   getAllFiles: async (iterationId?: number): Promise<FileListResponse> => {
     const params: Record<string, string | number> = {}
-    if (iterationId !== undefined && iterationId !== null) {
+    if (iterationId != null) {
       params.iteration_id = iterationId
     }
     return request.get('/api/v1/file/list', { params })
@@ -136,7 +119,7 @@ export const fileApi = {
     pageSize: number = 100
   ): Promise<FileListResponse> => {
     const params: Record<string, string | number> = { page, page_size: pageSize }
-    if (iterationId !== undefined && iterationId !== null) {
+    if (iterationId != null) {
       params.iteration_id = iterationId
     }
     return request.get(`/api/v1/file/list/${projectId}`, { params })
@@ -158,7 +141,7 @@ export const fileApi = {
     if (name) {
       formData.append('name', name)
     }
-    if (iterationId !== undefined && iterationId !== null) {
+    if (iterationId != null) {
       formData.append('iteration_id', iterationId.toString())
     }
     files.forEach((file) => {

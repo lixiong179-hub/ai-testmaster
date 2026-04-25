@@ -42,6 +42,18 @@
           <span class="file-size">{{ formatFileSize(selectedFile.size) }}</span>
           <el-icon class="file-remove" @click="clearFile"><Close /></el-icon>
         </div>
+        <div class="ai-enhance-toggle">
+          <el-tooltip
+            content="AI增强模式会使用大模型将思维导图路径转换为结构化测试用例，生成更详细的步骤和预期结果"
+            placement="top"
+          >
+            <el-switch
+              v-model="aiEnhance"
+              active-text="AI增强模式"
+              inline-prompt
+            />
+          </el-tooltip>
+        </div>
       </div>
 
       <!-- Step 1: 预览 -->
@@ -88,7 +100,18 @@
           class="preview-mode-alert"
         >
           <template #title>
-            该 XMind 将按“测试点 + 测试用例”双通道导入，可切换查看两种预览视图。
+            该 XMind 将按"测试点 + 测试用例"双通道导入，可切换查看两种预览视图。
+          </template>
+        </el-alert>
+        <el-alert
+          v-if="previewAiTimeout"
+          type="warning"
+          show-icon
+          :closable="false"
+          class="preview-ai-timeout-alert"
+        >
+          <template #title>
+            AI增强解析超时，已自动降级为普通解析模式。如需使用AI增强，请稍后重试或检查网络连接。
           </template>
         </el-alert>
         <div v-if="hasCasePreview" class="preview-switcher">
@@ -190,6 +213,17 @@
         <div v-if="importResult.success" class="result-success">
           <el-icon :size="64" color="#67C23A"><CircleCheck /></el-icon>
           <h3>导入成功</h3>
+          <el-alert
+            v-if="importResult.aiTimeout"
+            type="warning"
+            show-icon
+            :closable="false"
+            class="result-ai-timeout-alert"
+          >
+            <template #title>
+              AI增强解析超时，已自动降级为普通解析模式导入。如需使用AI增强，请稍后重试或检查网络连接。
+            </template>
+          </el-alert>
           <div class="result-stats">
             <el-statistic title="成功导入" :value="importResult.savedCount" />
             <el-statistic
@@ -275,6 +309,7 @@ interface ImportResultData {
   skippedCount: number
   skippedReasons: string[]
   errorMessage: string
+  aiTimeout: boolean
 }
 
 const props = defineProps<{
@@ -300,6 +335,8 @@ const currentPage = ref(1)
 const pageSize = 20
 const isDragover = ref(false)
 const fileInputRef = ref<HTMLInputElement>()
+const aiEnhance = ref(false)
+const previewAiTimeout = ref(false)
 
 const importResult = ref<ImportResultData>({
   success: false,
@@ -309,6 +346,7 @@ const importResult = ref<ImportResultData>({
   skippedCount: 0,
   skippedReasons: [],
   errorMessage: '',
+  aiTimeout: false,
 })
 
 const paginatedPreviewData = computed(() => {
@@ -407,13 +445,18 @@ const handlePreview = async () => {
     const data = (await testPointApi.importXmind(
       selectedFile.value,
       props.projectId,
-      true
+      true,
+      aiEnhance.value
     )) as XmindPreviewResponse
     previewMode.value = data.preview_mode || 'test_points'
     previewData.value = data.items || []
     previewCaseData.value = data.case_items || []
     previewSkippedCount.value = data.skipped_count || 0
     previewSkippedReasons.value = data.skipped_reasons || []
+    previewAiTimeout.value = data.ai_timeout || false
+    if (previewAiTimeout.value) {
+      aiEnhance.value = false
+    }
     activePreviewTab.value = data.preview_mode === 'test_cases' ? 'cases' : 'points'
     currentPage.value = 1
     currentStep.value = 1
@@ -432,7 +475,8 @@ const handleImport = async () => {
     const data = (await testPointApi.importXmind(
       selectedFile.value,
       props.projectId,
-      false
+      false,
+      aiEnhance.value
     )) as XmindImportResponse
     importResult.value = {
       success: true,
@@ -442,6 +486,7 @@ const handleImport = async () => {
       skippedCount: data.skipped_count,
       skippedReasons: data.skipped_reasons || [],
       errorMessage: '',
+      aiTimeout: data.ai_timeout || false,
     }
     currentStep.value = 2
     emit('imported')
@@ -455,6 +500,7 @@ const handleImport = async () => {
       skippedCount: 0,
       skippedReasons: [],
       errorMessage: msg,
+      aiTimeout: false,
     }
     currentStep.value = 2
   } finally {
@@ -469,6 +515,8 @@ const handleBackToUpload = () => {
 const handleRetry = () => {
   currentStep.value = 0
   selectedFile.value = null
+  aiEnhance.value = false
+  previewAiTimeout.value = false
   previewMode.value = 'test_points'
   previewData.value = []
   previewCaseData.value = []
@@ -483,6 +531,7 @@ const handleRetry = () => {
     skippedCount: 0,
     skippedReasons: [],
     errorMessage: '',
+    aiTimeout: false,
   }
 }
 
@@ -495,6 +544,8 @@ const handleClose = () => {
   visible.value = false
   currentStep.value = 0
   selectedFile.value = null
+  aiEnhance.value = false
+  previewAiTimeout.value = false
   previewMode.value = 'test_points'
   previewData.value = []
   previewCaseData.value = []
@@ -509,6 +560,7 @@ const handleClose = () => {
     skippedCount: 0,
     skippedReasons: [],
     errorMessage: '',
+    aiTimeout: false,
   }
   loading.value = false
 }
@@ -577,6 +629,12 @@ const handleClose = () => {
 }
 .file-remove:hover {
   color: #f56c6c;
+}
+.ai-enhance-toggle {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 8px 0;
 }
 .preview-area {
   display: flex;

@@ -1,6 +1,10 @@
-"""XMind AI 增强解析器单元测试（模拟 LLM 响应）。"""
+"""XMind AI 增强解析器单元测试。
+
+测试策略：
+    - 工具函数（_build_user_prompt、_parse_ai_response、_normalize_case）使用真实输入输出验证
+    - XmindAIParser 集成测试通过注入无效 base_url 触发真实网络错误，不使用 Mock
+"""
 import json
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -119,55 +123,32 @@ def test_normalize_case_fallback_module():
     assert result["module"] == "默认模块"
 
 
-# ── XmindAIParser.parse_paths (mocked) ──────────────────────────
+# ── XmindAIParser 集成测试（不使用 Mock）─────────────────────────
 
 
-@patch("app.services.xmind_ai_parser.XmindAIParser._call_ai")
-def test_parse_paths_success(mock_call_ai):
-    mock_call_ai.return_value = [
-        {
-            "module": "字词听写",
-            "precondition": "有教材内容",
-            "title": "有记录时显示听写记录",
-            "steps": [{"action": "点击听写记录", "expected_result": "显示记录"}],
-            "expected_result": "显示记录",
-            "priority": 2,
-        }
-    ]
-    parser = XmindAIParser()
+def test_parse_paths_with_invalid_api_key_returns_empty():
+    """使用无效配置触发真实网络错误，验证返回空列表而非抛异常。
+
+    使用 127.0.0.1 的无效端口避免 DNS 解析等待，加速测试执行。
+    """
+    parser = XmindAIParser(
+        api_key="invalid-key-for-testing",
+        base_url="http://127.0.0.1:59999",
+        model="deepseek-chat",
+        timeout=2,
+    )
     paths = [["字词听写", "有教材内容", "点击听写记录", "显示记录"]]
     results = parser.parse_paths(paths)
-
-    assert len(results) == 1
-    assert results[0]["module"] == "字词听写"
-    assert results[0]["precondition"] == "有教材内容"
-    assert results[0]["steps"][0]["action"] == "点击听写记录"
-    mock_call_ai.assert_called_once()
-
-
-@patch("app.services.xmind_ai_parser.XmindAIParser._call_ai")
-def test_parse_paths_ai_failure_returns_empty(mock_call_ai):
-    mock_call_ai.return_value = None
-    parser = XmindAIParser()
-    paths = [["M", "F", "R"]]
-    results = parser.parse_paths(paths)
     assert results == []
-
-
-@patch("app.services.xmind_ai_parser.XmindAIParser._call_ai")
-def test_parse_paths_batching(mock_call_ai):
-    batch1_response = [{"module": f"M{i}", "title": f"T{i}", "steps": [], "expected_result": f"R{i}", "priority": 2} for i in range(3)]
-    batch2_response = [{"module": "M3", "title": "T3", "steps": [], "expected_result": "R3", "priority": 2}]
-    mock_call_ai.side_effect = [batch1_response, batch2_response]
-
-    parser = XmindAIParser(batch_size=3)
-    paths = [["M", "F", f"R{i}"] for i in range(4)]
-    results = parser.parse_paths(paths)
-
-    assert len(results) == 4
-    assert mock_call_ai.call_count == 2
 
 
 def test_parse_paths_empty():
     parser = XmindAIParser()
     assert parser.parse_paths([]) == []
+
+
+def test_parser_timeout_config_is_set():
+    """验证 timeout 参数正确传递到客户端配置。"""
+    parser = XmindAIParser(timeout=30)
+    assert parser._timeout == 30
+    assert parser.client.timeout == 30

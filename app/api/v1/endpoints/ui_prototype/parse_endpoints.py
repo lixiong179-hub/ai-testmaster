@@ -18,6 +18,7 @@ UI原型解析端点模块
     - 批量解析按页面顺序依次处理
     - 测试流程基于页面间跳转关系自动生成
 """
+import traceback
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -46,11 +47,11 @@ async def parse_ui_screens(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    logger.info(f"[parse_ui_screens] 收到请求! parse_request: {parse_request}")
-    logger.info(f"current_user: {current_user.username}, id: {current_user.id}")
+    logger.info(
+        f"[parse_ui_screens] user_id={current_user.id} screen_ids={parse_request.screen_ids}"
+    )
     try:
         if not parse_request.screen_ids:
-            logger.warning("parse_request.screen_ids 为空!")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="请选择要解析的屏幕",
@@ -63,56 +64,59 @@ async def parse_ui_screens(
             .all()
         )
         # 校验所有 screen_id 均存在
-        foundIds = {s.id for s in screens}
-        missingIds = set(parse_request.screen_ids) - foundIds
-        if missingIds:
-            logger.error(f"屏幕不存在: {missingIds}")
+        found_ids = {s.id for s in screens}
+        missing_ids = set(parse_request.screen_ids) - found_ids
+        if missing_ids:
+            logger.warning(f"屏幕不存在: {missing_ids}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"屏幕不存在: {missingIds}",
+                detail=f"屏幕不存在: {missing_ids}",
+            )
+        # 强约束：所有 screen 必须属于同一项目，避免跨项目调用导致 pipeline 上下文混乱
+        screen_project_ids = {s.project_id for s in screens}
+        if len(screen_project_ids) > 1:
+            logger.warning(
+                f"screen_ids 跨多个项目: project_ids={screen_project_ids}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="screen_ids 必须属于同一项目",
             )
         # 一次性校验所有屏幕均属于当前用户拥有的项目
-        screenProjectIds = {s.project_id for s in screens}
-        authorizedProjectIds = {
+        authorized_project_ids = {
             pid for (pid,) in db.query(Project.id)
-            .filter(Project.id.in_(screenProjectIds), Project.user_id == current_user.id)
+            .filter(Project.id.in_(screen_project_ids), Project.user_id == current_user.id)
             .all()
         }
-        unauthorizedProjectIds = screenProjectIds - authorizedProjectIds
-        if unauthorizedProjectIds:
-            logger.error(f"无权限操作项目! project_ids={unauthorizedProjectIds}")
+        unauthorized_project_ids = screen_project_ids - authorized_project_ids
+        if unauthorized_project_ids:
+            logger.warning(
+                f"用户 user_id={current_user.id} 无权限操作项目 project_ids={unauthorized_project_ids}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权限操作此项目",
             )
-        logger.info("全量权限校验通过!")
-        screen = screens[0]
 
-        logger.info(f"创建 UISpecParsePipeline...")
+        target_project_id = next(iter(screen_project_ids))
         pipeline = UISpecParsePipeline(
-            db, screen.project_id, current_user.id, UPLOAD_DIR, parse_mode=parse_request.parse_mode
+            db, target_project_id, current_user.id, UPLOAD_DIR, parse_mode=parse_request.parse_mode
         )
-        logger.info(f"调用 pipeline.batch_parse_screens, screen_ids: {parse_request.screen_ids}")
         result = await pipeline.batch_parse_screens(parse_request.screen_ids)
-        logger.info(f"batch_parse_screens 完成! result: {result}")
 
         if parse_request.prototype_project_id:
             ui_prototype_crud.update_prototype_project_stats(
                 db, parse_request.prototype_project_id
             )
 
-        logger.info(f"返回响应!")
         return create_response(
             data=result,
             msg=f"解析完成，成功{result['success']}个，失败{result['failed']}个"
         )
-    except HTTPException as e:
-        logger.warning(f"HTTPException 抛出: status_code={e.status_code}, detail={e.detail}")
+    except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"解析UI屏幕失败: {e}")
-        import traceback
-        logger.error(f"堆栈: {traceback.format_exc()}")
+        logger.error(f"解析UI屏幕失败: {e}\n{traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="解析UI屏幕失败，请稍后重试"

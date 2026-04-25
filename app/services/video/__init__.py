@@ -95,3 +95,28 @@ __all__ = [
     'FFmpegMixin',
     'PathUtilsMixin',
 ]
+
+
+_video_service_instance: Optional[VideoService] = None
+
+
+def get_video_service(db: Optional[Session] = None) -> VideoService:
+    """获取视频服务实例（单例兼容函数）。
+
+    兼容旧版 get_video_service() 无参调用方式。
+    若未提供 db，返回已存在的单例实例（可能为None）。
+
+    Args:
+        db: 数据库会话，首次初始化时必需。
+
+    Returns:
+        VideoService 单例实例。
+    """
+    global _video_service_instance
+    if _video_service_instance is None:
+        if db is None:
+            raise RuntimeError("首次初始化 VideoService 必须提供 db 参数")
+        _video_service_instance = VideoService.get_instance(db)
+    elif db is not None:
+        _video_service_instance.db = db
+    return _video_service_instance

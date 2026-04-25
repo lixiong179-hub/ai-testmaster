@@ -244,6 +244,7 @@ class TestPointXmindPreviewResponse(BaseModel):
     case_items: List[TestPointXmindPreviewCaseItem] = Field(default_factory=list, description="测试用例列表")
     skipped_count: int = Field(0, description="跳过数量")
     skipped_reasons: List[str] = Field(default_factory=list, description="跳过原因列表")
+    ai_timeout: bool = Field(False, description="AI增强模式是否因超时而降级")
 
 
 class TestPointXmindImportResponse(BaseModel):
@@ -257,6 +258,7 @@ class TestPointXmindImportResponse(BaseModel):
     total_parsed: int = Field(..., description="解析总数")
     skipped_count: int = Field(0, description="跳过数量")
     skipped_reasons: List[str] = Field(default_factory=list, description="跳过原因列表")
+    ai_timeout: bool = Field(False, description="AI增强模式是否因超时而降级")
 
 
 class TestPointBatchGenerateRequest(BaseModel):

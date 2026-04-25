@@ -382,6 +382,60 @@ class XmindParser:
             return point_text
         return point_text + "".join(f"\n备注: {note}" for note in unique_notes)
 
+    def extract_paths(self, file_path: str) -> List[List[str]]:
+        """提取 XMind 中从模块到叶子的完整路径列表。
+
+        用于 AI 增强模式，将原始路径交给 LLM 进行语义解析。
+
+        Args:
+            file_path: .xmind 文件绝对路径。
+
+        Returns:
+            路径列表，每条路径是节点文本的字符串列表。
+        """
+        content_xml = self._extract_content_xml(file_path)
+        root = self._parse_xml(content_xml)
+        root_topic = self._get_root_topic(root)
+        return self._collect_paths(root_topic)
+
+    def _collect_paths(self, root_topic: ET.Element) -> List[List[str]]:
+        """收集所有从一级模块节点到叶子节点的完整路径。"""
+        paths: List[List[str]] = []
+        level1_topics = self._get_child_topics(root_topic)
+
+        for l1_topic in level1_topics:
+            module_name = self._extract_topic_text(l1_topic)
+            if not module_name:
+                continue
+            l1_children = self._get_child_topics(l1_topic)
+            for child in l1_children:
+                child_text = self._extract_topic_text(child)
+                if not child_text:
+                    continue
+                for path in self._collect_leaf_paths(child, [module_name, child_text]):
+                    paths.append(path)
+            if not l1_children:
+                if module_name:
+                    paths.append([module_name])
+
+        return paths
+
+    def _collect_leaf_paths(
+        self, topic: ET.Element, prefix: List[str]
+    ) -> List[List[str]]:
+        """递归收集从当前节点到叶子的所有路径。"""
+        child_topics = self._get_child_topics(topic)
+        if not child_topics:
+            return [prefix]
+
+        paths: List[List[str]] = []
+        for child in child_topics:
+            text = self._extract_topic_text(child)
+            if not text:
+                continue
+            paths.extend(self._collect_leaf_paths(child, prefix + [text]))
+        return paths
+
     def _truncate_field(self, value: str, field_name: str, max_len: int) -> str:
         """截断超长字段并记录警告日志。
 

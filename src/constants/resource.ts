@@ -13,8 +13,14 @@ export const RESOURCE_CONFIG = {
   /** 批量上传最大文件数 */
   MAX_BATCH_UPLOAD: 20,
 
+  /** 前端"未分类"标识（对应 iteration_id = 0 或 NULL） */
+  ITERATION_UNCLASSIFIED: 0 as const,
+
   /** 前端"全部"标识（对应 selectedIterationId = null） */
   ITERATION_ALL: null,
+
+  /** 后端"未分类"筛选参数值（-1 表示筛选 iteration_id 为 NULL 的资源） */
+  BACKEND_UNCLASSIFIED_PARAM: -1 as const,
 }
 
 /** 资源类型选项 */

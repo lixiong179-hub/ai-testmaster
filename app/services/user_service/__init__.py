@@ -16,10 +16,28 @@
     - app.services.user_service.user_service: 用户核心业务逻辑
     - app.services.role_service.role_service: 角色核心业务逻辑
     - app.services.permission_service: 权限体系与RBAC实现
+
+Note: PermissionService/RoleService are imported lazily to avoid circular import:
+    permission_service -> user_service.user_service -> user_service.__init__ -> permission_service
 """
 from app.services.user_service.user_service import UserService, pwd_context
-from app.services.role_service.role_service import RoleService
-from app.services.permission_service import PermissionService, UserRoleService, RBACService
+
+
+def __getattr__(name):
+    """Lazy import to break circular dependency with permission_service."""
+    if name == 'RoleService':
+        from app.services.role_service.role_service import RoleService
+        return RoleService
+    if name == 'PermissionService':
+        from app.services.permission_service import PermissionService
+        return PermissionService
+    if name == 'UserRoleService':
+        from app.services.permission_service import UserRoleService
+        return UserRoleService
+    if name == 'RBACService':
+        from app.services.permission_service import RBACService
+        return RBACService
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [

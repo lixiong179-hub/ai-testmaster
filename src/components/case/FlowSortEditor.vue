@@ -35,9 +35,9 @@
             删除
           </el-button>
         </div>
-        <div v-if="getSelectedMainNodeId()" class="main-order-actions">
+        <div v-if="getSelectedMainNodeId(vueFlowNodes)" class="main-order-actions">
           <el-tag type="success" size="small" effect="plain">
-            主干第 {{ getSelectedMainOrder() }} 步
+            主干第 {{ getSelectedMainOrder(vueFlowNodes) }} 步
           </el-tag>
           <el-button size="small" @click="moveSelectedMainNode(-1)" :disabled="!canMoveMainBackward()">
             主干前移
@@ -100,6 +100,14 @@
       @confirm="onEdgeConditionConfirm"
     />
 
+    <FlowTypeConfigDialog
+      v-model:visible="flowTypeConfigVisible"
+      :flow-type="(pendingFlowTypeChange?.type as Exclude<FlowNodeData['flow_type'], 'main'>) || 'branch'"
+      :main-node-options="mainNodeOptions"
+      :initial-data="pendingFlowMeta"
+      @confirm="handleFlowTypeConfigConfirm"
+    />
+
     <transition name="tip-fade">
       <div v-if="showShortcutsTip" class="shortcuts-tip">
         <kbd>Delete</kbd> 删除选中 | <kbd>Ctrl+Z</kbd> 撤销 | <kbd>Space</kbd> 预览图片 |
@@ -113,7 +121,6 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import {
   VueFlow,
-  MarkerType,
   useVueFlow,
   type Connection as FlowConnection,
   type Edge,
@@ -131,26 +138,25 @@ import {
 } from '@element-plus/icons-vue'
 import FlowNodeCard from './FlowNodeCard.vue'
 import EdgeConditionDialog from './EdgeConditionDialog.vue'
-import type { FlowNodeData, FlowEdgeData } from '@/store/flowSort'
+import FlowTypeConfigDialog from './FlowTypeConfigDialog.vue'
+import type { FlowNodeData, FlowEdgeData, FlowMetaData } from '@/store/flowSort'
 import type { UIScreen } from '@/api/uiPrototype'
-
-type EditorNodeData = {
-  screen_id: number
-  screen_name: string
-  summary?: string
-  ui_spec_elements?: FlowNodeData['ui_spec_elements']
-  flow_type: FlowNodeData['flow_type']
-  main_order?: number
-  image_url?: string
-  element_count?: number
-}
-type FlowValidationResult = { errors: string[]; warnings: string[] }
-type FlowEditorNode = {
-  id: string
-  type?: string
-  position: { x: number; y: number }
-  data: EditorNodeData
-}
+import {
+  type EditorNodeData,
+  type FlowEditorNode,
+  EDGE_STYLES,
+  getNodeData,
+  getMainNodesInOrder,
+  getOrderedNodesForSubmit,
+  normalizeMainNodeOrders,
+  layoutMainNodesByOrder,
+  getMainNodeCount,
+  createEdgeMarker,
+  normalizeEdges,
+  validateFlowData,
+  useFlowHistory,
+  useFlowSelection,
+} from '@/composables/useFlowEditor'
 
 const props = defineProps<{
   screens: UIScreen[]
@@ -171,141 +177,25 @@ const currentEdgeForm = ref<{
   edge_type: 'normal' | 'branch' | 'exception' | 'bypass'
   condition: string
 } | null>(null)
-const selectedNodes = ref<string[]>([])
-const draggingNodeId = ref<string | null>(null)
 const currentZoom = ref(1)
 const showShortcutsTip = ref(true)
+
+const flowTypeConfigVisible = ref(false)
+const pendingFlowTypeChange = ref<{ nodeId: string; type: string } | null>(null)
+const pendingFlowMeta = ref<FlowMetaData | null>(null)
 
 const { zoomIn: flowZoomIn, zoomOut: flowZoomOut, viewport } = useVueFlow()
 
 const vueFlowNodes = ref<FlowEditorNode[]>([])
 const vueFlowEdges = ref<Edge[]>([])
 
-const historyStack = ref<{ nodes: FlowEditorNode[]; edges: Edge[] }[]>([])
-const canUndo = computed(() => historyStack.value.length > 0)
-
-const getNodeData = (node: FlowEditorNode | Node) => node.data as EditorNodeData
-
-const getMainNodesInOrder = (nodes: FlowEditorNode[]) =>
-  [...nodes]
-    .filter((node) => getNodeData(node).flow_type === 'main')
-    .sort((a, b) => {
-      const aOrder = getNodeData(a).main_order ?? Number.MAX_SAFE_INTEGER
-      const bOrder = getNodeData(b).main_order ?? Number.MAX_SAFE_INTEGER
-      if (aOrder !== bOrder) return aOrder - bOrder
-      return a.position.x - b.position.x
-    })
-
-const normalizeMainNodeOrders = (nodes: FlowEditorNode[]) => {
-  const mainNodes = getMainNodesInOrder(nodes)
-  const mainOrderMap = new Map(mainNodes.map((node, index) => [node.id, index + 1]))
-
-  return nodes.map((node) => {
-    const nodeData = getNodeData(node)
-    if (nodeData.flow_type === 'main') {
-      return {
-        ...node,
-        data: {
-          ...nodeData,
-          main_order: mainOrderMap.get(node.id),
-        },
-      }
-    }
-
-    const { main_order: _mainOrder, ...restData } = nodeData
-    return {
-      ...node,
-      data: restData,
-    }
-  })
-}
-
-const layoutMainNodesByOrder = (nodes: FlowEditorNode[]) => {
-  const mainNodes = getMainNodesInOrder(nodes)
-  const positionMap = new Map(
-    mainNodes.map((node, index) => [
-      node.id,
-      {
-        x: index * 280,
-        y: node.position.y,
-      },
-    ])
-  )
-
-  return nodes.map((node) => {
-    if (!positionMap.has(node.id)) return node
-    return {
-      ...node,
-      position: positionMap.get(node.id) || node.position,
-    }
-  })
-}
-
-const getOrderedNodesForSubmit = (nodes: FlowEditorNode[]) => {
-  const mainNodes = getMainNodesInOrder(nodes)
-  const otherNodes = [...nodes]
-    .filter((node) => getNodeData(node).flow_type !== 'main')
-    .sort((a, b) => {
-      if (a.position.x !== b.position.x) return a.position.x - b.position.x
-      return a.position.y - b.position.y
-    })
-  return [...mainNodes, ...otherNodes]
-}
-
-const getMainNodeCount = (nodes: FlowEditorNode[]) => {
-  let count = 0
-  for (const node of nodes) {
-    if ((node.data as { flow_type?: string }).flow_type === 'main') count++
-  }
-  return count
-}
-
-const getNodeById = (nodeId: string | null): FlowEditorNode | null => {
-  if (!nodeId) return null
-  for (const item of vueFlowNodes.value) {
-    if (item.id === nodeId) return item
-  }
-  return null
-}
-
-const getSelectedMainNodeId = (): string | null => {
-  if (selectedNodes.value.length !== 1) return null
-  const node = getNodeById(selectedNodes.value[0])
-  return node && (node.data as { flow_type?: string }).flow_type === 'main' ? node.id : null
-}
-
-const getSelectedMainOrder = (): number | null => {
-  const node = getNodeById(getSelectedMainNodeId())
-  return node ? ((node.data as { main_order?: number }).main_order ?? null) : null
-}
-
-const canMoveMainBackward = () => (getSelectedMainOrder() ?? 0) > 1
-
-const canMoveMainForward = () => {
-  const selectedMainNodeId = getSelectedMainNodeId()
-  const selectedMainOrder = getSelectedMainOrder()
-  if (!selectedMainNodeId || selectedMainOrder == null) return false
-  return selectedMainOrder < getMainNodeCount(vueFlowNodes.value)
-}
+const { historyStack, canUndo, saveToHistory, undo } = useFlowHistory()
+const { selectedNodes, draggingNodeId, getSelectedMainNodeId, getSelectedMainOrder } = useFlowSelection()
 
 const getScreenImageUrl = (screen: UIScreen) => {
   if (!screen.id) return ''
   return props.screenImageUrls?.[screen.id] || ''
 }
-
-const EDGE_STYLES: Record<string, { stroke: string; strokeDasharray?: string }> = {
-  normal: { stroke: '#409eff' },
-  branch: { stroke: '#67c23a' },
-  exception: { stroke: '#f56c6c', strokeDasharray: '5 5' },
-  bypass: { stroke: '#e6a23c', strokeDasharray: '3 3' },
-}
-
-const createEdgeMarker = (color: string) => ({
-  type: MarkerType.ArrowClosed,
-  width: 20,
-  height: 20,
-  color,
-})
 
 const defaultEdgeOptions = {
   type: 'default',
@@ -322,27 +212,6 @@ const hydrateNodesWithImages = (nodes: FlowEditorNode[]) =>
         props.screenImageUrls?.[getNodeData(node).screen_id] || getNodeData(node).image_url || '',
     },
   }))
-
-const normalizeEdge = (edge: Edge): Edge => {
-  const edgeType = edge.data?.edge_type || 'normal'
-  const baseStyle = EDGE_STYLES[edgeType] || EDGE_STYLES.normal
-  const edgeStyle = typeof edge.style === 'function' ? {} : (edge.style ?? {})
-  const stroke = typeof edgeStyle.stroke === 'string' ? edgeStyle.stroke : baseStyle.stroke
-
-  return {
-    ...edge,
-    type: edge.type || 'default',
-    animated: edgeType !== 'normal',
-    style: {
-      ...baseStyle,
-      ...edgeStyle,
-      stroke,
-    },
-    markerEnd: createEdgeMarker(stroke),
-  }
-}
-
-const normalizeEdges = (edges: Edge[]) => edges.map(normalizeEdge)
 
 const syncHistoryImages = () => {
   historyStack.value = historyStack.value.map((snapshot) => ({
@@ -364,16 +233,6 @@ const minimapNodeColor = (node: Node) => {
 
 const minimapNodeStroke = () => '#fff'
 
-const saveToHistory = () => {
-  historyStack.value.push({
-    nodes: JSON.parse(
-      JSON.stringify(hydrateNodesWithImages(normalizeMainNodeOrders(vueFlowNodes.value)))
-    ),
-    edges: JSON.parse(JSON.stringify(normalizeEdges(vueFlowEdges.value))),
-  })
-  if (historyStack.value.length > 50) historyStack.value.shift()
-}
-
 const emitSortData = () => {
   const flowNodes: FlowNodeData[] = vueFlowNodes.value.map((node) => ({
     id: node.id,
@@ -385,6 +244,7 @@ const emitSortData = () => {
     main_order: getNodeData(node).main_order,
     image_url: getNodeData(node).image_url,
     position: node.position,
+    flow_meta: getNodeData(node).flow_meta,
   }))
   const flowEdges: FlowEdgeData[] = vueFlowEdges.value.map((edge) => {
     const sourceNode = vueFlowNodes.value.find((n) => n.id === edge.source)
@@ -398,6 +258,8 @@ const emitSortData = () => {
       edge_type: edge.data?.edge_type || 'normal',
       condition: edge.data?.condition,
       label: typeof edge.label === 'string' ? edge.label : String(edge.label || ''),
+      pre_action: edge.data?.pre_action,
+      note: edge.data?.note,
     }
   })
   emit('update:sort-data', { mode: 'graph', nodes: flowNodes, edges: flowEdges })
@@ -415,7 +277,13 @@ watch(
           screen_id: screen.id,
           screen_name: screen.screen_name,
           summary: screen.summary,
-          ui_spec_elements: screen.ui_spec?.elements || [],
+          ui_spec_elements: (screen.ui_spec?.elements || []).map((el) => ({
+            type: el.type,
+            label: el.label,
+            semantic: el.semantic_hint || el.description,
+            position: typeof el.position === 'string' ? el.position : JSON.stringify(el.position),
+            interactive: el.interactive,
+          })),
           flow_type: 'main' as const,
           main_order: index + 1,
           image_url: getScreenImageUrl(screen),
@@ -424,7 +292,7 @@ watch(
       }))
     )
     vueFlowEdges.value = []
-    saveToHistory()
+    saveToHistory(vueFlowNodes.value, vueFlowEdges.value)
     emitSortData()
   },
   { immediate: true }
@@ -465,7 +333,7 @@ const onEdgeConditionConfirm = (edgeData: {
   label: string
 }) => {
   if (!currentConnection.value) return
-  saveToHistory()
+  saveToHistory(vueFlowNodes.value, vueFlowEdges.value)
   const style = EDGE_STYLES[edgeData.edge_type] || EDGE_STYLES.normal
   const newEdge: Edge = {
     id: `edge_${Date.now()}`,
@@ -485,19 +353,78 @@ const onEdgeConditionConfirm = (edgeData: {
 
 const onEdgeUpdate = () => {
   vueFlowEdges.value = normalizeEdges(vueFlowEdges.value)
-  saveToHistory()
+  saveToHistory(vueFlowNodes.value, vueFlowEdges.value)
   emitSortData()
 }
 
 const onNodeDragStop = () => {
   draggingNodeId.value = null
-  saveToHistory()
+  saveToHistory(vueFlowNodes.value, vueFlowEdges.value)
   emitSortData()
 }
 
 const handleFlowTypeChange = (nodeId: string, type: string) => {
-  saveToHistory()
-  const nextMainOrder = getMainNodesInOrder(vueFlowNodes.value).length + 1
+  if (type === 'main') {
+    saveToHistory(vueFlowNodes.value, vueFlowEdges.value)
+    const nextMainOrder = getMainNodesInOrder(vueFlowNodes.value).length + 1
+    vueFlowNodes.value = normalizeMainNodeOrders(
+      vueFlowNodes.value.map((node) => {
+        if (node.id !== nodeId) return node
+        const nodeData = getNodeData(node)
+        return {
+          ...node,
+          data: {
+            ...nodeData,
+            flow_type: type as EditorNodeData['flow_type'],
+            main_order: nodeData.main_order ?? nextMainOrder,
+            flow_meta: undefined,
+          },
+        }
+      })
+    )
+    emitSortData()
+    return
+  }
+
+  const node = vueFlowNodes.value.find((n) => n.id === nodeId)
+  if (!node) return
+
+  pendingFlowTypeChange.value = { nodeId, type }
+  pendingFlowMeta.value = getNodeData(node).flow_meta || null
+  flowTypeConfigVisible.value = true
+}
+
+/**
+ * 主干节点选项列表，供弹窗选择挂靠主干节点。
+ * 仅包含 flow_type 为 main 的节点，按 main_order 排序。
+ */
+const mainNodeOptions = computed(() =>
+  getMainNodesInOrder(vueFlowNodes.value).map((node) => ({
+    id: node.id,
+    screen_id: getNodeData(node).screen_id,
+    screen_name: getNodeData(node).screen_name,
+    main_order: getNodeData(node).main_order,
+  }))
+)
+
+/**
+ * 处理流程类型配置弹窗确认事件。
+ * 更新节点类型和元数据，并自动创建/更新从挂靠主干节点指向当前节点的语义边。
+ *
+ * @param meta - 用户填写的流程类型配置数据
+ * @remarks
+ * - 若当前节点已存在同类型边，则替换旧边以保留 edge id
+ * - 主干节点切换为分支/异常/旁路时，清除 main_order
+ * - 变更后自动保存到历史栈并触发数据输出
+ */
+const handleFlowTypeConfigConfirm = (meta: FlowMetaData) => {
+  if (!pendingFlowTypeChange.value) return
+
+  const { nodeId, type } = pendingFlowTypeChange.value
+  const parentNodeId = meta.parent_main_node_id
+
+  saveToHistory(vueFlowNodes.value, vueFlowEdges.value)
+
   vueFlowNodes.value = normalizeMainNodeOrders(
     vueFlowNodes.value.map((node) => {
       if (node.id !== nodeId) return node
@@ -507,11 +434,48 @@ const handleFlowTypeChange = (nodeId: string, type: string) => {
         data: {
           ...nodeData,
           flow_type: type as EditorNodeData['flow_type'],
-          main_order: type === 'main' ? nodeData.main_order ?? nextMainOrder : undefined,
+          main_order: undefined,
+          flow_meta: meta,
         },
       }
     })
   )
+
+  if (parentNodeId) {
+    const existingEdgeIndex = vueFlowEdges.value.findIndex(
+      (e) => e.target === nodeId && e.data?.edge_type === type
+    )
+    const newEdge: Edge = {
+      id: existingEdgeIndex >= 0 ? vueFlowEdges.value[existingEdgeIndex].id : `edge_${Date.now()}`,
+      source: parentNodeId,
+      target: nodeId,
+      type: 'default',
+      animated: true,
+      style: EDGE_STYLES[type] || EDGE_STYLES.normal,
+      label: `${type === 'branch' ? '分支' : type === 'exception' ? '异常' : '旁路'}：${meta.trigger_condition || ''}`,
+      data: {
+        edge_type: type,
+        condition: meta.trigger_condition,
+        pre_action: meta.pre_action,
+        note: meta.note,
+      },
+      markerEnd: createEdgeMarker((EDGE_STYLES[type] || EDGE_STYLES.normal).stroke),
+    }
+
+    if (existingEdgeIndex >= 0) {
+      vueFlowEdges.value = normalizeEdges([
+        ...vueFlowEdges.value.slice(0, existingEdgeIndex),
+        newEdge,
+        ...vueFlowEdges.value.slice(existingEdgeIndex + 1),
+      ])
+    } else {
+      vueFlowEdges.value = normalizeEdges([...vueFlowEdges.value, newEdge])
+    }
+  }
+
+  pendingFlowTypeChange.value = null
+  pendingFlowMeta.value = null
+  flowTypeConfigVisible.value = false
   emitSortData()
 }
 
@@ -524,9 +488,9 @@ const handleNodePreview = (data: {
 }
 
 const handleAutoLayout = () => {
-  saveToHistory()
+  saveToHistory(vueFlowNodes.value, vueFlowEdges.value)
   const mainNodes = getMainNodesInOrder(vueFlowNodes.value)
-  const otherNodes = vueFlowNodes.value.filter((n) => n.data.flow_type !== 'main')
+  const otherNodes = vueFlowNodes.value.filter((n) => getNodeData(n).flow_type !== 'main')
   mainNodes.forEach((node, index) => {
     node.position = { x: index * 280, y: 0 }
   })
@@ -549,8 +513,8 @@ const handleAutoLayout = () => {
 const handlePreviewPrompt = () => emit('preview-prompt')
 
 const handleUndo = () => {
-  if (historyStack.value.length > 0) {
-    const prev = historyStack.value.pop()!
+  const prev = undo()
+  if (prev) {
     vueFlowNodes.value = hydrateNodesWithImages(prev.nodes)
     vueFlowEdges.value = normalizeEdges(prev.edges)
     emitSortData()
@@ -573,7 +537,7 @@ const handleSelectionChange = (selected: { nodes: Node[] }) => {
 const handleDeleteSelected = () => {
   if (selectedNodes.value.length === 0) return
   const deletedCount = selectedNodes.value.length
-  saveToHistory()
+  saveToHistory(vueFlowNodes.value, vueFlowEdges.value)
   vueFlowEdges.value = vueFlowEdges.value.filter(
     (e) => !selectedNodes.value.includes(e.source) && !selectedNodes.value.includes(e.target)
   )
@@ -585,8 +549,19 @@ const handleDeleteSelected = () => {
   ElMessage.success(`已删除 ${deletedCount} 个节点`)
 }
 
+const canMoveMainBackward = () => (getSelectedMainOrder(vueFlowNodes.value) ?? 0) > 1
+
+const canMoveMainForward = () => {
+  const selectedMainNodeId = getSelectedMainNodeId(vueFlowNodes.value)
+  const selectedMainOrder = getSelectedMainOrder(vueFlowNodes.value)
+  if (!selectedMainNodeId || selectedMainOrder == null) return false
+  return selectedMainOrder < getMainNodeCount(vueFlowNodes.value)
+}
+
 const moveSelectedMainNode = (direction: -1 | 1) => {
-  const selectedNode = getNodeById(getSelectedMainNodeId())
+  const selectedNodeId = getSelectedMainNodeId(vueFlowNodes.value)
+  if (!selectedNodeId) return
+  const selectedNode = vueFlowNodes.value.find((n) => n.id === selectedNodeId)
   if (!selectedNode) return
 
   const orderedMainNodes = getMainNodesInOrder(vueFlowNodes.value)
@@ -594,7 +569,7 @@ const moveSelectedMainNode = (direction: -1 | 1) => {
   const targetIndex = currentIndex + direction
   if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedMainNodes.length) return
 
-  saveToHistory()
+  saveToHistory(vueFlowNodes.value, vueFlowEdges.value)
   const reorderedMainNodes = [...orderedMainNodes]
   ;[reorderedMainNodes[currentIndex], reorderedMainNodes[targetIndex]] = [
     reorderedMainNodes[targetIndex],
@@ -666,6 +641,7 @@ const getFlowSortSubmitData = () => {
         screen_name: getNodeData(node).screen_name,
         ui_spec_elements: getNodeData(node).ui_spec_elements || [],
         summary: getNodeData(node).summary || '',
+        flow_meta: getNodeData(node).flow_meta || undefined,
       })),
       edges: vueFlowEdges.value
         .map((edge) => {
@@ -680,6 +656,8 @@ const getFlowSortSubmitData = () => {
             edge_type: edge.data?.edge_type || 'normal',
             condition: edge.data?.condition || '',
             label: typeof edge.label === 'string' ? edge.label : String(edge.label || ''),
+            pre_action: edge.data?.pre_action || '',
+            note: edge.data?.note || '',
           }
         })
         .filter((e): e is NonNullable<typeof e> => e !== null),
@@ -688,42 +666,16 @@ const getFlowSortSubmitData = () => {
   }
 }
 
-const getFlowValidationIssues = (): FlowValidationResult => {
-  const errors: string[] = []
-  const warnings: string[] = []
+const getFlowValidationIssues = (): { errors: string[]; warnings: string[] } => {
   const flowData = getFlowSortSubmitData().flow_sort_data
-  const mainNodes = flowData.nodes.filter((node) => node.flow_type === 'main')
-  const mainNodeIds = new Set(mainNodes.map((node) => String(node.screen_id)))
-  const mainEdges = flowData.edges.filter(
-    (edge) => mainNodeIds.has(edge.source) && mainNodeIds.has(edge.target) && edge.edge_type === 'normal'
-  )
-
-  if (mainNodes.length === 0) {
-    errors.push('至少需要保留一个主干节点')
-  }
-
-  flowData.nodes.forEach((node) => {
-    if (!node.screen_name.trim()) {
-      errors.push(`存在未命名页面（screen_id=${node.screen_id}）`)
-    }
-  })
-
-  flowData.edges.forEach((edge) => {
-    if (edge.edge_type !== 'normal' && !edge.condition.trim()) {
-      const labelMap: Record<string, string> = {
-        branch: '分支触发条件',
-        exception: '异常场景',
-        bypass: '旁路出现时机',
-      }
-      errors.push(`${edge.label} 缺少${labelMap[edge.edge_type] || '说明'}`)
-    }
-  })
-
-  if (mainNodes.length > 1 && mainEdges.length === 0) {
-    warnings.push('当前主干节点之间没有正常连线，AI 可能无法稳定理解主流程')
-  }
-
-  return { errors, warnings }
+  const edges = flowData.edges.map((edge) => ({
+    source: edge.source,
+    target: edge.target,
+    edge_type: edge.edge_type,
+    condition: edge.condition || '',
+    label: edge.label,
+  }))
+  return validateFlowData(flowData.nodes, edges)
 }
 
 defineExpose({ getFlowSortSubmitData, getFlowValidationIssues })
@@ -877,6 +829,18 @@ defineExpose({ getFlowSortSubmitData, getFlowValidationIssues })
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.graph-mode :deep(.vue-flow__edge) {
+  z-index: 1;
+}
+
+.graph-mode :deep(.vue-flow__edge-path) {
+  stroke-width: 2;
+}
+
+.graph-mode :deep(.vue-flow__edge-marker) {
+  stroke-width: 2;
 }
 
 .tip-fade-enter-active,
