@@ -6,7 +6,7 @@ PromptBuilder 多模态与模板统一测试
 - ISSUE-005: 新旧Prompt模板统一
 """
 import pytest
-from app.services.case_generation_prompt_builder import PromptBuilder
+from app.services.prompt_builder import PromptBuilder
 
 
 class TestMultimodalPrompt:

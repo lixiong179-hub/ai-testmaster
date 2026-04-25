@@ -70,7 +70,7 @@ class PipelineUploadMixin:
         self.db = db
         self.project_id = project_id
         self.user_id = user_id
-        self.upload_dir = upload_dir or getattr(settings, 'UI_PROTOTYPE_UPLOAD_DIR', '/tmp/ui_prototypes')
+        self.upload_dir = upload_dir or settings.UI_PROTOTYPE_UPLOAD_DIR
         self.parse_mode = parse_mode or getattr(settings, 'UI_PARSER_MODE', 'text')
 
     def _is_image_file(self, filename: str) -> bool:

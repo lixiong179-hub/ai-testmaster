@@ -39,24 +39,35 @@ export function useResourceOperations(
       })
     }
 
-    // 携带迭代信息
-    if (
-      row.iteration_id ||
-      (iterationManager.selectedIterationId !== null && iterationManager.selectedIterationId !== 0)
+    // 携带迭代信息（仅当有有效迭代ID时才携带）
+    if (row.iteration_id && row.iteration_id > 0) {
+      baseQuery.iteration_id = String(row.iteration_id)
+      const iteration = iterationManager.iterations.find((it: Iteration) => it.id === row.iteration_id)
+      if (iteration) {
+        baseQuery.iteration_name = iteration.name
+      }
+    } else if (
+      iterationManager.selectedIterationId !== null &&
+      iterationManager.selectedIterationId > 0
     ) {
-      baseQuery.iteration_id = String(row.iteration_id || iterationManager.selectedIterationId)
-
-      const iterId = row.iteration_id || iterationManager.selectedIterationId
-      const iteration = iterationManager.iterations.find((it: Iteration) => it.id === iterId)
+      baseQuery.iteration_id = String(iterationManager.selectedIterationId)
+      const iteration = iterationManager.iterations.find(
+        (it: Iteration) => it.id === iterationManager.selectedIterationId
+      )
       if (iteration) {
         baseQuery.iteration_name = iteration.name
       }
     }
 
     if (row.resource_type === 'ui_mockup' && row.source_type === 'ui_prototype') {
+      // UI原型提取统一走测试点管理页的 ExtractDialog
       router.push({
-        path: '/home/case/test-point-extract',
-        query: baseQuery,
+        path: '/home/case/test-point-management',
+        query: {
+          projectId: baseQuery.project_id,
+          openExtract: '1',
+          filename: baseQuery.filename,
+        },
       })
       return
     }
@@ -89,7 +100,7 @@ export function useResourceOperations(
     } else {
       // 查找所属迭代名称
       let iterationInfo = ''
-      if (row.iteration_id) {
+      if (row.iteration_id && row.iteration_id > 0) {
         const iterationName = iterationManager.getIterationNameById(row.iteration_id)
         if (iterationName && iterationName !== '未分类') {
           iterationInfo = `\n所属迭代：${iterationName}`

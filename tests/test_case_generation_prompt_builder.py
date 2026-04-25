@@ -7,7 +7,7 @@ PromptBuilder 单元测试
 - 边界场景：空节点、空连线、缺失字段、异常数据
 """
 import pytest
-from app.services.case_generation_prompt_builder import PromptBuilder
+from app.services.prompt_builder import PromptBuilder
 
 
 class TestBuildGraphPrompt:

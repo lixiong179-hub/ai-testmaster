@@ -179,19 +179,19 @@ const routes: RouteRecordRaw[] = [
             },
           },
           {
-            path: 'test-point-extract',
-            name: 'TestPointExtract',
-            component: () => import('../views/case/test-point-extract.vue'),
-            meta: {
-              title: '测试点提取向导',
-            },
-          },
-          {
             path: 'test-point-management',
             name: 'TestPointManagement',
             component: () => import('../views/case/test-point-management/index.vue'),
             meta: {
               title: '测试点管理',
+            },
+          },
+          {
+            path: 'test-point-extract',
+            name: 'TestPointExtract',
+            component: () => import('../views/case/test-point-extract.vue'),
+            meta: {
+              title: '测试点提取向导',
             },
           },
           {

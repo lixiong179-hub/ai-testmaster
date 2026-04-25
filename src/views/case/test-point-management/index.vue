@@ -590,13 +590,8 @@ function openExtractDialog(): void {
 }
 
 function openLegacyExtractGuide(): void {
-  if (!selectedProjectId.value) return
-  void router.push({
-    path: '/home/case/test-point-extract',
-    query: {
-      project_id: String(selectedProjectId.value),
-    },
-  })
+  // 旧向导页已下线，统一使用 ExtractDialog 入口
+  openExtractDialog()
 }
 
 function openTaskList(): void {

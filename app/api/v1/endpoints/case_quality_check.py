@@ -62,6 +62,12 @@ class CoverageScoreSchema(BaseModel):
     coverage_rate: float
     score: float
     level: str
+    requirement_coverage_rate: float = 0.0
+    ui_element_coverage_rate: float = 0.0
+    locator_coverage_rate: float = 0.0
+    requirement_details: Optional[dict] = None
+    ui_element_details: Optional[dict] = None
+    locator_details: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -217,7 +223,9 @@ async def optimize_case_locators(
     ).order_by(TestStep.step_number).all()
 
     analyzer = CaseQualityAnalyzer(db)
-    coverage = analyzer._analyze_coverage(steps)
+    coverage = analyzer._analyze_coverage(
+        steps, project_id=test_case.project_id, test_case=test_case
+    )
 
     steps_without_locator = []
     for step in steps:

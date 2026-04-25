@@ -158,28 +158,11 @@
         <!-- 文件上传 -->
         <div class="file-upload-section">
           <el-divider content-position="left">文件上传</el-divider>
-          <el-upload
-            class="upload-demo"
-            drag
-            :auto-upload="false"
-            :on-change="handleFileChange"
-            :file-list="fileList"
+          <RequirementUploader
+            :project-id="projectId"
             accept=".doc,.docx,.pdf,.xlsx,.png,.jpg"
-            multiple
-          >
-            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-            <div class="el-upload__text">拖拽文件到此处，或<em>点击上传</em></div>
-            <template #tip>
-              <div class="el-upload__tip">支持上传：docx、pdf、xlsx、png、jpg格式文件</div>
-            </template>
-          </el-upload>
-          <el-button
-            type="primary"
-            @click="uploadFiles"
-            :disabled="fileList.length === 0"
-            style="margin-top: 10px"
-            >开始上传</el-button
-          >
+            @success="handleUploadSuccess"
+          />
         </div>
 
         <!-- 文件列表 -->
@@ -239,14 +222,13 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useProjectStore } from '@/store/project'
-import { UploadFilled } from '@element-plus/icons-vue'
 import { ProjectAPI, type WebEnvConfigs, type DeviceConfig, type Project } from '@/api/project'
+import RequirementUploader from '@/components/RequirementUploader.vue'
 
 const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
 
-const fileList = ref<any[]>([])
 const saving = ref(false)
 
 const webEnvForm = reactive({
@@ -371,17 +353,8 @@ const saveDeviceConfig = async () => {
   }
 }
 
-// 处理文件变化
-const handleFileChange = (_file: any, list: any[]) => {
-  fileList.value = list
-}
-
-// 上传文件
-const uploadFiles = async () => {
-  for (const file of fileList.value) {
-    await projectStore.uploadFile(projectId.value, file.raw)
-  }
-  fileList.value = []
+const handleUploadSuccess = async () => {
+  await projectStore.fetchProjectDetail(projectId.value)
 }
 
 // 确认删除文件

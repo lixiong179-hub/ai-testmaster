@@ -32,16 +32,16 @@ class UISpecCoreMixin:
             resolved = Path(image_path).resolve()
             logger.debug(f"  解析后路径: {resolved}")
 
-            project_root = Path(__file__).parent.parent.parent
+            # 白名单目录均来自配置项，跨平台兼容（Windows/Linux/macOS）
+            # 使用 Path.resolve() 消除符号链接和 .. 穿越，再用 is_relative_to 校验前缀
             allowed_dirs = [
                 Path(settings.UPLOAD_DIR).resolve(),
-                Path(getattr(settings, 'UI_PROTOTYPE_UPLOAD_DIR', '/tmp/ui_prototypes')).resolve(),
-                Path('/tmp/ui_prototypes').resolve(),
-                (project_root / 'test_uploads').resolve(),
+                Path(settings.UI_PROTOTYPE_UPLOAD_DIR).resolve(),
             ]
             logger.debug(f"  允许的目录: {[str(d) for d in allowed_dirs]}")
 
-            is_allowed = any(str(resolved).startswith(str(allowed_dir)) for allowed_dir in allowed_dirs)
+            # is_relative_to 在 resolve() 之后使用，可防御 ../../etc/passwd 等路径穿越
+            is_allowed = any(resolved.is_relative_to(allowed_dir) for allowed_dir in allowed_dirs)
             logger.debug(f"  路径是否允许: {is_allowed}")
 
             if not is_allowed:
@@ -200,7 +200,7 @@ class UISpecCoreMixin:
         Returns:
             (成功标志, ui_spec字典, 错误信息)
         """
-        from app.services.ui_spec_prompts import SINGLE_IMAGE_PROMPT
+        from app.services.prompt_builder import SINGLE_IMAGE_PROMPT
         prompt = SINGLE_IMAGE_PROMPT
         if screen_name_hint:
             prompt = f"[提示：这是{screen_name_hint}]\n\n" + prompt

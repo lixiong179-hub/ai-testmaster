@@ -43,9 +43,6 @@
           <el-menu-item index="/home/case/test-point-management">
             <span>测试点管理</span>
           </el-menu-item>
-          <el-menu-item index="/home/case/test-point-extract">
-            <span>测试点提取向导</span>
-          </el-menu-item>
           <el-menu-item index="/home/case/ai-generate">
             <span>AI生成用例</span>
           </el-menu-item>
@@ -188,7 +185,6 @@ const updateBreadcrumb = (path: string) => {
     '/home/requirement/ui-prototype': 'UI原型图',
     '/home/case': '测试用例管理',
     '/home/case/test-point-management': '测试点管理',
-    '/home/case/test-point-extract': '测试点提取向导',
     '/home/case/ai-generate': 'AI生成用例',
     '/home/task': '测试任务管理',
     '/home/report': '测试报告',

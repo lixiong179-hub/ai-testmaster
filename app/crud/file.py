@@ -165,21 +165,25 @@ def get_project_files(db: Session, project_id: int, is_active: bool = True,
         db: 数据库会话
         project_id: 项目ID
         is_active: 是否只查询活跃文件，默认True（排除已软删除的文件）
-        iteration_id: 迭代ID（可选），-1表示查询未关联迭代的文件
+        iteration_id: 迭代ID（可选），None表示查询未关联迭代的文件，
+                      正整数表示按迭代ID精确匹配，不传此参数则不过滤迭代
 
     Returns:
         List[ProjectFile]: 文件列表，按上传时间倒序
 
     Note:
-        iteration_id=-1 是特殊值，表示查询 iteration_id IS NULL 的文件
-        （即未关联任何迭代的文件）。这是前端"未分类"筛选的约定。
+        iteration_id 参数语义变更（原 -1 哨兵值已废弃）：
+        - 不传 iteration_id：不过滤迭代，返回所有文件
+        - iteration_id=None（显式传入None）：查询 iteration_id IS NULL 的文件（未关联迭代）
+        - iteration_id=正整数：按迭代ID精确匹配
     """
     query = db.query(ProjectFile).filter(ProjectFile.project_id == project_id)
     if is_active is not None:
         query = query.filter(ProjectFile.is_active == is_active)
-    # 迭代过滤：-1表示未关联迭代的文件，其他值按迭代ID精确匹配
+    # 迭代过滤：None表示未关联迭代的文件，正整数按迭代ID精确匹配
     if iteration_id is not None:
-        if iteration_id == -1:
+        if iteration_id <= 0:
+            # 兼容旧调用：<=0 的值统一视为"未关联迭代"，查询 IS NULL
             query = query.filter(ProjectFile.iteration_id.is_(None))
         else:
             query = query.filter(ProjectFile.iteration_id == iteration_id)

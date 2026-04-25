@@ -21,7 +21,7 @@ UI原型页面查询操作模块
 查询条件构建逻辑：
     - 动态过滤：根据可选参数（prototype_project_id/parse_status/iteration_id）逐步追加filter
     - 权限隔离：通过JOIN Project表确保用户只能查询自己项目下的页面
-    - 迭代过滤：通过_apply_iteration_filter函数统一处理，支持-1特殊值
+    - 迭代过滤：通过_apply_iteration_filter函数统一处理，支持<=0特殊值
     - 排序：先按screen_order排序，再按create_time排序，确保页面顺序可控
 
 性能考虑：
@@ -47,25 +47,25 @@ def _apply_iteration_filter(query: Any, iteration_id: Optional[int]) -> Any:
     统一处理迭代过滤逻辑。
 
     过滤逻辑：
-    - iteration_id=None: 不追加任何过滤条件
-    - iteration_id=-1: 使用outerjoin查询未关联迭代的页面
+    - iteration_id=None（Python默认值，未传参）：不追加任何过滤条件
+    - iteration_id<=0（含负数和0）：查询未关联迭代的页面
       （UIPrototypeProject.iteration_id IS NULL 或页面无关联原型项目）
-    - iteration_id=其他值: 使用join查询指定迭代下的页面
+    - iteration_id=正整数: 使用join查询指定迭代下的页面
 
     Args:
         query: SQLAlchemy查询对象
-        iteration_id: 迭代ID，None表示不过滤，-1表示未关联迭代
+        iteration_id: 迭代ID，未传则不过滤，<=0表示未关联迭代，正整数按迭代匹配
 
     Returns:
         追加迭代过滤条件后的查询对象
 
     Note:
-        - iteration_id=-1时使用outerjoin而非join，因为页面可能没有关联原型项目
+        - iteration_id<=0时使用outerjoin而非join，因为页面可能没有关联原型项目
         - 使用 or_ 条件同时处理"原型项目无迭代"和"页面无原型项目"两种情况
     """
     from app.models.ui_prototype import UIPrototypeProject
     if iteration_id is not None:
-        if iteration_id == -1:
+        if iteration_id <= 0:
             # 查询未关联迭代的页面：使用outerjoin保留无原型项目的页面
             query = query.outerjoin(
                 UIPrototypeProject,
@@ -129,7 +129,7 @@ def get_ui_screens_by_project(
         user_id: 用户ID，通过JOIN Project实现权限隔离
         prototype_project_id: 原型项目ID（可选），按原型项目过滤
         parse_status: 解析状态（可选），pending/completed/failed
-        iteration_id: 迭代ID（可选），-1表示未关联迭代
+        iteration_id: 迭代ID（可选），<=0表示未关联迭代
         skip: 跳过记录数
         limit: 返回记录上限
 

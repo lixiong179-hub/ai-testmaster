@@ -10,14 +10,12 @@ TestCaseGenerationService组合使用。
 设计模式:
     作为Mixin模块，通过多继承组合到TestCaseGenerationService中，提供:
     - _generate_case_with_ai: AI生成核心方法（含重试）
-    - _build_generation_prompt: Prompt构建（继承自AIPromptMixin）
-    - _format_ui_spec_for_prompt: UI规格格式化（继承自AIPromptMixin）
     - _parse_ai_response: AI响应解析（继承自AIParseMixin）
 
 依赖关系:
     - app.utils.ai_client: AI客户端工具
     - app.core.config: 配置管理（API密钥、模型名称等）
-    - app.services.case_generation.ai_prompt_mixin: Prompt构建
+    - app.services.prompt_builder: 统一Prompt构建
     - app.services.case_generation.ai_parse_mixin: 响应解析
 
 AI调用流程:
@@ -36,16 +34,16 @@ from loguru import logger
 
 from app.utils.ai_client import AIServiceError
 from app.core.config import settings
-from app.services.case_generation.ai_prompt_mixin import AIPromptMixin
+from app.services.prompt_builder import PromptBuilder
 from app.services.case_generation.ai_parse_mixin import AIParseMixin
 
 
-class AIMixin(AIPromptMixin, AIParseMixin):
+class AIMixin(AIParseMixin):
     """AI调用Mixin - 封装DeepSeek API交互与响应解析。
 
     职责:
         - 调用DeepSeek API并处理重试逻辑
-        - 继承AIPromptMixin的Prompt构建能力
+        - 使用PromptBuilder构建Prompt
         - 继承AIParseMixin的响应解析能力
 
     设计意图:
@@ -110,7 +108,7 @@ class AIMixin(AIPromptMixin, AIParseMixin):
         priority = test_point.get("priority", 2)
 
         # 构建结构化Prompt
-        prompt = self._build_generation_prompt(
+        prompt = PromptBuilder.build_linear_prompt(
             requirement_content=requirement_content, ui_description=ui_description,
             module=module, function=function, point=point, priority=priority, ui_specs=ui_specs
         )

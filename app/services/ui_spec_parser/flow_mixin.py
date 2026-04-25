@@ -55,7 +55,7 @@ class UISpecFlowMixin:
 
             image_descriptions.append(desc)
 
-        from app.services.ui_spec_prompts import MULTI_IMAGE_FLOW_PROMPT
+        from app.services.prompt_builder import MULTI_IMAGE_FLOW_PROMPT
         prompt = MULTI_IMAGE_FLOW_PROMPT.format(
             count=count,
             image_descriptions="\n\n".join(image_descriptions)
@@ -108,7 +108,7 @@ class UISpecFlowMixin:
                 "layout_constraints": screen.get("layout_constraints", [])
             })
 
-        from app.services.ui_spec_prompts import BATCH_SUMMARY_PROMPT
+        from app.services.prompt_builder import BATCH_SUMMARY_PROMPT
         prompt = BATCH_SUMMARY_PROMPT.format(
             ui_specs=json.dumps(simplified, ensure_ascii=False, indent=2)
         )

@@ -30,7 +30,7 @@ from app.schemas.ui_prototype import (
 )
 from app.models.user import User
 from app.models.project import Project
-from app.models.ui_prototype import UIPrototypeProject
+from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen
 from app.api.v1.endpoints.auth import get_current_user
 from app.crud import ui_prototype as ui_prototype_crud
 from app.services.ui_spec_parse_pipeline import UISpecParsePipeline
@@ -56,41 +56,37 @@ async def parse_ui_screens(
                 detail="请选择要解析的屏幕",
             )
 
-        screen = None
-        if parse_request.screen_ids:
-            logger.info(f"查询屏幕 id: {parse_request.screen_ids[0]}")
-            screen = ui_prototype_crud.get_ui_screen_by_id(
-                db, parse_request.screen_ids[0]
-            )
-            if not screen:
-                logger.error(f"屏幕 {parse_request.screen_ids[0]} 不存在!")
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"屏幕 {parse_request.screen_ids[0]} 不存在",
-                )
-            logger.info(f"找到屏幕: id={screen.id}, project_id={screen.project_id}, original_file_path={screen.original_file_path}")
-            project = (
-                db.query(Project)
-                .filter(
-                    Project.id == screen.project_id,
-                    Project.user_id == current_user.id,
-                )
-                .first()
-            )
-
-            if not project:
-                logger.error(f"无权限操作项目! project_id={screen.project_id}")
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="无权限操作此项目",
-                )
-            logger.info(f"权限校验通过!")
-
-        if not screen:
+        # 一次性批量查询所有屏幕，防止N+1及越权风险
+        screens = (
+            db.query(UIPrototypeScreen)
+            .filter(UIPrototypeScreen.id.in_(parse_request.screen_ids))
+            .all()
+        )
+        # 校验所有 screen_id 均存在
+        foundIds = {s.id for s in screens}
+        missingIds = set(parse_request.screen_ids) - foundIds
+        if missingIds:
+            logger.error(f"屏幕不存在: {missingIds}")
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="请提供有效的屏幕ID",
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"屏幕不存在: {missingIds}",
             )
+        # 一次性校验所有屏幕均属于当前用户拥有的项目
+        screenProjectIds = {s.project_id for s in screens}
+        authorizedProjectIds = {
+            pid for (pid,) in db.query(Project.id)
+            .filter(Project.id.in_(screenProjectIds), Project.user_id == current_user.id)
+            .all()
+        }
+        unauthorizedProjectIds = screenProjectIds - authorizedProjectIds
+        if unauthorizedProjectIds:
+            logger.error(f"无权限操作项目! project_ids={unauthorizedProjectIds}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此项目",
+            )
+        logger.info("全量权限校验通过!")
+        screen = screens[0]
 
         logger.info(f"创建 UISpecParsePipeline...")
         pipeline = UISpecParsePipeline(

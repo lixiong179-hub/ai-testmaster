@@ -110,7 +110,7 @@ class UISpecOcrMixin:
         Returns:
             结构化的 UI 规格字典，失败返回 None
         """
-        from app.services.ui_spec_prompts import TEXT_STRUCTURE_PROMPT
+        from app.services.prompt_builder import TEXT_STRUCTURE_PROMPT
         prompt = TEXT_STRUCTURE_PROMPT.format(ocr_text=ocr_text)
         if screen_name_hint:
             prompt = f"[提示：这是{screen_name_hint}]\n\n" + prompt

@@ -62,7 +62,7 @@ router = APIRouter()
 async def batch_upload_files(
     project_id: int = Form(...),
     files: List[UploadFile] = File(...),
-    resource_type: str = Form("ui_mockup"),
+    resource_type: str = Form("other"),
     description: str = Form(""),
     name: str = Form(""),
     iteration_id: Optional[int] = Form(None),
@@ -228,11 +228,7 @@ async def batch_upload_files(
                 else:
                     display_name = file.filename
 
-                db_iteration_id = (
-                    None
-                    if (iteration_id is None or iteration_id <= 0)
-                    else iteration_id
-                )
+                db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
                 new_file = file_crud.create_project_file(
                     db=db,
                     project_id=project_id,

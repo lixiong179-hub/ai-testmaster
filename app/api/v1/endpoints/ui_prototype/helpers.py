@@ -18,7 +18,7 @@ from pathlib import Path
 from app.core.config import settings
 from app.schemas.ui_prototype import UIScreenResponse
 
-UPLOAD_DIR = getattr(settings, "UI_PROTOTYPE_UPLOAD_DIR", "/tmp/ui_prototypes")
+UPLOAD_DIR = settings.UI_PROTOTYPE_UPLOAD_DIR
 
 MIN_IMAGE_SIZE = 1024
 

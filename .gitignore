@@ -75,5 +75,10 @@ uploads/
 dist/
 *.vue.js
 
+# Debug artifacts
+captcha_debug_*.png
+ai_response_debug.txt
+ocr_debug.log
+
 # Misc
 {}

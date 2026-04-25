@@ -25,13 +25,13 @@ class TestServiceImports:
     def test_case_generation_mixins(self):
         """case_generation各mixin可独立导入"""
         from app.services.case_generation.ai_mixin import AIMixin
-        from app.services.case_generation.ai_prompt_mixin import AIPromptMixin
+        from app.services.prompt_builder import PromptBuilder
         from app.services.case_generation.ai_parse_mixin import AIParseMixin
         from app.services.case_generation.core_mixin import CoreMixin
         from app.services.case_generation.context_mixin import ContextMixin
         from app.services.case_generation.steps_mixin import StepsMixin
         from app.services.case_generation.steps_validate_mixin import StepsValidateMixin
-        assert all([AIMixin, AIPromptMixin, AIParseMixin, CoreMixin, ContextMixin, StepsMixin, StepsValidateMixin])
+        assert all([AIMixin, PromptBuilder, AIParseMixin, CoreMixin, ContextMixin, StepsMixin, StepsValidateMixin])
 
     def test_precondition_imports(self):
         """precondition子包导入验证"""

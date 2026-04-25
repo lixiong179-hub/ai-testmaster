@@ -25,7 +25,7 @@ try:
     from app.services.test_data import TestDataGenerator, create_test_data_generator
     from app.services.test_data.generator_mixin import GeneratorMixin
     from app.services.test_data.constants import DATA_TYPE_STRING, DATA_TYPE_NUMBER
-    from app.services.test_data.prompt_builder import build_generation_prompt
+    from app.services.prompt_builder import PromptBuilder
     from app.services.test_data.response_handler import parse_ai_response, validate_generated_data
     
     # 验证常量
@@ -33,7 +33,7 @@ try:
     assert DATA_TYPE_NUMBER == "number"
     
     # 验证 prompt builder
-    prompt = build_generation_prompt([{"name": "test", "type": "string", "required": True}], 1, None, "normal")
+    prompt = PromptBuilder().for_test_data([{"name": "test", "type": "string", "required": True}], 1, None, "normal")
     assert "test" in prompt
     assert "1条" in prompt
     
@@ -96,11 +96,11 @@ print("\n[6] test_case_generation 模块...")
 try:
     from app.services.test_case_generation import TestCaseGenerationService
     from app.services.test_case_generation.ai_mixin import TestCaseGenerationAiMixin
-    from app.services.test_case_generation.ai_prompt_builder import build_generation_prompt, build_ui_spec_prompt
+    from app.services.prompt_builder import PromptBuilder, format_ui_spec_for_prompt
     from app.services.test_case_generation.ai_response_parser import parse_ai_response
     
     # 验证 prompt builder
-    prompt = build_generation_prompt("req", "ui", "mod", "func", "point", 1)
+    prompt = PromptBuilder.build_linear_prompt("req", "ui", "mod", "func", "point", 1)
     assert "测试点信息" in prompt
     
     # 验证 response parser
