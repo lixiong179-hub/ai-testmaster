@@ -33,6 +33,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.models.test_point import TestPoint
 from app.models.project import Project
+from app.models.enums import TestPointStatus
 
 
 def create_test_point(
@@ -41,10 +42,11 @@ def create_test_point(
     module: str,
     point: str,
     priority: int,
-    function: str = "",
     ai_prompt: Optional[str] = None,
     created_by: Optional[str] = None,
     requirement_id: Optional[int] = None,
+    capability_id: Optional[int] = None,
+    status: Optional[str] = None,
 ) -> TestPoint:
     """
     创建测试点
@@ -61,6 +63,8 @@ def create_test_point(
         ai_prompt: AI分析时的提示词（可选），用于引导AI生成更精准的测试用例
         created_by: 创建人用户名（可选）
         requirement_id: 关联需求ID（可选）
+        capability_id: 关联业务能力ID（可选）
+        status: 状态（可选），默认active
 
     Returns:
         TestPoint: 创建成功后的测试点对象（已commit并refresh）
@@ -68,12 +72,13 @@ def create_test_point(
     db_test_point = TestPoint(
         project_id=project_id,
         module=module,
-        function=function,
         point=point,
         priority=priority,
         ai_prompt=ai_prompt,
         created_by=created_by,
         requirement_id=requirement_id,
+        capability_id=capability_id,
+        status=status or TestPointStatus.ACTIVE.value,
     )
     db.add(db_test_point)
     db.commit()
@@ -219,6 +224,9 @@ def update_test_point(
         if hasattr(test_point, key):
             setattr(test_point, key, value)
 
+    # 任意字段变更时递增版本号
+    test_point.version = (test_point.version or 1) + 1
+
     db.commit()
     db.refresh(test_point)
     return test_point
@@ -307,7 +315,7 @@ def batch_create_test_points(
         project_id: 所属项目ID，所有测试点归属同一项目
         test_points_data: 测试点数据列表，每条数据为字典格式，
             必含字段: module, point, priority
-            可选字段: ai_prompt, requirement_id, created_by
+            可选字段: ai_prompt, requirement_id, created_by, capability_id, status
         created_by: 默认创建人用户名；当单条数据未显式传入 created_by 时使用
         commit: 是否在函数内提交事务，默认提交
 
@@ -329,12 +337,13 @@ def batch_create_test_points(
         test_point = TestPoint(
             project_id=project_id,
             module=data['module'],
-            function=data.get('function', ''),
             point=data['point'],
             priority=data['priority'],
             ai_prompt=data.get('ai_prompt'),  # 可选字段，缺失时为None
             created_by=data.get('created_by', created_by),
             requirement_id=data.get('requirement_id'),
+            capability_id=data.get('capability_id'),
+            status=data.get('status', TestPointStatus.ACTIVE.value),
         )
         db.add(test_point)  # 加入session但不commit
         test_points.append(test_point)

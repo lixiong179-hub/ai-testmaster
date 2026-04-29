@@ -167,7 +167,6 @@ def handle_case_style_import(
     point_payloads = [
         {
             "module": case["module"],
-            "function": case.get("function", ""),
             "point": case["point"],
             "priority": case["priority"],
         }
@@ -218,7 +217,6 @@ def handle_case_style_import(
     point_payloads_for_save = [
         {
             "module": case["module"],
-            "function": case.get("function", ""),
             "point": case["point"],
             "priority": case["priority"],
             "created_by": current_username,
@@ -241,7 +239,7 @@ def handle_case_style_import(
                 "project_id": project_id,
                 "test_point_id": saved_point.id,
                 "module": case["module"],
-                "title": case["title"],
+                "title": case.get("title") or case.get("point", ""),
                 "precondition": case.get("precondition", ""),
                 "steps": case.get("steps", []),
                 "expected_result": case.get("expected_result", ""),

@@ -86,6 +86,7 @@ def get_test_cases_by_project(
     priority: Optional[int] = None,
     case_type: Optional[str] = None,
     generate_status: Optional[int] = None,
+    lifecycle_status: Optional[str] = None,
     skip: int = 0,
     limit: int = 100
 ) -> List[TestCase]:
@@ -125,6 +126,8 @@ def get_test_cases_by_project(
     # generate_status=0 是有效值，必须用 is not None 判断
     if generate_status is not None:
         query = query.filter(TestCase.generate_status == generate_status)
+    if lifecycle_status is not None:
+        query = query.filter(TestCase.lifecycle_status == lifecycle_status)
     return query.offset(skip).limit(limit).all()
 
 
@@ -136,6 +139,7 @@ def get_test_cases_by_project_and_user(
     priority: Optional[int] = None,
     case_type: Optional[str] = None,
     generate_status: Optional[int] = None,
+    lifecycle_status: Optional[str] = None,
     skip: int = 0,
     limit: int = 100
 ) -> List[TestCase]:
@@ -177,6 +181,8 @@ def get_test_cases_by_project_and_user(
         query = query.filter(TestCase.case_type == case_type)
     if generate_status is not None:
         query = query.filter(TestCase.generate_status == generate_status)
+    if lifecycle_status is not None:
+        query = query.filter(TestCase.lifecycle_status == lifecycle_status)
     return query.offset(skip).limit(limit).all()
 
 
@@ -187,7 +193,8 @@ def get_test_cases_count(
     module: Optional[str] = None,
     priority: Optional[int] = None,
     case_type: Optional[str] = None,
-    generate_status: Optional[int] = None
+    generate_status: Optional[int] = None,
+    lifecycle_status: Optional[str] = None
 ) -> int:
     """
     获取测试用例数量（带权限过滤+多条件动态过滤）
@@ -222,6 +229,8 @@ def get_test_cases_count(
         query = query.filter(TestCase.case_type == case_type)
     if generate_status is not None:
         query = query.filter(TestCase.generate_status == generate_status)
+    if lifecycle_status is not None:
+        query = query.filter(TestCase.lifecycle_status == lifecycle_status)
     return query.count()
 
 

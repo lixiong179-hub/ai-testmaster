@@ -180,20 +180,17 @@ class TestTestPointSchemas:
         point = TestPointCreate(
             project_id=1,
             module="login",
-            function="password login",
             point="valid credentials login",
             priority=1,
         )
         assert point.project_id == 1
         assert point.module == "login"
-        assert point.function == "password login"
         assert point.priority == 1
 
     def test_test_point_create_with_ai_prompt(self):
         point = TestPointCreate(
             project_id=1,
             module="search",
-            function="keyword search",
             point="search functionality",
             priority=2,
             ai_prompt="focus on XSS scenarios",
@@ -205,7 +202,6 @@ class TestTestPointSchemas:
             point = TestPointCreate(
                 project_id=1,
                 module="test",
-                function="test func",
                 point="test point",
                 priority=priority,
             )
@@ -216,7 +212,6 @@ class TestTestPointSchemas:
             TestPointCreate(
                 project_id=1,
                 module="test",
-                function="test func",
                 point="test point",
                 priority=0,
             )
@@ -226,7 +221,6 @@ class TestTestPointSchemas:
             TestPointCreate(
                 project_id=1,
                 module="test",
-                function="test func",
                 point="test point",
                 priority=4,
             )
@@ -235,17 +229,15 @@ class TestTestPointSchemas:
         with pytest.raises(ValidationError):
             TestPointCreate(
                 project_id=1,
-                function="test func",
                 point="test point",
                 priority=1,
             )
 
-    def test_test_point_create_empty_function(self):
+    def test_test_point_create_empty_module(self):
         with pytest.raises(ValidationError):
             TestPointCreate(
                 project_id=1,
-                module="test",
-                function="",
+                module="",
                 point="test point",
                 priority=1,
             )
@@ -266,11 +258,39 @@ class TestTestPointSchemas:
     def test_test_point_update_empty(self):
         update = TestPointUpdate()
         assert update.module is None
-        assert update.function is None
+        assert update.status is None
 
     def test_test_point_update_invalid_priority(self):
         with pytest.raises(ValidationError):
             TestPointUpdate(priority=5)
+
+    def test_test_point_update_status_valid(self):
+        for s in ["draft", "active", "deprecated", "archived"]:
+            update = TestPointUpdate(status=s)
+            assert update.status == s
+
+    def test_test_point_update_status_invalid(self):
+        with pytest.raises(ValidationError):
+            TestPointUpdate(status="invalid_status")
+
+    def test_test_point_create_with_capability_id(self):
+        create = TestPointCreate(
+            project_id=1,
+            module="test",
+            point="test point",
+            priority=1,
+            capability_id=42,
+        )
+        assert create.capability_id == 42
+
+    def test_test_point_create_default_status(self):
+        create = TestPointCreate(
+            project_id=1,
+            module="test",
+            point="test point",
+            priority=1,
+        )
+        assert create.status == "active"
 
 
 class TestProjectSchemas:

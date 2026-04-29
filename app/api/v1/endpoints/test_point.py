@@ -143,8 +143,9 @@ async def get_test_points(
             TestPointResponse(
                 id=point.id, project_id=point.project_id,
                 requirement_id=point.requirement_id, module=point.module,
-                function=point.function, point=point.point,
+                point=point.point,
                 priority=point.priority, ai_prompt=point.ai_prompt,
+                capability_id=point.capability_id, version=point.version, status=point.status,
                 create_time=point.create_time, created_by=point.created_by,
                 test_case_count=case_count,
             )
@@ -193,8 +194,9 @@ async def get_test_point_detail(
         return TestPointResponse(
             id=test_point.id, project_id=test_point.project_id,
             requirement_id=test_point.requirement_id, module=test_point.module,
-            function=test_point.function, point=test_point.point,
+            point=test_point.point,
             priority=test_point.priority, ai_prompt=test_point.ai_prompt,
+            capability_id=test_point.capability_id, version=test_point.version, status=test_point.status,
             create_time=test_point.create_time, created_by=test_point.created_by,
             test_case_count=test_case_count,
         )
@@ -257,7 +259,7 @@ async def batch_save_test_points(
             except (ValueError, TypeError):
                 priority = 2
             valid_points.append({
-                "module": module, "function": item.get("function", ""),
+                "module": module,
                 "point": point,
                 "priority": priority, "ai_prompt": item.get("ai_prompt"),
             })
@@ -314,14 +316,16 @@ async def update_test_point(
             )
         if update_data.module is not None:
             test_point.module = update_data.module
-        if update_data.function is not None:
-            test_point.function = update_data.function
         if update_data.point is not None:
             test_point.point = update_data.point
         if update_data.priority is not None:
             test_point.priority = update_data.priority
         if update_data.ai_prompt is not None:
             test_point.ai_prompt = update_data.ai_prompt
+        if update_data.status is not None:
+            test_point.status = update_data.status
+        # 任意字段变更时递增版本号
+        test_point.version = (test_point.version or 1) + 1
         db.commit()
         db.refresh(test_point)
         logger.info(f"用户 {current_user.username} 更新了测试点 {test_point_id}")
@@ -330,8 +334,9 @@ async def update_test_point(
             "data": TestPointResponse(
                 id=test_point.id, project_id=test_point.project_id,
                 requirement_id=test_point.requirement_id, module=test_point.module,
-                function=test_point.function, point=test_point.point,
+                point=test_point.point,
                 priority=test_point.priority, ai_prompt=test_point.ai_prompt,
+                capability_id=test_point.capability_id, version=test_point.version, status=test_point.status,
                 create_time=test_point.create_time, created_by=test_point.created_by,
                 test_case_count=0,
             ),
@@ -435,14 +440,16 @@ async def create_test_point_item(
     check_project_permission(db, request.project_id, current_user.id)
     created = create_test_point(
         db=db, project_id=request.project_id, module=request.module,
-        function=request.function, point=request.point, priority=request.priority,
+        point=request.point, priority=request.priority,
         ai_prompt=request.ai_prompt, created_by=current_user.username,
+        capability_id=request.capability_id, status=request.status,
     )
     return TestPointResponse(
         id=created.id, project_id=created.project_id,
         requirement_id=created.requirement_id, module=created.module,
-        function=created.function, point=created.point,
+        point=created.point,
         priority=created.priority, ai_prompt=created.ai_prompt,
+        capability_id=created.capability_id, version=created.version, status=created.status,
         create_time=created.create_time, created_by=created.created_by,
         test_case_count=0,
     )

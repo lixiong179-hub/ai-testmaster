@@ -42,6 +42,7 @@ from app.models.test_case import TestCase, TestStep, TestCaseExecution
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
 from app.models.test_point import TestPoint
+from app.models.test_capability import TestCapability
 from app.models.report import TestReport
 from app.models.test_data import TestData
 from app.models.video_record import VideoRecord
@@ -80,6 +81,8 @@ __all__ = [
     "TestTask", "TestResult",
     # 测试点
     "TestPoint",
+    # 业务能力
+    "TestCapability",
     # 测试报告
     "TestReport",
     # 测试数据

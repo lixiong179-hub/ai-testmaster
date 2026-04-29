@@ -103,7 +103,7 @@ class AIMixin(AIParseMixin):
         ui_specs = context.get("ui_specs", [])
         test_point = context.get("test_point", {})
         module = test_point.get("module", "未知模块")
-        function = test_point.get("function", "未知功能")
+        function = test_point.get("function") or test_point.get("point", "")
         point = test_point.get("point", "")
         priority = test_point.get("priority", 2)
 

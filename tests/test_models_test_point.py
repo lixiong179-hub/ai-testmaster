@@ -37,7 +37,6 @@ class TestTestPointModel:
         tp = TestPoint(
             project_id=test_project.id,
             module="登录模块",
-            function="账号密码登录",
             point="验证用户登录功能",
             priority=1
         )
@@ -47,7 +46,6 @@ class TestTestPointModel:
         assert tp.id is not None
         assert tp.project_id == test_project.id
         assert tp.module == "登录模块"
-        assert tp.function == "账号密码登录"
         assert tp.point == "验证用户登录功能"
         assert tp.priority == 1
         assert tp.create_time is not None
@@ -58,7 +56,6 @@ class TestTestPointModel:
         tp = TestPoint(
             project_id=test_project.id,
             module="模块",
-            function="功能",
             point="测试点",
             priority=2
         )
@@ -68,6 +65,9 @@ class TestTestPointModel:
         assert tp.requirement_id is None
         assert tp.created_by is None
         assert tp.ai_prompt is None
+        assert tp.version == 1
+        assert tp.status == "active"
+        assert tp.capability_id is None
         db.delete(tp)
         db.commit()
 
@@ -76,7 +76,6 @@ class TestTestPointModel:
             tp = TestPoint(
                 project_id=test_project.id,
                 module="模块",
-                function="功能",
                 point=f"优先级{priority}",
                 priority=priority
             )
@@ -91,7 +90,6 @@ class TestTestPointModel:
         tp = TestPoint(
             project_id=test_project.id,
             module="模块",
-            function="功能",
             point="AI测试点",
             priority=1,
             ai_prompt="请分析登录功能的测试点"
@@ -106,3 +104,38 @@ class TestTestPointModel:
     def test_test_point_relationships(self):
         assert hasattr(TestPoint, 'project')
         assert hasattr(TestPoint, 'requirement')
+        assert hasattr(TestPoint, 'capability')
+
+    def test_test_point_status_values(self, db, test_project):
+        for status_val in ["draft", "active", "deprecated", "archived"]:
+            tp = TestPoint(
+                project_id=test_project.id,
+                module="模块",
+                point=f"状态{status_val}",
+                priority=2,
+                status=status_val,
+            )
+            db.add(tp)
+            db.commit()
+            db.refresh(tp)
+            assert tp.status == status_val
+            db.delete(tp)
+            db.commit()
+
+    def test_test_point_version_increment(self, db, test_project):
+        tp = TestPoint(
+            project_id=test_project.id,
+            module="模块",
+            point="版本测试",
+            priority=2,
+        )
+        db.add(tp)
+        db.commit()
+        db.refresh(tp)
+        assert tp.version == 1
+        tp.version = 2
+        db.commit()
+        db.refresh(tp)
+        assert tp.version == 2
+        db.delete(tp)
+        db.commit()

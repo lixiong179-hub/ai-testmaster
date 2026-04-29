@@ -31,6 +31,7 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.models.test_case import TestCase, TestStep
+from app.models.enums import TestCaseLifecycleStatus
 from app.crud.test_case_query import get_test_case_by_id
 
 
@@ -69,7 +70,12 @@ def create_test_case(
     priority: int,
     case_type: str,
     exec_script: Optional[str] = None,
-    generate_status: int = 0
+    generate_status: int = 0,
+    lifecycle_status: Optional[str] = None,
+    test_point_id: Optional[int] = None,
+    summary: Optional[str] = None,
+    summary_model_version: Optional[str] = None,
+    parent_case_id: Optional[int] = None,
 ) -> TestCase:
     """
     创建单个测试用例
@@ -108,7 +114,12 @@ def create_test_case(
         priority=priority,
         case_type=case_type,
         exec_script=exec_script,
-        generate_status=generate_status
+        generate_status=generate_status,
+        lifecycle_status=lifecycle_status or TestCaseLifecycleStatus.ACTIVE.value,
+        test_point_id=test_point_id,
+        summary=summary,
+        summary_model_version=summary_model_version,
+        parent_case_id=parent_case_id,
     )
     db.add(db_test_case)
     db.flush()
@@ -235,7 +246,11 @@ def batch_create_test_cases(
             case_type=data['case_type'],
             test_category=data.get('test_category'),
             exec_script=data.get('exec_script'),  # 可选字段，缺失时为None
-            generate_status=data.get('generate_status', 0)  # 可选字段，默认0=待生成
+            generate_status=data.get('generate_status', 0),  # 可选字段，默认0=待生成
+            lifecycle_status=data.get('lifecycle_status', TestCaseLifecycleStatus.ACTIVE.value),
+            summary=data.get('summary'),
+            summary_model_version=data.get('summary_model_version'),
+            parent_case_id=data.get('parent_case_id'),
         )
         db.add(test_case)  # 加入session但不commit
         test_cases.append(test_case)

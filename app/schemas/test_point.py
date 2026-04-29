@@ -26,6 +26,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import date, datetime
+from app.models.enums import TEST_POINT_STATUS_PATTERN
 
 
 class TestPointExtractRequest(BaseModel):
@@ -61,13 +62,13 @@ class TestPointBase(BaseModel):
 
     业务用途：定义测试点的核心字段，作为TestPointCreate/TestPointResponse的公共父类
     验证规则：模块1-100字符，描述1-500字符，优先级1-3
-    与Model映射：对应 TestPoint Model 的 module/function/point/priority/ai_prompt 字段
+    与Model映射：对应 TestPoint Model 的 module/point/priority/ai_prompt/status 字段
     """
     module: str = Field(..., min_length=1, max_length=100, description="模块名称")  # 必填，如"登录模块"/"支付模块"
-    function: str = Field("", max_length=100, description="功能名称")  # 可选，如"密码验证"/"余额检查"
     point: str = Field(..., min_length=1, max_length=500, description="测试点描述")  # 必填，如"输入错误密码登录"/"余额不足支付"
     priority: int = Field(..., ge=1, le=3, description="优先级：1高/2中/3低")  # 必填，1=高/2=中/3=低
     ai_prompt: Optional[str] = Field(None, description="AI分析时的提示词")  # 可选，引导AI生成更精准的测试用例
+    status: str = Field("active", pattern=TEST_POINT_STATUS_PATTERN, description="状态：draft/active/deprecated/archived")  # 生命周期状态
 
 
 class TestPointCreate(TestPointBase):
@@ -80,6 +81,7 @@ class TestPointCreate(TestPointBase):
     与Model映射：project_id对应TestPoint.project_id外键
     """
     project_id: int = Field(..., description="项目ID")  # 必填，测试点所属项目，实现多项目隔离
+    capability_id: Optional[int] = Field(None, description="关联业务能力ID")  # 可选，关联业务能力
 
 
 class TestPointResponse(TestPointBase):
@@ -93,6 +95,8 @@ class TestPointResponse(TestPointBase):
     id: int  # 测试点主键ID，与TestPoint.id对应
     project_id: int  # 所属项目ID，与TestPoint.project_id对应
     requirement_id: Optional[int] = None  # 关联需求ID，历史数据允许为空
+    capability_id: Optional[int] = None  # 关联业务能力ID
+    version: int = 1  # 版本号
     create_time: datetime  # 创建时间，与TestPoint.create_time对应
     created_by: Optional[str] = None  # 创建人用户名
     test_case_count: int = 0  # 关联测试用例数量
@@ -186,10 +190,10 @@ class TestPointUpdate(BaseModel):
     对应API：PUT /api/v1/test-points/{point_id}
     """
     module: Optional[str] = Field(None, min_length=1, max_length=100, description="模块名称")  # 可选
-    function: Optional[str] = Field(None, max_length=100, description="功能名称")  # 可选
     point: Optional[str] = Field(None, min_length=1, max_length=500, description="测试点描述")  # 可选
     priority: Optional[int] = Field(None, ge=1, le=3, description="优先级：1高/2中/3低")  # 可选
     ai_prompt: Optional[str] = Field(None, description="AI提示词")  # 可选
+    status: Optional[str] = Field(None, pattern=TEST_POINT_STATUS_PATTERN, description="状态：draft/active/deprecated/archived")  # 可选
 
 
 class TestPointXmindPreviewItem(BaseModel):
@@ -204,7 +208,7 @@ class TestPointXmindPreviewItem(BaseModel):
         - priority: 必填，1高/2中/3低
     """
     module: str = Field(..., min_length=1, max_length=100, description="模块名称")
-    function: str = Field("", max_length=100, description="功能名称")
+    function: str = Field("", max_length=100, description="功能名称（已弃用，兼容XMind旧数据）")
     point: str = Field(..., min_length=1, max_length=500, description="测试点描述")
     priority: int = Field(..., ge=1, le=3, description="优先级：1高/2中/3低")
     precondition: str = Field("", description="前置条件")

@@ -19,7 +19,6 @@ async def test_save_test_case_binds_source_test_point(db, testProject, monkeypat
     test_point = TestPoint(
         project_id=testProject.id,
         module="bind_module",
-        function="bind_function",
         point="bind point",
         priority=1,
         created_by="tester",
@@ -48,7 +47,7 @@ async def test_save_test_case_binds_source_test_point(db, testProject, monkeypat
     saved_case = await service._save_test_case(
         project_id=testProject.id,
         generated_case=generated_case,
-        test_point={"id": test_point.id, "module": test_point.module, "function": test_point.function, "priority": test_point.priority},
+        test_point={"id": test_point.id, "module": test_point.module, "priority": test_point.priority},
     )
 
     assert saved_case.test_point_id == test_point.id

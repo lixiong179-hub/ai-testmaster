@@ -209,6 +209,7 @@ class TestUpdateTestPoint:
             point="original point",
             priority=2,
         )
+        assert point.version == 1
         updated = update_test_point(
             db=db,
             test_point_id=point.id,
@@ -219,6 +220,43 @@ class TestUpdateTestPoint:
         assert updated is not None
         assert updated.point == "updated point"
         assert updated.priority == 1
+        assert updated.version == 2
+
+    def test_update_test_point_status(self, db, testProject):
+        point = create_test_point(
+            db=db,
+            project_id=testProject.id,
+            module="login",
+            point="status test",
+            priority=2,
+        )
+        assert point.status == "active"
+        updated = update_test_point(
+            db=db,
+            test_point_id=point.id,
+            project_id=testProject.id,
+            status="deprecated",
+        )
+        assert updated.status == "deprecated"
+        assert updated.version == 2
+
+    def test_update_test_point_version_increments(self, db, testProject):
+        point = create_test_point(
+            db=db,
+            project_id=testProject.id,
+            module="login",
+            point="version test",
+            priority=2,
+        )
+        assert point.version == 1
+        for i in range(3):
+            updated = update_test_point(
+                db=db,
+                test_point_id=point.id,
+                project_id=testProject.id,
+                point=f"v{i+2}",
+            )
+            assert updated.version == i + 2
 
     def test_update_test_point_nonexistent(self, db, testProject):
         result = update_test_point(
@@ -260,6 +298,33 @@ class TestUpdateTestPoint:
         assert updated.point == "new point"
         assert updated.priority == 1
         assert updated.ai_prompt == "new prompt"
+        assert updated.version == 2
+
+    def test_create_test_point_default_status(self, db, testProject):
+        point = create_test_point(
+            db=db,
+            project_id=testProject.id,
+            module="login",
+            point="default status",
+            priority=2,
+        )
+        assert point.status == "active"
+        assert point.version == 1
+        db.delete(point)
+        db.commit()
+
+    def test_create_test_point_with_capability_id(self, db, testProject):
+        point = create_test_point(
+            db=db,
+            project_id=testProject.id,
+            module="login",
+            point="with capability",
+            priority=2,
+            capability_id=None,
+        )
+        assert point.capability_id is None
+        db.delete(point)
+        db.commit()
 
 
 class TestDeleteTestPoint:

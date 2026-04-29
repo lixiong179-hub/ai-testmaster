@@ -39,6 +39,7 @@
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Dict, Any, Union, Literal
 from datetime import datetime
+from app.models.enums import TEST_CASE_LIFECYCLE_STATUS_PATTERN
 
 
 class TestCaseStep(BaseModel):
@@ -86,15 +87,14 @@ class TestCaseBase(BaseModel):
     test_category: Optional[str] = Field(None, description="用例分类标签（与case_type保持一致）")  # 可选，与case_type语义一致，用于标签筛选
     exec_script: Optional[str] = Field(None, description="执行脚本")  # 可选，自动化执行脚本路径或内容
     generate_status: int = Field(0, ge=0, le=2, description="生成状态：0生成中/1生成成功/2生成失败")  # 默认0，AI生成用例的状态追踪
+    lifecycle_status: str = Field("active", pattern=TEST_CASE_LIFECYCLE_STATUS_PATTERN, description="生命周期状态：draft/active/pending_review/needs_modify/locator_broken/deprecated/archived")  # 生命周期状态，变更必经 LifecycleService
 
     @field_validator('title', mode='before')
     @classmethod
     def _normalize_title(cls, v: str) -> str:
-        """strip前后空格，空标题设默认值，兼容历史数据。"""
+        """strip前后空格。空标题由 min_length=1 校验拒绝，兜底逻辑在 service 层。"""
         if isinstance(v, str):
             v = v.strip()
-        if not v:
-            return "未命名用例"
         return v
 
 
@@ -108,6 +108,10 @@ class TestCaseCreate(TestCaseBase):
     与Model映射：project_id对应TestCase.project_id外键
     """
     project_id: int = Field(..., description="项目ID")  # 必填，用例所属项目，实现多项目隔离
+    test_point_id: Optional[int] = Field(None, description="关联测试点ID")  # 可选，关联测试点
+    summary: Optional[str] = Field(None, description="AI生成的用例摘要")  # 可选，AI摘要
+    summary_model_version: Optional[str] = Field(None, description="生成摘要的AI模型版本")  # 可选，AI模型版本
+    parent_case_id: Optional[int] = Field(None, description="父用例ID")  # 可选，血缘关系
 
 
 class TestCaseResponse(TestCaseBase):
@@ -120,6 +124,12 @@ class TestCaseResponse(TestCaseBase):
     """
     id: int  # 用例主键ID，与TestCase.id对应
     project_id: int  # 所属项目ID，与TestCase.project_id对应
+    test_point_id: Optional[int] = None  # 关联测试点ID
+    summary: Optional[str] = None  # AI生成的用例摘要
+    summary_version: int = 0  # 摘要版本号
+    summary_model_version: Optional[str] = None  # 生成摘要的AI模型版本
+    parent_case_id: Optional[int] = None  # 父用例ID
+    last_review_id: Optional[int] = None  # 最近一次评审ID
     create_time: datetime  # 创建时间，与TestCase.create_time对应
 
     class Config:
@@ -151,6 +161,7 @@ class TestCaseListRequest(BaseModel):
     priority: Optional[int] = Field(None, ge=1, le=3, description="优先级")  # 可选，按优先级筛选
     case_type: Optional[str] = Field(None, description="用例类型")  # 可选，按类型筛选
     generate_status: Optional[int] = Field(None, ge=0, le=2, description="生成状态")  # 可选，按生成状态筛选
+    lifecycle_status: Optional[str] = Field(None, pattern=TEST_CASE_LIFECYCLE_STATUS_PATTERN, description="生命周期状态")  # 可选，按生命周期状态筛选
     page: int = Field(1, ge=1, description="页码")  # 页码，默认第1页
     page_size: int = Field(10, ge=1, le=100, description="每页数量")  # 每页数量，默认10，最大100
 
@@ -205,6 +216,10 @@ class TestCaseUpdate(TestCaseBase):
     case_type: Optional[str] = Field(None, max_length=20, description="用例类型：ui_automation/manual/api_automation/performance/security")  # 可选
     exec_script: Optional[str] = Field(None, description="执行脚本")  # 可选
     generate_status: Optional[int] = Field(None, ge=0, le=2, description="生成状态：0生成中/1生成成功/2生成失败")  # 可选
+    lifecycle_status: Optional[str] = Field(None, pattern=TEST_CASE_LIFECYCLE_STATUS_PATTERN, description="生命周期状态")  # 可选
+    summary: Optional[str] = Field(None, description="AI生成的用例摘要")  # 可选
+    summary_model_version: Optional[str] = Field(None, description="生成摘要的AI模型版本")  # 可选
+    parent_case_id: Optional[int] = Field(None, description="父用例ID")  # 可选
 
 
 # ==================== 技术视图相关Schema ====================

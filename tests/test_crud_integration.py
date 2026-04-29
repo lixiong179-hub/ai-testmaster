@@ -232,7 +232,6 @@ class TestTestPointCRUD:
             db=db,
             project_id=testProject.id,
             module="login",
-            function="password login",
             point="valid credentials login",
             priority=1,
         )
@@ -247,7 +246,6 @@ class TestTestPointCRUD:
             db=db,
             project_id=testProject.id,
             module="search",
-            function="keyword search",
             point="search with special chars",
             priority=2,
             ai_prompt="focus on XSS scenarios",
@@ -259,7 +257,6 @@ class TestTestPointCRUD:
             db=db,
             project_id=testProject.id,
             module="logout",
-            function="session logout",
             point="logout clears session",
             priority=3,
         )
@@ -271,7 +268,6 @@ class TestTestPointCRUD:
                 db=db,
                 project_id=testProject.id,
                 module="boundary",
-                function=f"priority {p}",
                 point=f"priority {p} test",
                 priority=p,
             )
@@ -282,7 +278,6 @@ class TestTestPointCRUD:
             db=db,
             project_id=testProject.id,
             module="getbyid",
-            function="login check",
             point="valid login",
             priority=1,
         )
@@ -300,7 +295,6 @@ class TestTestPointCRUD:
                 db=db,
                 project_id=testProject.id,
                 module="list_mod",
-                function=f"func_{i}",
                 point=f"point_{i}",
                 priority=2,
             )
@@ -312,7 +306,6 @@ class TestTestPointCRUD:
             db=db,
             project_id=testProject.id,
             module="pri_filter",
-            function="high pri",
             point="high priority point",
             priority=1,
         )
@@ -324,7 +317,6 @@ class TestTestPointCRUD:
             db=db,
             project_id=testProject.id,
             module="update_mod",
-            function="login check",
             point="original point",
             priority=2,
         )
@@ -350,7 +342,6 @@ class TestTestPointCRUD:
             db=db,
             project_id=testProject.id,
             module="delete_mod",
-            function="login check",
             point="to be deleted",
             priority=2,
         )

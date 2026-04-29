@@ -97,7 +97,6 @@ async def batch_save_test_points(
                 priority = 2
             valid_points.append({
                 'module': module,
-                'function': item.get('function', ''),
                 'point': point,
                 'priority': priority,
                 'ai_prompt': item.get('ai_prompt')
@@ -161,14 +160,16 @@ async def update_test_point(
             )
         if update_data.module is not None:
             test_point.module = update_data.module
-        if update_data.function is not None:
-            test_point.function = update_data.function
         if update_data.point is not None:
             test_point.point = update_data.point
         if update_data.priority is not None:
             test_point.priority = update_data.priority
         if update_data.ai_prompt is not None:
             test_point.ai_prompt = update_data.ai_prompt
+        if update_data.status is not None:
+            test_point.status = update_data.status
+        # 任意字段变更时递增版本号
+        test_point.version = (test_point.version or 1) + 1
         db.commit()
         db.refresh(test_point)
         logger.info(f"用户 {current_user.username} 更新了测试点 {test_point_id}")
@@ -180,10 +181,10 @@ async def update_test_point(
                 project_id=test_point.project_id,
                 requirement_id=test_point.requirement_id,
                 module=test_point.module,
-                function=test_point.function,
                 point=test_point.point,
                 priority=test_point.priority,
                 ai_prompt=test_point.ai_prompt,
+                capability_id=test_point.capability_id, version=test_point.version, status=test_point.status,
                 create_time=test_point.create_time,
                 created_by=test_point.created_by,
                 test_case_count=0,
