@@ -394,7 +394,7 @@ export const useGenerateStore = defineStore('generate', () => {
             point = testPoints.value.find((p) => p.id === id)
         }
         if (point) {
-            return `${point.module} - ${point.function}`
+            return `${point.module} - ${point.point}`
         }
         return `测试点 #${id}`
     }
@@ -733,7 +733,7 @@ export const useGenerateStore = defineStore('generate', () => {
                 const tpId = targetPoints[i]
                 const tpInfo = allTestPoints.find((tp) => tp.id === tpId)
                 const tpLabel = tpInfo
-                    ? `${tpInfo.module} - ${tpInfo.function}`
+                    ? `${tpInfo.module} - ${tpInfo.point}`
                     : `测试点#${tpId}`
 
                 try {

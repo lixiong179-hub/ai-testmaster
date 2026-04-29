@@ -24,6 +24,7 @@ Redis缓存、JWT认证、数据加密、AI模型接入、CORS跨域等核心配
     - 敏感密钥支持持久化到.secret_keys文件（权限0o600），避免重启后失效
     - 禁止使用SQLite，强制MySQL连接
 """
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from typing import Optional, List, Union
 import os
@@ -192,6 +193,25 @@ class Settings(BaseSettings):
     # LifecycleService 状态机相关配置
     LIFECYCLE_DEPRECATE_COOLDOWN_HOURS: int = 24  # deprecated → archived 冷却时间（小时）
     AUTO_APPROVE_MIN_GRADE: str = "A"  # pending_review → active 自动通过最低先验等级，M1阶段默认A，后续可调为B
+
+    # ==================== XMind AI 增强解析配置 ====================
+    # 控制 XMind 路径 → 测试用例 的批量 LLM 调用行为
+    XMIND_AI_TIMEOUT: int = 90              # 单批 LLM 调用超时（秒）
+    XMIND_AI_MAX_WORKERS: int = 4           # 批次并行执行数
+    XMIND_AI_BATCH_SIZE: int = 10           # 单批包含的路径数量
+    XMIND_AI_MAX_TOKENS: int = 8192         # 单批输出 token 上限，避免响应被截断
+    XMIND_AI_PREVIEW_SAMPLE: int = 10       # AI 预览模式最多采样的路径数，加速预览体验
+
+    @field_validator(
+        "XMIND_AI_TIMEOUT", "XMIND_AI_MAX_WORKERS",
+        "XMIND_AI_BATCH_SIZE", "XMIND_AI_MAX_TOKENS",
+        "XMIND_AI_PREVIEW_SAMPLE",
+    )
+    @classmethod
+    def _xmind_ai_positive(cls, v: int, info) -> int:
+        if v <= 0:
+            raise ValueError(f"{info.field_name} must be positive, got {v}")
+        return v
 
     # ==================== 视觉模型配置（AI视觉识别） ====================
     # 支持多模型动态切换: kimi, qwen, zhipu, baidu, doubao, mimo

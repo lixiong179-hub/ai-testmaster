@@ -243,7 +243,7 @@ function extractResponseData<T>(response: ApiResponse<T> | T): T {
 
 export const testCaseApi = {
   getCaseList: async (params: CaseQueryParams): Promise<CasePageResponse> => {
-    const response = await request.get('/api/v1/testCase', { params })
+    const response = await request.get('/api/v1/testCase/', { params })
     return response as unknown as CasePageResponse
   },
 
@@ -258,7 +258,7 @@ export const testCaseApi = {
   },
 
   createCase: async (data: TestCaseCreate): Promise<TestCase> => {
-    const response = await request.post('/api/v1/testCase', data)
+    const response = await request.post('/api/v1/testCase/', data)
     return extractResponseData<TestCase>(response as unknown as ApiResponse<TestCase> | TestCase)
   },
 
@@ -504,22 +504,10 @@ export const testCaseApi = {
     })
   },
 
-  exportCases: async (ids?: number[]): Promise<Blob> => {
-    const response = await request.get('/api/v1/testCase/export', {
-      params: ids ? { ids: ids.join(',') } : {},
-      responseType: 'blob',
-    })
-    return response as unknown as Blob
-  },
-
   importCases: async (file: File): Promise<ImportResult> => {
     const formData = new FormData()
     formData.append('file', file)
-    const response = await request.post('/api/v1/testCase/import', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    const response = await request.post('/api/v1/testCase/import', formData)
     return extractResponseData<ImportResult>(
       response as unknown as ApiResponse<ImportResult> | ImportResult
     )

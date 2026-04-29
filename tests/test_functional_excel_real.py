@@ -151,12 +151,13 @@ class TestFunctionalExcelReal(unittest.TestCase):
         df.to_excel(self.test_excel_file, sheet_name='测试用例', index=False)
         
         # 导入
-        case_id = self.service.import_functional_excel(
+        case_ids = self.service.import_functional_excel(
             self.test_excel_file, 
             self.test_project.id
         )
         
-        self.assertIsNotNone(case_id)
+        self.assertTrue(len(case_ids) > 0)
+        case_id = case_ids[0]
         
         # 验证导入的数据
         test_case = self.db.query(TestCase).filter(TestCase.id == case_id).first()
@@ -184,7 +185,7 @@ class TestFunctionalExcelReal(unittest.TestCase):
         df.to_excel(self.test_excel_file, sheet_name='测试用例', index=False)
         
         result = self.service.import_functional_excel(self.test_excel_file, 999999)
-        self.assertIsNone(result)
+        self.assertEqual(result, [])
         print("✅ 测试5通过: 验证无效项目ID")
     
     def test_06_import_functional_excel_empty_file(self):
@@ -198,7 +199,7 @@ class TestFunctionalExcelReal(unittest.TestCase):
             self.test_excel_file, 
             self.test_project.id
         )
-        self.assertIsNone(result)
+        self.assertEqual(result, [])
         print("✅ 测试6通过: 验证空文件")
     
     def test_07_export_to_functional_excel_success(self):
@@ -243,20 +244,26 @@ class TestFunctionalExcelReal(unittest.TestCase):
         self.assertTrue(os.path.exists(self.test_output_file))
         
         # 验证导出内容
-        import pandas as pd
-        df = pd.read_excel(self.test_output_file, sheet_name=0)
+        from openpyxl import load_workbook
+        wb = load_workbook(self.test_output_file)
+        ws = wb.active
         
-        self.assertEqual(len(df), 1)
-        self.assertEqual(df.iloc[0]['标题'], "导出测试用例")
-        self.assertEqual(df.iloc[0]['所属模块'], "导出测试模块")
-        self.assertEqual(df.iloc[0]['用例等级'], 'P1')
-        self.assertEqual(df.iloc[0]['用例类型'], '功能测试')
+        # 表头行验证
+        headers = [ws.cell(row=1, column=c).value for c in range(1, 9)]
+        self.assertEqual(headers, ["用例序号", "优先级", "用例描述", "初始条件", "操作步骤", "期望结果", "测试结果", "测试人"])
+        
+        # 第2行是模块分组标题行
+        self.assertEqual(ws.cell(row=2, column=1).value, "导出测试模块")
+        
+        # 第3行是用例数据
+        self.assertEqual(ws.cell(row=3, column=3).value, "导出测试用例")
+        self.assertEqual(ws.cell(row=3, column=2).value, "P1")
         
         # 验证步骤格式
-        step_desc = df.iloc[0]['步骤描述']
-        self.assertIn('【1】', step_desc)
-        self.assertIn('【2】', step_desc)
-        self.assertIn('【3】', step_desc)
+        step_desc = ws.cell(row=3, column=5).value
+        self.assertIn('[1]', step_desc)
+        self.assertIn('[2]', step_desc)
+        self.assertIn('[3]', step_desc)
         print("✅ 测试7通过: 成功导出功能用例")
     
     def test_08_export_to_functional_excel_empty_cases(self):
@@ -279,9 +286,9 @@ class TestFunctionalExcelReal(unittest.TestCase):
         
         result = self.service._build_functional_steps(steps)
         
-        self.assertIn('【1】打开页面', result)
-        self.assertIn('【2】点击按钮', result)
-        self.assertIn('【3】验证结果', result)
+        self.assertIn('[1] 打开页面', result)
+        self.assertIn('[2] 点击按钮', result)
+        self.assertIn('[3] 验证结果', result)
         self.assertIn('\n', result)
         print("✅ 测试9通过: 构建功能用例步骤")
     
@@ -295,9 +302,9 @@ class TestFunctionalExcelReal(unittest.TestCase):
         
         result = self.service._build_functional_expected(steps)
         
-        self.assertIn('【1】预期1', result)
-        self.assertIn('【2】预期2', result)
-        self.assertNotIn('【3】', result)  # 空预期不应包含
+        self.assertIn('[1] 预期1', result)
+        self.assertIn('[2] 预期2', result)
+        self.assertNotIn('[3]', result)  # 空预期不应包含
         print("✅ 测试10通过: 构建功能用例预期")
     
     def test_11_parse_functional_steps_with_brackets(self):
@@ -324,6 +331,20 @@ class TestFunctionalExcelReal(unittest.TestCase):
         self.assertEqual(steps[0].action, "打开登录页面")
         self.assertEqual(steps[0].expected_result, "页面显示")
         print("✅ 测试12通过: 解析无序号格式步骤")
+    
+    def test_12a_parse_functional_steps_with_square_brackets(self):
+        """测试12a: 测试[n]格式步骤解析"""
+        step_desc = "[1] 打开登录页面\n[2] 输入用户名\n[3] 点击登录"
+        expected = "[1] 页面显示\n[2] 输入成功\n[3] 登录成功"
+        
+        steps = self.service._parse_functional_steps(step_desc, expected)
+        
+        self.assertEqual(len(steps), 3)
+        self.assertEqual(steps[0].step_number, 1)
+        self.assertEqual(steps[0].action, "打开登录页面")
+        self.assertEqual(steps[0].expected_result, "页面显示")
+        self.assertEqual(steps[2].step_number, 3)
+        print("✅ 测试12a通过: 解析[n]格式步骤")
     
     def test_13_parse_functional_steps_empty(self):
         """测试13: 测试空步骤解析"""
@@ -354,25 +375,28 @@ class TestFunctionalExcelReal(unittest.TestCase):
         df.to_excel(self.test_excel_file, sheet_name='测试用例', index=False)
         
         # 导入
-        case_id = self.service.import_functional_excel(
+        case_ids = self.service.import_functional_excel(
             self.test_excel_file,
             self.test_project.id
         )
-        self.assertIsNotNone(case_id)
+        self.assertTrue(len(case_ids) > 0)
         
         # 导出
         success = self.service.export_to_functional_excel(
-            [case_id],
+            case_ids,
             self.test_output_file
         )
         self.assertTrue(success)
         
         # 验证导出内容与原始内容一致
-        exported_df = pd.read_excel(self.test_output_file, sheet_name=0)
+        from openpyxl import load_workbook
+        wb = load_workbook(self.test_output_file)
+        ws = wb.active
         
-        self.assertEqual(exported_df.iloc[0]['标题'], original_data[0]['标题'])
-        self.assertEqual(exported_df.iloc[0]['所属模块'], original_data[0]['所属模块'])
-        self.assertEqual(exported_df.iloc[0]['用例等级'], original_data[0]['用例等级'])
+        # 第2行是模块标题，第3行是数据
+        self.assertEqual(ws.cell(row=3, column=3).value, original_data[0]['标题'])
+        self.assertEqual(ws.cell(row=2, column=1).value, original_data[0]['所属模块'])
+        self.assertEqual(ws.cell(row=3, column=2).value, 'P2')
         print("✅ 测试14通过: 导入导出往返测试")
 
 

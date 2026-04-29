@@ -243,12 +243,11 @@ async def batch_save_test_points(
                 logger.warning(f"跳过无效数据项[{i}]: 非字典类型")
                 continue
             module = str(item.get("module", "")).strip()
-            func = str(item.get("function", "")).strip()
             point = str(item.get("point", "")).strip()
             if not module or not point:
                 logger.warning(f"跳过数据项[{i}]: 缺少必填字段(module/point)")
                 continue
-            if len(module) > 100 or len(func) > 200 or len(point) > 500:
+            if len(module) > 100 or len(point) > 500:
                 logger.warning(f"跳过数据项[{i}]: 字段超长")
                 continue
             try:
@@ -258,7 +257,8 @@ async def batch_save_test_points(
             except (ValueError, TypeError):
                 priority = 2
             valid_points.append({
-                "module": module, "function": func, "point": point,
+                "module": module, "function": item.get("function", ""),
+                "point": point,
                 "priority": priority, "ai_prompt": item.get("ai_prompt"),
             })
         if not valid_points:
@@ -280,7 +280,7 @@ async def batch_save_test_points(
             "data": {
                 "saved_count": len(saved), "total_submitted": len(valid_points),
                 "items": [
-                    {"id": tp.id, "module": tp.module, "function": tp.function,
+                    {"id": tp.id, "module": tp.module,
                      "point": tp.point, "priority": tp.priority}
                     for tp in saved
                 ],
@@ -536,5 +536,9 @@ async def batch_generate_test_cases_by_points(
 
 # ── 注册提取子模块路由 ───────────────────────────────────
 from app.api.v1.endpoints.test_point_extract import router as extract_router  # noqa: E402
+from app.api.v1.endpoints.test_point_import import router as import_router  # noqa: E402
+from app.api.v1.endpoints.test_point_import_stream import router as import_stream_router  # noqa: E402
 
 router.include_router(extract_router)
+router.include_router(import_router)
+router.include_router(import_stream_router)

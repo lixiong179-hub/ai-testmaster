@@ -12,7 +12,7 @@
 import pytest
 import pytest_asyncio
 from datetime import datetime
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -43,18 +43,22 @@ def db_session():
     # 创建测试表
     Base.metadata.create_all(engine)
     
-    SessionLocal = sessionmaker(bind=engine)
+    connection = engine.connect()
+    transaction = connection.begin()
+    SessionLocal = sessionmaker(bind=connection)
     session = SessionLocal()
-    
+    session.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(sess, trans):
+        if trans.nested and not trans._parent.nested:
+            sess.begin_nested()
+
     yield session
-    
-    # 清理测试数据
-    session.query(TestCaseExecution).filter(TestCaseExecution.test_case_id >= 10000).delete()
-    session.query(TestStep).filter(TestStep.test_case_id >= 10000).delete()
-    session.query(TestCase).filter(TestCase.id >= 10000).delete()
-    session.query(Project).filter(Project.id >= 10000).delete()
-    session.commit()
+
     session.close()
+    transaction.rollback()
+    connection.close()
 
 
 @pytest_asyncio.fixture

@@ -4,7 +4,7 @@
 解析规则:
     - 根主题: 忽略
     - 一级子主题: module
-    - 二级子主题: function
+    - 二级子主题: 中间层级（递归穿透）
     - 二级子主题以下的最末级叶子节点: point
 
 依赖关系:
@@ -25,12 +25,12 @@ class XmindParser:
     """XMind 文件解析器。
 
     支持 XMind R3.x 标准格式，将思维导图层级结构映射为
-    module/function/point/priority 测试点数据。
+    module/point/priority 测试点数据。
 
     字段映射规则:
         - 根主题 → 忽略
         - 一级子主题 → module（最大100字符）
-        - 二级子主题 → function（最大200字符）
+        - 二级子主题 → 中间层级（递归穿透到叶子）
         - 二级子主题以下的最末级叶子节点 → point（最大500字符）
         - 优先级标记 → priority（1高/2中/3低，默认2）
 
@@ -46,7 +46,7 @@ class XmindParser:
     NS = {"xmap": XMAP_NS}
     MAX_DEPTH = 10
     MODULE_MAX_LEN = 100
-    FUNCTION_MAX_LEN = 200
+    FUNCTION_MAX_LEN = 200  # 保留常量避免破坏其他引用，但不再输出到结果
     POINT_MAX_LEN = 500
     PRIORITY_MAP = {
         "priority-1": 1,
@@ -67,7 +67,7 @@ class XmindParser:
             file_path: .xmind 文件绝对路径。
 
         Returns:
-            测试点字典列表，每条包含 module/function/point/priority 字段。
+            测试点字典列表，每条包含 module/point/priority 字段。
 
         Raises:
             XmindParseError: 文件格式错误或解析失败时抛出。
@@ -99,7 +99,8 @@ class XmindParser:
         except XmindParseError:
             raise
         except Exception as e:
-            raise XmindParseError(f"读取 XMind 文件失败: {e}") from e
+            logger.error(f"读取 XMind 文件失败: {e}")
+            raise XmindParseError("读取 XMind 文件失败，请检查文件是否损坏") from e
 
     def _parse_xml(self, content: bytes) -> ET.Element:
         """解析 XML 内容，自动处理命名空间。
@@ -117,7 +118,8 @@ class XmindParser:
             root = ET.fromstring(content)
             return root
         except ET.ParseError as e:
-            raise XmindParseError(f"无法解析 XMind 文件内容: {e}") from e
+            logger.error(f"XML 解析失败: {e}")
+            raise XmindParseError("无法解析 XMind 文件内容，请确认文件格式正确") from e
 
     def _get_root_topic(self, root: ET.Element) -> ET.Element:
         """获取 sheet 下的根主题元素。
@@ -159,7 +161,7 @@ class XmindParser:
     def _parse_topics(self, root_topic: ET.Element) -> List[Dict[str, Any]]:
         """递归解析主题层级，提取测试点数据。
 
-        遍历根主题的子节点，按层级映射为 module/function/point。
+        遍历根主题的子节点，按层级映射为 module/point。
         规则调整为: 二级功能节点以下，每个最末级叶子节点单独生成一条测试点。
 
         Args:
@@ -183,18 +185,14 @@ class XmindParser:
                 continue
 
             for l2_topic in level2_topics:
-                function_name = self._extract_topic_text(l2_topic)
-                if not function_name:
+                l2_text = self._extract_topic_text(l2_topic)
+                if not l2_text:
                     logger.warning("跳过空文本的二级节点（模块: %s）", module_name)
                     continue
-                function_name = self._truncate_field(
-                    function_name, "function", self.FUNCTION_MAX_LEN
-                )
                 test_points.extend(
                     self._collect_leaf_test_points(
                         topic=l2_topic,
                         module_name=module_name,
-                        function_name=function_name,
                         inherited_priority=self._extract_priority_marker(l2_topic),
                         inherited_notes=self._collect_notes(l2_topic),
                         current_depth=0,
@@ -208,7 +206,6 @@ class XmindParser:
         self,
         topic: ET.Element,
         module_name: str,
-        function_name: str,
         inherited_priority: Optional[int],
         inherited_notes: List[str],
         current_depth: int,
@@ -234,7 +231,7 @@ class XmindParser:
             point_text = self._truncate_field(point_text, "point", self.POINT_MAX_LEN)
             priority = inherited_priority if inherited_priority is not None else 2
             return [
-                self._build_test_point(module_name, function_name, point_text, priority)
+                self._build_test_point(module_name, point_text, priority)
             ]
 
         test_points: List[Dict[str, Any]] = []
@@ -247,37 +244,32 @@ class XmindParser:
             child_points = self._collect_leaf_test_points(
                 topic=child,
                 module_name=module_name,
-                function_name=function_name,
                 inherited_priority=next_priority,
                 inherited_notes=next_notes,
                 current_depth=current_depth + 1,
             )
             if not child_points and not self._extract_topic_text(child):
                 logger.warning(
-                    "跳过空文本的叶子节点（模块: %s, 功能: %s）",
+                    "跳过空文本的叶子节点（模块: %s）",
                     module_name,
-                    function_name,
                 )
             test_points.extend(child_points)
         return test_points
 
     def _build_test_point(
-        self, module: str, function: str, point: str, priority: int
+        self, module: str, point: str, priority: int
     ) -> Dict[str, Any]:
         """构建测试点字典。
 
         Args:
             module: 模块名称。
-            function: 功能名称。
             point: 测试点描述。
             priority: 优先级（1-3）。
 
-        Returns:
-            测试点字典。
         """
         return {
             "module": module,
-            "function": function,
+            "function": "",
             "point": point,
             "priority": priority,
         }

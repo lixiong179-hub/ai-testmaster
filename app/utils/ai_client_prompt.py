@@ -59,7 +59,7 @@ def build_weight_model(has_ui: bool, has_requirement: bool, has_test_point: bool
 - 需求文档说："用户可点击新增按钮添加成员"
 - UI原型图有元素: button(name="新增", text="添加人")
 - 测试点是："链接管理模块-新增'添加人'字段验证"
-- → 正确用例: 【1】点击"添加人"按钮 → 【1】弹窗出现，标题为"新增成员"
+- → 正确用例: [1] 点击"添加人"按钮 → [1] 弹窗出现，标题为"新增成员"
 
 ### ⚠️ 防偏离规则：
 - 如果UI原型图中有需求未提及的按钮/功能 → **不要为其生成用例**
@@ -277,16 +277,23 @@ def build_project_env_info(project_config: Dict[str, Any]) -> str:
         return "## 项目环境配置：未配置（请使用通用测试数据）"
     project_name = project_config.get('project_name', '未知项目')
     project_type = project_config.get('project_type', 'web')
+
+    login_hint = "账号已登录"
+    if project_type == 'web':
+        env_hint = "浏览器网络正常"
+    else:
+        env_hint = "设备网络正常"
+
     parts = [
         "## 项目环境配置",
         f"- **项目名称**：{project_name}",
         f"- **项目类型**：{project_type}",
         "",
         "**重要说明（关于前置条件）：**",
-        "前置条件（打开浏览器、导航到目标URL、登录）由测试执行框架在运行时自动完成。",
+        f"前置条件必须包含\"{login_hint}\"和\"{env_hint}\"，有权限相关场景必须补充权限状态。",
         "你编写的测试用例只需关注**业务测试步骤本身**。",
         "- 不要在步骤中描述登录操作或包含任何账号密码",
-        "- precondition 字段应写为类似'系统已通过配置自动登录至目标页面'的通用描述",
+        f"- precondition 字段必须包含登录状态和网络环境，格式如：{login_hint}、{env_hint}、[业务权限]",
         "- 测试数据中不包含具体URL或密码"
     ]
     return '\n'.join(parts)

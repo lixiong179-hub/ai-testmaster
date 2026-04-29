@@ -153,11 +153,14 @@ class TestViewServiceCoverage(unittest.TestCase):
             self.assertTrue(os.path.exists(temp_path), "文件应该存在")
             
             # 验证内容
-            df = pd.read_excel(temp_path)
-            self.assertEqual(len(df), 1, "应该有一条用例")
-            self.assertIn('标题', df.columns, "应该有标题列")
-            self.assertIn('步骤描述', df.columns, "应该有步骤描述列")
-            self.assertEqual(df.iloc[0]['标题'], self.test_case.title)
+            from openpyxl import load_workbook
+            wb = load_workbook(temp_path)
+            ws = wb.active
+            headers = [ws.cell(row=1, column=c).value for c in range(1, 9)]
+            self.assertIn('用例描述', headers, "应该有用例描述列")
+            self.assertIn('操作步骤', headers, "应该有操作步骤列")
+            # 第2行是模块标题，第3行是用例数据
+            self.assertEqual(ws.cell(row=3, column=3).value, self.test_case.title)
             
             print("✅ 测试2通过: 导出功能用例Excel")
         finally:
@@ -482,17 +485,18 @@ class TestViewServiceCoverage(unittest.TestCase):
             df.to_excel(temp_path, index=False)
             
             # 测试导入
-            case_id = self.service.import_functional_excel(temp_path, self.test_project.id, module="功能模块")
-            self.assertIsNotNone(case_id, "导入应该成功")
+            case_ids = self.service.import_functional_excel(temp_path, self.test_project.id, module="功能模块")
+            self.assertTrue(len(case_ids) > 0, "导入应该成功")
             
             # 验证导入的数据
-            imported_case = self.db.query(TestCase).filter(TestCase.id == case_id).first()
+            imported_case = self.db.query(TestCase).filter(TestCase.id == case_ids[0]).first()
             self.assertIsNotNone(imported_case, "导入的用例应该存在")
             self.assertEqual(imported_case.title, '功能导入测试')
             
             # 清理
-            self.db.query(TestStep).filter(TestStep.test_case_id == case_id).delete(synchronize_session=False)
-            self.db.query(TestCase).filter(TestCase.id == case_id).delete(synchronize_session=False)
+            for cid in case_ids:
+                self.db.query(TestStep).filter(TestStep.test_case_id == cid).delete(synchronize_session=False)
+                self.db.query(TestCase).filter(TestCase.id == cid).delete(synchronize_session=False)
             self.db.commit()
             
             print("✅ 测试16通过: 从功能用例Excel导入")
@@ -809,7 +813,7 @@ class TestViewServiceCoverage(unittest.TestCase):
     def test_36_import_functional_excel_exception(self):
         """测试导入功能用例Excel异常处理"""
         result = self.service.import_functional_excel('/nonexistent/file.xlsx', self.test_project.id)
-        self.assertIsNone(result, "不存在的文件应该返回None")
+        self.assertEqual(result, [], "不存在的文件应该返回空列表")
         print("✅ 测试36通过: 导入功能用例Excel异常处理")
     
     def test_37_import_from_excel_invalid_project(self):
@@ -904,7 +908,7 @@ class TestViewServiceCoverage(unittest.TestCase):
             df.to_excel(temp_path, index=False)
             
             result = self.service.import_functional_excel(temp_path, self.test_project.id)
-            self.assertIsNone(result, "无效格式应该返回None")
+            self.assertEqual(result, [], "无效格式应该返回空列表")
             print("✅ 测试42通过: 导入格式错误的功能用例Excel")
         finally:
             import shutil

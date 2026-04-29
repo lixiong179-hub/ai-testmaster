@@ -60,9 +60,9 @@ try:
     
     if validation['valid']:
         print(f"\n开始导入...")
-        case_id = service.import_functional_excel(excel_file, project.id)
+        case_ids = service.import_functional_excel(excel_file, project.id)
         
-        if case_id:
+        if case_ids:
             print(f"✅ 导入成功！")
             
             # 查询所有导入的用例

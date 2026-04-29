@@ -4,7 +4,7 @@ import axios from '@/utils/request'
 export const testDataApi = {
   // 创建测试数据
   create: async (data: TestDataCreateRequest): Promise<TestData> => {
-    const response = await axios.post('/api/v1/test-data', data)
+    const response = await axios.post('/api/v1/test-data/', data)
     return response.data
   },
 

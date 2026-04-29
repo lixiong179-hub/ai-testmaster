@@ -213,7 +213,7 @@ class TestCaseGenerationBaseMixin:
                     context["test_points"].append({
                         "id": point.id,
                         "module": point.module,
-                        "function": point.function,
+                        "function": "",
                         "point": point.point,
                         "priority": point.priority
                     })
@@ -233,7 +233,7 @@ class TestCaseGenerationBaseMixin:
                 context["test_points"].append({
                     "id": point.id,
                     "module": point.module,
-                    "function": point.function,
+                    "function": "",
                     "point": point.point,
                     "priority": point.priority
                 })

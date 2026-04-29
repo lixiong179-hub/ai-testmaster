@@ -331,11 +331,6 @@ onMounted(() => {
   padding: 20px;
 }
 
-.task-card {
-  max-width: 1440px;
-  margin: 0 auto;
-}
-
 .card-header {
   display: flex;
   justify-content: space-between;

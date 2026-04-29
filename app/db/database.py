@@ -40,7 +40,51 @@ from app.core.config import settings
 
 # SQLAlchemy 声明式基类，所有 ORM 模型必须继承此类才能被 Base.metadata 管理
 # 例如：class User(Base): __tablename__ = 'users'
+#
+# 重要设计决策：覆写 __init__ 使 Column(default=) 同时设置 Python 属性
+# SQLAlchemy 的 Column(default=value) 只设 SQL 级默认值（INSERT 时生效），
+# Python 实例化时属性为 None。这导致 Bug().status == None 而非预期的 "open"，
+# 是常见的隐蔽 bug。通过在基类 __init__ 中自动填充，一劳永逸解决所有模型。
 Base = declarative_base()
+
+
+def _apply_column_defaults(self, passed_keys):
+    """自动将 Column(default=) 的值设为 Python 实例属性。
+
+    SQLAlchemy Column(default=X) 只在 INSERT 时生效，Python 实例化时属性为 None。
+    此函数遍历所有 Column，将非 callable 的 default 值赋给实例属性，
+    使 Model().field 返回默认值而非 None。
+
+    passed_keys: 调用方在 kwargs 中显式传入的 key 集合。
+    只对未传入的 key 填充默认值，避免覆盖用户显式传入的 None/0/False/""。
+
+    callable default（如 default=utcnow）由 SQLAlchemy 在 flush 时自动调用，
+    无需在此处理。
+    """
+    for table_column in self.__table__.columns:
+        if table_column.default is not None:
+            # ScalarElementColumnDefault 包含 .arg 属性
+            arg = getattr(table_column.default, 'arg', table_column.default)
+            # 跳过 callable（如 default=utcnow），它们由 SQLAlchemy 在 flush 时处理
+            if callable(arg):
+                continue
+            # 只在用户未显式传入该字段时才填充默认值
+            # 这确保 User(is_active=None) 不会被覆盖为 True
+            attr_name = table_column.name
+            if attr_name not in passed_keys:
+                setattr(self, attr_name, arg)
+
+
+# 注入到 Base 的 __init__，所有继承 Base 的模型自动获得 Python 级默认值
+_original_base_init = Base.__init__
+
+
+def _base_init_with_defaults(self, **kwargs):
+    _original_base_init(self, **kwargs)
+    _apply_column_defaults(self, set(kwargs.keys()))
+
+
+Base.__init__ = _base_init_with_defaults
 
 # 模块级日志记录器，用于记录数据库连接、会话、同步等操作日志
 logger = logging.getLogger(__name__)

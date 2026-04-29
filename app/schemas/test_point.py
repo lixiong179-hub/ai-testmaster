@@ -60,11 +60,11 @@ class TestPointBase(BaseModel):
     测试点基础模型
 
     业务用途：定义测试点的核心字段，作为TestPointCreate/TestPointResponse的公共父类
-    验证规则：模块1-100字符，功能1-200字符，描述1-500字符，优先级1-3
+    验证规则：模块1-100字符，描述1-500字符，优先级1-3
     与Model映射：对应 TestPoint Model 的 module/function/point/priority/ai_prompt 字段
     """
     module: str = Field(..., min_length=1, max_length=100, description="模块名称")  # 必填，如"登录模块"/"支付模块"
-    function: str = Field(..., min_length=1, max_length=200, description="功能名称")  # 必填，如"账号密码登录"/"微信支付"
+    function: str = Field("", max_length=100, description="功能名称")  # 可选，如"密码验证"/"余额检查"
     point: str = Field(..., min_length=1, max_length=500, description="测试点描述")  # 必填，如"输入错误密码登录"/"余额不足支付"
     priority: int = Field(..., ge=1, le=3, description="优先级：1高/2中/3低")  # 必填，1=高/2=中/3=低
     ai_prompt: Optional[str] = Field(None, description="AI分析时的提示词")  # 可选，引导AI生成更精准的测试用例
@@ -186,7 +186,7 @@ class TestPointUpdate(BaseModel):
     对应API：PUT /api/v1/test-points/{point_id}
     """
     module: Optional[str] = Field(None, min_length=1, max_length=100, description="模块名称")  # 可选
-    function: Optional[str] = Field(None, max_length=200, description="功能名称")  # 可选
+    function: Optional[str] = Field(None, max_length=100, description="功能名称")  # 可选
     point: Optional[str] = Field(None, min_length=1, max_length=500, description="测试点描述")  # 可选
     priority: Optional[int] = Field(None, ge=1, le=3, description="优先级：1高/2中/3低")  # 可选
     ai_prompt: Optional[str] = Field(None, description="AI提示词")  # 可选
@@ -200,14 +200,14 @@ class TestPointXmindPreviewItem(BaseModel):
 
     字段说明:
         - module: 必填，一级主题映射
-        - function: 可选，二级主题映射（无子节点时可能为空）
-        - point: 必填，三级主题映射
+        - point: 必填，二级主题映射
         - priority: 必填，1高/2中/3低
     """
     module: str = Field(..., min_length=1, max_length=100, description="模块名称")
-    function: Optional[str] = Field(None, max_length=200, description="功能名称")
+    function: str = Field("", max_length=100, description="功能名称")
     point: str = Field(..., min_length=1, max_length=500, description="测试点描述")
     priority: int = Field(..., ge=1, le=3, description="优先级：1高/2中/3低")
+    precondition: str = Field("", description="前置条件")
 
 
 class TestPointXmindPreviewCaseStep(BaseModel):
@@ -222,7 +222,6 @@ class TestPointXmindPreviewCaseItem(BaseModel):
     """XMind 导入预览中的测试用例项。"""
 
     module: str = Field(..., min_length=1, max_length=100, description="模块名称")
-    function: str = Field(..., min_length=1, max_length=200, description="功能名称")
     title: str = Field(..., min_length=1, max_length=255, description="用例标题")
     precondition: str = Field("", description="前置条件")
     expected_result: str = Field("", description="总体预期结果")
@@ -245,6 +244,7 @@ class TestPointXmindPreviewResponse(BaseModel):
     skipped_count: int = Field(0, description="跳过数量")
     skipped_reasons: List[str] = Field(default_factory=list, description="跳过原因列表")
     ai_timeout: bool = Field(False, description="AI增强模式是否因超时而降级")
+    total_paths: int = Field(0, description="XMind 提取的原始路径总数（AI 预览采样时 > case_total）")
 
 
 class TestPointXmindImportResponse(BaseModel):

@@ -90,7 +90,6 @@
         >
           <el-table-column type="index" label="#" width="60" />
           <el-table-column prop="module" label="模块" min-width="140" show-overflow-tooltip />
-          <el-table-column prop="function" label="功能" min-width="180" show-overflow-tooltip />
           <el-table-column prop="point" label="测试点" min-width="320" show-overflow-tooltip />
           <el-table-column prop="priority" label="优先级" width="100">
             <template #default="{ row }">
@@ -232,7 +231,6 @@ async function handleExtract(): Promise<void> {
     extractedPoints.value = response.items.map((item, index) => ({
       id: item.id || index + 1,
       module: item.module || '',
-      function: item.function || '',
       point: item.point || '',
       priority: item.priority || 2,
       ai_prompt: item.ai_prompt ?? undefined,
@@ -261,7 +259,6 @@ async function handleSave(): Promise<void> {
     const payload = extractedPoints.value
       .map((item) => ({
         module: item.module,
-        function: item.function,
         point: item.point,
         priority: item.priority,
         ai_prompt: item.ai_prompt ?? undefined,

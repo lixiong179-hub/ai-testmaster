@@ -486,7 +486,7 @@
                   <el-table-column type="selection" width="50" fixed="left" />
                   <el-table-column prop="id" label="ID" width="72" />
                   <el-table-column prop="module" label="模块" width="120" />
-                  <el-table-column prop="function" label="功能" width="160" />
+                  <el-table-column prop="function" label="功能" width="120" />
                   <el-table-column prop="point" label="测试点描述" min-width="200" />
                   <el-table-column prop="priority" label="优先级" width="100">
                     <template #default="scope">
@@ -839,8 +839,8 @@
         <el-form-item label="模块" required>
           <el-input v-model="editForm.module" placeholder="如：登录模块" />
         </el-form-item>
-        <el-form-item label="功能" required>
-          <el-input v-model="editForm.function" placeholder="如：账号密码登录" />
+        <el-form-item label="功能">
+          <el-input v-model="editForm.function" placeholder="如：密码验证" />
         </el-form-item>
         <el-form-item label="测试点描述" required>
           <el-input
@@ -904,7 +904,7 @@ import { testPointApi } from '@/api/testPoint'
 interface TestPoint {
   id: number
   module: string
-  function: string
+  function?: string
   point: string
   priority: number
   ai_prompt?: string
@@ -1259,7 +1259,6 @@ const extractTestPoints = async () => {
       testPoints.value = response.items.map((item: any, index: number) => ({
         id: item.id || index + 1,
         module: item.module || '',
-        function: item.function || '',
         point: item.point || '',
         priority: item.priority || 2,
         ai_prompt: item.ai_prompt,
@@ -1413,7 +1412,7 @@ const saveTestPoint = async () => {
         const result = await testPointApi.update(currentPoint.id, {
           project_id: Number(formData.project_id),
           module: editForm.module,
-          function: editForm.function || '',
+          function: editForm.function,
           point: editForm.point,
           priority: editForm.priority,
           ai_prompt: currentPoint.ai_prompt,
@@ -1509,7 +1508,6 @@ const saveToDatabase = async () => {
         (tp) =>
           tp._raw || {
             module: tp.module,
-            function: tp.function,
             point: tp.point,
             priority: tp.priority,
           }

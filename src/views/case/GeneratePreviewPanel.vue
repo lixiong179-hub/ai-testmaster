@@ -38,7 +38,6 @@
                 >
                   <span class="st-mod">{{ tp.module }}</span>
                   <span class="st-sep">/</span>
-                  <span class="st-func">{{ tp.function }}</span>
                   <span class="st-point">{{ tp.point }}</span>
                   <el-tag size="small" :type="store.getPriorityType(tp.priority)" round>{{
                     store.getPriorityLabel(tp.priority)

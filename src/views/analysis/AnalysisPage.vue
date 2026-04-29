@@ -70,7 +70,6 @@
               @selection-change="handleSelectionChange"
             >
               <el-table-column type="selection" width="55" />
-              <el-table-column prop="function" label="功能" width="150" />
               <el-table-column prop="point" label="测试点" show-overflow-tooltip />
               <el-table-column prop="priority" label="优先级" width="80">
                 <template #default="scope">

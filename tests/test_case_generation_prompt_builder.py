@@ -43,7 +43,7 @@ class TestBuildGraphPrompt:
         edges = []
         module_info = {'name': '用户模块', 'description': '用户登录相关'}
         requirement_content = '用户需要能够登录系统'
-        test_point_json = '{"module": "用户", "function": "登录"}'
+        test_point_json = '{"module": "用户", "function": "登录", "point": "登录验证", "priority": 1}'
         ui_specs_text = ''
 
         result = PromptBuilder.build_graph_prompt(

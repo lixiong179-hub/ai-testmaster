@@ -48,7 +48,7 @@ def normalize_new_format(case: Dict[str, Any]) -> Dict[str, Any]:
 
     def _add_step_number(text: str, idx: int) -> str:
         stripped = text.strip()
-        if re.match(r'^\d+\.\s+', stripped) or (stripped.startswith('【') and '】' in stripped):
+        if re.match(r'^\d+\.\s+', stripped) or (stripped.startswith('【') and '】' in stripped) or (stripped.startswith('[') and ']' in stripped):
             return stripped
         return f"{idx + 1}. {stripped}"
 
@@ -118,7 +118,7 @@ def normalize_old_format(case: Dict[str, Any]) -> Dict[str, Any]:
             'action_type': action_type,
             'input_value': input_value,
             'target_element': target_element,
-            'description': step.get('description', f"【{step.get('step', i + 1)}】{action}"),
+            'description': step.get('description', f"[{step.get('step', i + 1)}] {action}"),
             'expected_result': step.get('expected_result', ''),
             'test_data': step.get('test_data', []),
             'ui_elements': step.get('ui_elements', [])

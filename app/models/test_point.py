@@ -44,7 +44,7 @@ class TestPoint(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID，多项目隔离核心")  # 项目ID，级联删除
     requirement_id = Column(Integer, ForeignKey("requirements.id", ondelete="SET NULL"), nullable=True, comment="关联需求ID（可选）")  # 需求ID，SET NULL保留测试点
     module = Column(String(100), nullable=False, comment="模块名称，如'登录模块'")                      # 一级分类：功能模块
-    function = Column(String(200), nullable=False, comment="功能名称，如'账号密码登录'")                 # 二级分类：功能点
+    function = Column(String(100), nullable=False, default="", comment="功能名称，如'密码验证'")            # 二级分类：功能名称
     point = Column(String(500), nullable=False, comment="测试点描述，如'输入错误密码登录'")               # 三级分类：具体测试关注点
     priority = Column(Integer, nullable=False, comment="优先级：1高2中3低")                             # 优先级，1=高，2=中，3=低
     create_time = Column(DateTime, default=utcnow, nullable=False, comment="创建时间")                  # 创建时间，UTC时区

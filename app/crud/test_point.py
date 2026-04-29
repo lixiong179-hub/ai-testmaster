@@ -39,9 +39,9 @@ def create_test_point(
     db: Session,
     project_id: int,
     module: str,
-    function: str,
     point: str,
     priority: int,
+    function: str = "",
     ai_prompt: Optional[str] = None,
     created_by: Optional[str] = None,
     requirement_id: Optional[int] = None,
@@ -56,7 +56,6 @@ def create_test_point(
         db: 数据库会话
         project_id: 所属项目ID
         module: 模块名称，如"用户管理"、"订单管理"
-        function: 功能名称，如"登录"、"注册"
         point: 测试点描述，具体需要测试的场景或条件
         priority: 优先级，1=高/2=中/3=低
         ai_prompt: AI分析时的提示词（可选），用于引导AI生成更精准的测试用例
@@ -307,7 +306,7 @@ def batch_create_test_points(
         db: 数据库会话
         project_id: 所属项目ID，所有测试点归属同一项目
         test_points_data: 测试点数据列表，每条数据为字典格式，
-            必含字段: module, function, point, priority
+            必含字段: module, point, priority
             可选字段: ai_prompt, requirement_id, created_by
         created_by: 默认创建人用户名；当单条数据未显式传入 created_by 时使用
         commit: 是否在函数内提交事务，默认提交
@@ -330,7 +329,7 @@ def batch_create_test_points(
         test_point = TestPoint(
             project_id=project_id,
             module=data['module'],
-            function=data['function'],
+            function=data.get('function', ''),
             point=data['point'],
             priority=data['priority'],
             ai_prompt=data.get('ai_prompt'),  # 可选字段，缺失时为None

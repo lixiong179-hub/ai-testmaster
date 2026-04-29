@@ -149,6 +149,7 @@ def handle_case_style_import(
     parsed_cases: list,
     preview: bool,
     ai_timeout: bool = False,
+    total_paths: int = 0,
 ):
     """处理更接近测试用例脑图的 XMind 导入。
 
@@ -166,7 +167,7 @@ def handle_case_style_import(
     point_payloads = [
         {
             "module": case["module"],
-            "function": case["function"],
+            "function": case.get("function", ""),
             "point": case["point"],
             "priority": case["priority"],
         }
@@ -180,17 +181,17 @@ def handle_case_style_import(
             items=[
                 TestPointXmindPreviewItem(
                     module=item["module"],
-                    function=item["function"],
+                    function=item.get("function", ""),
                     point=item["point"],
                     priority=item["priority"],
+                    precondition=case.get("precondition", ""),
                 )
-                for item in point_payloads
+                for item, case in zip(point_payloads, parsed_cases)
             ],
             case_total=len(parsed_cases),
             case_items=[
                 TestPointXmindPreviewCaseItem(
                     module=case["module"],
-                    function=case["function"],
                     title=case["title"],
                     precondition=case.get("precondition", ""),
                     expected_result=case.get("expected_result", ""),
@@ -210,13 +211,14 @@ def handle_case_style_import(
             skipped_count=0,
             skipped_reasons=[],
             ai_timeout=ai_timeout,
+            total_paths=total_paths,
         )
 
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
     point_payloads_for_save = [
         {
             "module": case["module"],
-            "function": case["function"],
+            "function": case.get("function", ""),
             "point": case["point"],
             "priority": case["priority"],
             "created_by": current_username,
@@ -284,6 +286,8 @@ def handle_ai_enhanced_import(
     current_username: str,
     ai_cases: list,
     preview: bool,
+    ai_timeout: bool = False,
+    total_paths: int = 0,
 ):
     """处理 AI 增强模式导入，逻辑复用场景树导入。"""
     return handle_case_style_import(
@@ -292,4 +296,6 @@ def handle_ai_enhanced_import(
         current_username=current_username,
         parsed_cases=ai_cases,
         preview=preview,
+        ai_timeout=ai_timeout,
+        total_paths=total_paths,
     )

@@ -141,22 +141,28 @@ export const testCaseViewApi = {
     return response.data
   },
 
-  exportToExcel: async (caseId: number): Promise<Blob> => {
-    const response = await axios.post(
+  /**
+   * 单条用例导出标准双 Sheet Excel。
+   * 返回完整 AxiosResponse 以便读取 Content-Disposition 等响应头。
+   */
+  exportToExcel: async (caseId: number) => {
+    return await axios.post(
       `/api/v1/testCase/${caseId}/export-excel`,
       {},
       { responseType: 'blob' }
     )
-    return response.data
   },
 
-  exportToFunctionalExcel: async (caseIds: number[]): Promise<Blob> => {
-    const response = await axios.post(
+  /**
+   * 批量导出功能用例 Excel（按模块分组）。
+   * 响应头 `X-Export-Skipped-Count` 表示因权限被忽略的用例数（可能不存在）。
+   */
+  exportToFunctionalExcel: async (caseIds: number[]) => {
+    return await axios.post(
       '/api/v1/testCase/export-functional-excel',
       { case_ids: caseIds },
       { responseType: 'blob' }
     )
-    return response.data
   },
 
   importFromExcel: async (
@@ -167,11 +173,7 @@ export const testCaseViewApi = {
     formData.append('file', file)
     formData.append('project_id', projectId.toString())
 
-    const response = await axios.post('/api/v1/testCase/import-excel', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    const response = await axios.post('/api/v1/testCase/import-excel', formData)
     return response.data
   },
 
@@ -187,11 +189,7 @@ export const testCaseViewApi = {
       formData.append('module', module)
     }
 
-    const response = await axios.post('/api/v1/testCase/import-functional-excel', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    const response = await axios.post('/api/v1/testCase/import-functional-excel', formData)
     return response.data
   },
 

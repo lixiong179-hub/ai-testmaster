@@ -382,10 +382,6 @@ onMounted(() => {
   padding: 20px;
 }
 
-.project-card {
-  max-width: 1440px;
-  margin: 0 auto;
-}
 
 .card-header {
   display: flex;
