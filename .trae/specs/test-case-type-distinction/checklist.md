@@ -1,0 +1,16 @@
+- [x] AI生成用例的 _normalize_new_format 函数正确设置 case_type 和 test_category
+- [x] AI生成用例的 _normalize_old_format 函数正确设置 case_type 和 test_category
+- [x] 用例类型根据测试点内容合理推断（UI操作→ui_automation，API→api_automation，手工→manual）
+- [x] create_test_case 函数正确读取和保存 test_category 字段
+- [x] ai_generate_test_case 函数正确读取和保存 test_category 字段
+- [x] update_test_case 函数正确读取和保存 case_type 和 test_category 字段
+- [x] TestCaseCreate/TestCaseUpdate schema 包含 test_category 字段
+- [x] 执行引擎 _execute_single_case 方法检查用例类型
+- [x] test_category 为 "ui_automation" 的用例正常执行
+- [x] test_category 为 "manual" 或为空的用例被正确跳过
+- [x] 跳过的手工测试用例在测试结果中有正确标记
+- [x] 跳过的用例不计入成功/失败统计
+- [x] 前端 TestCase 类型定义包含 test_category 字段
+- [x] 前端保存用例时正确传递 test_category 字段
+- [x] 前端测试用例详情页面显示和编辑 test_category 字段
+- [x] 前端测试用例列表页面显示 test_category 标签

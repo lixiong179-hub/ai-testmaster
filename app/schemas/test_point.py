@@ -1,0 +1,147 @@
+"""
+测试点模块 Schema - 测试点提取/分析/管理的请求与响应模型
+
+本模块定义了测试点全生命周期的数据契约，包括：
+
+测试点Schema分层：
+- TestPointBase: 测试点基础字段（模块/功能/描述/优先级）
+- TestPointCreate: 创建测试点请求，继承Base并添加project_id
+- TestPointUpdate: 更新测试点请求，所有字段可选
+- TestPointResponse: 测试点响应模型，包含ID和时间戳
+
+测试点操作Schema：
+- TestPointExtractRequest: 从上传文件提取测试点请求
+- TestPointAnalyzeRequest: AI分析测试点请求
+- TestPointListRequest: 测试点列表查询请求（含分页和筛选）
+- TestPointListResponse: 测试点列表分页响应
+
+辅助Schema：
+- AnalysisProgress: AI分析进度模型
+
+与Model的对应关系：
+- TestPoint系列 -> app.models.test_point.TestPoint
+- TestPointExtractRequest -> 触发文件内容解析和AI提取流程
+- AnalysisProgress -> 异步任务进度追踪
+"""
+from pydantic import BaseModel, Field
+from typing import List, Optional
+from datetime import datetime
+
+
+class TestPointExtractRequest(BaseModel):
+    """
+    从上传文件提取测试点请求模型
+
+    业务用途：基于已上传的项目文件（需求文档等），通过AI提取测试点
+    对应API：POST /api/v1/test-points/extract
+    """
+    file_id: int = Field(..., description="项目文件 ID（必填）")  # 必填，指定从哪个文件提取测试点
+
+
+class TestPointBase(BaseModel):
+    """
+    测试点基础模型
+
+    业务用途：定义测试点的核心字段，作为TestPointCreate/TestPointResponse的公共父类
+    验证规则：模块1-100字符，功能1-200字符，描述1-500字符，优先级1-3
+    与Model映射：对应 TestPoint Model 的 module/function/point/priority/ai_prompt 字段
+    """
+    module: str = Field(..., min_length=1, max_length=100, description="模块名称")  # 必填，如"登录模块"/"支付模块"
+    function: str = Field(..., min_length=1, max_length=200, description="功能名称")  # 必填，如"账号密码登录"/"微信支付"
+    point: str = Field(..., min_length=1, max_length=500, description="测试点描述")  # 必填，如"输入错误密码登录"/"余额不足支付"
+    priority: int = Field(..., ge=1, le=3, description="优先级：1高/2中/3低")  # 必填，1=高/2=中/3=低
+    ai_prompt: Optional[str] = Field(None, description="AI分析时的提示词")  # 可选，引导AI生成更精准的测试用例
+
+
+class TestPointCreate(TestPointBase):
+    """
+    创建测试点请求模型
+
+    业务用途：手动创建或AI提取后创建测试点
+    验证规则：继承TestPointBase，project_id必填
+    对应API：POST /api/v1/test-points/
+    与Model映射：project_id对应TestPoint.project_id外键
+    """
+    project_id: int = Field(..., description="项目ID")  # 必填，测试点所属项目，实现多项目隔离
+
+
+class TestPointResponse(TestPointBase):
+    """
+    测试点响应模型
+
+    业务用途：API返回测试点信息时使用
+    对应API：GET /api/v1/test-points/{point_id}
+    与Model映射：映射 TestPoint Model 的 id/project_id/create_time及Base中的所有字段
+    """
+    id: int  # 测试点主键ID，与TestPoint.id对应
+    project_id: int  # 所属项目ID，与TestPoint.project_id对应
+    create_time: datetime  # 创建时间，与TestPoint.create_time对应
+
+    class Config:
+        # 启用ORM模式，支持从TestPoint Model直接读取属性
+        from_attributes = True
+
+
+class TestPointAnalyzeRequest(BaseModel):
+    """
+    测试点分析请求模型
+
+    业务用途：对项目中的测试点进行AI分析，优化测试点质量
+    对应API：POST /api/v1/test-points/analyze
+    """
+    project_id: int = Field(..., description="项目ID")  # 必填，指定分析的项目
+
+
+class TestPointListRequest(BaseModel):
+    """
+    测试点列表查询请求模型
+
+    业务用途：分页查询测试点，支持按模块和优先级筛选
+    验证规则：project_id必填，分页参数有边界约束
+    对应API：GET /api/v1/test-points/
+    """
+    project_id: int = Field(..., description="项目ID")  # 必填，项目隔离查询
+    module: Optional[str] = Field(None, description="模块名称")  # 可选，按模块筛选
+    priority: Optional[int] = Field(None, ge=1, le=3, description="优先级")  # 可选，按优先级筛选
+    page: int = Field(1, ge=1, description="页码")  # 页码，默认第1页
+    page_size: int = Field(10, ge=1, le=100, description="每页数量")  # 每页数量，默认10，最大100
+
+
+class TestPointListResponse(BaseModel):
+    """
+    测试点列表分页响应模型
+
+    业务用途：返回分页查询结果
+    对应API：GET /api/v1/test-points/ 的响应
+    """
+    total: int  # 符合条件的测试点总数
+    items: List[TestPointResponse]  # 当前页的测试点列表
+    page: int  # 当前页码
+    page_size: int  # 每页数量
+
+
+class AnalysisProgress(BaseModel):
+    """
+    AI分析进度模型
+
+    业务用途：追踪AI分析测试点的异步任务进度，通过WebSocket或轮询获取
+    验证规则：进度0-100
+    """
+    progress: int = Field(..., ge=0, le=100, description="分析进度（0-100%）")  # 进度百分比，0=开始/100=完成
+    message: str = Field(..., description="进度消息")  # 当前阶段的描述信息
+    status: str = Field(..., description="分析状态")  # 如"processing"/"completed"/"failed"
+
+
+class TestPointUpdate(BaseModel):
+    """
+    更新测试点请求模型 - 用于PUT接口
+
+    业务用途：修改测试点信息，支持部分更新
+    验证规则：所有字段可选，仅更新传入的字段
+    对应API：PUT /api/v1/test-points/{point_id}
+    """
+    module: Optional[str] = Field(None, min_length=1, max_length=100, description="模块名称")  # 可选
+    function: Optional[str] = Field(None, max_length=200, description="功能名称")  # 可选
+    point: Optional[str] = Field(None, min_length=1, max_length=500, description="测试点描述")  # 可选
+    priority: Optional[int] = Field(None, ge=1, le=3, description="优先级：1高/2中/3低")  # 可选
+    ai_prompt: Optional[str] = Field(None, description="AI提示词")  # 可选
