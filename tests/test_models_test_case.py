@@ -145,6 +145,126 @@ class TestTestCaseModel:
         assert hasattr(TestCase, 'project')
         assert hasattr(TestCase, 'test_steps')
         assert hasattr(TestCase, 'test_point')
+        assert hasattr(TestCase, 'parent_case')
+        assert hasattr(TestCase, 'last_review')
+
+    def test_test_case_lifecycle_status_default(self, db, test_project):
+        tc = TestCase(
+            case_no="TC-LS-DEFAULT", project_id=test_project.id, module="模块",
+            title="生命周期默认", precondition="前置", steps_json=[],
+            expected_result="预期", priority=1, case_type="UI"
+        )
+        db.add(tc)
+        db.commit()
+        db.refresh(tc)
+        assert tc.lifecycle_status == "active"
+        db.delete(tc)
+        db.commit()
+
+    def test_test_case_lifecycle_status_values(self, db, test_project):
+        for s in ["draft", "active", "pending_review", "needs_modify", "locator_broken", "deprecated", "archived"]:
+            tc = TestCase(
+                case_no=f"TC-LS-{s}", project_id=test_project.id, module="模块",
+                title=f"状态{s}", precondition="前置", steps_json=[],
+                expected_result="预期", priority=1, case_type="UI", lifecycle_status=s
+            )
+            db.add(tc)
+            db.commit()
+            db.refresh(tc)
+            assert tc.lifecycle_status == s
+            db.delete(tc)
+            db.commit()
+
+    def test_test_case_summary_fields(self, db, test_project):
+        tc = TestCase(
+            case_no="TC-SUM-001", project_id=test_project.id, module="模块",
+            title="摘要测试", precondition="前置", steps_json=[],
+            expected_result="预期", priority=1, case_type="UI",
+            summary="AI生成的摘要", summary_version=1, summary_model_version="gpt-4o"
+        )
+        db.add(tc)
+        db.commit()
+        db.refresh(tc)
+        assert tc.summary == "AI生成的摘要"
+        assert tc.summary_version == 1
+        assert tc.summary_model_version == "gpt-4o"
+        db.delete(tc)
+        db.commit()
+
+    def test_test_case_summary_default_values(self, db, test_project):
+        tc = TestCase(
+            case_no="TC-SUM-DEF", project_id=test_project.id, module="模块",
+            title="摘要默认", precondition="前置", steps_json=[],
+            expected_result="预期", priority=1, case_type="UI"
+        )
+        db.add(tc)
+        db.commit()
+        db.refresh(tc)
+        assert tc.summary is None
+        assert tc.summary_version == 0
+        assert tc.summary_model_version is None
+        assert tc.parent_case_id is None
+        assert tc.last_review_id is None
+        db.delete(tc)
+        db.commit()
+
+    def test_test_case_parent_case_lineage(self, db, test_project):
+        parent = TestCase(
+            case_no="TC-PARENT-001", project_id=test_project.id, module="模块",
+            title="父用例", precondition="前置", steps_json=[],
+            expected_result="预期", priority=1, case_type="UI"
+        )
+        db.add(parent)
+        db.commit()
+        db.refresh(parent)
+
+        child = TestCase(
+            case_no="TC-CHILD-001", project_id=test_project.id, module="模块",
+            title="子用例", precondition="前置", steps_json=[],
+            expected_result="预期", priority=1, case_type="UI",
+            parent_case_id=parent.id
+        )
+        db.add(child)
+        db.commit()
+        db.refresh(child)
+
+        assert child.parent_case_id == parent.id
+        assert child.parent_case.id == parent.id
+        assert len(parent.child_cases) == 1
+        assert parent.child_cases[0].id == child.id
+
+        db.delete(child)
+        db.delete(parent)
+        db.commit()
+
+    def test_test_case_last_review_relationship(self, db, test_project, test_user):
+        from app.models.code_review import CodeReview
+
+        review = CodeReview(
+            title="用例评审", repository="https://example.com/repo",
+            branch="main", reviewer_id=test_user.id, author_id=test_user.id,
+        )
+        db.add(review)
+        db.commit()
+        db.refresh(review)
+
+        tc = TestCase(
+            case_no="TC-REVIEW-001", project_id=test_project.id, module="模块",
+            title="评审测试", precondition="前置", steps_json=[],
+            expected_result="预期", priority=1, case_type="UI",
+            last_review_id=review.id,
+        )
+        db.add(tc)
+        db.commit()
+        db.refresh(tc)
+
+        assert tc.last_review_id == review.id
+        assert tc.last_review.id == review.id
+        assert tc.last_review.title == "用例评审"
+
+        db.delete(tc)
+        db.delete(review)
+        db.commit()
 
 
 class TestTestStepModel:

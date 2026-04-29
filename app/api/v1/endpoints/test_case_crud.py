@@ -72,6 +72,11 @@ async def create_test_case(
         case_type=test_case.case_type,
         exec_script=test_case.exec_script,
         generate_status=test_case.generate_status,
+        lifecycle_status=test_case.lifecycle_status,
+        test_point_id=test_case.test_point_id,
+        summary=test_case.summary,
+        summary_model_version=test_case.summary_model_version,
+        parent_case_id=test_case.parent_case_id,
         test_category=test_case.test_category if test_case.test_category else None
     )
 
@@ -136,6 +141,7 @@ async def create_test_case(
 async def get_test_cases(
     project_id: Optional[int] = Query(default=None, description="项目ID"),
     requirement_file_id: Optional[int] = Query(default=None, description="需求文件ID"),
+    lifecycle_status: Optional[str] = Query(default=None, description="生命周期状态"),
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
@@ -165,6 +171,8 @@ async def get_test_cases(
         query = query.filter(TestCase.project_id == project_id)
     if requirement_file_id:
         query = query.filter(TestCase.requirement_file_id == requirement_file_id)
+    if lifecycle_status:
+        query = query.filter(TestCase.lifecycle_status == lifecycle_status)
 
     offset = (page - 1) * page_size
 

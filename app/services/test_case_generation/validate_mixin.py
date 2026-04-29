@@ -53,7 +53,7 @@ class TestCaseGenerationValidateMixin:
             test_point_id=test_point.get("id"),
             case_no=case_no,
             module=generated_case.get("module", test_point.get("module", "AI生成")),
-            title=generated_case.get("title", test_point.get("function", "测试用例")),
+            title=generated_case.get("title") or test_point.get("point", "测试用例"),
             precondition=generated_case.get("precondition", ""),
             steps_json=steps_json,
             expected_result=generated_case.get("expected_result", ""),

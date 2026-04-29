@@ -104,10 +104,10 @@ def _prepare_test_point(context: Dict[str, Any], description: str, priority: int
         test_point = test_points[0]
     if not test_point:
         test_point = {
-            'module': 'AI生成',
-            'function': '测试场景',
-            'point': description,
-            'priority': priority
+            "module": context.get("module", "未知模块"),
+            "function": context.get("function") or context.get("point", ""),
+            "point": context.get("point", "未知测试点"),
+            "priority": priority,
         }
     return test_point
 

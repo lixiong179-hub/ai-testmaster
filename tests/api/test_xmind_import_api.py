@@ -193,7 +193,6 @@ class TestImportXmindPreview:
         assert len(data["data"]["items"]) == 1
         assert data["data"]["case_total"] == 0
         assert data["data"]["case_items"] == []
-        assert data["data"]["items"][0]["function"] == "用户登录"
         assert data["data"]["items"][0]["point"] == "用户登录"
         assert data["data"]["skipped_count"] == 0
         assert data["data"]["skipped_reasons"] == []
@@ -517,11 +516,11 @@ class TestImportXmindAiEnhance:
             preview_mode="test_cases",
             total=1,
             items=[TestPointXmindPreviewItem(
-                module="登录模块", function="登录", point="输入正确密码", priority=2,
+                module="登录模块", point="输入正确密码", priority=2,
             )],
             case_total=1,
             case_items=[TestPointXmindPreviewCaseItem(
-                module="登录模块", function="登录", title="测试登录",
+                module="登录模块", title="测试登录",
                 precondition="", expected_result="登录成功", priority=2,
                 step_count=1,
                 steps=[TestPointXmindPreviewCaseStep(
@@ -697,7 +696,6 @@ class TestImportXmindAiReal:
         assert len(data["items"]) >= 1
         for item in data["items"]:
             assert "module" in item
-            assert "function" in item
             assert "point" in item
 
     @pytest.mark.skipif(

@@ -129,6 +129,7 @@ class Project(Base):
     test_tasks = relationship("TestTask", back_populates="project", cascade="all, delete-orphan")     # 测试任务，级联删除
     test_reports = relationship("TestReport", back_populates="project", cascade="all, delete-orphan") # 测试报告，级联删除
     iterations = relationship("Iteration", back_populates="project", cascade="all, delete-orphan")    # 迭代，级联删除
+    test_capabilities = relationship("TestCapability", back_populates="project", cascade="all, delete-orphan")  # 业务能力，级联删除
 
 
 class ProjectFile(Base):

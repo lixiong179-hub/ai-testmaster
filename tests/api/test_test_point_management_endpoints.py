@@ -15,7 +15,6 @@ class TestTestPointManagementEndpoints:
             db=db,
             project_id=testProject.id,
             module="api_stats_module",
-            function="api function",
             point="api point",
             priority=1,
             created_by=testUser.username,

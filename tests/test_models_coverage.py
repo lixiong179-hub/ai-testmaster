@@ -124,7 +124,6 @@ class TestTestPointModel(unittest.TestCase):
         """测试创建测试点"""
         test_point = TestPoint(
             module="登录模块",
-            function="账号密码登录",
             point="验证用户登录功能",
             priority=1,
             project_id=1
@@ -137,7 +136,6 @@ class TestTestPointModel(unittest.TestCase):
         test_point = TestPoint(
             id=1,
             module="登录模块",
-            function="功能测试",
             point="测试点描述",
             priority=1,
             project_id=1

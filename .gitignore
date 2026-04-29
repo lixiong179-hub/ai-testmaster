@@ -80,5 +80,24 @@ captcha_debug_*.png
 ai_response_debug.txt
 ocr_debug.log
 
+# Type checkers
+.mypy_cache/
+
+# IDE / AI tools
+.trae/
+
+# Test artifacts
+test_screenshots/
+screenshots/
+test_uploads/
+videos/
+cypress/screenshots/
+cypress/videos/
+
+# Root-level debug/export files
+/*.xlsx
+/*.png
+/*.txt
+check_result*.txt
+
 # Misc
-{}

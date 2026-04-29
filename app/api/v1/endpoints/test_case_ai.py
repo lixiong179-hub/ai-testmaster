@@ -84,7 +84,7 @@ def _prepare_test_point(
     if not test_point:
         test_point = {
             "module": context.get("module", "未知模块"),
-            "function": context.get("function", ""),
+            "function": context.get("function") or context.get("point", ""),
             "point": context.get("point", "未知测试点"),
             "priority": priority,
         }

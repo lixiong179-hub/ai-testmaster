@@ -90,6 +90,13 @@ def build_test_case_response(test_case) -> Dict[str, Any]:
         "test_category": getattr(test_case, 'test_category', None),
         "exec_script": getattr(test_case, 'exec_script', ''),
         "generate_status": getattr(test_case, 'generate_status', 0),
+        "lifecycle_status": getattr(test_case, 'lifecycle_status', 'active'),
+        "test_point_id": getattr(test_case, 'test_point_id', None),
+        "summary": getattr(test_case, 'summary', None),
+        "summary_version": getattr(test_case, 'summary_version', 0),
+        "summary_model_version": getattr(test_case, 'summary_model_version', None),
+        "parent_case_id": getattr(test_case, 'parent_case_id', None),
+        "last_review_id": getattr(test_case, 'last_review_id', None),
         "create_time": create_time
     }
 
