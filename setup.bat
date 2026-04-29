@@ -1,0 +1,19 @@
+@echo off
+
+echo Creating virtual environment...
+python -m venv venv
+
+echo Activating virtual environment...
+call venv\Scripts\activate.bat
+
+echo Upgrading pip...
+pip install --upgrade pip
+
+echo Installing dependencies...
+pip install -r requirements.txt
+
+echo Verifying installation...
+python -c "import fastapi; print('FastAPI version:', fastapi.__version__)"
+
+echo Starting application...
+python app/main.py

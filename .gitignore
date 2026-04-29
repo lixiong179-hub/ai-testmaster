@@ -25,6 +25,7 @@ venv/
 ENV/
 env/
 .venv/
+venv_backup/
 
 # IDE
 .vscode/
@@ -61,3 +62,18 @@ Thumbs.db
 *.tmp
 *.bak
 *.cache
+
+# Uploads (user data)
+uploads/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Frontend build
+dist/
+*.vue.js
+
+# Misc
+{}

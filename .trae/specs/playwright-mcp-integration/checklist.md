@@ -1,0 +1,32 @@
+- [x] app/interfaces/element_recognizer.py 文件存在，包含RecognitionResult dataclass和ElementRecognizer ABC
+- [x] RecognitionResult包含locator_type、locator_value、confidence、raw_result字段
+- [x] ElementRecognizer定义了recognize和batch_recognize抽象方法
+- [x] app/utils/playwright_mcp_client.py 文件存在，PlaywrightMCPClient类完整
+- [x] PlaywrightMCPClient实现了browser_snapshot方法
+- [x] PlaywrightMCPClient实现了browser_click方法
+- [x] PlaywrightMCPClient实现了browser_type方法
+- [x] PlaywrightMCPClient实现了browser_navigate方法
+- [x] PlaywrightMCPClient实现了连接管理和自动重连逻辑
+- [x] app/utils/mcp_text_llm.py 文件存在，MCPAwareLLM类完整
+- [x] MCPAwareLLM实现了理解操作意图→生成定位器的prompt模板
+- [x] MCPAwareLLM调用analyze_text而非新建AI客户端
+- [x] app/services/recognizers/mcp_recognizer.py 文件存在，MCPRecognizer类完整
+- [x] MCPRecognizer实现了ElementRecognizer接口
+- [x] MCPRecognizer.recognize方法调用MCP获取snapshot→LLM理解→返回定位器
+- [x] MCPRecognizer处理MCP不可用时的降级逻辑
+- [x] app/services/recognizers/vision_recognizer.py 文件存在，VisionRecognizer类完整
+- [x] VisionRecognizer实现了ElementRecognizer接口
+- [x] VisionRecognizer迁移了ElementLocatorService._recognize_element逻辑
+- [x] app/services/element_locator_service.py 构造函数注入ElementRecognizer
+- [x] recognize_element方法调用self.recognizer.recognize()
+- [x] create_locator_service工厂方法根据配置创建对应识别器
+- [x] app/services/batch_locator_service.py 移除独立的VLM调用逻辑
+- [x] 批量定位调用统一的ElementRecognizer.batch_recognize()
+- [x] 根据PLAYWRIGHT_MCP_ENABLED选择识别器
+- [x] app/services/test_execution_engine_v2.py的_local_ai_self_heal改用MCPRecognizer兜底或移除
+- [x] AI_SELF_HEALING_ENABLED配置语义保持
+- [x] app/core/config.py新增PLAYWRIGHT_MCP_ENABLED配置，默认True
+- [x] app/core/config.py新增PLAYWRIGHT_MCP_SERVER_PORT配置
+- [x] app/core/config.py新增MCP_TEXT_LLM_MODEL配置
+- [x] 无代码重复：批量定位不复用VLM，执行引擎不复用VLM定位
+- [x] 两种识别器可以无缝切换

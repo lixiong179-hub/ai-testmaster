@@ -1,0 +1,15 @@
+- [x] TestCaseStep Schema 新增 action_type、input_value、target_element 字段，且 action_type 使用枚举值
+- [x] AI生成prompt要求返回 action_type、input_value、target_element 结构化数据
+- [x] _normalize_new_format 正确映射结构化字段，expected_result 不包含输入值
+- [x] _normalize_old_format 兼容旧格式并补充默认 action_type
+- [x] 后端 create_test_case 中 TestStep.expected_result 使用 step_data.expected_result 而非 step_data.param
+- [x] TestStep 模型新增 action_type、input_value、target_element 数据库列
+- [x] 保存时 action_type、input_value、target_element 正确写入 TestStep 和 steps_json
+- [x] 前端 handleSaveCase 和 saveAllCases 正确传递 action_type、input_value、target_element
+- [x] 前端 param 字段映射为 input_value 而非 expected_result
+- [x] 执行引擎 _execute_step 优先读取 TestStep.action_type 确定操作类型
+- [x] 执行引擎对无 action_type 的历史数据降级使用 _parse_step_action 关键词匹配
+- [x] input 类型步骤使用 input_value 作为输入值
+- [x] TestTask 状态常量类统一定义 0=等待/1=执行中/2=完成-通过/3=完成-失败/4=已停止
+- [x] 执行引擎使用统一状态常量
+- [x] 前端 TaskList.vue 状态筛选和显示与后端定义对齐
