@@ -65,11 +65,34 @@ def test_parse_ai_response_invalid_json():
     assert result is None
 
 
+def test_parse_ai_response_empty_text():
+    result = _parse_ai_response("", 1)
+    assert result is None
+
+
 def test_parse_ai_response_count_mismatch():
     text = json.dumps({"cases": [{"module": "A"}, {"module": "B"}]})
     result = _parse_ai_response(text, 3)
     assert result is not None
     assert len(result) == 2
+
+
+def test_parse_ai_response_repairs_missing_comma_between_fields():
+    text = '{"cases": [{"module": "A"\n"title": "T1"}]}'
+    result = _parse_ai_response(text, 1)
+    assert result is not None
+    assert len(result) == 1
+    assert result[0]["module"] == "A"
+    assert result[0]["title"] == "T1"
+
+
+def test_parse_ai_response_extracts_partial_objects_when_wrapper_is_broken():
+    text = '{"cases": [{"module": "A", "title": "T1"}, {"module": "B", "title": "T2"}'
+    result = _parse_ai_response(text, 2)
+    assert result is not None
+    assert len(result) == 2
+    assert result[0]["module"] == "A"
+    assert result[1]["module"] == "B"
 
 
 # ── _normalize_case ──────────────────────────────────────────────
@@ -152,3 +175,149 @@ def test_parser_timeout_config_is_set():
     parser = XmindAIParser(timeout=30)
     assert parser._timeout == 30
     assert parser.client.timeout == 30
+
+
+def test_parser_settings_defaults_applied(monkeypatch):
+    """未传入构造参数时应回退到 settings 配置值。"""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "XMIND_AI_TIMEOUT", 77, raising=False)
+    monkeypatch.setattr(settings, "XMIND_AI_MAX_WORKERS", 7, raising=False)
+    monkeypatch.setattr(settings, "XMIND_AI_BATCH_SIZE", 17, raising=False)
+    monkeypatch.setattr(settings, "XMIND_AI_MAX_TOKENS", 1234, raising=False)
+
+    parser = XmindAIParser()
+    assert parser._timeout == 77
+    assert parser._max_workers == 7
+    assert parser._batch_size == 17
+    assert parser._max_tokens == 1234
+
+
+# ── 并行调度 ────────────────────────────────────────────────────
+
+
+def test_parse_paths_parallel_preserves_input_order(monkeypatch):
+    """即使后批次先返回，最终结果仍按输入顺序排列。"""
+    import threading
+    import time as _time
+
+    parser = XmindAIParser(batch_size=2, max_workers=3, timeout=5)
+
+    call_order: list = []
+    lock = threading.Lock()
+
+    def fake_call_ai(self, batch):
+        # 让第一个批次响应最慢，验证 as_completed 不会破坏最终顺序
+        delay = {"A0": 0.20, "B0": 0.05, "C0": 0.05}.get(batch[0][0], 0.0)
+        _time.sleep(delay)
+        with lock:
+            call_order.append(batch[0][0])
+        return [
+            {
+                "module": path[0],
+                "title": f"T-{path[0]}-{i}",
+                "expected_result": "ok",
+                "steps": [{"action": f"act-{i}", "expected_result": "ok"}],
+                "priority": 2,
+            }
+            for i, path in enumerate(batch)
+        ]
+
+    monkeypatch.setattr(XmindAIParser, "_call_ai", fake_call_ai)
+
+    paths = [
+        ["A0", "leaf"], ["A1", "leaf"],     # 批次 0（最慢）
+        ["B0", "leaf"], ["B1", "leaf"],     # 批次 1
+        ["C0", "leaf"], ["C1", "leaf"],     # 批次 2
+    ]
+    result = parser.parse_paths(paths)
+
+    assert [item["module"] for item in result] == ["A0", "A1", "B0", "B1", "C0", "C1"]
+    # 至少 B 或 C 中的一个先于 A 完成，证明确实并行
+    assert call_order[0] in ("B0", "C0")
+
+
+def test_parse_paths_skips_failed_batch_keeps_others(monkeypatch):
+    """单个批次失败时其余批次结果应正常返回。"""
+    parser = XmindAIParser(batch_size=2, max_workers=2, timeout=5)
+
+    def fake_call_ai(self, batch):
+        if batch[0][0] == "BAD":
+            return None
+        return [
+            {
+                "module": path[0],
+                "title": f"T-{path[0]}",
+                "expected_result": "ok",
+                "steps": [{"action": "x", "expected_result": "ok"}],
+                "priority": 2,
+            }
+            for path in batch
+        ]
+
+    monkeypatch.setattr(XmindAIParser, "_call_ai", fake_call_ai)
+
+    paths = [
+        ["GOOD0", "leaf"], ["GOOD1", "leaf"],
+        ["BAD", "leaf"], ["BAD", "leaf"],
+        ["GOOD2", "leaf"], ["GOOD3", "leaf"],
+    ]
+    result = parser.parse_paths(paths)
+
+    modules = [item["module"] for item in result]
+    assert modules == ["GOOD0", "GOOD1", "GOOD2", "GOOD3"]
+
+
+# ── finish_reason / 参数校验 ─────────────────────────────────────
+
+
+def test_call_ai_warns_on_finish_reason_length():
+    """当 AI 返回 finish_reason='length' 时应记录截断警告日志。"""
+    from unittest.mock import MagicMock
+    from loguru import logger
+
+    parser = XmindAIParser(timeout=5)
+
+    # 构造一个模拟的 OpenAI response
+    mock_choice = MagicMock()
+    mock_choice.message.content = json.dumps({
+        "cases": [
+            {
+                "module": "M",
+                "title": "T",
+                "expected_result": "ok",
+                "steps": [{"action": "a", "expected_result": "e"}],
+                "priority": 2,
+            }
+        ]
+    })
+    mock_choice.finish_reason = "length"
+
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = mock_response
+    parser._client = mock_client
+
+    captured: list = []
+    sink_id = logger.add(lambda msg: captured.append(str(msg)), level="WARNING")
+    try:
+        result = parser._call_ai([["M", "leaf"]])
+    finally:
+        logger.remove(sink_id)
+
+    assert result is not None
+    assert any("截断" in m or "max_tokens" in m for m in captured)
+
+
+def test_parser_rejects_non_positive_params():
+    """传入 0 或负值参数应抛出 ValueError。"""
+    with pytest.raises(ValueError, match="batch_size"):
+        XmindAIParser(batch_size=0)
+    with pytest.raises(ValueError, match="timeout"):
+        XmindAIParser(timeout=-1)
+    with pytest.raises(ValueError, match="max_workers"):
+        XmindAIParser(max_workers=0)
+    with pytest.raises(ValueError, match="max_tokens"):
+        XmindAIParser(max_tokens=-10)

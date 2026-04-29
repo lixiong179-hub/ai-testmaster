@@ -301,21 +301,21 @@ class TestDualViewComplete(unittest.TestCase):
         df.to_excel(test_file, sheet_name='测试用例', index=False)
         
         try:
-            case_id = self.service.import_functional_excel(
+            case_ids = self.service.import_functional_excel(
                 test_file,
                 self.test_project.id
             )
             
-            self.assertIsNotNone(case_id)
+            self.assertTrue(len(case_ids) > 0)
             
             # 验证导入的数据
-            imported_case = self.db.query(TestCase).filter(TestCase.id == case_id).first()
+            imported_case = self.db.query(TestCase).filter(TestCase.id == case_ids[0]).first()
             self.assertEqual(imported_case.title, "导入测试用例")
             self.assertEqual(imported_case.priority, 2)  # P1 -> 2
             
             # 验证步骤
             steps = self.db.query(TestStep).filter(
-                TestStep.test_case_id == case_id
+                TestStep.test_case_id == case_ids[0]
             ).all()
             self.assertEqual(len(steps), 2)
             

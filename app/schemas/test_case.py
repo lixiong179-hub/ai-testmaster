@@ -87,6 +87,16 @@ class TestCaseBase(BaseModel):
     exec_script: Optional[str] = Field(None, description="执行脚本")  # 可选，自动化执行脚本路径或内容
     generate_status: int = Field(0, ge=0, le=2, description="生成状态：0生成中/1生成成功/2生成失败")  # 默认0，AI生成用例的状态追踪
 
+    @field_validator('title', mode='before')
+    @classmethod
+    def _normalize_title(cls, v: str) -> str:
+        """strip前后空格，空标题设默认值，兼容历史数据。"""
+        if isinstance(v, str):
+            v = v.strip()
+        if not v:
+            return "未命名用例"
+        return v
+
 
 class TestCaseCreate(TestCaseBase):
     """

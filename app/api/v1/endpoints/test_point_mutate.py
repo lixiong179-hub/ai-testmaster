@@ -82,12 +82,11 @@ async def batch_save_test_points(
                 logger.warning(f"跳过无效数据项[{i}]: 非字典类型")
                 continue
             module = str(item.get('module', '')).strip()
-            func = str(item.get('function', '')).strip()
             point = str(item.get('point', '')).strip()
             if not module or not point:
                 logger.warning(f"跳过数据项[{i}]: 缺少必填字段(module/point)")
                 continue
-            if len(module) > 100 or len(func) > 200 or len(point) > 500:
+            if len(module) > 100 or len(point) > 500:
                 logger.warning(f"跳过数据项[{i}]: 字段超长")
                 continue
             try:
@@ -98,7 +97,7 @@ async def batch_save_test_points(
                 priority = 2
             valid_points.append({
                 'module': module,
-                'function': func,
+                'function': item.get('function', ''),
                 'point': point,
                 'priority': priority,
                 'ai_prompt': item.get('ai_prompt')
@@ -125,7 +124,6 @@ async def batch_save_test_points(
                     {
                         "id": tp.id,
                         "module": tp.module,
-                        "function": tp.function,
                         "point": tp.point,
                         "priority": tp.priority
                     }

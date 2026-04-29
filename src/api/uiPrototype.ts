@@ -171,11 +171,7 @@ export const uiPrototypeApi = {
     files.forEach((file) => {
       formData.append('files', file)
     })
-    return request.post('/api/v1/ui-prototype/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    return request.post('/api/v1/ui-prototype/upload', formData)
   },
 
   getUIScreenList: async (

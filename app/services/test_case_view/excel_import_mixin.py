@@ -89,40 +89,63 @@ class ExcelImportMixin:
             logger.error(f"从Excel导入失败: {e}")
             return None
 
-    def import_functional_excel(self, file_path: str, project_id: int, module: str = "默认模块") -> Optional[int]:
+    def import_functional_excel(self, file_path: str, project_id: int, module: str = "默认模块") -> List[int]:
         try:
             import pandas as pd
 
             project = self.db.query(Project).filter(Project.id == project_id).first()
             if not project:
                 logger.error(f"项目不存在: {project_id}")
-                return None
+                return []
 
             df = pd.read_excel(file_path, sheet_name=0)
             if df.empty:
                 logger.error("Excel文件为空")
-                return None
+                return []
 
             df.columns = [str(col).strip() for col in df.columns]
             imported_cases = []
+            current_module = module  # 跟踪当前模块名（从合并行提取）
 
             for _, row in df.iterrows():
-                title = str(row.get('标题', '')).strip()
+                # 判断是否为模块分组标题行：操作步骤列为空，且第一列（用例序号）有非数字值
+                raw_step = row.get('操作步骤', row.get('步骤描述', None))
+                first_col = row.iloc[0] if len(row) > 0 else None
+                is_module_header = (pd.isna(raw_step) or str(raw_step).strip() == '')
+                if is_module_header:
+                    # 模块标题行：提取模块名（第一列的值）
+                    if first_col is not None and not pd.isna(first_col):
+                        first_val = str(first_col).strip()
+                        # 用例序号列的纯数字是数据行序号，非数字才是模块名
+                        if first_val and not first_val.isdigit():
+                            current_module = first_val
+                    continue
+
+                title = str(row.get('用例描述', row.get('标题', ''))).strip()
                 if not title:
                     continue
 
                 case_no = str(row.get('执行用例ID', '')).strip()
+                # 用例序号是模块内序号（1,2,3...），不能作为唯一编号；仅当包含字母时视为真实编号
+                raw_seq = str(row.get('用例序号', '')).strip()
+                if not case_no and raw_seq and not raw_seq.isdigit():
+                    case_no = raw_seq
                 if not case_no:
                     case_no = f"TC{project_id}_{int(datetime.now().timestamp())}"
 
                 case_no = self._generate_unique_case_no(project_id, case_no)
 
-                group = str(row.get('所属模块', row.get('所属分组', module))).strip()
-                precondition = str(row.get('前置条件', '')).strip()
-                step_desc = str(row.get('步骤描述', '')).strip()
-                expected = str(row.get('预期结果', '')).strip()
+                # 模块名优先使用从合并行提取的 current_module，其次从列读取（兼容旧格式）
+                col_module = row.get('所属模块', row.get('所属分组', None))
+                if col_module is not None and not pd.isna(col_module) and str(col_module).strip():
+                    group = str(col_module).strip()
+                else:
+                    group = current_module
+                precondition = str(row.get('初始条件', row.get('前置条件', ''))).strip()
+                step_desc = str(row.get('操作步骤', row.get('步骤描述', ''))).strip()
+                expected = str(row.get('期望结果', row.get('预期结果', ''))).strip()
                 case_type = str(row.get('用例类型', 'UI自动化')).strip()
-                priority_str = str(row.get('用例等级', 'P2')).strip()
+                priority_str = str(row.get('优先级', row.get('用例等级', 'P2'))).strip()
 
                 priority_map = {'P0': 1, 'P1': 2, 'P2': 3, 'P3': 4}
                 priority = priority_map.get(priority_str.upper(), 2)
@@ -161,11 +184,11 @@ class ExcelImportMixin:
 
             self.db.commit()
             logger.info(f"从功能用例Excel导入成功: {len(imported_cases)}条用例")
-            return imported_cases[0] if imported_cases else None
+            return imported_cases
         except Exception as e:
             self.db.rollback()
             logger.error(f"从功能用例Excel导入失败: {e}")
-            return None
+            return []
 
     def _generate_unique_case_no(self, project_id: int, original_case_no: str) -> str:
         if not original_case_no:
@@ -192,15 +215,18 @@ class ExcelImportMixin:
 
     def _parse_functional_steps(self, step_desc: str, expected: str) -> List[BusinessStepView]:
         steps = []
-        step_pattern = r'【(\d+)】([^【]*?)(?=【\d+】|$)'
+        step_pattern = r'(?:【(\d+)】|\[(\d+)\])\s*((?:(?!【\d+】|\[\d+\]).)*)'
         step_matches = re.findall(step_pattern, step_desc, re.DOTALL)
         expected_matches = re.findall(step_pattern, expected, re.DOTALL)
 
+        def _extract_num(m: tuple) -> int:
+            return int(m[0]) if m[0] else int(m[1])
+
         if step_matches:
-            expected_dict = {int(m[0]): m[1].strip() for m in expected_matches}
-            for num, action in step_matches:
-                step_num = int(num)
-                action = action.strip().replace('\\n', '\n')
+            expected_dict = {_extract_num(m): m[2].strip() for m in expected_matches}
+            for m in step_matches:
+                step_num = _extract_num(m)
+                action = m[2].strip().replace('\\n', '\n')
                 exp = expected_dict.get(step_num, '').replace('\\n', '\n')
                 steps.append(BusinessStepView(step_number=step_num, action=action, expected_result=exp))
         else:

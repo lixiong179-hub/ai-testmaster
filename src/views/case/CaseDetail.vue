@@ -31,6 +31,13 @@
             </el-button>
             <el-button @click="openVersionHistory" :disabled="!caseId"> 版本历史 </el-button>
             <el-button
+              :loading="exportingExcel"
+              :disabled="!caseId"
+              @click="handleExportExcel"
+            >
+              导出Excel
+            </el-button>
+            <el-button
               v-if="issueType !== 'product_bug'"
               type="primary"
               @click="toggleEdit"
@@ -776,6 +783,7 @@ import {
 } from '@element-plus/icons-vue'
 import { testCaseApi } from '@/api/case'
 import { testCaseViewApi } from '@/api/testCaseView'
+import { downloadFromResponse, parseBlobError } from '@/utils/download'
 import { createQuickVerify } from '@/api/testExecution'
 import type { TestCase } from '@/types/testCase'
 import type { TechnicalView } from '@/api/testCaseView'
@@ -883,6 +891,26 @@ const businessSteps = computed(() => {
 
 // 获取用例ID
 const caseId = computed(() => Number(route.params.caseId) || 0)
+
+// Excel 导出状态
+const exportingExcel = ref(false)
+
+const handleExportExcel = async () => {
+  if (!caseId.value) return
+  exportingExcel.value = true
+  try {
+    const resp = await testCaseViewApi.exportToExcel(caseId.value)
+    const fallback = `${caseItem.value?.case_no || `case_${caseId.value}`}.xlsx`
+    downloadFromResponse(resp, fallback)
+    ElMessage.success('导出成功')
+  } catch (err) {
+    const msg = await parseBlobError(err, '导出Excel失败')
+    console.error('导出Excel失败:', err)
+    ElMessage.error(msg)
+  } finally {
+    exportingExcel.value = false
+  }
+}
 
 // ==================== 工具函数 ====================
 const getPriorityType = (priority: number) => {

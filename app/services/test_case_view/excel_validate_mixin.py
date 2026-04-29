@@ -70,17 +70,34 @@ class ExcelValidateMixin:
 
             df.columns = [str(col).strip() for col in df.columns]
 
-            for col in ['标题', '步骤描述', '预期结果']:
-                if col not in df.columns:
-                    result["errors"].append(f"缺少必要列: '{col}'")
+            required_pairs = [
+                (['用例描述', '标题'], '用例描述/标题'),
+                (['操作步骤', '步骤描述'], '操作步骤/步骤描述'),
+                (['期望结果', '预期结果'], '期望结果/预期结果'),
+            ]
+            for aliases, label in required_pairs:
+                if not any(a in df.columns for a in aliases):
+                    result["errors"].append(f"缺少必要列: '{label}'")
 
-            for col in ['执行用例ID', '所属模块', '前置条件', '用例类型', '用例等级']:
-                if col not in df.columns:
-                    result["warnings"].append(f"缺少可选列: '{col}'")
+            optional_pairs = [
+                (['用例序号', '执行用例ID'], '用例序号/执行用例ID'),
+                (['所属模块'], '所属模块'),
+                (['初始条件', '前置条件'], '初始条件/前置条件'),
+                (['优先级', '用例等级'], '优先级/用例等级'),
+            ]
+            for aliases, label in optional_pairs:
+                if not any(a in df.columns for a in aliases):
+                    result["warnings"].append(f"缺少可选列: '{label}'")
 
             if not result["errors"]:
                 result["valid"] = True
-                result["case_count"] = len(df)
+                # 过滤掉模块分组标题行（操作步骤/步骤描述列为空的行）
+                step_col = next((c for c in ['操作步骤', '步骤描述'] if c in df.columns), None)
+                if step_col:
+                    data_rows = df[df[step_col].notna() & (df[step_col].astype(str).str.strip() != '')]
+                    result["case_count"] = len(data_rows)
+                else:
+                    result["case_count"] = len(df)
 
             return result
         except Exception as e:

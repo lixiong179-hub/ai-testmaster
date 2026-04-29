@@ -16,7 +16,7 @@ import tempfile
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -46,20 +46,22 @@ def db_session():
     engine = create_engine(settings.DATABASE_URL)
     Base.metadata.create_all(engine)
     
-    SessionLocal = sessionmaker(bind=engine)
+    connection = engine.connect()
+    transaction = connection.begin()
+    SessionLocal = sessionmaker(bind=connection)
     session = SessionLocal()
-    
+    session.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(sess, trans):
+        if trans.nested and not trans._parent.nested:
+            sess.begin_nested()
+
     yield session
-    
-    # 清理所有测试数据
-    session.query(VideoRecord).filter(VideoRecord.id >= 20000).delete()
-    session.query(TestResult).filter(TestResult.id >= 20000).delete()
-    session.query(TestCase).filter(TestCase.id >= 20000).delete()
-    session.query(TestTask).filter(TestTask.id >= 20000).delete()
-    session.query(Project).filter(Project.id >= 20000).delete()
-    session.query(User).filter(User.id >= 20000).delete()
-    session.commit()
+
     session.close()
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture(scope="module")

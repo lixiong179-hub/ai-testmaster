@@ -3,6 +3,8 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
+import json
+
 from app.models.test_point import TestPoint
 from app.models.project import ProjectFile
 from app.crud import test_point as test_point_crud
@@ -41,9 +43,11 @@ def load_test_points(
         for point_id in test_point_ids:
             point = test_point_crud.get_test_point_by_id(db, point_id, project_id)
             if point:
+                function = _extract_function_from_ai_prompt(point.ai_prompt)
                 test_points.append({
                     "id": point.id, "module": point.module,
-                    "function": point.function, "point": point.point, "priority": point.priority
+                    "function": function,
+                    "point": point.point, "priority": point.priority
                 })
     else:
         total_count = db.query(TestPoint).filter(
@@ -56,9 +60,11 @@ def load_test_points(
             min(page_size, MAX_TEST_POINT_PAGE_SIZE)
         ).all()
         for point in all_points:
+            function = _extract_function_from_ai_prompt(point.ai_prompt)
             test_points.append({
                 "id": point.id, "module": point.module,
-                "function": point.function, "point": point.point, "priority": point.priority
+                "function": function,
+                "point": point.point, "priority": point.priority
             })
         pagination = {
             "page": page, "page_size": len(all_points),
@@ -66,6 +72,29 @@ def load_test_points(
         }
 
     return test_points, pagination
+
+
+def _extract_function_from_ai_prompt(ai_prompt: Optional[str]) -> str:
+    """从ai_prompt字段中提取function值。
+
+    ai_prompt存储的是AI分析需求时返回的原始JSON字符串，
+    其中可能包含function字段。如果提取失败则返回空字符串。
+
+    Args:
+        ai_prompt: AI分析时的提示词JSON字符串。
+
+    Returns:
+        function字段值，提取失败时返回空字符串。
+    """
+    if not ai_prompt:
+        return ""
+    try:
+        data = json.loads(ai_prompt)
+        if isinstance(data, dict):
+            return str(data.get('function', '') or '')
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
+    return ""
 
 
 async def get_file_content_helper(

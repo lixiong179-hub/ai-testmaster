@@ -226,15 +226,12 @@
           >
             <el-table-column type="selection" width="48" />
             <el-table-column prop="module" label="模块" min-width="120" sortable="custom" />
-            <el-table-column prop="function" label="功能" min-width="150" sortable="custom" />
             <el-table-column prop="point" label="测试点" min-width="320" show-overflow-tooltip>
               <template #default="{ row }">
                 <div class="point-cell">
                   <div class="point-text">{{ row.point }}</div>
                   <div class="point-meta">
                     <span>{{ row.module }}</span>
-                    <span class="meta-dot" />
-                    <span>{{ row.function }}</span>
                   </div>
                 </div>
               </template>
@@ -776,12 +773,6 @@ onMounted(async () => {
   background:
     radial-gradient(circle at top right, rgba(64, 158, 255, 0.12), transparent 24%),
     linear-gradient(180deg, #f7faff 0%, #f3f6fb 100%);
-}
-
-.page-hero,
-.workspace-card {
-  max-width: 1440px;
-  margin: 0 auto;
 }
 
 .page-hero {

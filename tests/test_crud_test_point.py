@@ -24,7 +24,6 @@ class TestCreateTestPoint:
             db=db,
             project_id=testProject.id,
             module="login",
-            function="password login",
             point="valid credentials login",
             priority=1,
         )
@@ -32,7 +31,6 @@ class TestCreateTestPoint:
         assert point.id is not None
         assert point.project_id == testProject.id
         assert point.module == "login"
-        assert point.function == "password login"
         assert point.point == "valid credentials login"
         assert point.priority == 1
 
@@ -41,7 +39,6 @@ class TestCreateTestPoint:
             db=db,
             project_id=testProject.id,
             module="search",
-            function="keyword search",
             point="search with special chars",
             priority=2,
             ai_prompt="focus on XSS scenarios",
@@ -53,7 +50,6 @@ class TestCreateTestPoint:
             db=db,
             project_id=testProject.id,
             module="logout",
-            function="session logout",
             point="logout clears session",
             priority=3,
         )
@@ -64,7 +60,6 @@ class TestCreateTestPoint:
             db=db,
             project_id=testProject.id,
             module="creator",
-            function="creator func",
             point="creator point",
             priority=2,
             created_by="qa_admin",
@@ -77,7 +72,6 @@ class TestCreateTestPoint:
                 db=db,
                 project_id=testProject.id,
                 module="boundary",
-                function=f"priority {p}",
                 point=f"priority {p} test",
                 priority=p,
             )
@@ -90,7 +84,6 @@ class TestGetTestPointById:
             db=db,
             project_id=testProject.id,
             module="login",
-            function="login check",
             point="valid login",
             priority=1,
         )
@@ -107,7 +100,6 @@ class TestGetTestPointById:
             db=db,
             project_id=testProject.id,
             module="login",
-            function="login check",
             point="valid login",
             priority=1,
         )
@@ -122,7 +114,6 @@ class TestGetTestPointsByProject:
                 db=db,
                 project_id=testProject.id,
                 module="list_mod",
-                function=f"func_{i}",
                 point=f"point_{i}",
                 priority=2,
             )
@@ -134,7 +125,6 @@ class TestGetTestPointsByProject:
             db=db,
             project_id=testProject.id,
             module="module_x",
-            function="func_x",
             point="point x",
             priority=1,
         )
@@ -142,7 +132,6 @@ class TestGetTestPointsByProject:
             db=db,
             project_id=testProject.id,
             module="module_y",
-            function="func_y",
             point="point y",
             priority=2,
         )
@@ -154,7 +143,6 @@ class TestGetTestPointsByProject:
             db=db,
             project_id=testProject.id,
             module="pri_filter",
-            function="high pri",
             point="high priority point",
             priority=1,
         )
@@ -167,7 +155,6 @@ class TestGetTestPointsByProject:
                 db=db,
                 project_id=testProject.id,
                 module="page_mod",
-                function=f"func_{i}",
                 point=f"point_{i}",
                 priority=2,
             )
@@ -185,7 +172,6 @@ class TestGetTestPointsByProjectAndUser:
             db=db,
             project_id=testProject.id,
             module="user_mod",
-            function="user func",
             point="user point",
             priority=1,
         )
@@ -205,7 +191,6 @@ class TestGetTestPointsByProjectAndUser:
             db=db,
             project_id=testProject.id,
             module="filter_mod",
-            function="filter func",
             point="filter point",
             priority=1,
         )
@@ -221,7 +206,6 @@ class TestUpdateTestPoint:
             db=db,
             project_id=testProject.id,
             module="login",
-            function="login check",
             point="original point",
             priority=2,
         )
@@ -247,7 +231,6 @@ class TestUpdateTestPoint:
             db=db,
             project_id=testProject.id,
             module="login",
-            function="login check",
             point="original",
             priority=2,
         )
@@ -261,7 +244,6 @@ class TestUpdateTestPoint:
             db=db,
             project_id=testProject.id,
             module="old_mod",
-            function="old_func",
             point="old point",
             priority=3,
         )
@@ -270,13 +252,11 @@ class TestUpdateTestPoint:
             test_point_id=point.id,
             project_id=testProject.id,
             module="new_mod",
-            function="new_func",
             point="new point",
             priority=1,
             ai_prompt="new prompt",
         )
         assert updated.module == "new_mod"
-        assert updated.function == "new_func"
         assert updated.point == "new point"
         assert updated.priority == 1
         assert updated.ai_prompt == "new prompt"
@@ -288,7 +268,6 @@ class TestDeleteTestPoint:
             db=db,
             project_id=testProject.id,
             module="login",
-            function="login check",
             point="to be deleted",
             priority=2,
         )
@@ -306,7 +285,6 @@ class TestDeleteTestPoint:
             db=db,
             project_id=testProject.id,
             module="login",
-            function="login check",
             point="to be deleted",
             priority=2,
         )
@@ -320,7 +298,6 @@ class TestGetTestPointsCount:
             db=db,
             project_id=testProject.id,
             module="count_mod",
-            function="count func",
             point="count point",
             priority=1,
         )
@@ -332,7 +309,6 @@ class TestGetTestPointsCount:
             db=db,
             project_id=testProject.id,
             module="filter_cnt",
-            function="filter func",
             point="filter point",
             priority=1,
         )
@@ -351,13 +327,11 @@ class TestBatchCreateTestPoints:
         data = [
             {
                 "module": "batch_mod",
-                "function": "batch func 1",
                 "point": "batch point 1",
                 "priority": 1,
             },
             {
                 "module": "batch_mod",
-                "function": "batch func 2",
                 "point": "batch point 2",
                 "priority": 2,
                 "ai_prompt": "batch prompt",
@@ -365,7 +339,6 @@ class TestBatchCreateTestPoints:
         ]
         points = batch_create_test_points(db=db, project_id=testProject.id, test_points_data=data)
         assert len(points) == 2
-        assert points[0].function == "batch func 1"
         assert points[1].ai_prompt == "batch prompt"
         assert all(p.project_id == testProject.id for p in points)
 
@@ -373,7 +346,6 @@ class TestBatchCreateTestPoints:
         data = [
             {
                 "module": "single_mod",
-                "function": "single func",
                 "point": "single point",
                 "priority": 3,
             },
@@ -392,7 +364,6 @@ class TestTestPointManagementCrud:
             db=db,
             project_id=testProject.id,
             module="stats_module",
-            function="high function",
             point="high point",
             priority=1,
             created_by=testUser.username,
@@ -401,7 +372,6 @@ class TestTestPointManagementCrud:
             db=db,
             project_id=testProject.id,
             module="stats_module",
-            function="medium function",
             point="medium point",
             priority=2,
             created_by=testUser.username,
@@ -410,7 +380,6 @@ class TestTestPointManagementCrud:
             db=db,
             project_id=testProject.id,
             module="stats_module",
-            function="low function",
             point="low point",
             priority=3,
             created_by=testUser.username,
@@ -487,13 +456,11 @@ class TestTestPointManagementCrud:
         data = [
             {
                 "module": "creator_mod",
-                "function": "creator func 1",
                 "point": "creator point 1",
                 "priority": 1,
             },
             {
                 "module": "creator_mod",
-                "function": "creator func 2",
                 "point": "creator point 2",
                 "priority": 2,
             },

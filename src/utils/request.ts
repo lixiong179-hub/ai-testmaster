@@ -10,6 +10,7 @@ import { debounce, throttle } from './debounce'
 const TIMEOUT_CONFIG = {
   default: 30000, // 普通接口 30秒
   ai: 120000, // AI接口 2分钟
+  aiXmindImport: 300000, // XMind AI增强导入 5分钟
   upload: 60000, // 文件上传 60秒
   export: 60000, // 数据导出 60秒
 }
@@ -19,6 +20,10 @@ function getTimeoutByUrl(url?: string): number {
   if (!url) return TIMEOUT_CONFIG.default
 
   const lowerUrl = url.toLowerCase()
+
+  if (lowerUrl.includes('/test-point/import-xmind')) {
+    return TIMEOUT_CONFIG.aiXmindImport
+  }
 
   // AI相关接口
   if (
@@ -87,6 +92,12 @@ service.interceptors.request.use(
       config.headers = config.headers || {}
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // FormData上传时删除默认Content-Type，让浏览器自动设置multipart/form-data + boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
+
     return config
   },
   (error) => {

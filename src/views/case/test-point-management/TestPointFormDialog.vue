@@ -25,14 +25,6 @@
             placeholder="如：登录中心"
           />
         </el-form-item>
-        <el-form-item label="功能" prop="function">
-          <el-input
-            v-model="formData.function"
-            maxlength="200"
-            show-word-limit
-            placeholder="如：账号密码登录"
-          />
-        </el-form-item>
         <el-form-item label="测试点" prop="point">
           <el-input
             v-model="formData.point"
@@ -93,7 +85,6 @@ const dialogTitle = computed(() => (props.editingPoint ? '编辑测试点' : '�
 const formData = reactive<TestPointFormData>({
   project_id: 0,
   module: '',
-  function: '',
   point: '',
   priority: 2,
   ai_prompt: '',
@@ -101,7 +92,6 @@ const formData = reactive<TestPointFormData>({
 
 const formRules: FormRules<TestPointFormData> = {
   module: [{ required: true, message: '请输入模块名称', trigger: 'blur' }],
-  function: [{ required: true, message: '请输入功能名称', trigger: 'blur' }],
   point: [{ required: true, message: '请输入测试点描述', trigger: 'blur' }],
   priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
 }
@@ -109,7 +99,6 @@ const formRules: FormRules<TestPointFormData> = {
 function resetFormData(): void {
   formData.project_id = props.projectId
   formData.module = props.editingPoint?.module ?? ''
-  formData.function = props.editingPoint?.function ?? ''
   formData.point = props.editingPoint?.point ?? ''
   formData.priority = props.editingPoint?.priority ?? 2
   formData.ai_prompt = props.editingPoint?.ai_prompt ?? ''

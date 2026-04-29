@@ -534,17 +534,18 @@ class TestIntegrationServiceLayer(unittest.TestCase):
             df.to_excel(temp_path, index=False)
             
             # 调用Service导入
-            case_id = self.service.import_functional_excel(temp_path, self.test_project.id, module="功能模块")
-            self.assertIsNotNone(case_id, "导入应该成功")
+            case_ids = self.service.import_functional_excel(temp_path, self.test_project.id, module="功能模块")
+            self.assertTrue(len(case_ids) > 0, "导入应该成功")
             
             # 验证导入的数据
-            imported_case = self.db.query(TestCase).filter(TestCase.id == case_id).first()
+            imported_case = self.db.query(TestCase).filter(TestCase.id == case_ids[0]).first()
             self.assertIsNotNone(imported_case, "导入的用例应该存在")
             self.assertEqual(imported_case.title, '功能导入测试', "标题应该匹配")
             
             # 清理
-            self.db.query(TestStep).filter(TestStep.test_case_id == case_id).delete(synchronize_session=False)
-            self.db.query(TestCase).filter(TestCase.id == case_id).delete(synchronize_session=False)
+            for cid in case_ids:
+                self.db.query(TestStep).filter(TestStep.test_case_id == cid).delete(synchronize_session=False)
+                self.db.query(TestCase).filter(TestCase.id == cid).delete(synchronize_session=False)
             self.db.commit()
             
             print("✅ 联调测试16通过: 从功能用例Excel导入")

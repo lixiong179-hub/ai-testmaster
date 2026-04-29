@@ -12,7 +12,7 @@
 import pytest
 import pytest_asyncio
 from datetime import datetime
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -51,31 +51,36 @@ def db_session():
         Base.metadata.tables.get('element_locators')
     ])
     
-    SessionLocal = sessionmaker(bind=engine)
+    connection = engine.connect()
+    transaction = connection.begin()
+    SessionLocal = sessionmaker(bind=connection)
     session = SessionLocal()
-    
-    # 创建测试用户（用于外键约束）
-    test_user = session.query(User).filter(User.id == 10001).first()
-    if not test_user:
-        test_user = User(
-            id=10001,
-            username="testuser",
-            email="test@example.com",
-            password_hash="test_hash"
-        )
-        session.add(test_user)
-        session.commit()
-    
+    session.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(sess, trans):
+        if trans.nested and not trans._parent.nested:
+            sess.begin_nested()
+
     yield session
     
-    # 清理测试数据
-    session.query(TestCaseExecution).filter(TestCaseExecution.id >= 10000).delete()
-    session.query(TestStep).filter(TestStep.id >= 10000).delete()
-    session.query(TestCase).filter(TestCase.id >= 10000).delete()
-    session.query(Project).filter(Project.id >= 10000).delete()
-    session.query(User).filter(User.id == 10001).delete()
-    session.commit()
     session.close()
+    transaction.rollback()
+    connection.close()
+
+
+@pytest.fixture(scope="function")
+def test_user(db_session):
+    """创建测试用户（不硬编码id，避免与生产数据冲突）"""
+    user = User(
+        username="testuser",
+        email="test@example.com",
+        password_hash="test_hash"
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    yield user
 
 
 @pytest_asyncio.fixture
@@ -188,8 +193,8 @@ def test_test_execution_result_creation():
     )
     
     result = TestExecutionResult(
-        execution_id=10001,
-        test_case_id=10001,
+        execution_id=1,
+        test_case_id=1,
         status=ExecutionStatus.PASSED,
         start_time=start_time,
         duration_ms=1000,
@@ -197,14 +202,14 @@ def test_test_execution_result_creation():
         actual_result="执行成功"
     )
     
-    assert result.execution_id == 10001
-    assert result.test_case_id == 10001
+    assert result.execution_id == 1
+    assert result.test_case_id == 1
     assert result.status == ExecutionStatus.PASSED
     assert len(result.step_results) == 1
     
     # 测试to_dict方法
     data = result.to_dict()
-    assert data["execution_id"] == 10001
+    assert data["execution_id"] == 1
     assert data["status"] == "passed"
     assert len(data["step_results"]) == 1
 
@@ -351,25 +356,24 @@ async def test_get_execution_history_empty(db_session, execution_engine):
 
 
 @pytest.mark.asyncio
-async def test_get_execution_history_with_data(db_session, execution_engine):
+async def test_get_execution_history_with_data(db_session, execution_engine, test_user):
     """真实测试：获取执行历史 - 有数据"""
     # 先创建项目（外键约束）
     project = Project(
-        id=10001,
         name="历史测试项目",
-        user_id=10001,  # 添加user_id
+        user_id=test_user.id,
         description="测试",
         project_type="web",
         web_env_configs={"test": {"url": "https://example.com"}}
     )
     db_session.add(project)
     db_session.commit()
+    db_session.refresh(project)
     
     # 创建测试用例
     test_case = TestCase(
-        id=10001,
         case_no="TEST-001",
-        project_id=10001,
+        project_id=project.id,
         module="测试模块",
         title="测试用例",
         precondition="无",
@@ -380,11 +384,11 @@ async def test_get_execution_history_with_data(db_session, execution_engine):
     )
     db_session.add(test_case)
     db_session.commit()
+    db_session.refresh(test_case)
     
     # 创建执行记录
     execution = TestCaseExecution(
-        id=10001,
-        test_case_id=10001,
+        test_case_id=test_case.id,
         status="passed",
         started_at=datetime.utcnow(),
         completed_at=datetime.utcnow()
@@ -393,9 +397,9 @@ async def test_get_execution_history_with_data(db_session, execution_engine):
     db_session.commit()
     
     # 查询历史
-    history = execution_engine.get_execution_history(test_case_id=10001, limit=10)
+    history = execution_engine.get_execution_history(test_case_id=test_case.id, limit=10)
     assert len(history) == 1
-    assert history[0].test_case_id == 10001
+    assert history[0].test_case_id == test_case.id
     assert history[0].status == "passed"
 
 
@@ -479,7 +483,7 @@ async def test_execute_click_no_browser_error(execution_engine):
     action_info = {"type": ActionType.CLICK, "text": "点击按钮"}
     
     with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-        await execution_engine._execute_click(action_info, step_id=10001)
+        await execution_engine._execute_click(action_info, step_id=1)
 
 
 @pytest.mark.asyncio
@@ -491,7 +495,7 @@ async def test_execute_input_no_browser_error(execution_engine):
     action_info = {"type": ActionType.INPUT, "text": "输入文本"}
     
     with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-        await execution_engine._execute_input(action_info, step_id=10001)
+        await execution_engine._execute_input(action_info, step_id=1)
 
 
 @pytest.mark.asyncio
@@ -503,7 +507,7 @@ async def test_execute_verify_no_browser_error(execution_engine):
     action_info = {"type": ActionType.VERIFY, "text": "验证页面"}
     
     with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-        await execution_engine._execute_verify(action_info, step_id=10001)
+        await execution_engine._execute_verify(action_info, step_id=1)
 
 
 @pytest.mark.asyncio
@@ -522,25 +526,24 @@ async def test_execute_scroll_no_browser_error(execution_engine):
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_test_case_simple(db_session, browser_controller, vision_model, execution_engine):
+async def test_execute_test_case_simple(db_session, browser_controller, vision_model, execution_engine, test_user):
     """真实测试：执行简单测试用例"""
     # 创建项目
     project = Project(
-        id=10001,
         name="测试项目",
-        user_id=10001,  # 添加user_id
+        user_id=test_user.id,
         description="测试",
         project_type="web",
         web_env_configs={"test": {"url": "https://www.baidu.com"}}
     )
     db_session.add(project)
     db_session.commit()
+    db_session.refresh(project)
     
     # 创建测试用例
     test_case = TestCase(
-        id=10001,
         case_no="TEST-001",
-        project_id=10001,
+        project_id=project.id,
         module="搜索模块",
         title="访问百度首页",
         precondition="无",
@@ -551,11 +554,11 @@ async def test_execute_test_case_simple(db_session, browser_controller, vision_m
     )
     db_session.add(test_case)
     db_session.commit()
+    db_session.refresh(test_case)
     
     # 创建测试步骤
     test_step = TestStep(
-        id=10001,
-        test_case_id=10001,
+        test_case_id=test_case.id,
         step_number=1,
         action="访问 https://www.baidu.com",
         expected_result="页面加载成功"
@@ -570,19 +573,19 @@ async def test_execute_test_case_simple(db_session, browser_controller, vision_m
     # 执行测试用例
     result = await execution_engine.execute_test_case(
         test_case=test_case,
-        project_id=10001,
+        project_id=project.id,
         skip_precondition=True  # 跳过前置条件简化测试
     )
     
     # 验证结果
-    assert result.test_case_id == 10001
+    assert result.test_case_id == test_case.id
     assert result.status in [ExecutionStatus.PASSED, ExecutionStatus.FAILED]
     assert len(result.step_results) == 1
     assert result.duration_ms >= 0
     
     # 验证数据库记录
     execution_record = db_session.query(TestCaseExecution).filter(
-        TestCaseExecution.test_case_id == 10001
+        TestCaseExecution.test_case_id == test_case.id
     ).first()
     assert execution_record is not None
     assert execution_record.status in ["passed", "failed"]
@@ -590,25 +593,24 @@ async def test_execute_test_case_simple(db_session, browser_controller, vision_m
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_test_case_with_wait_step(db_session, browser_controller, execution_engine):
+async def test_execute_test_case_with_wait_step(db_session, browser_controller, execution_engine, test_user):
     """真实测试：执行包含等待步骤的测试用例"""
     # 创建项目
     project = Project(
-        id=10002,
         name="测试项目2",
-        user_id=10001,  # 添加user_id
+        user_id=test_user.id,
         description="测试",
         project_type="web",
         web_env_configs={"test": {"url": "https://www.baidu.com"}}
     )
     db_session.add(project)
     db_session.commit()
+    db_session.refresh(project)
     
     # 创建测试用例
     test_case = TestCase(
-        id=10002,
         case_no="TEST-002",
-        project_id=10002,
+        project_id=project.id,
         module="等待测试",
         title="等待测试",
         precondition="无",
@@ -619,11 +621,11 @@ async def test_execute_test_case_with_wait_step(db_session, browser_controller, 
     )
     db_session.add(test_case)
     db_session.commit()
+    db_session.refresh(test_case)
     
     # 创建测试步骤
     test_step = TestStep(
-        id=10002,
-        test_case_id=10002,
+        test_case_id=test_case.id,
         step_number=1,
         action="等待 1 秒",
         expected_result="等待完成"
@@ -637,12 +639,12 @@ async def test_execute_test_case_with_wait_step(db_session, browser_controller, 
     # 执行测试用例
     result = await execution_engine.execute_test_case(
         test_case=test_case,
-        project_id=10002,
+        project_id=project.id,
         skip_precondition=True
     )
     
     # 验证结果
-    assert result.test_case_id == 10002
+    assert result.test_case_id == test_case.id
     assert result.status == ExecutionStatus.PASSED
     assert len(result.step_results) == 1
     assert result.step_results[0].status == ExecutionStatus.PASSED
@@ -650,25 +652,24 @@ async def test_execute_test_case_with_wait_step(db_session, browser_controller, 
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_test_case_multiple_steps(db_session, browser_controller, execution_engine):
+async def test_execute_test_case_multiple_steps(db_session, browser_controller, execution_engine, test_user):
     """真实测试：执行多步骤测试用例"""
     # 创建项目
     project = Project(
-        id=10003,
         name="测试项目3",
-        user_id=10001,  # 添加user_id
+        user_id=test_user.id,
         description="测试",
         project_type="web",
         web_env_configs={"test": {"url": "https://www.baidu.com"}}
     )
     db_session.add(project)
     db_session.commit()
+    db_session.refresh(project)
     
     # 创建测试用例
     test_case = TestCase(
-        id=10003,
         case_no="TEST-003",
-        project_id=10003,
+        project_id=project.id,
         module="多步骤测试",
         title="多步骤测试",
         precondition="无",
@@ -679,18 +680,17 @@ async def test_execute_test_case_multiple_steps(db_session, browser_controller, 
     )
     db_session.add(test_case)
     db_session.commit()
+    db_session.refresh(test_case)
     
     # 创建测试步骤
     test_step1 = TestStep(
-        id=10003,
-        test_case_id=10003,
+        test_case_id=test_case.id,
         step_number=1,
         action="访问 https://www.baidu.com",
         expected_result="页面加载"
     )
     test_step2 = TestStep(
-        id=10004,
-        test_case_id=10003,
+        test_case_id=test_case.id,
         step_number=2,
         action="等待 1 秒",
         expected_result="等待完成"
@@ -705,12 +705,12 @@ async def test_execute_test_case_multiple_steps(db_session, browser_controller, 
     # 执行测试用例
     result = await execution_engine.execute_test_case(
         test_case=test_case,
-        project_id=10003,
+        project_id=project.id,
         skip_precondition=True
     )
     
     # 验证结果
-    assert result.test_case_id == 10003
+    assert result.test_case_id == test_case.id
     assert len(result.step_results) == 2
     assert result.step_results[0].step_number == 1
     assert result.step_results[1].step_number == 2
@@ -768,25 +768,24 @@ def test_class_constants(execution_engine):
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_step_with_failure(db_session, browser_controller, execution_engine):
+async def test_execute_step_with_failure(db_session, browser_controller, execution_engine, test_user):
     """真实测试：步骤执行失败处理"""
     # 创建项目
     project = Project(
-        id=10004,
         name="失败测试项目",
-        user_id=10001,
+        user_id=test_user.id,
         description="测试",
         project_type="web",
         web_env_configs={"test": {"url": "https://www.baidu.com"}}
     )
     db_session.add(project)
     db_session.commit()
+    db_session.refresh(project)
     
     # 创建测试用例
     test_case = TestCase(
-        id=10004,
         case_no="TEST-004",
-        project_id=10004,
+        project_id=project.id,
         module="失败测试",
         title="失败测试",
         precondition="无",
@@ -797,11 +796,11 @@ async def test_execute_step_with_failure(db_session, browser_controller, executi
     )
     db_session.add(test_case)
     db_session.commit()
+    db_session.refresh(test_case)
     
     # 创建一个会失败的步骤（没有浏览器）
     test_step = TestStep(
-        id=10005,
-        test_case_id=10004,
+        test_case_id=test_case.id,
         step_number=1,
         action="导航到无效地址",  # 没有URL会导致失败
         expected_result="失败"
@@ -815,12 +814,12 @@ async def test_execute_step_with_failure(db_session, browser_controller, executi
     # 执行测试用例
     result = await execution_engine.execute_test_case(
         test_case=test_case,
-        project_id=10004,
+        project_id=project.id,
         skip_precondition=True
     )
     
     # 验证结果 - 步骤应该失败
-    assert result.test_case_id == 10004
+    assert result.test_case_id == test_case.id
     assert len(result.step_results) == 1
     # 步骤可能因为无法提取URL而失败
 
@@ -876,7 +875,7 @@ async def test_execute_hover_real(db_session, browser_controller, execution_engi
     execution_engine.browser = browser_controller
     
     action_info = {"type": ActionType.HOVER, "text": "悬停在元素上"}
-    await execution_engine._execute_hover(action_info, step_id=10001)
+    await execution_engine._execute_hover(action_info, step_id=1)
     
     # 悬停操作是简化实现，主要验证不抛出异常
 
@@ -888,7 +887,7 @@ async def test_execute_select_real(db_session, browser_controller, execution_eng
     execution_engine.browser = browser_controller
     
     action_info = {"type": ActionType.SELECT, "text": "选择选项"}
-    await execution_engine._execute_select(action_info, step_id=10001)
+    await execution_engine._execute_select(action_info, step_id=1)
     
     # 选择操作是简化实现，主要验证不抛出异常
 
@@ -937,31 +936,30 @@ async def test_execute_verify_without_vision_model(db_session, browser_controlle
     
     # 测试验证操作（无视觉模型）
     action_info = {"type": ActionType.VERIFY, "text": "验证页面标题"}
-    await execution_engine._execute_verify(action_info, step_id=10001)
+    await execution_engine._execute_verify(action_info, step_id=1)
     
     # 验证 - 应该记录警告但不抛出异常
 
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_test_case_with_error(db_session, browser_controller, execution_engine):
+async def test_execute_test_case_with_error(db_session, browser_controller, execution_engine, test_user):
     """真实测试：测试用例执行异常处理"""
     # 先创建一个有效的测试用例和项目
     project = Project(
-        id=10006,
         name="错误测试项目",
-        user_id=10001,
+        user_id=test_user.id,
         description="测试",
         project_type="web",
         web_env_configs={"test": {"url": "https://www.baidu.com"}}
     )
     db_session.add(project)
     db_session.commit()
+    db_session.refresh(project)
     
     test_case = TestCase(
-        id=10006,
         case_no="TEST-006",
-        project_id=10006,
+        project_id=project.id,
         module="错误测试",
         title="错误测试用例",
         precondition="无",
@@ -972,14 +970,14 @@ async def test_execute_test_case_with_error(db_session, browser_controller, exec
     )
     db_session.add(test_case)
     db_session.commit()
+    db_session.refresh(test_case)
     
     # 模拟执行过程中的异常（通过设置一个会导致错误的条件）
     execution_engine.browser = None  # 移除浏览器，会导致导航步骤失败
     
     # 创建一个导航步骤（没有浏览器会失败）
     test_step = TestStep(
-        id=10008,
-        test_case_id=10006,
+        test_case_id=test_case.id,
         step_number=1,
         action="导航到 https://www.baidu.com",
         expected_result="页面加载"
@@ -990,36 +988,35 @@ async def test_execute_test_case_with_error(db_session, browser_controller, exec
     # 执行测试用例 - 应该捕获异常并返回错误结果
     result = await execution_engine.execute_test_case(
         test_case=test_case,
-        project_id=10006,
+        project_id=project.id,
         skip_precondition=True
     )
     
     # 验证返回了错误结果
     assert result.status == ExecutionStatus.FAILED
-    assert result.test_case_id == 10006
+    assert result.test_case_id == test_case.id
 
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_test_case_with_failed_step(db_session, browser_controller, execution_engine):
+async def test_execute_test_case_with_failed_step(db_session, browser_controller, execution_engine, test_user):
     """真实测试：测试用例包含失败步骤"""
     # 创建项目
     project = Project(
-        id=10005,
         name="失败步骤项目",
-        user_id=10001,
+        user_id=test_user.id,
         description="测试",
         project_type="web",
         web_env_configs={"test": {"url": "https://www.baidu.com"}}
     )
     db_session.add(project)
     db_session.commit()
+    db_session.refresh(project)
     
     # 创建测试用例
     test_case = TestCase(
-        id=10005,
         case_no="TEST-005",
-        project_id=10005,
+        project_id=project.id,
         module="失败步骤测试",
         title="失败步骤测试",
         precondition="无",
@@ -1030,18 +1027,17 @@ async def test_execute_test_case_with_failed_step(db_session, browser_controller
     )
     db_session.add(test_case)
     db_session.commit()
+    db_session.refresh(test_case)
     
     # 创建两个步骤，第一个会失败
     test_step1 = TestStep(
-        id=10006,
-        test_case_id=10005,
+        test_case_id=test_case.id,
         step_number=1,
         action="导航到无效地址",  # 会导致失败
         expected_result="失败"
     )
     test_step2 = TestStep(
-        id=10007,
-        test_case_id=10005,
+        test_case_id=test_case.id,
         step_number=2,
         action="等待 1 秒",
         expected_result="跳过"
@@ -1056,12 +1052,12 @@ async def test_execute_test_case_with_failed_step(db_session, browser_controller
     # 执行测试用例
     result = await execution_engine.execute_test_case(
         test_case=test_case,
-        project_id=10005,
+        project_id=project.id,
         skip_precondition=True
     )
     
     # 验证 - 第一个步骤失败后应该中断
-    assert result.test_case_id == 10005
+    assert result.test_case_id == test_case.id
     assert result.status == ExecutionStatus.FAILED
 
 
@@ -1117,7 +1113,7 @@ async def test_parse_step_action_select(db_session, browser_controller, executio
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_precondition_with_service(db_session, browser_controller, vision_model, execution_engine):
+async def test_execute_precondition_with_service(db_session, browser_controller, vision_model, execution_engine, test_user):
     """真实测试：执行前置条件 - 有前置条件服务"""
     # 创建前置条件服务
     precondition_service = PreconditionService()
@@ -1130,37 +1126,49 @@ async def test_execute_precondition_with_service(db_session, browser_controller,
     
     # 创建项目
     project = Project(
-        id=10007,
         name="前置条件测试项目",
-        user_id=10001,
+        user_id=test_user.id,
         description="测试",
         project_type="web",
         web_env_configs={"test": {"url": "https://www.baidu.com"}}
     )
     db_session.add(project)
     db_session.commit()
+    db_session.refresh(project)
     
     # 执行前置条件
-    await execution_engine._execute_precondition(project_id=10007)
+    await execution_engine._execute_precondition(project_id=project.id)
     
     # 验证 - 前置条件执行完成
 
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_precondition_without_service(db_session, execution_engine):
+async def test_execute_precondition_without_service(db_session, execution_engine, test_user):
     """真实测试：执行前置条件 - 无前置条件服务"""
     execution_engine.precondition_service = None
     
+    # 创建项目获取真实id
+    project = Project(
+        name="前置条件无服务测试项目",
+        user_id=test_user.id,
+        description="测试",
+        project_type="web",
+        web_env_configs={"test": {"url": "https://www.baidu.com"}}
+    )
+    db_session.add(project)
+    db_session.commit()
+    db_session.refresh(project)
+    
     # 执行前置条件应该正常返回（无异常）
-    await execution_engine._execute_precondition(project_id=10001)
+    await execution_engine._execute_precondition(project_id=project.id)
     
     # 验证
 
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_precondition_browser_ready(db_session, browser_controller, vision_model, execution_engine):
+async def test_execute_precondition_browser_ready(db_session, browser_controller, vision_model, execution_engine, test_user):
     """真实测试：执行前置条件 - 浏览器已就绪"""
     # 创建前置条件服务（浏览器已初始化）
     precondition_service = PreconditionService()
@@ -1171,8 +1179,20 @@ async def test_execute_precondition_browser_ready(db_session, browser_controller
     execution_engine.precondition_service = precondition_service
     execution_engine.browser = browser_controller
     
+    # 创建项目获取真实id
+    project = Project(
+        name="前置条件浏览器就绪测试项目",
+        user_id=test_user.id,
+        description="测试",
+        project_type="web",
+        web_env_configs={"test": {"url": "https://www.baidu.com"}}
+    )
+    db_session.add(project)
+    db_session.commit()
+    db_session.refresh(project)
+    
     # 执行前置条件
-    await execution_engine._execute_precondition(project_id=10001)
+    await execution_engine._execute_precondition(project_id=project.id)
     
     # 验证 - 浏览器已就绪时直接返回
 
@@ -1191,7 +1211,7 @@ async def test_execute_verify_with_ai(db_session, browser_controller, vision_mod
     
     # 执行AI验证
     action_info = {"type": ActionType.VERIFY, "text": "验证页面包含搜索框"}
-    await execution_engine._execute_verify(action_info, step_id=10001)
+    await execution_engine._execute_verify(action_info, step_id=1)
     
     # 验证 - AI验证应该完成（可能通过或失败，但不会抛出异常）
 
@@ -1208,7 +1228,7 @@ async def test_execute_verify_ai_parse_failure(db_session, browser_controller, v
     
     # 执行AI验证（使用一个可能导致解析失败的描述）
     action_info = {"type": ActionType.VERIFY, "text": "验证"}
-    await execution_engine._execute_verify(action_info, step_id=10001)
+    await execution_engine._execute_verify(action_info, step_id=1)
     
     # 验证 - 即使解析失败也不应该抛出异常
 
@@ -1272,7 +1292,7 @@ async def test_execute_step_with_screenshot_failure(db_session, browser_controll
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_test_case_skip_precondition_false(db_session, browser_controller, vision_model, execution_engine):
+async def test_execute_test_case_skip_precondition_false(db_session, browser_controller, vision_model, execution_engine, test_user):
     """真实测试：执行测试用例 - 不跳过前置条件"""
     # 创建前置条件服务
     precondition_service = PreconditionService()
@@ -1284,21 +1304,20 @@ async def test_execute_test_case_skip_precondition_false(db_session, browser_con
     
     # 创建项目
     project = Project(
-        id=10008,
         name="前置条件执行测试项目",
-        user_id=10001,
+        user_id=test_user.id,
         description="测试",
         project_type="web",
         web_env_configs={"test": {"url": "https://www.baidu.com"}}
     )
     db_session.add(project)
     db_session.commit()
+    db_session.refresh(project)
     
     # 创建测试用例
     test_case = TestCase(
-        id=10008,
         case_no="TEST-008",
-        project_id=10008,
+        project_id=project.id,
         module="前置条件测试",
         title="前置条件执行测试",
         precondition="无",
@@ -1309,11 +1328,11 @@ async def test_execute_test_case_skip_precondition_false(db_session, browser_con
     )
     db_session.add(test_case)
     db_session.commit()
+    db_session.refresh(test_case)
     
     # 创建测试步骤
     test_step = TestStep(
-        id=10009,
-        test_case_id=10008,
+        test_case_id=test_case.id,
         step_number=1,
         action="等待 1 秒",
         expected_result="等待完成"
@@ -1324,12 +1343,12 @@ async def test_execute_test_case_skip_precondition_false(db_session, browser_con
     # 执行测试用例（不跳过前置条件）
     result = await execution_engine.execute_test_case(
         test_case=test_case,
-        project_id=10008,
+        project_id=project.id,
         skip_precondition=False  # 不跳过前置条件
     )
     
     # 验证
-    assert result.test_case_id == 10008
+    assert result.test_case_id == test_case.id
     assert result.status == ExecutionStatus.PASSED
 
 
@@ -1363,16 +1382,9 @@ async def test_execute_step_get_locator(db_session, browser_controller, locator_
     
     # 先记录一个定位信息（使用唯一ID）
     from app.models.element_locator import ElementLocator
-    locator_id = 20001  # 使用不同的ID避免冲突
     step_id = 20010
     
-    # 清理可能存在的旧数据
-    db_session.query(ElementLocator).filter(ElementLocator.id == locator_id).delete()
-    db_session.query(ElementLocator).filter(ElementLocator.step_id == step_id).delete()
-    db_session.commit()
-    
     locator = ElementLocator(
-        id=locator_id,
         step_id=step_id,
         css_selector="#kw",
         xpath="//input[@id='kw']",
@@ -1382,6 +1394,7 @@ async def test_execute_step_get_locator(db_session, browser_controller, locator_
     )
     db_session.add(locator)
     db_session.commit()
+    db_session.refresh(locator)
     
     # 创建一个步骤，使用已存在的定位信息（使用等待操作避免AI识别）
     class MockStep:
@@ -1397,10 +1410,6 @@ async def test_execute_step_get_locator(db_session, browser_controller, locator_
     # 验证步骤执行结果
     assert result.step_number == 1
     assert result.status in (ExecutionStatus.PASSED, ExecutionStatus.FAILED)  # 取决于浏览器连接状态
-    
-    # 清理
-    db_session.query(ElementLocator).filter(ElementLocator.id == locator_id).delete()
-    db_session.commit()
 
 
 @pytest.mark.asyncio
@@ -1447,8 +1456,8 @@ async def test_test_execution_result_full():
     )
     
     result = TestExecutionResult(
-        execution_id=10001,
-        test_case_id=10001,
+        execution_id=1,
+        test_case_id=1,
         status=ExecutionStatus.PASSED,
         start_time=start_time,
         end_time=end_time,
@@ -1460,8 +1469,8 @@ async def test_test_execution_result_full():
     
     # 验证to_dict
     data = result.to_dict()
-    assert data["execution_id"] == 10001
-    assert data["test_case_id"] == 10001
+    assert data["execution_id"] == 1
+    assert data["test_case_id"] == 1
     assert data["status"] == "passed"
     assert data["duration_ms"] == 1000
     assert data["actual_result"] == "执行成功"

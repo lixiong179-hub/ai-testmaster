@@ -37,7 +37,7 @@ export interface ReportListResponse {
 const reportApi = {
   // 获取报告列表
   getReports: (params: { page?: number; page_size?: number; project_id?: number }) => {
-    return request.get<ReportListResponse>('/api/v1/report', { params })
+    return request.get<ReportListResponse>('/api/v1/report/', { params })
   },
 
   // 获取报告详情（需要project_id）

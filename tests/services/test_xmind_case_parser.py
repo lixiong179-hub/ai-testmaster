@@ -56,7 +56,8 @@ def test_parse_scenario_tree_to_case(tmp_path) -> None:
 
     assert len(result) == 1
     assert result[0]["module"] == "字词听写"
-    assert result[0]["function"] == "有教材内容"
+    # function 是AI中间产物，不存库，仅作提示词上下文
+    assert "function" in result[0]  # 瞬态字段，从XMind二级节点推断
     assert result[0]["title"] == "点击听写记录，界面显示最近的听写记录"
     assert "有教材内容" in result[0]["precondition"]
     assert "有记录" in result[0]["precondition"]

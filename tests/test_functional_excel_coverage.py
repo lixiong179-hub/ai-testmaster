@@ -101,12 +101,12 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
         df.to_excel(test_file, sheet_name='测试用例', index=False)
         
         try:
-            case_id = self.service.import_functional_excel(
+            case_ids = self.service.import_functional_excel(
                 test_file,
                 self.test_project.id
             )
             
-            self.assertIsNotNone(case_id)
+            self.assertTrue(len(case_ids) > 0)
             
             # 验证导入了3条用例
             imported_cases = self.db.query(TestCase).filter(
@@ -206,13 +206,22 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
             self.assertTrue(success)
             
             # 验证导出内容
-            import pandas as pd
-            df = pd.read_excel(test_file, sheet_name=0)
+            from openpyxl import load_workbook
+            wb = load_workbook(test_file)
+            ws = wb.active
             
-            self.assertEqual(len(df), 3)
+            # 表头行验证
+            headers = [ws.cell(row=1, column=c).value for c in range(1, 9)]
+            self.assertEqual(headers[0], "用例序号")
+            self.assertEqual(headers[1], "优先级")
             
-            # 验证优先级转换
-            priorities = df['用例等级'].tolist()
+            # 收集所有优先级值（跳过表头和模块标题行）
+            priorities = []
+            for row in range(2, ws.max_row + 1):
+                val = ws.cell(row=row, column=2).value
+                if val and val.startswith("P"):
+                    priorities.append(val)
+            
             self.assertIn('P0', priorities)
             self.assertIn('P1', priorities)
             self.assertIn('P2', priorities)

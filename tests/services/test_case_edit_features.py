@@ -59,7 +59,7 @@ class TestNormalizeNewFormat:
         assert len(result["steps"]) == 2
         assert result["steps"][0]["step"] == 1
         assert result["steps"][0]["action"] == "点击'登录按钮'"
-        assert result["steps"][0]["description"] == "【1】点击'登录按钮'"
+        assert result["steps"][0]["description"] == "[1] 点击'登录按钮'"
         assert result["steps"][0]["expected_result"] == "查看登录按钮展示正确"
         assert result["steps"][0]["test_data"] == {}
         assert result["steps"][0]["ui_elements"] == []
@@ -79,9 +79,9 @@ class TestNormalizeNewFormat:
 
         expected_lines = result["expected_result"].split("\n")
         assert len(expected_lines) == 3
-        assert "【1】结果A" in expected_lines[0]
-        assert "【2】结果B" in expected_lines[1]
-        assert "【3】结果C" in expected_lines[2]
+        assert "[1] 结果A" in expected_lines[0]
+        assert "[2] 结果B" in expected_lines[1]
+        assert "[3] 结果C" in expected_lines[2]
 
     def test_empty_steps(self):
         """空步骤列表处理"""

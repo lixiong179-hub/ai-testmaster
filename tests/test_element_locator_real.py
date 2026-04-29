@@ -11,7 +11,7 @@
 """
 import pytest
 import pytest_asyncio
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
@@ -34,15 +34,22 @@ def db_session():
     # 注意：只创建element_locators表用于测试
     Base.metadata.create_all(engine, tables=[Base.metadata.tables.get('element_locators')])
     
-    SessionLocal = sessionmaker(bind=engine)
+    connection = engine.connect()
+    transaction = connection.begin()
+    SessionLocal = sessionmaker(bind=connection)
     session = SessionLocal()
-    
+    session.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(sess, trans):
+        if trans.nested and not trans._parent.nested:
+            sess.begin_nested()
+
     yield session
-    
-    # 清理测试数据
-    session.query(ElementLocator).filter(ElementLocator.step_id >= 10000).delete()
-    session.commit()
+
     session.close()
+    transaction.rollback()
+    connection.close()
 
 
 @pytest_asyncio.fixture
@@ -518,14 +525,18 @@ async def test_record_locator_real():
     # 使用真实MySQL数据库
     engine = create_engine(settings.DATABASE_URL)
     Base.metadata.create_all(engine, tables=[Base.metadata.tables.get('element_locators')])
-    SessionLocal = sessionmaker(bind=engine)
+    connection = engine.connect()
+    outer_trans = connection.begin()
+    SessionLocal = sessionmaker(bind=connection)
     db = SessionLocal()
-    
+    db.begin_nested()
+
+    @event.listens_for(db, "after_transaction_end")
+    def _restart_savepoint(sess, trans):
+        if trans.nested and not trans._parent.nested:
+            sess.begin_nested()
+
     try:
-        # 清理测试数据
-        db.query(ElementLocator).filter(ElementLocator.step_id >= 10000).delete()
-        db.commit()
-        
         # 创建真实浏览器和视觉模型
         browser = await create_browser_controller(headless=True)
         vision_model = get_default_vision_model()
@@ -555,10 +566,9 @@ async def test_record_locator_real():
         await browser.close()
         
     finally:
-        # 清理测试数据
-        db.query(ElementLocator).filter(ElementLocator.step_id >= 10000).delete()
-        db.commit()
         db.close()
+        outer_trans.rollback()
+        connection.close()
 
 
 @pytest.mark.asyncio
@@ -571,14 +581,18 @@ async def test_get_element_attributes_real():
     # 使用真实MySQL数据库
     engine = create_engine(settings.DATABASE_URL)
     Base.metadata.create_all(engine, tables=[Base.metadata.tables.get('element_locators')])
-    SessionLocal = sessionmaker(bind=engine)
+    connection = engine.connect()
+    outer_trans = connection.begin()
+    SessionLocal = sessionmaker(bind=connection)
     db = SessionLocal()
-    
+    db.begin_nested()
+
+    @event.listens_for(db, "after_transaction_end")
+    def _restart_savepoint2(sess, trans):
+        if trans.nested and not trans._parent.nested:
+            sess.begin_nested()
+
     try:
-        # 清理测试数据
-        db.query(ElementLocator).filter(ElementLocator.step_id >= 10000).delete()
-        db.commit()
-        
         browser = await create_browser_controller(headless=True)
         vision_model = get_default_vision_model()
         
@@ -609,10 +623,9 @@ async def test_get_element_attributes_real():
         await browser.close()
         
     finally:
-        # 清理测试数据
-        db.query(ElementLocator).filter(ElementLocator.step_id >= 10000).delete()
-        db.commit()
         db.close()
+        outer_trans.rollback()
+        connection.close()
 
 
 @pytest.mark.asyncio
@@ -625,14 +638,18 @@ async def test_generate_css_selector_from_real_page():
     # 使用真实MySQL数据库
     engine = create_engine(settings.DATABASE_URL)
     Base.metadata.create_all(engine, tables=[Base.metadata.tables.get('element_locators')])
-    SessionLocal = sessionmaker(bind=engine)
+    connection = engine.connect()
+    outer_trans = connection.begin()
+    SessionLocal = sessionmaker(bind=connection)
     db = SessionLocal()
-    
+    db.begin_nested()
+
+    @event.listens_for(db, "after_transaction_end")
+    def _restart_savepoint3(sess, trans):
+        if trans.nested and not trans._parent.nested:
+            sess.begin_nested()
+
     try:
-        # 清理测试数据
-        db.query(ElementLocator).filter(ElementLocator.step_id >= 10000).delete()
-        db.commit()
-        
         browser = await create_browser_controller(headless=True)
         vision_model = get_default_vision_model()
         
@@ -666,7 +683,6 @@ async def test_generate_css_selector_from_real_page():
         await browser.close()
         
     finally:
-        # 清理测试数据
-        db.query(ElementLocator).filter(ElementLocator.step_id >= 10000).delete()
-        db.commit()
         db.close()
+        outer_trans.rollback()
+        connection.close()

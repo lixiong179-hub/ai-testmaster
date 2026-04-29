@@ -294,7 +294,7 @@
             <el-option
               v-for="point in store.testPoints"
               :key="point.id"
-              :label="`${point.module} - ${point.function}`"
+              :label="`${point.module} - ${point.point}`"
               :value="point.id"
               :class="{ 'is-checked': store.formData.test_point_ids.includes(point.id) }"
               @click.stop
@@ -318,7 +318,7 @@
                   <div class="tp-row1">
                     <span class="tp-mod">{{ point.module }}</span>
                     <span class="tp-sep">/</span>
-                    <span class="tp-func">{{ point.function }}</span>
+                    <span class="tp-point">{{ point.point }}</span>
                     <el-tag
                       size="small"
                       :type="store.getPriorityType(point.priority)"

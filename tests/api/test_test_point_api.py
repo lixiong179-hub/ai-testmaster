@@ -84,13 +84,11 @@ class TestBatchSaveEndpoint:
         test_data = [
             {
                 "module": "登录模块",
-                "function": "用户登录",
                 "point": "验证用户使用正确的用户名和密码可以成功登录系统",
                 "priority": 1
             },
             {
                 "module": "登录模块",
-                "function": "密码错误提示",
                 "point": "验证输入错误密码时显示'用户名或密码错误'的提示信息",
                 "priority": 2
             }
@@ -127,7 +125,7 @@ class TestBatchSaveEndpoint:
     def test_save_over_limit_rejected(self, client, auth_headers, test_project):
         """超过数量限制(200)应被拒绝"""
         large_list = [
-            {"module": f"模块{i}", "function": "功能{i}", "point": f"测试点描述{i}", "priority": 1}
+            {"module": f"模块{i}", "point": f"测试点描述{i}", "priority": 1}
             for i in range(201)
         ]
         
@@ -168,9 +166,9 @@ class TestBatchSaveEndpoint:
         long_point = "P" * 501     # 超过500字符限制
         
         oversized_data = [
-            {"module": long_module, "function": "F", "point": "正常长度", "priority": 1},
-            {"module": "正常模块", "function": "F", "point": long_point, "priority": 1},
-            {"module": "正常模块", "function": "正常功能", "point": "正常测试点", "priority": 1},
+            {"module": long_module, "point": "正常长度", "priority": 1},
+            {"module": "正常模块", "point": long_point, "priority": 1},
+            {"module": "正常模块", "point": "正常测试点", "priority": 1},
         ]
         
         resp = client.post(
@@ -201,7 +199,7 @@ class TestListEndpoint:
         """查询已保存的测试点列表"""
         # 先保存一些数据
         save_data = [
-            {"module": "查询测试模块", "function": "查询功能", "point": "用于列表查询的测试点", "priority": 1}
+            {"module": "查询测试模块", "point": "用于列表查询的测试点", "priority": 1}
         ]
         client.post(f"/api/v1/test-point/batch-save?project_id={test_project}", 
                     json=save_data, headers=auth_headers)
@@ -267,7 +265,7 @@ class TestListEndpoint:
             if items:
                 item = items[0]
             
-            required_fields = ["id", "module", "function", "point", "priority"]
+            required_fields = ["id", "module", "point", "priority"]
             for field in required_fields:
                 assert field in item, f"响应缺少必要字段: {field}"
             
@@ -290,7 +288,6 @@ class TestDataConsistency:
         original_data = [
             {
                 "module": "一致性测试模块",
-                "function": "一致性测试功能",
                 "point": "验证保存后的数据与原始输入完全一致",
                 "priority": 2
             }
@@ -312,14 +309,13 @@ class TestDataConsistency:
                 
                 # 验证关键字段匹配
                 assert saved["module"] == original_data[0]["module"]
-                assert saved["function"] == original_data[0]["function"]
                 assert saved["point"] == original_data[0]["point"]
                 assert saved["priority"] == original_data[0]["priority"]
 
     def test_multiple_saves_accumulate(self, client, auth_headers, test_project):
         """多次保存的数据会累积"""
-        batch1 = [{"module": "批次1", "function": "F1", "point": "P1", "priority": 1}]
-        batch2 = [{"module": "批次2", "function": "F2", "point": "P2", "priority": 2}]
+        batch1 = [{"module": "批次1", "point": "P1", "priority": 1}]
+        batch2 = [{"module": "批次2", "point": "P2", "priority": 2}]
         
         client.post(f"/api/v1/test-point/batch-save?project_id={test_project}",
                    json=batch1, headers=auth_headers)

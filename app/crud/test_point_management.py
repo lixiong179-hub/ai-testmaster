@@ -21,7 +21,7 @@ SORT_FIELD_MAP = {
     "create_time": TestPoint.create_time,
     "priority": TestPoint.priority,
     "module": TestPoint.module,
-    "function": TestPoint.function,
+    "point": TestPoint.point,
 }
 
 
@@ -57,7 +57,6 @@ def _build_test_point_filters(
         query = query.filter(
             or_(
                 TestPoint.module.ilike(keyword_like),
-                TestPoint.function.ilike(keyword_like),
                 TestPoint.point.ilike(keyword_like),
             )
         )

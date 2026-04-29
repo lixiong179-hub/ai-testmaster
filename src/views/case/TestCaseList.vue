@@ -35,6 +35,29 @@
           >
             AI生成用例
           </el-button>
+          <el-dropdown
+            v-if="selectedProjectId || route.params.projectId"
+            :disabled="exporting || filteredTestCases.length === 0"
+          >
+            <el-button :loading="exporting">
+              <el-icon><Download /></el-icon>
+              导出
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleExportAll">
+                  导出全部 ({{ filteredTestCases.length }})
+                </el-dropdown-item>
+                <el-dropdown-item
+                  :disabled="selectedCases.length === 0"
+                  @click="handleExportSelected"
+                >
+                  导出选中 ({{ selectedCases.length }})
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
           <!-- 视图切换 -->
           <el-button-group class="view-toggle">
             <el-button
@@ -327,12 +350,12 @@
       </div>
 
       <!-- 加载中 -->
-      <div v-else-if="loading" class="loading-state">
+      <div v-if="loading && (selectedProjectId || route.params.projectId)" class="loading-state">
         <el-skeleton :rows="5" animated />
       </div>
 
       <!-- 测试用例列表 -->
-      <div v-else class="case-list">
+      <div v-if="!loading && (selectedProjectId || route.params.projectId)" class="case-list">
         <el-empty v-if="paginatedTestCases.length === 0" description="暂无测试用例">
           <template #image>
             <el-icon :size="80" color="#dcdfe6"><Document /></el-icon>
@@ -433,6 +456,7 @@ import {
   FolderOpened,
   Document,
   Delete,
+  Download,
   Grid,
   List,
   Filter,
@@ -448,6 +472,8 @@ import CaseItem from '@/components/case/CaseItem.vue'
 import { useCaseStore } from '@/store/case'
 import type { TestCase } from '@/types/testCase'
 import request from '@/utils/request'
+import { testCaseViewApi } from '@/api/testCaseView'
+import { downloadFromResponse, parseBlobError } from '@/utils/download'
 
 const route = useRoute()
 const router = useRouter()
@@ -455,6 +481,7 @@ const caseStore = useCaseStore()
 
 // 状态
 const loading = ref(false)
+const exporting = ref(false)
 const viewMode = ref<'list' | 'grid'>('list')
 const filterExpanded = ref(true)
 
@@ -854,6 +881,51 @@ const filteredTestCases = computed(() => {
 
   return filtered
 })
+
+// 导出指定用例ID列表为功能用例Excel
+const exportFunctionalExcel = async (ids: number[]) => {
+  if (ids.length === 0) {
+    ElMessage.warning('暂无可导出的用例')
+    return
+  }
+  exporting.value = true
+  try {
+    const resp = await testCaseViewApi.exportToFunctionalExcel(ids)
+    const fallback = `功能测试用例_${new Date().toISOString().slice(0, 10)}.xlsx`
+    downloadFromResponse(resp, fallback)
+
+    // 后端可能因权限静默过滤掉部分用例，前端给出提示
+    const skippedRaw = resp.headers?.['x-export-skipped-count']
+    const skipped = skippedRaw ? Number(skippedRaw) : 0
+    const exported = ids.length - skipped
+    if (skipped > 0) {
+      ElMessage.warning(`已导出 ${exported} 条用例，${skipped} 条因权限被忽略`)
+    } else {
+      ElMessage.success(`已导出 ${exported} 条用例`)
+    }
+  } catch (err) {
+    const msg = await parseBlobError(err, '导出失败，请稍后重试')
+    console.error('导出失败:', err)
+    ElMessage.error(msg)
+  } finally {
+    exporting.value = false
+  }
+}
+
+// 导出全部（按当前筛选）
+const handleExportAll = () => {
+  const ids = filteredTestCases.value.map((c) => c.id)
+  return exportFunctionalExcel(ids)
+}
+
+// 导出选中
+const handleExportSelected = () => {
+  if (selectedCases.value.length === 0) {
+    ElMessage.warning('请先选择要导出的用例')
+    return
+  }
+  return exportFunctionalExcel([...selectedCases.value])
+}
 
 // 跳转到AI生成页面
 const goToAIGenerate = () => {

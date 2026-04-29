@@ -181,7 +181,7 @@ print("  地址: http://localhost:8000")
 print("  API文档: http://localhost:8000/docs")
 
 backend_process = subprocess.Popen(
-    [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+    [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "app", "--reload-exclude", "tests", "--reload-exclude", "scripts"],
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     bufsize=1,

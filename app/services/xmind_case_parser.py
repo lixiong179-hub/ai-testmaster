@@ -35,7 +35,6 @@ class XmindCaseParser:
     XMAP_NS = "urn:xmind:xmap:xmlns:content:2.0"
     NS = {"xmap": XMAP_NS}
     MODULE_MAX_LEN = 100
-    FUNCTION_MAX_LEN = 200
     TITLE_MAX_LEN = 255
     POINT_MAX_LEN = 500
     PRECONDITION_HINTS = (
@@ -142,12 +141,14 @@ class XmindCaseParser:
         except XmindParseError:
             raise
         except Exception as exc:
-            raise XmindParseError(f"读取 XMind 文件失败: {exc}") from exc
+            logger.error(f"读取 XMind 文件失败: {exc}")
+            raise XmindParseError("读取 XMind 文件失败，请检查文件是否损坏") from exc
 
         try:
             root = ET.fromstring(content)
         except ET.ParseError as exc:
-            raise XmindParseError(f"无法解析 XMind 文件内容: {exc}") from exc
+            logger.error(f"XML 解析失败: {exc}")
+            raise XmindParseError("无法解析 XMind 文件内容，请确认文件格式正确") from exc
 
         sheet = self._find_element(root, "sheet")
         if sheet is None:
@@ -192,7 +193,6 @@ class XmindCaseParser:
         if not texts:
             return None
 
-        function_name = self._infer_function_name(texts)
         preconditions: List[str] = []
         actions: List[str] = []
         expectations: List[str] = []
@@ -230,10 +230,10 @@ class XmindCaseParser:
         if not expected_result and actions:
             expected_result = f"{actions[-1]}后结果符合预期"
         if not actions:
-            actions = [f"验证场景：{expectations[0]}"]
+            actions = [f"检查并确认：{expectations[0]}"]
 
         steps = self._build_steps(actions, expected_result)
-        title = self._infer_case_title(function_name, actions, expected_result)
+        title = self._infer_case_title(texts, actions, expected_result, module_name)
         notes = [segment.notes.strip() for segment in segments if segment.notes.strip()]
         if notes:
             preconditions.extend(note for note in notes if note not in preconditions)
@@ -241,7 +241,7 @@ class XmindCaseParser:
         priority = self._infer_priority(segments)
         return {
             "module": module_name,
-            "function": function_name,
+            "function": self._infer_function_name(texts, module_name),
             "title": title,
             "point": title,
             "precondition": "\n".join(preconditions).strip(),
@@ -256,17 +256,18 @@ class XmindCaseParser:
             "ignored_count": ignored_count,
         }
 
-    def _infer_function_name(self, texts: List[str]) -> str:
-        for text in texts:
-            if self._classify_text(text) == "condition":
-                return self._truncate_field(text, self.FUNCTION_MAX_LEN)
-        return self._truncate_field(texts[0], self.FUNCTION_MAX_LEN)
+    def _infer_function_name(self, texts: List[str], module_name: str) -> str:
+        """推断功能名称（AI中间产物，不存库，仅作提示词上下文）。"""
+        if len(texts) >= 2:
+            return self._truncate_field(texts[1], self.TITLE_MAX_LEN)
+        return ""
 
     def _infer_case_title(
         self,
-        function_name: str,
+        texts: List[str],
         actions: List[str],
         expected_result: str,
+        module_name: str,
     ) -> str:
         if actions and expected_result:
             title = f"{actions[-1]}，{expected_result}"
@@ -274,8 +275,10 @@ class XmindCaseParser:
             title = actions[-1]
         elif expected_result:
             title = expected_result
+        elif texts:
+            title = texts[0]
         else:
-            title = function_name
+            title = module_name
         return self._truncate_field(title, self.TITLE_MAX_LEN)
 
     def _build_steps(self, actions: List[str], overall_expected: str) -> List[Dict[str, Any]]:
@@ -324,7 +327,6 @@ class XmindCaseParser:
             )
             key = (
                 case["module"],
-                case["function"],
                 case["title"],
                 case["precondition"],
                 case["expected_result"],

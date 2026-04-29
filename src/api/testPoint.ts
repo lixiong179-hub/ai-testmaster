@@ -56,9 +56,9 @@ export interface BatchDeleteData {
 
 export interface XmindPreviewItem {
   module: string
-  function: string
   point: string
   priority: number
+  precondition?: string
 }
 
 export interface XmindPreviewCaseStep {
@@ -69,7 +69,6 @@ export interface XmindPreviewCaseStep {
 
 export interface XmindPreviewCaseItem {
   module: string
-  function: string
   title: string
   precondition: string
   expected_result: string
@@ -87,6 +86,7 @@ export interface XmindPreviewResponse {
   skipped_count: number
   skipped_reasons: string[]
   ai_timeout?: boolean
+  total_paths?: number
 }
 
 export interface XmindImportResponse {
@@ -96,6 +96,21 @@ export interface XmindImportResponse {
   skipped_count: number
   skipped_reasons: string[]
   ai_timeout?: boolean
+}
+
+export interface XmindImportProgressEvent {
+  completed_batches: number
+  total_batches: number
+  completed_paths: number
+  total_paths: number
+  percentage: number
+  status?: string
+}
+
+export interface XmindImportSSECallbacks {
+  onProgress?: (event: XmindImportProgressEvent) => void
+  onResult?: (data: XmindPreviewResponse | XmindImportResponse) => void
+  onError?: (detail: string, errorType?: string) => void
 }
 
 function unwrapApiPayload<T>(response: TestPointApiResponse<T> | T): T {
@@ -297,12 +312,99 @@ export const testPointApi = {
     formData.append('project_id', String(projectId))
     formData.append('preview', String(preview))
     formData.append('ai_enhance', String(aiEnhance))
-    const response = (await request.post('/api/v1/test-point/import-xmind', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })) as
+    const response = (await request.post('/api/v1/test-point/import-xmind', formData)) as
       | TestPointApiResponse<XmindPreviewResponse | XmindImportResponse>
       | XmindPreviewResponse
       | XmindImportResponse
     return unwrapApiPayload(response)
+  },
+
+  /**
+   * XMind AI增强导入SSE流式方法。
+   * 通过fetch发送multipart请求，消费SSE事件流，
+   * 实时推送AI解析进度和最终结果。
+   */
+  importXmindStream: async (
+    file: File,
+    projectId: number,
+    preview: boolean,
+    callbacks: XmindImportSSECallbacks
+  ): Promise<void> => {
+    const baseUrl = import.meta.env?.VITE_API_BASE_URL || ''
+    const token = localStorage.getItem('token')
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('project_id', String(projectId))
+    formData.append('preview', String(preview))
+
+    const response = await fetch(`${baseUrl}/api/v1/test-point/import-xmind-stream`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    })
+
+    if (!response.ok || !response.body) {
+      const errorText = await response.text()
+      callbacks.onError?.(errorText || '导入请求失败')
+      return
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
+    let currentEvent = ''
+    let currentDataParts: string[] = []
+
+    const processEvent = () => {
+      if (currentEvent && currentDataParts.length > 0) {
+        const currentData = currentDataParts.join('\n')
+        try {
+          const parsed = JSON.parse(currentData)
+          if (currentEvent === 'progress') {
+            callbacks.onProgress?.(parsed as XmindImportProgressEvent)
+          } else if (currentEvent === 'result') {
+            callbacks.onResult?.(parsed as XmindPreviewResponse | XmindImportResponse)
+          } else if (currentEvent === 'error') {
+            callbacks.onError?.(parsed.detail || '导入失败', parsed.error_type)
+          }
+        } catch {
+          // JSON解析失败忽略
+        }
+        currentEvent = ''
+        currentDataParts = []
+      }
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim()
+        } else if (line.startsWith('data: ')) {
+          currentDataParts.push(line.slice(6))
+        } else if (line === '') {
+          processEvent()
+        }
+      }
+    }
+
+    // 处理流结束后buffer中可能剩余的未处理事件
+    if (buffer.trim()) {
+      const remaining = buffer.trim()
+      if (remaining.startsWith('event: ')) {
+        currentEvent = remaining.slice(7).trim()
+      } else if (remaining.startsWith('data: ')) {
+        currentDataParts.push(remaining.slice(6))
+      }
+      processEvent()
+    }
   },
 }

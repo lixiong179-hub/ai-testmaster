@@ -21,7 +21,7 @@ export interface TestPointAnalyzeRequest {
 export interface TestPointDraft {
   id?: number
   module: string
-  function: string
+  function?: string
   point: string
   priority: number
   ai_prompt?: string | null
@@ -64,7 +64,7 @@ export interface TestPointListParams {
   keyword?: string
   created_from?: string
   created_to?: string
-  sort_by?: 'create_time' | 'priority' | 'module' | 'function'
+  sort_by?: 'create_time' | 'priority' | 'module' | 'point'
   sort_order?: 'asc' | 'desc'
   page?: number
   page_size?: number
@@ -73,7 +73,7 @@ export interface TestPointListParams {
 export interface TestPointFormData {
   project_id: number
   module: string
-  function: string
+  function?: string
   point: string
   priority: number
   ai_prompt?: string

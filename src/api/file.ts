@@ -90,11 +90,7 @@ export const fileApi = {
       formData.append('iteration_id', iterationId.toString())
     }
 
-    return request.post('/api/v1/file/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    return request.post('/api/v1/file/upload', formData)
   },
 
   // 提交URL
@@ -147,11 +143,7 @@ export const fileApi = {
     files.forEach((file) => {
       formData.append('files', file)
     })
-    return request.post('/api/v1/file/batch-upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    })
+    return request.post('/api/v1/file/batch-upload', formData)
   },
 
   // 更新文件信息

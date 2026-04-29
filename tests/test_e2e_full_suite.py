@@ -942,19 +942,16 @@ class TestTestPointModule:
         test_points_data = [
             {
                 "module": "用户管理",
-                "function": "登录功能",
                 "point": "验证用户使用正确账号密码可以登录系统",
                 "priority": 1
             },
             {
                 "module": "用户管理",
-                "function": "注册功能",
                 "point": "验证用户可以使用有效邮箱注册新账号",
                 "priority": 2
             },
             {
                 "module": "数据管理",
-                "function": "数据导入",
                 "point": "验证系统支持Excel格式数据导入",
                 "priority": 3
             }
@@ -984,7 +981,6 @@ class TestTestPointModule:
         test_points_data = [
             {
                 "module": "测试模块",
-                "function": "测试功能",
                 "point": "测试点描述",
                 "priority": 99  # 超出范围
             }
@@ -1007,7 +1003,6 @@ class TestTestPointModule:
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[{
                 "module": "更新前模块",
-                "function": "更新前功能",
                 "point": "更新前描述",
                 "priority": 3
             }],
@@ -1037,7 +1032,6 @@ class TestTestPointModule:
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[{
                 "module": "待删除模块",
-                "function": "待删除功能",
                 "point": "待删除描述",
                 "priority": 2
             }],
@@ -1069,9 +1063,9 @@ class TestTestPointModule:
         save_resp = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[
-                {"module": "批量删除1", "function": "功能1", "point": "描述1", "priority": 2},
-                {"module": "批量删除2", "function": "功能2", "point": "描述2", "priority": 2},
-                {"module": "批量删除3", "function": "功能3", "point": "描述3", "priority": 2}
+                {"module": "批量删除1", "point": "描述1", "priority": 2},
+                {"module": "批量删除2", "point": "描述2", "priority": 2},
+                {"module": "批量删除3", "point": "描述3", "priority": 2}
             ],
             headers=auth_headers
         )
@@ -1510,7 +1504,7 @@ class TestBoundaryAndException:
         # 优先级1（高）
         resp1 = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
-            json=[{"module": "边界1", "function": "功能", "point": "描述", "priority": 1}],
+            json=[{"module": "边界1", "point": "描述", "priority": 1}],
             headers=auth_headers
         )
         assert resp1.status_code == 200
@@ -1518,7 +1512,7 @@ class TestBoundaryAndException:
         # 优先级3（低）
         resp3 = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
-            json=[{"module": "边界3", "function": "功能", "point": "描述", "priority": 3}],
+            json=[{"module": "边界3", "point": "描述", "priority": 3}],
             headers=auth_headers
         )
         assert resp3.status_code == 200
@@ -1529,7 +1523,7 @@ class TestBoundaryAndException:
         # 优先级0（低于最小值1）
         resp0 = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
-            json=[{"module": "边界0", "function": "功能", "point": "描述", "priority": 0}],
+            json=[{"module": "边界0", "point": "描述", "priority": 0}],
             headers=auth_headers
         )
         # 优先级0应被修正为2
