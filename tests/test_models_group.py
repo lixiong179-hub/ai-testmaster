@@ -80,7 +80,7 @@ class TestGroupModel:
         db.refresh(group)
         assert len(group.users) == 1
         assert group.users[0].id == test_user.id
-        db.execute(user_group.delete().where(user_group.c.group_id == group.id))
+        group.users.clear()
         db.commit()
         db.delete(group)
         db.commit()
@@ -98,7 +98,7 @@ class TestGroupModel:
         db.commit()
         db.refresh(group)
         assert len(group.roles) == 1
-        db.execute(group_role.delete().where(group_role.c.group_id == group.id))
+        group.roles.clear()
         db.commit()
         db.delete(group)
         db.delete(role)

@@ -28,11 +28,10 @@ from app.utils.unified_vision_model import get_default_vision_model
 def db_session():
     """创建测试数据库会话（真实MySQL数据库）"""
     # 使用配置的MySQL数据库，但使用测试表
-    engine = create_engine(settings.DATABASE_URL)
+    engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
     
     # 创建测试表（如果不存在）
     # 注意：只创建element_locators表用于测试
-    Base.metadata.create_all(engine, tables=[Base.metadata.tables.get('element_locators')])
     
     connection = engine.connect()
     transaction = connection.begin()
@@ -523,8 +522,7 @@ async def test_record_locator_real():
     使用真实浏览器访问百度，记录搜索框的定位信息
     """
     # 使用真实MySQL数据库
-    engine = create_engine(settings.DATABASE_URL)
-    Base.metadata.create_all(engine, tables=[Base.metadata.tables.get('element_locators')])
+    engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
     connection = engine.connect()
     outer_trans = connection.begin()
     SessionLocal = sessionmaker(bind=connection)
@@ -579,8 +577,7 @@ async def test_get_element_attributes_real():
     使用真实浏览器获取百度搜索框的属性
     """
     # 使用真实MySQL数据库
-    engine = create_engine(settings.DATABASE_URL)
-    Base.metadata.create_all(engine, tables=[Base.metadata.tables.get('element_locators')])
+    engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
     connection = engine.connect()
     outer_trans = connection.begin()
     SessionLocal = sessionmaker(bind=connection)
@@ -636,8 +633,7 @@ async def test_generate_css_selector_from_real_page():
     验证生成的CSS选择器可以在真实页面中定位元素
     """
     # 使用真实MySQL数据库
-    engine = create_engine(settings.DATABASE_URL)
-    Base.metadata.create_all(engine, tables=[Base.metadata.tables.get('element_locators')])
+    engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
     connection = engine.connect()
     outer_trans = connection.begin()
     SessionLocal = sessionmaker(bind=connection)

@@ -26,7 +26,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, event, Index
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float, event, Index
 from sqlalchemy.orm import relationship, Session
 from datetime import datetime
 from app.utils.db_time import utcnow
@@ -94,13 +94,13 @@ class TestCase(Base):
 
     # 生命周期与血缘字段
     lifecycle_status = Column(String(30), nullable=False, default="draft", comment="生命周期状态：draft/active/pending_review/needs_modify/locator_broken/deprecated/archived")  # 生命周期状态，变更必经 LifecycleService
+    prior_quality_score = Column(Float, nullable=True, comment="先验质量分（0-100），生成时由 QualityGate 计算")
     deprecated_at = Column(DateTime, nullable=True, comment="进入deprecated状态的时间戳，用于冷却期计算")  # 由 LifecycleService.transition() 在进入 deprecated 时设置
     summary = Column(Text, nullable=True, comment="AI生成的用例摘要")  # AI摘要，用于去重和检索
     summary_version = Column(Integer, nullable=False, default=0, comment="摘要版本号，0=未生成")  # 摘要版本，AI重算时递增
     summary_model_version = Column(String(64), nullable=True, comment="生成摘要的AI模型版本")  # 跟踪模型升级触发的批量重算
     parent_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="SET NULL"), nullable=True, comment="父用例ID，用于用例衍生/拆分")  # 血缘关系，SET NULL保留子用例
     last_review_id = Column(Integer, ForeignKey("code_reviews.id", ondelete="SET NULL"), nullable=True, comment="最近一次评审ID")  # 关联评审记录
-    test_point_id = Column(Integer, ForeignKey("test_points.id", ondelete="SET NULL"), nullable=True, comment="关联测试点ID")  # 关联测试点
 
     __table_args__ = (
         Index("ix_test_cases_project_lifecycle", "project_id", "lifecycle_status"),

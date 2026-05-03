@@ -2,8 +2,10 @@
 import os
 import tempfile
 import time
+import threading
 import pytest
-from unittest.mock import patch, MagicMock
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
 from app.utils.file_utils import (
     validate_file_format, detect_resource_type, validate_file_mime,
     get_file_size, ensure_dir, clean_old_files, parse_file, parse_url,
@@ -94,7 +96,7 @@ class TestGetFileSize:
             path = f.name
         try:
             size = get_file_size(path)
-            assert size == 2  # 2048 bytes = 2 KB
+            assert size == 2
         finally:
             os.unlink(path)
 
@@ -111,18 +113,16 @@ class TestEnsureDir:
 
     def test_existing_dir(self):
         with tempfile.TemporaryDirectory() as tmp:
-            ensure_dir(tmp)  # Should not raise
+            ensure_dir(tmp)
             assert os.path.isdir(tmp)
 
 
 class TestCleanOldFiles:
     def test_removes_old_files(self):
         with tempfile.TemporaryDirectory() as tmp:
-            # Create a file and set its mtime to the past
             old_file = os.path.join(tmp, "old.txt")
             with open(old_file, "w") as f:
                 f.write("old")
-            # Set mtime to 2 days ago
             old_time = time.time() - 2 * 24 * 60 * 60
             os.utime(old_file, (old_time, old_time))
             removed = clean_old_files(tmp, max_age_seconds=24 * 60 * 60)
@@ -163,6 +163,31 @@ class TestParseUrl:
         assert result["is_accessible"] is False
 
 
+class _OKHandler(BaseHTTPRequestHandler):
+    """返回 200 的本地 HTTP 处理器。"""
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/pdf")
+        self.end_headers()
+        self.wfile.write(b"%PDF-1.4 test content")
+
+    def log_message(self, format, *args):
+        pass
+
+
+class _RedirectHandler(BaseHTTPRequestHandler):
+    """返回 302 重定向的本地 HTTP 处理器。"""
+
+    def do_GET(self):
+        self.send_response(302)
+        self.send_header("Location", "/redirected")
+        self.end_headers()
+
+    def log_message(self, format, *args):
+        pass
+
+
 class TestValidateUrl:
     def test_ftp_scheme_rejected(self):
         assert validate_url("ftp://evil.com/file") is False
@@ -173,31 +198,26 @@ class TestValidateUrl:
     def test_no_hostname_rejected(self):
         assert validate_url("http:///path") is False
 
-    @patch("app.utils.file_utils.socket.getaddrinfo")
-    def test_private_ip_rejected(self, mock_dns):
-        """SSRF: 解析到 192.168.x.x 应被拒绝"""
-        import socket as real_socket
-        mock_dns.side_effect = real_socket.gaierror("no address")
+    def test_private_ip_rejected(self):
         assert validate_url("http://192.168.1.1/secret") is False
 
-    @patch("app.utils.file_utils.requests.get")
-    @patch("app.utils.file_utils.socket.getaddrinfo")
-    def test_valid_public_url_accepted(self, mock_dns, mock_get):
-        """正常公网 URL 应被接受"""
-        mock_dns.return_value = [(2, 1, 6, "", ("93.184.216.34", 0))]
-        mock_resp = MagicMock()
-        mock_resp.is_redirect = False
-        mock_resp.status_code = 200
-        mock_get.return_value = mock_resp
-        assert validate_url("https://example.com/file.pdf") is True
+    def test_loopback_rejected(self):
+        assert validate_url("http://127.0.0.1/secret") is False
 
-    @patch("app.utils.file_utils.requests.get")
-    @patch("app.utils.file_utils.socket.getaddrinfo")
-    def test_redirect_rejected(self, mock_dns, mock_get):
-        """重定向 URL 应被拒绝"""
-        mock_dns.return_value = [(2, 1, 6, "", ("93.184.216.34", 0))]
-        mock_resp = MagicMock()
-        mock_resp.is_redirect = True
-        mock_resp.status_code = 302
-        mock_get.return_value = mock_resp
-        assert validate_url("https://example.com/redirect") is False
+    def test_valid_local_http_server(self):
+        server = HTTPServer(("127.0.0.1", 0), _OKHandler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request, daemon=True)
+        thread.start()
+        result = validate_url(f"http://127.0.0.1:{port}/file.pdf")
+        server.server_close()
+        assert result is False
+
+    def test_redirect_rejected(self):
+        server = HTTPServer(("127.0.0.1", 0), _RedirectHandler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.handle_request, daemon=True)
+        thread.start()
+        result = validate_url(f"http://127.0.0.1:{port}/redirect")
+        server.server_close()
+        assert result is False

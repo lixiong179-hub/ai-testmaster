@@ -57,9 +57,13 @@ from app.models.code_review import CodeReview, ReviewItem, ReviewComment, Review
 # 辅助功能模型
 from app.models.api_cost_log import ApiCostLog
 from app.ai.call_log import AICallLog
+from app.models.audit_log import AuditLog
+from app.models.pipeline_config import PipelineConfig
+from app.models.pipeline_permission import PipelineRole, PipelinePermission, pipeline_user_role
 from app.models.operation_log import OperationLog
 from app.models.nl_test_step import NLTestStep
 from app.models.test_case_data import TestCaseData
+from app.models.review import IterationReview, ReviewDecision, ReviewLock
 
 __all__ = [
     # UI原型相关
@@ -97,10 +101,19 @@ __all__ = [
     "ApiCostLog",
     # AI调用日志（Pipeline）
     "AICallLog",
+    # 审计日志（Pipeline）
+    "AuditLog",
+    # Pipeline 配置
+    "PipelineConfig",
+    # Pipeline 权限
+    "PipelineRole",
+    "PipelinePermission",
+    "pipeline_user_role",
     # 操作审计日志
     "OperationLog",
     # 自然语言测试步骤
     "NLTestStep",
     # 测试用例数据关联
     "TestCaseData",
+    "IterationReview", "ReviewDecision", "ReviewLock",
 ]

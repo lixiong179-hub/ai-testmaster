@@ -14,6 +14,15 @@
           >
             {{ priorityText(caseItem.priority) }}
           </span>
+          <el-tag
+            v-if="lifecycleTag"
+            :type="lifecycleTag.type"
+            size="small"
+            effect="dark"
+            class="lifecycle-badge"
+          >
+            {{ lifecycleTag.label }}
+          </el-tag>
         </div>
         <div class="case-status" :class="statusClass(caseItem.generate_status)">
           {{ statusText(caseItem.generate_status) }}
@@ -142,6 +151,22 @@ const CASE_TYPE_MAP: Record<string, { label: string; tagType: string }> = {
   functional: { label: '手工测试', tagType: 'info' },
   接口: { label: 'API自动化', tagType: '' },
 }
+
+const LIFECYCLE_STATUS_MAP: Record<string, { label: string; type: string }> = {
+  draft: { label: '草稿', type: 'info' },
+  active: { label: '可用', type: 'success' },
+  pending_review: { label: '评审中', type: '' },
+  needs_modify: { label: '待修改', type: 'warning' },
+  locator_broken: { label: '待重录', type: 'danger' },
+  deprecated: { label: '已弃用', type: 'info' },
+  archived: { label: '已归档', type: 'info' },
+}
+
+const lifecycleTag = computed(() => {
+  const status = props.caseItem.lifecycle_status
+  if (!status || status === 'active' || status === 'archived') return null
+  return LIFECYCLE_STATUS_MAP[status] || null
+})
 
 const caseTypeLabel = computed(() => {
   const type = props.caseItem.case_type || ''
@@ -342,6 +367,15 @@ const deleteCase = () => {
 
 .case-type-tag {
   flex-shrink: 0 !important;
+}
+
+.lifecycle-badge {
+  flex-shrink: 0 !important;
+  border-radius: 12px !important;
+  font-size: 11px !important;
+  padding: 0 8px !important;
+  height: 22px !important;
+  line-height: 20px !important;
 }
 
 .case-details {

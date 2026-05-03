@@ -347,9 +347,9 @@
           <div class="edit-field">
             <label>优先级</label>
             <el-select v-model="store.editingCase.priority" style="width: 100%">
-              <el-option label="P0-高" value="P0" />
-              <el-option label="P2-中" value="P2" />
-              <el-option label="P3-低" value="P3" />
+              <el-option label="P0-高" :value="1" />
+              <el-option label="P2-中" :value="2" />
+              <el-option label="P3-低" :value="3" />
             </el-select>
           </div>
           <div class="edit-field full-width">

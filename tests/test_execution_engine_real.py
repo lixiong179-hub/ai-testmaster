@@ -41,15 +41,7 @@ from app.utils.unified_vision_model import get_default_vision_model
 @pytest.fixture(scope="function")
 def db_session():
     """创建测试数据库会话（真实MySQL数据库）"""
-    engine = create_engine(settings.DATABASE_URL)
-    Base.metadata.create_all(engine, tables=[
-        Base.metadata.tables.get('users'),
-        Base.metadata.tables.get('test_cases'),
-        Base.metadata.tables.get('test_steps'),
-        Base.metadata.tables.get('test_case_executions'),
-        Base.metadata.tables.get('projects'),
-        Base.metadata.tables.get('element_locators')
-    ])
+    engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
     
     connection = engine.connect()
     transaction = connection.begin()

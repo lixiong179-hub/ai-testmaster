@@ -1,4 +1,5 @@
 """加密工具单元测试 - crypto"""
+import os
 import pytest
 from app.utils.crypto import (
     encrypt_password, decrypt_password, mask_password,
@@ -20,7 +21,6 @@ class TestEncryptDecryptPassword:
         assert decrypt_password("") == ""
 
     def test_decrypt_plaintext_passthrough(self):
-        """Non-encrypted (no gAAAAA prefix) data is returned as-is."""
         assert decrypt_password("plaintext_value") == "plaintext_value"
 
     def test_encrypt_none_returns_empty(self):
@@ -30,7 +30,6 @@ class TestEncryptDecryptPassword:
         assert decrypt_password(None) == ""
 
     def test_aliases(self):
-        """encrypt/decrypt are aliases for encrypt_password/decrypt_password."""
         assert encrypt is encrypt_password
         assert decrypt is decrypt_password
 
@@ -71,15 +70,12 @@ class TestVerifyPassword:
         assert verify_password("test", "not_valid_encrypted") is False
 
     def test_verify_corrupt_ciphertext_raises_and_returns_false(self):
-        """损坏的 Fernet 密文 (以 gAAAAA 开头但内容损坏) 应触发 ValueError 并返回 False"""
-        # gAAAAA 开头但不是有效 Fernet token
         result = verify_password("test", "gAAAAA-invalid-corrupt-data===")
         assert result is False
 
 
 class TestDecryptCorruptCiphertext:
     def test_decrypt_corrupt_gAAAAA_raises_valueerror(self):
-        """损坏的 Fernet 密文应抛出 ValueError (line 144-146)"""
         with pytest.raises(ValueError, match="解密失败"):
             decrypt_password("gAAAAA-invalid-corrupt-data===")
 
@@ -92,46 +88,75 @@ class TestGetFernet:
     def test_fernet_instance(self):
         f = _get_fernet()
         assert f is not None
-        # Can encrypt/decrypt with it
         token = f.encrypt(b"test")
         assert f.decrypt(token) == b"test"
 
 
 class TestProductionKeyValidation:
-    """测试生产环境缺少 ENCRYPTION_KEY/SALT 时必须报错 (line 55-59, 62-66)"""
+    """测试生产环境缺少 ENCRYPTION_KEY/SALT 时必须报错。
+
+    直接修改 app.core.config.settings 单例的属性，
+    触发 _get_encryption_config 中的生产环境校验逻辑。
+    """
 
     def test_production_missing_key_raises_valueerror(self):
-        from unittest.mock import patch, MagicMock
-        mock_settings = MagicMock()
-        mock_settings.ENVIRONMENT = "production"
-        mock_settings.ENCRYPTION_KEY = ""
-        mock_settings.ENCRYPTION_SALT = "some_salt"
+        from app.core.config import settings
 
-        # _get_encryption_config does `from app.core.config import settings` inside the function
-        # We need to patch the import target
-        with patch("app.core.config.settings", mock_settings):
-            from app.utils.crypto import _get_encryption_config
+        original_env = settings.ENVIRONMENT
+        original_key = settings.ENCRYPTION_KEY
+        original_salt = settings.ENCRYPTION_SALT
+
+        settings.ENVIRONMENT = "prod"
+        settings.ENCRYPTION_KEY = ""
+        settings.ENCRYPTION_SALT = "some_salt"
+        try:
             with pytest.raises(ValueError, match="ENCRYPTION_KEY"):
                 _get_encryption_config()
+        finally:
+            settings.ENVIRONMENT = original_env
+            settings.ENCRYPTION_KEY = original_key
+            settings.ENCRYPTION_SALT = original_salt
 
     def test_production_missing_salt_raises_valueerror(self):
-        from unittest.mock import patch, MagicMock
-        mock_settings = MagicMock()
-        mock_settings.ENVIRONMENT = "production"
-        mock_settings.ENCRYPTION_KEY = "some_key"
-        mock_settings.ENCRYPTION_SALT = ""
+        from app.core.config import settings
 
-        with patch("app.core.config.settings", mock_settings):
-            from app.utils.crypto import _get_encryption_config
+        original_env = settings.ENVIRONMENT
+        original_key = settings.ENCRYPTION_KEY
+        original_salt = settings.ENCRYPTION_SALT
+
+        settings.ENVIRONMENT = "prod"
+        settings.ENCRYPTION_KEY = "some_key"
+        settings.ENCRYPTION_SALT = ""
+        try:
             with pytest.raises(ValueError, match="ENCRYPTION_SALT"):
                 _get_encryption_config()
+        finally:
+            settings.ENVIRONMENT = original_env
+            settings.ENCRYPTION_KEY = original_key
+            settings.ENCRYPTION_SALT = original_salt
 
 
 class TestEncryptPasswordError:
-    """测试加密失败时拒绝存储明文 (line 114-116)"""
+    """测试加密失败时拒绝存储明文。
 
-    def test_encrypt_password_fernet_failure_raises_valueerror(self):
-        from unittest.mock import patch
-        with patch("app.utils.crypto._get_fernet", side_effect=Exception("Fernet init failed")):
+    通过临时将 settings.ENVIRONMENT 设为 prod 且清空 ENCRYPTION_KEY，
+    使 _get_encryption_config 抛出 ValueError，触发 encrypt_password 的异常捕获。
+    """
+
+    def test_encrypt_password_config_failure_raises_valueerror(self):
+        from app.core.config import settings
+
+        original_env = settings.ENVIRONMENT
+        original_key = settings.ENCRYPTION_KEY
+        original_salt = settings.ENCRYPTION_SALT
+
+        settings.ENVIRONMENT = "prod"
+        settings.ENCRYPTION_KEY = ""
+        settings.ENCRYPTION_SALT = ""
+        try:
             with pytest.raises(ValueError, match="加密失败"):
                 encrypt_password("some_password")
+        finally:
+            settings.ENVIRONMENT = original_env
+            settings.ENCRYPTION_KEY = original_key
+            settings.ENCRYPTION_SALT = original_salt

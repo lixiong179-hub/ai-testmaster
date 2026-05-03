@@ -30,8 +30,9 @@ class MockAIClient:
         call_history: 调用历史记录列表
     """
 
-    def __init__(self, default_response: Any = None) -> None:
+    def __init__(self, default_response: Any = None, model_name: str = "mock-model") -> None:
         self.default_response = default_response or {"result": "mock"}
+        self.model_name = model_name
         self.call_history: List[Dict[str, Any]] = []
         self._response_map: Dict[str, Any] = {}
 

@@ -66,6 +66,7 @@ class PipelineRun(Base):
     started_at = Column(DateTime, nullable=True, comment="开始执行时间")
     finished_at = Column(DateTime, nullable=True, comment="执行完成时间")
     error = Column(Text, nullable=True, comment="错误信息")
+    pause_payload = Column(JSON, nullable=True, comment="暂停信息：{reason, step_name, schema, paused_at}")
 
     iteration = relationship("Iteration", back_populates="pipeline_runs")
     steps = relationship(

@@ -181,22 +181,32 @@ class PipelineRunStatus(str, Enum):
 
 
 class PipelineStepStatus(str, Enum):
-    """
-    Pipeline Step 状态枚举
 
-    定义 PipelineStep 的 6 种状态，用于 pipeline_step.status 字段。
+    PENDING = "pending"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    DEGRADED = "degraded"
 
-    Attributes:
-        PENDING : 待执行
-        RUNNING : 执行中
-        DONE : 已完成
-        FAILED : 执行失败
-        SKIPPED : 已跳过
-        DEGRADED : 降级完成（fallback 生效）
-    """
-    PENDING = "pending"    # 待执行
-    RUNNING = "running"    # 执行中
-    DONE = "done"          # 已完成
-    FAILED = "failed"      # 执行失败
-    SKIPPED = "skipped"    # 已跳过
-    DEGRADED = "degraded"  # 降级完成
+
+class ReviewKind(str, Enum):
+
+    FORWARD = "forward"
+    BACKWARD = "backward"
+    MERGED = "merged"
+
+
+class ReviewStatus(str, Enum):
+
+    DRAFT = "draft"
+    IN_PROGRESS = "in_progress"
+    FINALIZED = "finalized"
+    CANCELLED = "cancelled"
+
+
+class ReviewTargetKind(str, Enum):
+
+    CASE = "case"
+    TESTPOINT = "testpoint"
+    CAPABILITY = "capability"

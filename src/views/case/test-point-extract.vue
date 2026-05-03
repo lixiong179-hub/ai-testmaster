@@ -898,6 +898,7 @@ import {
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { testPointApi } from '@/api/testPoint'
+import type { TestPointDraft } from '@/types/testPoint'
 
 // ==================== 类型定义 ====================
 
@@ -909,7 +910,7 @@ interface TestPoint {
   priority: number
   ai_prompt?: string
   create_time?: string
-  _raw?: any
+  _raw?: Record<string, unknown>
 }
 
 interface Project {
@@ -976,7 +977,7 @@ const savedFromDb = ref(false)
 const loadingTestPoints = ref(false)
 
 // 多选相关
-const selectedRows = ref<any[]>([])
+const selectedRows = ref<TestPoint[]>([])
 const testPointTable = ref()
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -1102,7 +1103,7 @@ const loadSavedTestPoints = async (projectId: number, page = 1) => {
     } else {
       console.error('加载测试点失败，响应异常:', response)
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('加载测试点失败:', error)
   } finally {
     loadingTestPoints.value = false
@@ -1256,14 +1257,14 @@ const extractTestPoints = async () => {
     })
 
     if (response && response.items) {
-      testPoints.value = response.items.map((item: any, index: number) => ({
-        id: item.id || index + 1,
+      testPoints.value = response.items.map((item: TestPointDraft, index: number) => ({
+        id: item.id ?? index + 1,
         module: item.module || '',
         point: item.point || '',
-        priority: item.priority || 2,
-        ai_prompt: item.ai_prompt,
-        create_time: item.create_time,
-        _raw: item,
+        priority: typeof item.priority === 'number' ? item.priority : 2,
+        ai_prompt: item.ai_prompt ?? undefined,
+        create_time: item.create_time ?? undefined,
+        _raw: { ...item } as Record<string, unknown>,
       }))
       savedFromDb.value = false
       ElMessage.success(`测试点提取成功，共 ${testPoints.value.length} 个`)
@@ -1275,7 +1276,8 @@ const extractTestPoints = async () => {
     progressInterval.value = null
     progress.value = 100
     progressText.value = `提取完成！共 ${testPoints.value.length} 个测试点`
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
     if (progressInterval.value) {
       clearInterval(progressInterval.value)
       progressInterval.value = null
@@ -1283,11 +1285,11 @@ const extractTestPoints = async () => {
     // 失败时不显示100%，保持当前进度或重置为0
     progress.value = 0
     // 错误信息脱敏：不直接暴露后端内部细节
-    const detail = error.response?.data?.detail
+    const detail = err.response?.data?.detail
     if (typeof detail === 'string' && !detail.includes('traceback') && !detail.includes('stack')) {
       errorMessage.value = detail.length > 200 ? detail.slice(0, 200) + '...' : detail
-    } else if (error.response?.data?.message) {
-      errorMessage.value = error.response.data.message
+    } else if (err.response?.data?.message) {
+      errorMessage.value = err.response.data.message
     } else {
       errorMessage.value = '测试点提取失败，请检查网络连接或稍后重试'
     }
@@ -1319,7 +1321,7 @@ const handleCancel = () => {
 
 // ==================== 多选和批量操作 ====================
 
-const handleSelectionChange = (rows: any[]) => {
+const handleSelectionChange = (rows: TestPoint[]) => {
   selectedRows.value = rows
 }
 
@@ -1372,10 +1374,11 @@ const batchDeleteTestPoints = async () => {
     } else {
       throw new Error(result.message || '批量删除失败')
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
     if (error !== 'cancel') {
       console.error('批量删除失败:', error)
-      ElMessage.error(error?.response?.data?.detail || error?.message || '批量删除失败，请稍后重试')
+      ElMessage.error(err.response?.data?.detail || err.response?.data?.message || err.message || '批量删除失败，请稍后重试')
     }
   } finally {
     batchDeleting.value = false
@@ -1422,7 +1425,7 @@ const saveTestPoint = async () => {
           testPoints.value[index] = {
             ...result.data,
             ai_prompt: result.data.ai_prompt ?? undefined,
-            _raw: result.data,
+            _raw: result.data as unknown as Record<string, unknown>,
           }
           ElMessage.success('测试点更新成功')
           dialogVisible.value = false
@@ -1437,9 +1440,10 @@ const saveTestPoint = async () => {
         dialogVisible.value = false
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
     console.error('保存测试点失败:', error)
-    ElMessage.error(error?.response?.data?.detail || error?.message || '保存失败，请稍后重试')
+    ElMessage.error(err.response?.data?.detail || err.response?.data?.message || err.message || '保存失败，请稍后重试')
   } finally {
     updating.value = false
   }
@@ -1478,9 +1482,10 @@ const deleteTestPoint = async (testPoint: TestPoint) => {
       }
       ElMessage.success('删除成功（本地）')
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
     console.error('删除测试点失败:', error)
-    ElMessage.error(error?.response?.data?.detail || error?.message || '删除失败，请稍后重试')
+    ElMessage.error(err.response?.data?.detail || err.response?.data?.message || err.message || '删除失败，请稍后重试')
   } finally {
     deleting.value = false
   }
@@ -1506,11 +1511,13 @@ const saveToDatabase = async () => {
     const rawData = testPoints.value
       .map(
         (tp) =>
-          tp._raw || {
-            module: tp.module,
-            point: tp.point,
-            priority: tp.priority,
-          }
+          tp._raw
+            ? JSON.parse(JSON.stringify(tp._raw))
+            : {
+                module: tp.module,
+                point: tp.point,
+                priority: tp.priority,
+              }
       )
       .filter((raw) => raw && raw.module && raw.point)
 
@@ -1529,10 +1536,11 @@ const saveToDatabase = async () => {
     } else {
       ElMessage.error(response?.message || '保存失败')
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { detail?: string; message?: string } }; message?: string }
     console.error('保存测试点失败:', error)
     ElMessage.error(
-      error.response?.data?.detail || error.response?.data?.message || '保存到数据库失败'
+      err.response?.data?.detail || err.response?.data?.message || err.message || '保存到数据库失败'
     )
   } finally {
     saving.value = false

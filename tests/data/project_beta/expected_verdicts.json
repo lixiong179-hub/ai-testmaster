@@ -1,0 +1,302 @@
+[
+  {
+    "case_no": "HIST-001",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-002",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-003",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-004",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-005",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-006",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-007",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-008",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-009",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-010",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-011",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-012",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-013",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "注册流程新增手机号必填和短信验证码，需调整用例步骤"
+  },
+  {
+    "case_no": "HIST-014",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "登录方式新增邮箱/手机号登录，需补充这两种方式的用例"
+  },
+  {
+    "case_no": "HIST-015",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "登录方式新增邮箱/手机号登录，需补充这两种方式的用例"
+  },
+  {
+    "case_no": "HIST-016",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "登录方式新增邮箱/手机号登录，需补充这两种方式的用例"
+  },
+  {
+    "case_no": "HIST-017",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-018",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-019",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-020",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-021",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-022",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-023",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-024",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-025",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-026",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "智能定位不变，业务逻辑未变"
+  },
+  {
+    "case_no": "HIST-027",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-028",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-029",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-030",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-031",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-032",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-033",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-034",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-035",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-036",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-037",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-038",
+    "verdict": "NEEDS_MODIFY",
+    "confidence": 0.9,
+    "note": "新增手机号找回渠道，用验证码替代邮件重置，需重写用例"
+  },
+  {
+    "case_no": "HIST-039",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-040",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-041",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-042",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-043",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-044",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-045",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-046",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-047",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-048",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-049",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  },
+  {
+    "case_no": "HIST-050",
+    "verdict": "VALID",
+    "confidence": 0.9,
+    "note": "模块无变更，用例仍然有效"
+  }
+]

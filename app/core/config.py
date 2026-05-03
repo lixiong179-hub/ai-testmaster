@@ -188,6 +188,7 @@ class Settings(BaseSettings):
     AI_TEMPERATURE: float = 0.7  # Pipeline 默认生成温度
     AI_MAX_TOKENS: int = 2048  # Pipeline 默认最大输出 Token 数
     AI_MAX_RETRIES: int = 3  # Pipeline AI 调用最大重试次数
+    PIPELINE_PAUSE_TIMEOUT_DAYS: int = 7  # Pipeline 暂停超时天数，超时自动取消
 
     # ==================== 用例生命周期配置 ====================
     # LifecycleService 状态机相关配置

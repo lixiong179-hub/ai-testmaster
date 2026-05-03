@@ -22,6 +22,7 @@ export interface TestCase {
   exec_script?: string
   create_time?: string
   generate_status?: number
+  lifecycle_status?: string
 }
 
 export interface TestCaseCreate {
@@ -114,6 +115,7 @@ export interface CaseQueryParams {
   priority?: number
   case_type?: string
   keyword?: string
+  lifecycle_status?: string
 }
 
 export interface CasePageResponse {
@@ -226,7 +228,7 @@ export interface AIEnhancedGenerateResponse {
   type?: string
   precondition?: string
   steps: TestCaseStep[]
-  test_data: Record<string, string | number | boolean | null>[]
+  test_data: Record<string, Record<string, string | number | boolean | null>>
   expected_result?: string
   priority?: number
   message: string

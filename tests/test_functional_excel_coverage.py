@@ -118,8 +118,8 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
             
             # 验证用例类型转换
             case_types = [tc.case_type for tc in imported_cases]
-            self.assertIn('UI', case_types)  # 功能测试->UI
-            self.assertIn('API', case_types)  # 接口测试->API
+            self.assertIn('ui_automation', case_types)
+            self.assertIn('api_automation', case_types)
             
         finally:
             if os.path.exists(test_file):

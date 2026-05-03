@@ -1,0 +1,802 @@
+[
+  {
+    "case_no": "HIST-001",
+    "title": "验证用户名为空时注册失败",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-002",
+    "title": "验证密码长度不足时提示",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-003",
+    "title": "验证邮箱格式错误时提示",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-004",
+    "title": "验证重复用户名时提示",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-005",
+    "title": "验证全部字段合法时注册成功",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-006",
+    "title": "验证同一邮箱不可重复注册",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-007",
+    "title": "验证密码与确认密码不一致时提示",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-008",
+    "title": "验证用户名超长时提示",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-009",
+    "title": "验证密码全数字时提示",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-010",
+    "title": "验证XSS注入防护",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-011",
+    "title": "验证注册按钮重复点击防护",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-012",
+    "title": "验证用户名含特殊字符时提示",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-013",
+    "title": "验证密码包含用户名时提示",
+    "module": "用户注册",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户注册流程验评用例——覆盖表单校验、重复注册、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-014",
+    "title": "验证正确用户名密码登录成功",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-015",
+    "title": "验证错误密码登录失败提示",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-016",
+    "title": "验证不存在用户登录失败",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-017",
+    "title": "验证连续5次错误后账号锁定",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-018",
+    "title": "验证记住密码功能生效",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-019",
+    "title": "验证登录成功后跳转首页",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-020",
+    "title": "验证密码框密文显示",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-021",
+    "title": "验证用户名忽略前后空格",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-022",
+    "title": "验证登录页URL直接访问重定向",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-023",
+    "title": "验证已登录状态下访问登录页重定向",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-024",
+    "title": "验证注销账号后无法登录",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-025",
+    "title": "验证锁定期后正确密码登录成功",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-026",
+    "title": "验证登录表单SQL注入防护",
+    "module": "用户登录",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "用户登录流程验评用例——覆盖正常登录、异常登录、账号锁定、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-027",
+    "title": "验证已注册邮箱发送重置邮件",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-028",
+    "title": "验证未注册邮箱提示无此用户",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-029",
+    "title": "验证过期重置链接无法使用",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-030",
+    "title": "验证新密码满足复杂度规则",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-031",
+    "title": "验证重置成功后发送确认邮件",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-032",
+    "title": "验证邮箱格式错误时提示",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-033",
+    "title": "验证重复发送重置邮件限制",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-034",
+    "title": "验证密码找回页CSRF防护",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-035",
+    "title": "验证重置链接一次性",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-036",
+    "title": "验证新密码与旧密码不可相同",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-037",
+    "title": "验证重置后旧密码失效",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-038",
+    "title": "验证密码找回页频繁访问限制",
+    "module": "密码找回",
+    "precondition": "用户未登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "密码找回流程验评用例——覆盖邮件重置、过期校验、安全防护等场景"
+  },
+  {
+    "case_no": "HIST-039",
+    "title": "验证修改昵称后正确显示",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-040",
+    "title": "验证上传头像格式不符时提示",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-041",
+    "title": "验证注销账号二次确认流程",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-042",
+    "title": "验证昵称为空时提示",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-043",
+    "title": "验证头像大小超限时提示",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-044",
+    "title": "验证注销账号验证密码失败时拒绝",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-045",
+    "title": "验证修改手机号短信验证码",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-046",
+    "title": "验证上传非图片文件时提示",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-047",
+    "title": "验证个人信息页登录状态校验",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-048",
+    "title": "验证注销账号后不可再登录",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-049",
+    "title": "验证保存修改按钮重复点击防护",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  },
+  {
+    "case_no": "HIST-050",
+    "title": "验证手机号格式错误时提示",
+    "module": "个人信息管理",
+    "precondition": "用户已登录",
+    "steps_json": [
+      {
+        "action": "执行操作",
+        "expected": "预期结果"
+      }
+    ],
+    "expected_result": "通过",
+    "priority": 1,
+    "case_type": "functional",
+    "summary": "个人信息管理用例——覆盖昵称修改、头像上传、账号注销等场景"
+  }
+]

@@ -27,8 +27,7 @@ from app.models.user import User
 
 @pytest.fixture(scope="module")
 def db_engine():
-    engine = create_engine(settings.DATABASE_URL)
-    Base.metadata.create_all(engine)
+    engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
     return engine
 
 

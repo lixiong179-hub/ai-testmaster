@@ -1,0 +1,18 @@
+[
+  {"module": "用户注册", "point": "验证注册表单必填项校验（用户名为空）", "priority": 1},
+  {"module": "用户注册", "point": "验证密码长度不足 8 位时的错误提示", "priority": 1},
+  {"module": "用户注册", "point": "验证邮箱格式错误时的提示", "priority": 1},
+  {"module": "用户注册", "point": "验证重复用户名注册时的提示", "priority": 1},
+  {"module": "用户注册", "point": "验证全部字段合法时注册成功", "priority": 1},
+  {"module": "用户注册", "point": "同一邮箱不可重复注册", "priority": 2},
+  {"module": "用户登录", "point": "验证正确用户名密码登录成功并跳转首页", "priority": 1},
+  {"module": "用户登录", "point": "验证错误密码登录失败提示", "priority": 1},
+  {"module": "用户登录", "point": "验证连续 5 次错误后账号锁定 30 分钟", "priority": 2},
+  {"module": "用户登录", "point": "验证\"记住密码\"功能生效", "priority": 2},
+  {"module": "密码找回", "point": "验证输入已注册邮箱时发送重置邮件", "priority": 1},
+  {"module": "密码找回", "point": "验证过期重置链接无法使用", "priority": 2},
+  {"module": "密码找回", "point": "验证新密码满足复杂度规则", "priority": 2},
+  {"module": "个人信息管理", "point": "验证修改昵称后正确显示", "priority": 2},
+  {"module": "个人信息管理", "point": "验证上传头像格式不符合时提示错误", "priority": 2},
+  {"module": "个人信息管理", "point": "验证注销账号二次确认流程", "priority": 3}
+]

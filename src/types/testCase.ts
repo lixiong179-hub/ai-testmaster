@@ -35,6 +35,7 @@ export interface TestCase {
   exec_script?: string
   create_time?: string
   generate_status?: number
+  lifecycle_status?: string
 }
 
 export interface TestCaseGenerateRequest {

@@ -27,7 +27,7 @@
 
 全局约束：
     1. 只能由本服务驱动迁移，禁止直接 SQL update
-    2. 所有迁移产生 audit_log 记录（M1-T16 完成后自动生效）
+    2. 所有迁移产生 audit_log 记录
     3. archived 是终态，不可恢复（要恢复则复制为新用例 draft）
 
 依赖关系：
@@ -391,14 +391,36 @@ def _write_audit_log(
     modification_hint: Optional[str],
     auto_approve: bool,
 ) -> None:
-    """写入审计日志（预留接口）。
+    """写入审计日志。
 
-    M1-T16 audit_log 表完成后，此函数将写入 audit_log 记录。
-    当前仅打印日志，不阻塞业务流程。
+    通过 audit_service.log_action 写入不可变审计记录。
+    写入失败不阻塞业务流程（catch 异常仅打印日志）。
     """
-    logger.info(
-        "lifecycle_transition: case_id=%d, %s → %s, review_id=%s, "
-        "reason=%s, actor_id=%s, modification_hint=%s, auto_approve=%s",
-        case_id, old_status, new_status,
-        review_id, reason, actor_id, modification_hint, auto_approve,
-    )
+    detail = {
+        "from": old_status,
+        "to": new_status,
+        "auto_approve": auto_approve,
+    }
+    if review_id is not None:
+        detail["review_id"] = review_id
+    if reason is not None:
+        detail["reason"] = reason
+    if modification_hint is not None:
+        detail["modification_hint"] = modification_hint
+
+    try:
+        from app.services.audit_service import log_action
+        log_action(
+            db=db,
+            action="lifecycle_transition",
+            actor_id=actor_id,
+            target_kind="test_case",
+            target_id=case_id,
+            detail=detail,
+        )
+    except Exception as e:
+        logger.error(
+            "Failed to write audit log for lifecycle_transition: "
+            "case_id=%d, %s → %s, error=%s",
+            case_id, old_status, new_status, e,
+        )

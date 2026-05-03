@@ -37,7 +37,6 @@ def testEngine():
     )
     Base.metadata.create_all(engine)
     yield engine
-    Base.metadata.drop_all(engine)
     engine.dispose()
 
 
@@ -202,6 +201,32 @@ def testProject(db, testUser):
 
     try:
         db.query(Project).filter(Project.id == project.id).delete()
+        db.flush()
+    except Exception:
+        db.rollback()
+
+
+@pytest.fixture(scope="function")
+def test_project(testProject):
+    return testProject
+
+
+@pytest.fixture(scope="function")
+def test_iteration(db, testProject):
+    from app.models.iteration import Iteration
+
+    iteration = Iteration(
+        name="test_iteration",
+        project_id=testProject.id,
+        version="v1.0",
+    )
+    db.add(iteration)
+    db.flush()
+
+    yield iteration
+
+    try:
+        db.query(Iteration).filter(Iteration.id == iteration.id).delete()
         db.flush()
     except Exception:
         db.rollback()
