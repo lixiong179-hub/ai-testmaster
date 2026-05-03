@@ -48,7 +48,7 @@ def create_iteration(
     name: str,
     version: str = "v1.0",
     description: Optional[str] = None,
-    status: str = "planning",
+    status: str = "draft",
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None
 ) -> Iteration:

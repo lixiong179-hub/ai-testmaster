@@ -304,6 +304,27 @@
           </div>
           <div class="filter-row">
             <div class="filter-item">
+              <span class="filter-label">生命周期</span>
+              <el-select
+                v-model="filter.lifecycle_status"
+                placeholder="全部状态"
+                class="filter-select"
+                clearable
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                :disabled="filteredTestCases.length === 0"
+                @change="handleFilterChange"
+              >
+                <el-option label="草稿" value="draft" />
+                <el-option label="可用" value="active" />
+                <el-option label="评审中" value="pending_review" />
+                <el-option label="待修改" value="needs_modify" />
+                <el-option label="待重录" value="locator_broken" />
+                <el-option label="已弃用" value="deprecated" />
+              </el-select>
+            </div>
+            <div class="filter-item">
               <span class="filter-label">用例类型</span>
               <el-select
                 v-model="filter.case_type"
@@ -499,6 +520,7 @@ const filter = ref({
   priority: null as number | null,
   case_type: '',
   keyword: '',
+  lifecycle_status: [] as string[],
 })
 
 // 分页状态
@@ -685,6 +707,7 @@ const hasActiveFilter = computed(() => {
     filter.value.priority !== null ||
     filter.value.keyword ||
     filter.value.case_type ||
+    filter.value.lifecycle_status.length > 0 ||
     selectedRequirementFileId.value !== null
   )
 })
@@ -788,7 +811,7 @@ const handleProjectChange = async (projectId: number | null) => {
   recentlyDeletedIds.value = []
 
   // 重置所有筛选条件和分页
-  filter.value = { module: '', priority: null, case_type: '', keyword: '' }
+  filter.value = { module: '', priority: null, case_type: '', keyword: '', lifecycle_status: [] }
   selectedRequirementFileId.value = null
   requirementFileList.value = []
   pagination.value.currentPage = 1
@@ -820,7 +843,7 @@ const handleFilterChange = () => {
 
 const applyStatsCardFilter = (caseType: string | null) => {
   if (caseType === null) {
-    filter.value = { module: '', priority: null, case_type: '', keyword: '' }
+    filter.value = { module: '', priority: null, case_type: '', keyword: '', lifecycle_status: [] }
   } else {
     filter.value = { ...filter.value, case_type: caseType }
   }
@@ -829,7 +852,7 @@ const applyStatsCardFilter = (caseType: string | null) => {
 
 // 重置筛选
 const resetFilter = () => {
-  filter.value = { module: '', priority: null, case_type: '', keyword: '' }
+  filter.value = { module: '', priority: null, case_type: '', keyword: '', lifecycle_status: [] }
   selectedRequirementFileId.value = null
   pagination.value.currentPage = 1
   // 重新加载当前项目的全部用例
@@ -851,10 +874,15 @@ const modules = computed(() => {
 const filteredTestCases = computed(() => {
   let filtered = caseStore.testCases
 
-  // 按需求文件筛选
   if (selectedRequirementFileId.value !== null) {
     filtered = filtered.filter(
       (caseItem) => (caseItem as any).requirement_file_id === selectedRequirementFileId.value
+    )
+  }
+
+  if (filter.value.lifecycle_status.length > 0) {
+    filtered = filtered.filter((caseItem) =>
+      filter.value.lifecycle_status.includes(caseItem.lifecycle_status || 'active')
     )
   }
 
@@ -1028,6 +1056,7 @@ watch(
     () => filter.value.module,
     () => filter.value.priority,
     () => filter.value.keyword,
+    () => filter.value.lifecycle_status,
   ],
   () => {
     // 立即清空选择，避免 Checkbox 组件状态混乱

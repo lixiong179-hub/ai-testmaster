@@ -47,7 +47,7 @@ class TestIterationModel:
         assert iteration.project_id == test_project.id
         assert iteration.name == "Sprint 1"
         assert iteration.version == "v1.0"
-        assert iteration.status == "planning"
+        assert iteration.status == "draft"
         assert iteration.create_time is not None
         db.delete(iteration)
         db.commit()
@@ -61,7 +61,7 @@ class TestIterationModel:
         db.commit()
         db.refresh(iteration)
         assert iteration.version == "v1.0"
-        assert iteration.status == "planning"
+        assert iteration.status == "draft"
         assert iteration.description is None
         assert iteration.start_date is None
         assert iteration.end_date is None
@@ -69,7 +69,7 @@ class TestIterationModel:
         db.commit()
 
     def test_iteration_status_values(self, db, test_project):
-        for status in ["planning", "active", "completed", "archived"]:
+        for status in ["draft", "in_pipeline", "in_review", "finalized", "archived"]:
             iteration = Iteration(
                 project_id=test_project.id,
                 name=f"迭代-{status}",

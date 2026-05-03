@@ -208,7 +208,8 @@ class TechnicalViewMixin:
                     safe_text = text.replace("'", "\\'").replace('"', '\\"')
                     lines.append(f"        await page.fill('{safe_css}', '{safe_text}')")
             else:
-                lines.append(f"        pass")
+                lines.append("        pass")
+                lines.append(f"        # TODO: 需要添加元素定位")
             lines.append("")
 
         lines.extend(["        await browser.close()", ""])

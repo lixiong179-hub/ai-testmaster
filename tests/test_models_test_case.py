@@ -157,7 +157,7 @@ class TestTestCaseModel:
         db.add(tc)
         db.commit()
         db.refresh(tc)
-        assert tc.lifecycle_status == "active"
+        assert tc.lifecycle_status == "draft"
         db.delete(tc)
         db.commit()
 

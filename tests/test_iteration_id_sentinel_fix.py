@@ -26,7 +26,7 @@ def _create_iteration(db: Session, project_id: int) -> Iteration:
         project_id=project_id,
         name="测试迭代",
         version="v1.0",
-        status="active",
+        status="in_pipeline",
     )
     db.add(iteration)
     db.flush()

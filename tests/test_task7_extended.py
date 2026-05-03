@@ -29,7 +29,8 @@ from app.models import (
     VideoRecord
 )
 
-from app.services.video_service import VideoService, VideoInfo
+from app.services.video.legacy_service import VideoService
+from app.services.video.legacy_models import VideoInfo
 from app.services.visibility_config_service import (
     VisibilityConfigService, VisibilityConfig, VisibilityLevel
 )
@@ -43,9 +44,8 @@ from app.services.execution_replay_service import (
 @pytest.fixture(scope="module")
 def db_session():
     """创建测试数据库会话（真实MySQL数据库）"""
-    engine = create_engine(settings.DATABASE_URL)
-    Base.metadata.create_all(engine)
-    
+    engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
+        
     connection = engine.connect()
     transaction = connection.begin()
     SessionLocal = sessionmaker(bind=connection)
@@ -155,11 +155,9 @@ def test_result(db_session, test_task, test_case, test_project):
 
 @pytest.fixture(scope="module")
 def video_service():
-    """创建视频服务实例"""
     test_dir = tempfile.mkdtemp()
     service = VideoService(video_base_dir=test_dir)
     yield service
-    # 清理测试目录
     shutil.rmtree(test_dir, ignore_errors=True)
 
 

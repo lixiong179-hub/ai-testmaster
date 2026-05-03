@@ -81,10 +81,13 @@ PIPELINE_RUN_TRANSITIONS = {
 PIPELINE_STEP_TRANSITIONS = {
     (PipelineStepStatus.PENDING.value, PipelineStepStatus.RUNNING.value),
     (PipelineStepStatus.PENDING.value, PipelineStepStatus.SKIPPED.value),
+    (PipelineStepStatus.PENDING.value, PipelineStepStatus.DONE.value),
     (PipelineStepStatus.RUNNING.value, PipelineStepStatus.DONE.value),
     (PipelineStepStatus.RUNNING.value, PipelineStepStatus.FAILED.value),
     (PipelineStepStatus.RUNNING.value, PipelineStepStatus.DEGRADED.value),
-    (PipelineStepStatus.FAILED.value, PipelineStepStatus.RUNNING.value),   # 重试
+    (PipelineStepStatus.FAILED.value, PipelineStepStatus.RUNNING.value),
+    (PipelineStepStatus.FAILED.value, PipelineStepStatus.DEGRADED.value),
+    (PipelineStepStatus.FAILED.value, PipelineStepStatus.FAILED.value),
 }
 
 
@@ -466,3 +469,32 @@ def get_artifact_by_hash(db: Session, content_hash: str) -> Optional[Artifact]:
         Artifact 实例或 None。
     """
     return db.query(Artifact).filter(Artifact.content_hash == content_hash).first()
+
+
+def increment_step_retried_count(db: Session, step_id: int) -> None:
+    """递增 Step 重试计数。
+
+    Args:
+        db: 数据库会话。
+        step_id: Step ID。
+    """
+    step = db.query(PipelineStep).filter(PipelineStep.id == step_id).first()
+    if step is not None:
+        step.retried_count = (step.retried_count or 0) + 1
+        db.flush()
+
+
+def update_step_output_artifact_ids(
+    db: Session, step_id: int, artifact_ids: List[int],
+) -> None:
+    """更新 Step 的输出产物 ID 列表。
+
+    Args:
+        db: 数据库会话。
+        step_id: Step ID。
+        artifact_ids: 产物 ID 列表。
+    """
+    step = db.query(PipelineStep).filter(PipelineStep.id == step_id).first()
+    if step is not None:
+        step.output_artifact_ids = artifact_ids
+        db.flush()

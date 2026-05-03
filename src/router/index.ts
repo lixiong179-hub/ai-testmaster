@@ -210,6 +210,22 @@ const routes: RouteRecordRaw[] = [
               title: '用例质量分析',
             },
           },
+          {
+            path: 'pipeline/:runId',
+            name: 'PipelineProgress',
+            component: () => import('../views/iteration/PipelineProgress.vue'),
+            meta: {
+              title: 'Pipeline 进度',
+            },
+          },
+          {
+            path: 'iteration/:iterationId/review/:reviewId',
+            name: 'ReviewInbox',
+            component: () => import('../views/iteration/ReviewInbox.vue'),
+            meta: {
+              title: '评审 Inbox',
+            },
+          },
         ],
       },
       // 测试任务管理菜单

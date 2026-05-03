@@ -17,14 +17,14 @@ from app.core.exception import AuthenticationError
 
 
 class TestUtcnow:
-    def test_returns_timezone_aware_datetime(self):
+    def test_returns_naive_datetime_for_mysql_compat(self):
         result = _utcnow()
-        assert result.tzinfo is not None
+        assert result.tzinfo is None
 
     def test_returns_recent_time(self):
-        before = datetime.now(timezone.utc)
+        before = datetime.utcnow()
         result = _utcnow()
-        after = datetime.now(timezone.utc)
+        after = datetime.utcnow()
         assert before <= result <= after
 
 

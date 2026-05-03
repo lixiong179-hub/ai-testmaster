@@ -1,0 +1,37 @@
+[
+  {
+    "name": "用户登录",
+    "key": "user_login",
+    "description": "用户通过用户名和密码登录系统，支持记住密码功能",
+    "confidence": 0.9,
+    "supporting_evidence": "登录页面包含用户名、密码输入框、记住密码复选框和登录按钮"
+  },
+  {
+    "name": "用户注册",
+    "key": "user_registration",
+    "description": "新用户通过填写用户名、邮箱、密码创建账号",
+    "confidence": 0.9,
+    "supporting_evidence": "注册页面包含用户名、邮箱、密码、确认密码输入框和注册按钮"
+  },
+  {
+    "name": "密码找回",
+    "key": "password_recovery",
+    "description": "用户通过注册邮箱找回密码，发送重置邮件",
+    "confidence": 0.85,
+    "supporting_evidence": "密码找回页面包含邮箱输入框和发送重置邮件按钮"
+  },
+  {
+    "name": "登录状态保持",
+    "key": "session_persistence",
+    "description": "通过记住密码实现 7 天免登录的会话保持",
+    "confidence": 0.7,
+    "supporting_evidence": "登录页面有记住密码复选框，暗示需要会话持久化"
+  },
+  {
+    "name": "页面导航",
+    "key": "page_navigation",
+    "description": "登录、注册、密码找回页面间的互跳导航",
+    "confidence": 0.8,
+    "supporting_evidence": "各页面均存在跨页面跳转链接"
+  }
+]

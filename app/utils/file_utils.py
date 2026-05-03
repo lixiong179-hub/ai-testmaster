@@ -85,9 +85,9 @@ DANGEROUS_MIMES = {
 
 # 资源类型关键词映射 — 文件名中包含这些关键词时自动归类到对应资源类型
 RESOURCE_TYPE_KEYWORDS = {
+    'api_doc': ['api', '接口', 'swagger', 'openapi'],
     'requirement': ['需求', 'requirement', 'spec', '规格', 'prd', 'brd'],
     'ui_mockup': ['ui', '原型', 'mockup', '设计', 'design', 'figma', 'axure', '图'],
-    'api_doc': ['api', '接口', 'swagger', 'openapi'],
     'test_data': ['测试数据', 'testdata', '用例'],
 }
 

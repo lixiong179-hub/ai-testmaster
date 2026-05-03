@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { testPointApi, type TestPoint } from '@/api/testPoint'
 import { fileApi, type ProjectFile } from '@/api/file'
@@ -31,7 +31,7 @@ export interface GeneratedCase {
     module: string
     case_type: string
     precondition: string
-    test_data?: Record<string, string | number | boolean | null>[]
+    test_data?: Record<string, Record<string, string | number | boolean | null>>
     steps: GeneratedStep[]
     expected_result: string
     priority: number
@@ -255,6 +255,10 @@ export const useGenerateStore = defineStore('generate', () => {
         if (progress.value === 100) return 'success'
         if (errorMessage.value) return 'exception'
         return ''
+    })
+
+    watch(currentCaseIndex, () => {
+        isEditingResult.value = false
     })
 
     // ========== 项目和文件操作 ==========

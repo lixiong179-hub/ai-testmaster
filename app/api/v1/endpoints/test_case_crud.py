@@ -31,6 +31,7 @@ from app.schemas.test_case import (
     TestCaseCreate, TestCaseUpdate, TestCaseListResponse,
 )
 from app.models.test_case import TestCase, TestStep
+from app.models.enums import TestCaseLifecycleStatus
 from app.models.test_data import TestData, DataType, GenerationRule
 from app.models.project import Project
 from app.models.user import User
@@ -141,7 +142,7 @@ async def create_test_case(
 async def get_test_cases(
     project_id: Optional[int] = Query(default=None, description="项目ID"),
     requirement_file_id: Optional[int] = Query(default=None, description="需求文件ID"),
-    lifecycle_status: Optional[str] = Query(default=None, description="生命周期状态"),
+    lifecycle_status: Optional[str] = Query(default=None, description="生命周期状态（逗号分隔多值）"),
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
@@ -172,7 +173,18 @@ async def get_test_cases(
     if requirement_file_id:
         query = query.filter(TestCase.requirement_file_id == requirement_file_id)
     if lifecycle_status:
-        query = query.filter(TestCase.lifecycle_status == lifecycle_status)
+        valid_statuses = {s.value for s in TestCaseLifecycleStatus}
+        statuses = [s.strip() for s in lifecycle_status.split(",") if s.strip()]
+        invalid = [s for s in statuses if s not in valid_statuses]
+        if invalid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"无效的生命周期状态: {', '.join(invalid)}",
+            )
+        if len(statuses) == 1:
+            query = query.filter(TestCase.lifecycle_status == statuses[0])
+        elif statuses:
+            query = query.filter(TestCase.lifecycle_status.in_(statuses))
 
     offset = (page - 1) * page_size
 

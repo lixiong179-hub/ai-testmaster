@@ -13,6 +13,7 @@ import os
     - GET    /{iteration_id}          - 获取迭代详情（含 inputs）
     - PUT    /{iteration_id}          - 更新迭代
     - DELETE /{iteration_id}          - 删除迭代
+    - POST   /{iteration_id}/finalize - 定稿迭代
     - POST   /{iteration_id}/inputs   - 添加迭代输入
 
 权限要求: 所有端点需要Bearer令牌认证
@@ -282,6 +283,40 @@ async def delete_iteration(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"删除迭代失败: {str(e)}")
+
+
+@router.post("/{iteration_id}/finalize", response_model=dict)
+async def finalize_iteration(
+    iteration_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """定稿迭代（仅 in_review 状态可定稿）"""
+    try:
+        iteration = iteration_service.get_iteration(db=db, iteration_id=iteration_id)
+        if not iteration:
+            raise HTTPException(status_code=404, detail="迭代不存在")
+
+        _verify_project_ownership(db=db, project_id=iteration.project_id, current_user=current_user)
+
+        finalized = iteration_service.finalize_iteration(db=db, iteration_id=iteration_id)
+        db.commit()
+
+        return create_response(
+            data=_iteration_to_dict(finalized),
+            msg="定稿成功"
+        )
+    except iteration_service.IterationStatusTransitionError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="定稿迭代失败")
 
 
 @router.post("/{iteration_id}/inputs", response_model=dict)

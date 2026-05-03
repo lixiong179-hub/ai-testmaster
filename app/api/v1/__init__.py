@@ -21,6 +21,7 @@ API V1版本路由模块
     - /quality           - 用例质量（检查/报告）
     - /report            - 测试报告管理
     - /visibility        - 可见性管理
+    - /audit-log         - 审计日志
 
 注意:
     - 所有模块均在自身APIRouter中定义了prefix，此处不再重复添加
@@ -32,7 +33,7 @@ from app.api.v1.endpoints import (
     auth, user, test_task, project, file, test_point, test_case,
     requirement_link, ui_prototype, iteration, execution,
     execution_visualization, batch_locator, test_data, case_quality,
-    report, visibility
+    report, visibility, audit_log, pipeline, review_inbox
 )
 
 api_router = APIRouter()
@@ -87,3 +88,12 @@ api_router.include_router(report.router, tags=["测试报告管理"])
 
 # 可见性管理路由（模块自带prefix=/visibility）
 api_router.include_router(visibility.router, tags=["可见性管理"])
+
+# 审计日志路由（模块自带prefix=/audit-log）
+api_router.include_router(audit_log.router, tags=["审计日志"])
+
+# Pipeline管理路由（模块自带prefix=/pipeline）
+api_router.include_router(pipeline.router, tags=["Pipeline管理"])
+
+# 评审Inbox路由（模块自带prefix=/review）
+api_router.include_router(review_inbox.router, tags=["评审Inbox"])

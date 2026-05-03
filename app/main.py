@@ -11,7 +11,10 @@ from app.db.database import init_db
 from app.db.database import PrimarySessionLocal
 from app.models.user import User
 from app.utils.jwt_utils import get_password_hash
-from app.api.v1.endpoints import auth, project, file, test_task, report, test_point, user, websocket, test_case, batch_locator, test_data, execution_visualization, case_quality, execution, visibility, requirement_link, ui_prototype, iteration
+from app.api.v1.endpoints import auth, project, file, test_task, report, test_point
+from app.api.v1.endpoints import user, websocket, test_case, batch_locator, test_data
+from app.api.v1.endpoints import execution_visualization, case_quality, execution, visibility
+from app.api.v1.endpoints import requirement_link, ui_prototype, iteration, pipeline, review_inbox
 from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
@@ -124,6 +127,8 @@ app.include_router(visibility.router, prefix="/api/v1")
 app.include_router(report.router, prefix="/api/v1")
 app.include_router(ui_prototype.router, prefix="/api/v1")
 app.include_router(iteration.router, prefix="/api/v1")
+app.include_router(pipeline.router, prefix="/api/v1")
+app.include_router(review_inbox.router, prefix="/api/v1")
 
 
 # 根路径

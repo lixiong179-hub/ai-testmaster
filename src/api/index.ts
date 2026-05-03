@@ -140,6 +140,30 @@ export type {
   ViewStatistics,
 } from './testCaseView'
 
+// Pipeline API
+export { pipelineApi } from './pipeline'
+export type {
+  PipelineRun,
+  PipelineStep,
+  PipelineArtifact,
+  PipelineRunStatus,
+  PipelineStepStatus,
+  PipelineRunRequest,
+  PipelineResumeRequest,
+  PipelineRunResponse,
+} from './pipeline'
+
+// 评审 API
+export { reviewApi } from './review'
+export type {
+  ReviewDecision,
+  DecideRequest,
+  BatchDecideItem,
+  BatchDecideRequest,
+  DecisionListResponse,
+  FinalizeResponse,
+} from './review'
+
 // 文件 API
 export { fileApi, FileAPI, default } from './file'
 export type {

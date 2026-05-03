@@ -39,40 +39,8 @@ _UID = int(time.time()) % 100000
 
 
 @pytest.fixture(scope="function")
-def db_session():
-    """创建测试数据库会话（真实MySQL数据库）"""
-    engine = create_engine(settings.DATABASE_URL)
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine)
-    session = SessionLocal()
-
-    yield session
-
-    try:
-        session.rollback()
-    except Exception:
-        pass
-    try:
-        session.query(ElementLocator).filter(
-            ElementLocator.element_description == "自愈测试登录按钮"
-        ).delete()
-        session.query(TestStep).filter(
-            TestStep.action == "自愈测试点击操作"
-        ).delete()
-        session.query(TestCaseExecution).filter(
-            TestCaseExecution.actual_result == "自愈测试执行结果"
-        ).delete()
-        session.query(TestCase).filter(
-            TestCase.case_no.like("SH-TEST-%")
-        ).delete()
-        session.query(Project).filter(
-            Project.name.like("自愈测试项目%")
-        ).delete()
-        session.commit()
-    except Exception:
-        session.rollback()
-    finally:
-        session.close()
+def db_session(db):
+    return db
 
 
 @pytest.fixture
@@ -86,12 +54,12 @@ def engine_no_browser(db_session):
 
 
 @pytest.fixture
-def seed_project(db_session):
+def seed_project(db_session, testUser):
     """创建测试项目"""
     project = Project(
         name=f"自愈测试项目-{_UID}",
         description="AI自愈功能测试专用",
-        user_id=1,
+        user_id=testUser.id,
         project_type="web",
         status=1,
     )
