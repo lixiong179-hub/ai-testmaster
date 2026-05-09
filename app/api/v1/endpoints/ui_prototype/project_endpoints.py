@@ -23,12 +23,14 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.schemas.ui_prototype import UIPrototypeProjectCreate
+from app.schemas.ui_prototype import UIPrototypeProjectCreate, FlowDataSaveRequest, FlowDataResponse
 from app.models.user import User
 from app.models.project import Project
 from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen, UIScreenTestCaseLink
+from app.models.project_flow_data import ProjectFlowData
 from app.api.v1.endpoints.auth import get_current_user
 from app.crud import ui_prototype as ui_prototype_crud
+from app.crud.project_flow_data import save_project_flow_data, get_project_flow_data
 from app.api.v1.endpoints.ui_prototype.helpers import _build_screen_response
 from app.core.exception import create_response
 from loguru import logger
@@ -229,4 +231,89 @@ async def delete_prototype_project(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除UI原型项目失败，请稍后重试"
+        )
+
+
+@router.put("/flow/{project_id}", response_model=dict)
+async def save_flow_data(
+    project_id: int,
+    flow_request: FlowDataSaveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    保存项目流程数据（upsert）
+
+    根据project_id保存或更新项目的流程编辑数据（nodes/edges/module_info），
+    每个项目仅保留一条记录。存在则更新，不存在则新增。
+    """
+    try:
+        project = (
+            db.query(Project)
+            .filter(Project.id == project_id, Project.user_id == current_user.id)
+            .first()
+        )
+
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+            )
+
+        result: ProjectFlowData = save_project_flow_data(
+            db=db,
+            project_id=project_id,
+            flow_data=flow_request.flow_data,
+        )
+
+        return create_response(data=result, msg="保存成功")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"保存项目流程数据失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="保存项目流程数据失败，请稍后重试"
+        )
+
+
+@router.get("/flow/{project_id}", response_model=dict)
+async def get_flow_data(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    获取项目流程数据
+
+    根据project_id查询项目的流程编辑数据。
+    若存在已保存数据则返回完整数据，否则返回data=None及提示信息。
+    """
+    try:
+        project = (
+            db.query(Project)
+            .filter(Project.id == project_id, Project.user_id == current_user.id)
+            .first()
+        )
+
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+            )
+
+        result: Optional[ProjectFlowData] = get_project_flow_data(
+            db=db,
+            project_id=project_id,
+        )
+
+        if result:
+            return create_response(data=result)
+        else:
+            return create_response(data=None, msg="暂无保存数据")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取项目流程数据失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取项目流程数据失败，请稍后重试"
         )

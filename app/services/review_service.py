@@ -373,6 +373,9 @@ def undo_decision(
     )
     db.add(audit)
     db.flush()
+
+    _record_undo_metric(db, decision.target_id)
+
     return decision
 
 
@@ -544,3 +547,15 @@ def get_decisions(
     if target_kind:
         query = query.filter(ReviewDecision.target_kind == target_kind)
     return query.all()
+
+
+def _record_undo_metric(db: Session, target_id: Optional[int]) -> None:
+    """记录 F13 评审撤销指标（失败不阻塞业务）。"""
+    try:
+        from app.services.metrics_service import record_metric
+        record_metric(
+            "review_undo",
+            detail={"target_id": target_id},
+        )
+    except Exception:
+        pass

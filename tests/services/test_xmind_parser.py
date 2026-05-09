@@ -1,14 +1,14 @@
-"""XMind 解析器单元测试。
+"""XMind 解析器单元测试�?
 
 覆盖场景:
     - 正常解析样例文件
-    - 空文件/无子节点
+    - 空文�?无子节点
     - 深层嵌套
     - 特殊字符
     - 无效文件格式
     - 缺失 content.xml
-    - 字段映射正确性
-    - 优先级识别
+    - 字段映射正确�?
+    - 优先级识�?
     - 字段超长截断
 """
 import os
@@ -28,15 +28,15 @@ def _create_xmind_file(
     content_xml: str,
     extra_files: dict | None = None,
 ) -> str:
-    """创建测试用 XMind 文件。
+    """创建测试�?XMind 文件�?
 
     Args:
-        path: 输出文件路径。
-        content_xml: content.xml 内容字符串。
-        extra_files: 额外文件字典 {filename: content}。
+        path: 输出文件路径�?
+        content_xml: content.xml 内容字符串�?
+        extra_files: 额外文件字典 {filename: content}�?
 
     Returns:
-        创建的文件路径。
+        创建的文件路径�?
     """
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("content.xml", content_xml)
@@ -48,19 +48,19 @@ def _create_xmind_file(
 
 
 def _build_content_xml(topics_xml: str) -> str:
-    """构建 content.xml 字符串。
+    """构建 content.xml 字符串�?
 
     Args:
-        topics_xml: 主题 XML 片段。
+        topics_xml: 主题 XML 片段�?
 
     Returns:
-        完整的 content.xml 字符串。
+        完整�?content.xml 字符串�?
     """
     return f"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <xmap-content xmlns="{NS}" version="2.0">
 <sheet id="test-sheet">
 <topic id="root" structure-class="org.xmind.ui.logic.right">
-<title>根主题</title>
+<title>根主�?/title>
 <children><topics type="attached">
 {topics_xml}
 </topics></children>
@@ -76,17 +76,17 @@ def _build_topic(
     marker_refs_xml: str = "",
     notes_xml: str = "",
 ) -> str:
-    """构建单个 topic XML 片段。
+    """构建单个 topic XML 片段�?
 
     Args:
-        title: 主题标题。
-        topic_id: 主题 ID。
-        children_xml: 子主题 XML。
-        marker_refs_xml: 标记引用 XML。
-        notes_xml: 备注 XML。
+        title: 主题标题�?
+        topic_id: 主题 ID�?
+        children_xml: 子主�?XML�?
+        marker_refs_xml: 标记引用 XML�?
+        notes_xml: 备注 XML�?
 
     Returns:
-        topic XML 字符串。
+        topic XML 字符串�?
     """
     if not topic_id:
         topic_id = f"topic-{title}"
@@ -106,7 +106,7 @@ def parser() -> XmindParser:
 
 @pytest.fixture
 def valid_xmind(tmp_path) -> str:
-    """创建包含标准三级结构的 XMind 测试文件。"""
+    """创建包含标准三级结构�?XMind 测试文件�?""
     l3_a = _build_topic("点击登录按钮", "l3-a")
     l3_b = _build_topic("输入密码", "l3-b")
     l2 = _build_topic("账号密码登录", "l2", children_xml=l3_a + l3_b)
@@ -117,7 +117,7 @@ def valid_xmind(tmp_path) -> str:
 
 @pytest.fixture
 def deep_nesting_xmind(tmp_path) -> str:
-    """创建深层嵌套的 XMind 测试文件。"""
+    """创建深层嵌套�?XMind 测试文件�?""
     inner = _build_topic("L6节点", "l6")
     l5 = _build_topic("L5节点", "l5", children_xml=inner)
     l4 = _build_topic("L4节点", "l4", children_xml=l5)
@@ -130,20 +130,20 @@ def deep_nesting_xmind(tmp_path) -> str:
 
 @pytest.fixture
 def empty_xmind(tmp_path) -> str:
-    """创建只有根主题无子节点的 XMind 文件。"""
+    """创建只有根主题无子节点的 XMind 文件�?""
     content = _build_content_xml("")
     return _create_xmind_file(str(tmp_path / "empty.xmind"), content)
 
 
 @pytest.fixture
 def priority_xmind(tmp_path) -> str:
-    """创建包含优先级标记的 XMind 文件。"""
+    """创建包含优先级标记的 XMind 文件�?""
     l3_high = _build_topic(
-        "高优先级测试点", "l3-h",
+        "高优先级测试�?, "l3-h",
         marker_refs_xml='<marker-ref marker-id="priority-1"/>',
     )
     l3_low = _build_topic(
-        "低优先级测试点", "l3-l",
+        "低优先级测试�?, "l3-l",
         marker_refs_xml='<marker-ref marker-id="priority-3"/>',
     )
     l3_default = _build_topic("默认优先级测试点", "l3-d")
@@ -158,8 +158,8 @@ def priority_xmind(tmp_path) -> str:
 
 @pytest.fixture
 def notes_xmind(tmp_path) -> str:
-    """创建包含备注的 XMind 文件。"""
-    l3 = _build_topic("有备注的测试点", "l3", notes_xml="这是备注内容")
+    """创建包含备注�?XMind 文件�?""
+    l3 = _build_topic("有备注的测试�?, "l3", notes_xml="这是备注内容")
     l2 = _build_topic("功能A", "l2", children_xml=l3)
     l1 = _build_topic("模块A", "l1", children_xml=l2)
     content = _build_content_xml(l1)
@@ -167,7 +167,7 @@ def notes_xmind(tmp_path) -> str:
 
 
 class TestXmindParserCore:
-    """XmindParser 核心解析逻辑测试。"""
+    """XmindParser 核心解析逻辑测试�?""
 
     def test_parse_valid_file(self, parser: XmindParser, valid_xmind: str) -> None:
         result = parser.parse(valid_xmind)
@@ -191,7 +191,7 @@ class TestXmindParserCore:
     def test_parse_invalid_zip(self, parser: XmindParser, tmp_path) -> None:
         invalid_file = tmp_path / "invalid.xmind"
         invalid_file.write_text("this is not a zip file")
-        with pytest.raises(XmindParseError, match="无效的 XMind 文件格式"):
+        with pytest.raises(XmindParseError, match="无效�?XMind 文件格式"):
             parser.parse(str(invalid_file))
 
     def test_parse_missing_content_xml(self, parser: XmindParser, tmp_path) -> None:
@@ -210,7 +210,7 @@ class TestXmindParserCore:
 
 
 class TestFieldMapping:
-    """字段映射规则测试。"""
+    """字段映射规则测试�?""
 
     def test_module_function_point_mapping(self, parser: XmindParser, valid_xmind: str) -> None:
         result = parser.parse(valid_xmind)
@@ -225,8 +225,8 @@ class TestFieldMapping:
     def test_priority_detection(self, parser: XmindParser, priority_xmind: str) -> None:
         result = parser.parse(priority_xmind)
         priorities = {r["point"]: r["priority"] for r in result}
-        assert priorities["高优先级测试点"] == 1
-        assert priorities["低优先级测试点"] == 3
+        assert priorities["高优先级测试�?] == 1
+        assert priorities["低优先级测试�?] == 3
         assert priorities["默认优先级测试点"] == 2
 
     def test_notes_appended_to_point(self, parser: XmindParser, notes_xmind: str) -> None:
@@ -272,11 +272,11 @@ class TestFieldMapping:
 
 
 class TestFieldTruncation:
-    """字段超长截断测试。"""
+    """字段超长截断测试�?""
 
     def test_module_truncation(self, parser: XmindParser, tmp_path) -> None:
         long_name = "A" * 150
-        l2 = _build_topic("叶子测试点", "l2")
+        l2 = _build_topic("叶子测试�?, "l2")
         l1 = _build_topic(long_name, "l1", children_xml=l2)
         content = _build_content_xml(l1)
         xmind_file = _create_xmind_file(str(tmp_path / "long_module.xmind"), content)
@@ -295,7 +295,7 @@ class TestFieldTruncation:
 
 
 class TestExtractPaths:
-    """extract_paths 路径提取测试。"""
+    """extract_paths 路径提取测试�?""
 
     def test_extract_paths_basic(self, parser: XmindParser, valid_xmind: str) -> None:
         paths = parser.extract_paths(valid_xmind)
@@ -333,11 +333,11 @@ class TestExtractPaths:
 
 
 class TestSampleFile:
-    """样例文件解析测试。"""
+    """样例文件解析测试�?""
 
     @pytest.mark.skipif(
         not os.path.exists(SAMPLE_XMIND),
-        reason="样例文件不存在",
+        reason="样例文件不存�?,
     )
     def test_parse_sample_file(self, parser: XmindParser) -> None:
         result = parser.parse(SAMPLE_XMIND)
@@ -345,11 +345,11 @@ class TestSampleFile:
         modules = {r["module"] for r in result}
         assert "字词听写" in modules
         assert "单词听写" in modules
-        assert "生词本" in modules
+        assert "生词�? in modules
 
     @pytest.mark.skipif(
         not os.path.exists(SAMPLE_XMIND),
-        reason="样例文件不存在",
+        reason="样例文件不存�?,
     )
     def test_sample_all_fields_valid(self, parser: XmindParser) -> None:
         result = parser.parse(SAMPLE_XMIND)

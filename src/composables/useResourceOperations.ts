@@ -42,7 +42,9 @@ export function useResourceOperations(
     // 携带迭代信息（仅当有有效迭代ID时才携带）
     if (row.iteration_id && row.iteration_id > 0) {
       baseQuery.iteration_id = String(row.iteration_id)
-      const iteration = iterationManager.iterations.find((it: Iteration) => it.id === row.iteration_id)
+      const iteration = iterationManager.iterations.find(
+        (it: Iteration) => it.id === row.iteration_id
+      )
       if (iteration) {
         baseQuery.iteration_name = iteration.name
       }

@@ -56,6 +56,7 @@ class PipelineContext:
         self._artifacts: Dict[str, Artifact] = {}
         self._confirmation_payload: Optional[Dict[str, Any]] = None
         self._pause_info: Optional[Dict[str, Any]] = None
+        self._cached_project_id: Optional[int] = None
 
     def get_artifact(self, kind: str) -> Optional[Dict[str, Any]]:
         """获取指定类型的产物载荷。

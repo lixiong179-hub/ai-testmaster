@@ -106,7 +106,7 @@ class TestUserService:
         db.commit()
 
     def test_create_duplicate_email(self, db):
-        """测试创建重复邮箱应失败"""
+        """测试创建重复邮箱应失�?""
         UserService.create_user(
             db,
             {"username": "email_user1", "email": "same@example.com", "password": "pass123"}
@@ -159,7 +159,7 @@ class TestUserService:
         )
         assert updated.email == "updated_sync@example.com"
 
-    @pytest.mark.skip(reason="DB查询返回生产库用户列表，test DB与生产DB隔离需进一步排查")
+    @pytest.mark.skip(reason="DB查询返回生产库用户列表，test DB与生产DB隔离需进一步排�?)
     def test_get_users(self, db, test_user):
         """测试获取用户列表"""
         users = UserService.get_users(db)
@@ -177,17 +177,17 @@ class TestRoleService:
         """测试创建角色"""
         role = RoleService.create_role(
             db,
-            {"name": "role_new", "desc": "新角色", "permissions": ["perm1"]}
+            {"name": "role_new", "desc": "新角�?, "permissions": ["perm1"]}
         )
         assert role.name == "role_new"
-        assert role.desc == "新角色"
+        assert role.desc == "新角�?
         db.query(Role).filter(Role.id == role.id).delete()
         db.commit()
 
     def test_create_duplicate_role(self, db):
         """测试创建重复角色"""
         RoleService.create_role(
-            db, {"name": "dup_role", "desc": "原角色"}
+            db, {"name": "dup_role", "desc": "原角�?}
         )
         with pytest.raises(Exception):
             RoleService.create_role(
@@ -228,9 +228,9 @@ class TestPermissionService:
         """测试创建权限"""
         perm = PermissionService.create_permission(
             db,
-            {"name": "新权限", "code": "new:perm:code", "type": "api", "parent_id": None}
+            {"name": "新权�?, "code": "new:perm:code", "type": "api", "parent_id": None}
         )
-        assert perm.name == "新权限"
+        assert perm.name == "新权�?
         assert perm.code == "new:perm:code"
         db.query(Permission).filter(Permission.id == perm.id).delete()
         db.commit()
@@ -273,7 +273,7 @@ class TestPermissionService:
 
 
 def db_func_session(user_id):
-    """辅助：为update/get操作提供独立session（避免fixture的session已rollback）"""
+    """辅助：为update/get操作提供独立session（避免fixture的session已rollback�?""
     return PrimarySessionLocal()
 
 

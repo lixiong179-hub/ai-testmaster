@@ -252,15 +252,24 @@ class UnifiedVisionModel:
     
     def _parse_response(self, response: Dict[str, Any]) -> Optional[str]:
         """解析响应"""
-        # 文心一言使用不同的响应格式
         if self.model_type == VisionModelType.BAIDU:
             return self._parse_baidu_response(response)
 
-        # 标准OpenAI格式（Kimi、智谱、豆包、通义千问、MiMo）
+        if not isinstance(response, dict):
+            logger.error(f"解析响应失败: 响应非dict类型: {type(response).__name__}")
+            return None
+
+        if "error" in response:
+            error_info = response["error"]
+            error_msg = error_info.get("message", str(error_info)) if isinstance(error_info, dict) else str(error_info)
+            logger.error(f"API返回错误: {error_msg}")
+            return None
+
         try:
             return response["choices"][0]["message"]["content"]
-        except (KeyError, IndexError) as e:
-            logger.error(f"解析响应失败: {e}")
+        except (KeyError, IndexError, TypeError) as e:
+            resp_keys = list(response.keys()) if isinstance(response, dict) else 'N/A'
+            logger.error(f"解析响应失败: {e}, 响应键: {resp_keys}")
             return None
     
     def _parse_baidu_response(self, response: Dict[str, Any]) -> Optional[str]:
@@ -317,20 +326,27 @@ class UnifiedVisionModel:
         return None
 
     def _handle_request_error(self, error: requests.RequestException):
-        """处理请求错误"""
-        error_str = str(error)
+        """处理请求错误，基于HTTP状态码精确分类"""
         model_name = self.model_type.value
-        
-        if "401" in error_str:
+
+        status_code = None
+        if hasattr(error, 'response') and error.response is not None:
+            status_code = error.response.status_code
+
+        if status_code == 401:
             logger.error(f"{model_name} API 认证失败，请检查 API Key")
-        elif "429" in error_str:
+        elif status_code == 429:
             logger.error(f"{model_name} API 请求频率过高，请稍后重试")
-        elif "403" in error_str:
+        elif status_code == 403:
             logger.error(f"{model_name} API 权限不足")
-        elif "404" in error_str:
+        elif status_code == 404:
             logger.error(f"{model_name} API 地址错误")
-        elif "timeout" in error_str.lower():
+        elif status_code is not None and status_code >= 500:
+            logger.error(f"{model_name} API 服务端错误 (HTTP {status_code})")
+        elif "timeout" in str(error).lower():
             logger.error(f"{model_name} API 请求超时")
+        else:
+            logger.error(f"{model_name} API 请求失败: {error}")
     
     # ==================== 公共API方法 ====================
     
@@ -443,7 +459,12 @@ class UnifiedVisionModel:
         
         return self._parse_verification_result(content)
 
-    def analyze_text(self, prompt: str, system_prompt: Optional[str] = None, temperature: Optional[float] = None) -> str:
+    def analyze_text(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None
+    ) -> str:
         """
         纯文本LLM调用（不传图片）
         
@@ -578,25 +599,28 @@ class UnifiedVisionModel:
 # ==================== 工厂函数 ====================
 
 def create_vision_model(
-    model_type: str = "kimi",
+    model_type: Optional[str] = None,
     **kwargs
 ) -> UnifiedVisionModel:
-    """
-    创建视觉模型的便捷函数
-    
+    """创建视觉模型的便捷函数
+
     Args:
-        model_type: 模型类型名称 (kimi/zhipu/qwen/baidu/doubao/mimo)
+        model_type: 模型类型名称 (kimi/zhipu/qwen/baidu/doubao/mimo)，
+                    为None时从settings.VISION_MODEL_DEFAULT读取
         **kwargs: 其他配置参数
-        
+
     Returns:
         UnifiedVisionModel实例
     """
+    if model_type is None:
+        from app.core.config import settings
+        model_type = getattr(settings, 'VISION_MODEL_DEFAULT', 'mimo')
     try:
         model_enum = VisionModelType(model_type.lower())
     except ValueError:
         logger.error(f"不支持的模型类型: {model_type}，使用默认模型mimo")
         model_enum = VisionModelType.MIMO
-    
+
     return UnifiedVisionModel(model_type=model_enum, **kwargs)
 
 

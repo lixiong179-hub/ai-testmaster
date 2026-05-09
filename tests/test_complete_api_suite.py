@@ -40,7 +40,7 @@ def _backend_available():
 
 _BACKEND_OK = _backend_available()
 skip_if_no_backend = pytest.mark.skipif(
-    not _BACKEND_OK, reason=f"后端服务不可用 ({BASE_URL})，请先启动 FastAPI 服务"
+    not _BACKEND_OK, reason=f"后端服务不可�?({BASE_URL})，请先启�?FastAPI 服务"
 )
 
 

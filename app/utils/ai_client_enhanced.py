@@ -43,6 +43,18 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> Dict[str, Any]:
         weight_desc, weight_example, weight_warning = build_weight_model(has_requirement, has_ui, has_test_point)
         ui_desc = build_ui_specs_description(ui_specs) if has_ui else "无UI原型图解析结果"
         env_desc = build_project_env_info(project_config)
+        history_cases = context.get('history_cases', [])
+        history_cases_text = ""
+        if history_cases:
+            history_cases_text = "## 项目已有测试用例（用例评审）\n\n"
+            history_cases_text += "以下为项目已有的测试用例，请逐条对照新需求/UI进行评审：\n"
+            history_cases_text += "- 查漏：新场景未被任何旧用例覆盖 → 生成新用例（change_type=added）\n"
+            history_cases_text += "- 补缺：旧用例的步骤/预期与新代码或UI不一致 → 输出修正后的用例（change_type=modified，parent_case_id=原用例ID）\n"
+            history_cases_text += "- 去冗：旧用例对应的场景已不存在 → 标注建议废弃（change_type=deprecated，parent_case_id=原用例ID）\n"
+            history_cases_text += "- 保留：旧用例仍完全符合当前场景 → 无需重复生成\n\n"
+            for i, case in enumerate(history_cases, 1):
+                desc = case.get("summary", "") or case.get("expected_result", "") or "无摘要"
+                history_cases_text += f"  {i}. [{case.get('module', '')}] {case.get('title', '')} (ID:{case.get('id', '')}) — {desc}\n"
         test_points_text = ""
         if test_points:
             test_points_text = "## 测试点列表\n"
@@ -80,6 +92,10 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> Dict[str, Any]:
 
 ---
 
+{history_cases_text}
+
+---
+
 ## 输出格式要求
 请严格按照以下JSON格式输出（不要添加markdown代码块标记）：
 {{
@@ -101,7 +117,9 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> Dict[str, Any]:
       "expected_result": "该步骤的预期验证条件"
     }}
   ],
-  "expected_result": "所有步骤预期结果的汇总描述"
+  "expected_result": "所有步骤预期结果的汇总描述",
+  "change_type": "added/modified/deprecated（无参考用例时为added）",
+  "parent_case_id": "原用例ID（仅modified/deprecated时填写，added时为null）"
 }}
 
 ## 标题规范
@@ -187,7 +205,7 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> Dict[str, Any]:
             response = client.chat.completions.create(
                 model=client.model_name,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
+                temperature=0.3,  # 统一低温度，输出稳定
                 max_tokens=2000
             )
             resp_content = response.choices[0].message.content

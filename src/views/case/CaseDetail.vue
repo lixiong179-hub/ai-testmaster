@@ -30,11 +30,7 @@
               复制用例
             </el-button>
             <el-button @click="openVersionHistory" :disabled="!caseId"> 版本历史 </el-button>
-            <el-button
-              :loading="exportingExcel"
-              :disabled="!caseId"
-              @click="handleExportExcel"
-            >
+            <el-button :loading="exportingExcel" :disabled="!caseId" @click="handleExportExcel">
               导出Excel
             </el-button>
             <el-button
@@ -138,6 +134,23 @@
               {{ formatTime(caseItem.create_time) }}
             </el-descriptions-item>
           </el-descriptions>
+        </div>
+
+        <!-- 血缘关系 -->
+        <div v-if="!isEditing" class="section">
+          <div class="section-header">
+            <h3 class="section-title">血缘关系</h3>
+            <el-button size="small" text @click="lineageExpanded = !lineageExpanded">
+              {{ lineageExpanded ? '收起' : '展开' }}
+              <el-icon>
+                <ArrowUp v-if="lineageExpanded" />
+                <ArrowDown v-else />
+              </el-icon>
+            </el-button>
+          </div>
+          <div v-show="lineageExpanded">
+            <LineageTree :case-id="caseId" />
+          </div>
         </div>
 
         <!-- 前置条件 -->
@@ -780,6 +793,8 @@ import {
   DocumentCopy,
   Warning,
   Guide,
+  ArrowUp,
+  ArrowDown,
 } from '@element-plus/icons-vue'
 import { testCaseApi } from '@/api/case'
 import { testCaseViewApi } from '@/api/testCaseView'
@@ -788,6 +803,7 @@ import { createQuickVerify } from '@/api/testExecution'
 import type { TestCase } from '@/types/testCase'
 import type { TechnicalView } from '@/api/testCaseView'
 import BatchLocatorDialog from './BatchLocatorDialog.vue'
+import LineageTree from '@/components/case/LineageTree.vue'
 import { getLocatorTypeLabel, getLocatorTypeTagType } from '@/utils/locatorType'
 
 // ==================== 常量定义 ====================
@@ -817,6 +833,7 @@ const router = useRouter()
 const loading = ref(false)
 const saving = ref(false)
 const isEditing = ref(false)
+const lineageExpanded = ref(false)
 const currentView = ref<(typeof VIEW_TYPES)[keyof typeof VIEW_TYPES]>(VIEW_TYPES.BUSINESS)
 const viewLoading = ref(false)
 const technicalViewData = ref<TechnicalView | null>(null)

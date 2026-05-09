@@ -5,7 +5,9 @@
         <div class="card-header">
           <div>
             <div class="card-title">测试任务列表</div>
-            <div class="card-subtitle">查看任务进度、执行结果和关键状态，适合作为项目任务总览入口。</div>
+            <div class="card-subtitle">
+              查看任务进度、执行结果和关键状态，适合作为项目任务总览入口。
+            </div>
           </div>
           <div class="header-actions">
             <el-button plain @click="goToTestPointManagement">测试点管理</el-button>
@@ -113,7 +115,9 @@
         <template #empty>
           <div class="task-empty-state">
             <div class="task-empty-title">当前项目还没有测试任务</div>
-            <div class="task-empty-text">可以先创建任务，随后在这里统一查看执行进度、结果和日志。</div>
+            <div class="task-empty-text">
+              可以先创建任务，随后在这里统一查看执行进度、结果和日志。
+            </div>
             <div class="task-empty-actions">
               <el-button plain @click="goToTestPointManagement">先去测试点管理</el-button>
               <el-button type="primary" @click="createTask">

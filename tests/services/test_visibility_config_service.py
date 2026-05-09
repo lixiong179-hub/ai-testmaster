@@ -31,14 +31,14 @@ from app.models.user import User
 
 @pytest.fixture(scope="module")
 def db_engine():
-    """创建数据库引擎"""
+    """创建数据库引�?""
     engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
     return engine
 
 
 @pytest.fixture(scope="function")
 def db(db_engine):
-    """创建数据库会话"""
+    """创建数据库会�?""
     SessionLocal = sessionmaker(bind=db_engine)
     session = SessionLocal()
     try:
@@ -58,14 +58,14 @@ def config_service():
 @pytest.fixture(scope="function")
 def test_project(db):
     """创建测试项目"""
-    # 先清理可能存在的旧测试数据（防止唯一键冲突和孤儿数据）
+    # 先清理可能存在的旧测试数据（防止唯一键冲突和孤儿数据�?
     existing_user = db.query(User).filter(User.username == "config_test_user").first()
     if existing_user:
         db.query(Project).filter(Project.user_id == existing_user.id).delete()
         db.delete(existing_user)
         db.commit()
     
-    # 也清理同名项目（防止孤立项目）
+    # 也清理同名项目（防止孤立项目�?
     db.query(Project).filter(Project.name == "配置测试项目").delete()
     db.commit()
     
@@ -142,10 +142,10 @@ def test_case(db, test_project):
 
 
 class TestVisibilityConfigService:
-    """可见模式配置服务测试类"""
+    """可见模式配置服务测试�?""
     
     def test_service_initialization(self, config_service):
-        """测试服务初始化"""
+        """测试服务初始�?""
         assert config_service is not None
         assert config_service._video_base_dir.exists()
         assert config_service._screenshot_base_dir.exists()
@@ -176,7 +176,7 @@ class TestVisibilityConfigService:
     
     def test_set_global_config(self, config_service):
         """测试设置全局配置"""
-        # 设置新配置
+        # 设置新配�?
         new_config = VisibilityConfig(
             headless=False,
             record_video=True,
@@ -197,7 +197,7 @@ class TestVisibilityConfigService:
         config_service.set_global_config(VisibilityConfigService.DEFAULT_GLOBAL_CONFIG)
     
     def test_load_config_from_env(self, config_service, monkeypatch):
-        """测试从环境变量加载配置"""
+        """测试从环境变量加载配�?""
         # 设置环境变量
         monkeypatch.setenv("TEST_HEADLESS", "false")
         monkeypatch.setenv("TEST_RECORD_VIDEO", "true")
@@ -220,7 +220,7 @@ class TestVisibilityConfigService:
         """测试获取任务配置"""
         config = config_service.get_task_config(test_task)
         
-        # 应该返回全局默认配置（任务没有自定义配置）
+        # 应该返回全局默认配置（任务没有自定义配置�?
         assert isinstance(config, VisibilityConfig)
         assert config.headless is True
     
@@ -228,11 +228,11 @@ class TestVisibilityConfigService:
         """测试获取用例配置"""
         config = config_service.get_case_config(test_case, test_task)
         
-        # 应该返回全局配置（用例没有自定义配置）
+        # 应该返回全局配置（用例没有自定义配置�?
         assert isinstance(config, VisibilityConfig)
     
     def test_get_case_config_without_task(self, config_service, test_case):
-        """测试获取用例配置（无任务）"""
+        """测试获取用例配置（无任务�?""
         config = config_service.get_case_config(test_case)
         
         # 应该返回全局配置
@@ -249,7 +249,7 @@ class TestVisibilityConfigService:
         override_config = VisibilityConfig(
             headless=False,  # 覆盖
             record_video=True  # 覆盖
-            # video_fps 不覆盖，保持base的值
+            # video_fps 不覆盖，保持base的�?
         )
         
         merged = config_service._merge_configs(base_config, override_config)
@@ -257,10 +257,10 @@ class TestVisibilityConfigService:
         # 验证：override覆盖base
         assert merged.headless is False
         assert merged.record_video is True
-        assert merged.video_fps == 30  # 保持base的值
+        assert merged.video_fps == 30  # 保持base的�?
     
     def test_config_to_dict(self, config_service):
-        """测试配置转字典"""
+        """测试配置转字�?""
         config = VisibilityConfig(
             headless=False,
             record_video=True,
@@ -274,7 +274,7 @@ class TestVisibilityConfigService:
         assert config_dict["video_resolution"] == (1280, 720)
     
     def test_config_from_dict(self, config_service):
-        """测试从字典创建配置"""
+        """测试从字典创建配�?""
         config_dict = {
             "headless": False,
             "record_video": True,
@@ -323,5 +323,5 @@ class TestVisibilityConfigServiceSingleton:
         service1 = get_visibility_config_service()
         service2 = get_visibility_config_service()
         
-        # 应该是同一个实例
+        # 应该是同一个实�?
         assert service1 is service2

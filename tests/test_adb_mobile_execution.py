@@ -396,7 +396,7 @@ class TestParseAction:
         assert self.executor.parse_action("点击返回按钮") == MobileActionType.GO_BACK
 
     def test_parse_go_back_cn2(self):
-        assert self.executor.parse_action("后退一步") == MobileActionType.GO_BACK
+        assert self.executor.parse_action("后退一�?) == MobileActionType.GO_BACK
 
     def test_parse_go_back_en(self):
         assert self.executor.parse_action("press back") == MobileActionType.GO_BACK
@@ -414,11 +414,11 @@ class TestParseAction:
         assert self.executor.parse_action("回到桌面") == MobileActionType.GO_HOME
 
     def test_parse_go_home_not_when_navigate(self):
-        result = self.executor.parse_action("导航到主页")
+        result = self.executor.parse_action("导航到主�?)
         assert result != MobileActionType.GO_HOME
 
     def test_parse_go_home_not_when_jump(self):
-        result = self.executor.parse_action("跳转到首页")
+        result = self.executor.parse_action("跳转到首�?)
         assert result != MobileActionType.GO_HOME
 
     def test_parse_scroll_up_cn(self):
@@ -458,7 +458,7 @@ class TestParseAction:
         assert self.executor.parse_action("scroll right") == MobileActionType.SCROLL_RIGHT
 
     def test_parse_input_cn(self):
-        assert self.executor.parse_action("输入用户名") == MobileActionType.INPUT
+        assert self.executor.parse_action("输入用户�?) == MobileActionType.INPUT
 
     def test_parse_input_cn2(self):
         assert self.executor.parse_action("填写密码") == MobileActionType.INPUT
@@ -512,7 +512,7 @@ class TestParseAction:
         assert self.executor.parse_action("验证结果") == MobileActionType.VERIFY
 
     def test_parse_verify_cn2(self):
-        assert self.executor.parse_action("检查页面") == MobileActionType.VERIFY
+        assert self.executor.parse_action("检查页�?) == MobileActionType.VERIFY
 
     def test_parse_verify_cn3(self):
         assert self.executor.parse_action("确认登录成功") == MobileActionType.VERIFY
@@ -584,27 +584,27 @@ class TestExtractInputTarget:
 
     def test_extract_target_zhong(self):
         result = self.executor._extract_input_target("在用户名中输入hello")
-        assert result == "用户名"
+        assert result == "用户�?
 
     def test_extract_target_li(self):
-        result = self.executor._extract_input_target("在密码框里输入123")
-        assert result == "密码框"
+        result = self.executor._extract_input_target("在密码框里输�?23")
+        assert result == "密码�?
 
     def test_extract_target_shang(self):
         result = self.executor._extract_input_target("在搜索栏上输入test")
-        assert result == "搜索栏"
+        assert result == "搜索�?
 
     def test_extract_target_simple(self):
         result = self.executor._extract_input_target("在输入框输入hello")
-        assert result == "输入框"
+        assert result == "输入�?
 
     def test_extract_target_fill_zhong(self):
         result = self.executor._extract_input_target("在表单中填写内容")
         assert result == "表单"
 
     def test_extract_target_fill_li(self):
-        result = self.executor._extract_input_target("在输入框里填写数据")
-        assert result == "输入框"
+        result = self.executor._extract_input_target("在输入框里填写数�?)
+        assert result == "输入�?
 
     def test_extract_target_no_match(self):
         result = self.executor._extract_input_target("输入hello")
@@ -697,10 +697,10 @@ class TestMobileActionResult:
             success=False,
             action_type=MobileActionType.INPUT,
             description="输入失败",
-            error_message="无法定位输入框",
+            error_message="无法定位输入�?,
         )
         assert result.success is False
-        assert result.error_message == "无法定位输入框"
+        assert result.error_message == "无法定位输入�?
 
     def test_action_result_with_cache(self):
         result = MobileActionResult(

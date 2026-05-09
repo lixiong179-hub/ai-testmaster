@@ -22,11 +22,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from app.utils.db_time import utcnow
 from app.db.database import get_db
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
 from app.models.test_case import TestCase
+from app.models.project import Project
 from app.models.user import User
 from app.api.v1.endpoints.auth import oauth2_scheme, get_current_user
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
@@ -39,6 +40,34 @@ router = APIRouter(prefix="/test_task", tags=["测试任务管理"])
 
 # 注册子模块路由
 router.include_router(exec_router)
+
+
+def _verify_project_access(
+    db: Session, project_id: int, current_user: User
+) -> None:
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此项目"
+        )
+
+
+def _verify_task_access(
+    db: Session, task: TestTask, current_user: User
+) -> None:
+    project = db.query(Project).filter(
+        Project.id == task.project_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此任务"
+        )
 
 
 # 创建任务请求模型
@@ -66,6 +95,8 @@ async def create_test_task(
         project_id = request_data.project_id
         task_name = request_data.task_name
         test_case_ids = request_data.case_ids
+
+        _verify_project_access(db, project_id, current_user)
 
         # 创建测试任务（使用当前登录用户的ID）
         new_task = TestTask(
@@ -116,6 +147,8 @@ async def create_test_task(
             "total_count": new_task.total_count,
             "create_time": new_task.create_time
         })
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         logger.error(f"创建测试任务失败: {e}")
@@ -187,6 +220,8 @@ async def get_test_task(
             detail="测试任务不存在"
         )
 
+    _verify_task_access(db, task, current_user)
+
     # 获取任务关联的测试结果
     task_results = db.query(TestResult).filter(
         TestResult.task_id == task_id
@@ -214,6 +249,8 @@ async def start_test_task(
                 detail="任务不存在"
             )
 
+        _verify_task_access(db, task, current_user)
+
         if task.status not in [0, 3]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -232,7 +269,7 @@ async def start_test_task(
             execution_mode = "smart"
 
         task.status = 1
-        task.start_time = datetime.now()
+        task.start_time = utcnow()
         db.commit()
 
         executor = TestExecutionEngineV2(db)
@@ -246,7 +283,7 @@ async def start_test_task(
         except Exception as e:
             logger.error(f"任务执行异常: {e}")
             task.status = 2
-            task.end_time = datetime.now()
+            task.end_time = utcnow()
             db.commit()
 
         return create_response(data={
@@ -277,6 +314,8 @@ async def delete_test_task(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="测试任务不存在"
         )
+
+    _verify_task_access(db, task, current_user)
 
     db.delete(task)
     db.commit()

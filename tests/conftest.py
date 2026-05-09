@@ -42,11 +42,11 @@ def testEngine():
 
 @pytest.fixture(scope="function")
 def db(testEngine) -> Session:
-    """测试数据库会话 — 自动事务隔离
+    """测试数据库会�?�?自动事务隔离
 
     设计原理:
     1. 外层事务包裹整个测试，测试结束统一 rollback，数据不落库
-    2. 覆写 session.commit() → session.flush()，使 service 层的 commit
+    2. 覆写 session.commit() 为 session.flush()，使 service 层的 commit
        只刷新到外层事务内，不破坏隔离。无需在每个测试中手动 begin_nested()
     3. 保留 after_transaction_end 事件重启 savepoint，兼容显式
        begin_nested() + commit() 的用法
@@ -56,8 +56,8 @@ def db(testEngine) -> Session:
     SessionLocal = sessionmaker(bind=connection)
     session = SessionLocal()
 
-    # 核心：将 commit() 降级为 flush()，service 层的 commit 不会真正提交
-    # 这样 service 代码无需任何修改，测试自动获得事务隔离
+    # 核心：将 commit() 降级�?flush()，service 层的 commit 不会真正提交
+    # 这样 service 代码无需任何修改，测试自动获得事务隔�?
     session.commit = session.flush
 
     session.begin_nested()

@@ -40,10 +40,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
  * 用 AxiosResponse 直接触发下载，自动从响应头读取文件名；读不到时用 fallback。
  * 返回最终使用的文件名，便于上层日志/提示。
  */
-export function downloadFromResponse(
-  resp: AxiosResponse<Blob>,
-  fallbackName: string,
-): string {
+export function downloadFromResponse(resp: AxiosResponse<Blob>, fallbackName: string): string {
   const disposition =
     (resp.headers?.['content-disposition'] as string | undefined) ||
     (resp.headers as any)?.get?.('content-disposition')

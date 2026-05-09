@@ -1,5 +1,5 @@
 """
-发现潜在问题的测试用例
+发现潜在问题的测试用�?
 针对未覆盖代码中的潜在bug进行测试
 """
 import sys
@@ -20,7 +20,7 @@ from app.models.test_case import TestCase, TestStep
 
 
 class TestViewServiceIssues(unittest.TestCase):
-    """发现潜在问题的测试"""
+    """发现潜在问题的测�?""
     
     @classmethod
     def setUpClass(cls):
@@ -44,7 +44,7 @@ class TestViewServiceIssues(unittest.TestCase):
         cls.db.close()
     
     def test_technical_view_with_ai_coordinate(self):
-        """测试技术视图中AI坐标的处理 - 可能存在的None处理问题"""
+        """测试技术视图中AI坐标的处�?- 可能存在的None处理问题"""
         test_case = TestCase(
             project_id=self.test_project.id,
             case_no=f"TC_AI_COORD_{int(datetime.now().timestamp())}",
@@ -60,7 +60,7 @@ class TestViewServiceIssues(unittest.TestCase):
         self.db.add(test_case)
         self.db.flush()
         
-        # 创建带AI坐标的步骤
+        # 创建带AI坐标的步�?
         step = TestStep(
             test_case_id=test_case.id,
             step_number=1,
@@ -104,7 +104,7 @@ class TestViewServiceIssues(unittest.TestCase):
             self.db.commit()
     
     def test_special_chars_in_action(self):
-        """测试特殊字符在操作描述中的处理 - 可能存在的存储或显示问题"""
+        """测试特殊字符在操作描述中的处�?- 可能存在的存储或显示问题"""
         test_case = TestCase(
             project_id=self.test_project.id,
             case_no=f"TC_SPECIAL_{int(datetime.now().timestamp())}",
@@ -120,7 +120,7 @@ class TestViewServiceIssues(unittest.TestCase):
         self.db.add(test_case)
         self.db.flush()
         
-        # 创建包含特殊字符的步骤
+        # 创建包含特殊字符的步�?
         special_action = "点击'提交'按钮并输入\"测试文本\""
         step = TestStep(
             test_case_id=test_case.id,
@@ -136,7 +136,7 @@ class TestViewServiceIssues(unittest.TestCase):
         self.db.commit()
         
         try:
-            # 测试是否能正确处理特殊字符
+            # 测试是否能正确处理特殊字�?
             business_view = self.service.get_business_view(test_case.id)
             self.assertIsNotNone(business_view)
             self.assertEqual(business_view.steps[0].action, special_action)
@@ -151,12 +151,12 @@ class TestViewServiceIssues(unittest.TestCase):
             self.db.commit()
     
     def test_locator_with_null_fields(self):
-        """测试定位器字段为null的处理 - 可能存在的空指针问题"""
+        """测试定位器字段为null的处�?- 可能存在的空指针问题"""
         test_case = TestCase(
             project_id=self.test_project.id,
             case_no=f"TC_NULL_{int(datetime.now().timestamp())}",
-            module="空字段测试",
-            title="空字段测试用例",
+            module="空字段测�?,
+            title="空字段测试用�?,
             precondition="",
             expected_result="",
             priority=1,
@@ -214,8 +214,8 @@ class TestViewServiceIssues(unittest.TestCase):
         test_case = TestCase(
             project_id=self.test_project.id,
             case_no=f"TC_GAP_{int(datetime.now().timestamp())}",
-            module="不连续步骤测试",
-            title="不连续步骤测试用例",
+            module="不连续步骤测�?,
+            title="不连续步骤测试用�?,
             precondition="",
             expected_result="",
             priority=1,
@@ -226,7 +226,7 @@ class TestViewServiceIssues(unittest.TestCase):
         self.db.add(test_case)
         self.db.flush()
         
-        # 创建不连续的步骤编号（1, 3, 5）
+        # 创建不连续的步骤编号�?, 3, 5�?
         for step_num in [1, 3, 5]:
             step = TestStep(
                 test_case_id=test_case.id,
@@ -259,7 +259,7 @@ class TestViewServiceIssues(unittest.TestCase):
             self.db.commit()
     
     def test_duplicate_step_numbers(self):
-        """测试重复步骤编号的情况 - 可能存在的重复数据处理问题"""
+        """测试重复步骤编号的情�?- 可能存在的重复数据处理问�?""
         test_case = TestCase(
             project_id=self.test_project.id,
             case_no=f"TC_DUP_{int(datetime.now().timestamp())}",
@@ -275,11 +275,11 @@ class TestViewServiceIssues(unittest.TestCase):
         self.db.add(test_case)
         self.db.flush()
         
-        # 创建相同编号的步骤（模拟数据异常）
+        # 创建相同编号的步骤（模拟数据异常�?
         for i in range(2):
             step = TestStep(
                 test_case_id=test_case.id,
-                step_number=1,  # 重复的编号
+                step_number=1,  # 重复的编�?
                 action=f"重复步骤{i+1}",
                 expected_result=f"预期{i+1}",
                 is_business_view=1,
@@ -292,10 +292,10 @@ class TestViewServiceIssues(unittest.TestCase):
         self.db.commit()
         
         try:
-            # 测试是否能处理重复步骤
+            # 测试是否能处理重复步�?
             view = self.service.get_technical_view(test_case.id)
             self.assertIsNotNone(view)
-            # 应该返回2个步骤（即使编号相同）
+            # 应该返回2个步骤（即使编号相同�?
             self.assertEqual(len(view["steps"]), 2)
             
         finally:
@@ -306,7 +306,7 @@ class TestViewServiceIssues(unittest.TestCase):
             self.db.commit()
     
     def test_very_long_content(self):
-        """测试超长内容的处理 - 可能存在的性能或截断问题"""
+        """测试超长内容的处�?- 可能存在的性能或截断问�?""
         test_case = TestCase(
             project_id=self.test_project.id,
             case_no=f"TC_LONG_{int(datetime.now().timestamp())}",
@@ -336,7 +336,7 @@ class TestViewServiceIssues(unittest.TestCase):
         self.db.commit()
         
         try:
-            # 测试是否能处理超长内容
+            # 测试是否能处理超长内�?
             business_view = self.service.get_business_view(test_case.id)
             self.assertIsNotNone(business_view)
             self.assertEqual(len(business_view.precondition), 5000)

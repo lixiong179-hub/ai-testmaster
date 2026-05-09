@@ -23,7 +23,7 @@
       </div>
     </div>
 
-    <div class="screen-image-wrapper" @click.stop="handleImageClick">
+    <div class="screen-image-wrapper" @click="handleImageClick">
       <img
         v-if="imageUrl"
         :src="imageUrl"

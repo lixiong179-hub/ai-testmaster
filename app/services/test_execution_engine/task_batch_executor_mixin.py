@@ -111,11 +111,14 @@ class TaskBatchExecutorMixin:
 
                 if self.browser and not self.locator_service:
                     from app.services.element_locator_service import ElementLocatorService
-                    from app.utils.unified_vision_model import UnifiedVisionModel
+                    from app.utils.unified_vision_model import create_vision_model
                     from app.core.config import settings
                     try:
-                        vision_model = UnifiedVisionModel()
-                        effective_use_mcp = use_mcp if use_mcp is not None else getattr(settings, 'PLAYWRIGHT_MCP_ENABLED', False)
+                        vision_model = create_vision_model()
+                        effective_use_mcp = (
+                            use_mcp if use_mcp is not None
+                            else getattr(settings, 'PLAYWRIGHT_MCP_ENABLED', False)
+                        )
                         self.locator_service = ElementLocatorService.create_locator_service(
                             db=self.db,
                             browser=self.browser,
@@ -141,10 +144,16 @@ class TaskBatchExecutorMixin:
             passed_cases = 0
             failed_cases = 0
 
+            case_ids = [r.case_id for r in test_results if r.case_id]
+            case_map = {}
+            if case_ids:
+                cases = self.db.query(TestCase).filter(
+                    TestCase.id.in_(case_ids)
+                ).all()
+                case_map = {c.id: c for c in cases}
+
             for test_result in test_results:
-                test_case = self.db.query(TestCase).filter(
-                    TestCase.id == test_result.case_id
-                ).first()
+                test_case = case_map.get(test_result.case_id)
 
                 if test_case:
                     try:

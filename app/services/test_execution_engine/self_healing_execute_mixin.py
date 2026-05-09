@@ -140,18 +140,30 @@ class SelfHealingExecuteMixin:
                 elif loc_type == "name":
                     selector = f"[name='{loc_value}']"
                 elif loc_type == "ai" and isinstance(loc_value, dict):
-                    x = loc_value.get("x", 0) + loc_value.get("width", 0) // 2
-                    y = loc_value.get("y", 0) + loc_value.get("height", 0) // 2
+                    loc_x = loc_value.get("x", 0)
+                    loc_y = loc_value.get("y", 0)
+                    if loc_x < 0 or loc_y < 0:
+                        raise StepExecutionError(
+                            f"AI定位器存储的坐标无效: ({loc_x}, {loc_y})"
+                            f"，定位器ID: {locator_record.id if locator_record else 'N/A'}"
+                        )
+                    x = loc_x + loc_value.get("width", 0) // 2
+                    y = loc_y + loc_value.get("height", 0) // 2
                     if action_type == ActionType.INPUT:
-                        input_text = action_info.get("input_value", "") or self._extract_input_text(action_info.get("text", ""))
+                        input_text = (
+                        action_info.get("input_value", "")
+                        or self._extract_input_text(action_info.get("text", ""))
+                    )
                         await self.browser.click(x, y)
                         await asyncio.sleep(0.3)
                         await self.browser.execute_javascript("""
                             (function() {
                                 var el = document.activeElement;
                                 if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                                    var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                    nativeInputValueSetter.call(el, arguments[0]);
+                                    var desc = Object.getOwnPropertyDescriptor(
+                                        window.HTMLInputElement.prototype, 'value'
+                                    );
+                                    desc.set.call(el, arguments[0]);
                                     el.dispatchEvent(new Event('input', { bubbles: true }));
                                     el.dispatchEvent(new Event('change', { bubbles: true }));
                                 }
@@ -167,7 +179,7 @@ class SelfHealingExecuteMixin:
                 input_text = action_info.get("input_value", "") or self._extract_input_text(action_info.get("text", ""))
                 if step_test_data:
                     for field_name, value in step_test_data.items():
-                        if field_name in action_info.get("text", "").lower():
+                        if field_name in (action_info.get("text") or "").lower():
                             input_text = value
                             break
                 await self.browser.fill(selector, input_text)
@@ -179,10 +191,10 @@ class SelfHealingExecuteMixin:
                 return
             elif action_type == ActionType.HOVER:
                 safe_selector = selector.replace("\\", "\\\\").replace("'", "\\'")
-                await self.browser.execute_javascript(f"""
-                    var el = document.querySelector('{safe_selector}');
+                await self.browser.execute_javascript("""
+                    var el = document.querySelector(arguments[0]);
                     if (el) {{ el.dispatchEvent(new MouseEvent('mouseover', {{bubbles: true}})); }}
-                """)
+                """, safe_selector)
                 return
             elif action_type == ActionType.SELECT:
                 await self.browser.click_element(selector)

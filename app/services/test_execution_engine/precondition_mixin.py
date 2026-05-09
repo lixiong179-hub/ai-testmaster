@@ -195,8 +195,8 @@ class PreconditionMixin:
             if self.browser:
                 try:
                     result.screenshot = await self.browser.take_screenshot()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"前置条件步骤失败截图捕获异常(不影响结果): {e}")
 
             logger.error(f"前置条件步骤 {step.step_number} 执行失败: {str(e)}")
 

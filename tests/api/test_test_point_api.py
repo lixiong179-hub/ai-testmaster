@@ -6,7 +6,7 @@
 - GET /api/v1/test-point/list/{project_id} 列表查询
 - 输入验证（空数据、超量、无效字段、字段超长）
 - 项目权限校验（不存在的项目）
-- 数据完整性验证
+- 数据完整性验�?
 
 使用真实MySQL数据库和FastAPI TestClient
 """
@@ -23,7 +23,7 @@ from app.main import app
 
 @pytest.fixture(scope="module")
 def client():
-    """创建测试客户端"""
+    """创建测试客户�?""
     return TestClient(app)
 
 
@@ -32,14 +32,14 @@ def auth_headers(client):
     """获取认证token"""
     from app.services.captcha_service import captcha_service
     
-    # 重置验证码服务避免频率限制
+    # 重置验证码服务避免频率限�?
     captcha_service._store.clear()
     captcha_service._used.clear()
     captcha_service._ip_limits.clear()
     
     # 先获取验证码
     captcha_resp = client.get("/api/v1/auth/captcha/generate")
-    assert captcha_resp.status_code == 200, f"验证码生成失败: {captcha_resp.status_code}"
+    assert captcha_resp.status_code == 200, f"验证码生成失�? {captcha_resp.status_code}"
     captcha_data = captcha_resp.json()
     
     # 登录获取token
@@ -59,14 +59,14 @@ def auth_headers(client):
 
 @pytest.fixture(scope="function")
 def test_project(client, auth_headers):
-    """创建或获取测试项目"""
+    """创建或获取测试项�?""
     resp = client.get("/api/v1/project/list", headers=auth_headers)
     if resp.status_code == 200 and resp.json().get("data", {}).get("items"):
         projects = resp.json()["data"]["items"]
         if projects:
             return projects[0]["id"]
     
-    # 创建新项目
+    # 创建新项�?
     create_resp = client.post("/api/v1/project",
                               json={"name": "测试项目_单元测试"},
                               headers=auth_headers)
@@ -84,12 +84,12 @@ class TestBatchSaveEndpoint:
         test_data = [
             {
                 "module": "登录模块",
-                "point": "验证用户使用正确的用户名和密码可以成功登录系统",
+                "point": "验证用户使用正确的用户名和密码可以成功登录系�?,
                 "priority": 1
             },
             {
                 "module": "登录模块",
-                "point": "验证输入错误密码时显示'用户名或密码错误'的提示信息",
+                "point": "验证输入错误密码时显�?用户名或密码错误'的提示信�?,
                 "priority": 2
             }
         ]
@@ -106,14 +106,14 @@ class TestBatchSaveEndpoint:
         assert data["data"]["saved_count"] >= 1
         assert len(data["data"]["items"]) >= 1
         
-        # 验证返回的数据结构
+        # 验证返回的数据结�?
         item = data["data"]["items"][0]
         assert "id" in item
         assert "module" in item
         assert "point" in item
 
     def test_save_empty_list_rejected(self, client, auth_headers, test_project):
-        """空列表应被拒绝"""
+        """空列表应被拒�?""
         resp = client.post(
             f"/api/v1/test-point/batch-save?project_id={test_project}",
             json=[],
@@ -142,11 +142,11 @@ class TestBatchSaveEndpoint:
     def test_save_invalid_field_types_filtered(self, client, auth_headers, test_project):
         """非字典类型数据项应被过滤"""
         invalid_data = [
-            "这不是一个对象",
+            "这不是一个对�?,
             12345,
             None,
-            {"module": "有效模块", "point": "有效测试点", "priority": 1},
-            {"module": "", "point": "缺少模块不应保存", "priority": 1},  # 空模块
+            {"module": "有效模块", "point": "有效测试�?, "priority": 1},
+            {"module": "", "point": "缺少模块不应保存", "priority": 1},  # 空模�?
         ]
         
         resp = client.post(
@@ -168,7 +168,7 @@ class TestBatchSaveEndpoint:
         oversized_data = [
             {"module": long_module, "point": "正常长度", "priority": 1},
             {"module": "正常模块", "point": long_point, "priority": 1},
-            {"module": "正常模块", "point": "正常测试点", "priority": 1},
+            {"module": "正常模块", "point": "正常测试�?, "priority": 1},
         ]
         
         resp = client.post(
@@ -183,7 +183,7 @@ class TestBatchSaveEndpoint:
             assert data["data"]["saved_count"] == 1
 
     def test_save_without_auth_returns_401(self, client, test_project):
-        """未认证请求返回401"""
+        """未认证请求返�?01"""
         resp = client.post(
             f"/api/v1/test-point/batch-save?project_id={test_project}",
             json=[{"module": "M", "point": "P", "priority": 1}]
@@ -196,8 +196,8 @@ class TestListEndpoint:
     """列表查询接口测试"""
 
     def test_list_saved_test_points(self, client, auth_headers, test_project):
-        """查询已保存的测试点列表"""
-        # 先保存一些数据
+        """查询已保存的测试点列�?""
+        # 先保存一些数�?
         save_data = [
             {"module": "查询测试模块", "point": "用于列表查询的测试点", "priority": 1}
         ]
@@ -220,18 +220,18 @@ class TestListEndpoint:
             assert isinstance(data["data"]["items"], list)
 
     def test_list_nonexistent_project_returns_404(self, client, auth_headers):
-        """查询不存在的项目返回错误（404或200+空列表）"""
+        """查询不存在的项目返回错误�?04�?00+空列表）"""
         nonexistent_id = 99999999
         resp = client.get(
             f"/api/v1/test-point/list/{nonexistent_id}",
             headers=auth_headers
         )
 
-        # 端点可能返回404或200(空列表)，两种都可接受
+        # 端点可能返回404�?00(空列�?，两种都可接�?
         assert resp.status_code in [200, 404]
 
     def test_list_empty_project(self, client, auth_headers, test_project):
-        """无数据的项目的列表为空"""
+        """无数据的项目的列表为�?""
         # 查询一个刚创建的项目（可能没有测试点）
         resp = client.get(
             f"/api/v1/test-point/list/{test_project}",
@@ -255,7 +255,7 @@ class TestListEndpoint:
 
         if resp.status_code == 200:
             data = resp.json()
-            # 兼容两种响应格式: {code, data: {items}} 或 {items}
+            # 兼容两种响应格式: {code, data: {items}} �?{items}
             items = []
             if "data" in data and isinstance(data["data"], dict) and "items" in data["data"]:
                 items = data["data"]["items"]
@@ -275,20 +275,20 @@ class TestListEndpoint:
             assert isinstance(item["priority"], int)
 
     def test_list_without_auth_returns_401(self, client, test_project):
-        """未认证请求返回401"""
+        """未认证请求返�?01"""
         resp = client.get(f"/api/v1/test-point/list/{test_project}")
         assert resp.status_code == 401 or resp.status_code == 403
 
 
 class TestDataConsistency:
-    """数据一致性测试"""
+    """数据一致性测�?""
 
     def test_saved_data_matches_input(self, client, auth_headers, test_project):
-        """保存的数据与输入一致"""
+        """保存的数据与输入一�?""
         original_data = [
             {
-                "module": "一致性测试模块",
-                "point": "验证保存后的数据与原始输入完全一致",
+                "module": "一致性测试模�?,
+                "point": "验证保存后的数据与原始输入完全一�?,
                 "priority": 2
             }
         ]
@@ -332,14 +332,14 @@ class TestDataConsistency:
                 items = list_data["data"].get("items", [])
             elif "items" in list_data:
                 items = list_data["items"]
-            assert len(items) >= 2  # 至少有2个（可能还有其他测试的数据）
+            assert len(items) >= 2  # 至少�?个（可能还有其他测试的数据）
 
 
 class TestCaptchaIntegration:
-    """验证码集成测试"""
+    """验证码集成测�?""
 
     def test_captcha_generate_endpoint(self, client):
-        """验证码生成端点可用"""
+        """验证码生成端点可�?""
         resp = client.get("/api/v1/auth/captcha/generate")
         assert resp.status_code == 200
         data = resp.json()
@@ -348,7 +348,7 @@ class TestCaptchaIntegration:
         assert "code" in data["data"]
 
     def test_captcha_verify_flow(self, client):
-        """完整验证码流程：生成→校验"""
+        """完整验证码流程：生成→校�?""
         from app.services.captcha_service import captcha_service
         captcha_service._store.clear()
         captcha_service._used.clear()
@@ -367,5 +367,5 @@ class TestCaptchaIntegration:
         })
         
         # 验证码应该已被消耗（一次性）
-        # 再次尝试使用相同验证码，如果后端处理了则应失败或提示已使用
+        # 再次尝试使用相同验证码，如果后端处理了则应失败或提示已使�?
         assert gen_resp.status_code == 200  # 至少生成是成功的

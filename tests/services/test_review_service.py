@@ -3,16 +3,16 @@
 覆盖范围:
     - create_review / start_review / finalize_review / cancel_review
     - add_decision / set_human_verdict / rollback_decision
-    - undo_decision / undo_finalize（M2-T11）
+    - undo_decision / undo_finalize（M2-T11�?
     - acquire_lock / release_lock / cleanup_expired_locks
     - ReviewDecision 不可变（finalize 后禁止修改）
     - ReviewLock 独占（锁定期内不能同时锁定）
     - conflict_marker（AI 与人工判定不一致）
-    - accepted_low_confidence（AI 置信度 < 70）
-    - ai_verdict / human_verdict 合法值校验
+    - accepted_low_confidence（AI 置信�?< 70�?
+    - ai_verdict / human_verdict 合法值校�?
     - ai_confidence 范围校验
 
-使用真实 MySQL 数据库。
+使用真实 MySQL 数据库�?
 """
 import pytest
 from datetime import datetime, timedelta

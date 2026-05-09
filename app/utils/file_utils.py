@@ -75,6 +75,17 @@ ARCHIVE_MIME_VARIANTS = {
     'rar': {'application/vnd.rar', 'application/x-rar-compressed', 'application/x-rar'},
 }
 
+# 非压缩包MIME变体 — python-magic版本差异 或 浏览器上传差异导致返回不同MIME
+NON_ARCHIVE_MIME_VARIANTS = {
+    'csv': {'text/csv', 'application/csv', 'text/comma-separated-values'},
+    'md': {'text/markdown', 'text/x-markdown', 'text/plain'},
+    'yaml': {'text/yaml', 'application/x-yaml', 'text/vnd.yaml'},
+    'yml': {'text/yaml', 'application/x-yaml', 'text/vnd.yaml'},
+    'json': {'application/json', 'text/json'},
+    'jpg': {'image/jpeg', 'image/pjpeg'},
+    'jpeg': {'image/jpeg', 'image/pjpeg'},
+}
+
 # 危险MIME类型黑名单 — 可执行文件、脚本等，禁止上传
 DANGEROUS_MIMES = {
     'application/x-executable', 'application/x-msdos-program',
@@ -157,21 +168,29 @@ def validate_file_mime(file_ext: str, detected_mime: str) -> Optional[str]:
     Returns:
         Optional[str]: 验证失败时返回错误信息，成功返回 None
     """
-    if detected_mime in DANGEROUS_MIMES:
-        return "检测到危险文件类型，禁止上传"
+    if not detected_mime:
+        return "无法检测文件MIME类型"
 
-    expected_mime = SUPPORTED_FILE_TYPES.get(file_ext, "")
+    # 剥离 charset 等参数后缀，仅保留纯 MIME 类型进行匹配
+    mime_clean = detected_mime.split(';', 1)[0].strip().lower()
+
+    if mime_clean in DANGEROUS_MIMES:
+        return "检测到危险文件类型，禁止上传"
 
     if file_ext in ARCHIVE_EXTENSIONS:
         allowed_mimes = ARCHIVE_MIME_VARIANTS.get(file_ext, set())
-        if detected_mime not in allowed_mimes:
+        if mime_clean not in allowed_mimes:
             return f"压缩包MIME类型不匹配: 扩展名=.{file_ext}, 实际类型={detected_mime}"
         return None
 
-    if expected_mime and detected_mime and not detected_mime.startswith(
-        tuple(expected_mime.split('/')[:1])
-    ):
-        return f"文件MIME类型不匹配: 扩展名=.{file_ext}, 声明={expected_mime}, 实际={detected_mime}"
+    allowed_mimes = NON_ARCHIVE_MIME_VARIANTS.get(file_ext)
+    if allowed_mimes is not None:
+        if mime_clean not in allowed_mimes:
+            return f"文件MIME类型不匹配: 扩展名=.{file_ext}, 实际类型={detected_mime}"
+    else:
+        expected_mime = SUPPORTED_FILE_TYPES.get(file_ext, "")
+        if expected_mime and mime_clean != expected_mime:
+            return f"文件MIME类型不匹配: 扩展名=.{file_ext}, 期望={expected_mime}, 实际={detected_mime}"
 
     return None
 

@@ -123,7 +123,7 @@
                     type="primary"
                     :disabled="phoneCountdown > 0"
                     @click="getPhoneCode"
-                  class="code-action"
+                    class="code-action"
                   >
                     {{ phoneCountdown > 0 ? `${phoneCountdown}s后重试` : '获取验证码' }}
                   </el-button>

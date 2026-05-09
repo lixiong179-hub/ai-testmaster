@@ -30,6 +30,7 @@ from typing import List, Optional, Type
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
 from app.models.pipeline import Artifact, PipelineRun
+from app.models.iteration import Iteration
 from app.services import pipeline_service
 from app.utils.db_time import utcnow
 
@@ -79,6 +80,13 @@ class PipelineRunner:
             current_run.pause_payload = None
             ctx.db.flush()
 
+        if resume_from_step is not None:
+            _record_fmea_metric(
+                ctx, "pipeline_recovery",
+                step_name=resume_from_step,
+                detail={"reason": "Pipeline resumed after pause"},
+            )
+
         status = "waiting_for_user" if resume_from_step else "running"
         pipeline_service.update_run_status(
             db=ctx.db, run_id=ctx.run.id, status=status,
@@ -106,6 +114,11 @@ class PipelineRunner:
                     "Pipeline '%s' paused: token budget exceeded at step '%s'",
                     self.pipeline_name, step.name,
                 )
+                _record_fmea_metric(
+                    ctx, "token_budget_exceeded",
+                    step_name=step.name,
+                    detail={"reason": "Token budget exceeded"},
+                )
                 pipeline_service.update_run_status(
                     db=ctx.db, run_id=ctx.run.id, status="waiting_for_user",
                     error=f"Token budget exceeded at step '{step.name}'",
@@ -128,6 +141,14 @@ class PipelineRunner:
                 logger.info(
                     "Pipeline '%s' paused at step '%s': reason='%s'",
                     self.pipeline_name, step.name, pause_info.get("reason"),
+                )
+                _record_fmea_metric(
+                    ctx, "low_confidence_pause",
+                    step_name=step.name,
+                    detail={
+                        "reason": pause_info.get("reason", ""),
+                        "confidence": result.artifact_confidence,
+                    },
                 )
                 pipeline_service.update_run_status(
                     db=ctx.db, run_id=ctx.run.id, status="waiting_for_user",
@@ -289,3 +310,33 @@ class PipelineRunner:
             pipeline_service.update_step_output_artifact_ids(
                 db=ctx.db, step_id=step_record.id, artifact_ids=output_ids,
             )
+
+
+def _record_fmea_metric(
+    ctx: PipelineContext,
+    metric_name: str,
+    *,
+    step_name: Optional[str] = None,
+    detail: Optional[dict] = None,
+) -> None:
+    """在 Pipeline 运行中记录 FMEA 监控指标（失败不阻塞业务）。"""
+    try:
+        from app.services.metrics_service import record_metric
+        project_id = ctx._cached_project_id
+        if project_id is None and ctx.iteration_id:
+            iteration = ctx.db.query(Iteration).filter(
+                Iteration.id == ctx.iteration_id,
+            ).first()
+            if iteration:
+                project_id = iteration.project_id
+            ctx._cached_project_id = project_id
+        record_metric(
+            metric_name,
+            project_id=project_id,
+            iteration_id=ctx.iteration_id,
+            run_id=ctx.run.id,
+            step_name=step_name,
+            detail=detail,
+        )
+    except Exception as e:
+        logger.warning("FMEA metric recording failed: %s", e)

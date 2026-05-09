@@ -42,16 +42,17 @@ class UISpecFlowMixin:
                         interactive_elements.append(label)
             if interactive_elements:
                 desc += f"可点击元素: {', '.join(interactive_elements[:10])}\n"
-            nav = screen.get('navigation', {})
-            if nav.get('back_button', {}).get('visible'):
+            nav = screen.get('navigation') or {}
+            if (nav.get('back_button') or {}).get('visible'):
                 desc += "存在返回按钮\n"
-            if nav.get('tab_bar', {}).get('visible'):
-                desc += f"Tab栏: {', '.join(nav['tab_bar'].get('items', []))}\n"
-            flows = screen.get('flows', {})
+            if (nav.get('tab_bar') or {}).get('visible'):
+                tab_bar = nav.get('tab_bar') or {}
+                desc += f"Tab栏: {', '.join(tab_bar.get('items', []))}\n"
+            flows = screen.get('flows') or {}
             if flows.get('expected_next_screens'):
-                desc += f"预期跳转: {', '.join(flows['expected_next_screens'])}\n"
+                desc += f"预期跳转: {', '.join(flows.get('expected_next_screens', []))}\n"
             if flows.get('trigger_actions'):
-                desc += f"触发动作: {', '.join(flows['trigger_actions'])}\n"
+                desc += f"触发动作: {', '.join(flows.get('trigger_actions', []))}\n"
 
             image_descriptions.append(desc)
 

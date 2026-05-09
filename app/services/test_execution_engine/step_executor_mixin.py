@@ -58,7 +58,13 @@ class StepExecutorMixin:
                 return self._finalize_step_result(result, start_time)
 
             if execution_mode == ExecutionMode.PREPROCESS.value:
-                if action_type in (ActionType.INPUT, ActionType.CLICK, ActionType.HOVER, ActionType.SELECT) and not locator_record:
+                if (
+                    action_type in (
+                        ActionType.INPUT, ActionType.CLICK,
+                        ActionType.HOVER, ActionType.SELECT
+                    )
+                    and not locator_record
+                ):
                     raise StepExecutionError(f"步骤 {step.step_number} 缺少元素定位信息，请先批量补充")
 
             await self._dispatch_step_action(
@@ -95,8 +101,8 @@ class StepExecutorMixin:
             if self.browser:
                 try:
                     result.screenshot = await self.browser.take_screenshot()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"失败截图捕获异常(不影响结果): {e}")
             logger.error(f"步骤 {step.step_number} 执行失败: {str(e)}")
 
         return self._finalize_step_result(result, start_time)

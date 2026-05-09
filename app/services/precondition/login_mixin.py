@@ -154,8 +154,9 @@ class LoginMixin(LoginStrategyMixin):
                 page_title = await self.browser_controller.execute_javascript("document.title")
                 if page_title and '登录' not in str(page_title) and 'login' not in str(page_title).lower():
                     title_ok = True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"页面标题检查失败，保守判定为未登录: {e}")
+                title_ok = False
 
             # 检查页面是否还存在登录表单元素
             has_login_form = False
@@ -168,8 +169,9 @@ class LoginMixin(LoginStrategyMixin):
                     })()
                 """)
                 has_login_form = int(login_element_count or 0) > 0
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"登录表单元素检查失败，保守判定为存在登录表单: {e}")
+                has_login_form = True
 
             if url_ok and (title_ok or not has_login_form):
                 login_success = True
@@ -189,9 +191,15 @@ class LoginMixin(LoginStrategyMixin):
                     logger.info(f"已保存登录失败截图: {debug_path}")
                 except Exception as e:
                     logger.warning(f"保存登录失败截图失败: {e}")
+                raise LoginError(
+                    f"登录超时：已等待 {cfg.max_login_wait_time * cfg.wait_interval} 秒，"
+                    f"当前URL: {current_url}"
+                )
             else:
                 logger.debug(f"等待页面跳转... ({i+1}/{cfg.max_login_wait_time}s)")
 
+        if not login_success:
+            raise LoginError("登录失败：轮询结束后未确认登录成功")
         logger.info("自动登录执行完成")
 
     @handle_precondition_errors
@@ -210,8 +218,8 @@ class LoginMixin(LoginStrategyMixin):
             return False
         try:
             page_info = await self.browser_controller.get_page_info()
-            current_url = page_info.get('url', '').lower()
-            current_title = page_info.get('title', '').lower()
+            current_url = (page_info.get('url') or '').lower()
+            current_title = (page_info.get('title') or '').lower()
 
             # 检查URL中的登录关键词
             login_url_keywords = ['login', 'auth', 'signin']
@@ -247,5 +255,5 @@ class LoginMixin(LoginStrategyMixin):
 
             return True
         except Exception as e:
-            logger.warning(f"登录状态检测异常: {e}")
+            logger.exception(f"登录状态检测异常: {e}")
             return False

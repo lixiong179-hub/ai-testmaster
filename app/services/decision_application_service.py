@@ -14,7 +14,10 @@
     - app.pipelines.steps.reconciliation.MergedAction : 合并动作枚举
     - app.models.test_case.TestCase : ORM 模型
 """
+import hashlib
+import json
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Optional, List
 
@@ -74,7 +77,7 @@ _ACTION_HANDLERS = {
     MergedAction.LOCATOR_BROKEN: lambda db, d, a: _handle_locator_broken(db, d, a),
     MergedAction.LOCATOR_AND_MODIFY: lambda db, d, a: _handle_locator_and_modify(db, d, a),
     MergedAction.DEPRECATE: lambda db, d, a: _handle_deprecate(db, d, a),
-    MergedAction.ADD_NEW: lambda db, d, _a: _handle_add_new(d),
+    MergedAction.ADD_NEW: lambda db, d, a: _handle_add_new(db, d, a),
     MergedAction.CONFLICT: lambda db, d, _a: _handle_conflict(d),
     MergedAction.PENDING_REVIEW: lambda db, d, _a: _handle_pending_review(d),
 }
@@ -272,21 +275,140 @@ def _handle_deprecate(
         return _build_result(decision, success=False, error=str(e))
 
 
-def _handle_add_new(decision: ApplyDecision) -> ApplyResult:
-    if decision.case_data is None:
-        return _build_result(
-            decision,
-            success=False,
-            error="case_data is required for add_new",
+def _handle_add_new(
+    db: Session,
+    decision: ApplyDecision,
+    actor_id: Optional[int],
+) -> ApplyResult:
+    """处理新增用例决策 -- 通过 Pipeline 内 CaseGeneration 生成新用例。
+
+    创建 supplement Iteration 并触发场景4 Pipeline 重新执行，
+    为新候选场景生成测试用例。
+
+    Args:
+        db: 数据库会话。
+        decision: 决策输入，case_data 需包含 candidate_description / project_id 等。
+        actor_id: 操作人 ID。
+
+    Returns:
+        ApplyResult: 执行成功时 success=True，失败时含 error 信息。
+    """
+    from app.models.iteration import Iteration, IterationInput
+    from app.models.enums import IterationInputKind
+    from app.pipelines.runner import PipelineRunner
+    from app.pipelines.context import PipelineContext
+    from app.pipelines.scenarios import get_scenario
+    from app.ai.openai_client import OpenAIClient
+    from app.services import pipeline_service, iteration_service
+
+    case_data = decision.case_data or {}
+    candidate_desc = case_data.get("candidate_description", "") or case_data.get("title", "")
+    candidate_module = case_data.get("candidate_module", "") or case_data.get("module", "")
+    project_id_raw = case_data.get("project_id")
+    review_id = decision.review_id or case_data.get("review_id", "")
+
+    if project_id_raw is None:
+        return _build_result(decision, success=False, error="add_new 缺少 project_id")
+
+    try:
+        project_id = int(project_id_raw)
+
+        # 创建 supplement iteration，使用时间戳保证名称唯一
+        iteration_name = f"supplement_add_new_{int(time.time() * 1000)}"
+        iteration = Iteration(
+            project_id=project_id,
+            name=iteration_name,
+            version="v1.0",
+            description=candidate_desc,
+            status="draft",
+            created_by=actor_id,
         )
-    return ApplyResult(
-        target_kind=decision.target_kind,
-        target_id=decision.target_id,
-        action=decision.merged_action,
-        success=True,
-        deferred=True,
-        deferred_reason="add_new requires test_case_service integration (deferred to M2-T11)",
-    )
+        db.add(iteration)
+        db.flush()
+        iteration_id = iteration.id
+
+        # 创建 supplement_form 类型的 IterationInput，承载 candidate 信息
+        payload_data = {
+            "source": "add_new_decision",
+            "review_id": review_id,
+            "candidate_description": candidate_desc,
+            "candidate_module": candidate_module,
+            "decision_comment": decision.modification_hint or "",
+            "case_data": case_data,
+        }
+        payload_hash = hashlib.sha256(
+            json.dumps(payload_data, sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()
+
+        iteration_input = IterationInput(
+            iteration_id=iteration_id,
+            kind=IterationInputKind.SUPPLEMENT_FORM.value,
+            payload=payload_data,
+            content_hash=payload_hash,
+        )
+        db.add(iteration_input)
+        db.flush()
+
+        # 创建 PipelineRun
+        input_hash = pipeline_service.compute_input_hash([iteration_input])
+        scenario = get_scenario(4)
+        if scenario is None:
+            return _build_result(decision, success=False, error="场景4配置未注册")
+
+        run = pipeline_service.create_run(
+            db=db,
+            iteration_id=iteration_id,
+            input_hash=input_hash,
+            pipeline_version=scenario["version"],
+        )
+        db.flush()
+
+        # 将迭代状态迁移为 in_pipeline
+        iteration_service.transition_iteration_status(db, iteration_id, "in_pipeline")
+
+        # 创建 AI Client 与 PipelineContext
+        ai_client = OpenAIClient()
+        ctx = PipelineContext(
+            db=db,
+            ai_client=ai_client,
+            run=run,
+            iteration_id=iteration_id,
+            user_id=actor_id,
+        )
+
+        # 执行场景4 Pipeline
+        runner = PipelineRunner(scenario["name"], scenario["steps"])
+        runner.run(ctx)
+
+        # 刷新 run 检查执行结果
+        db.refresh(run)
+
+        if run.status == "completed":
+            persisted = ctx.get_artifact("persisted_case_ids")
+            generated_count = 0
+            if persisted and isinstance(persisted, dict):
+                case_ids = persisted.get("case_ids", [])
+                generated_count = len(case_ids) if isinstance(case_ids, list) else 0
+            logger.info(
+                "_handle_add_new 成功: iteration_id=%d, generated_count=%d",
+                iteration_id, generated_count,
+            )
+            return ApplyResult(
+                target_kind=decision.target_kind,
+                target_id=decision.target_id,
+                action=decision.merged_action,
+                success=True,
+            )
+        else:
+            error_msg = f"Pipeline 执行失败，状态: {run.status}"
+            if run.error:
+                error_msg += f"，错误: {run.error}"
+            logger.error("_handle_add_new Pipeline 失败: %s", error_msg)
+            return _build_result(decision, success=False, error=error_msg)
+
+    except Exception as e:
+        logger.error("_handle_add_new 失败: %s", e, exc_info=True)
+        return _build_result(decision, success=False, error=f"add_new 处理异常: {str(e)}")
 
 
 def _handle_conflict(decision: ApplyDecision) -> ApplyResult:

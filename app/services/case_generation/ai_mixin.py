@@ -121,7 +121,7 @@ class AIMixin(AIParseMixin):
         payload = {
             "model": settings.DEEPSEEK_MODEL,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7,  # 适中的创造性，保证用例多样性
+            "temperature": 0.3,  # 统一低温度，输出稳定，与 Pipeline 路径一致
             "max_tokens": 3000   # 限制输出长度，控制成本
         }
 

@@ -49,17 +49,15 @@
             :stroke-width="18"
             :text-inside="true"
             status=""
-            :format="() => `${importProgress!.completed_batches}/${importProgress!.total_batches} 批次`"
+            :format="
+              () => `${importProgress!.completed_batches}/${importProgress!.total_batches} 批次`
+            "
           />
           <div class="import-progress-text">{{ importProgressText }}</div>
         </div>
         <div class="ai-enhance-toggle">
           <div class="ai-enhance-row">
-            <el-switch
-              v-model="aiEnhance"
-              active-text="AI增强"
-              inline-prompt
-            />
+            <el-switch v-model="aiEnhance" active-text="AI增强" inline-prompt />
             <span class="ai-enhance-label">AI增强模式</span>
           </div>
           <div class="ai-enhance-desc">
@@ -77,7 +75,9 @@
             :stroke-width="18"
             :text-inside="true"
             status=""
-            :format="() => `${importProgress!.completed_batches}/${importProgress!.total_batches} 批次`"
+            :format="
+              () => `${importProgress!.completed_batches}/${importProgress!.total_batches} 批次`
+            "
           />
           <div class="import-progress-text">{{ importProgressText }}</div>
         </div>
@@ -145,7 +145,8 @@
           class="preview-mode-alert"
         >
           <template #title>
-            AI 增强预览采样：已解析前 {{ previewCaseData.length }} 条路径（共 {{ previewTotalPaths }} 条）。确认导入时将对全部路径进行 AI 解析，预计耗时较长。
+            AI 增强预览采样：已解析前 {{ previewCaseData.length }} 条路径（共
+            {{ previewTotalPaths }} 条）。确认导入时将对全部路径进行 AI 解析，预计耗时较长。
           </template>
         </el-alert>
         <div v-if="hasCasePreview" class="preview-switcher">
@@ -216,7 +217,12 @@
           <el-table-column type="index" label="序号" width="60" />
           <el-table-column prop="module" label="模块" width="120" show-overflow-tooltip />
           <el-table-column prop="function" label="功能" width="120" show-overflow-tooltip />
-          <el-table-column prop="precondition" label="前置条件" min-width="180" show-overflow-tooltip />
+          <el-table-column
+            prop="precondition"
+            label="前置条件"
+            min-width="180"
+            show-overflow-tooltip
+          />
           <el-table-column prop="title" label="用例标题" min-width="220" show-overflow-tooltip />
           <el-table-column label="步骤摘要" min-width="220" show-overflow-tooltip>
             <template #default="{ row }">
@@ -428,9 +434,7 @@ const getPriorityLabel = (priority: number): string => {
 
 const formatCaseStepSummary = (item: XmindPreviewCaseItem): string => {
   if (!item.steps.length) return '无步骤'
-  return item.steps
-    .map((step) => `${step.step_number}.${step.action}`)
-    .join(' → ')
+  return item.steps.map((step) => `${step.step_number}.${step.action}`).join(' → ')
 }
 
 const handlePreviewTabChange = () => {
@@ -560,8 +564,11 @@ const handlePreview = async () => {
   }
 }
 
-const isAiSamplePreview = computed(() =>
-  aiEnhance.value && previewTotalPaths.value > 0 && previewTotalPaths.value > previewCaseData.value.length
+const isAiSamplePreview = computed(
+  () =>
+    aiEnhance.value &&
+    previewTotalPaths.value > 0 &&
+    previewTotalPaths.value > previewCaseData.value.length
 )
 
 const handleImport = async () => {

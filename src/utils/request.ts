@@ -108,12 +108,14 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response: AxiosResponse) => {
-    // 对于 blob 类型的响应，直接返回原始响应
     if (response.config.responseType === 'blob') {
       return response
     }
     const res = response.data as ApiResponse
-    return res as unknown as AxiosResponse
+    if (res && typeof res === 'object' && ('code' in res || 'data' in res)) {
+      return res
+    }
+    return { code: 0, msg: 'success', message: 'success', data: res } as ApiResponse
   },
   (error) => {
     // 处理401错误，跳转到登录页面

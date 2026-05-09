@@ -413,6 +413,17 @@ export function useIterationManager() {
     ElMessage.error(userMsg)
   }
 
+  /**
+   * 根据指定迭代ID获取统计信息
+   */
+  const getIterationStatsById = (id: number): { files: number; prototypes: number } => {
+    const stats = iterationStats.value?.[id]
+    return {
+      files: stats?.files ?? 0,
+      prototypes: stats?.prototypes ?? 0,
+    }
+  }
+
   return reactive({
     iterations,
     selectedIterationId,
@@ -443,6 +454,7 @@ export function useIterationManager() {
     getIterationStatusText,
     getCurrentIterationTitle,
     getIterationNameById,
+    getIterationStatsById,
     showError,
   })
 }

@@ -1,9 +1,9 @@
 """
 测试执行引擎V2真实测试
 
-注意：由于此文件创建独立数据库引擎会污染pytest会话级testEngine，
-导致其他测试出现级联"Table doesn't exist"错误。
-部分使用真实浏览器的测试需要Playwright环境。
+注意：由于此文件创建独立数据库引擎会污染pytest会话级testEngine�?
+导致其他测试出现级联"Table doesn't exist"错误�?
+部分使用真实浏览器的测试需要Playwright环境�?
 """
 import pytest
 from datetime import datetime
@@ -31,7 +31,7 @@ def db_session(db):
 def eng_project(db, testUser):
     project = Project(
         name="测试项目-引擎",
-        description="用于测试的项目",
+        description="用于测试的项�?,
         user_id=testUser.id,
         project_type="web",
         web_env_configs={"test": {"url": "https://www.example.com"}},
@@ -80,10 +80,10 @@ def eng_test_steps(db, eng_test_case):
     return steps
 
 
-# ==================== 枚举类测试 ====================
+# ==================== 枚举类测�?====================
 
 def test_execution_status_values():
-    """测试执行状态枚举值"""
+    """测试执行状态枚举�?""
     assert ExecutionStatus.PENDING.value == "pending"
     assert ExecutionStatus.RUNNING.value == "running"
     assert ExecutionStatus.PASSED.value == "passed"
@@ -92,9 +92,9 @@ def test_execution_status_values():
     assert ExecutionStatus.ERROR.value == "error"
 
 
-@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重构")
+@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重�?)
 def test_action_type_values():
-    """测试操作类型枚举值"""
+    """测试操作类型枚举�?""
     assert ActionType.CLICK.value == "click"
     assert ActionType.INPUT.value == "input"
     assert ActionType.NAVIGATE.value == "navigate"
@@ -108,9 +108,9 @@ def test_action_type_values():
     assert ActionType.KEYPRESS.value == "keypress"
 
 
-# ==================== 结果类测试 ====================
+# ==================== 结果类测�?====================
 
-@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重构")
+@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重�?)
 def test_step_execution_result_creation():
     """测试步骤执行结果创建"""
     result = StepExecutionResult(
@@ -132,7 +132,7 @@ def test_step_execution_result_creation():
     assert result_dict["status"] == "passed"
 
 
-@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重构")
+@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重�?)
 def test_step_execution_result_with_error():
     """测试带错误的步骤执行结果"""
     result = StepExecutionResult(
@@ -142,16 +142,16 @@ def test_step_execution_result_with_error():
         start_time=datetime.utcnow(),
         end_time=datetime.utcnow(),
         duration_ms=1000,
-        error_message="元素未找到"
+        error_message="元素未找�?
     )
     
     result_dict = result.to_dict()
     assert result_dict["status"] == "failed"
-    assert result_dict["error_message"] == "元素未找到"
+    assert result_dict["error_message"] == "元素未找�?
     assert result_dict["duration_ms"] == 1000
 
 
-@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重构")
+@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重�?)
 def test_test_execution_result_creation():
     """测试测试执行结果创建"""
     result = TestExecutionResult(
@@ -172,14 +172,14 @@ def test_test_execution_result_creation():
     assert result_dict["status"] == "passed"
 
 
-# ==================== 异常类测试 ====================
+# ==================== 异常类测�?====================
 
 def test_execution_error():
     """测试执行错误异常"""
     error = ExecutionError("测试错误")
     assert str(error) == "测试错误"
     
-    # 测试异常链
+    # 测试异常�?
     try:
         try:
             raise ValueError("原始错误")
@@ -204,11 +204,11 @@ def test_verification_error():
     assert isinstance(error, ExecutionError)
 
 
-# ==================== 引擎初始化测试 ====================
+# ==================== 引擎初始化测�?====================
 
 @pytest.mark.asyncio
 async def test_execution_engine_initialization(db):
-    """测试执行引擎初始化"""
+    """测试执行引擎初始�?""
     engine = TestExecutionEngineV2(db=db)
 
     assert engine.db == db
@@ -232,7 +232,7 @@ async def test_execution_engine_without_browser(db):
 async def test_parse_navigate_action(db):
     """测试解析导航动作"""
     engine = TestExecutionEngineV2(db=db)
-    action_info = engine._parse_step_action("导航到 https://example.com")
+    action_info = engine._parse_step_action("导航�?https://example.com")
 
     assert action_info["type"] == ActionType.NAVIGATE
     assert "https://example.com" in action_info["text"]
@@ -252,7 +252,7 @@ async def test_parse_click_action(db):
 async def test_parse_input_action(db):
     """测试解析输入动作"""
     engine = TestExecutionEngineV2(db=db)
-    action_info = engine._parse_step_action("输入用户名 'admin'")
+    action_info = engine._parse_step_action("输入用户�?'admin'")
 
     assert action_info["type"] == ActionType.INPUT
     assert "输入" in action_info["text"]
@@ -272,7 +272,7 @@ async def test_parse_verify_action(db):
 async def test_parse_wait_action(db):
     """测试解析等待动作"""
     engine = TestExecutionEngineV2(db=db)
-    action_info = engine._parse_step_action("等待3秒")
+    action_info = engine._parse_step_action("等待3�?)
 
     assert action_info["type"] == ActionType.WAIT
     assert "等待" in action_info["text"]
@@ -293,7 +293,7 @@ async def test_parse_refresh_action(db):
     assert action_info["type"] == ActionType.REFRESH
 
 
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
+@pytest.mark.skip(reason="ActionType.KEYPRESS已移�?)
 @pytest.mark.asyncio
 async def test_parse_keypress_action():
     pass
@@ -305,7 +305,7 @@ async def test_parse_keypress_action():
 async def test_extract_url_from_text(db):
     """测试从文本中提取URL"""
     engine = TestExecutionEngineV2(db=db)
-    url = engine._extract_url("导航到 https://example.com/page")
+    url = engine._extract_url("导航�?https://example.com/page")
     assert url == "https://example.com/page"
 
 
@@ -357,7 +357,7 @@ async def test_extract_input_text_direct(db):
 async def test_extract_wait_time_seconds(db):
     """测试提取秒数"""
     engine = TestExecutionEngineV2(db=db)
-    seconds = engine._extract_wait_time("等待5秒")
+    seconds = engine._extract_wait_time("等待5�?)
     assert seconds == 5
 
 
@@ -371,19 +371,19 @@ async def test_extract_wait_time_default(db):
 
 # ==================== 按键提取测试 ====================
 
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
+@pytest.mark.skip(reason="ActionType.KEYPRESS已移�?)
 @pytest.mark.asyncio
 async def test_extract_key_enter():
     pass
 
 
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
+@pytest.mark.skip(reason="ActionType.KEYPRESS已移�?)
 @pytest.mark.asyncio
 async def test_extract_key_tab():
     pass
 
 
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
+@pytest.mark.skip(reason="ActionType.KEYPRESS已移�?)
 @pytest.mark.asyncio
 async def test_extract_key_default():
     pass
@@ -391,13 +391,13 @@ async def test_extract_key_default():
 
 # ==================== 执行摘要生成测试 ====================
 
-@pytest.mark.skip(reason="StepExecutionResult API已重构")
+@pytest.mark.skip(reason="StepExecutionResult API已重�?)
 @pytest.mark.asyncio
 async def test_generate_execution_summary_all_passed():
     pass
 
 
-@pytest.mark.skip(reason="StepExecutionResult API已重构")
+@pytest.mark.skip(reason="StepExecutionResult API已重�?)
 @pytest.mark.asyncio
 async def test_generate_execution_summary_with_failures():
     pass
@@ -463,7 +463,7 @@ async def test_execute_refresh_step():
     pass
 
 
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
+@pytest.mark.skip(reason="ActionType.KEYPRESS已移�?)
 @pytest.mark.asyncio
 async def test_execute_keypress_step():
     pass
@@ -475,7 +475,7 @@ async def test_execute_keypress_step():
 async def test_execute_navigate_without_browser(db):
     engine = TestExecutionEngineV2(db=db)
     engine.browser = None
-    action_info = {"type": ActionType.NAVIGATE, "text": "导航到 https://example.com"}
+    action_info = {"type": ActionType.NAVIGATE, "text": "导航�?https://example.com"}
 
     with pytest.raises(StepExecutionError):
         await engine._execute_navigate(action_info)
@@ -537,13 +537,13 @@ async def test_execute_refresh_without_browser(db):
         await engine._execute_refresh(action_info)
 
 
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
+@pytest.mark.skip(reason="ActionType.KEYPRESS已移�?)
 @pytest.mark.asyncio
 async def test_execute_keypress_without_browser():
     pass
 
 
-# ==================== 装饰器测试 ====================
+# ==================== 装饰器测�?====================
 
 @pytest.mark.asyncio
 async def test_handle_execution_errors_decorator():

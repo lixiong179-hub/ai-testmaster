@@ -1,14 +1,14 @@
 """
-M3-T05 场景 3 流水线端到端测试（仅 UI 输入的新项目）
+M3-T05 场景 3 流水线端到端测试（仅 UI 输入的新项目�?
 
-覆盖：
-    - 场景注册表查询（get_scenario(3) 返回正确配置）
-    - 依赖链验证（ReverseInfer → ScenarioCandidateExtractor → TestPointAlignment）
-    - ReverseInfer 新项目模式（UI → inferred_capabilities + uncertain_questions）
-    - 置信度 < 0.7 触发暂停
-    - ScenarioCandidateExtractor 无历史指纹模式
-    - TestPointAlignment 四源对齐（含反推能力）
-    - 场景 3 完整 Pipeline 端到端
+覆盖�?
+    - 场景注册表查询（get_scenario(3) 返回正确配置�?
+    - 依赖链验证（ReverseInfer �?ScenarioCandidateExtractor �?TestPointAlignment�?
+    - ReverseInfer 新项目模式（UI �?inferred_capabilities + uncertain_questions�?
+    - 置信�?< 0.7 触发暂停
+    - ScenarioCandidateExtractor 无历史指纹模�?
+    - TestPointAlignment 四源对齐（含反推能力�?
+    - 场景 3 完整 Pipeline 端到�?
     - should_run / cache_key / validate_output / fallback
 """
 import json
@@ -49,14 +49,14 @@ def _make_default_infer_response() -> str:
                 "key": "user_registration",
                 "description": "用户通过填写表单完成账号注册",
                 "confidence": 0.85,
-                "supporting_evidence": "注册页面包含用户名、密码、邮箱输入框和注册按钮",
+                "supporting_evidence": "注册页面包含用户名、密码、邮箱输入框和注册按�?,
             },
             {
                 "name": "用户登录",
                 "key": "user_login",
                 "description": "已注册用户通过凭证登录系统",
                 "confidence": 0.9,
-                "supporting_evidence": "登录页面包含用户名、密码输入框和登录按钮",
+                "supporting_evidence": "登录页面包含用户名、密码输入框和登录按�?,
             },
         ],
         "uncertain_questions": [
@@ -67,7 +67,7 @@ def _make_default_infer_response() -> str:
             },
         ],
         "overall_confidence": 0.85,
-        "analysis_summary": "UI 显示注册和登录两个核心业务流程，共 2 个业务能力",
+        "analysis_summary": "UI 显示注册和登录两个核心业务流程，�?2 个业务能�?,
     })
 
 
@@ -75,9 +75,9 @@ def _make_low_confidence_infer_response() -> str:
     return json.dumps({
         "inferred_capabilities": [
             {
-                "name": "不确定功能",
+                "name": "不确定功�?,
                 "key": "uncertain_feature",
-                "description": "不确定",
+                "description": "不确�?,
                 "confidence": 0.3,
                 "supporting_evidence": "信息不足",
             },
@@ -86,7 +86,7 @@ def _make_low_confidence_infer_response() -> str:
             {"question": "这是什么功能？", "context": "页面1", "suggested_answer": ""},
         ],
         "overall_confidence": 0.3,
-        "analysis_summary": "不确定",
+        "analysis_summary": "不确�?,
     })
 
 
@@ -109,7 +109,7 @@ def _make_default_candidates_response() -> str:
                 "description": "密码找回流程验证",
                 "module": "用户管理",
                 "priority": 2,
-                "reason": "忘记密码是常见场景",
+                "reason": "忘记密码是常见场�?,
             },
         ]
     })
@@ -120,10 +120,10 @@ def _make_default_cases_response() -> str:
         {
             "title": "用户注册流程验证",
             "module": "用户管理",
-            "precondition": "用户未注册",
+            "precondition": "用户未注�?,
             "steps": [
                 {"action": "打开注册页面", "expected": "显示注册表单"},
-                {"action": "填写用户名、密码、邮箱", "expected": "表单验证通过"},
+                {"action": "填写用户名、密码、邮�?, "expected": "表单验证通过"},
                 {"action": "点击注册按钮", "expected": "注册成功并跳转登录页"},
             ],
             "expected_result": "用户成功注册账号",
@@ -147,14 +147,14 @@ def _setup_ui_screens(db, testProject):
     screen1 = UIPrototypeScreen(
         project_id=testProject.id,
         prototype_name="scenario3_proto",
-        screen_name="登录页",
+        screen_name="登录�?,
         source="manual",
         screen_order=0,
         parse_status="completed",
-        summary="包含用户名输入框、密码输入框、登录按钮、忘记密码链接",
+        summary="包含用户名输入框、密码输入框、登录按钮、忘记密码链�?,
         ui_spec={
             "components": [
-                {"type": "input", "name": "用户名"},
+                {"type": "input", "name": "用户�?},
                 {"type": "input", "name": "密码"},
                 {"type": "button", "name": "登录"},
                 {"type": "link", "name": "忘记密码"},
@@ -164,14 +164,14 @@ def _setup_ui_screens(db, testProject):
     screen2 = UIPrototypeScreen(
         project_id=testProject.id,
         prototype_name="scenario3_proto",
-        screen_name="注册页",
+        screen_name="注册�?,
         source="manual",
         screen_order=1,
         parse_status="completed",
-        summary="包含用户名输入框、密码输入框、邮箱输入框、注册按钮",
+        summary="包含用户名输入框、密码输入框、邮箱输入框、注册按�?,
         ui_spec={
             "components": [
-                {"type": "input", "name": "用户名"},
+                {"type": "input", "name": "用户�?},
                 {"type": "input", "name": "密码"},
                 {"type": "input", "name": "邮箱"},
                 {"type": "button", "name": "注册"},

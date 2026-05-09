@@ -27,7 +27,7 @@ from app.db.database import (
 
 
 class TestCreateDatabaseEngine(unittest.TestCase):
-    """测试创建数据库引擎"""
+    """测试创建数据库引�?""
     
     @patch('app.db.database.create_engine')
     def test_create_engine_with_default_params(self, mock_create_engine):
@@ -42,7 +42,7 @@ class TestCreateDatabaseEngine(unittest.TestCase):
     
     @patch('app.db.database.create_engine')
     def test_create_engine_with_custom_params(self, mock_create_engine):
-        """测试使用自定义参数创建引擎"""
+        """测试使用自定义参数创建引�?""
         mock_engine = MagicMock()
         mock_create_engine.return_value = mock_engine
         
@@ -57,11 +57,11 @@ class TestGetDb(unittest.TestCase):
     
     @patch('app.db.database.PrimarySessionLocal')
     def test_get_db_success(self, mock_session_local):
-        """测试获取数据库会话成功"""
+        """测试获取数据库会话成�?""
         mock_session = MagicMock()
         mock_session_local.return_value = mock_session
         
-        # 模拟生成器
+        # 模拟生成�?
         gen = get_db()
         session = next(gen)
         
@@ -77,7 +77,7 @@ class TestGetDb(unittest.TestCase):
     
     @patch('app.db.database.PrimarySessionLocal')
     def test_get_db_exception(self, mock_session_local):
-        """测试获取数据库会话异常处理"""
+        """测试获取数据库会话异常处�?""
         mock_session = MagicMock()
         mock_session_local.return_value = mock_session
         
@@ -202,7 +202,7 @@ class TestCheckDbConnection(unittest.TestCase):
     
     @patch('app.db.database.primary_engine')
     def test_check_connection_success(self, mock_engine):
-        """测试连接检查成功"""
+        """测试连接检查成�?""
         mock_conn = MagicMock()
         mock_engine.connect.return_value.__enter__.return_value = mock_conn
         
@@ -213,7 +213,7 @@ class TestCheckDbConnection(unittest.TestCase):
     
     @patch('app.db.database.primary_engine')
     def test_check_connection_failure(self, mock_engine):
-        """测试连接检查失败"""
+        """测试连接检查失�?""
         mock_engine.connect.side_effect = Exception("Connection failed")
         
         result = check_db_connection()
@@ -222,7 +222,7 @@ class TestCheckDbConnection(unittest.TestCase):
 
 
 class TestBase(unittest.TestCase):
-    """测试Base类"""
+    """测试Base�?""
     
     def test_base_exists(self):
         """测试Base存在"""
@@ -233,11 +233,11 @@ class TestEngines(unittest.TestCase):
     """测试引擎实例"""
     
     def test_primary_engine_exists(self):
-        """测试主引擎存在"""
+        """测试主引擎存�?""
         self.assertIsNotNone(primary_engine)
     
     def test_secondary_engine_exists(self):
-        """测试从引擎存在"""
+        """测试从引擎存�?""
         self.assertIsNotNone(secondary_engine)
 
 

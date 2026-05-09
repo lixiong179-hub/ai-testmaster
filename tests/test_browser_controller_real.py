@@ -38,7 +38,7 @@ async def browser_controller():
 
 
 class TestBrowserControllerReal:
-    """真实浏览器测试"""
+    """真实浏览器测�?""
     
     @pytest.mark.asyncio
     @pytest.mark.real_browser
@@ -74,13 +74,13 @@ class TestBrowserControllerReal:
         
         assert isinstance(screenshot, bytes)
         assert len(screenshot) > 0
-        # PNG文件头
+        # PNG文件�?
         assert screenshot[:8] == b'\x89PNG\r\n\x1a\n'
     
     @pytest.mark.asyncio
     @pytest.mark.real_browser
     async def test_take_screenshot_full_page(self, browser_controller):
-        """测试全页面截图"""
+        """测试全页面截�?""
         await browser_controller.navigate("https://www.example.com")
         
         config = ScreenshotConfig(full_page=True)
@@ -100,7 +100,7 @@ class TestBrowserControllerReal:
         
         assert isinstance(screenshot, bytes)
         assert len(screenshot) > 0
-        # JPEG文件头
+        # JPEG文件�?
         assert screenshot[:2] == b'\xff\xd8'
     
     @pytest.mark.asyncio
@@ -142,9 +142,9 @@ class TestBrowserControllerReal:
         # 先滚动到某个位置
         await browser_controller.scroll_to(0, 100)
         
-        # 验证滚动位置（允许一定的误差）
+        # 验证滚动位置（允许一定的误差�?
         scroll_y = await browser_controller.execute_javascript("window.scrollY")
-        # 页面可能不需要滚动，所以只要没有报错就算成功
+        # 页面可能不需要滚动，所以只要没有报错就算成�?
         assert isinstance(scroll_y, (int, float))
     
     @pytest.mark.asyncio
@@ -164,7 +164,7 @@ class TestBrowserControllerReal:
     @pytest.mark.asyncio
     @pytest.mark.real_browser
     async def test_current_url_property(self, browser_controller):
-        """测试current_url属性"""
+        """测试current_url属�?""
         await browser_controller.navigate("https://www.example.com")
         
         assert browser_controller.current_url == "https://www.example.com/"
@@ -187,7 +187,7 @@ class TestBrowserControllerRealInteractions:
     @pytest.mark.asyncio
     @pytest.mark.real_browser
     async def test_screenshot_after_navigation(self, browser_controller):
-        """测试导航后截图"""
+        """测试导航后截�?""
         await browser_controller.navigate("https://www.example.com")
         screenshot1 = await browser_controller.take_screenshot()
         
@@ -234,7 +234,7 @@ class TestBrowserControllerRealErrors:
     @pytest.mark.asyncio
     @pytest.mark.real_browser
     async def test_click_element_not_found_real(self):
-        """测试真实元素未找到"""
+        """测试真实元素未找�?""
         # 创建新的浏览器实例，避免网络问题影响其他测试
         controller = await create_browser_controller(headless=True)
         try:

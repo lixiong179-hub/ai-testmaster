@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 
 from loguru import logger
 
-from app.services.prompt_builder.helpers import _safe_int, _find_main_step
+from app.services.prompt_builder.helpers import _safe_int, _find_main_step, _infer_condition, _render_flow_meta_hint, _group_edges_by_source
 
 
 def _build_graph_prompt(
@@ -17,7 +17,8 @@ def _build_graph_prompt(
     requirement_content: str = "",
     test_point_json: str = "",
     ui_specs_text: str = "",
-    include_images: bool = False
+    include_images: bool = False,
+    history_cases: Optional[List[Dict[str, Any]]] = None
 ) -> str:
     """构建流程图模式的 Prompt。
 
@@ -54,6 +55,11 @@ def _build_graph_prompt(
     exception_edges = [e for e in edges if e.get('edge_type') == 'exception']
     bypass_edges = [e for e in edges if e.get('edge_type') == 'bypass']
 
+    # Group non-main edges by source (main step) for nested prompt structure
+    branch_by_source = _group_edges_by_source(branch_edges)
+    exception_by_source = _group_edges_by_source(exception_edges)
+    bypass_by_source = _group_edges_by_source(bypass_edges)
+
     parts = []
     parts.append("你是一名资深测试工程师，拥有10年以上的测试经验。请根据以下多源信息生成详细的、可执行的测试用例。\n")
 
@@ -74,10 +80,23 @@ def _build_graph_prompt(
     if ui_specs_text:
         parts.append(f"## UI原型图解析结果（验收标准，优先参考）：\n{ui_specs_text}\n")
 
-    _append_main_flow(parts, main_nodes, include_images)
-    _append_branch_flow(parts, branch_edges, node_map, main_nodes, include_images)
-    _append_exception_flow(parts, exception_edges, node_map, main_nodes, include_images)
-    _append_bypass_flow(parts, bypass_edges, node_map, main_nodes, include_images)
+    if history_cases:
+        parts.append("## 项目已有测试用例（用例评审）\n")
+        parts.append("以下为项目已有的测试用例，请逐条对照新需求/UI进行评审：")
+        parts.append("- 查漏：新场景未被任何旧用例覆盖 → 生成新用例（change_type=added）")
+        parts.append("- 补缺：旧用例的步骤/预期与新代码或UI不一致 → 输出修正后的用例（change_type=modified，parent_case_id=原用例ID）")
+        parts.append("- 去冗：旧用例对应的场景已不存在 → 标注建议废弃（change_type=deprecated，parent_case_id=原用例ID）")
+        parts.append("- 保留：旧用例仍完全符合当前场景 → 无需重复生成\n")
+
+        for i, case in enumerate(history_cases, 1):
+            desc = case.get("summary", "") or case.get("expected_result", "") or "无摘要"
+            parts.append(
+                f"  {i}. [{case.get('module', '')}] {case.get('title', '')} "
+                f"(ID:{case.get('id', '')}) — {desc}"
+            )
+        parts.append("")
+
+    _append_nested_flow(parts, main_nodes, node_map, branch_by_source, exception_by_source, bypass_by_source, include_images)
     _append_generation_rules(parts)
 
     return "\n".join(parts)
@@ -114,154 +133,101 @@ def _build_image_ref(node: Dict[str, Any], include_images: bool) -> str:
     return ""
 
 
-def _append_main_flow(
+def _append_nested_flow(
     parts: List[str],
     main_nodes: List[Dict[str, Any]],
+    node_map: Dict[Any, Dict[str, Any]],
+    branch_by_source: Dict[int, List[Dict[str, Any]]],
+    exception_by_source: Dict[int, List[Dict[str, Any]]],
+    bypass_by_source: Dict[int, List[Dict[str, Any]]],
     include_images: bool
 ) -> None:
-    """追加主干流程描述到 parts 列表。
+    """追加嵌套流程描述到 parts 列表：主干步骤下嵌套分支/异常/旁路。
 
     Args:
         parts: Prompt 片段列表。
         main_nodes: 主干流程节点列表。
+        node_map: 节点映射字典。
+        branch_by_source: 按源节点分组的分支连线。
+        exception_by_source: 按源节点分组的异常连线。
+        bypass_by_source: 按源节点分组的旁路连线。
         include_images: 是否包含图片 URL。
     """
     parts.append("## UI原型图流程结构\n")
     parts.append("### 主干流程（按顺序执行，必须完整覆盖）")
     for i, node in enumerate(main_nodes, 1):
+        screen_id = node.get('screen_id')
         elements = node.get('ui_spec_elements', []) or []
         element_desc = _format_node_elements(elements)
         image_ref = _build_image_ref(node, include_images)
         parts.append(f"步骤 {i}: [截图{i} - {node.get('screen_name', '')}] 元素: {element_desc}{image_ref}")
-    parts.append("")
 
+        # Collect all valid children for this step to determine tree symbols dynamically
+        valid_branches = []
+        for edge in branch_by_source.get(screen_id, []):
+            tid = _safe_int(edge.get('target'))
+            if tid is not None:
+                valid_branches.append((edge, tid))
 
-def _append_branch_flow(
-    parts: List[str],
-    branch_edges: List[Dict[str, Any]],
-    node_map: Dict[Any, Dict[str, Any]],
-    main_nodes: List[Dict[str, Any]],
-    include_images: bool
-) -> None:
-    """追加分支流程描述到 parts 列表。
+        valid_exceptions = []
+        for edge in exception_by_source.get(screen_id, []):
+            tid = _safe_int(edge.get('target'))
+            if tid is not None:
+                valid_exceptions.append((edge, tid))
 
-    Args:
-        parts: Prompt 片段列表。
-        branch_edges: 分支连线列表。
-        node_map: 节点映射字典。
-        main_nodes: 主干流程节点列表。
-        include_images: 是否包含图片 URL。
-    """
-    if not branch_edges:
-        return
-    parts.append("### 分支流程（满足条件时执行，每个分支作为独立测试场景）")
-    for idx, edge in enumerate(branch_edges):
-        target_screen_id = _safe_int(edge.get('target'))
-        source_screen_id = _safe_int(edge.get('source'))
-        if target_screen_id is None or source_screen_id is None:
-            continue
-        target_node = node_map.get(target_screen_id, {})
-        source_step = _find_main_step(main_nodes, source_screen_id)
-        elements = target_node.get('ui_spec_elements', []) or []
-        element_desc = _format_node_elements(elements)
-        trigger_condition = (edge.get('condition') or '').strip()
-        if not trigger_condition:
-            logger.warning(f"branch edge missing condition: {edge}")
-            trigger_condition = '未指定'
-        image_ref = _build_image_ref(target_node, include_images)
-        parts.append(
-            f"分支 {chr(ord('A') + idx)}: 从步骤 {source_step} 分支，"
-            f"触发条件「{trigger_condition}」"
+        valid_bypasses = []
+        for edge in bypass_by_source.get(screen_id, []):
+            tid = _safe_int(edge.get('target'))
+            if tid is not None:
+                valid_bypasses.append((edge, tid))
+
+        all_children = (
+            [('branch', bidx, edge, tid) for bidx, (edge, tid) in enumerate(valid_branches)]
+            + [('exception', eidx, edge, tid) for eidx, (edge, tid) in enumerate(valid_exceptions)]
+            + [('bypass', pidx, edge, tid) for pidx, (edge, tid) in enumerate(valid_bypasses)]
         )
-        parts.append(
-            f"  → [截图 - {target_node.get('screen_name', '')}] 元素: {element_desc}{image_ref}"
-        )
-    parts.append("")
 
+        for cidx, (ctype, idx, edge, target_screen_id) in enumerate(all_children):
+            is_last = (cidx == len(all_children) - 1)
+            branch_sym = '└─' if is_last else '├─'
+            indent_prefix = '     ' if is_last else '  │  '
 
-def _append_exception_flow(
-    parts: List[str],
-    exception_edges: List[Dict[str, Any]],
-    node_map: Dict[Any, Dict[str, Any]],
-    main_nodes: List[Dict[str, Any]],
-    include_images: bool
-) -> None:
-    """追加异常流程描述到 parts 列表。
+            target_node = node_map.get(target_screen_id, {})
+            target_el_desc = _format_node_elements(target_node.get('ui_spec_elements', []) or [])
+            flow_meta = target_node.get('flow_meta') or {}
+            img_ref = _build_image_ref(target_node, include_images)
 
-    Args:
-        parts: Prompt 片段列表。
-        exception_edges: 异常连线列表。
-        node_map: 节点映射字典。
-        main_nodes: 主干流程节点列表。
-        include_images: 是否包含图片 URL。
-    """
-    if not exception_edges:
-        return
-    parts.append("### 异常流程（异常场景下触发，需标注异常场景和预期错误提示）")
-    for idx, edge in enumerate(exception_edges):
-        target_screen_id = _safe_int(edge.get('target'))
-        source_screen_id = _safe_int(edge.get('source'))
-        if target_screen_id is None or source_screen_id is None:
-            continue
-        target_node = node_map.get(target_screen_id, {})
-        source_step = _find_main_step(main_nodes, source_screen_id)
-        elements = target_node.get('ui_spec_elements', []) or []
-        element_desc = _format_node_elements(elements)
-        exception_condition = (edge.get('condition') or '').strip()
-        if not exception_condition:
-            logger.warning(f"exception edge missing condition: {edge}")
-            exception_condition = '未指定'
-        image_ref = _build_image_ref(target_node, include_images)
-        parts.append(
-            f"异常 {chr(ord('A') + idx)}: 从步骤 {source_step} 异常跳转，"
-            f"异常场景「{exception_condition}」"
-        )
-        parts.append(
-            f"  → [截图 - {target_node.get('screen_name', '')}] 元素: {element_desc}{image_ref}"
-        )
-    parts.append("")
+            if ctype == 'branch':
+                trigger_condition = _infer_condition(edge, 'branch', target_node, node)
+                meta_hint = _render_flow_meta_hint(flow_meta, 'branch')
+                parts.append(
+                    f"  {branch_sym} 分支 {chr(ord('A') + idx)}: 触发条件「{trigger_condition}」"
+                    f"{meta_hint}"
+                )
+                parts.append(
+                    f"  {indent_prefix}→ [截图 - {target_node.get('screen_name', '')}] 元素: {target_el_desc}{img_ref}"
+                )
+            elif ctype == 'exception':
+                exception_condition = _infer_condition(edge, 'exception', target_node, node)
+                meta_hint = _render_flow_meta_hint(flow_meta, 'exception')
+                parts.append(
+                    f"  {branch_sym} 异常 {chr(ord('A') + idx)}: 异常场景「{exception_condition}」"
+                    f"{meta_hint}"
+                )
+                parts.append(
+                    f"  {indent_prefix}→ [截图 - {target_node.get('screen_name', '')}] 元素: {target_el_desc}{img_ref}"
+                )
+            else:  # bypass
+                bypass_condition = _infer_condition(edge, 'bypass', target_node, node)
+                meta_hint = _render_flow_meta_hint(flow_meta, 'bypass')
+                parts.append(
+                    f"  {branch_sym} 旁路 {chr(ord('A') + idx)}: {bypass_condition}，关闭后继续主流程"
+                    f"{meta_hint}"
+                )
+                parts.append(
+                    f"  {indent_prefix}→ [截图 - {target_node.get('screen_name', '')}] 元素: {target_el_desc}{img_ref}"
+                )
 
-
-def _append_bypass_flow(
-    parts: List[str],
-    bypass_edges: List[Dict[str, Any]],
-    node_map: Dict[Any, Dict[str, Any]],
-    main_nodes: List[Dict[str, Any]],
-    include_images: bool
-) -> None:
-    """追加旁路流程描述到 parts 列表。
-
-    Args:
-        parts: Prompt 片段列表。
-        bypass_edges: 旁路连线列表。
-        node_map: 节点映射字典。
-        main_nodes: 主干流程节点列表。
-        include_images: 是否包含图片 URL。
-    """
-    if not bypass_edges:
-        return
-    parts.append("### 旁路流程（出现时机和关闭方式，不影响主流程）")
-    for idx, edge in enumerate(bypass_edges):
-        target_screen_id = _safe_int(edge.get('target'))
-        source_screen_id = _safe_int(edge.get('source'))
-        if target_screen_id is None or source_screen_id is None:
-            continue
-        target_node = node_map.get(target_screen_id, {})
-        source_step = _find_main_step(main_nodes, source_screen_id)
-        condition = (edge.get('condition') or '').strip()
-        if not condition:
-            logger.warning(f"bypass edge missing condition: {edge}")
-            condition = '自动弹出'
-        elements = target_node.get('ui_spec_elements', []) or []
-        element_desc = _format_node_elements(elements)
-        image_ref = _build_image_ref(target_node, include_images)
-        parts.append(
-            f"旁路 {chr(ord('A') + idx)}: 进入步骤 {source_step} 时"
-            f"{condition}，关闭后继续主流程"
-        )
-        parts.append(
-            f"  → [截图 - {target_node.get('screen_name', '')}] 元素: {element_desc}{image_ref}"
-        )
     parts.append("")
 
 
@@ -285,6 +251,7 @@ def _append_generation_rules(parts: List[str]) -> None:
     parts.append("11. 预期结果必须有具体判定标准，禁止\"提交成功\"\"正常显示\"等模糊描述；必须包含交互校验点如弹窗文案、按钮跳转")
     parts.append("12. 未区分场景变体时需拆分，如\"无相机权限\"应区分临时拒绝/永久拒绝")
     parts.append("13. 步骤和预期必须支持自动化断言，预期需有可量化判定标准（如\"无白屏\"\"按钮置灰\"），禁止\"页面正常\"\"功能正常\"等无法断言的描述；步骤必须包含从登录后到达目标页面的完整导航操作，禁止将导航隐藏在前置条件中；弱网、异常条件等自动化无法实现的场景标注case_type为manual")
+    parts.append("14. 若提供了已有测试用例参考，变更类用例必须设置 parent_case_id 为原用例ID、change_type 为 modified；新增用例 change_type 为 added；建议废弃的原用例 change_type 为 deprecated；无参考用例时 change_type 为 added")
     parts.append("")
     parts.append("## 正反用例对比（学习优秀写法，避免差劲写法）")
     parts.append("")
@@ -343,6 +310,8 @@ def _append_generation_rules(parts: List[str]) -> None:
   "expected_result": "总体预期结果",
   "case_type": "ui_automation",
   "case_category": "ui_automation",
-  "priority": 2
+  "priority": 2,
+  "change_type": "added",
+  "parent_case_id": null
 }""")
 

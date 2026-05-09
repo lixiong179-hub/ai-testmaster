@@ -643,7 +643,10 @@ async function handleBatchDelete(): Promise<void> {
 
   try {
     await ElMessageBox.confirm('确定删除选中的测试点吗？', '提示', { type: 'warning' })
-    await testPointApi.batchDelete(projectId, selectedRows.value.map((item) => item.id))
+    await testPointApi.batchDelete(
+      projectId,
+      selectedRows.value.map((item) => item.id)
+    )
     selectedRows.value = []
     ElMessage.success('批量删除成功')
     await fetchTestPoints()

@@ -1,18 +1,18 @@
 """M2-T02 HistoryFingerprint Step 单元测试
 
-覆盖：
+覆盖�?
     - should_run 条件判断
     - execute 正常采集指纹
     - execute 无历史用例（空项目）
     - execute 缺少 raw_signals 产物
-    - cache_key 确定性
+    - cache_key 确定�?
     - validate_output 校验
     - fallback 降级
     - 过期 summary 增量重算
-    - summary 覆盖率与置信度计算
-    - _compute_fingerprint_confidence 边界值
+    - summary 覆盖率与置信度计�?
+    - _compute_fingerprint_confidence 边界�?
 
-使用真实 MySQL 数据库 + MockAIClient。
+使用真实 MySQL 数据�?+ MockAIClient�?
 """
 import pytest
 
@@ -36,7 +36,7 @@ def mock_ai():
     client = MockAIClient()
     client.set_response(
         "history_fingerprint_backfill",
-        "这是增量回填生成的摘要",
+        "这是增量回填生成的摘�?,
     )
     return client
 
@@ -127,7 +127,7 @@ class TestHistoryFingerprintExecute:
             project_id=test_iteration.project_id,
             module="用户管理",
             title="登录验证",
-            precondition="无",
+            precondition="�?,
             steps_json=[{"step": "输入账号密码", "action": "点击登录"}],
             expected_result="登录成功",
             priority=1,
@@ -183,7 +183,7 @@ class TestHistoryFingerprintExecute:
             project_id=test_iteration.project_id,
             module="模块A",
             title="活跃用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
@@ -194,8 +194,8 @@ class TestHistoryFingerprintExecute:
             case_no="FP-ARC",
             project_id=test_iteration.project_id,
             module="模块A",
-            title="已归档用例",
-            precondition="无",
+            title="已归档用�?,
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=3,
@@ -282,13 +282,13 @@ class TestIncrementalBackfill:
             project_id=test_iteration.project_id,
             module="模块B",
             title="过期摘要用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[{"step": "步骤1"}],
             expected_result="预期",
             priority=2,
             case_type="functional",
             lifecycle_status="active",
-            summary="旧摘要",
+            summary="旧摘�?,
             summary_version=1,
             summary_model_version="old-model-v1",
         )
@@ -316,13 +316,13 @@ class TestIncrementalBackfill:
             project_id=testProject.id,
             module="模块C",
             title="新鲜摘要用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
             case_type="functional",
             lifecycle_status="active",
-            summary="最新摘要",
+            summary="最新摘�?,
             summary_version=1,
             summary_model_version="mock-model",
         )
@@ -388,7 +388,7 @@ class TestComputeFingerprintConfidence:
         fps = [
             {"summary": ""},
             {"summary": ""},
-            {"summary": "仅有1条"},
+            {"summary": "仅有1�?},
         ]
         assert _compute_fingerprint_confidence(fps) == 0.5
 
@@ -407,7 +407,7 @@ class TestLoadFingerprints:
             project_id=test_iteration.project_id,
             module="模块D",
             title="字段验证用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=1,
@@ -449,13 +449,13 @@ class TestDetectStaleSummaries:
             project_id=testProject.id,
             module="模块E",
             title="过期用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
             case_type="functional",
             lifecycle_status="active",
-            summary="旧摘要",
+            summary="旧摘�?,
             summary_model_version="old-model",
         )
         fresh_case = TestCase(
@@ -463,13 +463,13 @@ class TestDetectStaleSummaries:
             project_id=testProject.id,
             module="模块E",
             title="新鲜用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
             case_type="functional",
             lifecycle_status="active",
-            summary="新摘要",
+            summary="新摘�?,
             summary_model_version="mock-model",
         )
         db.add_all([stale_case, fresh_case])
@@ -519,14 +519,14 @@ class TestIncrementalBackfillReturnValue:
             case_no="FP-BACKFILL-RET",
             project_id=test_iteration.project_id,
             module="模块F",
-            title="回填返回值用例",
-            precondition="无",
+            title="回填返回值用�?,
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
             case_type="functional",
             lifecycle_status="active",
-            summary="旧摘要",
+            summary="旧摘�?,
             summary_version=1,
             summary_model_version="old-model-v2",
         )
@@ -546,7 +546,7 @@ class TestLoadFingerprintsPagination:
             project_id=test_iteration.project_id,
             module="模块A",
             title="模块A用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
@@ -558,7 +558,7 @@ class TestLoadFingerprintsPagination:
             project_id=test_iteration.project_id,
             module="模块B",
             title="模块B用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
@@ -581,7 +581,7 @@ class TestLoadFingerprintsPagination:
                 project_id=test_iteration.project_id,
                 module="模块P",
                 title=f"分页用例{i}",
-                precondition="无",
+                precondition="�?,
                 steps_json=[],
                 expected_result="预期",
                 priority=2,
@@ -613,13 +613,13 @@ class TestBudgetCheckInBackfill:
             project_id=test_iteration.project_id,
             module="模块G",
             title="预算测试用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
             case_type="functional",
             lifecycle_status="active",
-            summary="旧摘要",
+            summary="旧摘�?,
             summary_version=1,
             summary_model_version="old-budget-model",
         )
@@ -649,13 +649,13 @@ class TestBackfillEmptyAiResponse:
             project_id=test_iteration.project_id,
             module="模块H",
             title="空AI响应用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
             case_type="functional",
             lifecycle_status="active",
-            summary="旧摘要",
+            summary="旧摘�?,
             summary_version=1,
             summary_model_version="old-empty-model",
         )
@@ -679,13 +679,13 @@ class TestBackfillAiException:
             project_id=test_iteration.project_id,
             module="模块I",
             title="AI异常用例",
-            precondition="无",
+            precondition="�?,
             steps_json=[],
             expected_result="预期",
             priority=2,
             case_type="functional",
             lifecycle_status="active",
-            summary="旧摘要",
+            summary="旧摘�?,
             summary_version=1,
             summary_model_version="old-err-model",
         )
@@ -713,7 +713,7 @@ class TestBuildSummaryPromptStepsJsonError:
 
         class FakeCase:
             title = "测试用例"
-            precondition = "无"
+            precondition = "�?
             steps_json = BadSteps()
             expected_result = "预期"
 

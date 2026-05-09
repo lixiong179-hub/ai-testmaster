@@ -51,6 +51,7 @@ class IterationInputKind(str, Enum):
     XMIND = "xmind"                     # XMind思维导图
     TESTPOINT = "testpoint"             # 测试点
     SUPPLEMENT_FORM = "supplement_form" # 补充表单
+    CHANGE_NOTES = "change_notes"       # 变更说明
 
 
 class IterationCreate(BaseModel):

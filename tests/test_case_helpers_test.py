@@ -39,12 +39,12 @@ class TestStepConversion:
         assert result["expected_result"] == "登录成功"
 
     def test_build_step_response_with_step_number(self):
-        """测试带步骤号的响应构建"""
+        """测试带步骤号的响应构�?""
         step = {
-            "step": "输入用户名",
+            "step": "输入用户�?,
             "action": "input",
             "param": "test_user",
-            "expected_result": "用户名输入成功"
+            "expected_result": "用户名输入成�?
         }
         
         result = _build_step_response(step, step_number=1)
@@ -54,7 +54,7 @@ class TestStepConversion:
         assert result["action"] == "input"
 
     def test_build_step_response_with_description(self):
-        """测试带description字段的步骤"""
+        """测试带description字段的步�?""
         step = {
             "description": "验证页面加载",
             "expected_result": "页面加载成功"
@@ -66,7 +66,7 @@ class TestStepConversion:
         assert result["action"] == "验证页面加载"
 
     def test_build_step_response_defaults(self):
-        """测试默认值处理"""
+        """测试默认值处�?""
         step = {}
         
         result = _build_step_response(step)
@@ -78,13 +78,13 @@ class TestStepConversion:
         assert result["test_data"] == {}
 
     def test_convert_steps_to_response(self):
-        """测试转换数据库步骤转换"""
+        """测试转换数据库步骤转�?""
         steps_json = [
             {
                 "step": "步骤1",
-                "action": "输入用户名",
+                "action": "输入用户�?,
                 "param": "admin",
-                "expected_result": "用户名输入成功"
+                "expected_result": "用户名输入成�?
             },
             {
                 "step": "步骤2",
@@ -98,12 +98,12 @@ class TestStepConversion:
         
         assert len(result) == 2
         assert result[0]["step_number"] == 1
-        assert result[0]["action"] == "输入用户名"
+        assert result[0]["action"] == "输入用户�?
         assert result[1]["step_number"] == 2
         assert result[1]["action"] == "输入密码"
 
     def test_convert_steps_to_response_with_step_number(self):
-        """测试带step_number字段的步骤"""
+        """测试带step_number字段的步�?""
         steps_json = [
             {
                 "step_number": 5,
@@ -118,7 +118,7 @@ class TestStepConversion:
         assert result[0]["step_number"] == 5
 
     def test_convert_steps_to_response_empty(self):
-        """测试空输入"""
+        """测试空输�?""
         result = convert_steps_to_response(None)
         assert result == []
         
@@ -161,13 +161,13 @@ class MockTestCase:
         self.case_no = "TEST-001"
         self.module = "用户登录"
         self.title = "用户登录测试"
-        self.precondition = "系统已启动"
+        self.precondition = "系统已启�?
         self.steps_json = [
             {
                 "step": "步骤1",
-                "action": "输入用户名",
+                "action": "输入用户�?,
                 "param": "admin",
-                "expected_result": "用户名输入成功"
+                "expected_result": "用户名输入成�?
             }
         ]
         self.expected_result = "登录成功"
@@ -192,7 +192,7 @@ class TestBuildTestCaseResponse:
         assert result["case_no"] == "TEST-001"
         assert result["module"] == "用户登录"
         assert result["title"] == "用户登录测试"
-        assert result["precondition"] == "系统已启动"
+        assert result["precondition"] == "系统已启�?
         assert len(result["steps"]) == 1
         assert result["expected_result"] == "登录成功"
         assert result["priority"] == 1
@@ -210,12 +210,12 @@ class TestBuildTestCaseResponse:
         assert result["create_time"] is None
 
     def test_build_test_case_response_missing_fields(self):
-        """测试缺失字段的情况"""
+        """测试缺失字段的情�?""
         class SimpleMockCase:
             def __init__(self):
                 self.id = 2
                 self.project_id = 200
-                self.title = "简单测试"
+                self.title = "简单测�?
                 self.priority = 2
         
         simple_case = SimpleMockCase()
@@ -224,7 +224,7 @@ class TestBuildTestCaseResponse:
         
         assert result["id"] == 2
         assert result["project_id"] == 200
-        assert result["title"] == "简单测试"
+        assert result["title"] == "简单测�?
         assert result["priority"] == 2
         assert result["case_no"] == ""
         assert result["module"] == ""

@@ -32,6 +32,7 @@ from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen, UIScr
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.schemas.iteration import IterationCreate, IterationUpdate, IterationInputCreate
+from app.api.v1.endpoints.pipeline import PipelineRunRequest
 from app.crud import iteration as iteration_crud
 from app.services import iteration_service
 from app.core.exception import create_response
@@ -370,3 +371,20 @@ async def add_iteration_input(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"添加迭代输入失败: {str(e)}")
+
+
+@router.post("/{iteration_id}/pipeline/run", response_model=dict)
+async def run_iteration_pipeline(
+    iteration_id: int,
+    body: PipelineRunRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from app.api.v1.endpoints.pipeline import run_pipeline
+
+    return await run_pipeline(
+        iteration_id=iteration_id,
+        body=body,
+        db=db,
+        current_user=current_user,
+    )

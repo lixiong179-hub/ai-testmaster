@@ -62,12 +62,12 @@ class TestValidateFileFormat:
 
 class TestDetectResourceType:
     def test_requirement_by_filename_keyword(self):
-        assert detect_resource_type("需求文档.docx", "docx") == "requirement"
+        assert detect_resource_type("需求文�?docx", "docx") == "requirement"
         assert detect_resource_type("requirement_spec.pdf", "pdf") == "requirement"
         assert detect_resource_type("PRD_v2.docx", "docx") == "requirement"
 
     def test_ui_mockup_by_filename_keyword(self):
-        assert detect_resource_type("UI设计稿.png", "png") == "ui_mockup"
+        assert detect_resource_type("UI设计�?png", "png") == "ui_mockup"
         assert detect_resource_type("mockup_home.jpg", "jpg") == "ui_mockup"
         assert detect_resource_type("figma_export.png", "png") == "ui_mockup"
 

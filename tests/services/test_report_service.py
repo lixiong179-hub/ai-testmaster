@@ -47,7 +47,7 @@ def test_case_obj(db, test_project):
         project_id=test_project.id,
         module="报告模块",
         title="报告测试用例",
-        precondition="无",
+        precondition="�?,
         steps_json=[{"step": "步骤1", "action": "操作", "param": ""}],
         expected_result="预期结果",
         priority=2,
@@ -164,7 +164,7 @@ class TestGenerateReport:
 
     def test_generate_no_results(self, db, test_project, test_task):
         report = ReportService.generate_report(
-            db, test_project.id, test_task_id=test_task.id, name="空报告"
+            db, test_project.id, test_task_id=test_task.id, name="空报�?
         )
         assert report.total_cases == 0
 
@@ -176,7 +176,7 @@ class TestGetReportDetail:
 
     def test_no_content(self, db, test_project):
         report_data = TestReportCreate(
-            name="空内容报告", project_id=test_project.id
+            name="空内容报�?, project_id=test_project.id
         )
         report = create_test_report(db, report_data, user_id=1)
         with pytest.raises(ValueError, match="content not found"):

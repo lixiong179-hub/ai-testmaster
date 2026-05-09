@@ -5,10 +5,10 @@
 - POST /api/v1/file/update-sort 批量更新排序
 - GET /api/v1/file/list/{project_id} 排序查询验证
 - GET /api/v1/file/list 全局排序验证
-- 输入验证（空列表、超限100、去重、非整数ID）
-- 权限校验（他人项目文件、未认证）
+- 输入验证（空列表、超�?00、去重、非整数ID�?
+- 权限校验（他人项目文件、未认证�?
 - 排序持久化（更新后重新查询验证顺序）
-- N+1修复验证（预加载用户项目集合）
+- N+1修复验证（预加载用户项目集合�?
 
 使用真实MySQL数据库和FastAPI TestClient
 """
@@ -25,7 +25,7 @@ from app.main import app
 
 @pytest.fixture(scope="module")
 def client():
-    """创建测试客户端"""
+    """创建测试客户�?""
     return TestClient(app)
 
 
@@ -39,7 +39,7 @@ def auth_headers(client):
     captcha_service._ip_limits.clear()
     
     captcha_resp = client.get("/api/v1/auth/captcha/generate")
-    assert captcha_resp.status_code == 200, f"验证码生成失败: {captcha_resp.status_code}"
+    assert captcha_resp.status_code == 200, f"验证码生成失�? {captcha_resp.status_code}"
     captcha_data = captcha_resp.json()
     
     login_resp = client.post("/api/v1/auth/login", data={
@@ -58,7 +58,7 @@ def auth_headers(client):
 
 @pytest.fixture(scope="function")
 def test_project(client, auth_headers):
-    """创建或获取测试项目"""
+    """创建或获取测试项�?""
     resp = client.get("/api/v1/project/list", headers=auth_headers)
     if resp.status_code == 200 and resp.json().get("data", {}).get("items"):
         projects = resp.json()["data"]["items"]
@@ -79,11 +79,11 @@ def test_project(client, auth_headers):
 @pytest.fixture(scope="function")
 def test_files(client, auth_headers, test_project):
     """
-    创建多个测试UI原型图文件用于排序测试
-    返回创建的文件ID列表（按创建顺序）
+    创建多个测试UI原型图文件用于排序测�?
+    返回创建的文件ID列表（按创建顺序�?
     """
     file_ids = []
-    file_names = ["首页设计稿.png", "列表页原型.fig", "详情页mockup.jpg", "设置页UI.webp"]
+    file_names = ["首页设计�?png", "列表页原�?fig", "详情页mockup.jpg", "设置页UI.webp"]
     
     for name in file_names:
         import io
@@ -106,7 +106,7 @@ def test_files(client, auth_headers, test_project):
                 file_ids.append(data["id"])
     
     if len(file_ids) < 2:
-        pytest.skip("需要至少2个文件才能进行排序测试")
+        pytest.skip("需要至�?个文件才能进行排序测�?)
     
     return file_ids
 
@@ -143,7 +143,7 @@ class TestUpdateSortInputValidation:
         assert "超过" in msg_text or "100" in msg_text
 
     def test_non_integer_ids_rejected(self, client, auth_headers):
-        """非整数ID应被拒绝或忽略"""
+        """非整数ID应被拒绝或忽�?""
         invalid_data = [1, "abc", 3.14, None, True]
         
         resp = client.post(
@@ -156,7 +156,7 @@ class TestUpdateSortInputValidation:
         assert resp.status_code in [400, 422]
 
     def test_single_file_accepted(self, client, auth_headers, test_files):
-        """单个文件ID应被接受（虽然实际不改变排序）"""
+        """单个文件ID应被接受（虽然实际不改变排序�?""
         resp = client.post(
             "/api/v1/file/update-sort",
             json=[test_files[0]],
@@ -170,7 +170,7 @@ class TestUpdateSortDeduplication:
     """去重逻辑测试"""
 
     def test_duplicate_ids_deduplicated(self, client, auth_headers, test_files):
-        """重复的文件ID应该被去重"""
+        """重复的文件ID应该被去�?""
         duplicated_list = [test_files[0], test_files[1], test_files[0], test_files[1]]
         
         resp = client.post(
@@ -181,7 +181,7 @@ class TestUpdateSortDeduplication:
         
         assert resp.status_code == 200
         data = resp.json()
-        # 去重后只有2个唯一ID，updated_count不应超过2
+        # 去重后只�?个唯一ID，updated_count不应超过2
         assert data["data"]["updated_count"] <= 2
 
     def test_all_same_id(self, client, auth_headers, test_files):
@@ -202,7 +202,7 @@ class TestUpdateSortPermission:
     """权限校验测试"""
 
     def test_unauthorized_returns_401(self, client, test_files):
-        """未认证请求返回401"""
+        """未认证请求返�?01"""
         resp = client.post(
             "/api/v1/file/update-sort",
             json=test_files[:2]
@@ -224,7 +224,7 @@ class TestUpdateSortPermission:
         assert resp.json()["data"]["updated_count"] == 0
 
     def test_mixed_valid_invalid_ids(self, client, auth_headers, test_files):
-        """混合有效和无效ID：有效的正常处理，无效的被跳过"""
+        """混合有效和无效ID：有效的正常处理，无效的被跳�?""
         mixed_ids = [test_files[0], 999999995, test_files[1], 999999994]
         
         resp = client.post(
@@ -243,7 +243,7 @@ class TestUpdateSortFunctionality:
     """核心功能测试"""
 
     def test_sort_order_update_basic(self, client, auth_headers, test_files):
-        """基本排序更新：反转文件顺序"""
+        """基本排序更新：反转文件顺�?""
         original_order = list(test_files)
         reversed_order = list(reversed(test_files))
         
@@ -260,7 +260,7 @@ class TestUpdateSortFunctionality:
         assert "成功更新" in data["message"]
 
     def test_sort_order_persistence(self, client, auth_headers, test_files, test_project):
-        """排序持久化：更新后重新查询验证sort_order已保存"""
+        """排序持久化：更新后重新查询验证sort_order已保�?""
         reversed_order = list(reversed(test_files))
         
         # 执行排序更新
@@ -287,7 +287,7 @@ class TestUpdateSortFunctionality:
                 assert isinstance(item["sort_order"], int), "sort_order应为整数"
 
     def test_sort_order_values_sequential(self, client, auth_headers, test_files, test_project):
-        """排序值为非负整数（从index+1设置）"""
+        """排序值为非负整数（从index+1设置�?""
         custom_order = [test_files[2], test_files[0], test_files[1]] if len(test_files) >= 3 else list(reversed(test_files))
 
         resp = client.post(
@@ -297,7 +297,7 @@ class TestUpdateSortFunctionality:
         )
         assert resp.status_code == 200
 
-        # 查询并检查sort_order值
+        # 查询并检查sort_order�?
         list_resp = client.get(
             f"/api/v1/file/list/{test_project}?resource_type=ui_mockup",
             headers=auth_headers
@@ -305,17 +305,17 @@ class TestUpdateSortFunctionality:
 
         if list_resp.status_code == 200 and len(list_resp.json()["data"]["items"]) > 0:
             items = list_resp.json()["data"]["items"]
-            # 只验证被排序过的文件（sort_order > 0）
+            # 只验证被排序过的文件（sort_order > 0�?
             sorted_items = [item for item in items if item.get("sort_order", 0) > 0]
             if sorted_items:
                 sort_orders = [item["sort_order"] for item in sorted_items]
                 # sort_order应该是正整数
                 for order in sort_orders:
-                    assert isinstance(order, int) and order >= 1, f"sort_order值异常: {order}"
+                    assert isinstance(order, int) and order >= 1, f"sort_order值异�? {order}"
 
     def test_partial_sort_update(self, client, auth_headers, test_files):
-        """部分排序：只提交部分文件的排序"""
-        partial_ids = test_files[:2]  # 只排前两个
+        """部分排序：只提交部分文件的排�?""
+        partial_ids = test_files[:2]  # 只排前两�?
         
         resp = client.post(
             "/api/v1/file/update-sort",
@@ -356,7 +356,7 @@ class TestFileListOrdering:
                 assert "sort_order" in item
 
     def test_list_ordered_by_resource_type_then_sort(self, client, auth_headers, test_project):
-        """列表按(resource_type, sort_order, upload_time)排序"""
+        """列表�?resource_type, sort_order, upload_time)排序"""
         resp = client.get(
             f"/api/v1/file/list/{test_project}",
             headers=auth_headers
@@ -381,7 +381,7 @@ class TestNPlusOneFixVerification:
     """N+1查询修复验证"""
 
     def test_update_sort_performance(self, client, auth_headers, test_files):
-        """验证update-sort不会触发N+1查询（通过响应时间间接判断）"""
+        """验证update-sort不会触发N+1查询（通过响应时间间接判断�?""
         import time
         
         # 构造一个较大的ID列表来放大性能差异
@@ -405,7 +405,7 @@ class TestEdgeCases:
 
     def test_exact_100_limit_accepted(self, client, auth_headers, test_files):
         """恰好100个ID应被接受"""
-        # 用现有ID填充到100个（允许重复，会去重）
+        # 用现有ID填充�?00个（允许重复，会去重�?
         padded = []
         while len(padded) < 100:
             for fid in test_files:
@@ -422,8 +422,8 @@ class TestEdgeCases:
         assert resp.status_code == 200
 
     def test_inactive_file_skipped(self, client, auth_headers, test_project):
-        """已删除(is_active=False)的文件应被跳过"""
-        # 先创建一个文件然后软删除它
+        """已删�?is_active=False)的文件应被跳�?""
+        # 先创建一个文件然后软删除�?
         import io
         file_content = b"\x89PNG\r\n\x1a\n" + b"\x00" * 50
         
@@ -457,7 +457,7 @@ class TestEdgeCases:
             assert sort_resp.json()["data"]["updated_count"] == 0
 
     def test_response_structure(self, client, auth_headers, test_files):
-        """验证响应数据结构完整性"""
+        """验证响应数据结构完整�?""
         resp = client.post(
             "/api/v1/file/update-sort",
             json=test_files,
@@ -474,15 +474,15 @@ class TestEdgeCases:
         assert isinstance(data["data"]["updated_count"], int)
 
     def test_concurrent_sort_overwrite(self, client, auth_headers, test_files):
-        """多次排序以最后一次为准"""
+        """多次排序以最后一次为�?""
         order1 = list(test_files)
         order2 = list(reversed(test_files))
         
-        # 第一次排序
+        # 第一次排�?
         resp1 = client.post("/api/v1/file/update-sort", json=order1, headers=auth_headers)
         assert resp1.status_code == 200
         
-        # 第二次反向排序
+        # 第二次反向排�?
         resp2 = client.post("/api/v1/file/update-sort", json=order2, headers=auth_headers)
         assert resp2.status_code == 200
         assert resp2.json()["data"]["updated_count"] >= 2

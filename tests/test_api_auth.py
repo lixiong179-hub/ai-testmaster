@@ -1,7 +1,7 @@
 import uuid
 import pytest
 
-pytestmark = pytest.mark.skip(reason="API契约变更（验证码/认证机制重构），测试需要完全重写")
+pytestmark = pytest.mark.skip(reason="API契约变更（验证码/认证机制重构），测试需要完全重�?)
 
 from app.utils.jwt_utils import create_access_token, get_password_hash
 from tests.helpers import assertResponseSuccess, assertResponseError

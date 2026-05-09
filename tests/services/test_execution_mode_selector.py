@@ -22,7 +22,7 @@ from app.services.execution_mode_selector import (
 
 
 class TestExecutionModeSelector:
-    """ExecutionModeSelector 测试类"""
+    """ExecutionModeSelector 测试�?""
     
     def test_select_mode_ui_case(self):
         """测试UI用例类型选择"""
@@ -98,7 +98,7 @@ class TestExecutionModeSelector:
         assert strategy == ExecutionStrategy.SMART
     
     def test_select_strategy_fast(self):
-        """测试选择快速策略"""
+        """测试选择快速策�?""
         strategy = ExecutionModeSelector.select_strategy("fast")
         assert strategy == ExecutionStrategy.FAST
         
@@ -155,7 +155,7 @@ class TestExecutionModeSelector:
         assert config.batch_size == 5
     
     def test_get_strategy_config_fast(self):
-        """测试获取快速策略配置"""
+        """测试获取快速策略配�?""
         config = ExecutionModeSelector.get_strategy_config(ExecutionStrategy.FAST)
         
         assert isinstance(config, StrategyConfig)
@@ -173,7 +173,7 @@ class TestExecutionModeSelector:
     
     def test_get_strategy_config_default(self):
         """测试获取默认策略配置（未知策略）"""
-        # 使用一个不存在于STRATEGY_CONFIGS中的策略值
+        # 使用一个不存在于STRATEGY_CONFIGS中的策略�?
         class FakeStrategy:
             value = "fake"
         
@@ -181,7 +181,7 @@ class TestExecutionModeSelector:
         
         # 应该返回SMART配置作为默认
         assert isinstance(config, StrategyConfig)
-        assert config.max_retries == 1  # SMART模式的配置
+        assert config.max_retries == 1  # SMART模式的配�?
     
     def test_get_execution_config_default(self):
         """测试获取默认执行配置"""
@@ -195,7 +195,7 @@ class TestExecutionModeSelector:
         assert config.strategy_config is not None
     
     def test_get_execution_config_with_strategy(self):
-        """测试获取指定策略的执行配置"""
+        """测试获取指定策略的执行配�?""
         config = ExecutionModeSelector.get_execution_config(
             "UI",
             case_strategy="strict"
@@ -205,8 +205,8 @@ class TestExecutionModeSelector:
         assert config.strategy_config.max_retries == 3
     
     def test_get_execution_config_strategy_priority(self):
-        """测试策略配置的优先级：用例级 > 任务级 > 全局级"""
-        # 用例级策略应该覆盖任务级和全局级
+        """测试策略配置的优先级：用例级 > 任务�?> 全局�?""
+        # 用例级策略应该覆盖任务级和全局�?
         config = ExecutionModeSelector.get_execution_config(
             "UI",
             global_strategy="fast",
@@ -216,7 +216,7 @@ class TestExecutionModeSelector:
         
         assert config.strategy == ExecutionStrategy.STRICT
         
-        # 任务级策略应该覆盖全局级
+        # 任务级策略应该覆盖全局�?
         config = ExecutionModeSelector.get_execution_config(
             "UI",
             global_strategy="fast",
@@ -225,7 +225,7 @@ class TestExecutionModeSelector:
         
         assert config.strategy == ExecutionStrategy.SMART
         
-        # 只有全局级策略
+        # 只有全局级策�?
         config = ExecutionModeSelector.get_execution_config(
             "UI",
             global_strategy="fast"
@@ -235,7 +235,7 @@ class TestExecutionModeSelector:
     
     def test_get_execution_config_headless_priority(self):
         """测试headless配置的优先级"""
-        # 用例级应该覆盖任务级和全局级
+        # 用例级应该覆盖任务级和全局�?
         config = ExecutionModeSelector.get_execution_config(
             "UI",
             global_headless=False,
@@ -245,7 +245,7 @@ class TestExecutionModeSelector:
         
         assert config.headless is True
         
-        # 任务级应该覆盖全局级
+        # 任务级应该覆盖全局�?
         config = ExecutionModeSelector.get_execution_config(
             "UI",
             global_headless=False,
@@ -256,7 +256,7 @@ class TestExecutionModeSelector:
     
     def test_get_execution_config_record_video_priority(self):
         """测试record_video配置的优先级"""
-        # 用例级应该覆盖任务级和全局级
+        # 用例级应该覆盖任务级和全局�?
         config = ExecutionModeSelector.get_execution_config(
             "UI",
             global_record_video=False,
@@ -276,7 +276,7 @@ class TestExecutionModeSelector:
         assert config.video_path == "/path/to/video.mp4"
     
     def test_get_execution_config_api_mode(self):
-        """测试API模式的执行配置"""
+        """测试API模式的执行配�?""
         config = ExecutionModeSelector.get_execution_config("API")
         
         assert config.mode == ExecutionMode.API
@@ -285,7 +285,7 @@ class TestExecutionModeSelector:
 
 
 class TestExecutionConfig:
-    """ExecutionConfig 测试类"""
+    """ExecutionConfig 测试�?""
     
     def test_execution_config_creation(self):
         """测试 ExecutionConfig 创建"""
@@ -340,10 +340,10 @@ class TestExecutionConfig:
 
 
 class TestStrategyConfig:
-    """StrategyConfig 测试类"""
+    """StrategyConfig 测试�?""
     
     def test_strategy_config_default(self):
-        """测试 StrategyConfig 默认值"""
+        """测试 StrategyConfig 默认�?""
         config = StrategyConfig()
         
         assert config.use_css_selector is True
@@ -359,7 +359,7 @@ class TestStrategyConfig:
         assert config.batch_size == 5
     
     def test_strategy_config_custom(self):
-        """测试 StrategyConfig 自定义值"""
+        """测试 StrategyConfig 自定义�?""
         config = StrategyConfig(
             use_css_selector=False,
             use_xpath=False,
@@ -388,27 +388,27 @@ class TestStrategyConfig:
 
 
 class TestExecutionModeEnum:
-    """ExecutionMode 枚举测试类"""
+    """ExecutionMode 枚举测试�?""
     
     def test_execution_mode_values(self):
-        """测试 ExecutionMode 枚举值"""
+        """测试 ExecutionMode 枚举�?""
         assert ExecutionMode.AI_VISION.value == "ai_vision"
         assert ExecutionMode.API.value == "api"
         assert ExecutionMode.UNKNOWN.value == "unknown"
 
 
 class TestExecutionStrategyEnum:
-    """ExecutionStrategy 枚举测试类"""
+    """ExecutionStrategy 枚举测试�?""
     
     def test_execution_strategy_values(self):
-        """测试 ExecutionStrategy 枚举值"""
+        """测试 ExecutionStrategy 枚举�?""
         assert ExecutionStrategy.STRICT.value == "strict"
         assert ExecutionStrategy.SMART.value == "smart"
         assert ExecutionStrategy.FAST.value == "fast"
 
 
 class TestDefaultConfig:
-    """默认配置测试类"""
+    """默认配置测试�?""
     
     def test_default_config(self):
         """测试默认配置"""

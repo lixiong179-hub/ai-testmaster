@@ -270,10 +270,10 @@ def _validate_candidates(
     for c in candidates:
         if not isinstance(c, dict):
             continue
-        desc = c.get("description", "").strip()
+        desc = (c.get("description") or "").strip()
         if not desc or len(desc) > 50:
             continue
-        module = c.get("module", "").strip()
+        module = (c.get("module") or "").strip()
         if not module:
             continue
         if existing_modules and module not in existing_modules:
@@ -287,7 +287,7 @@ def _validate_candidates(
         if not isinstance(priority, int) or priority not in (1, 2, 3):
             priority = 3
         c["priority"] = priority
-        reason = c.get("reason", "").strip()
+        reason = (c.get("reason") or "").strip()
         if not reason:
             reason = desc
         c["reason"] = reason[:100]

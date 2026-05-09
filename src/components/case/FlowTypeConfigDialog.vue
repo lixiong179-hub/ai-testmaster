@@ -5,18 +5,28 @@
         <el-tag :type="tagType" effect="dark">{{ typeLabel }}</el-tag>
       </el-form-item>
 
-      <el-form-item label="挂靠主干" required>
+      <el-form-item label="挂靠节点" required>
         <el-select
-          v-model="formData.parent_main_node_id"
-          placeholder="请选择挂靠的主干页面"
+          v-model="formData.parent_node_id"
+          placeholder="请选择挂靠的父节点（主干或分支）"
           style="width: 100%"
         >
-          <el-option
-            v-for="option in mainNodeOptions"
-            :key="option.id"
-            :label="`${option.main_order || '-'} · ${option.screen_name}`"
-            :value="option.id"
-          />
+          <el-option-group label="主干节点">
+            <el-option
+              v-for="option in mainParentOptions"
+              :key="option.id"
+              :label="`${option.main_order || '-'} · ${option.screen_name}`"
+              :value="option.id"
+            />
+          </el-option-group>
+          <el-option-group v-if="branchParentOptions.length > 0" label="分支/异常/旁路节点">
+            <el-option
+              v-for="option in branchParentOptions"
+              :key="option.id"
+              :label="`${indent(option.depth)}${flowTypeTag(option.flow_type)} ${option.screen_name}`"
+              :value="option.id"
+            />
+          </el-option-group>
         </el-select>
       </el-form-item>
 
@@ -80,11 +90,14 @@ import type { FlowMetaData, FlowNodeData } from '@/store/flowSort'
 
 type NonMainFlowType = Exclude<FlowNodeData['flow_type'], 'main'>
 
-interface MainNodeOption {
+interface ParentNodeOption {
   id: string
   screen_id: number
   screen_name: string
+  flow_type: NonMainFlowType | 'main'
   main_order?: number
+  /** 层级深度，0=主干, 1=一级分支, 2=二级分支... */
+  depth: number
 }
 
 interface FlowTypeConfigForm extends FlowMetaData {
@@ -99,8 +112,12 @@ interface FlowTypeConfigForm extends FlowMetaData {
 const props = defineProps<{
   visible: boolean
   flowType: NonMainFlowType
-  mainNodeOptions: MainNodeOption[]
+  mainNodeOptions: ParentNodeOption[]
   initialData?: Partial<FlowMetaData> | null
+  /** 当前正在配置的节点 ID，用于排除自身 */
+  currentNodeId?: string
+  /** 当前节点的子孙 ID 集合，用于排除循环挂靠 */
+  excludedNodeIds?: Set<string>
 }>()
 
 const emit = defineEmits<{
@@ -114,6 +131,7 @@ const dialogVisible = computed({
 })
 
 const createDefaultFormData = (): FlowTypeConfigForm => ({
+  parent_node_id: '',
   parent_main_node_id: '',
   trigger_condition: '',
   pre_action: '',
@@ -188,9 +206,12 @@ watch(
   () => props.visible,
   (val) => {
     if (!val) return
+    const initial = props.initialData || {}
     formData.value = {
       ...createDefaultFormData(),
-      ...(props.initialData || {}),
+      ...initial,
+      // 兼容旧数据：parent_node_id 为空时回退到 parent_main_node_id
+      parent_node_id: initial.parent_node_id || initial.parent_main_node_id || '',
     }
   },
   { immediate: true }
@@ -200,9 +221,32 @@ const handleClose = () => {
   formData.value = createDefaultFormData()
 }
 
+const mainParentOptions = computed(() =>
+  props.mainNodeOptions.filter((o) => o.flow_type === 'main')
+)
+
+const branchParentOptions = computed(() =>
+  props.mainNodeOptions.filter(
+    (o) => o.flow_type !== 'main' && o.id !== props.currentNodeId && !props.excludedNodeIds?.has(o.id)
+  )
+)
+
+const flowTypeTag = (type: NonMainFlowType | 'main'): string => {
+  const map: Record<string, string> = {
+    main: '[主干]',
+    branch: '[分支]',
+    exception: '[异常]',
+    bypass: '[旁路]',
+  }
+  return map[type] || ''
+}
+
+const indent = (depth: number): string => '　'.repeat(depth)
+
 const handleConfirm = () => {
-  if (!formData.value.parent_main_node_id) {
-    ElMessage.warning('请选择挂靠的主干页面')
+  const parentId = formData.value.parent_node_id || formData.value.parent_main_node_id
+  if (!parentId) {
+    ElMessage.warning('请选择挂靠的父节点')
     return
   }
   if (!formData.value.trigger_condition.trim()) {
@@ -211,7 +255,8 @@ const handleConfirm = () => {
   }
 
   emit('confirm', {
-    parent_main_node_id: formData.value.parent_main_node_id,
+    parent_node_id: parentId,
+    parent_main_node_id: parentId,
     trigger_condition: formData.value.trigger_condition.trim(),
     pre_action: formData.value.pre_action.trim() || undefined,
     expected_result: formData.value.expected_result.trim() || undefined,

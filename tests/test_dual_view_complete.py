@@ -1,7 +1,7 @@
 """
-Task 6 双视图管理完整单元测试
-严禁使用Mock，必须使用真实MySQL数据库测试
-覆盖率要求>=95%
+Task 6 双视图管理完整单元测�?
+严禁使用Mock，必须使用真实MySQL数据库测�?
+覆盖率要�?=95%
 """
 import sys
 import os
@@ -14,7 +14,7 @@ import unittest
 from datetime import datetime
 import json
 
-# 导入所有模型
+# 导入所有模�?
 from app.models.element_locator import ElementLocator
 from app.db.database import PrimarySessionLocal
 from app.services.test_case_view_service import TestCaseViewService
@@ -34,23 +34,23 @@ class TestDualViewComplete(unittest.TestCase):
         # 创建测试项目
         cls.test_project = Project(
             name=f"双视图测试项目_{int(datetime.now().timestamp())}",
-            description="用于测试双视图功能",
+            description="用于测试双视图功�?,
             status=1,
             user_id=1
         )
         cls.db.add(cls.test_project)
         cls.db.commit()
         cls.db.refresh(cls.test_project)
-        print(f"\n✅ 创建测试项目: {cls.test_project.name} (ID: {cls.test_project.id})")
+        print(f"\n�?创建测试项目: {cls.test_project.name} (ID: {cls.test_project.id})")
         
-        # 创建测试用例（双视图）
+        # 创建测试用例（双视图�?
         cls.test_case = TestCase(
             project_id=cls.test_project.id,
             case_no=f"TC_DUAL_{int(datetime.now().timestamp())}",
-            module="双视图测试模块",
-            title="双视图功能测试用例",
+            module="双视图测试模�?,
+            title="双视图功能测试用�?,
             precondition="1. 系统已登录\n2. 网络连接正常",
-            expected_result="操作成功，页面跳转正确",
+            expected_result="操作成功，页面跳转正�?,
             priority=1,
             case_type="UI",
             generate_status=1,
@@ -59,9 +59,9 @@ class TestDualViewComplete(unittest.TestCase):
         cls.db.add(cls.test_case)
         cls.db.flush()
         
-        # 创建双视图步骤
+        # 创建双视图步�?
         steps_data = [
-            # 业务视图 + 技术视图
+            # 业务视图 + 技术视�?
             {
                 "action": "打开登录页面",
                 "expected": "页面加载成功",
@@ -73,7 +73,7 @@ class TestDualViewComplete(unittest.TestCase):
                 "xpath": "//input[@id='username']",
                 "elem_type": "input"
             },
-            # 仅业务视图
+            # 仅业务视�?
             {
                 "action": "验证页面标题",
                 "expected": "标题显示正确",
@@ -97,9 +97,9 @@ class TestDualViewComplete(unittest.TestCase):
                 "xpath": None,
                 "elem_type": None
             },
-            # 仅技术视图
+            # 仅技术视�?
             {
-                "action": "检查网络请求",
+                "action": "检查网络请�?,
                 "expected": "请求成功",
                 "is_business": 0,
                 "is_technical": 1,
@@ -125,7 +125,7 @@ class TestDualViewComplete(unittest.TestCase):
             cls.db.add(step)
             cls.db.flush()
             
-            # 为有定位的步骤添加定位信息
+            # 为有定位的步骤添加定位信�?
             if data["has_locator"] == 1:
                 locator = ElementLocator(
                     step_id=step.id,
@@ -138,12 +138,12 @@ class TestDualViewComplete(unittest.TestCase):
         
         cls.db.commit()
         cls.db.refresh(cls.test_case)
-        print(f"✅ 创建测试用例: {cls.test_case.title} (ID: {cls.test_case.id})")
+        print(f"�?创建测试用例: {cls.test_case.title} (ID: {cls.test_case.id})")
         print(f"   - 4个步骤（2个双视图 + 1个仅业务 + 1个仅技术）")
     
     @classmethod
     def tearDownClass(cls):
-        """测试类清理"""
+        """测试类清�?""
         try:
             # 删除定位信息
             steps = cls.db.query(TestStep).filter(
@@ -159,7 +159,7 @@ class TestDualViewComplete(unittest.TestCase):
             cls.db.delete(cls.test_case)
             cls.db.delete(cls.test_project)
             cls.db.commit()
-            print("✅ 清理测试数据完成")
+            print("�?清理测试数据完成")
         except Exception as e:
             cls.db.rollback()
             print(f"⚠️ 清理测试数据失败: {e}")
@@ -176,17 +176,17 @@ class TestDualViewComplete(unittest.TestCase):
         self.assertEqual(view.case_id, self.test_case.id)
         self.assertEqual(view.title, self.test_case.title)
         
-        # 业务视图应显示3个步骤（is_business_view=1）
+        # 业务视图应显�?个步骤（is_business_view=1�?
         self.assertEqual(len(view.steps), 3)
         
         # 验证步骤编号
         step_numbers = [s.step_number for s in view.steps]
-        self.assertIn(1, step_numbers)  # 双视图
-        self.assertIn(2, step_numbers)  # 仅业务
-        self.assertIn(3, step_numbers)  # 双视图
+        self.assertIn(1, step_numbers)  # 双视�?
+        self.assertIn(2, step_numbers)  # 仅业�?
+        self.assertIn(3, step_numbers)  # 双视�?
         self.assertNotIn(4, step_numbers)  # 仅技术，不应显示
         
-        print("✅ 测试1通过: 获取业务视图")
+        print("�?测试1通过: 获取业务视图")
     
     def test_02_export_business_markdown(self):
         """测试2: 导出业务视图为Markdown"""
@@ -197,7 +197,7 @@ class TestDualViewComplete(unittest.TestCase):
         self.assertIn("前置条件", markdown)
         self.assertIn("测试步骤", markdown)
         
-        print("✅ 测试2通过: 导出业务视图Markdown")
+        print("�?测试2通过: 导出业务视图Markdown")
     
     def test_03_export_business_html(self):
         """测试3: 导出业务视图为HTML"""
@@ -207,27 +207,27 @@ class TestDualViewComplete(unittest.TestCase):
         self.assertIn("<html", html)
         self.assertIn(self.test_case.title, html)
         
-        print("✅ 测试3通过: 导出业务视图HTML")
+        print("�?测试3通过: 导出业务视图HTML")
     
-    # ==================== 技术视图测试 ====================
+    # ==================== 技术视图测�?====================
     
     def test_04_get_technical_view(self):
-        """测试4: 获取技术视图"""
+        """测试4: 获取技术视�?""
         view_data = self.service.get_technical_view(self.test_case.id)
         
         self.assertIsNotNone(view_data)
         self.assertEqual(view_data["case_id"], self.test_case.id)
         self.assertEqual(view_data["title"], self.test_case.title)
         
-        # 技术视图应显示3个步骤（is_technical_view=1）
+        # 技术视图应显示3个步骤（is_technical_view=1�?
         self.assertEqual(len(view_data["steps"]), 3)
         
         # 验证步骤编号
         step_numbers = [s["step_number"] for s in view_data["steps"]]
-        self.assertIn(1, step_numbers)  # 双视图
+        self.assertIn(1, step_numbers)  # 双视�?
         self.assertNotIn(2, step_numbers)  # 仅业务，不应显示
-        self.assertIn(3, step_numbers)  # 双视图
-        self.assertIn(4, step_numbers)  # 仅技术
+        self.assertIn(3, step_numbers)  # 双视�?
+        self.assertIn(4, step_numbers)  # 仅技�?
         
         # 验证定位信息
         step1 = next(s for s in view_data["steps"] if s["step_number"] == 1)
@@ -240,19 +240,19 @@ class TestDualViewComplete(unittest.TestCase):
         self.assertFalse(step3["has_locator"])
         self.assertIsNone(step3["locator"])
         
-        print("✅ 测试4通过: 获取技术视图")
+        print("�?测试4通过: 获取技术视�?)
     
     def test_05_get_locator_coverage(self):
-        """测试5: 获取定位覆盖率"""
+        """测试5: 获取定位覆盖�?""
         coverage = self.service.get_locator_coverage(self.test_case.id)
         
         self.assertEqual(coverage["total_steps"], 4)
-        self.assertEqual(coverage["located_steps"], 2)  # 步骤1和4
-        self.assertEqual(coverage["pending_steps"], 2)  # 步骤2和3
+        self.assertEqual(coverage["located_steps"], 2)  # 步骤1�?
+        self.assertEqual(coverage["pending_steps"], 2)  # 步骤2�?
         self.assertEqual(coverage["failed_steps"], 0)
         self.assertAlmostEqual(coverage["coverage_percentage"], 50.0, places=1)
         
-        print("✅ 测试5通过: 获取定位覆盖率")
+        print("�?测试5通过: 获取定位覆盖�?)
     
     # ==================== Excel导入导出测试 ====================
     
@@ -278,7 +278,7 @@ class TestDualViewComplete(unittest.TestCase):
         # 清理
         os.remove(output_file)
         
-        print("✅ 测试6通过: 导出功能用例Excel")
+        print("�?测试6通过: 导出功能用例Excel")
     
     def test_07_import_functional_excel(self):
         """测试7: 导入功能用例Excel"""
@@ -288,10 +288,10 @@ class TestDualViewComplete(unittest.TestCase):
         df = pd.DataFrame([{
             "标题": "导入测试用例",
             "执行用例ID": "TC_IMPORT_TEST",
-            "所属模块": "导入测试模块",
+            "所属模�?: "导入测试模块",
             "前置条件": "导入前置条件",
-            "步骤描述": "【1】步骤A\n【2】步骤B",
-            "预期结果": "【1】预期A\n【2】预期B",
+            "步骤描述": "�?】步骤A\n�?】步骤B",
+            "预期结果": "�?】预期A\n�?】预期B",
             "用例类型": "功能测试",
             "用例等级": "P1",
             "用例执行": ""
@@ -308,7 +308,7 @@ class TestDualViewComplete(unittest.TestCase):
             
             self.assertTrue(len(case_ids) > 0)
             
-            # 验证导入的数据
+            # 验证导入的数�?
             imported_case = self.db.query(TestCase).filter(TestCase.id == case_ids[0]).first()
             self.assertEqual(imported_case.title, "导入测试用例")
             self.assertEqual(imported_case.priority, 2)  # P1 -> 2
@@ -319,7 +319,7 @@ class TestDualViewComplete(unittest.TestCase):
             ).all()
             self.assertEqual(len(steps), 2)
             
-            # 清理导入的数据
+            # 清理导入的数�?
             for step in steps:
                 self.db.delete(step)
             self.db.delete(imported_case)
@@ -329,36 +329,36 @@ class TestDualViewComplete(unittest.TestCase):
             if os.path.exists(test_file):
                 os.remove(test_file)
         
-        print("✅ 测试7通过: 导入功能用例Excel")
+        print("�?测试7通过: 导入功能用例Excel")
     
-    # ==================== 双视图对比测试 ====================
+    # ==================== 双视图对比测�?====================
     
     def test_08_business_vs_technical_view(self):
         """测试8: 对比业务视图和技术视图的差异"""
         business_view = self.service.get_business_view(self.test_case.id)
         technical_data = self.service.get_technical_view(self.test_case.id)
         
-        # 业务视图：3个步骤（1,2,3）
+        # 业务视图�?个步骤（1,2,3�?
         self.assertEqual(len(business_view.steps), 3)
         
-        # 技术视图：3个步骤（1,3,4）
+        # 技术视图：3个步骤（1,3,4�?
         self.assertEqual(len(technical_data["steps"]), 3)
         
-        # 业务视图包含步骤2（仅业务）
+        # 业务视图包含步骤2（仅业务�?
         business_step_numbers = [s.step_number for s in business_view.steps]
         self.assertIn(2, business_step_numbers)
         
-        # 技术视图包含步骤4（仅技术）
+        # 技术视图包含步�?（仅技术）
         technical_step_numbers = [s["step_number"] for s in technical_data["steps"]]
         self.assertIn(4, technical_step_numbers)
         
-        # 两者都包含步骤1和3（双视图）
+        # 两者都包含步骤1�?（双视图�?
         self.assertIn(1, business_step_numbers)
         self.assertIn(1, technical_step_numbers)
         self.assertIn(3, business_step_numbers)
         self.assertIn(3, technical_step_numbers)
         
-        print("✅ 测试8通过: 业务视图vs技术视图对比")
+        print("�?测试8通过: 业务视图vs技术视图对�?)
     
     def test_09_view_statistics(self):
         """测试9: 视图统计信息"""
@@ -369,18 +369,18 @@ class TestDualViewComplete(unittest.TestCase):
         self.assertEqual(stats["technical_view_steps"], 3)
         self.assertEqual(stats["located_steps"], 2)
         
-        print("✅ 测试9通过: 视图统计信息")
+        print("�?测试9通过: 视图统计信息")
     
     # ==================== 边界条件测试 ====================
     
     def test_10_empty_case_views(self):
         """测试10: 空用例的视图处理"""
-        # 创建空用例
+        # 创建空用�?
         empty_case = TestCase(
             project_id=self.test_project.id,
             case_no=f"TC_EMPTY_{int(datetime.now().timestamp())}",
-            module="空用例模块",
-            title="空用例测试",
+            module="空用例模�?,
+            title="空用例测�?,
             precondition="",
             expected_result="",
             priority=2,
@@ -397,12 +397,12 @@ class TestDualViewComplete(unittest.TestCase):
             business_view = self.service.get_business_view(empty_case.id)
             self.assertEqual(len(business_view.steps), 0)
             
-            # 技术视图
+            # 技术视�?
             technical_data = self.service.get_technical_view(empty_case.id)
             self.assertEqual(len(technical_data["steps"]), 0)
             self.assertEqual(technical_data["locator_coverage"], 0.0)
             
-            # 覆盖率
+            # 覆盖�?
             coverage = self.service.get_locator_coverage(empty_case.id)
             self.assertEqual(coverage["total_steps"], 0)
             self.assertEqual(coverage["coverage_percentage"], 0.0)
@@ -411,7 +411,7 @@ class TestDualViewComplete(unittest.TestCase):
             self.db.delete(empty_case)
             self.db.commit()
         
-        print("✅ 测试10通过: 空用例视图处理")
+        print("�?测试10通过: 空用例视图处�?)
     
     def test_11_nonexistent_case(self):
         """测试11: 不存在用例的处理"""
@@ -419,15 +419,15 @@ class TestDualViewComplete(unittest.TestCase):
         business_view = self.service.get_business_view(999999)
         self.assertIsNone(business_view)
         
-        # 技术视图
+        # 技术视�?
         technical_data = self.service.get_technical_view(999999)
         self.assertIsNone(technical_data)
         
-        # 覆盖率
+        # 覆盖�?
         coverage = self.service.get_locator_coverage(999999)
         self.assertEqual(coverage["total_steps"], 0)
         
-        print("✅ 测试11通过: 不存在用例处理")
+        print("�?测试11通过: 不存在用例处�?)
     
     def test_12_all_steps_business_only(self):
         """测试12: 所有步骤仅业务视图"""
@@ -435,8 +435,8 @@ class TestDualViewComplete(unittest.TestCase):
         business_only_case = TestCase(
             project_id=self.test_project.id,
             case_no=f"TC_BUS_ONLY_{int(datetime.now().timestamp())}",
-            module="仅业务模块",
-            title="仅业务视图用例",
+            module="仅业务模�?,
+            title="仅业务视图用�?,
             precondition="",
             expected_result="",
             priority=2,
@@ -465,11 +465,11 @@ class TestDualViewComplete(unittest.TestCase):
         self.db.refresh(business_only_case)
         
         try:
-            # 业务视图应有2个步骤
+            # 业务视图应有2个步�?
             business_view = self.service.get_business_view(business_only_case.id)
             self.assertEqual(len(business_view.steps), 2)
             
-            # 技术视图应有0个步骤
+            # 技术视图应�?个步�?
             technical_data = self.service.get_technical_view(business_only_case.id)
             self.assertEqual(len(technical_data["steps"]), 0)
             
@@ -483,7 +483,7 @@ class TestDualViewComplete(unittest.TestCase):
             self.db.delete(business_only_case)
             self.db.commit()
         
-        print("✅ 测试12通过: 仅业务视图步骤")
+        print("�?测试12通过: 仅业务视图步�?)
 
 
 if __name__ == '__main__':

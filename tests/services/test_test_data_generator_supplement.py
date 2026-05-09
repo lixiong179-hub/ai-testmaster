@@ -1,12 +1,12 @@
 """
-测试数据生成器补充单元测试
+测试数据生成器补充单元测�?
 
 用于提升覆盖率到80%以上
 测试范围:
 - 未覆盖的边界条件
 - 异常处理
 - 复杂场景
-- 所有数据类型
+- 所有数据类�?
 """
 import pytest
 from datetime import datetime
@@ -22,12 +22,12 @@ class TestTestDataGeneratorSupplement:
 
     @pytest.fixture
     def generator(self):
-        """创建测试数据生成器实例"""
+        """创建测试数据生成器实�?""
         return TestDataGenerator()
 
     @pytest.fixture
     def generator_with_seed(self):
-        """创建带种子的测试数据生成器"""
+        """创建带种子的测试数据生成�?""
         return TestDataGenerator(seed=42)
 
     # ============================================================================
@@ -35,44 +35,44 @@ class TestTestDataGeneratorSupplement:
     # ============================================================================
 
     def test_generate_boundary_min_text(self, generator):
-        """测试边界最小值-文本类型"""
+        """测试边界最小�?文本类型"""
         constraints = DataConstraints(min_length=5)
         result = generator._generate_boundary_min(DataType.TEXT, constraints)
         assert len(result) == 5
-        assert result == "测" * 5
+        assert result == "�? * 5
 
     def test_generate_boundary_min_number(self, generator):
-        """测试边界最小值-数字类型"""
+        """测试边界最小�?数字类型"""
         constraints = DataConstraints(min_value=10)
         result = generator._generate_boundary_min(DataType.NUMBER, constraints)
         assert result == "10"
 
     def test_generate_boundary_min_other(self, generator):
-        """测试边界最小值-其他类型"""
+        """测试边界最小�?其他类型"""
         constraints = DataConstraints()
         result = generator._generate_boundary_min(DataType.EMAIL, constraints)
         assert result == ""
 
     def test_generate_boundary_max_text(self, generator):
-        """测试边界最大值-文本类型"""
+        """测试边界最大�?文本类型"""
         constraints = DataConstraints(max_length=20)
         result = generator._generate_boundary_max(DataType.TEXT, constraints)
         assert len(result) == 20
 
     def test_generate_boundary_max_number(self, generator):
-        """测试边界最大值-数字类型"""
+        """测试边界最大�?数字类型"""
         constraints = DataConstraints(max_value=100)
         result = generator._generate_boundary_max(DataType.NUMBER, constraints)
         assert result == "100"
 
     def test_generate_boundary_over_text(self, generator):
-        """测试边界超长值-文本类型"""
+        """测试边界超长�?文本类型"""
         constraints = DataConstraints(max_length=10)
         result = generator._generate_boundary_over(DataType.TEXT, constraints)
         assert len(result) == 11
 
     def test_generate_boundary_over_number(self, generator):
-        """测试边界超长值-数字类型"""
+        """测试边界超长�?数字类型"""
         constraints = DataConstraints(max_value=50)
         result = generator._generate_boundary_over(DataType.NUMBER, constraints)
         assert result == "51"
@@ -85,13 +85,13 @@ class TestTestDataGeneratorSupplement:
         assert any(c in "!@#$%^&*()_+-=[]{}|;':\",./<>?" for c in result)
 
     def test_generate_special_chars_non_text(self, generator):
-        """测试特殊字符-非文本类型"""
+        """测试特殊字符-非文本类�?""
         constraints = DataConstraints()
         result = generator._generate_special_chars(DataType.NUMBER, constraints)
         assert result == ""
 
     def test_generate_empty_rule(self, generator):
-        """测试空值规则"""
+        """测试空值规�?""
         result = generator.generate_data(
             DataType.TEXT,
             "test_field",
@@ -100,7 +100,7 @@ class TestTestDataGeneratorSupplement:
         assert result == ""
 
     def test_generate_custom_rule(self, generator):
-        """测试自定义规则"""
+        """测试自定义规�?""
         rule_config = {"custom_value": "my_custom_value"}
         result = generator.generate_data(
             DataType.TEXT,
@@ -111,7 +111,7 @@ class TestTestDataGeneratorSupplement:
         assert result == "my_custom_value"
 
     def test_generate_custom_rule_no_value(self, generator):
-        """测试自定义规则-无值"""
+        """测试自定义规�?无�?""
         result = generator.generate_data(
             DataType.TEXT,
             "test_field",
@@ -129,17 +129,17 @@ class TestTestDataGeneratorSupplement:
         rule_config = {"template": "test_${date}_${random}"}
         result = generator._generate_text("test", DataConstraints(), rule_config)
         assert "test_" in result
-        assert "${date}" not in result  # 模板应该被替换
+        assert "${date}" not in result  # 模板应该被替�?
 
     def test_generate_text_product_name(self, generator):
-        """测试生成产品线名称"""
-        result = generator._generate_text("产品线", DataConstraints(), {})
+        """测试生成产品线名�?""
+        result = generator._generate_text("产品�?, DataConstraints(), {})
         assert "产品线_" in result
 
     def test_generate_text_chinese_name(self, generator):
         """测试生成中文姓名"""
-        result = generator._generate_text("用户名", DataConstraints(), {})
-        assert len(result) >= 2  # 姓+名，可能是2-3个字符
+        result = generator._generate_text("用户�?, DataConstraints(), {})
+        assert len(result) >= 2  # �?名，可能�?-3个字�?
 
     def test_generate_text_description(self, generator):
         """测试生成描述"""
@@ -151,7 +151,7 @@ class TestTestDataGeneratorSupplement:
     def test_generate_text_address(self, generator):
         """测试生成地址"""
         result = generator._generate_text("地址", DataConstraints(), {})
-        assert "号" in result
+        assert "�? in result
 
     def test_generate_text_company(self, generator):
         """测试生成公司名称"""
@@ -177,7 +177,7 @@ class TestTestDataGeneratorSupplement:
         assert 50 <= num <= 100
 
     def test_generate_number_default_range(self, generator):
-        """测试生成默认范围的数字"""
+        """测试生成默认范围的数�?""
         constraints = DataConstraints()
         result = generator._generate_number(constraints)
         num = int(result)
@@ -205,7 +205,7 @@ class TestTestDataGeneratorSupplement:
         assert ".com" in result
 
     def test_generate_phone(self, generator):
-        """测试生成手机号"""
+        """测试生成手机�?""
         result = generator._generate_phone()
         assert len(result) == 11
         assert result.isdigit()
@@ -224,7 +224,7 @@ class TestTestDataGeneratorSupplement:
         assert result == ""
 
     def test_generate_boolean(self, generator):
-        """测试生成布尔值"""
+        """测试生成布尔�?""
         result = generator._generate_boolean()
         assert result in ["true", "false"]
 
@@ -251,7 +251,7 @@ class TestTestDataGeneratorSupplement:
     # ============================================================================
 
     def test_random_chinese(self, generator):
-        """测试生成随机中文字符串"""
+        """测试生成随机中文字符�?""
         result = generator._random_chinese(5)
         assert len(result) == 5
         # 验证都是中文字符
@@ -280,22 +280,22 @@ class TestTestDataGeneratorSupplement:
     # ============================================================================
 
     def test_get_cached_value_new(self, generator):
-        """测试获取新缓存值"""
+        """测试获取新缓存�?""
         result = generator.get_cached_value("key1", DataType.TEXT, "field1")
         assert result is not None
         assert "key1" in generator._generated_values
 
     def test_get_cached_value_existing(self, generator):
-        """测试获取已缓存的值"""
-        # 先获取一次
+        """测试获取已缓存的�?""
+        # 先获取一�?
         result1 = generator.get_cached_value("key2", DataType.TEXT, "field2")
-        # 再次获取应该返回相同的值
+        # 再次获取应该返回相同的�?
         result2 = generator.get_cached_value("key2", DataType.TEXT, "field2")
         assert result1 == result2
 
     def test_reset_generated_values(self, generator):
-        """测试重置生成的值"""
-        # 生成一些值
+        """测试重置生成的�?""
+        # 生成一些�?
         generator.get_cached_value("key3", DataType.TEXT, "field3")
         assert len(generator._generated_values) > 0
         
@@ -305,11 +305,11 @@ class TestTestDataGeneratorSupplement:
 
     def test_reset_with_seed(self, generator_with_seed):
         """测试带种子的重置"""
-        # 生成一些值
+        # 生成一些�?
         result1 = generator_with_seed._random_chinese(5)
         generator_with_seed.reset_generated_values()
         result2 = generator_with_seed._random_chinese(5)
-        # 重置后使用相同种子，应该生成相同的结果
+        # 重置后使用相同种子，应该生成相同的结�?
         assert result1 == result2
 
     # ============================================================================
@@ -318,7 +318,7 @@ class TestTestDataGeneratorSupplement:
 
     def test_generate_data_exception(self, generator):
         """测试生成数据异常处理"""
-        # 传入无效的约束条件可能导致异常
+        # 传入无效的约束条件可能导致异�?
         result = generator.generate_data(
             DataType.TEXT,
             "test",
@@ -333,7 +333,7 @@ class TestTestDataGeneratorSupplement:
             pass
         
         result = generator.generate_data(
-            UnknownType(),  # 无效的类型
+            UnknownType(),  # 无效的类�?
             "test_field"
         )
         assert result == ""
@@ -352,7 +352,7 @@ class TestTestDataGeneratorSupplement:
         assert result is not None
 
     def test_generate_test_data_with_kwargs(self):
-        """测试便捷生成函数带参数"""
+        """测试便捷生成函数带参�?""
         result = generate_test_data(
             DataType.NUMBER,
             "age",
@@ -365,7 +365,7 @@ class TestTestDataGeneratorSupplement:
 
 
 class TestDataConstraints:
-    """数据约束条件测试类"""
+    """数据约束条件测试�?""
 
     def test_default_constraints(self):
         """测试默认约束"""
@@ -378,7 +378,7 @@ class TestDataConstraints:
         assert constraints.pattern is None
 
     def test_custom_constraints(self):
-        """测试自定义约束"""
+        """测试自定义约�?""
         constraints = DataConstraints(
             min_length=5,
             max_length=10,
@@ -399,12 +399,12 @@ class TestTestDataGeneratorSeed:
     """测试数据生成器种子测试类"""
 
     def test_seed_reproducibility(self):
-        """测试种子可重现性 - 验证使用相同种子时生成器状态一致"""
+        """测试种子可重现�?- 验证使用相同种子时生成器状态一�?""
         # 注意：由于随机数生成器全局状态，此测试可能受其他测试影响
-        # 这里仅验证种子设置功能正常工作
+        # 这里仅验证种子设置功能正常工�?
         gen = TestDataGenerator(seed=12345)
         
-        # 验证种子已设置
+        # 验证种子已设�?
         assert gen._seed == 12345
         
         # 验证可以生成数据
@@ -422,13 +422,13 @@ class TestTestDataGeneratorSeed:
         assert result1 != result2
 
     def test_no_seed_random(self):
-        """测试无种子随机性"""
+        """测试无种子随机�?""
         gen1 = TestDataGenerator()
         gen2 = TestDataGenerator()
         
-        # 无种子时，结果应该不同（概率很高）
+        # 无种子时，结果应该不同（概率很高�?
         results1 = [gen1.generate_data(DataType.TEXT, "test") for _ in range(5)]
         results2 = [gen2.generate_data(DataType.TEXT, "test") for _ in range(5)]
         
-        # 至少有一个不同
+        # 至少有一个不�?
         assert results1 != results2

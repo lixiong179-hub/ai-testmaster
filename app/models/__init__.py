@@ -33,6 +33,7 @@
 # 导入顺序很重要：ui_prototype 必须先导入，因为它定义了 ui_screen_test_case_links 关联表
 # 而 test_case.py 中的 TestCase 模型需要引用这个关联表
 from app.models.ui_prototype import UIPrototypeScreen, UIScreenTestCaseLink, UIPrototypeProject
+from app.models.project_flow_data import ProjectFlowData
 from app.models.iteration import Iteration, IterationInput
 from app.models.pipeline import PipelineRun, PipelineStep, Artifact
 from app.models.project import Project, ProjectFile
@@ -68,6 +69,7 @@ from app.models.review import IterationReview, ReviewDecision, ReviewLock
 __all__ = [
     # UI原型相关
     "UIPrototypeScreen", "UIScreenTestCaseLink", "UIPrototypeProject",
+    "ProjectFlowData",
     # 迭代管理
     "Iteration", "IterationInput",
     # Pipeline 存储

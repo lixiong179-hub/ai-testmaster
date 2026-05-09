@@ -1276,7 +1276,11 @@ onUnmounted(() => {
     margin-bottom: 20px;
     padding: 20px 24px;
     border-radius: 24px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 249, 255, 0.98) 100%);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(245, 249, 255, 0.98) 100%
+    );
     box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
 
     .header-left {
@@ -1322,7 +1326,11 @@ onUnmounted(() => {
   .execution-progress {
     margin-bottom: 20px;
     padding: 18px 20px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(247, 250, 255, 0.96) 100%);
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.96) 0%,
+      rgba(247, 250, 255, 0.96) 100%
+    );
     border: 1px solid rgba(220, 230, 241, 0.9);
     border-radius: 20px;
     box-shadow: 0 12px 28px rgba(31, 45, 61, 0.06);
@@ -1353,7 +1361,11 @@ onUnmounted(() => {
 
     .steps-panel {
       width: 300px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.98) 100%);
+      background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.98) 0%,
+        rgba(249, 251, 255, 0.98) 100%
+      );
       border-radius: 20px;
       box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
       display: flex;
@@ -1494,7 +1506,11 @@ onUnmounted(() => {
 
     .screenshot-panel {
       flex: 1;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.98) 100%);
+      background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.98) 0%,
+        rgba(249, 251, 255, 0.98) 100%
+      );
       border-radius: 20px;
       box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
       display: flex;
@@ -1568,7 +1584,11 @@ onUnmounted(() => {
 
     .side-panel {
       width: 350px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.98) 100%);
+      background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.98) 0%,
+        rgba(249, 251, 255, 0.98) 100%
+      );
       border-radius: 20px;
       box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
       display: flex;
@@ -1588,15 +1608,15 @@ onUnmounted(() => {
       .logs-container {
         height: 100%;
         overflow-y: auto;
-          padding: 14px;
+        padding: 14px;
         font-family: 'Courier New', monospace;
         font-size: 12px;
         line-height: 1.6;
 
         .log-item {
-            margin-bottom: 6px;
-            padding: 8px 10px;
-            border-radius: 10px;
+          margin-bottom: 6px;
+          padding: 8px 10px;
+          border-radius: 10px;
 
           &.info {
             color: #409eff;

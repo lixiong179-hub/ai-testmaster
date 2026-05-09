@@ -20,10 +20,10 @@ class TestBuildStepResponse:
         assert result["expected_result"] == "clicked"
 
     def test_step_with_step_key(self):
-        step = {"step": "输入用户名", "param": "admin"}
+        step = {"step": "输入用户�?, "param": "admin"}
         result = _build_step_response(step)
-        assert result["step"] == "输入用户名"
-        assert result["action"] == "输入用户名"
+        assert result["step"] == "输入用户�?
+        assert result["action"] == "输入用户�?
 
     def test_step_with_description_key(self):
         step = {"description": "验证页面加载", "expected_result": "加载成功"}
@@ -32,7 +32,7 @@ class TestBuildStepResponse:
         assert result["action"] == "验证页面加载"
 
     def test_action_priority_over_step(self):
-        step = {"action": "click", "step": "输入用户名"}
+        step = {"action": "click", "step": "输入用户�?}
         result = _build_step_response(step)
         assert result["step"] == "click"
         assert result["action"] == "click"
@@ -155,7 +155,7 @@ class MockTestCase:
         self.case_no = kwargs.get("case_no", "TC-001")
         self.module = kwargs.get("module", "登录模块")
         self.title = kwargs.get("title", "登录测试")
-        self.precondition = kwargs.get("precondition", "系统已启动")
+        self.precondition = kwargs.get("precondition", "系统已启�?)
         self.steps_json = kwargs.get("steps_json", [{"action": "click", "param": "btn"}])
         self.expected_result = kwargs.get("expected_result", "登录成功")
         self.priority = kwargs.get("priority", 1)
@@ -175,7 +175,7 @@ class TestBuildTestCaseResponse:
         assert result["case_no"] == "TC-001"
         assert result["module"] == "登录模块"
         assert result["title"] == "登录测试"
-        assert result["precondition"] == "系统已启动"
+        assert result["precondition"] == "系统已启�?
         assert len(result["steps"]) == 1
         assert result["expected_result"] == "登录成功"
         assert result["priority"] == 1
@@ -196,7 +196,7 @@ class TestBuildTestCaseResponse:
         class MinimalCase:
             id = 1
             project_id = 200
-            title = "最小用例"
+            title = "最小用�?
             priority = 2
 
         result = build_test_case_response(MinimalCase())

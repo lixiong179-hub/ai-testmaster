@@ -34,66 +34,69 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
         username: 'admin',
         password: adminPassword,
       },
-    }).then((loginResponse) => {
-      expect(loginResponse.status).to.eq(200)
-      authToken = loginResponse.body.data.access_token
+    })
+      .then((loginResponse) => {
+        expect(loginResponse.status).to.eq(200)
+        authToken = loginResponse.body.data.access_token
 
-      return cy.request({
-        method: 'POST',
-        url: `${API_URL}/api/v1/project`,
-        headers: authHeaders(),
-        body: {
-          name: projectName,
-          description: '用于项目 -> 任务 -> 执行 -> 测试点管理的真实链路回归',
-          project_type: 'web',
-          web_env_configs: {
-            test: {
-              url: 'http://127.0.0.1:3000/login',
-              username: 'admin',
-              password: adminPassword,
+        return cy.request({
+          method: 'POST',
+          url: `${API_URL}/api/v1/project`,
+          headers: authHeaders(),
+          body: {
+            name: projectName,
+            description: '用于项目 -> 任务 -> 执行 -> 测试点管理的真实链路回归',
+            project_type: 'web',
+            web_env_configs: {
+              test: {
+                url: 'http://127.0.0.1:3000/login',
+                username: 'admin',
+                password: adminPassword,
+              },
             },
           },
-        },
+        })
       })
-    }).then((projectResponse) => {
-      expect(projectResponse.status).to.eq(200)
-      projectId = projectResponse.body.data.project_id
-    }).then(() => {
-      const caseIndexes = Array.from({ length: totalCaseCount }, (_, index) => index + 1)
+      .then((projectResponse) => {
+        expect(projectResponse.status).to.eq(200)
+        projectId = projectResponse.body.data.project_id
+      })
+      .then(() => {
+        const caseIndexes = Array.from({ length: totalCaseCount }, (_, index) => index + 1)
 
-      return cy.wrap(caseIndexes).each((caseIndex) => {
-        return cy
-          .request({
-            method: 'POST',
-            url: `${API_URL}/api/v1/testCase`,
-            headers: {
-              ...authHeaders(),
-              'Content-Type': 'application/json',
-            },
-            body: {
-              project_id: projectId,
-              module: caseIndex > 100 ? '超限模块' : '登录模块',
-              title: buildCaseTitle(caseIndex),
-              precondition: '管理员账号可用',
-              steps: [
-                {
-                  step: 1,
-                  action: `打开页面并执行回归步骤 ${caseIndex}`,
-                  param: '',
-                  expected_result: '页面打开成功',
-                },
-              ],
-              expected_result: '可以进入登录流程',
-              priority: 2,
-              case_type: 'ui_automation',
-              generate_status: 1,
-            },
-          })
-          .then((caseResponse) => {
-            expect(caseResponse.status).to.eq(200)
-          })
+        return cy.wrap(caseIndexes).each((caseIndex) => {
+          return cy
+            .request({
+              method: 'POST',
+              url: `${API_URL}/api/v1/testCase`,
+              headers: {
+                ...authHeaders(),
+                'Content-Type': 'application/json',
+              },
+              body: {
+                project_id: projectId,
+                module: caseIndex > 100 ? '超限模块' : '登录模块',
+                title: buildCaseTitle(caseIndex),
+                precondition: '管理员账号可用',
+                steps: [
+                  {
+                    step: 1,
+                    action: `打开页面并执行回归步骤 ${caseIndex}`,
+                    param: '',
+                    expected_result: '页面打开成功',
+                  },
+                ],
+                expected_result: '可以进入登录流程',
+                priority: 2,
+                case_type: 'ui_automation',
+                generate_status: 1,
+              },
+            })
+            .then((caseResponse) => {
+              expect(caseResponse.status).to.eq(200)
+            })
+        })
       })
-    })
   })
 
   after(() => {
@@ -150,9 +153,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
     cy.contains('.hero-action-group button', '查看任务').should('be.visible').click()
 
     cy.url().should('include', `/home/task/list/${projectId}`)
-    cy.contains('button', '创建任务')
-      .should('be.visible')
-      .and('have.class', 'el-button--primary')
+    cy.contains('button', '创建任务').should('be.visible').and('have.class', 'el-button--primary')
     cy.contains('.task-empty-actions button', '创建首个任务').click()
 
     cy.url().should('include', `/home/task/create/${projectId}`)
@@ -191,9 +192,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
       cy.get('.env-selector').should('be.visible')
       cy.contains('.journey-actions button', '任务列表').should('be.visible')
       cy.contains('.journey-actions button', '测试点管理').should('be.visible')
-      cy.contains('button', '开始执行')
-        .should('be.visible')
-        .and('have.class', 'el-button--primary')
+      cy.contains('button', '开始执行').should('be.visible').and('have.class', 'el-button--primary')
 
       cy.intercept('POST', `**/api/v1/execution/${taskId}/start`).as('startExecution')
       cy.contains('button', '开始执行').click()

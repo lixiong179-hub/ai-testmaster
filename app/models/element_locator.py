@@ -137,15 +137,15 @@ class ElementLocator(Base):
 
     def record_success(self) -> None:
         """记录一次定位成功，更新成功计数、使用时间和版本号。"""
-        self.success_count = int(self.success_count) + 1  # type: ignore
-        self.last_used_at = utcnow()  # type: ignore
-        self.version = int(self.version) + 1  # type: ignore
+        self.success_count = (self.success_count or 0) + 1
+        self.last_used_at = utcnow()
+        self.version = (self.version or 0) + 1
 
     def record_failure(self) -> None:
         """记录一次定位失败，更新失败计数、使用时间和版本号。"""
-        self.fail_count = int(self.fail_count) + 1  # type: ignore
-        self.last_used_at = utcnow()  # type: ignore
-        self.version = int(self.version) + 1  # type: ignore
+        self.fail_count = (self.fail_count or 0) + 1
+        self.last_used_at = utcnow()
+        self.version = (self.version or 0) + 1
 
     @staticmethod
     def atomic_record_success(db, locator_id: int, current_version: int) -> bool:
@@ -154,6 +154,8 @@ class ElementLocator(Base):
 
         通过 WHERE id = :id AND version = :version 条件确保并发安全，
         只有版本号匹配时才更新，避免覆盖其他并发修改。
+
+        注意：本方法仅执行 flush，不 commit。由调用方管理事务边界。
 
         Args:
             db: 数据库会话
@@ -168,7 +170,7 @@ class ElementLocator(Base):
             "last_used_at = UTC_TIMESTAMP(), version = version + 1 "
             "WHERE id = :id AND version = :version"
         ), {"id": locator_id, "version": current_version})
-        db.commit()
+        db.flush()
         return result.rowcount > 0
 
     @staticmethod
@@ -178,6 +180,8 @@ class ElementLocator(Base):
 
         通过 WHERE id = :id AND version = :version 条件确保并发安全，
         只有版本号匹配时才更新，避免覆盖其他并发修改。
+
+        注意：本方法仅执行 flush，不 commit。由调用方管理事务边界。
 
         Args:
             db: 数据库会话
@@ -192,7 +196,7 @@ class ElementLocator(Base):
             "last_used_at = UTC_TIMESTAMP(), version = version + 1 "
             "WHERE id = :id AND version = :version"
         ), {"id": locator_id, "version": current_version})
-        db.commit()
+        db.flush()
         return result.rowcount > 0
 
     @staticmethod
@@ -231,10 +235,10 @@ class ElementLocator(Base):
         Returns:
             float: 成功率，0.0-1.0；无使用记录时返回0.0
         """
-        total = int(self.success_count) + int(self.fail_count)  # type: ignore
+        total = (self.success_count or 0) + (self.fail_count or 0)
         if total == 0:
             return 0.0
-        return float(self.success_count) / float(total)  # type: ignore
+        return (self.success_count or 0) / total
 
     def get_best_locator(self) -> Optional[Dict[str, Any]]:
         """

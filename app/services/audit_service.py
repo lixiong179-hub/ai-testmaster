@@ -12,6 +12,7 @@
     - app.models.audit_log : AuditLog
 """
 from typing import Optional, List
+from loguru import logger
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -83,7 +84,11 @@ def log_action(
         iteration_id=iteration_id,
     )
     db.add(record)
-    db.flush()
+    try:
+        db.flush()
+    except Exception as e:
+        _record_audit_failure_metric(action, str(e)[:200])
+        raise
     return record
 
 
@@ -184,3 +189,15 @@ def count_logs(
         .filter(and_(*filters) if filters else True)
         .count()
     )
+
+
+def _record_audit_failure_metric(action: str, error_snippet: str) -> None:
+    """记录 F15 审计日志写入失败指标（失败不阻塞业务）。"""
+    try:
+        from app.services.metrics_service import record_metric
+        record_metric(
+            "audit_log_write_failure",
+            detail={"action": action, "error": error_snippet},
+        )
+    except Exception as e:
+        logger.debug(f"审计指标记录失败(不影响业务): {e}")

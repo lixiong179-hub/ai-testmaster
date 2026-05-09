@@ -22,4 +22,4 @@ SCENARIO_2_STEPS: List[Type[PipelineStep]] = [
 ]
 
 SCENARIO_2_NAME = "scenario_2_no_ui"
-SCENARIO_2_VERSION = "1.0"
+SCENARIO_2_VERSION = "2.0"

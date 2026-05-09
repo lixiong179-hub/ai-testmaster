@@ -1,5 +1,5 @@
 """
-功能用例Excel导入导出覆盖率补充测试
+功能用例Excel导入导出覆盖率补充测�?
 目标：覆盖率>=95%
 """
 import sys
@@ -20,7 +20,7 @@ from app.models.test_case import TestCase, TestStep
 
 
 class TestFunctionalExcelCoverage(unittest.TestCase):
-    """覆盖率补充测试"""
+    """覆盖率补充测�?""
     
     @classmethod
     def setUpClass(cls):
@@ -29,7 +29,7 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
         
         cls.test_project = Project(
             name=f"覆盖率测试项目_{int(datetime.now().timestamp())}",
-            description="覆盖率测试",
+            description="覆盖率测�?,
             status=1,
             user_id=1
         )
@@ -65,10 +65,10 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
             {
                 "标题": "用例1",
                 "执行用例ID": "TC_MULTI_001",
-                "所属模块": "模块A",
+                "所属模�?: "模块A",
                 "前置条件": "条件1",
-                "步骤描述": "【1】步骤1",
-                "预期结果": "【1】预期1",
+                "步骤描述": "�?】步�?",
+                "预期结果": "�?】预�?",
                 "用例类型": "功能测试",
                 "用例等级": "P0",
                 "用例执行": ""
@@ -76,10 +76,10 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
             {
                 "标题": "用例2",
                 "执行用例ID": "TC_MULTI_002",
-                "所属模块": "模块B",
+                "所属模�?: "模块B",
                 "前置条件": "条件2",
-                "步骤描述": "【1】步骤A\n【2】步骤B",
-                "预期结果": "【1】预期A\n【2】预期B",
+                "步骤描述": "�?】步骤A\n�?】步骤B",
+                "预期结果": "�?】预期A\n�?】预期B",
                 "用例类型": "接口测试",
                 "用例等级": "P1",
                 "用例执行": ""
@@ -87,10 +87,10 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
             {
                 "标题": "用例3",
                 "执行用例ID": "",
-                "所属模块": "模块C",
+                "所属模�?: "模块C",
                 "前置条件": "",
-                "步骤描述": "【1】步骤X",
-                "预期结果": "【1】预期X",
+                "步骤描述": "�?】步骤X",
+                "预期结果": "�?】预期X",
                 "用例类型": "功能测试",
                 "用例等级": "P2",
                 "用例执行": ""
@@ -108,7 +108,7 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
             
             self.assertTrue(len(case_ids) > 0)
             
-            # 验证导入了3条用例
+            # 验证导入�?条用�?
             imported_cases = self.db.query(TestCase).filter(
                 TestCase.project_id == self.test_project.id,
                 TestCase.title.in_(["用例1", "用例2", "用例3"])
@@ -126,7 +126,7 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
                 os.remove(test_file)
     
     def test_priority_mapping(self):
-        """测试优先级映射"""
+        """测试优先级映�?""
         import pandas as pd
         
         df = pd.DataFrame([
@@ -143,7 +143,7 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
         try:
             self.service.import_functional_excel(test_file, self.test_project.id)
             
-            # 验证优先级映射
+            # 验证优先级映�?
             p0_case = self.db.query(TestCase).filter(TestCase.title == "P0测试").first()
             p1_case = self.db.query(TestCase).filter(TestCase.title == "P1测试").first()
             p2_case = self.db.query(TestCase).filter(TestCase.title == "P2测试").first()
@@ -181,7 +181,7 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
             self.db.flush()
             cases.append(tc)
             
-            # 为每个用例创建步骤
+            # 为每个用例创建步�?
             for j in range(1, 3):
                 step = TestStep(
                     test_case_id=tc.id,
@@ -210,12 +210,12 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
             wb = load_workbook(test_file)
             ws = wb.active
             
-            # 表头行验证
+            # 表头行验�?
             headers = [ws.cell(row=1, column=c).value for c in range(1, 9)]
             self.assertEqual(headers[0], "用例序号")
-            self.assertEqual(headers[1], "优先级")
+            self.assertEqual(headers[1], "优先�?)
             
-            # 收集所有优先级值（跳过表头和模块标题行）
+            # 收集所有优先级值（跳过表头和模块标题行�?
             priorities = []
             for row in range(2, ws.max_row + 1):
                 val = ws.cell(row=row, column=2).value
@@ -231,36 +231,36 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
                 os.remove(test_file)
     
     def test_build_steps_empty_list(self):
-        """测试构建空步骤列表"""
+        """测试构建空步骤列�?""
         result = self.service._build_functional_steps([])
         self.assertEqual(result, "")
     
     def test_build_expected_empty_list(self):
-        """测试构建空预期结果列表"""
+        """测试构建空预期结果列�?""
         result = self.service._build_functional_expected([])
         self.assertEqual(result, "")
     
     def test_parse_steps_single_line(self):
         """测试解析单行步骤"""
-        steps = self.service._parse_functional_steps("只有一个步骤", "只有一个预期")
+        steps = self.service._parse_functional_steps("只有一个步�?, "只有一个预�?)
         
         self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0].action, "只有一个步骤")
-        self.assertEqual(steps[0].expected_result, "只有一个预期")
+        self.assertEqual(steps[0].action, "只有一个步�?)
+        self.assertEqual(steps[0].expected_result, "只有一个预�?)
     
     def test_case_no_generation(self):
         """测试用例编号生成"""
-        # 测试空编号生成
+        # 测试空编号生�?
         case_no1 = self.service._generate_unique_case_no(self.test_project.id, "")
         self.assertTrue(case_no1.startswith(f"TC{self.test_project.id}_"))
         
-        # 测试唯一编号（使用随机数确保唯一）
+        # 测试唯一编号（使用随机数确保唯一�?
         import random
         unique_no = f"UNIQUE_{random.randint(100000, 999999)}_{int(datetime.now().timestamp())}"
         case_no2 = self.service._generate_unique_case_no(self.test_project.id, unique_no)
         self.assertEqual(case_no2, unique_no)
         
-        # 创建一个使用该编号的测试用例，使编号重复
+        # 创建一个使用该编号的测试用例，使编号重�?
         test_case = TestCase(
             project_id=self.test_project.id,
             case_no=unique_no,

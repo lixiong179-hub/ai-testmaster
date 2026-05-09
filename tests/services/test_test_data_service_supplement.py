@@ -19,7 +19,7 @@ from app.models.test_case import TestCase, TestStep
 
 
 class TestTestDataServiceSupplement:
-    """测试数据服务补充测试类"""
+    """测试数据服务补充测试�?""
 
     @pytest.fixture
     def db_session(self):
@@ -48,7 +48,7 @@ class TestTestDataServiceSupplement:
             min_value=None,
             max_value=None,
             enum_values=None,
-            description="用户名",
+            description="用户�?,
             is_required=True,
             sort_order=0
         )
@@ -168,11 +168,11 @@ class TestTestDataServiceSupplement:
         assert result is False
 
     # ============================================================================
-    # 生成值 - 复杂场景
+    # 生成�?- 复杂场景
     # ============================================================================
 
     def test_generate_value_with_constraints(self, service, sample_test_data):
-        """测试带约束条件的生成值"""
+        """测试带约束条件的生成�?""
         sample_test_data.min_length = 5
         sample_test_data.max_length = 10
         
@@ -183,7 +183,7 @@ class TestTestDataServiceSupplement:
         assert len(value) <= 10
 
     def test_generate_value_with_enum(self, service):
-        """测试枚举类型生成值"""
+        """测试枚举类型生成�?""
         test_data = TestData(
             id=2,
             step_id=100,
@@ -198,7 +198,7 @@ class TestTestDataServiceSupplement:
         assert value in ["active", "inactive", "pending"]
 
     def test_generate_value_with_custom_rule(self, service):
-        """测试自定义规则生成值"""
+        """测试自定义规则生成�?""
         test_data = TestData(
             id=3,
             step_id=100,
@@ -218,7 +218,7 @@ class TestTestDataServiceSupplement:
     # ============================================================================
 
     def test_generate_step_data_empty(self, service, db_session):
-        """测试生成空步骤数据"""
+        """测试生成空步骤数�?""
         db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
         
         result = service.generate_step_data(100)
@@ -250,7 +250,7 @@ class TestTestDataServiceSupplement:
         assert result == {}
 
     def test_generate_case_data_with_steps(self, service, db_session):
-        """测试生成包含步骤的用例数据"""
+        """测试生成包含步骤的用例数�?""
         test_case = Mock(spec=TestCase)
         test_case.test_steps = []
         db_session.query.return_value.filter.return_value.first.return_value = test_case
@@ -264,7 +264,7 @@ class TestTestDataServiceSupplement:
     # ============================================================================
 
     def test_batch_create_test_data_empty_list(self, service):
-        """测试批量创建空列表"""
+        """测试批量创建空列�?""
         result = service.batch_create_test_data(100, [])
         
         assert result == []
@@ -276,7 +276,7 @@ class TestTestDataServiceSupplement:
             {"field_name": "field2", "field_type": DataType.TEXT},
         ]
         
-        # 模拟第一个成功，第二个失败
+        # 模拟第一个成功，第二个失�?
         call_count = [0]
         def side_effect(*args, **kwargs):
             call_count[0] += 1
@@ -344,7 +344,7 @@ class TestTestDataServiceSupplement:
 
 
 class TestTestDataServiceEdgeCases:
-    """测试数据服务边界情况测试类"""
+    """测试数据服务边界情况测试�?""
 
     @pytest.fixture
     def db_session(self):
@@ -358,18 +358,18 @@ class TestTestDataServiceEdgeCases:
         return TestDataService(db_session)
 
     def test_create_test_data_with_special_characters(self, service, db_session):
-        """测试创建包含特殊字符的测试数据"""
+        """测试创建包含特殊字符的测试数�?""
         test_data = service.create_test_data(
             step_id=100,
             field_name="field_123_test",
             field_type=DataType.TEXT,
-            description="包含中文、English、123、!@#"
+            description="包含中文、English�?23�?@#"
         )
         
         assert test_data is not None
 
     def test_create_test_data_with_long_name(self, service, db_session):
-        """测试创建超长字段名"""
+        """测试创建超长字段�?""
         long_name = "a" * 100
         
         test_data = service.create_test_data(
@@ -393,10 +393,10 @@ class TestTestDataServiceEdgeCases:
             rule_config="invalid json"
         )
         
-        # 应该抛出异常但服务应该处理
+        # 应该抛出异常但服务应该处�?
         try:
             value = service.generate_value(test_data)
-            # 如果成功生成，验证结果
+            # 如果成功生成，验证结�?
             assert value is not None
         except Exception:
             # 如果抛出异常也是可接受的
@@ -413,7 +413,7 @@ class TestTestDataServiceEdgeCases:
 
 
 class TestTestDataServiceIntegration:
-    """测试数据服务集成测试类"""
+    """测试数据服务集成测试�?""
 
     @pytest.fixture
     def db_session(self):
@@ -436,7 +436,7 @@ class TestTestDataServiceIntegration:
         )
         assert test_data is not None
         
-        # 2. 生成值
+        # 2. 生成�?
         value = service.generate_value(test_data)
         assert value is not None
         
@@ -446,7 +446,7 @@ class TestTestDataServiceIntegration:
         assert result is True
 
     def test_multiple_data_types_workflow(self, service, db_session):
-        """测试多种数据类型工作流"""
+        """测试多种数据类型工作�?""
         data_types = [
             (DataType.TEXT, "text_field"),
             (DataType.NUMBER, "number_field"),
@@ -464,7 +464,7 @@ class TestTestDataServiceIntegration:
             )
             created_data.append(test_data)
             
-            # 验证能生成值
+            # 验证能生成�?
             value = service.generate_value(test_data)
             assert value is not None
         

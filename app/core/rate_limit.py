@@ -33,6 +33,7 @@ from collections import defaultdict, deque
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional
+from loguru import logger
 
 from app.core.config import settings
 
@@ -116,8 +117,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 # ping验证连接可用性，不可用时抛出异常进入降级逻辑
                 self._redis_client.ping()
                 self._use_redis = True
-        except Exception:
+        except Exception as e:
             # 降级到内存模式：redis库未安装、REDIS_URL未配置、连接失败等均走此分支
+            logger.warning(f"Redis 不可用，降级为内存模式限流: {e}")
             self._use_redis = False
 
     async def dispatch(self, request: Request, call_next):
@@ -135,7 +137,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             HTTPException: 请求频率超限时抛出429状态码
         """
         # 获取客户端IP作为限流的唯一标识
-        client_ip = request.client.host
+        client_ip = request.client.host if request.client else "unknown"
         current_time = time.time()
 
         if self._use_redis:
@@ -218,6 +220,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             # Redis运行时异常（连接断开、命令超时等），降级到内存模式处理本次请求
             # 降级而非拒绝，保证服务可用性优先于限流精确性
+            logger.warning(f"Redis 运行时异常，降级本次请求为内存模式: {e}")
             return await self._dispatch_memory(client_ip, current_time, request, call_next)
 
     async def _dispatch_memory(self, client_ip: str, current_time: float, request: Request, call_next):
@@ -281,3 +284,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         while self.requests[client_ip] and current_time - self.requests[client_ip][0] > self.time_window:
             # popleft()移除deque头部（最早）的过期记录，时间复杂度O(1)
             self.requests[client_ip].popleft()
+        # 清理空 deque 以释放长期闲置 IP 的内存占用
+        if not self.requests[client_ip]:
+            del self.requests[client_ip]

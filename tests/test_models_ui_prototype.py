@@ -59,7 +59,7 @@ class TestUIPrototypeScreenModel:
             project_id=test_project.id,
             prototype_name="登录原型",
             source="figma",
-            screen_name="登录页",
+            screen_name="登录�?,
             created_by=test_user.id
         )
         db.add(screen)
@@ -69,7 +69,7 @@ class TestUIPrototypeScreenModel:
         assert screen.project_id == test_project.id
         assert screen.prototype_name == "登录原型"
         assert screen.source == "figma"
-        assert screen.screen_name == "登录页"
+        assert screen.screen_name == "登录�?
         assert screen.created_by == test_user.id
         assert screen.create_time is not None
         db.delete(screen)
@@ -79,7 +79,7 @@ class TestUIPrototypeScreenModel:
         screen = UIPrototypeScreen(
             project_id=test_project.id,
             prototype_name="默认原型",
-            screen_name="默认页"
+            screen_name="默认�?
         )
         db.add(screen)
         db.commit()
@@ -132,7 +132,7 @@ class TestUIPrototypeScreenModel:
             screen = UIPrototypeScreen(
                 project_id=test_project.id,
                 prototype_name=f"解析-{status}",
-                screen_name=f"页-{status}",
+                screen_name=f"�?{status}",
                 parse_status=status
             )
             db.add(screen)
@@ -147,7 +147,7 @@ class TestUIPrototypeScreenModel:
             screen = UIPrototypeScreen(
                 project_id=test_project.id,
                 prototype_name=f"审核-{status}",
-                screen_name=f"审-{status}",
+                screen_name=f"�?{status}",
                 review_status=status
             )
             db.add(screen)
@@ -161,7 +161,7 @@ class TestUIPrototypeScreenModel:
         screen = UIPrototypeScreen(
             project_id=test_project.id,
             prototype_name="规格原型",
-            screen_name="规格页",
+            screen_name="规格�?,
             ui_spec={"elements": [{"type": "button", "text": "提交"}]},
             element_count=5,
             button_count=2,
@@ -180,16 +180,16 @@ class TestUIPrototypeScreenModel:
     def test_screen_parent_child(self, db, test_project):
         parent = UIPrototypeScreen(
             project_id=test_project.id,
-            prototype_name="父原型",
-            screen_name="父页面"
+            prototype_name="父原�?,
+            screen_name="父页�?
         )
         db.add(parent)
         db.commit()
         db.refresh(parent)
         child = UIPrototypeScreen(
             project_id=test_project.id,
-            prototype_name="子原型",
-            screen_name="子页面",
+            prototype_name="子原�?,
+            screen_name="子页�?,
             parent_screen_id=parent.id
         )
         db.add(child)
@@ -285,7 +285,7 @@ class TestUIScreenTestCaseLinkModel:
         screen = UIPrototypeScreen(
             project_id=test_project.id,
             prototype_name="链接原型",
-            screen_name="链接页"
+            screen_name="链接�?
         )
         db.add(screen)
         db.commit()
@@ -327,7 +327,7 @@ class TestUIScreenTestCaseLinkModel:
         screen = UIPrototypeScreen(
             project_id=test_project.id,
             prototype_name="默认链接原型",
-            screen_name="默认链接页"
+            screen_name="默认链接�?
         )
         db.add(screen)
         db.commit()

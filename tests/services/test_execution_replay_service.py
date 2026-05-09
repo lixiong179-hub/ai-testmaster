@@ -102,7 +102,7 @@ def sample_task(db, sample_project):
 
 
 class TestReplayEvent:
-    """回放事件测试类"""
+    """回放事件测试�?""
 
     def test_replay_event_creation(self):
         """测试回放事件创建"""
@@ -118,7 +118,7 @@ class TestReplayEvent:
         assert event.step_number == 1
 
     def test_replay_event_to_dict(self):
-        """测试回放事件转字典"""
+        """测试回放事件转字�?""
         event = ReplayEvent(
             timestamp=10.0,
             event_type=ReplayEventType.SCREENSHOT,
@@ -137,7 +137,7 @@ class TestReplayEvent:
         event = ReplayEvent(
             timestamp=0.0,
             event_type=ReplayEventType.NAVIGATE,
-            action="开始导航",
+            action="开始导�?,
             step_number=0
         )
 
@@ -154,18 +154,18 @@ class TestReplayEvent:
             action="执行失败",
             step_number=3,
             screenshot_path="/screenshots/step3.png",
-            error_message="元素未找到"
+            error_message="元素未找�?
         )
 
         assert event.screenshot_path == "/screenshots/step3.png"
-        assert event.error_message == "元素未找到"
+        assert event.error_message == "元素未找�?
 
 
 class TestExecutionTimeline:
     """执行时间轴测试类"""
 
     def test_execution_timeline_creation(self):
-        """测试执行时间轴创建"""
+        """测试执行时间轴创�?""
         now = datetime.now()
         timeline = ExecutionTimeline(
             execution_id=1,
@@ -181,7 +181,7 @@ class TestExecutionTimeline:
         assert timeline.end_time is None
 
     def test_execution_timeline_with_events(self):
-        """测试带事件的执行时间轴"""
+        """测试带事件的执行时间�?""
         now = datetime.now()
         timeline = ExecutionTimeline(
             execution_id=1,
@@ -189,7 +189,7 @@ class TestExecutionTimeline:
             start_time=now,
             total_duration_ms=30000,
             events=[
-                ReplayEvent(timestamp=0.0, event_type=ReplayEventType.NAVIGATE, action="开始", step_number=0),
+                ReplayEvent(timestamp=0.0, event_type=ReplayEventType.NAVIGATE, action="开�?, step_number=0),
                 ReplayEvent(timestamp=10.0, event_type=ReplayEventType.CLICK, action="点击", step_number=1)
             ]
         )
@@ -207,7 +207,7 @@ class TestExecutionTimeline:
             end_time=now,
             total_duration_ms=30000,
             events=[
-                ReplayEvent(timestamp=0.0, event_type=ReplayEventType.NAVIGATE, action="开始", step_number=0),
+                ReplayEvent(timestamp=0.0, event_type=ReplayEventType.NAVIGATE, action="开�?, step_number=0),
                 ReplayEvent(timestamp=10.0, event_type=ReplayEventType.CLICK, action="点击", step_number=1)
             ]
         )
@@ -222,7 +222,7 @@ class TestExecutionTimeline:
         assert timeline_dict["end_time"] is not None
 
     def test_execution_timeline_empty_events(self):
-        """测试空事件的执行时间轴"""
+        """测试空事件的执行时间�?""
         timeline = ExecutionTimeline(
             execution_id=1,
             test_case_id=1,
@@ -234,10 +234,10 @@ class TestExecutionTimeline:
 
 
 class TestReplayDataTypes:
-    """回放数据类型测试类"""
+    """回放数据类型测试�?""
 
     def test_replay_event_various_types(self):
-        """测试不同类型的枚举事件"""
+        """测试不同类型的枚举事�?""
         event_types = [
             ReplayEventType.NAVIGATE,
             ReplayEventType.CLICK,

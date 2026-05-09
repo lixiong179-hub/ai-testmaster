@@ -38,7 +38,7 @@ class TestBugModel:
             bug_no="BUG-MODEL-001",
             project_id=test_project.id,
             title="登录按钮无法点击",
-            description="点击登录按钮无响应",
+            description="点击登录按钮无响�?,
             severity=1,
             priority=1,
             reporter_id=test_user.id
@@ -50,7 +50,7 @@ class TestBugModel:
         assert bug.bug_no == "BUG-MODEL-001"
         assert bug.project_id == test_project.id
         assert bug.title == "登录按钮无法点击"
-        assert bug.description == "点击登录按钮无响应"
+        assert bug.description == "点击登录按钮无响�?
         assert bug.severity == 1
         assert bug.priority == 1
         assert bug.reporter_id == test_user.id
@@ -148,7 +148,7 @@ class TestBugModel:
             reporter_id=test_user.id,
             reproduction_steps="1.打开页面 2.点击按钮",
             expected_behavior="按钮响应",
-            actual_behavior="按钮无响应",
+            actual_behavior="按钮无响�?,
             attachments='["screenshot.png"]'
         )
         db.add(bug)
@@ -156,7 +156,7 @@ class TestBugModel:
         db.refresh(bug)
         assert bug.reproduction_steps == "1.打开页面 2.点击按钮"
         assert bug.expected_behavior == "按钮响应"
-        assert bug.actual_behavior == "按钮无响应"
+        assert bug.actual_behavior == "按钮无响�?
         assert bug.attachments == '["screenshot.png"]'
         db.delete(bug)
         db.commit()

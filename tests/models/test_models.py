@@ -1,8 +1,8 @@
 """模型模块单元测试 - 测试模型约束、关联关系与业务规则
 
 设计原则:
-1. 不只测 repr()，要测字段约束和业务规则
-2. 验证 SQLAlchemy Column 定义是否与文档一致
+1. 不只�?repr()，要测字段约束和业务规则
+2. 验证 SQLAlchemy Column 定义是否与文档一�?
 3. 发现模型定义中的隐藏问题
 """
 import pytest
@@ -24,9 +24,9 @@ class TestBugModel:
         assert "test bug" in r
 
     def test_status_column_default_is_open(self):
-        """验证 Bug.status 的 Python 级默认值正确设为 "open"。
-        历史问题: SQLAlchemy Column(default=) 不设置 Python 实例属性，
-        只有 INSERT 时才生效。已在 __init__ 中修复。"""
+        """验证 Bug.status �?Python 级默认值正确设�?"open"�?
+        历史问题: SQLAlchemy Column(default=) 不设�?Python 实例属性，
+        只有 INSERT 时才生效。已�?__init__ 中修复�?""
         bug = Bug(id=1, bug_no="BUG-001", title="test bug")
         assert bug.status == "open"
 
@@ -55,7 +55,7 @@ class TestCodeReviewModels:
         assert "review1" in repr(cr)
 
     def test_code_review_status_default(self):
-        """CodeReview.status 的 Column(default='pending') 现在正确设为 Python 属性"""
+        """CodeReview.status �?Column(default='pending') 现在正确设为 Python 属�?""
         cr = CodeReview(title="r", repository="git@repo", branch="main", reviewer_id=1, author_id=2)
         assert cr.status == "pending"
 
@@ -88,17 +88,17 @@ class TestGroupModel:
 
     def test_association_tables_structure(self):
         """验证多对多关联表定义正确"""
-        # user_group 表有 user_id 和 group_id 两列
+        # user_group 表有 user_id �?group_id 两列
         cols = {c.name for c in user_group.columns}
         assert "user_id" in cols
         assert "group_id" in cols
-        # group_role 表有 group_id 和 role_id 两列
+        # group_role 表有 group_id �?role_id 两列
         cols2 = {c.name for c in group_role.columns}
         assert "group_id" in cols2
         assert "role_id" in cols2
 
     def test_name_unique_constraint(self):
-        """Group.name 有 unique=True 约束"""
+        """Group.name �?unique=True 约束"""
         name_col = Group.__table__.c.name
         assert name_col.unique is True
 
@@ -135,7 +135,7 @@ class TestResourcePermissionModel:
         assert "permission_id" in pk_cols
 
     def test_cascade_delete_on_role(self):
-        """role_id 有 ondelete='CASCADE'"""
+        """role_id �?ondelete='CASCADE'"""
         fk = ResourcePermission.__table__.c.role_id.foreign_keys
         assert len(fk) > 0
         fk_ref = list(fk)[0]
@@ -144,7 +144,7 @@ class TestResourcePermissionModel:
 
 class TestTestCaseVersionModel:
     def test_correct_field_names(self):
-        """验证字段名与模型定义一致 — 发现文档与实现不一致的问题"""
+        """验证字段名与模型定义一�?�?发现文档与实现不一致的问题"""
         tcv = TestCaseVersion(
             test_case_id=1, version_number=1,
             change_description="initial",
@@ -156,7 +156,7 @@ class TestTestCaseVersionModel:
         assert tcv.operator_name == "admin"
 
     def test_snapshot_data_required(self):
-        """snapshot_data 是 nullable=False，验证约束"""
+        """snapshot_data �?nullable=False，验证约�?""
         col = TestCaseVersion.__table__.c.snapshot_data
         assert col.nullable is False
 
@@ -166,7 +166,7 @@ class TestTestCaseVersionModel:
 
 
 class TestElementLocatorModel:
-    """测试 ElementLocator 模型业务逻辑 — 31% coverage → 目标 80%+"""
+    """测试 ElementLocator 模型业务逻辑 �?31% coverage �?目标 80%+"""
 
     def test_repr(self):
         el = ElementLocator(id=1, step_id=10, css_selector=".btn")
@@ -225,7 +225,7 @@ class TestElementLocatorModel:
         assert el.success_rate == 1.0
 
     def test_get_best_locator_css_priority(self):
-        """CSS 优先级最高"""
+        """CSS 优先级最�?""
         el = ElementLocator(css_selector=".btn", xpath="//button", element_id="id1")
         result = el.get_best_locator()
         assert result == {"type": "css", "value": ".btn"}
@@ -252,14 +252,14 @@ class TestElementLocatorModel:
         assert result["value"]["x"] == 100
 
     def test_get_best_locator_ai_list_values(self):
-        """AI 坐标中列表值应取第一个元素"""
+        """AI 坐标中列表值应取第一个元�?""
         el = ElementLocator(ai_coordinate={"x": [100, 110], "y": [200]})
         result = el.get_best_locator()
         assert result["value"]["x"] == 100
         assert result["value"]["y"] == 200
 
     def test_get_best_locator_empty_list(self):
-        """AI 坐标中空列表应转为 0"""
+        """AI 坐标中空列表应转�?0"""
         el = ElementLocator(ai_coordinate={"x": []})
         result = el.get_best_locator()
         assert result["value"]["x"] == 0
@@ -269,7 +269,7 @@ class TestElementLocatorModel:
         assert el.get_best_locator() is None
 
     def test_get_best_locator_ai_empty_dict(self):
-        """空 dict 的 ai_coordinate 不应返回 ai 策略"""
+        """�?dict �?ai_coordinate 不应返回 ai 策略"""
         el = ElementLocator(ai_coordinate={})
         assert el.get_best_locator() is None
 
@@ -289,9 +289,9 @@ class TestElementLocatorModel:
         assert ElementLocator.validate_coordinate("not a dict") is False
 
     def test_validate_coordinate_none_values_allowed(self):
-        """None 值应被跳过"""
+        """None 值应被跳�?""
         assert ElementLocator.validate_coordinate({"x": None, "y": 100}) is True
 
     def test_validate_coordinate_empty_dict(self):
-        """空 dict 是合法的（没有非法值）"""
+        """�?dict 是合法的（没有非法值）"""
         assert ElementLocator.validate_coordinate({}) is True

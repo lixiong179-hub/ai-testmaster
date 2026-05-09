@@ -112,6 +112,7 @@ class TestCaseCreate(TestCaseBase):
     summary: Optional[str] = Field(None, description="AI生成的用例摘要")  # 可选，AI摘要
     summary_model_version: Optional[str] = Field(None, description="生成摘要的AI模型版本")  # 可选，AI模型版本
     parent_case_id: Optional[int] = Field(None, description="父用例ID")  # 可选，血缘关系
+    ai_change_type: Optional[str] = Field(None, description="AI评审结果：added/modified/deprecated")  # 可选，AI用例评审标注
 
 
 class TestCaseResponse(TestCaseBase):
@@ -129,6 +130,7 @@ class TestCaseResponse(TestCaseBase):
     summary_version: int = 0  # 摘要版本号
     summary_model_version: Optional[str] = None  # 生成摘要的AI模型版本
     parent_case_id: Optional[int] = None  # 父用例ID
+    ai_change_type: Optional[str] = None  # AI评审结果
     last_review_id: Optional[int] = None  # 最近一次评审ID
     create_time: datetime  # 创建时间，与TestCase.create_time对应
 

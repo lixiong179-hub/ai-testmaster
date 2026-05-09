@@ -188,7 +188,9 @@ export interface FailureAnalysisResult {
 }
 
 export const analyzeFailure = (resultId: number) => {
-  return request.post<FailureAnalysisResult>(`/api/v1/execution/results/${resultId}/analyze-failure`)
+  return request.post<FailureAnalysisResult>(
+    `/api/v1/execution/results/${resultId}/analyze-failure`
+  )
 }
 
 export const createQuickVerify = (caseId: number, stepIndices: number[] = []) => {

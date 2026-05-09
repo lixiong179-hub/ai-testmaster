@@ -1,19 +1,19 @@
 """
-AI测试平台 - 完整端到端测试套件
+AI测试平台 - 完整端到端测试套�?
 
 基于真实MySQL数据库，不使用Mock，覆盖以下模块：
-1. 用户认证（登录/注册/验证码）
-2. 项目管理（创建/编辑/删除/列表）
-3. 文件管理（上传/列表/删除）
-4. 测试点管理（AI提取/编辑/删除/批量删除/保存）
-5. 测试用例管理（生成/列表/编辑/删除）
-6. 测试任务管理（创建/执行/结果查看）
+1. 用户认证（登�?注册/验证码）
+2. 项目管理（创�?编辑/删除/列表�?
+3. 文件管理（上�?列表/删除�?
+4. 测试点管理（AI提取/编辑/删除/批量删除/保存�?
+5. 测试用例管理（生�?列表/编辑/删除�?
+6. 测试任务管理（创�?执行/结果查看�?
 
-测试策略：
+测试策略�?
 - 使用FastAPI TestClient进行API接口测试
-- 使用真实MySQL数据库
-- 测试数据隔离：每个测试用例创建独立数据，测试后清理
-- 覆盖正常流程、边界值、异常场景
+- 使用真实MySQL数据�?
+- 测试数据隔离：每个测试用例创建独立数据，测试后清�?
+- 覆盖正常流程、边界值、异常场�?
 """
 import pytest
 import time
@@ -57,7 +57,7 @@ def override_get_db() -> Generator:
 # 覆盖FastAPI的数据库依赖
 app.dependency_overrides[get_db] = override_get_db
 
-# 创建测试客户端
+# 创建测试客户�?
 client = TestClient(app)
 
 
@@ -100,12 +100,12 @@ def create_test_user_in_db(username: str = None, email: str = None, password: st
 
 
 def get_auth_headers(token: str) -> Dict[str, str]:
-    """获取认证请求头"""
+    """获取认证请求�?""
     return {"Authorization": f"Bearer {token}"}
 
 
 def cleanup_test_data(user_id: int):
-    """清理测试用户的所有数据"""
+    """清理测试用户的所有数�?""
     db = TestingSessionLocal()
     try:
         # 删除测试任务
@@ -124,7 +124,7 @@ def cleanup_test_data(user_id: int):
 
 
 def client_delete_with_json(url: str, json_data: Any, headers: Dict[str, str] = None) -> "Response":
-    """使用content参数发送DELETE请求（TestClient.delete不支持json参数）"""
+    """使用content参数发送DELETE请求（TestClient.delete不支持json参数�?""
     return client.request(
         "DELETE",
         url,
@@ -137,7 +137,7 @@ def client_delete_with_json(url: str, json_data: Any, headers: Dict[str, str] = 
 
 @pytest.fixture(scope="module")
 def admin_auth():
-    """管理员认证信息 - 直接使用数据库中的admin用户"""
+    """管理员认证信�?- 直接使用数据库中的admin用户"""
     db = TestingSessionLocal()
     try:
         admin = db.query(User).filter(User.username == "admin").first()
@@ -150,7 +150,7 @@ def admin_auth():
             }
     finally:
         db.close()
-    # 如果admin不存在，创建一个
+    # 如果admin不存在，创建一�?
     return create_test_user_in_db(username="admin_test", email="admin_test@test.com")
 
 
@@ -171,7 +171,7 @@ def test_user():
 
 @pytest.fixture(scope="module")
 def test_user2():
-    """创建第二个测试用户（用于权限隔离测试）"""
+    """创建第二个测试用户（用于权限隔离测试�?""
     user_info = create_test_user_in_db(username=f"e2e_user2_{int(time.time())}")
     yield user_info
     cleanup_test_data(user_info["user_id"])
@@ -179,25 +179,25 @@ def test_user2():
 
 @pytest.fixture
 def auth_headers(test_user) -> Dict[str, str]:
-    """获取认证请求头"""
+    """获取认证请求�?""
     return get_auth_headers(test_user["token"])
 
 
 @pytest.fixture
 def auth_headers2(test_user2) -> Dict[str, str]:
-    """获取第二个用户的认证请求头"""
+    """获取第二个用户的认证请求�?""
     return get_auth_headers(test_user2["token"])
 
 
 @pytest.fixture
 def admin_owned_project_id(admin_auth) -> int:
-    """获取admin拥有的真实项目ID（洪恩早教机，project_id=3）"""
+    """获取admin拥有的真实项目ID（洪恩早教机，project_id=3�?""
     return 3
 
 
 @pytest.fixture
 def created_project(test_user, auth_headers) -> Dict[str, Any]:
-    """创建测试项目并返回项目信息，测试后清理"""
+    """创建测试项目并返回项目信息，测试后清�?""
     project_name = f"E2E测试项目_{int(time.time())}"
     response = client.post(
         "/api/v1/project/",
@@ -227,20 +227,20 @@ def created_project(test_user, auth_headers) -> Dict[str, Any]:
 class TestAuthModule:
     """用户认证模块测试"""
 
-    # ---------- 验证码接口 ----------
+    # ---------- 验证码接�?----------
 
-    @pytest.mark.skip(reason="captcha验证流程已变更")
+    @pytest.mark.skip(reason="captcha验证流程已变�?)
     def test_captcha_generate_success(self):
-        """TC-AUTH-001: 生成验证码 - 正常流程"""
+        """TC-AUTH-001: 生成验证�?- 正常流程"""
         response = client.get("/api/v1/auth/captcha/generate")
-        assert response.status_code == 200, f"验证码生成失败: {response.text}"
+        assert response.status_code == 200, f"验证码生成失�? {response.text}"
         data = response.json()
         assert "data" in data, "响应缺少data字段"
         assert "captcha_id" in data["data"], "响应缺少captcha_id"
-        assert "image" in data["data"], "响应缺少验证码图片"
+        assert "image" in data["data"], "响应缺少验证码图�?
 
     def test_captcha_generate_returns_different_ids(self):
-        """TC-AUTH-002: 连续生成验证码 - 每次返回不同captcha_id"""
+        """TC-AUTH-002: 连续生成验证�?- 每次返回不同captcha_id"""
         response1 = client.get("/api/v1/auth/captcha/generate")
         response2 = client.get("/api/v1/auth/captcha/generate")
         id1 = response1.json()["data"]["captcha_id"]
@@ -249,10 +249,10 @@ class TestAuthModule:
 
     # ---------- 登录接口 ----------
 
-    @pytest.mark.skip(reason="login响应格式已变更，refresh_token字段已移除")
+    @pytest.mark.skip(reason="login响应格式已变更，refresh_token字段已移�?)
     def test_login_with_json_success(self):
-        """TC-AUTH-003: JSON格式登录 - 使用注册接口创建的用户"""
-        # 先注册一个用户
+        """TC-AUTH-003: JSON格式登录 - 使用注册接口创建的用�?""
+        # 先注册一个用�?
         timestamp = int(time.time() * 1000)
         username = f"logintest_{timestamp}"
         password = "test123456"
@@ -265,7 +265,7 @@ class TestAuthModule:
                 "confirm_password": password
             }
         )
-        # 再登录
+        # 再登�?
         response = client.post(
             "/api/v1/auth/login",
             json={
@@ -281,7 +281,7 @@ class TestAuthModule:
         assert data["data"]["token_type"] == "bearer"
 
     def test_login_with_form_success(self):
-        """TC-AUTH-004: Form表单格式登录 - 兼容性测试"""
+        """TC-AUTH-004: Form表单格式登录 - 兼容性测�?""
         timestamp = int(time.time() * 1000)
         username = f"formtest_{timestamp}"
         password = "test123456"
@@ -314,7 +314,7 @@ class TestAuthModule:
                 "password": "wrong_password_12345"
             }
         )
-        assert response.status_code in [400, 401], f"错误密码应返回400/401，实际: {response.status_code}"
+        assert response.status_code in [400, 401], f"错误密码应返�?00/401，实�? {response.status_code}"
 
     def test_login_nonexistent_user(self):
         """TC-AUTH-006: 登录 - 不存在的用户"""
@@ -325,18 +325,18 @@ class TestAuthModule:
                 "password": "whatever123"
             }
         )
-        # 登录接口对不存在的用户返回401
-        assert response.status_code in [400, 401], f"不存在的用户应返回400/401，实际: {response.status_code}"
+        # 登录接口对不存在的用户返�?01
+        assert response.status_code in [400, 401], f"不存在的用户应返�?00/401，实�? {response.status_code}"
 
     def test_login_missing_username(self):
-        """TC-AUTH-007: 登录 - 缺少用户名"""
+        """TC-AUTH-007: 登录 - 缺少用户�?""
         response = client.post(
             "/api/v1/auth/login",
             json={
                 "password": "admin"
             }
         )
-        assert response.status_code in [400, 401, 422], f"缺少用户名应返回错误，实际: {response.status_code}"
+        assert response.status_code in [400, 401, 422], f"缺少用户名应返回错误，实�? {response.status_code}"
 
     def test_login_missing_password(self):
         """TC-AUTH-008: 登录 - 缺少密码"""
@@ -358,7 +358,7 @@ class TestAuthModule:
 
     @pytest.mark.skip(reason="captcha错误返回401而非400")
     def test_login_with_captcha_wrong_code(self):
-        """TC-AUTH-010: 登录 - 验证码错误"""
+        """TC-AUTH-010: 登录 - 验证码错�?""
         # 先获取验证码
         captcha_resp = client.get("/api/v1/auth/captcha/generate")
         captcha_id = captcha_resp.json()["data"]["captcha_id"]
@@ -372,12 +372,12 @@ class TestAuthModule:
                 "captcha_code": "WRONG"
             }
         )
-        assert response.status_code == 400, f"验证码错误应返回400，实际: {response.status_code}"
+        assert response.status_code == 400, f"验证码错误应返回400，实�? {response.status_code}"
 
     # ---------- 注册接口 ----------
 
     def test_register_new_user(self):
-        """TC-AUTH-011: 注册 - 新用户"""
+        """TC-AUTH-011: 注册 - 新用�?""
         timestamp = int(time.time() * 1000)
         response = client.post(
             "/api/v1/auth/register",
@@ -394,7 +394,7 @@ class TestAuthModule:
         assert data["data"]["username"] == f"testreg_{timestamp}"
 
     def test_register_password_too_short(self):
-        """TC-AUTH-012: 注册 - 密码过短（少于6位）"""
+        """TC-AUTH-012: 注册 - 密码过短（少�?位）"""
         timestamp = int(time.time() * 1000)
         response = client.post(
             "/api/v1/auth/register",
@@ -405,10 +405,10 @@ class TestAuthModule:
                 "confirm_password": "12345"
             }
         )
-        assert response.status_code == 400, f"密码过短应返回400，实际: {response.status_code}"
+        assert response.status_code == 400, f"密码过短应返�?00，实�? {response.status_code}"
 
     def test_register_password_mismatch(self):
-        """TC-AUTH-013: 注册 - 两次密码不一致"""
+        """TC-AUTH-013: 注册 - 两次密码不一�?""
         timestamp = int(time.time() * 1000)
         response = client.post(
             "/api/v1/auth/register",
@@ -419,12 +419,12 @@ class TestAuthModule:
                 "confirm_password": "test654321"
             }
         )
-        assert response.status_code == 400, f"密码不一致应返回400，实际: {response.status_code}"
+        assert response.status_code == 400, f"密码不一致应返回400，实�? {response.status_code}"
 
     @pytest.mark.skip(reason="重复注册返回400而非200")
     def test_register_duplicate_username(self):
         """TC-AUTH-014: 注册 - 重复用户名（幂等性）"""
-        # admin已存在，注册应返回成功（幂等设计）
+        # admin已存在，注册应返回成功（幂等设计�?
         response = client.post(
             "/api/v1/auth/register",
             json={
@@ -434,7 +434,7 @@ class TestAuthModule:
                 "confirm_password": "admin123"
             }
         )
-        assert response.status_code == 200, f"重复用户名注册（幂等）应返回200，实际: {response.status_code}"
+        assert response.status_code == 200, f"重复用户名注册（幂等）应返回200，实�? {response.status_code}"
 
     def test_register_invalid_email(self):
         """TC-AUTH-015: 注册 - 无效邮箱格式"""
@@ -464,7 +464,7 @@ class TestAuthModule:
     def test_get_current_user_no_token(self):
         """TC-AUTH-017: 获取当前用户信息 - 无Token"""
         response = client.get("/api/v1/auth/me")
-        assert response.status_code in [401, 403], f"无Token应返回401/403，实际: {response.status_code}"
+        assert response.status_code in [401, 403], f"无Token应返�?01/403，实�? {response.status_code}"
 
     def test_get_current_user_invalid_token(self):
         """TC-AUTH-018: 获取当前用户信息 - 无效Token"""
@@ -472,7 +472,7 @@ class TestAuthModule:
             "/api/v1/auth/me",
             headers={"Authorization": "Bearer invalid_token_xyz"}
         )
-        assert response.status_code in [401, 403], f"无效Token应返回401/403，实际: {response.status_code}"
+        assert response.status_code in [401, 403], f"无效Token应返�?01/403，实�? {response.status_code}"
 
 
 # ==================== 2. 项目管理模块测试 ====================
@@ -487,7 +487,7 @@ class TestProjectModule:
             "/api/v1/project/",
             json={
                 "name": project_name,
-                "description": "自动化测试创建",
+                "description": "自动化测试创�?,
                 "project_type": "web"
             },
             headers=auth_headers
@@ -528,13 +528,13 @@ class TestProjectModule:
             client.delete(f"/api/v1/project/{project_id}", headers=auth_headers)
 
     def test_create_project_with_device_config(self, auth_headers):
-        """TC-PROJ-003: 创建项目 - 包含C端设备配置"""
+        """TC-PROJ-003: 创建项目 - 包含C端设备配�?""
         project_name = f"App项目_{int(time.time())}"
         response = client.post(
             "/api/v1/project/",
             json={
                 "name": project_name,
-                "description": "C端设备配置项目",
+                "description": "C端设备配置项�?,
                 "project_type": "app",
                 "device_config": {
                     "default_device": {
@@ -556,29 +556,29 @@ class TestProjectModule:
             client.delete(f"/api/v1/project/{project_id}", headers=auth_headers)
 
     def test_create_project_empty_name(self, auth_headers):
-        """TC-PROJ-004: 创建项目 - 空名称"""
+        """TC-PROJ-004: 创建项目 - 空名�?""
         response = client.post(
             "/api/v1/project/",
             json={
                 "name": "",
-                "description": "空名称测试",
+                "description": "空名称测�?,
                 "project_type": "web"
             },
             headers=auth_headers
         )
-        assert response.status_code in [400, 422], f"空名称应返回错误，实际: {response.status_code}"
+        assert response.status_code in [400, 422], f"空名称应返回错误，实�? {response.status_code}"
 
     def test_create_project_no_auth(self):
-        """TC-PROJ-005: 创建项目 - 未认证"""
+        """TC-PROJ-005: 创建项目 - 未认�?""
         response = client.post(
             "/api/v1/project/",
             json={
-                "name": "未认证项目",
+                "name": "未认证项�?,
                 "description": "测试",
                 "project_type": "web"
             }
         )
-        assert response.status_code in [401, 403], f"未认证应返回401/403，实际: {response.status_code}"
+        assert response.status_code in [401, 403], f"未认证应返回401/403，实�? {response.status_code}"
 
     def test_get_project_list(self, auth_headers):
         """TC-PROJ-006: 获取项目列表 - 正常流程"""
@@ -611,44 +611,44 @@ class TestProjectModule:
         assert response.status_code in [400, 422], f"无效页码应返回错误，实际: {response.status_code}"
 
     def test_get_project_detail_admin_owned(self, admin_headers, admin_owned_project_id):
-        """TC-PROJ-009: 获取项目详情 - admin拥有的真实项目"""
+        """TC-PROJ-009: 获取项目详情 - admin拥有的真实项�?""
         response = client.get(f"/api/v1/project/{admin_owned_project_id}", headers=admin_headers)
         assert response.status_code == 200, f"获取项目详情失败: {response.text}"
         data = response.json()
         assert "data" in data
         assert data["data"]["id"] == admin_owned_project_id
-        assert data["data"]["name"] == "洪恩早教机"
+        assert data["data"]["name"] == "洪恩早教�?
         assert "files" in data["data"]
 
     def test_get_project_detail_nonexistent(self, auth_headers):
         """TC-PROJ-010: 获取项目详情 - 不存在的项目"""
         response = client.get("/api/v1/project/999999", headers=auth_headers)
-        assert response.status_code == 403, f"不存在的项目应返回403，实际: {response.status_code}"
+        assert response.status_code == 403, f"不存在的项目应返�?03，实�? {response.status_code}"
 
     def test_get_project_detail_other_user(self, auth_headers2, admin_owned_project_id):
-        """TC-PROJ-011: 获取项目详情 - 其他用户的项目（权限隔离）"""
+        """TC-PROJ-011: 获取项目详情 - 其他用户的项目（权限隔离�?""
         response = client.get(f"/api/v1/project/{admin_owned_project_id}", headers=auth_headers2)
-        # 用户2不应能访问admin的项目
-        assert response.status_code == 403, f"访问他人项目应返回403，实际: {response.status_code}"
+        # 用户2不应能访问admin的项�?
+        assert response.status_code == 403, f"访问他人项目应返�?03，实�? {response.status_code}"
 
     def test_delete_project(self, auth_headers):
         """TC-PROJ-012: 删除项目 - 正常流程"""
-        # 先创建
+        # 先创�?
         project_name = f"待删除项目_{int(time.time())}"
         create_resp = client.post(
             "/api/v1/project/",
-            json={"name": project_name, "description": "待删除", "project_type": "web"},
+            json={"name": project_name, "description": "待删�?, "project_type": "web"},
             headers=auth_headers
         )
         project_id = create_resp.json()["data"].get("project_id") or create_resp.json()["data"].get("id")
 
-        # 再删除
+        # 再删�?
         response = client.delete(f"/api/v1/project/{project_id}", headers=auth_headers)
         assert response.status_code == 200, f"删除项目失败: {response.text}"
 
-        # 验证已删除
+        # 验证已删�?
         get_resp = client.get(f"/api/v1/project/{project_id}", headers=auth_headers)
-        assert get_resp.status_code == 403, f"删除后应无法访问，实际: {get_resp.status_code}"
+        assert get_resp.status_code == 403, f"删除后应无法访问，实�? {get_resp.status_code}"
 
     def test_get_project_config(self, admin_headers, admin_owned_project_id):
         """TC-PROJ-013: 获取项目配置 - 正常流程"""
@@ -740,7 +740,7 @@ class TestFileModule:
                     files={"file": ("test.exe", f, "application/octet-stream")},
                     headers=auth_headers
                 )
-            assert response.status_code == 400, f"不支持的格式应返回400，实际: {response.status_code}"
+            assert response.status_code == 400, f"不支持的格式应返�?00，实�? {response.status_code}"
         finally:
             os.unlink(temp_path)
 
@@ -772,15 +772,15 @@ class TestFileModule:
         assert "items" in data["data"]
 
     def test_get_file_list_all(self, auth_headers):
-        """TC-FILE-006: 获取文件列表 - 所有项目"""
+        """TC-FILE-006: 获取文件列表 - 所有项�?""
         response = client.get("/api/v1/file/list", headers=auth_headers)
-        assert response.status_code == 200, f"获取所有文件列表失败: {response.text}"
+        assert response.status_code == 200, f"获取所有文件列表失�? {response.text}"
         data = response.json()
         assert "data" in data
         assert "items" in data["data"]
 
     def test_get_file_list_with_resource_type(self, auth_headers, created_project):
-        """TC-FILE-007: 获取文件列表 - 按资源类型筛选"""
+        """TC-FILE-007: 获取文件列表 - 按资源类型筛�?""
         project_id = created_project["project_id"]
         response = client.get(
             f"/api/v1/file/list/{project_id}?resource_type=requirement",
@@ -792,9 +792,9 @@ class TestFileModule:
             assert item["resource_type"] == "requirement"
 
     def test_delete_file_soft(self, auth_headers, created_project):
-        """TC-FILE-008: 删除文件 - 软删除"""
+        """TC-FILE-008: 删除文件 - 软删�?""
         project_id = created_project["project_id"]
-        # 先上传
+        # 先上�?
         with tempfile.NamedTemporaryFile(suffix=".docx", delete=False, mode="wb") as f:
             f.write(b"PK\x03\x04" + b"\x00" * 50)
             temp_path = f.name
@@ -826,12 +826,12 @@ class TestFileModule:
             f"/api/v1/file/999999?project_id={project_id}",
             headers=auth_headers
         )
-        assert response.status_code == 404, f"不存在的文件应返回404，实际: {response.status_code}"
+        assert response.status_code == 404, f"不存在的文件应返�?04，实�? {response.status_code}"
 
     def test_update_file_sort(self, auth_headers, created_project):
         """TC-FILE-010: 更新文件排序"""
         project_id = created_project["project_id"]
-        # 先上传两个文件
+        # 先上传两个文�?
         file_ids = []
         for i in range(2):
             with tempfile.NamedTemporaryFile(suffix=".docx", delete=False, mode="wb") as f:
@@ -862,36 +862,36 @@ class TestFileModule:
             assert response.status_code == 200, f"更新排序失败: {response.text}"
 
     def test_update_file_sort_empty_list(self, auth_headers):
-        """TC-FILE-011: 更新文件排序 - 空列表"""
+        """TC-FILE-011: 更新文件排序 - 空列�?""
         response = client.post(
             "/api/v1/file/update-sort",
             json=[],
             headers=auth_headers
         )
-        assert response.status_code == 400, f"空列表应返回400，实际: {response.status_code}"
+        assert response.status_code == 400, f"空列表应返回400，实�? {response.status_code}"
 
 
-# ==================== 4. 测试点管理模块测试 ====================
+# ==================== 4. 测试点管理模块测�?====================
 
 class TestTestPointModule:
-    """测试点管理模块测试"""
+    """测试点管理模块测�?""
 
     def test_get_test_points_list(self, admin_headers, admin_owned_project_id):
-        """TC-TP-001: 获取测试点列表 - admin真实项目"""
+        """TC-TP-001: 获取测试点列�?- admin真实项目"""
         response = client.get(
             f"/api/v1/test-point/list/{admin_owned_project_id}",
             headers=admin_headers
         )
-        assert response.status_code == 200, f"获取测试点列表失败: {response.text}"
+        assert response.status_code == 200, f"获取测试点列表失�? {response.text}"
         data = response.json()
         assert "data" in data
         assert "items" in data["data"]
         assert "total" in data["data"]
         # 洪恩早教机项目有19个测试点
-        assert data["data"]["total"] > 0, "真实项目应有测试点"
+        assert data["data"]["total"] > 0, "真实项目应有测试�?
 
     def test_get_test_points_pagination(self, admin_headers, admin_owned_project_id):
-        """TC-TP-002: 获取测试点列表 - 分页"""
+        """TC-TP-002: 获取测试点列�?- 分页"""
         response = client.get(
             f"/api/v1/test-point/list/{admin_owned_project_id}?page=1&page_size=5",
             headers=admin_headers
@@ -903,18 +903,18 @@ class TestTestPointModule:
         assert len(data["data"]["items"]) <= 5
 
     def test_get_test_points_filter_by_module(self, admin_headers, admin_owned_project_id):
-        """TC-TP-003: 获取测试点列表 - 按模块筛选"""
+        """TC-TP-003: 获取测试点列�?- 按模块筛�?""
         response = client.get(
-            f"/api/v1/test-point/list/{admin_owned_project_id}?module=产品线管理",
+            f"/api/v1/test-point/list/{admin_owned_project_id}?module=产品线管�?,
             headers=admin_headers
         )
         assert response.status_code == 200
         data = response.json()
         for item in data["data"]["items"]:
-            assert item["module"] == "产品线管理"
+            assert item["module"] == "产品线管�?
 
     def test_get_test_points_filter_by_priority(self, admin_headers, admin_owned_project_id):
-        """TC-TP-004: 获取测试点列表 - 按优先级筛选"""
+        """TC-TP-004: 获取测试点列�?- 按优先级筛�?""
         response = client.get(
             f"/api/v1/test-point/list/{admin_owned_project_id}?priority=1",
             headers=admin_headers
@@ -925,7 +925,7 @@ class TestTestPointModule:
             assert item["priority"] == 1
 
     def test_get_test_point_detail(self, admin_headers, admin_owned_project_id):
-        """TC-TP-005: 获取测试点详情 - 真实数据"""
+        """TC-TP-005: 获取测试点详�?- 真实数据"""
         # 先获取列表拿到一个ID
         list_resp = client.get(
             f"/api/v1/test-point/list/{admin_owned_project_id}?page_size=1",
@@ -938,10 +938,10 @@ class TestTestPointModule:
                 f"/api/v1/test-point/detail/{tp_id}?project_id={admin_owned_project_id}",
                 headers=admin_headers
             )
-            assert response.status_code == 200, f"获取测试点详情失败: {response.text}"
+            assert response.status_code == 200, f"获取测试点详情失�? {response.text}"
 
     def test_batch_save_test_points(self, auth_headers, created_project):
-        """TC-TP-006: 批量保存测试点 - 正常流程"""
+        """TC-TP-006: 批量保存测试�?- 正常流程"""
         project_id = created_project["project_id"]
         test_points_data = [
             {
@@ -951,7 +951,7 @@ class TestTestPointModule:
             },
             {
                 "module": "用户管理",
-                "point": "验证用户可以使用有效邮箱注册新账号",
+                "point": "验证用户可以使用有效邮箱注册新账�?,
                 "priority": 2
             },
             {
@@ -965,27 +965,27 @@ class TestTestPointModule:
             json=test_points_data,
             headers=auth_headers
         )
-        assert response.status_code == 200, f"批量保存测试点失败: {response.text}"
+        assert response.status_code == 200, f"批量保存测试点失�? {response.text}"
         data = response.json()
         assert data["data"]["saved_count"] == 3
 
     def test_batch_save_empty_list(self, auth_headers, created_project):
-        """TC-TP-007: 批量保存测试点 - 空列表"""
+        """TC-TP-007: 批量保存测试�?- 空列�?""
         project_id = created_project["project_id"]
         response = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[],
             headers=auth_headers
         )
-        assert response.status_code == 400, f"空列表应返回400，实际: {response.status_code}"
+        assert response.status_code == 400, f"空列表应返回400，实�? {response.status_code}"
 
     def test_batch_save_invalid_priority(self, auth_headers, created_project):
-        """TC-TP-008: 批量保存测试点 - 无效优先级（应被修正为默认值2）"""
+        """TC-TP-008: 批量保存测试�?- 无效优先级（应被修正为默认�?�?""
         project_id = created_project["project_id"]
         test_points_data = [
             {
                 "module": "测试模块",
-                "point": "测试点描述",
+                "point": "测试点描�?,
                 "priority": 99  # 超出范围
             }
         ]
@@ -1000,14 +1000,14 @@ class TestTestPointModule:
         assert data["data"]["items"][0]["priority"] == 2
 
     def test_update_test_point(self, auth_headers, created_project):
-        """TC-TP-009: 更新测试点 - 正常流程"""
+        """TC-TP-009: 更新测试�?- 正常流程"""
         project_id = created_project["project_id"]
-        # 先创建
+        # 先创�?
         save_resp = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[{
-                "module": "更新前模块",
-                "point": "更新前描述",
+                "module": "更新前模�?,
+                "point": "更新前描�?,
                 "priority": 3
             }],
             headers=auth_headers
@@ -1018,25 +1018,25 @@ class TestTestPointModule:
         response = client.put(
             f"/api/v1/test-point/{tp_id}?project_id={project_id}",
             json={
-                "module": "更新后模块",
+                "module": "更新后模�?,
                 "priority": 1
             },
             headers=auth_headers
         )
-        assert response.status_code == 200, f"更新测试点失败: {response.text}"
+        assert response.status_code == 200, f"更新测试点失�? {response.text}"
         data = response.json()
-        assert data["data"]["module"] == "更新后模块"
+        assert data["data"]["module"] == "更新后模�?
         assert data["data"]["priority"] == 1
 
     def test_delete_test_point(self, auth_headers, created_project):
-        """TC-TP-010: 删除测试点 - 正常流程"""
+        """TC-TP-010: 删除测试�?- 正常流程"""
         project_id = created_project["project_id"]
-        # 先创建
+        # 先创�?
         save_resp = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[{
-                "module": "待删除模块",
-                "point": "待删除描述",
+                "module": "待删除模�?,
+                "point": "待删除描�?,
                 "priority": 2
             }],
             headers=auth_headers
@@ -1048,22 +1048,22 @@ class TestTestPointModule:
             f"/api/v1/test-point/{tp_id}?project_id={project_id}",
             headers=auth_headers
         )
-        assert response.status_code == 200, f"删除测试点失败: {response.text}"
+        assert response.status_code == 200, f"删除测试点失�? {response.text}"
 
     def test_delete_test_point_idempotent(self, auth_headers, created_project):
-        """TC-TP-011: 删除测试点 - 幂等性（删除不存在的测试点）"""
+        """TC-TP-011: 删除测试�?- 幂等性（删除不存在的测试点）"""
         project_id = created_project["project_id"]
         response = client.delete(
             f"/api/v1/test-point/999999?project_id={project_id}",
             headers=auth_headers
         )
         # 幂等设计：不存在的也返回成功
-        assert response.status_code == 200, f"删除不存在的测试点应返回200（幂等），实际: {response.status_code}"
+        assert response.status_code == 200, f"删除不存在的测试点应返回200（幂等），实�? {response.status_code}"
 
     def test_batch_delete_test_points(self, auth_headers, created_project):
-        """TC-TP-012: 批量删除测试点 - 正常流程"""
+        """TC-TP-012: 批量删除测试�?- 正常流程"""
         project_id = created_project["project_id"]
-        # 先创建3个测试点
+        # 先创�?个测试点
         save_resp = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[
@@ -1075,28 +1075,28 @@ class TestTestPointModule:
         )
         ids = [item["id"] for item in save_resp.json()["data"]["items"]]
 
-        # 批量删除（使用client_delete_with_json辅助函数）
+        # 批量删除（使用client_delete_with_json辅助函数�?
         response = client_delete_with_json(
             f"/api/v1/test-point/batch?project_id={project_id}",
             json_data=ids,
             headers=auth_headers
         )
-        assert response.status_code == 200, f"批量删除测试点失败: {response.text}"
+        assert response.status_code == 200, f"批量删除测试点失�? {response.text}"
         data = response.json()
         assert data["data"]["deleted_count"] == 3
 
     def test_batch_delete_empty_ids(self, auth_headers, created_project):
-        """TC-TP-013: 批量删除测试点 - 空ID列表"""
+        """TC-TP-013: 批量删除测试�?- 空ID列表"""
         project_id = created_project["project_id"]
         response = client_delete_with_json(
             f"/api/v1/test-point/batch?project_id={project_id}",
             json_data=[],
             headers=auth_headers
         )
-        assert response.status_code == 400, f"空ID列表应返回400，实际: {response.status_code}"
+        assert response.status_code == 400, f"空ID列表应返�?00，实�? {response.status_code}"
 
     def test_batch_delete_too_many_ids(self, auth_headers, created_project):
-        """TC-TP-014: 批量删除测试点 - 超过100个ID"""
+        """TC-TP-014: 批量删除测试�?- 超过100个ID"""
         project_id = created_project["project_id"]
         ids = list(range(1, 102))  # 101个ID
         response = client_delete_with_json(
@@ -1104,10 +1104,10 @@ class TestTestPointModule:
             json_data=ids,
             headers=auth_headers
         )
-        assert response.status_code == 400, f"超过100个ID应返回400，实际: {response.status_code}"
+        assert response.status_code == 400, f"超过100个ID应返�?00，实�? {response.status_code}"
 
     def test_test_point_permission_isolation(self, auth_headers2, admin_owned_project_id):
-        """TC-TP-015: 测试点权限隔离 - 其他用户无法操作"""
+        """TC-TP-015: 测试点权限隔�?- 其他用户无法操作"""
         # 用户2不应能操作admin项目的测试点
         response = client.get(
             f"/api/v1/test-point/list/{admin_owned_project_id}",
@@ -1115,7 +1115,7 @@ class TestTestPointModule:
         )
         # 用户2不应看到admin项目的测试点
         data = response.json()
-        assert data["data"]["total"] == 0, "其他用户不应看到本项目的测试点"
+        assert data["data"]["total"] == 0, "其他用户不应看到本项目的测试�?
 
 
 # ==================== 5. 测试用例管理模块测试 ====================
@@ -1132,7 +1132,7 @@ class TestTestCaseModule:
         assert response.status_code == 200, f"获取测试用例列表失败: {response.text}"
         data = response.json()
         assert "data" in data
-        # 洪恩早教机项目有67个测试用例
+        # 洪恩早教机项目有67个测试用�?
         assert data["data"]["total"] > 0, "真实项目应有测试用例"
 
     def test_get_test_cases_pagination(self, admin_headers, admin_owned_project_id):
@@ -1147,7 +1147,7 @@ class TestTestCaseModule:
 
     def test_get_test_case_detail(self, admin_headers, admin_owned_project_id):
         """TC-TC-003: 获取测试用例详情 - 真实数据"""
-        # 先获取列表
+        # 先获取列�?
         list_resp = client.get(
             f"/api/v1/testCase?project_id={admin_owned_project_id}&page_size=1",
             headers=admin_headers
@@ -1167,7 +1167,7 @@ class TestTestCaseModule:
             "/api/v1/testCase/999999",
             headers=auth_headers
         )
-        assert response.status_code == 404, f"不存在的用例应返回404，实际: {response.status_code}"
+        assert response.status_code == 404, f"不存在的用例应返�?04，实�? {response.status_code}"
 
     def test_create_test_case(self, auth_headers, created_project):
         """TC-TC-005: 创建测试用例 - 正常流程"""
@@ -1178,7 +1178,7 @@ class TestTestCaseModule:
                 "project_id": project_id,
                 "case_no": f"CASE{project_id}-MANUAL001",
                 "module": "手动创建",
-                "title": "手动创建的测试用例",
+                "title": "手动创建的测试用�?,
                 "precondition": "系统正常运行",
                 "steps": [
                     {"step": 1, "action": "打开登录页面", "param": "页面正常显示"},
@@ -1199,13 +1199,13 @@ class TestTestCaseModule:
     def test_update_test_case(self, auth_headers, created_project):
         """TC-TC-006: 更新测试用例 - 正常流程"""
         project_id = created_project["project_id"]
-        # 先创建
+        # 先创�?
         create_resp = client.post(
             "/api/v1/testCase",
             json={
                 "project_id": project_id,
                 "case_no": f"CASE{project_id}-UPDATE001",
-                "module": "更新前模块",
+                "module": "更新前模�?,
                 "title": "更新前的标题",
                 "precondition": "前置条件",
                 "steps": [{"step": 1, "action": "操作", "param": "参数"}],
@@ -1224,7 +1224,7 @@ class TestTestCaseModule:
             json={
                 "title": "更新后的标题",
                 "priority": 1,
-                "module": "更新后模块"
+                "module": "更新后模�?
             },
             headers=auth_headers
         )
@@ -1234,15 +1234,15 @@ class TestTestCaseModule:
         assert data["data"]["priority"] == 1
 
     def test_delete_test_case_soft(self, auth_headers, created_project):
-        """TC-TC-007: 删除测试用例 - 软删除"""
+        """TC-TC-007: 删除测试用例 - 软删�?""
         project_id = created_project["project_id"]
-        # 先创建
+        # 先创�?
         create_resp = client.post(
             "/api/v1/testCase",
             json={
                 "project_id": project_id,
                 "case_no": f"CASE{project_id}-DELETE001",
-                "module": "待删除",
+                "module": "待删�?,
                 "title": "待删除的测试用例",
                 "precondition": "前置条件",
                 "steps": [{"step": 1, "action": "操作", "param": "参数"}],
@@ -1263,12 +1263,12 @@ class TestTestCaseModule:
         assert response.status_code == 200, f"删除测试用例失败: {response.text}"
 
     def test_get_test_cases_no_auth(self):
-        """TC-TC-008: 获取测试用例 - 未认证"""
+        """TC-TC-008: 获取测试用例 - 未认�?""
         response = client.get("/api/v1/testCase")
-        assert response.status_code in [401, 403], f"未认证应返回401/403，实际: {response.status_code}"
+        assert response.status_code in [401, 403], f"未认证应返回401/403，实�? {response.status_code}"
 
     def test_ai_generate_test_case_validation(self, auth_headers):
-        """TC-TC-009: AI生成用例 - 描述过短（<10字符）"""
+        """TC-TC-009: AI生成用例 - 描述过短�?10字符�?""
         response = client.post(
             "/api/v1/testCase/ai-generate",
             json={
@@ -1289,7 +1289,7 @@ class TestTestCaseModule:
             },
             headers=auth_headers
         )
-        assert response.status_code == 404, f"不存在的项目应返回404，实际: {response.status_code}"
+        assert response.status_code == 404, f"不存在的项目应返�?04，实�? {response.status_code}"
 
 
 # ==================== 6. 测试任务管理模块测试 ====================
@@ -1300,7 +1300,7 @@ class TestTestTaskModule:
     def test_create_test_task(self, auth_headers, created_project):
         """TC-TASK-001: 创建测试任务 - 正常流程"""
         project_id = created_project["project_id"]
-        # 先创建测试用例
+        # 先创建测试用�?
         case_ids = []
         for i in range(3):
             resp = client.post(
@@ -1339,7 +1339,7 @@ class TestTestTaskModule:
         assert data["data"]["total_count"] == len(case_ids)
 
     def test_create_test_task_empty_cases(self, auth_headers, created_project):
-        """TC-TASK-002: 创建测试任务 - 空用例列表"""
+        """TC-TASK-002: 创建测试任务 - 空用例列�?""
         project_id = created_project["project_id"]
         response = client.post(
             "/api/v1/test_task",
@@ -1363,7 +1363,7 @@ class TestTestTaskModule:
         assert "items" in data or "data" in data
 
     def test_get_test_tasks_by_project(self, auth_headers, created_project):
-        """TC-TASK-004: 获取测试任务列表 - 按项目筛选"""
+        """TC-TASK-004: 获取测试任务列表 - 按项目筛�?""
         project_id = created_project["project_id"]
         response = client.get(
             f"/api/v1/test_task?project_id={project_id}",
@@ -1382,7 +1382,7 @@ class TestTestTaskModule:
     def test_get_test_task_detail(self, auth_headers, created_project):
         """TC-TASK-006: 获取测试任务详情"""
         project_id = created_project["project_id"]
-        # 先创建一个任务
+        # 先创建一个任�?
         create_resp = client.post(
             "/api/v1/test_task",
             json={
@@ -1406,12 +1406,12 @@ class TestTestTaskModule:
             "/api/v1/test_task/999999",
             headers=auth_headers
         )
-        assert response.status_code == 404, f"不存在的任务应返回404，实际: {response.status_code}"
+        assert response.status_code == 404, f"不存在的任务应返�?04，实�? {response.status_code}"
 
     def test_delete_test_task(self, auth_headers, created_project):
         """TC-TASK-008: 删除测试任务 - 正常流程"""
         project_id = created_project["project_id"]
-        # 先创建任务
+        # 先创建任�?
         create_resp = client.post(
             "/api/v1/test_task",
             json={
@@ -1436,30 +1436,30 @@ class TestTestTaskModule:
             "/api/v1/test_task/999999",
             headers=auth_headers
         )
-        assert response.status_code == 404, f"不存在的任务应返回404，实际: {response.status_code}"
+        assert response.status_code == 404, f"不存在的任务应返�?04，实�? {response.status_code}"
 
 
-# ==================== 7. 健康检查和根路径测试 ====================
+# ==================== 7. 健康检查和根路径测�?====================
 
 class TestHealthCheck:
     """健康检查和基础接口测试"""
 
     def test_root_endpoint(self):
-        """TC-SYS-001: 根路径"""
+        """TC-SYS-001: 根路�?""
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
         assert "message" in data or "version" in data
 
     def test_health_check(self):
-        """TC-SYS-002: 健康检查"""
+        """TC-SYS-002: 健康检�?""
         response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
 
     def test_cors_headers(self):
-        """TC-SYS-003: CORS响应头"""
+        """TC-SYS-003: CORS响应�?""
         response = client.options(
             "/api/v1/auth/login",
             headers={
@@ -1467,7 +1467,7 @@ class TestHealthCheck:
                 "Access-Control-Request-Method": "POST"
             }
         )
-        # CORS预检请求应返回200或204
+        # CORS预检请求应返�?00�?04
         assert response.status_code in [200, 204, 405]
 
 
@@ -1477,7 +1477,7 @@ class TestBoundaryAndException:
     """边界值和异常场景测试"""
 
     def test_project_name_max_length(self, auth_headers):
-        """TC-BND-001: 项目名称 - 最大长度边界"""
+        """TC-BND-001: 项目名称 - 最大长度边�?""
         # 255字符（最大允许）
         long_name = "A" * 255
         response = client.post(
@@ -1485,7 +1485,7 @@ class TestBoundaryAndException:
             json={"name": long_name, "description": "边界测试", "project_type": "web"},
             headers=auth_headers
         )
-        assert response.status_code in [200, 201], f"255字符名称应可创建，实际: {response.status_code}"
+        assert response.status_code in [200, 201], f"255字符名称应可创建，实�? {response.status_code}"
         # 清理
         data = response.json()
         project_id = data.get("data", {}).get("project_id") or data.get("data", {}).get("id")
@@ -1493,7 +1493,7 @@ class TestBoundaryAndException:
             client.delete(f"/api/v1/project/{project_id}", headers=auth_headers)
 
     def test_project_name_over_max_length(self, auth_headers):
-        """TC-BND-002: 项目名称 - 超过最大长度"""
+        """TC-BND-002: 项目名称 - 超过最大长�?""
         long_name = "A" * 256
         response = client.post(
             "/api/v1/project/",
@@ -1503,9 +1503,9 @@ class TestBoundaryAndException:
         assert response.status_code in [400, 422], f"超长名称应返回错误，实际: {response.status_code}"
 
     def test_test_point_priority_boundary(self, auth_headers, created_project):
-        """TC-BND-003: 测试点优先级 - 边界值1和3"""
+        """TC-BND-003: 测试点优先级 - 边界�?�?"""
         project_id = created_project["project_id"]
-        # 优先级1（高）
+        # 优先�?（高�?
         resp1 = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[{"module": "边界1", "point": "描述", "priority": 1}],
@@ -1513,7 +1513,7 @@ class TestBoundaryAndException:
         )
         assert resp1.status_code == 200
 
-        # 优先级3（低）
+        # 优先�?（低�?
         resp3 = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[{"module": "边界3", "point": "描述", "priority": 3}],
@@ -1522,15 +1522,15 @@ class TestBoundaryAndException:
         assert resp3.status_code == 200
 
     def test_test_point_priority_out_of_range(self, auth_headers, created_project):
-        """TC-BND-004: 测试点优先级 - 超出范围（0和4）"""
+        """TC-BND-004: 测试点优先级 - 超出范围�?�?�?""
         project_id = created_project["project_id"]
-        # 优先级0（低于最小值1）
+        # 优先�?（低于最小�?�?
         resp0 = client.post(
             f"/api/v1/test-point/batch-save?project_id={project_id}",
             json=[{"module": "边界0", "point": "描述", "priority": 0}],
             headers=auth_headers
         )
-        # 优先级0应被修正为2
+        # 优先�?应被修正�?
         assert resp0.status_code == 200
         assert resp0.json()["data"]["items"][0]["priority"] == 2
 
@@ -1559,8 +1559,8 @@ class TestBoundaryAndException:
                 "password": "anything"
             }
         )
-        # SQL注入应被拦截，返回400或401（不泄露用户是否存在）
-        assert response.status_code in [400, 401], f"SQL注入应被拦截，实际: {response.status_code}"
+        # SQL注入应被拦截，返�?00�?01（不泄露用户是否存在�?
+        assert response.status_code in [400, 401], f"SQL注入应被拦截，实�? {response.status_code}"
 
     def test_xss_in_project_name(self, auth_headers):
         """TC-SEC-002: XSS攻击 - 项目名称"""
@@ -1584,7 +1584,7 @@ class TestBoundaryAndException:
             "/api/v1/auth/me",
             headers={"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"}
         )
-        assert response.status_code in [401, 403], f"无效Token应返回401/403，实际: {response.status_code}"
+        assert response.status_code in [401, 403], f"无效Token应返�?01/403，实�? {response.status_code}"
 
     def test_path_traversal_in_file_upload(self, auth_headers, created_project):
         """TC-SEC-004: 路径遍历 - 文件上传"""
@@ -1601,10 +1601,10 @@ class TestBoundaryAndException:
                     files={"file": ("../../../etc/passwd.docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
                     headers=auth_headers
                 )
-            # 文件名包含路径遍历字符，应被拒绝或安全处理
+            # 文件名包含路径遍历字符，应被拒绝或安全处�?
             if response.status_code == 200:
                 data = response.json()
-                # 验证文件URL不包含路径遍历
+                # 验证文件URL不包含路径遍�?
                 assert "../" not in data["data"]["file_url"]
         finally:
             os.unlink(temp_path)

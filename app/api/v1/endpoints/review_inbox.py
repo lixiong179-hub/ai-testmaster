@@ -185,6 +185,13 @@ def decide_single(
         if result is None:
             raise HTTPException(status_code=404, detail="决策不存在")
 
+        _check_zero_edit_confirmation(
+            db, decision=result,
+            ai_verdict=decision.ai_verdict,
+            human_verdict=body.human_verdict,
+            human_reason=body.human_reason,
+        )
+
         db.commit()
 
         return create_response(
@@ -435,3 +442,35 @@ def undo_finalize(
         db.rollback()
         logger.error("撤销最终化失败: {}", e)
         raise HTTPException(status_code=500, detail=f"撤销最终化失败: {str(e)}")
+
+
+def _check_zero_edit_confirmation(
+    db: Session,
+    decision: ReviewDecision,
+    ai_verdict: Optional[str],
+    human_verdict: str,
+    human_reason: Optional[str],
+) -> None:
+    """检测 F5 敷衍确认（用户直接采纳 AI 判定且无理由）。"""
+    if ai_verdict == human_verdict and not human_reason:
+        try:
+            from app.services.metrics_service import record_metric
+            from app.models.test_case import TestCase
+            project_id = None
+            if decision.target_kind == "case" and decision.target_id:
+                case = db.query(TestCase).filter(
+                    TestCase.id == decision.target_id,
+                ).first()
+                if case:
+                    project_id = case.project_id
+            record_metric(
+                "confirmed_zero_edit",
+                project_id=project_id,
+                detail={
+                    "decision_id": decision.id,
+                    "ai_verdict": ai_verdict,
+                    "human_verdict": human_verdict,
+                },
+            )
+        except Exception:
+            pass

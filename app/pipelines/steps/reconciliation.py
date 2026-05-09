@@ -20,6 +20,8 @@ from enum import Enum
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, Final, List, Literal, Optional
 
+from sqlalchemy.orm import Session
+
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
 
@@ -125,6 +127,14 @@ class Reconciliation(PipelineStep):
             project_id = forward.get("project_id", 0)
 
         merged = merge(backward_verdicts, forward_verdicts)
+
+        conflict_count = sum(1 for v in merged if v.conflict_marker)
+        if conflict_count > 0:
+            _record_conflict_metric(
+                db=ctx.db,
+                project_id=project_id,
+                detail={"conflict_count": conflict_count},
+            )
 
         payload = {
             "project_id": project_id,
@@ -364,3 +374,20 @@ def _compute_avg_confidence(verdicts: List[MergedVerdict]) -> float:
     if not verdicts:
         return 0.0
     return sum(v.confidence for v in verdicts) / len(verdicts)
+
+
+def _record_conflict_metric(
+    db: Session,
+    project_id: int = 0,
+    detail: Optional[Dict[str, Any]] = None,
+) -> None:
+    """记录 F3 红色冲突指标（失败不阻塞业务）。"""
+    try:
+        from app.services.metrics_service import record_metric
+        record_metric(
+            "conflict_detected",
+            project_id=project_id if project_id else None,
+            detail=detail,
+        )
+    except Exception:
+        pass

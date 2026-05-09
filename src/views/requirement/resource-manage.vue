@@ -330,10 +330,7 @@
             style="width: 100%"
             clearable
           >
-            <el-option
-              label="不归属任何迭代（未分类）"
-              :value="null"
-            />
+            <el-option label="不归属任何迭代（未分类）" :value="0" />
             <template v-if="Array.isArray(validIterationsForSelectArray)">
               <el-option
                 v-for="(it, idx) in validIterationsForSelectArray"
@@ -356,11 +353,7 @@
           </div>
         </el-form-item>
 
-        <el-form-item
-          v-if="resourceUpload.fileDialogMode === 'edit'"
-          label="资源名称"
-          prop="name"
-        >
+        <el-form-item v-if="resourceUpload.fileDialogMode === 'edit'" label="资源名称" prop="name">
           <el-input
             v-model="resourceUpload.fileFormData.name"
             placeholder="如：需求文档v1.2、洪恩UI原型图v1.0"
@@ -407,20 +400,14 @@
           />
         </el-form-item>
 
-        <el-form-item
-          v-if="resourceUpload.fileDialogMode === 'edit'"
-          label="启用状态"
-        >
+        <el-form-item v-if="resourceUpload.fileDialogMode === 'edit'" label="启用状态">
           <el-switch v-model="resourceUpload.fileFormData.is_active" />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="resourceUpload.fileDialogVisible = false">取消</el-button>
-        <el-button
-          type="primary"
-          @click="handleFileSubmitWrapper"
-          :loading="isFileSubmitting"
+        <el-button type="primary" @click="handleFileSubmitWrapper" :loading="isFileSubmitting"
           >确定</el-button
         >
       </template>
@@ -552,9 +539,11 @@ interface Resource {
 const iterationManager = useIterationManager()
 const resourceList = useResourceList(iterationManager)
 const resourceUpload = useResourceUpload(iterationManager, () => {
+  resourceList.pagination.page = 1
   resourceList.getResources()
 })
 const resourceOperations = useResourceOperations(iterationManager, () => {
+  resourceList.pagination.page = 1
   resourceList.getResources()
 })
 
@@ -575,11 +564,7 @@ const validIterationsForSelectArray = computed(
 
 // 辅助函数 - 安全访问迭代统计信息
 const getIterationStats = (id: number) => {
-  const stats = (iterationManager.iterationStats as any).value?.[id]
-  return {
-    files: stats?.files ?? 0,
-    prototypes: stats?.prototypes ?? 0,
-  }
+  return iterationManager.getIterationStatsById(id)
 }
 
 // 项目列表（独立状态，不属于任何 composable）
@@ -693,15 +678,16 @@ const handleEditWrapper = (row: Resource) => {
 }
 
 /** 批量上传成功回调 */
-const handleBatchUploadSuccess = (_data: FileBatchUploadResponse): void => {
+const handleBatchUploadSuccess = (
+  _data: Record<string, unknown> | FileBatchUploadResponse
+): void => {
   resourceUpload.fileDialogVisible = false
+  resourceList.pagination.page = 1
   resourceList.getResources()
 }
 
 /** 批量上传失败回调 */
-const handleBatchUploadError = (_error: unknown): void => {
-  // 错误提示已由 RequirementUploader 内部处理
-}
+const handleBatchUploadError = (): void => {}
 
 /** 文件提交按钮 loading 状态 */
 const isFileSubmitting = computed(() => {
@@ -717,6 +703,7 @@ const isFileSubmitting = computed(() => {
 const handleIterationCommandWrapper = async (command: string, iteration: SafeIteration) => {
   const needRefresh = await iterationManager.handleIterationCommand(command, iteration as any)
   if (needRefresh) {
+    resourceList.pagination.page = 1
     await iterationManager.loadIterations(Number(resourceList.filterForm.project_id))
     await resourceList.getResources()
   }
@@ -739,6 +726,7 @@ const handleIterationSubmitWrapper = async () => {
 
   const needRefresh = await iterationManager.handleIterationSubmit(iterationFormLocalRef.value)
   if (needRefresh) {
+    resourceList.pagination.page = 1
     iterationManager.loadIterations(Number(resourceList.filterForm.project_id))
     resourceList.getResources()
   }

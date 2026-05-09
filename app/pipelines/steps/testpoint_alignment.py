@@ -44,7 +44,7 @@ class TestPointAlignment(PipelineStep):
         inferred_hash = ""
         if inferred:
             try:
-                caps = inferred.get("parsed", {}).get("inferred_capabilities", [])
+                caps = (inferred.get("parsed") or {}).get("inferred_capabilities", [])
                 inferred_hash = hashlib.sha256(
                     json.dumps(caps, sort_keys=True, ensure_ascii=False, default=str).encode()
                 ).hexdigest()[:16]

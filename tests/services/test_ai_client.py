@@ -5,7 +5,7 @@ AI客户端JSON解析单元测试
 - clean_json_string() JSON字符串清理和修复
 - extract_json_objects_fallback() Fallback解析方法
 - parse_test_point_object() 单个对象解析
-- extract_value() 值提取
+- extract_value() 值提�?
 - 各种格式错误的JSON修复能力
 """
 import pytest
@@ -96,14 +96,14 @@ class TestExtractJsonObjectsFallback:
         content = '''[
   {
     "module": "链接管理模块",
-    "function": "新增"添加人"字段",
-    "point": "验证在黑白名单链接列表中，新增的'添加人'列正确显示",
+    "function": "新增"添加�?字段",
+    "point": "验证在黑白名单链接列表中，新增的'添加�?列正确显�?,
     "priority": 1
   },
   {
     "module": "链接管理模块",
-    "function":新增"添加人"字段",
-    "point": "验证添加新链接时，'添加人'字段自动填充为当前执行操作的用户身份",
+    "function":新增"添加�?字段",
+    "point": "验证添加新链接时�?添加�?字段自动填充为当前执行操作的用户身份",
     "priority": 1
   }
 ]'''
@@ -124,7 +124,7 @@ class TestExtractJsonObjectsFallback:
 {
 "module": "测试模块",
 "function": "测试功能",
-"point": "这是测试点描述",
+"point": "这是测试点描�?,
 "priority": 2
 }
 ]'''
@@ -145,7 +145,7 @@ class TestExtractJsonObjectsFallback:
             results = extract_json_objects_fallback(large_content)
             assert isinstance(results, list)
         except Exception as e:
-            pytest.fail(f"大内容处理不应抛出异常: {e}")
+            pytest.fail(f"大内容处理不应抛出异�? {e}")
 
 
 class TestParseTestPointObject:

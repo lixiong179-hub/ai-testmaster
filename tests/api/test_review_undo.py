@@ -4,7 +4,7 @@
     - POST /review/{id}/undo-decision/{decision_id} 正常撤销
     - POST /review/{id}/undo-decision/{decision_id} 超时403
     - POST /review/{id}/undo-decision/{decision_id} 未finalize 400
-    - POST /review/{id}/undo-finalize 正常撤销（admin）
+    - POST /review/{id}/undo-finalize 正常撤销（admin�?
     - POST /review/{id}/undo-finalize 非admin 403
     - POST /review/{id}/undo-finalize 超时403
     - POST /review/{id}/undo-finalize 未finalize 400

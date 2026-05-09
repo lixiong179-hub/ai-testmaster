@@ -35,7 +35,7 @@ class UISpecParseMixin:
                     layout_checks=ui_spec.get('layout_constraints', []),
                     navigation_flow=ui_spec.get('flows', {}),
                     is_entry_point=screen.screen_order == 0,
-                    is_end_point=len(ui_spec.get('flows', {}).get('expected_next_screens', [])) == 0
+                    is_end_point=len((ui_spec.get('flows') or {}).get('expected_next_screens', [])) == 0
                 )
                 return True, "解析成功"
             else:

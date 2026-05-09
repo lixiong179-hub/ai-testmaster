@@ -1,16 +1,16 @@
 """
 M1-T15 Config Service 测试模块
 
-覆盖：
-    - get_config 从 DB 读取
+覆盖�?
+    - get_config �?DB 读取
     - get_config 缓存命中
-    - get_config 默认值
+    - get_config 默认�?
     - set_config 新建/更新
     - set_config 写入 audit_log
-    - set_config 未知 key 抛 ValueError
+    - set_config 未知 key �?ValueError
     - init_default_configs 幂等
     - _cast_value 类型转换
-    - _cast_value 非法值
+    - _cast_value 非法�?
     - clear_cache
 """
 import pytest

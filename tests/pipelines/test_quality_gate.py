@@ -1,6 +1,6 @@
-"""M4-T01 QualityGate 先验质量分 单元测试
+"""M4-T01 QualityGate 先验质量�?单元测试
 
-覆盖 plan §7.1 信号完整性公式的所有分支和边界场景。
+覆盖 plan §7.1 信号完整性公式的所有分支和边界场景�?
 """
 import pytest
 

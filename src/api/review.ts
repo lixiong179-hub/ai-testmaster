@@ -86,13 +86,15 @@ export const reviewApi = {
   decideBatch: async (
     reviewId: number,
     data: BatchDecideRequest
-  ): Promise<{ code: number; message: string; data: { decisions: ReviewDecision[]; total: number } }> => {
+  ): Promise<{
+    code: number
+    message: string
+    data: { decisions: ReviewDecision[]; total: number }
+  }> => {
     return request.post(`/api/v1/review/${reviewId}/decisions/batch-decide`, data)
   },
 
-  finalizeReview: async (
-    reviewId: number
-  ): Promise<FinalizeResponse> => {
+  finalizeReview: async (reviewId: number): Promise<FinalizeResponse> => {
     return request.post(`/api/v1/review/${reviewId}/finalize`)
   },
 
@@ -110,9 +112,7 @@ export const reviewApi = {
     return request.post(`/api/v1/review/${reviewId}/decisions/${decisionId}/rollback`)
   },
 
-  undoFinalize: async (
-    reviewId: number
-  ): Promise<FinalizeResponse> => {
+  undoFinalize: async (reviewId: number): Promise<FinalizeResponse> => {
     return request.post(`/api/v1/review/${reviewId}/undo-finalize`)
   },
 }

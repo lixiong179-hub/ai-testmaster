@@ -43,7 +43,11 @@
 
       <div v-if="summary.is_old_project && summary.change_summary" class="change-summary">
         <el-collapse v-model="changeActive">
-          <el-collapse-item title="新增能力" name="new" v-if="summary.change_summary.new_capabilities.length > 0">
+          <el-collapse-item
+            title="新增能力"
+            name="new"
+            v-if="summary.change_summary.new_capabilities.length > 0"
+          >
             <div
               v-for="(cap, i) in summary.change_summary.new_capabilities"
               :key="'new-' + i"
@@ -55,7 +59,9 @@
                 size="large"
               />
               <p class="cap-desc">{{ cap.description }}</p>
-              <el-tag size="small" type="info">置信度: {{ Math.round((cap.confidence || 0) * 100) }}%</el-tag>
+              <el-tag size="small" type="info"
+                >置信度: {{ Math.round((cap.confidence || 0) * 100) }}%</el-tag
+              >
               <p class="cap-evidence" v-if="cap.supporting_evidence">
                 <el-icon><InfoFilled /></el-icon> {{ cap.supporting_evidence }}
               </p>
@@ -78,8 +84,17 @@
                 <span>{{ cap.new_name }}</span>
               </el-checkbox>
               <p class="cap-desc">{{ cap.change_description }}</p>
-              <el-tag size="small" :type="cap.change_type === 'business_logic' ? 'warning' : 'info'">
-                {{ cap.change_type === 'business_logic' ? '业务逻辑变更' : cap.change_type === 'both' ? 'UI+业务变更' : '纯UI变更' }}
+              <el-tag
+                size="small"
+                :type="cap.change_type === 'business_logic' ? 'warning' : 'info'"
+              >
+                {{
+                  cap.change_type === 'business_logic'
+                    ? '业务逻辑变更'
+                    : cap.change_type === 'both'
+                      ? 'UI+业务变更'
+                      : '纯UI变更'
+                }}
               </el-tag>
             </div>
           </el-collapse-item>
@@ -94,8 +109,14 @@
               :key="'rem-' + i"
               class="capability-card"
             >
-              <el-checkbox v-model="cap._confirmed" :label="`${cap.old_name} (${cap.old_key})`" size="large" />
-              <el-tag size="small" type="danger">置信度: {{ Math.round((cap.confidence || 0) * 100) }}%</el-tag>
+              <el-checkbox
+                v-model="cap._confirmed"
+                :label="`${cap.old_name} (${cap.old_key})`"
+                size="large"
+              />
+              <el-tag size="small" type="danger"
+                >置信度: {{ Math.round((cap.confidence || 0) * 100) }}%</el-tag
+              >
             </div>
           </el-collapse-item>
         </el-collapse>
@@ -112,17 +133,15 @@
           class="capability-card"
         >
           <div class="cap-header">
-            <el-checkbox
-              v-model="cap._confirmed"
-              size="large"
-              class="cap-check"
-            />
+            <el-checkbox v-model="cap._confirmed" size="large" class="cap-check" />
             <div class="cap-info">
               <span class="cap-name">{{ cap.name }}</span>
               <el-tag size="small" type="info" class="cap-key">{{ cap.key }}</el-tag>
               <el-tag
                 size="small"
-                :type="cap.confidence >= 0.8 ? 'success' : cap.confidence >= 0.5 ? 'warning' : 'danger'"
+                :type="
+                  cap.confidence >= 0.8 ? 'success' : cap.confidence >= 0.5 ? 'warning' : 'danger'
+                "
               >
                 置信度: {{ Math.round(cap.confidence * 100) }}%
               </el-tag>
@@ -156,9 +175,23 @@
           <el-button type="primary" plain @click="addNewCapability" :disabled="newCapCount >= 5">
             <el-icon><Plus /></el-icon> 添加业务能力
           </el-button>
-          <div v-for="(cap, i) in newCapabilities" :key="'new-' + i" class="capability-card new-cap">
-            <el-input v-model="cap.name" placeholder="能力名称" size="small" style="margin-bottom: 8px" />
-            <el-input v-model="cap.key" placeholder="唯一标识 (snake_case)" size="small" style="margin-bottom: 8px" />
+          <div
+            v-for="(cap, i) in newCapabilities"
+            :key="'new-' + i"
+            class="capability-card new-cap"
+          >
+            <el-input
+              v-model="cap.name"
+              placeholder="能力名称"
+              size="small"
+              style="margin-bottom: 8px"
+            />
+            <el-input
+              v-model="cap.key"
+              placeholder="唯一标识 (snake_case)"
+              size="small"
+              style="margin-bottom: 8px"
+            />
             <el-input
               v-model="cap.description"
               placeholder="能力描述"
@@ -180,11 +213,7 @@
       </el-divider>
 
       <div v-if="summary.uncertain_questions?.length > 0" class="questions-section">
-        <div
-          v-for="(q, i) in summary.uncertain_questions"
-          :key="'q-' + i"
-          class="question-card"
-        >
+        <div v-for="(q, i) in summary.uncertain_questions" :key="'q-' + i" class="question-card">
           <div class="q-header">
             <span class="q-num">{{ i + 1 }}.</span>
             <span class="q-text">{{ q.question }}</span>
@@ -275,9 +304,11 @@ function prepareCapabilities() {
 
 function prepareChangeSummary() {
   if (!summary.value?.change_summary) return
-  ;[...summary.value.change_summary.new_capabilities,
+  ;[
+    ...summary.value.change_summary.new_capabilities,
     ...summary.value.change_summary.modified_capabilities,
-    ...summary.value.change_summary.removed_capabilities].forEach((cap) => {
+    ...summary.value.change_summary.removed_capabilities,
+  ].forEach((cap) => {
     cap._confirmed = (cap.confidence ?? 0) >= 0.7
   })
 }
@@ -327,7 +358,12 @@ function buildConfirmedCapabilities(): Array<Record<string, unknown>> {
   if (summary.value?.inferred_capabilities) {
     for (const cap of summary.value.inferred_capabilities) {
       if (!cap._confirmed && cap._name_edit) {
-        result.push({ ...cap, name: cap._name_edit as string, key: cap.key || cap._name_edit as string, confirmed: false })
+        result.push({
+          ...cap,
+          name: cap._name_edit as string,
+          key: cap.key || (cap._name_edit as string),
+          confirmed: false,
+        })
       } else if (cap._confirmed) {
         let desc = cap.description
         if (cap._desc_edit) desc = cap._desc_edit as string
@@ -426,15 +462,18 @@ onMounted(() => {
   fetchSummary()
 })
 
-watch(() => props.runId, (newVal) => {
-  if (newVal) {
-    error.value = ''
-    summary.value = null
-    newCapabilities.value = []
-    notes.value = ''
-    fetchSummary()
+watch(
+  () => props.runId,
+  (newVal) => {
+    if (newVal) {
+      error.value = ''
+      summary.value = null
+      newCapabilities.value = []
+      notes.value = ''
+      fetchSummary()
+    }
   }
-})
+)
 </script>
 
 <style scoped>

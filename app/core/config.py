@@ -157,6 +157,7 @@ class Settings(BaseSettings):
     ENCRYPTION_SALT: str = ""  # 加密盐值，增强密钥推导安全性，空值时自动生成
 
     # ==================== 文件存储配置 ====================
+    ADMIN_INITIAL_PASSWORD: str = ""  # 管理员初始密码，空值时开发环境用随机密码、生产环境强制配置
     # 控制文件上传的存储路径、大小限制和类型白名单
     UPLOAD_DIR: str = str(BASE_DIR / "uploads")  # 通用上传目录
     UI_PROTOTYPE_UPLOAD_DIR: str = str(BASE_DIR / "uploads" / "ui_prototypes")  # UI原型文件上传目录
@@ -176,16 +177,16 @@ class Settings(BaseSettings):
     # DeepSeek是AI测试用例生成的核心模型，用于需求分析、用例生成等
     DEEPSEEK_API_KEY: str = ""  # DeepSeek API密钥，生产环境必须配置
     DEEPSEEK_API_URL: str = "https://api.deepseek.com/v1/chat/completions"  # API端点
-    DEEPSEEK_MODEL: str = "deepseek-chat"  # 使用的模型名称
+    DEEPSEEK_MODEL: str = "deepseek-v4-flash"  # 使用的模型名称
     DEEPSEEK_MAX_TOKENS: int = 2048  # 单次请求最大token数，控制输出长度和成本
-    DEEPSEEK_TEMPERATURE: float = 0.7  # 生成温度（0-1），越高越随机，0.7平衡创造性与准确性
+    DEEPSEEK_TEMPERATURE: float = 0.3  # 生成温度（0-1），统一低温度输出稳定
 
     # ==================== Pipeline AI 抽象层配置 ====================
     # M1-T08: Pipeline 统一 AI 调用抽象层配置
-    AI_MODEL_NAME: str = "deepseek-chat"  # Pipeline 主模型名称
-    AI_FALLBACK_MODEL_NAME: str = "deepseek-chat"  # Pipeline 备用模型名称（主模型失败时切换）
+    AI_MODEL_NAME: str = "deepseek-v4-flash"  # Pipeline 主模型名称
+    AI_FALLBACK_MODEL_NAME: str = "deepseek-v4-flash"  # Pipeline 备用模型名称（主模型失败时切换）
     AI_TOKEN_BUDGET_PER_RUN: int = 100000  # 单次 Pipeline Run 的 Token 预算上限
-    AI_TEMPERATURE: float = 0.7  # Pipeline 默认生成温度
+    AI_TEMPERATURE: float = 0.3  # Pipeline 默认生成温度，统一低温度输出稳定
     AI_MAX_TOKENS: int = 2048  # Pipeline 默认最大输出 Token 数
     AI_MAX_RETRIES: int = 3  # Pipeline AI 调用最大重试次数
     PIPELINE_PAUSE_TIMEOUT_DAYS: int = 7  # Pipeline 暂停超时天数，超时自动取消
@@ -193,7 +194,18 @@ class Settings(BaseSettings):
     # ==================== 用例生命周期配置 ====================
     # LifecycleService 状态机相关配置
     LIFECYCLE_DEPRECATE_COOLDOWN_HOURS: int = 24  # deprecated → archived 冷却时间（小时）
+
+    ARCHIVE_RETENTION_DAYS: int = 180  # finalized 迭代归档保留天数（默认 6 个月）
+    CLEANUP_AUDIT_LOG_DAYS: int = 365  # audit_log 清理保留天数（默认 1 年）
+    BACKUP_DIR: str = "/tmp/ai-testmaster-backup"  # 备份输出目录
     AUTO_APPROVE_MIN_GRADE: str = "A"  # pending_review → active 自动通过最低先验等级，M1阶段默认A，后续可调为B
+
+    # ==================== 后验质量分配置 ====================
+    POSTERIOR_MIN_EXECUTIONS: int = 3  # 后验质量分最低执行次数要求
+    POSTERIOR_REVIEW_WEIGHT: float = 0.5  # 评审通过率权重
+    POSTERIOR_EXECUTION_WEIGHT: float = 0.3  # 执行通过率权重
+    POSTERIOR_MODIFICATION_WEIGHT: float = 0.2  # 修改率权重（1 - modification_rate）
+    POSTERIOR_COMPUTE_BATCH_SIZE: int = 200  # 回填脚本批量处理大小
 
     # ==================== XMind AI 增强解析配置 ====================
     # 控制 XMind 路径 → 测试用例 的批量 LLM 调用行为
@@ -257,7 +269,7 @@ class Settings(BaseSettings):
     TEXT_MODEL_DEFAULT: str = "deepseek"  # 默认文本模型
     TEXT_MODEL_API_KEY: str = ""  # 文本模型 API Key（与 DEEPSEEK_API_KEY 相同）
     TEXT_MODEL_API_URL: str = "https://api.deepseek.com"  # API 端点（base_url）
-    TEXT_MODEL_NAME: str = "deepseek-chat"  # 模型名称
+    TEXT_MODEL_NAME: str = "deepseek-v4-flash"  # 模型名称
 
     # ==================== AI自愈配置 ====================
     # AI自愈功能：当测试步骤执行失败时，AI自动尝试修复定位器或操作
@@ -271,7 +283,7 @@ class Settings(BaseSettings):
     # MCP(Model Context Protocol)：AI通过协议控制浏览器执行测试步骤
     PLAYWRIGHT_MCP_ENABLED: bool = True  # 是否启用Playwright MCP服务
     PLAYWRIGHT_MCP_SERVER_PORT: int = 3000  # MCP服务监听端口
-    MCP_TEXT_LLM_MODEL: str = "deepseek-chat"  # MCP文本处理使用的LLM模型
+    MCP_TEXT_LLM_MODEL: str = "deepseek-v4-flash"  # MCP文本处理使用的LLM模型
 
     # ==================== MCP直执配置 ====================
     # MCP直执：AI生成的操作指令直接通过MCP执行，无需人工确认

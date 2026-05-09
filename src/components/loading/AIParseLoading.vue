@@ -200,8 +200,11 @@ const tips = [
 const currentTip = computed(() => tips[currentTipIndex.value])
 
 const progress = computed(() => {
+  // 有真实进度数据时，取动画进度与真实进度的较大值
+  // 确保进度条不回退，且在 processedCount=0 时动画仍提供视觉反馈
   if (props.processedCount !== undefined && props.totalCount && props.totalCount > 0) {
-    return Math.min(100, (props.processedCount / props.totalCount) * 100)
+    const realProgress = Math.min(100, (props.processedCount / props.totalCount) * 100)
+    return Math.max(customProgress.value, realProgress)
   }
   return customProgress.value
 })

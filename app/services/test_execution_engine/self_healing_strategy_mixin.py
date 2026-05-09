@@ -115,6 +115,14 @@ class SelfHealingStrategyMixin:
             element_info.get("x", 0), element_info.get("y", 0),
             element_info.get("width", 0), element_info.get("height", 0)
         )
+        if x < 0 or y < 0:
+            raise StepExecutionError(
+                f"AI视觉识别返回无效坐标: ({x}, {y})，元素描述: {nl_description}"
+            )
+        if width < 0:
+            width = 0
+        if height < 0:
+            height = 0
 
         new_selector = None
         element_attrs = await self._get_element_attributes_from_coords(x, y, width, height)
@@ -131,8 +139,10 @@ class SelfHealingStrategyMixin:
                 (function() {
                     var el = document.activeElement;
                     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                        var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                        nativeInputValueSetter.call(el, arguments[0]);
+                        var desc = Object.getOwnPropertyDescriptor(
+                            window.HTMLInputElement.prototype, 'value'
+                        );
+                        desc.set.call(el, arguments[0]);
                         el.dispatchEvent(new Event('input', { bubbles: true }));
                         el.dispatchEvent(new Event('change', { bubbles: true }));
                     }
@@ -170,7 +180,7 @@ class SelfHealingStrategyMixin:
         input_text = action_info.get("input_value", "") or self._extract_input_text(action_info.get("text", ""))
         if step_test_data:
             for field_name, value in step_test_data.items():
-                if field_name in action_info.get("text", "").lower():
+                if field_name in (action_info.get("text") or "").lower():
                     input_text = value
                     break
         return input_text

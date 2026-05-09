@@ -67,12 +67,22 @@ const RESOURCE_TYPE_KEYWORDS: Record<string, string[]> = {
 
 /** 扩展名到资源类型的默认映射 - 当文件名无关键词匹配时的回退策略 */
 const EXTENSION_RESOURCE_MAP: Record<string, string> = {
-  docx: 'requirement', doc: 'requirement', pdf: 'requirement',
-  txt: 'requirement', md: 'requirement',
-  png: 'ui_mockup', jpg: 'ui_mockup', jpeg: 'ui_mockup',
-  gif: 'ui_mockup', webp: 'ui_mockup',
-  yaml: 'api_doc', yml: 'api_doc', json: 'api_doc',
-  xlsx: 'test_data', xls: 'test_data', csv: 'test_data',
+  docx: 'requirement',
+  doc: 'requirement',
+  pdf: 'requirement',
+  txt: 'requirement',
+  md: 'requirement',
+  png: 'ui_mockup',
+  jpg: 'ui_mockup',
+  jpeg: 'ui_mockup',
+  gif: 'ui_mockup',
+  webp: 'ui_mockup',
+  yaml: 'api_doc',
+  yml: 'api_doc',
+  json: 'api_doc',
+  xlsx: 'test_data',
+  xls: 'test_data',
+  csv: 'test_data',
 }
 
 /**

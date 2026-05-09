@@ -27,6 +27,14 @@
               </el-radio-group>
             </div>
             <div class="action-buttons">
+              <el-button
+                v-if="completedScreenCount > 0"
+                type="danger"
+                @click="goToScenario4"
+                class="scenario-4-btn"
+              >
+                旧项目变更分析
+              </el-button>
               <el-button type="primary" @click="handleBatchParse" :disabled="screens.length === 0">
                 {{ parseMode === 'text' ? '文本模型一键解析' : 'AI视觉解析' }}
               </el-button>
@@ -193,6 +201,17 @@ const goBack = () => {
   router.push('/home/requirement')
 }
 
+const goToScenario4 = () => {
+  router.push({
+    path: '/home/iteration/regression-generate',
+    query: {
+      project_id: projectId.value,
+      ui_project_id: prototypeProjectId.value,
+      name: prototypeName.value,
+    },
+  })
+}
+
 const loadIterationDetail = async () => {
   if (iterationId.value && iterationName.value) {
     currentIteration.value = {
@@ -269,6 +288,8 @@ const handlePreviewScreen = async (screen: UIScreen) => {
 }
 
 const handleParseScreen = async (screen: UIScreen) => {
+  if (parsing.value) return
+
   try {
     pendingScreensIds.value = [screen.id!]
     parsing.value = true
@@ -285,6 +306,8 @@ const handleParseScreen = async (screen: UIScreen) => {
 }
 
 const handleBatchParse = async () => {
+  if (parsing.value) return
+
   const pendingScreens = screens.value.filter(
     (s) => s.parse_status === 'pending' || s.parse_status === 'failed'
   )
@@ -334,10 +357,10 @@ const pollParseStatus = async (maxAttempts: number = 40) => {
         previewScreen.value = updatedScreen
       }
     }
-    const allDone = screens.value.every(
-      (s) => s.parse_status === 'completed' || s.parse_status === 'failed'
-    )
-    if (allDone) {
+    const targetDone = screens.value
+      .filter((s) => pendingScreensIds.value.includes(s.id!))
+      .every((s) => s.parse_status === 'completed' || s.parse_status === 'failed')
+    if (targetDone) {
       ElMessage.success('所有图片解析完成！')
       break
     }

@@ -111,8 +111,16 @@ def _build_graph_prompt_data(
 ) -> Dict[str, Any]:
     """构建流程图模式所需的Prompt数据。"""
     from app.services.prompt_builder import PromptBuilder
+    from app.services.flow_validation import validate_flow_structure
     nodes_list = [n.model_dump() for n in flow_sort_data.nodes]
     edges_list = [e.model_dump() for e in flow_sort_data.edges]
+
+    # M1B-6: 后端流程结构校验（仅记录，不阻断）
+    errors, warnings = validate_flow_structure(nodes_list, edges_list)
+    if errors:
+        logger.warning(f"流程图校验发现 {len(errors)} 个错误: {errors}")
+    if warnings:
+        logger.info(f"流程图校验发现 {len(warnings)} 个警告: {warnings}")
     module_info = flow_sort_data.module_info
     test_point = _prepare_test_point(context, description, priority)
     ui_specs = context.get("ui_specs", [])
@@ -122,6 +130,7 @@ def _build_graph_prompt_data(
         nodes=nodes_list, edges=edges_list, module_info=module_info,
         requirement_content=context.get("requirement_content", ""),
         test_point_json=test_point_json, ui_specs_text=ui_specs_text,
+        history_cases=context.get("history_cases"),
     )
     logger.info(f"流程图模式：接收到 {len(nodes_list)} 个节点，{len(edges_list)} 条连线")
     return {
@@ -133,6 +142,7 @@ def _build_graph_prompt_data(
         "exec_mode": context.get("exec_mode", "all"),
         "project_config": context.get("project_config"),
         "graph_prompt": graph_prompt,
+        "flow_validation": {"errors": errors, "warnings": warnings},
     }
 
 
@@ -151,6 +161,7 @@ def _build_linear_prompt_data(
         "ui_specs": ui_specs, "test_point": test_point,
         "case_type": case_type, "exec_mode": exec_mode,
         "project_config": context.get("project_config"),
+        "history_cases": context.get("history_cases"),
     }
 
 
@@ -159,6 +170,10 @@ def _format_case_response(
     description: str, priority: int, case_type: Optional[str],
 ) -> Dict[str, Any]:
     """格式化生成的测试用例为响应数据。"""
+    if not isinstance(generated_case, dict):
+        raise TypeError(
+            f"_format_case_response 期望 generated_case 为 dict，实际类型: {type(generated_case).__name__}"
+        )
     steps_data = convert_steps_to_response(generated_case.get("steps", []))
     return {
         "id": 0, "project_id": project_id,
@@ -171,6 +186,8 @@ def _format_case_response(
         "expected_result": generated_case.get("expected_result", ""),
         "priority": priority,
         "case_type": generated_case.get("case_type", case_type),
+        "change_type": generated_case.get("change_type", "added"),
+        "parent_case_id": generated_case.get("parent_case_id"),
         "generate_status": 1,
         "create_time": datetime.now().isoformat(),
     }
@@ -263,6 +280,7 @@ class GenerateContextRequest(BaseModel):
     ui_file_ids: Optional[List[int]] = None
     ui_screen_ids: Optional[List[int]] = None
     test_point_ids: Optional[List[int]] = None
+    history_case_ids: Optional[List[int]] = None
     force_refresh: bool = False
     test_point_page: int = 1
     test_point_page_size: int = 100
@@ -375,9 +393,9 @@ async def ai_generate_test_case(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
     try:
         generated_case = generate_test_case(description)
-        priority_value = _map_ai_priority_to_value(generated_case["priority"])
+        priority_value = _map_ai_priority_to_value(generated_case.get("priority", "medium"))
         new_test_case = TestCase(
-            project_id=project_id, title=generated_case["title"],
+            project_id=project_id, title=generated_case.get("title") or "(无标题)",
             precondition=generated_case.get("precondition", ""),
             expected_result=generated_case.get("expected_result", ""),
             priority=priority_value, module="AI生成",
@@ -612,6 +630,45 @@ async def get_generation_context(
     test_points_count = len(context.get("test_points", []))
     if test_points_count == 0:
         logger.warning(f"项目 {request.project_id} 没有找到测试点")
+
+    # 查询历史参考用例（仅限本项目、非删除、active状态）
+    # None = 前端未指定，自动查全部；[] = 前端明确不选任何用例；有值 = 按指定查询
+    history_cases = []
+    if request.history_case_ids is None:
+        # 自动查全部 active 用例
+        cases = db.query(TestCase).filter(
+            TestCase.project_id == request.project_id,
+            TestCase.is_deleted == False,
+            TestCase.lifecycle_status == 'active',
+        ).order_by(TestCase.id).all()
+    elif len(request.history_case_ids) > 0:
+        cases = db.query(TestCase).filter(
+            TestCase.id.in_(request.history_case_ids),
+            TestCase.project_id == request.project_id,
+            TestCase.is_deleted == False,
+            TestCase.lifecycle_status == 'active',
+        ).all()
+    else:
+        # [] = 明确不选，不查任何用例
+        cases = []
+
+    # 统一摘要格式：每条用例给 title + summary + steps概要，控制单条长度
+    for c in cases:
+        steps = c.steps_json or []
+        steps_summary = ""
+        if isinstance(steps, list) and steps:
+            # 只取前3步的 action，拼接为一句话
+            actions = [s.get("action", s.get("description", "")) for s in steps[:3]]
+            steps_summary = " → ".join(a for a in actions if a)
+        history_cases.append({
+            "id": c.id,
+            "case_no": c.case_no,
+            "module": c.module or "",
+            "title": c.title,
+            "summary": (c.summary or steps_summary or "")[:150],
+            "expected_result": (c.expected_result or "")[:100],
+        })
+
     project_config = {
         "project_name": project.name,
         "project_type": project.project_type or "web",
@@ -628,6 +685,7 @@ async def get_generation_context(
         "warnings": context.get("warnings", []),
         "pagination": context.get("pagination", None),
         "project_config": project_config,
+        "history_cases": history_cases,
         "message": f"获取成功：{test_points_count}个测试点",
     })
 
@@ -820,3 +878,74 @@ async def parse_precondition(
     except Exception as e:
         logger.error(f"AI解析前置条件失败: {e}")
         raise HTTPException(status_code=500, detail="AI解析前置条件失败")
+
+
+class PreviewGraphPromptRequest(BaseModel):
+    """Graph Prompt 预览请求体。"""
+    flow_sort_data: FlowSortDataSchema = Field(..., description="流程编排数据")
+    context: Dict[str, Any] = Field(default_factory=dict, description="AI生成上下文")
+
+
+class PreviewGraphPromptResponse(BaseModel):
+    """Graph Prompt 预览响应体。"""
+    graph_prompt: str = Field(..., description="构建完成的Graph Prompt文本")
+    node_count: int = Field(..., description="节点总数")
+    edge_count: int = Field(..., description="连线总数")
+    main_count: int = Field(..., description="主干节点数")
+    branch_count: int = Field(..., description="分支节点数")
+    exception_count: int = Field(..., description="异常节点数")
+    bypass_count: int = Field(..., description="旁路节点数")
+    errors: List[Dict[str, str]] = Field(default_factory=list, description="结构校验错误")
+    warnings: List[Dict[str, str]] = Field(default_factory=list, description="结构校验警告")
+
+
+@router.post("/preview-graph-prompt", response_model=PreviewGraphPromptResponse)
+async def preview_graph_prompt(
+    request: PreviewGraphPromptRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """预览 Graph Prompt 文本，不实际调用 AI。
+
+    用于用户在生成前查看提交给 AI 的完整流程描述。
+    """
+    try:
+        from app.services.prompt_builder.case_prompt import _build_graph_prompt
+        from app.services.flow_validation import validate_flow_structure
+
+        nodes_list = [n.model_dump() for n in request.flow_sort_data.nodes]
+        edges_list = [e.model_dump() for e in request.flow_sort_data.edges]
+        module_info = request.flow_sort_data.module_info
+
+        raw_errors, raw_warnings = validate_flow_structure(nodes_list, edges_list)
+
+        flow_type_counts = {"main": 0, "branch": 0, "exception": 0, "bypass": 0}
+        for node in nodes_list:
+            t = node.get("flow_type", "main")
+            if t in flow_type_counts:
+                flow_type_counts[t] += 1
+
+        graph_prompt = _build_graph_prompt(
+            nodes=nodes_list,
+            edges=edges_list,
+            module_info=module_info,
+            requirement_content=request.context.get("requirement_content", ""),
+            test_point_json=json.dumps(
+                request.context.get("test_point", {}), ensure_ascii=False
+            ),
+            ui_specs_text=request.context.get("ui_specs_text", ""),
+        )
+
+        return PreviewGraphPromptResponse(
+            graph_prompt=graph_prompt,
+            node_count=len(nodes_list),
+            edge_count=len(edges_list),
+            main_count=flow_type_counts["main"],
+            branch_count=flow_type_counts["branch"],
+            exception_count=flow_type_counts["exception"],
+            bypass_count=flow_type_counts["bypass"],
+            errors=[{"msg": e} for e in raw_errors],
+            warnings=[{"msg": w} for w in raw_warnings],
+        )
+    except Exception as e:
+        logger.error(f"预览Graph Prompt失败: {e}")
+        raise HTTPException(status_code=500, detail=f"预览失败: {str(e)}")

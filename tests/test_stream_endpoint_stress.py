@@ -1,11 +1,11 @@
 """
-流式端点压力测试 - SSE高并发稳定性验证
+流式端点压力测试 - SSE高并发稳定性验�?
 
 覆盖范围:
-- SSE事件流格式验证
+- SSE事件流格式验�?
 - 并发请求处理
 - 异常场景下的流式响应
-- graph/linear模式流式推送
+- graph/linear模式流式推�?
 """
 import pytest
 import json
@@ -24,14 +24,14 @@ from app.schemas.test_case import FlowSortDataSchema, FlowNodeSchema, FlowEdgeSc
 
 
 class TestStreamEndpointFormat:
-    """测试SSE事件流格式"""
+    """测试SSE事件流格�?""
 
     @pytest.mark.asyncio
     async def test_stream_events_format(self):
         """测试SSE事件格式符合规范"""
         request = AIGenerateEnhancedRequest(
             project_id=1,
-            description="测试描述，至少需要五个字符"
+            description="测试描述，至少需要五个字�?
         )
 
         with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case') as mock_gen:
@@ -56,13 +56,13 @@ class TestStreamEndpointFormat:
         """测试graph模式SSE事件序列"""
         flow_data = FlowSortDataSchema(
             nodes=[
-                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录页')
+                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录�?)
             ],
             edges=[]
         )
         request = AIGenerateEnhancedRequest(
             project_id=1,
-            description="测试描述，至少需要五个字符",
+            description="测试描述，至少需要五个字�?,
             mode='graph',
             flow_sort_data=flow_data
         )
@@ -94,7 +94,7 @@ class TestStreamEndpointFormat:
         """测试linear模式SSE事件序列"""
         request = AIGenerateEnhancedRequest(
             project_id=1,
-            description="测试描述，至少需要五个字符",
+            description="测试描述，至少需要五个字�?,
             mode='linear',
             enhanced_mode=True
         )
@@ -126,7 +126,7 @@ class TestStreamEndpointFormat:
         """测试流式端点异常处理"""
         request = AIGenerateEnhancedRequest(
             project_id=1,
-            description="测试描述，至少需要五个字符",
+            description="测试描述，至少需要五个字�?,
             enhanced_mode=True
         )
 
@@ -157,7 +157,7 @@ class TestStreamConcurrency:
         requests = [
             AIGenerateEnhancedRequest(
                 project_id=1,
-                description=f"测试描述{i}，至少需要五个字符"
+                description=f"测试描述{i}，至少需要五个字�?
             )
             for i in range(3)
         ]
@@ -210,7 +210,7 @@ class TestStreamConcurrency:
 
         request = AIGenerateEnhancedRequest(
             project_id=1,
-            description="测试描述，至少需要五个字符",
+            description="测试描述，至少需要五个字�?,
             mode='graph',
             flow_sort_data=flow_data
         )
@@ -242,16 +242,16 @@ class TestStreamEdgeCases:
 
     @pytest.mark.asyncio
     async def test_stream_empty_flow_data(self):
-        """测试空流程数据流式请求 - 使用linear模式（graph模式要求至少1个节点）"""
+        """测试空流程数据流式请�?- 使用linear模式（graph模式要求至少1个节点）"""
         request = AIGenerateEnhancedRequest(
             project_id=1,
-            description="测试描述，至少需要五个字符",
+            description="测试描述，至少需要五个字�?,
             mode='linear',
             enhanced_mode=True
         )
 
         with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case_enhanced') as mock_gen:
-            mock_gen.return_value = {'title': '空数据测试', 'steps': []}
+            mock_gen.return_value = {'title': '空数据测�?, 'steps': []}
 
             response = await ai_enhanced_generate_stream(
                 request=request,
@@ -268,10 +268,10 @@ class TestStreamEdgeCases:
 
     @pytest.mark.asyncio
     async def test_stream_basic_mode(self):
-        """测试基础模式（非增强）流式请求"""
+        """测试基础模式（非增强）流式请�?""
         request = AIGenerateEnhancedRequest(
             project_id=1,
-            description="测试描述，至少需要五个字符",
+            description="测试描述，至少需要五个字�?,
             enhanced_mode=False
         )
 
@@ -300,7 +300,7 @@ class TestStreamEdgeCases:
         """测试无效项目ID流式请求"""
         request = AIGenerateEnhancedRequest(
             project_id=99999,
-            description="测试描述，至少需要五个字符"
+            description="测试描述，至少需要五个字�?
         )
 
         mock_db = MagicMock()
@@ -317,10 +317,10 @@ class TestStreamEdgeCases:
 
     @pytest.mark.asyncio
     async def test_stream_json_encoding(self):
-        """测试SSE事件JSON编码正确性"""
+        """测试SSE事件JSON编码正确�?""
         request = AIGenerateEnhancedRequest(
             project_id=1,
-            description="测试描述，至少需要五个字符",
+            description="测试描述，至少需要五个字�?,
             enhanced_mode=True
         )
 
@@ -342,5 +342,5 @@ class TestStreamEdgeCases:
 
             content = body.decode('utf-8')
             assert '中文测试用例' in content
-            # 验证步骤数据被正确转换（convert_steps_to_response将description映射为action）
+            # 验证步骤数据被正确转换（convert_steps_to_response将description映射为action�?
             assert '"step": "1"' in content or '"action": "点击"' in content

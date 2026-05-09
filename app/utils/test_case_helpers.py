@@ -5,6 +5,7 @@
 """
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from loguru import logger
 
 
 def _build_step_response(step: Dict, step_number: Optional[int] = None) -> Dict[str, Any]:
@@ -54,8 +55,15 @@ def convert_steps_to_response(steps_json: Optional[List[Dict]]) -> List[Dict[str
     if not steps_json:
         return []
 
+    if not isinstance(steps_json, list):
+        logger.warning(f"convert_steps_to_response 期望 steps_json 为 list，实际类型: {type(steps_json).__name__}")
+        return []
+
     result = []
     for i, step in enumerate(steps_json):
+        if not isinstance(step, dict):
+            logger.warning(f"convert_steps_to_response 跳过非dict步骤[{i}]: {type(step).__name__}")
+            continue
         step_number = step.get("step_number", i + 1)
         result.append(_build_step_response(step, step_number))
 
@@ -81,7 +89,7 @@ def build_test_case_response(test_case) -> Dict[str, Any]:
         "project_id": test_case.project_id,
         "case_no": getattr(test_case, 'case_no', ''),
         "module": getattr(test_case, 'module', ''),
-        "title": test_case.title,
+        "title": test_case.title or "(无标题)",
         "precondition": getattr(test_case, 'precondition', ''),
         "steps": convert_steps_to_response(getattr(test_case, 'steps_json', None)),
         "expected_result": getattr(test_case, 'expected_result', ''),
@@ -96,6 +104,7 @@ def build_test_case_response(test_case) -> Dict[str, Any]:
         "summary_version": getattr(test_case, 'summary_version', 0),
         "summary_model_version": getattr(test_case, 'summary_model_version', None),
         "parent_case_id": getattr(test_case, 'parent_case_id', None),
+        "ai_change_type": getattr(test_case, 'ai_change_type', None),
         "last_review_id": getattr(test_case, 'last_review_id', None),
         "create_time": create_time
     }

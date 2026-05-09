@@ -1,12 +1,12 @@
 """
-测试数据服务扩展单元测试 - 补充覆盖率
+测试数据服务扩展单元测试 - 补充覆盖�?
 
 测试范围:
 - 更新测试数据时JSON字段处理
 - 生成值的各种场景
 - 批量操作
 - 复制功能
-- 智能生成的各种场景
+- 智能生成的各种场�?
 """
 import json
 import pytest
@@ -20,7 +20,7 @@ from app.models.test_data import TestData, DataType, GenerationRule
 
 
 class TestTestDataServiceExtended:
-    """测试数据服务扩展测试类"""
+    """测试数据服务扩展测试�?""
 
     @pytest.fixture
     def db_session(self):
@@ -35,7 +35,7 @@ class TestTestDataServiceExtended:
 
     @pytest.fixture
     def sample_test_data_with_json(self):
-        """创建包含JSON字段的示例测试数据"""
+        """创建包含JSON字段的示例测试数�?""
         return TestData(
             id=1,
             step_id=100,
@@ -49,7 +49,7 @@ class TestTestDataServiceExtended:
             min_value=None,
             max_value=None,
             enum_values='["active", "inactive", "pending"]',
-            description="状态",
+            description="状�?,
             is_required=True,
             sort_order=0
         )
@@ -143,7 +143,7 @@ class TestTestDataServiceExtended:
     # ============================================================================
 
     def test_generate_value_with_enum_values(self, service, db_session, sample_test_data_with_json):
-        """测试生成值 - 带枚举值"""
+        """测试生成�?- 带枚举�?""
         # 执行
         result = service.generate_value(sample_test_data_with_json)
 
@@ -153,7 +153,7 @@ class TestTestDataServiceExtended:
         assert result in ["active", "inactive", "pending"]
 
     def test_generate_value_with_rule_config(self, service, db_session):
-        """测试生成值 - 带规则配置"""
+        """测试生成�?- 带规则配�?""
         # 准备
         test_data = TestData(
             id=1,
@@ -168,7 +168,7 @@ class TestTestDataServiceExtended:
             min_value=None,
             max_value=None,
             enum_values=None,
-            description="自定义字段",
+            description="自定义字�?,
             is_required=True,
             sort_order=0
         )
@@ -180,7 +180,7 @@ class TestTestDataServiceExtended:
         assert result == "custom_test_value"
 
     def test_generate_value_with_none_rule_config(self, service, db_session):
-        """测试生成值 - rule_config为None"""
+        """测试生成�?- rule_config为None"""
         # 准备
         test_data = TestData(
             id=1,
@@ -195,7 +195,7 @@ class TestTestDataServiceExtended:
             min_value=None,
             max_value=None,
             enum_values=None,
-            description="简单字段",
+            description="简单字�?,
             is_required=True,
             sort_order=0
         )
@@ -212,7 +212,7 @@ class TestTestDataServiceExtended:
     # ============================================================================
 
     def test_generate_step_data_with_parameterizer(self, service, db_session):
-        """测试生成步骤数据 - 带参数化解析器"""
+        """测试生成步骤数据 - 带参数化解析�?""
         # 准备
         test_data = TestData(
             id=1,
@@ -239,11 +239,11 @@ class TestTestDataServiceExtended:
 
         # 验证
         assert "param_field" in result
-        # 参数化后的值不应该包含占位符
+        # 参数化后的值不应该包含占位�?
         assert "${random.product_name}" not in result["param_field"]
 
     def test_generate_step_data_without_test_data(self, service, db_session):
-        """测试生成步骤数据 - 无测试数据"""
+        """测试生成步骤数据 - 无测试数�?""
         # 准备
         db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
 
@@ -284,7 +284,7 @@ class TestTestDataServiceExtended:
             enum_values=None
         )
 
-        # 配置mock返回不同的值 - 使用args[0]获取step_id
+        # 配置mock返回不同的�?- 使用args[0]获取step_id
         def side_effect(*args, **kwargs):
             step_id = args[0] if args else kwargs.get('step_id')
             if step_id == 101:
@@ -311,7 +311,7 @@ class TestTestDataServiceExtended:
         assert "field2" in result[102]
 
     def test_generate_case_data_case_not_found(self, service, db_session):
-        """测试生成用例数据 - 用例不存在"""
+        """测试生成用例数据 - 用例不存�?""
         # 准备
         db_session.query.return_value.filter.return_value.first.return_value = None
 
@@ -379,7 +379,7 @@ class TestTestDataServiceExtended:
         # 准备
         data_list = [
             {"field_name": "field1", "field_type": DataType.TEXT},
-            {"field_name": "field2", "field_type": DataType.TEXT},  # 会失败
+            {"field_name": "field2", "field_type": DataType.TEXT},  # 会失�?
             {"field_name": "field3", "field_type": DataType.TEXT}
         ]
 
@@ -387,18 +387,18 @@ class TestTestDataServiceExtended:
         with patch.object(service, 'create_test_data') as mock_create:
             mock_create.side_effect = [
                 Mock(id=1, field_name="field1"),
-                Exception("创建失败"),  # 第二个失败
+                Exception("创建失败"),  # 第二个失�?
                 Mock(id=3, field_name="field3")
             ]
             result = service.batch_create_test_data(100, data_list)
 
-        # 验证 - 应该只返回成功创建的2个
+        # 验证 - 应该只返回成功创建的2�?
         assert len(result) == 2
         assert result[0].field_name == "field1"
         assert result[1].field_name == "field3"
 
     def test_batch_create_test_data_empty_list(self, service, db_session):
-        """测试批量创建测试数据 - 空列表"""
+        """测试批量创建测试数据 - 空列�?""
         # 执行
         result = service.batch_create_test_data(100, [])
 
@@ -459,15 +459,15 @@ class TestTestDataServiceExtended:
         with patch.object(service, 'create_test_data') as mock_create:
             mock_create.side_effect = [
                 Mock(id=3, field_name="field1"),
-                Exception("复制失败")  # 第二个失败
+                Exception("复制失败")  # 第二个失�?
             ]
             result = service.copy_test_data(100, 200)
 
         # 验证
-        assert result == 1  # 只有1个成功
+        assert result == 1  # 只有1个成�?
 
     def test_copy_test_data_empty_source(self, service, db_session):
-        """测试复制测试数据 - 源为空"""
+        """测试复制测试数据 - 源为�?""
         # 准备
         service.get_test_data_by_step = Mock(return_value=[])
 
@@ -482,13 +482,13 @@ class TestTestDataServiceExtended:
     # ============================================================================
 
     def test_auto_generate_with_product_line(self, service, db_session):
-        """测试自动推断生成 - 产品线场景"""
+        """测试自动推断生成 - 产品线场�?""
         # 执行
         with patch.object(service, 'create_test_data') as mock_create:
             mock_create.return_value = Mock(id=1, field_name="product_name")
-            result = service.auto_generate_for_step(100, "选择产品线")
+            result = service.auto_generate_for_step(100, "选择产品�?)
 
-        # 验证 - "产品线"匹配"产品"和"输入"两个关键词
+        # 验证 - "产品�?匹配"产品"�?输入"两个关键�?
         assert len(result) >= 1
         assert mock_create.call_count >= 1
         # 检查是否创建了product_name字段
@@ -525,9 +525,9 @@ class TestTestDataServiceExtended:
         # 执行
         with patch.object(service, 'create_test_data') as mock_create:
             mock_create.return_value = Mock(id=1, field_name="date_value")
-            result = service.auto_generate_for_step(100, "选择开始日期")
+            result = service.auto_generate_for_step(100, "选择开始日�?)
 
-        # 验证 - "选择"和"日期"两个关键词都会匹配
+        # 验证 - "选择"�?日期"两个关键词都会匹�?
         assert len(result) >= 1
         # 检查是否创建了date_value字段
         field_names = [call[1].get('field_name') for call in mock_create.call_args_list]
@@ -535,21 +535,21 @@ class TestTestDataServiceExtended:
 
     def test_auto_generate_multiple_fields(self, service, db_session):
         """测试自动推断生成 - 多个字段"""
-        # 执行 - 包含多种关键词
+        # 执行 - 包含多种关键�?
         with patch.object(service, 'create_test_data') as mock_create:
             mock_create.side_effect = [
                 Mock(id=1, field_name="product_name"),
                 Mock(id=2, field_name="input_value"),
                 Mock(id=3, field_name="date_value")
             ]
-            result = service.auto_generate_for_step(100, "输入产品名称和日期")
+            result = service.auto_generate_for_step(100, "输入产品名称和日�?)
 
         # 验证
         assert len(result) == 3
         assert mock_create.call_count == 3
 
     def test_auto_generate_no_match(self, service, db_session):
-        """测试自动推断生成 - 无匹配场景"""
+        """测试自动推断生成 - 无匹配场�?""
         # 执行 - 不包含任何关键词
         result = service.auto_generate_for_step(100, "点击提交按钮")
 
@@ -557,7 +557,7 @@ class TestTestDataServiceExtended:
         assert len(result) == 0
 
     def test_auto_generate_fill_keyword(self, service, db_session):
-        """测试自动推断生成 - 填写关键词"""
+        """测试自动推断生成 - 填写关键�?""
         # 执行
         with patch.object(service, 'create_test_data') as mock_create:
             mock_create.return_value = Mock(id=1, field_name="input_value")
@@ -572,7 +572,7 @@ class TestTestDataGeneratorExtended:
 
     @pytest.fixture
     def generator(self):
-        """创建生成器实例"""
+        """创建生成器实�?""
         return TestDataGenerator()
 
     def test_generate_data_datetime(self, generator):
@@ -582,7 +582,7 @@ class TestTestDataGeneratorExtended:
             field_name="datetime"
         )
         assert isinstance(result, str)
-        # 应该包含日期和时间
+        # 应该包含日期和时�?
         assert len(result) > 10
 
     def test_generate_data_with_constraints_min_max_length(self, generator):
@@ -605,7 +605,7 @@ class TestTestDataGeneratorExtended:
         assert isinstance(result, str)
 
     def test_generate_data_enum_with_values(self, generator):
-        """测试生成枚举数据 - 有枚举值"""
+        """测试生成枚举数据 - 有枚举�?""
         result = generator.generate_data(
             field_type=DataType.ENUM,
             field_name="status",
@@ -614,24 +614,24 @@ class TestTestDataGeneratorExtended:
         assert result in ["active", "inactive", "pending"]
 
     def test_generate_data_enum_without_values(self, generator):
-        """测试生成枚举数据 - 无枚举值"""
+        """测试生成枚举数据 - 无枚举�?""
         result = generator.generate_data(
             field_type=DataType.ENUM,
             field_name="status",
             constraints=DataConstraints()
         )
-        # 应该返回默认值
+        # 应该返回默认�?
         assert isinstance(result, str)
 
     def test_generate_data_boundary_over(self, generator):
-        """测试生成数据 - 边界溢出值"""
+        """测试生成数据 - 边界溢出�?""
         result = generator.generate_data(
             field_type=DataType.NUMBER,
             field_name="number",
             generation_rule=GenerationRule.BOUNDARY_OVER,
             constraints=DataConstraints(min_value=10, max_value=100)
         )
-        # 应该返回超出边界的值
+        # 应该返回超出边界的�?
         num = int(result)
         assert num < 10 or num > 100
 
@@ -641,11 +641,11 @@ class TestTestDataGeneratorExtended:
             field_type="unknown_type",
             field_name="unknown"
         )
-        # 应该返回字符串值
+        # 应该返回字符串�?
         assert isinstance(result, str)
 
     def test_generate_data_with_empty_constraints(self, generator):
-        """测试生成数据 - 空约束"""
+        """测试生成数据 - 空约�?""
         result = generator.generate_data(
             field_type=DataType.TEXT,
             field_name="text",
@@ -656,7 +656,7 @@ class TestTestDataGeneratorExtended:
 
 
 class TestTestDataParameterizerExtended:
-    """测试数据参数化器扩展测试类"""
+    """测试数据参数化器扩展测试�?""
 
     @pytest.fixture
     def parameterizer(self):
@@ -664,7 +664,7 @@ class TestTestDataParameterizerExtended:
         return TestDataParameterizer()
 
     def test_parse_random_company(self, parameterizer):
-        """测试解析 - 随机公司名"""
+        """测试解析 - 随机公司�?""
         template = "${random.company}"
         result = parameterizer.parse(template)
         assert "${random.company}" not in result
@@ -692,7 +692,7 @@ class TestTestDataParameterizerExtended:
         assert "@" in result
 
     def test_parse_random_phone(self, parameterizer):
-        """测试解析 - 随机手机号"""
+        """测试解析 - 随机手机�?""
         template = "${random.phone}"
         result = parameterizer.parse(template)
         assert "${random.phone}" not in result
@@ -706,10 +706,10 @@ class TestTestDataParameterizerExtended:
         assert result.isdigit()
 
     def test_parse_date_weekday(self, parameterizer):
-        """测试解析 - 星期几（如果支持）"""
+        """测试解析 - 星期几（如果支持�?""
         template = "${date.weekday}"
         result = parameterizer.parse(template)
-        # 如果支持weekday，应该被替换；如果不支持，保持原样
+        # 如果支持weekday，应该被替换；如果不支持，保持原�?
         if "${date.weekday}" in result:
             # 不支持weekday参数，这是预期的行为
             pass
@@ -725,21 +725,21 @@ class TestTestDataParameterizerExtended:
         assert "@" in result
 
     def test_parse_user_phone(self, parameterizer):
-        """测试解析 - 用户手机号"""
+        """测试解析 - 用户手机�?""
         template = "${user.phone}"
         result = parameterizer.parse(template)
         assert "${user.phone}" not in result
         assert len(result) > 0
 
     def test_parse_execution_timestamp(self, parameterizer):
-        """测试解析 - 执行时间戳"""
+        """测试解析 - 执行时间�?""
         template = "${execution.timestamp}"
         result = parameterizer.parse(template)
         assert "${execution.timestamp}" not in result
         assert result.isdigit()
 
     def test_parse_nested_placeholder(self, parameterizer):
-        """测试解析 - 嵌套占位符"""
+        """测试解析 - 嵌套占位�?""
         template = "Name: ${random.name}, Email: ${random.email}, Date: ${date.today}"
         result = parameterizer.parse(template)
         assert "${random.name}" not in result
@@ -757,14 +757,14 @@ class TestTestDataParameterizerExtended:
         assert "(test)" in result
 
     def test_get_cached_params_empty(self, parameterizer):
-        """测试获取缓存参数 - 空缓存"""
+        """测试获取缓存参数 - 空缓�?""
         result = parameterizer.get_cached_params()
         assert isinstance(result, dict)
         assert len(result) == 0
 
     def test_get_cached_params_with_values(self, parameterizer):
-        """测试获取缓存参数 - 有缓存值"""
-        # 先解析一些内容
+        """测试获取缓存参数 - 有缓存�?""
+        # 先解析一些内�?
         parameterizer.parse("${random.product_name}")
         parameterizer.parse("${date.today}")
 
@@ -774,7 +774,7 @@ class TestTestDataParameterizerExtended:
 
     def test_clear_cache_empty(self, parameterizer):
         """测试清除缓存 - 已经是空"""
-        # 不应该报错
+        # 不应该报�?
         parameterizer.clear_cache()
         assert len(parameterizer.context.cached_values) == 0
 
@@ -783,7 +783,7 @@ class TestDataConstraintsExtended:
     """数据约束扩展测试"""
 
     def test_constraints_with_all_fields(self):
-        """测试约束 - 所有字段"""
+        """测试约束 - 所有字�?""
         constraints = DataConstraints(
             min_length=1,
             max_length=100,
@@ -815,6 +815,6 @@ class TestDataConstraintsExtended:
     def test_constraints_immutability(self):
         """测试约束 - 不可变性（如果实现了）"""
         constraints = DataConstraints(min_length=5)
-        # 如果约束是可变的，可以修改
-        # 这里只是测试创建后属性存在
+        # 如果约束是可变的，可以修�?
+        # 这里只是测试创建后属性存�?
         assert hasattr(constraints, 'min_length')

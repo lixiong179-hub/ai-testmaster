@@ -41,14 +41,20 @@ class ActionExecutorInputClickMixin:
                             logger.warning(f"CSS选择器输入失败: {e}")
                     x = element_info.get("x", 0) + element_info.get("width", 0) // 2
                     y = element_info.get("y", 0) + element_info.get("height", 0) // 2
+                    if x < 0 or y < 0:
+                        raise StepExecutionError(
+                            f"AI识别坐标无效: ({x}, {y})，元素: {text}"
+                        )
                     await self.browser.click(x, y)
                     await asyncio.sleep(0.3)
                     await self.browser.execute_javascript("""
                         (function() {
                             var el = document.activeElement;
                             if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                                var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                nativeInputValueSetter.call(el, arguments[0]);
+                                var desc = Object.getOwnPropertyDescriptor(
+                                    window.HTMLInputElement.prototype, 'value'
+                                );
+                                desc.set.call(el, arguments[0]);
                                 el.dispatchEvent(new Event('input', { bubbles: true }));
                                 el.dispatchEvent(new Event('change', { bubbles: true }));
                             }
@@ -81,6 +87,10 @@ class ActionExecutorInputClickMixin:
                             logger.warning(f"CSS选择器点击失败: {e}")
                     x = element_info.get("x", 0) + element_info.get("width", 0) // 2
                     y = element_info.get("y", 0) + element_info.get("height", 0) // 2
+                    if x < 0 or y < 0:
+                        raise StepExecutionError(
+                            f"AI识别坐标无效: ({x}, {y})，元素: {text}"
+                        )
                     await self.browser.click(x, y)
                     logger.info(f"点击元素(坐标方式): ({x}, {y})")
                     return

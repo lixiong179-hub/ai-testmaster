@@ -141,7 +141,7 @@ class GeneratorMixin:
                     if not choices or len(choices) == 0:
                         raise ValueError("AI API返回结果为空")
 
-                    content = choices[0]["message"].get("content", "")
+                    content = (choices[0].get("message") or {}).get("content", "")
                     if not content:
                         raise ValueError("AI响应内容为空")
 

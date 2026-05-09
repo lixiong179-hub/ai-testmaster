@@ -115,7 +115,7 @@ class TestProjectModel:
 
     def test_project_password_set_none(self, db, test_user):
         project = Project(
-            name="空密码项目",
+            name="空密码项�?,
             user_id=test_user.id
         )
         project.test_object_password = None
@@ -132,7 +132,7 @@ class TestProjectModel:
 
     def test_project_password_get_none(self, db, test_user):
         project = Project(
-            name="无密码项目",
+            name="无密码项�?,
             user_id=test_user.id
         )
         db.add(project)
@@ -191,7 +191,7 @@ class TestProjectFileModel:
         db.refresh(project)
         pf = ProjectFile(
             project_id=project.id,
-            file_name="需求文档.docx",
+            file_name="需求文�?docx",
             file_type="docx",
             file_url="/uploads/req.docx"
         )
@@ -200,7 +200,7 @@ class TestProjectFileModel:
         db.refresh(pf)
         assert pf.id is not None
         assert pf.project_id == project.id
-        assert pf.file_name == "需求文档.docx"
+        assert pf.file_name == "需求文�?docx"
         assert pf.file_type == "docx"
         assert pf.file_url == "/uploads/req.docx"
         assert pf.file_source == "file"
@@ -268,7 +268,7 @@ class TestProjectFileModel:
 
     def test_project_file_extract_status(self, db, test_user):
         project = Project(
-            name="提取状态项目",
+            name="提取状态项�?,
             user_id=test_user.id
         )
         db.add(project)
