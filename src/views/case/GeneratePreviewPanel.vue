@@ -26,16 +26,9 @@
                 class="stat-ui"
               />
             </div>
-            <div
-              class="scope-testpoints"
-              v-if="store.selectedTestPointsForDisplay.length > 0"
-            >
+            <div class="scope-testpoints" v-if="store.selectedTestPointsForDisplay.length > 0">
               <div class="st-list">
-                <div
-                  v-for="tp in store.selectedTestPointsForDisplay"
-                  :key="tp.id"
-                  class="st-item"
-                >
+                <div v-for="tp in store.selectedTestPointsForDisplay" :key="tp.id" class="st-item">
                   <span class="st-mod">{{ tp.module }}</span>
                   <span class="st-sep">/</span>
                   <span class="st-point">{{ tp.point }}</span>
@@ -195,10 +188,7 @@
     </el-card>
 
     <!-- 生成结果 -->
-    <el-card
-      v-if="store.generatedCases.length > 0 && !store.generating"
-      class="result-card"
-    >
+    <el-card v-if="store.generatedCases.length > 0 && !store.generating" class="result-card">
       <template #header>
         <div class="card-header">
           <span
@@ -236,10 +226,7 @@
       </template>
 
       <!-- 用例导航条 -->
-      <div
-        class="case-nav-bar"
-        v-if="store.generatedCases.length > 1 && !store.isEditingResult"
-      >
+      <div class="case-nav-bar" v-if="store.generatedCases.length > 1 && !store.isEditingResult">
         <button
           class="case-nav-btn"
           :disabled="store.currentCaseIndex <= 0"
@@ -277,8 +264,7 @@
             :loading="store.saving"
             :disabled="store.generatedCases.every((c) => c._error || c._saved)"
           >
-            全部保存
-            ({{ store.generatedCases.filter((c) => !c._error && !c._saved).length }})
+            全部保存 ({{ store.generatedCases.filter((c) => !c._error && !c._saved).length }})
           </el-button>
         </div>
       </div>
@@ -313,6 +299,17 @@
             <el-tag :type="store.getPriorityTagType(store.viewingCase.priority)" size="small">
               {{ store.getPriorityLabel(store.viewingCase.priority) }}
             </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="评审结果" v-if="store.viewingCase.ai_change_type">
+            <el-tag
+              :type="store.viewingCase.ai_change_type === 'added' ? 'success' : store.viewingCase.ai_change_type === 'modified' ? 'warning' : 'danger'"
+              size="small"
+            >
+              {{ store.viewingCase.ai_change_type === 'added' ? '查漏·新增' : store.viewingCase.ai_change_type === 'modified' ? '补缺·修正' : '去冗·废弃' }}
+            </el-tag>
+            <span v-if="store.viewingCase.parent_case_id" style="margin-left: 6px; color: #909399; font-size: 12px">
+              源用例 #{{ store.viewingCase.parent_case_id }}
+            </span>
           </el-descriptions-item>
           <el-descriptions-item label="模块">{{
             store.viewingCase.module || '-'
@@ -509,10 +506,7 @@
         <el-button type="primary" @click="store.handleSaveCase" :loading="store.saving"
           >保存当前用例</el-button
         >
-        <el-button
-          type="success"
-          @click="store.handleContinueGenerate"
-          :loading="store.generating"
+        <el-button type="success" @click="store.handleContinueGenerate" :loading="store.generating"
           >基于此用例继续生成</el-button
         >
       </div>
@@ -530,10 +524,7 @@
         <div v-if="store.errorSuggestions.length > 0" class="error-suggestions">
           <h4>优化建议：</h4>
           <ul>
-            <li
-              v-for="(suggestion, index) in store.errorSuggestions"
-              :key="index"
-            >
+            <li v-for="(suggestion, index) in store.errorSuggestions" :key="index">
               {{ suggestion }}
             </li>
           </ul>
@@ -544,405 +535,405 @@
         </el-button>
       </div>
     </el-card>
+    <FlowIssueDialog
+      :visible="store.issueDialogVisible"
+      :validation="store.issueDialogValidation"
+      @confirm="store.onIssueDialogConfirm"
+      @cancel="store.onIssueDialogCancel"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-    MagicStick,
-    Close,
-    Check,
-    Refresh,
-    InfoFilled,
-    Edit,
-} from '@element-plus/icons-vue'
+import { MagicStick, Close, Check, Refresh, InfoFilled, Edit } from '@element-plus/icons-vue'
 import { useGenerateStore } from '@/store/useGenerateStore'
+import FlowIssueDialog from '@/components/case/FlowIssueDialog.vue'
 
 const emit = defineEmits<{
-    'prev': []
-    'generate': []
+  prev: []
+  generate: []
 }>()
 
 const store = useGenerateStore()
 
 const handleRetry = () => {
-    store.handleRetry()
-    emit('generate')
+  store.handleRetry()
+  emit('generate')
 }
 </script>
 
 <style scoped>
 .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .step-card,
 .progress-card,
 .result-card,
 .error-card {
-    margin-bottom: 20px;
+  margin-bottom: 20px;
 }
 
 /* 待生成范围预览 */
 .scope-preview {
-    width: 100%;
+  width: 100%;
 }
 
 .scope-stats {
-    display: flex;
-    gap: 24px;
-    margin-bottom: 12px;
-    padding: 12px 16px;
-    background: #f8f9fb;
-    border-radius: 8px;
+  display: flex;
+  gap: 24px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: #f8f9fb;
+  border-radius: 8px;
 }
 
 .scope-stats .stat-docs :deep(.el-statistic__head),
 .scope-stats .stat-ui :deep(.el-statistic__head) {
-    color: #606266;
+  color: #606266;
 }
 
 .scope-testpoints {
-    border: 1px solid #e4e7ed;
-    border-radius: 6px;
-    padding: 10px 14px;
-    background: #fafbfc;
-    max-height: 240px;
-    overflow-y: auto;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: #fafbfc;
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .st-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .st-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 8px;
-    border-radius: 4px;
-    font-size: 13px;
-    transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: background 0.2s;
 }
 
 .st-item:hover {
-    background: #ecf5ff;
+  background: #ecf5ff;
 }
 
 .st-mod {
-    color: #409eff;
-    font-weight: 600;
-    white-space: nowrap;
-    min-width: 70px;
+  color: #409eff;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 70px;
 }
 
 .st-sep {
-    color: #c0c4cc;
+  color: #c0c4cc;
 }
 
 .st-func {
-    color: #303133;
-    font-weight: 500;
-    white-space: nowrap;
-    min-width: 90px;
+  color: #303133;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 90px;
 }
 
 .st-point {
-    color: #606266;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 320px;
+  color: #606266;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
 }
 
 .st-more {
-    text-align: center;
-    color: #909399;
-    font-size: 12px;
-    padding: 6px 0;
-    border-top: 1px dashed #e4e7ed;
-    margin-top: 4px;
+  text-align: center;
+  color: #909399;
+  font-size: 12px;
+  padding: 6px 0;
+  border-top: 1px dashed #e4e7ed;
+  margin-top: 4px;
 }
 
 /* 用例类型分组 */
 .case-type-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .exec-mode-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 8px;
-    padding: 10px 14px;
-    background: #f8f9fb;
-    border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: #f8f9fb;
+  border-radius: 6px;
 }
 
 .exec-label {
-    color: #606266;
-    font-size: 13px;
-    white-space: nowrap;
-    font-weight: 500;
+  color: #606266;
+  font-size: 13px;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 .form-tip {
-    margin-left: 10px;
-    color: #909399;
-    font-size: 12px;
+  margin-left: 10px;
+  color: #909399;
+  font-size: 12px;
 }
 
 .progress-container {
-    text-align: center;
-    padding: 20px 0;
+  text-align: center;
+  padding: 20px 0;
 }
 
 .progress-text {
-    margin: 15px 0;
-    font-size: 16px;
-    font-weight: 500;
+  margin: 15px 0;
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .empty-steps {
-    padding: 40px 0;
-    text-align: center;
+  padding: 40px 0;
+  text-align: center;
 }
 
 .error-content {
-    padding: 10px 0;
+  padding: 10px 0;
 }
 
 .error-suggestions {
-    margin-top: 15px;
-    padding: 15px;
-    background: #fef0f0;
-    border-radius: 4px;
+  margin-top: 15px;
+  padding: 15px;
+  background: #fef0f0;
+  border-radius: 4px;
 }
 
 .error-suggestions h4 {
-    margin-top: 0;
-    color: #f56c6c;
+  margin-top: 0;
+  color: #f56c6c;
 }
 
 .error-suggestions ul {
-    margin: 10px 0 0 0;
-    padding-left: 20px;
+  margin: 10px 0 0 0;
+  padding-left: 20px;
 }
 
 .error-suggestions li {
-    margin-bottom: 5px;
-    color: #606266;
+  margin-bottom: 5px;
+  color: #606266;
 }
 
 .test-data-section {
-    margin-top: 20px;
+  margin-top: 20px;
 }
 
 .test-data-section h3 {
-    margin-bottom: 15px;
+  margin-bottom: 15px;
 }
 
 .test-data-card {
-    margin-bottom: 10px;
+  margin-bottom: 10px;
 }
 
 .test-data-title {
-    font-weight: 600;
+  font-weight: 600;
 }
 
 .test-data-item {
-    margin-bottom: 5px;
-    font-size: 14px;
+  margin-bottom: 5px;
+  font-size: 14px;
 }
 
 .step-content {
-    line-height: 1.8;
+  line-height: 1.8;
 }
 
 .step-desc {
-    font-weight: 600;
-    color: #409eff;
-    margin-bottom: 8px;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 8px;
 }
 
 .step-action {
-    margin-bottom: 8px;
+  margin-bottom: 8px;
 }
 
 .step-data {
-    margin-bottom: 8px;
+  margin-bottom: 8px;
 }
 
 .step-expected {
-    color: #67c23a;
+  color: #67c23a;
 }
 
 .expected-result-section {
-    margin-top: 20px;
+  margin-top: 20px;
 }
 
 .expected-result-section h3 {
-    margin-bottom: 10px;
+  margin-bottom: 10px;
 }
 
 .result-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .result-actions-bottom {
-    margin-top: 30px;
-    text-align: center;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
+  margin-top: 30px;
+  text-align: center;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
 }
 
 /* 用例导航条 */
 .case-nav-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    background: #f8f9fb;
-    border-radius: 6px;
-    margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #f8f9fb;
+  border-radius: 6px;
+  margin-bottom: 16px;
 }
 
 .case-nav-btn {
-    padding: 4px 12px;
-    border: 1px solid #dcdfe6;
-    border-radius: 4px;
-    background: #fff;
-    cursor: pointer;
-    font-size: 13px;
-    color: #606266;
-    transition: all 0.2s;
+  padding: 4px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: #606266;
+  transition: all 0.2s;
 }
 
 .case-nav-btn:hover:not(:disabled) {
-    color: #409eff;
-    border-color: #409eff;
+  color: #409eff;
+  border-color: #409eff;
 }
 
 .case-nav-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .case-nav-dots {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    justify-content: center;
-    max-width: 400px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 400px;
 }
 
 .case-dot {
-    width: 24px;
-    height: 24px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 11px;
-    cursor: pointer;
-    border: 1px solid #dcdfe6;
-    background: #fff;
-    color: #909399;
-    transition: all 0.2s;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  color: #909399;
+  transition: all 0.2s;
 }
 
 .case-dot:hover {
-    border-color: #409eff;
-    color: #409eff;
+  border-color: #409eff;
+  color: #409eff;
 }
 
 .case-dot.active {
-    background: #409eff;
-    border-color: #409eff;
-    color: #fff;
-    font-weight: 600;
+  background: #409eff;
+  border-color: #409eff;
+  color: #fff;
+  font-weight: 600;
 }
 
 .case-dot.error {
-    background: #fef0f0;
-    border-color: #f56c6c;
-    color: #f56c6c;
+  background: #fef0f0;
+  border-color: #f56c6c;
+  color: #f56c6c;
 }
 
 .case-dot.saved {
-    background: #f0f9eb;
-    border-color: #67c23a;
-    color: #67c23a;
+  background: #f0f9eb;
+  border-color: #67c23a;
+  color: #67c23a;
 }
 
 .case-batch-actions {
-    margin-left: auto;
+  margin-left: auto;
 }
 
 .edit-form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .edit-form-grid .edit-field label {
-    display: block;
-    font-size: 13px;
-    color: #606266;
-    margin-bottom: 6px;
-    font-weight: 500;
+  display: block;
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 6px;
+  font-weight: 500;
 }
 
 .edit-form-grid .edit-field.full-width {
-    grid-column: 1 / -1;
+  grid-column: 1 / -1;
 }
 
 .editable-steps-list .editable-step-card {
-    background: #fafbfc;
-    border: 1px solid #e4e7ed;
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
+  background: #fafbfc;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
 }
 
 .editable-steps-list .step-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .editable-steps-list .step-num {
-    font-weight: 600;
-    color: #409eff;
-    font-size: 14px;
+  font-weight: 600;
+  color: #409eff;
+  font-size: 14px;
 }
 
 .editable-steps-list .step-edit-field {
-    margin-bottom: 10px;
+  margin-bottom: 10px;
 }
 
 .editable-steps-list .step-edit-field label {
-    display: block;
-    font-size: 12px;
-    color: #606266;
-    margin-bottom: 4px;
-    font-weight: 500;
+  display: block;
+  font-size: 12px;
+  color: #606266;
+  margin-bottom: 4px;
+  font-weight: 500;
 }
 
 .editable-steps-list .empty-steps-hint {
-    text-align: center;
-    padding: 20px;
-    color: #909399;
+  text-align: center;
+  padding: 20px;
+  color: #909399;
 }
 </style>

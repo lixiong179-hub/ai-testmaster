@@ -36,9 +36,8 @@ class SelfHealingStagehandMixin:
             if self.browser:
                 try:
                     current_url = await self.browser.execute_javascript("window.location.href")
-                except Exception:
-                    pass
-
+                except Exception as e:
+                    logger.debug(f"获取当前URL失败: {e}")
             if current_url:
                 await stagehand_client.sessions.navigate(session.id, url=current_url)
 
@@ -64,8 +63,8 @@ class SelfHealingStagehandMixin:
             if self._stagehand_session_id and stagehand_client:
                 try:
                     await stagehand_client.sessions.end(self._stagehand_session_id)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"关闭Stagehand会话失败: {e}")
                 self._stagehand_session_id = None
 
     async def _get_stagehand(self):

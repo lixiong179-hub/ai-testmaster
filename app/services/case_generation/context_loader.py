@@ -85,11 +85,13 @@ async def load_ui_data(
     files_used = []
 
     if ui_screen_ids:
+        screens = db.query(UIPrototypeScreen).filter(
+            UIPrototypeScreen.id.in_(ui_screen_ids),
+            UIPrototypeScreen.project_id == project_id
+        ).all()
+        screen_map = {s.id: s for s in screens}
         for screen_id in ui_screen_ids:
-            screen = db.query(UIPrototypeScreen).filter(
-                UIPrototypeScreen.id == screen_id,
-                UIPrototypeScreen.project_id == project_id
-            ).first()
+            screen = screen_map.get(screen_id)
             if screen:
                 ui_desc = {
                     "screen_id": screen.id, "screen_name": screen.screen_name,

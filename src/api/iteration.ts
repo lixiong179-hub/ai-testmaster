@@ -49,6 +49,13 @@ export interface IterationResponse {
   data: Iteration
 }
 
+export interface IterationInputRequest {
+  kind: string
+  file_id?: number | null
+  payload?: Record<string, unknown>
+  hash?: string
+}
+
 export const iterationApi = {
   getIterations: async (
     projectId: number,
@@ -79,6 +86,13 @@ export const iterationApi = {
     iterationId: number
   ): Promise<{ code: number; message: string; data: {} }> => {
     return request.delete(`/api/v1/iteration/${iterationId}`)
+  },
+
+  addIterationInput: async (
+    iterationId: number,
+    data: IterationInputRequest
+  ): Promise<{ code: number; message: string; data: Record<string, unknown> }> => {
+    return request.post(`/api/v1/iteration/${iterationId}/inputs`, data)
   },
 }
 

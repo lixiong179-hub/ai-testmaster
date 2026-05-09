@@ -95,8 +95,10 @@ class ActionExecutorVerifyCaptchaMixin:
                             (function() {
                                 var el = document.activeElement;
                                 if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                                    var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                    nativeInputValueSetter.call(el, arguments[0]);
+                                    var desc = Object.getOwnPropertyDescriptor(
+                                        window.HTMLInputElement.prototype, 'value'
+                                    );
+                                    desc.set.call(el, arguments[0]);
                                     el.dispatchEvent(new Event('input', { bubbles: true }));
                                     el.dispatchEvent(new Event('change', { bubbles: true }));
                                     return true;
@@ -105,8 +107,10 @@ class ActionExecutorVerifyCaptchaMixin:
                                 for (var i = inputs.length - 1; i >= 0; i--) {
                                     var placeholder = inputs[i].getAttribute('placeholder') || '';
                                     if (placeholder.includes('验证码') || placeholder.includes('captcha')) {
-                                        var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                                        setter.call(inputs[i], arguments[0]);
+                                        var setter = Object.getOwnPropertyDescriptor(
+                                            window.HTMLInputElement.prototype, 'value'
+                                        );
+                                        setter.set.call(inputs[i], arguments[0]);
                                         inputs[i].dispatchEvent(new Event('input', { bubbles: true }));
                                         inputs[i].dispatchEvent(new Event('change', { bubbles: true }));
                                         return true;

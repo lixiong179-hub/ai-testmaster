@@ -1,10 +1,10 @@
 """
 _build_weight_model() 函数单元测试
 
-覆盖范围：
+覆盖范围�?
 - 5种数据源组合场景（需求文档优先权重模型）
 - 边界情况：全部False
-- 返回值类型验证：始终返回三元组 (weight_desc, weight_example, weight_warning)
+- 返回值类型验证：始终返回三元�?(weight_desc, weight_example, weight_warning)
 """
 import pytest
 import sys
@@ -19,7 +19,7 @@ class TestBuildWeightModel:
     """_build_weight_model 函数单元测试"""
 
     def test_scenario_all_three_sources(self):
-        """场景1：三者齐全 - 验证需求60%/测试点25%/UI15%"""
+        """场景1：三者齐�?- 验证需�?0%/测试�?5%/UI15%"""
         has_ui = True
         has_requirement = True
         has_test_point = True
@@ -39,7 +39,7 @@ class TestBuildWeightModel:
         assert weight_warning == ""
 
     def test_scenario_requirement_and_ui(self):
-        """场景2：需求+UI - 验证需求75%/UI25%"""
+        """场景2：需�?UI - 验证需�?5%/UI25%"""
         has_ui = True
         has_requirement = True
         has_test_point = False
@@ -52,11 +52,11 @@ class TestBuildWeightModel:
         assert "核心依据" in weight_desc
         assert "25%" in weight_desc
         assert "验收标准" in weight_desc
-        assert "没有测试点" in weight_desc or "自动推断" in weight_desc
+        assert "没有测试�? in weight_desc or "自动推断" in weight_desc
         assert weight_warning == ""
 
     def test_scenario_requirement_and_testpoint(self):
-        """场景3：需求+测试点 - 验证需求70%/测试点30%"""
+        """场景3：需�?测试�?- 验证需�?0%/测试�?0%"""
         has_ui = False
         has_requirement = True
         has_test_point = True
@@ -73,7 +73,7 @@ class TestBuildWeightModel:
         assert weight_warning == ""
 
     def test_scenario_requirement_only(self):
-        """场景4：仅需求 - 验证100%需求权重"""
+        """场景4：仅需�?- 验证100%需求权�?""
         has_ui = False
         has_requirement = True
         has_test_point = False
@@ -88,7 +88,7 @@ class TestBuildWeightModel:
         assert weight_warning == ""
 
     def test_scenario_no_requirement_with_ui(self):
-        """场景5a：无需求+有UI - 验证警告提示"""
+        """场景5a：无需�?有UI - 验证警告提示"""
         has_ui = True
         has_requirement = False
         has_test_point = False
@@ -97,12 +97,12 @@ class TestBuildWeightModel:
             has_ui, has_requirement, has_test_point
         )
 
-        assert "缺少需求文档" in weight_desc
-        assert "未提供需求文档" in weight_warning
+        assert "缺少需求文�? in weight_desc
+        assert "未提供需求文�? in weight_warning
         assert len(weight_warning) > 0
 
     def test_scenario_no_requirement_with_testpoint(self):
-        """场景5b：无需求+有测试点 - 验证警告提示"""
+        """场景5b：无需�?有测试点 - 验证警告提示"""
         has_ui = False
         has_requirement = False
         has_test_point = True
@@ -111,8 +111,8 @@ class TestBuildWeightModel:
             has_ui, has_requirement, has_test_point
         )
 
-        assert "缺少需求文档" in weight_desc
-        assert "未提供需求文档" in weight_warning
+        assert "缺少需求文�? in weight_desc
+        assert "未提供需求文�? in weight_warning
         assert len(weight_warning) > 0
 
     def test_scenario_all_false(self):
@@ -132,7 +132,7 @@ class TestBuildWeightModel:
         assert len(weight_desc) > 0
 
     def test_return_type_is_tuple(self):
-        """验证返回值始终是三元组"""
+        """验证返回值始终是三元�?""
         test_cases = [
             (True, True, True),
             (True, True, False),

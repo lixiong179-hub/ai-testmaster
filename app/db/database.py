@@ -80,8 +80,23 @@ _original_base_init = Base.__init__
 
 
 def _base_init_with_defaults(self, **kwargs):
-    _original_base_init(self, **kwargs)
-    _apply_column_defaults(self, set(kwargs.keys()))
+    """增强型初始化：自动填充 Column(default=) + 容忍非列 kwarg。
+
+    解决两个问题：
+    1. SQLAlchemy Column(default=X) 只在 INSERT 时生效，Python 属性为 None
+       → 遍历 Column 将非 callable 默认值赋为实例属性
+    2. 传入非 Column 字段的 kwarg 时 SQLAlchemy 抛出 TypeError 崩溃
+       → 先过滤仅将列字段传原始 init，额外 kwarg 以 setattr 兜底
+    """
+    column_names = {c.name for c in self.__table__.columns}
+    column_kwargs = {k: v for k, v in kwargs.items() if k in column_names}
+    extra_kwargs = {k: v for k, v in kwargs.items() if k not in column_names}
+
+    _original_base_init(self, **column_kwargs)
+    _apply_column_defaults(self, set(column_kwargs.keys()))
+
+    for k, v in extra_kwargs.items():
+        setattr(self, k, v)
 
 
 Base.__init__ = _base_init_with_defaults

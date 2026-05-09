@@ -45,8 +45,8 @@ class ApiCostLog(Base):
     task_id = Column(Integer, ForeignKey("test_tasks.id"), nullable=True, index=True, comment="关联任务ID")  # 任务ID，可选关联
 
     # API调用信息
-    model = Column(String(20), nullable=False, comment="使用的AI模型，如deepseek-chat/qwen/kimi")       # AI模型标识
-    api_type = Column(String(50), nullable=False, comment="API类型: test_generation/analysis/vision")  # test_generation=用例生成，analysis=结果分析，vision=视觉识别
+    model = Column(String(30), nullable=False, comment="使用的AI模型，如deepseek-v4-flash/qwen/kimi")
+    api_type = Column(String(50), nullable=False, comment="API类型: test_generation/analysis/vision")
 
     # Token使用量
     input_tokens = Column(Integer, nullable=True, comment="输入Token数")                               # 输入Token消耗量
@@ -56,8 +56,13 @@ class ApiCostLog(Base):
     cost = Column(Numeric(10, 6), nullable=True, comment="本次调用成本（元）")                          # 调用费用，单位人民币元
 
     # 时间和状态
-    call_time = Column(DateTime, nullable=False, default=utcnow, server_default=text('CURRENT_TIMESTAMP'), comment="调用时间")  # API调用时间
-    status = Column(String(20), nullable=True, comment="状态: success/failed/timeout")                 # success=成功，failed=失败，timeout=超时
+    call_time = Column(
+        DateTime, nullable=False,
+        default=utcnow,
+        server_default=text('CURRENT_TIMESTAMP'),
+        comment="调用时间"
+    )
+    status = Column(String(20), nullable=True, comment="状态: success/failed/timeout")
     error_message = Column(String(500), nullable=True, comment="错误信息")                              # 调用失败时的错误信息
 
     def __repr__(self) -> str:

@@ -57,12 +57,12 @@ class TestCreateProjectFile:
             file_source="url",
             size=1024,
             resource_type="requirement",
-            description="需求文档",
+            description="需求文�?,
         )
         assert f.file_source == "url"
         assert f.size == 1024
         assert f.resource_type == "requirement"
-        assert f.description == "需求文档"
+        assert f.description == "需求文�?
 
 
 class TestUpdateFileContent:

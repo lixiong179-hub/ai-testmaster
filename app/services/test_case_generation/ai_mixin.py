@@ -73,7 +73,7 @@ class TestCaseGenerationAiMixin:
         payload = {
             "model": settings.DEEPSEEK_MODEL,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.7,
+            "temperature": 0.3,  # 统一低温度，输出稳定
             "max_tokens": 3000
         }
 

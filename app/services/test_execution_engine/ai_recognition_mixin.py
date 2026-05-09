@@ -155,8 +155,9 @@ class AIRecognitionMixin:
         return None
 
     def _get_element_selector(self, action_text: str) -> Optional[str]:
-        registry = SelectorRegistry()
-        return registry.get_selector(None, action_text)
+        if not hasattr(self, '_selector_registry'):
+            self._selector_registry = SelectorRegistry()
+        return self._selector_registry.get_selector(None, action_text)
 
     @staticmethod
     def _build_css_selector_from_attrs(attrs: Dict[str, Any]) -> Optional[str]:

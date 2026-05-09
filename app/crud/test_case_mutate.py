@@ -109,7 +109,7 @@ def create_test_case(
         module=module,
         title=title,
         precondition=precondition,
-        steps_json=steps,  # steps对应模型中的steps_json字段，ORM自动序列化
+        steps_json=steps,
         expected_result=expected_result,
         priority=priority,
         case_type=case_type,
@@ -123,8 +123,12 @@ def create_test_case(
     )
     db.add(db_test_case)
     db.flush()
-    _create_test_steps(db, db_test_case.id, steps if isinstance(steps, list) else [])
-    db.commit()
+    try:
+        _create_test_steps(db, db_test_case.id, steps if isinstance(steps, list) else [])
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(db_test_case)
     return db_test_case
 
@@ -261,9 +265,11 @@ def batch_create_test_cases(
         _create_test_steps(db, test_case.id, data.get('steps', []))
 
     if commit:
-        # 统一提交：将多次IO合并为一次事务提交，提升批量写入性能
-        db.commit()
-        # 逐条refresh获取数据库生成的字段（id、create_time等）
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
         for test_case in test_cases:
             db.refresh(test_case)
     return test_cases

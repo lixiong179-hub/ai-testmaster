@@ -146,11 +146,7 @@ export const testCaseViewApi = {
    * 返回完整 AxiosResponse 以便读取 Content-Disposition 等响应头。
    */
   exportToExcel: async (caseId: number) => {
-    return await axios.post(
-      `/api/v1/testCase/${caseId}/export-excel`,
-      {},
-      { responseType: 'blob' }
-    )
+    return await axios.post(`/api/v1/testCase/${caseId}/export-excel`, {}, { responseType: 'blob' })
   },
 
   /**

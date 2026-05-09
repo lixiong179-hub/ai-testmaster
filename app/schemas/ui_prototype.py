@@ -1,5 +1,5 @@
 """
-UI原型模块 Schema - UI原型图/屏幕/链接/解析的请求与响应模型
+UI原型模块 Schema - UI原型图/屏幕/链接/解析/流程数据的请求与响应模型
 
 本模块定义了UI原型图全生命周期的数据契约，支持多种UI工具（摹客、蓝湖、Figma、Axure等），包括：
 
@@ -38,12 +38,16 @@ UI工具链接Schema：
 - UILinkBase/UILinkCreate/UILinkUpdate/UILinkResponse: 链接CRUD
 - UIFetchRequest/UIFetchResponse: 抓取链接内容
 
+流程数据Schema：
+- FlowDataSaveRequest: 保存流程数据请求
+- FlowDataResponse: 流程数据响应
+
 与Model的对应关系：
 - UIPrototypeProject系列 -> app.models.ui_prototype.UIPrototypeProject
 - UIScreen系列 -> app.models.ui_prototype.UIPrototypeScreen
 - UILink系列 -> 存储在UIPrototypeScreen的source/原型项目关联中
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -438,4 +442,81 @@ UI_LINK_SOURCE_OPTIONS = [
     {"value": "adobe_xd", "label": "Adobe XD", "url_patterns": ["adobe.com"]},
     {"value": "manual", "label": "手工上传", "url_patterns": []},
     {"value": "other", "label": "其他", "url_patterns": []},
+]
+
+
+# ============== 流程数据 Schema ==============
+
+class FlowDataSaveRequest(BaseModel):
+    """
+    保存流程数据请求模型
+
+    业务用途：保存原型项目的完整流程数据（节点与边），支持保存/覆盖
+    验证规则：nodes 与 edges 不能同时为空
+    对应API：PUT /api/v1/ui-prototype/flow/{project_id}
+    """
+    flow_data: Dict[str, Any] = Field(..., description="完整流程数据")
+
+    @field_validator('flow_data')
+    @classmethod
+    def validate_flow_data_not_empty(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        校验 flow_data 中 nodes 与 edges 不能同时为空
+
+        边界场景：允许仅有 nodes 无 edges（单页原型），或仅有 edges 无 nodes（异常但不过滤），
+        但两者皆空意味着无实际内容，拒绝请求。
+        """
+        nodes = v.get('nodes', [])
+        edges = v.get('edges', [])
+        if (not nodes) and (not edges):
+            raise ValueError('flow_data 中 nodes 和 edges 不能同时为空')
+        return v
+
+
+class FlowDataResponse(BaseModel):
+    """
+    流程数据响应模型
+
+    业务用途：API 返回流程数据时使用
+    对应API：GET /api/v1/ui-prototype/flow/{id}
+    与Model映射：映射流程数据表的所有业务字段
+    """
+    id: int
+    project_id: int
+    flow_data: Dict[str, Any]
+    create_time: Optional[datetime] = None
+    update_time: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+__all__ = [
+    'UISourceEnum',
+    'ParseStatusEnum',
+    'ReviewStatusEnum',
+    'UIPrototypeProjectBase',
+    'UIPrototypeProjectCreate',
+    'UIPrototypeProjectResponse',
+    'UIScreenBase',
+    'UIScreenCreate',
+    'UIScreenResponse',
+    'UIScreenDetailResponse',
+    'UIScreenParseRequest',
+    'UIScreenParseResponse',
+    'UIFlowGenerateRequest',
+    'UIFlowGenerateResponse',
+    'UISpecForCaseGeneration',
+    'UIScreenListResponse',
+    'UIScreenReviewRequest',
+    'UIPrototypeUploadRequest',
+    'UILinkAuthType',
+    'UILinkBase',
+    'UILinkCreate',
+    'UILinkUpdate',
+    'UILinkResponse',
+    'UIFetchRequest',
+    'UIFetchResponse',
+    'FlowDataSaveRequest',
+    'FlowDataResponse',
+    'UI_LINK_SOURCE_OPTIONS',
 ]

@@ -124,5 +124,5 @@ async def get_file_content_helper(
         extractor = FileContentExtractor(db)
         result = await extractor.extract_file_content(file, force_refresh)
         if result.get("success"):
-            return result.get("content")
+            return result.get("content") or ""
     return file.content

@@ -1,14 +1,14 @@
-"""XMind 导入 API 集成测试。
+"""XMind 导入 API 集成测试�?
 
 覆盖范围:
     - POST /api/v1/test-point/import-xmind 导入端点
-    - 预览模式（preview=true）：解析不写入
-    - 导入模式（preview=false）：解析并写入
-    - 文件格式校验（非 .xmind 文件）
-    - 空文件/无效 ZIP
+    - 预览模式（preview=true）：解析不写�?
+    - 导入模式（preview=false）：解析并写�?
+    - 文件格式校验（非 .xmind 文件�?
+    - 空文�?无效 ZIP
     - 权限校验
 
-使用真实 MySQL 数据库和 FastAPI TestClient。
+使用真实 MySQL 数据库和 FastAPI TestClient�?
 """
 import os
 import zipfile
@@ -43,7 +43,7 @@ def _build_content_xml(topics_xml: str) -> str:
 <xmap-content xmlns="{NS}" version="2.0">
 <sheet id="test-sheet">
 <topic id="root" structure-class="org.xmind.ui.logic.right">
-<title>根主题</title>
+<title>根主�?/title>
 <children><topics type="attached">
 {topics_xml}
 </topics></children>
@@ -115,7 +115,7 @@ def valid_xmind(tmp_path) -> str:
 
 
 class TestImportXmindPreview:
-    """预览模式测试。"""
+    """预览模式测试�?""
 
     def test_preview_returns_parsed_data(
         self, client, auth_headers, test_project, valid_xmind
@@ -199,7 +199,7 @@ class TestImportXmindPreview:
 
 
 class TestImportXmindFull:
-    """导入模式测试。"""
+    """导入模式测试�?""
 
     def test_import_saves_to_db(
         self, client, auth_headers, test_project, valid_xmind
@@ -219,7 +219,7 @@ class TestImportXmindFull:
 
     @pytest.mark.skipif(
         not os.path.exists(SAMPLE_XMIND),
-        reason="样例文件不存在",
+        reason="样例文件不存�?,
     )
     def test_import_sample_file(
         self, client, auth_headers, test_project
@@ -271,11 +271,11 @@ class TestImportXmindFull:
 
         topics = """<topic id="module"><title>字词听写</title>
 <children><topics type="attached">
-<topic id="content"><title>有教材内容</title>
+<topic id="content"><title>有教材内�?/title>
 <children><topics type="attached">
 <topic id="action"><title>点击听写记录</title>
 <children><topics type="attached">
-<topic id="condition"><title>有记录</title>
+<topic id="condition"><title>有记�?/title>
 <children><topics type="attached">
 <topic id="leaf"><title>界面显示最近的听写记录</title></topic>
 </topics></children>
@@ -324,11 +324,11 @@ class TestImportXmindFull:
     ) -> None:
         topics = """<topic id="module"><title>字词听写</title>
 <children><topics type="attached">
-<topic id="content"><title>有教材内容</title>
+<topic id="content"><title>有教材内�?/title>
 <children><topics type="attached">
 <topic id="action"><title>点击听写记录</title>
 <children><topics type="attached">
-<topic id="condition"><title>有记录</title>
+<topic id="condition"><title>有记�?/title>
 <children><topics type="attached">
 <topic id="leaf"><title>界面显示最近的听写记录</title></topic>
 </topics></children>
@@ -405,11 +405,11 @@ class TestImportXmindFull:
 
 
 # ---------------------------------------------------------------------------
-# Mock-based AI enhance tests – 不依赖真实登录和数据库
+# Mock-based AI enhance tests �?不依赖真实登录和数据�?
 # ---------------------------------------------------------------------------
 
 def _fake_current_user():
-    """构造一个假用户对象，用于依赖注入覆盖。"""
+    """构造一个假用户对象，用于依赖注入覆盖�?""
     user = MagicMock()
     user.id = 1
     user.username = "test_user"
@@ -418,7 +418,7 @@ def _fake_current_user():
 
 @pytest.fixture()
 def ai_client(valid_xmind):
-    """返回绕过认证和权限校验的 TestClient。"""
+    """返回绕过认证和权限校验的 TestClient�?""
     app.dependency_overrides[get_current_user] = _fake_current_user
     c = TestClient(app)
     yield c
@@ -426,10 +426,10 @@ def ai_client(valid_xmind):
 
 
 class TestImportXmindAiEnhance:
-    """AI增强模式异常映射测试。
+    """AI增强模式异常映射测试�?
 
-    通过 mock XmindAIParser.parse_paths 和 check_project_permission，
-    验证各 AI 异常分支返回正确的 HTTP 状态码和提示文案。
+    通过 mock XmindAIParser.parse_paths �?check_project_permission�?
+    验证�?AI 异常分支返回正确�?HTTP 状态码和提示文案�?
     """
 
     _PATCH_PARSE = "app.api.v1.endpoints.test_point_import.XmindAIParser"
@@ -479,11 +479,11 @@ class TestImportXmindAiEnhance:
         with patch(self._PATCH_PERM), \
              patch(self._PATCH_PARSE) as MockParser:
             MockParser.return_value.parse_paths.side_effect = AIServiceError(
-                "模型暂时不可用", error_code="MODEL_UNAVAILABLE"
+                "模型暂时不可�?, error_code="MODEL_UNAVAILABLE"
             )
             resp = self._post_ai(ai_client, valid_xmind)
         assert resp.status_code == 502
-        assert "模型暂时不可用" in resp.json()["msg"]
+        assert "模型暂时不可�? in resp.json()["msg"]
 
     def test_ai_unknown_error_returns_500(self, ai_client, valid_xmind):
         with patch(self._PATCH_PERM), \
@@ -501,7 +501,7 @@ class TestImportXmindAiEnhance:
             MockParser.return_value.parse_paths.return_value = []
             resp = self._post_ai(ai_client, valid_xmind)
         assert resp.status_code == 422
-        assert "空结果" in resp.json()["msg"]
+        assert "空结�? in resp.json()["msg"]
 
     _PATCH_HANDLE = "app.api.v1.endpoints.test_point_import.handle_ai_enhanced_import"
 
@@ -545,7 +545,7 @@ class TestImportXmindAiEnhance:
 
 
 class TestImportXmindValidation:
-    """文件校验测试。"""
+    """文件校验测试�?""
 
     def test_invalid_file_format(
         self, client, auth_headers, test_project, tmp_path
@@ -590,7 +590,7 @@ class TestImportXmindValidation:
 
 
 # ---------------------------------------------------------------------------
-# 真实 AI 端到端集成测试 – 需要登录 + DeepSeek API Key
+# 真实 AI 端到端集成测�?�?需要登�?+ DeepSeek API Key
 # ---------------------------------------------------------------------------
 
 
@@ -601,19 +601,19 @@ def _ai_key_configured() -> bool:
 
 @pytest.fixture
 def ai_xmind(tmp_path) -> str:
-    """构造一份多层结构的 XMind，覆盖前置条件/操作/预期结果等语义。"""
+    """构造一份多层结构的 XMind，覆盖前置条�?操作/预期结果等语义�?""
     topics = """<topic id="m1"><title>字词听写</title>
 <children><topics type="attached">
-<topic id="f1"><title>有教材内容</title>
+<topic id="f1"><title>有教材内�?/title>
 <children><topics type="attached">
 <topic id="a1"><title>点击听写记录</title>
 <children><topics type="attached">
-<topic id="c1"><title>有记录</title>
+<topic id="c1"><title>有记�?/title>
 <children><topics type="attached">
 <topic id="r1"><title>界面显示最近的听写记录</title></topic>
 </topics></children>
 </topic>
-<topic id="c2"><title>无记录</title>
+<topic id="c2"><title>无记�?/title>
 <children><topics type="attached">
 <topic id="r2"><title>提示暂无听写记录</title></topic>
 </topics></children>
@@ -632,7 +632,7 @@ def ai_xmind(tmp_path) -> str:
 
 @pytest.fixture()
 def real_ai_client():
-    """绕过认证但真实调用 AI 的 TestClient。"""
+    """绕过认证但真实调�?AI �?TestClient�?""
     app.dependency_overrides[get_current_user] = _fake_current_user
     c = TestClient(app)
     yield c
@@ -640,24 +640,24 @@ def real_ai_client():
 
 
 class TestImportXmindAiReal:
-    """真实 AI 端到端测试。
+    """真实 AI 端到端测试�?
 
     调用实际 DeepSeek API，验证：
     - AI 能正确返回结构化用例
-    - 返回字段与 schema 兼容
-    - 预览模式均正常工作
+    - 返回字段�?schema 兼容
+    - 预览模式均正常工�?
 
-    使用 dependency override 绕过登录，通过 mock check_project_permission 绕过项目权限。
-    环境要求：DEEPSEEK_API_KEY 已配置，不满足时自动 skip。
+    使用 dependency override 绕过登录，通过 mock check_project_permission 绕过项目权限�?
+    环境要求：DEEPSEEK_API_KEY 已配置，不满足时自动 skip�?
     """
 
     _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission"
 
-    @pytest.mark.skipif(not _ai_key_configured(), reason="DeepSeek API Key 未配置")
+    @pytest.mark.skipif(not _ai_key_configured(), reason="DeepSeek API Key 未配�?)
     def test_ai_preview_returns_structured_cases(
         self, real_ai_client, ai_xmind
     ) -> None:
-        """AI 增强预览模式应返回包含用例的结构化响应。"""
+        """AI 增强预览模式应返回包含用例的结构化响应�?""
         with patch(self._PATCH_PERM):
             with open(ai_xmind, "rb") as f:
                 resp = real_ai_client.post(
@@ -700,12 +700,12 @@ class TestImportXmindAiReal:
 
     @pytest.mark.skipif(
         not os.path.exists(SAMPLE_XMIND) or not _ai_key_configured(),
-        reason="样例文件不存在或 DeepSeek API Key 未配置",
+        reason="样例文件不存在或 DeepSeek API Key 未配�?,
     )
     def test_ai_preview_real_sample_file(
         self, real_ai_client
     ) -> None:
-        """使用真实 XMind 样例文件测试 AI 增强预览。"""
+        """使用真实 XMind 样例文件测试 AI 增强预览�?""
         with patch(self._PATCH_PERM):
             with open(SAMPLE_XMIND, "rb") as f:
                 resp = real_ai_client.post(

@@ -66,6 +66,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Dashboard',
         redirect: { name: 'ProjectList' },
       },
+      {
+        path: 'pipeline-dashboard',
+        name: 'PipelineDashboard',
+        component: () => import('@/views/admin/PipelineDashboard.vue'),
+        meta: { title: 'Pipeline仪表盘', requireAuth: true },
+      },
       // 系统管理菜单
       {
         path: 'system',
@@ -226,6 +232,14 @@ const routes: RouteRecordRaw[] = [
               title: '评审 Inbox',
             },
           },
+          {
+            path: 'iteration/regression-generate',
+            name: 'RegressionGenerate',
+            component: () => import('../views/iteration/RegressionGenerate.vue'),
+            meta: {
+              title: '旧项目变更分析',
+            },
+          },
         ],
       },
       // 测试任务管理菜单
@@ -239,7 +253,7 @@ const routes: RouteRecordRaw[] = [
           {
             path: '',
             name: 'TaskListDefault',
-            redirect: { name: 'TaskList', params: { projectId: '1' } },
+            redirect: { name: 'ProjectList' },
           },
           {
             path: 'list/:projectId',

@@ -25,12 +25,7 @@
             >
               最终化评审
             </el-button>
-            <el-button
-              v-if="undoWindowOpen"
-              type="danger"
-              plain
-              @click="handleUndoFinalize"
-            >
+            <el-button v-if="undoWindowOpen" type="danger" plain @click="handleUndoFinalize">
               撤销最终化
             </el-button>
           </div>
@@ -150,11 +145,7 @@
                 </el-button>
               </div>
               <div v-else-if="undoWindowOpen" class="decision-buttons">
-                <el-button
-                  type="warning"
-                  size="small"
-                  @click="handleUndoDecision(row)"
-                >
+                <el-button type="warning" size="small" @click="handleUndoDecision(row)">
                   撤销
                 </el-button>
               </div>
@@ -242,12 +233,22 @@ const filteredDecisions = computed(() => {
 })
 
 const statusTagType = computed(() => {
-  const map: Record<string, string> = { draft: 'info', in_progress: '', finalized: 'success', cancelled: 'danger' }
+  const map: Record<string, string> = {
+    draft: 'info',
+    in_progress: '',
+    finalized: 'success',
+    cancelled: 'danger',
+  }
   return map[reviewStatus.value] || 'info'
 })
 
 const statusText = computed(() => {
-  const map: Record<string, string> = { draft: '草稿', in_progress: '进行中', finalized: '已最终化', cancelled: '已取消' }
+  const map: Record<string, string> = {
+    draft: '草稿',
+    in_progress: '进行中',
+    finalized: '已最终化',
+    cancelled: '已取消',
+  }
   return map[reviewStatus.value] || reviewStatus.value
 })
 
@@ -268,9 +269,7 @@ function confidenceColor(value: number): string {
 }
 
 const hasHighConfidenceUndecided = computed(() =>
-  decisions.value.some(
-    (d) => d.human_verdict === null && (d.ai_confidence ?? 0) >= 85
-  )
+  decisions.value.some((d) => d.human_verdict === null && (d.ai_confidence ?? 0) >= 85)
 )
 
 const undoWindowOpen = computed(() => {
@@ -346,16 +345,18 @@ async function handleResetDecision(row: ReviewDecision) {
     `确定重置决策 ${row.id} 吗？当前人工判定将恢复为 AI 原始判定。`,
     '重置决策',
     { type: 'warning', confirmButtonText: '确认重置' }
-  ).then(async () => {
-    try {
-      await reviewApi.rollbackDecision(reviewId.value, row.id)
-      ElMessage.success('决策已重置')
-      await fetchDecisions()
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { msg?: string } }; message?: string }
-      ElMessage.error(err?.response?.data?.msg || '重置失败')
-    }
-  }).catch(() => {})
+  )
+    .then(async () => {
+      try {
+        await reviewApi.rollbackDecision(reviewId.value, row.id)
+        ElMessage.success('决策已重置')
+        await fetchDecisions()
+      } catch (e: unknown) {
+        const err = e as { response?: { data?: { msg?: string } }; message?: string }
+        ElMessage.error(err?.response?.data?.msg || '重置失败')
+      }
+    })
+    .catch(() => {})
 }
 
 async function handleUndoDecision(row: ReviewDecision) {
@@ -363,20 +364,25 @@ async function handleUndoDecision(row: ReviewDecision) {
     `确定撤销决策 ${row.id} 吗？此操作将逆操作生命周期变更并级联废弃子用例。`,
     '撤销决策',
     { type: 'warning', confirmButtonText: '确认撤销' }
-  ).then(async () => {
-    try {
-      await reviewApi.undoDecision(reviewId.value, row.id)
-      ElMessage.success('决策已撤销')
-      await fetchDecisions()
-    } catch (e: unknown) {
-      const err = e as { response?: { status: number; data?: { msg?: string } }; message?: string }
-      if (err?.response?.status === 403) {
-        ElMessage.warning('撤销窗口已过期（超 1h），无法撤销')
-      } else {
-        ElMessage.error(err?.response?.data?.msg || '撤销失败')
+  )
+    .then(async () => {
+      try {
+        await reviewApi.undoDecision(reviewId.value, row.id)
+        ElMessage.success('决策已撤销')
+        await fetchDecisions()
+      } catch (e: unknown) {
+        const err = e as {
+          response?: { status: number; data?: { msg?: string } }
+          message?: string
+        }
+        if (err?.response?.status === 403) {
+          ElMessage.warning('撤销窗口已过期（超 1h），无法撤销')
+        } else {
+          ElMessage.error(err?.response?.data?.msg || '撤销失败')
+        }
       }
-    }
-  }).catch(() => {})
+    })
+    .catch(() => {})
 }
 
 async function handleUndoFinalize() {
@@ -384,23 +390,28 @@ async function handleUndoFinalize() {
     `确定撤销评审最终化吗？所有决策将恢复为 in_progress 状态，已应用的生命周期变更将被逆操作。`,
     '撤销最终化',
     { type: 'warning', confirmButtonText: '确认撤销' }
-  ).then(async () => {
-    try {
-      const res = await reviewApi.undoFinalize(reviewId.value)
-      reviewStatus.value = res.data.status
-      reviewFinalizedAt.value = null
-      reviewUndoWindowExpiresAt.value = null
-      ElMessage.success('评审最终化已撤销')
-      await fetchDecisions()
-    } catch (e: unknown) {
-      const err = e as { response?: { status: number; data?: { msg?: string } }; message?: string }
-      if (err?.response?.status === 403) {
-        ElMessage.warning('撤销窗口已过期（超 1h），无法撤销')
-      } else {
-        ElMessage.error(err?.response?.data?.msg || '撤销失败')
+  )
+    .then(async () => {
+      try {
+        const res = await reviewApi.undoFinalize(reviewId.value)
+        reviewStatus.value = res.data.status
+        reviewFinalizedAt.value = null
+        reviewUndoWindowExpiresAt.value = null
+        ElMessage.success('评审最终化已撤销')
+        await fetchDecisions()
+      } catch (e: unknown) {
+        const err = e as {
+          response?: { status: number; data?: { msg?: string } }
+          message?: string
+        }
+        if (err?.response?.status === 403) {
+          ElMessage.warning('撤销窗口已过期（超 1h），无法撤销')
+        } else {
+          ElMessage.error(err?.response?.data?.msg || '撤销失败')
+        }
       }
-    }
-  }).catch(() => {})
+    })
+    .catch(() => {})
 }
 
 function handleBatchAcceptHighConfidence() {
@@ -417,50 +428,60 @@ function handleBatchAcceptHighConfidence() {
     `将采纳 ${highConfidenceDecisions.length} 条高置信度决策，是否继续？`,
     '批量采纳',
     { type: 'warning' }
-  ).then(async () => {
-    try {
-      await reviewApi.decideBatch(reviewId.value, {
-        decisions: highConfidenceDecisions.map((d) => ({
-          decision_id: d.id,
-          human_verdict: 'keep' as string,
-        })),
-      })
-      ElMessage.success(`已批量采纳 ${highConfidenceDecisions.length} 条决策`)
-      await fetchDecisions()
-    } catch (e: unknown) {
-      const err = e as { response?: { status: number; data?: { msg?: string } }; message?: string }
-      if (err?.response?.status === 409) {
-        ElMessage.warning('部分决策目标已被锁定，批量采纳失败')
-      } else {
-        ElMessage.error(err?.response?.data?.msg || err?.message || '批量采纳失败')
+  )
+    .then(async () => {
+      try {
+        await reviewApi.decideBatch(reviewId.value, {
+          decisions: highConfidenceDecisions.map((d) => ({
+            decision_id: d.id,
+            human_verdict: 'keep' as string,
+          })),
+        })
+        ElMessage.success(`已批量采纳 ${highConfidenceDecisions.length} 条决策`)
+        await fetchDecisions()
+      } catch (e: unknown) {
+        const err = e as {
+          response?: { status: number; data?: { msg?: string } }
+          message?: string
+        }
+        if (err?.response?.status === 409) {
+          ElMessage.warning('部分决策目标已被锁定，批量采纳失败')
+        } else {
+          ElMessage.error(err?.response?.data?.msg || err?.message || '批量采纳失败')
+        }
       }
-    }
-  }).catch(() => {})
+    })
+    .catch(() => {})
 }
 
 function handleFinalize() {
-  ElMessageBox.confirm(
-    '最终化后所有决策将不可修改，是否确认？',
-    '最终化评审',
-    { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' }
-  ).then(async () => {
-    finalizing.value = true
-    try {
-      const res = await reviewApi.finalizeReview(reviewId.value)
-      reviewStatus.value = res.data.status
-      ElMessage.success('评审已最终化')
-      await fetchDecisions()
-    } catch (e: unknown) {
-      const err = e as { response?: { status: number; data?: { msg?: string } }; message?: string }
-      if (err?.response?.status === 400) {
-        ElMessage.warning(err?.response?.data?.msg || '最终化失败：评审状态异常')
-      } else {
-        ElMessage.error(err?.response?.data?.msg || '最终化失败')
+  ElMessageBox.confirm('最终化后所有决策将不可修改，是否确认？', '最终化评审', {
+    type: 'warning',
+    confirmButtonText: '确认',
+    cancelButtonText: '取消',
+  })
+    .then(async () => {
+      finalizing.value = true
+      try {
+        const res = await reviewApi.finalizeReview(reviewId.value)
+        reviewStatus.value = res.data.status
+        ElMessage.success('评审已最终化')
+        await fetchDecisions()
+      } catch (e: unknown) {
+        const err = e as {
+          response?: { status: number; data?: { msg?: string } }
+          message?: string
+        }
+        if (err?.response?.status === 400) {
+          ElMessage.warning(err?.response?.data?.msg || '最终化失败：评审状态异常')
+        } else {
+          ElMessage.error(err?.response?.data?.msg || '最终化失败')
+        }
+      } finally {
+        finalizing.value = false
       }
-    } finally {
-      finalizing.value = false
-    }
-  }).catch(() => {})
+    })
+    .catch(() => {})
 }
 
 onMounted(() => {

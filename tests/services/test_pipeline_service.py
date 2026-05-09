@@ -1,19 +1,19 @@
 """pipeline_service 单元测试
 
 覆盖范围:
-    - create_run: 幂等校验、iteration_id 不存在
-    - update_run_status: 合法/非法状态迁移
-    - create_step: run_id 不存在
+    - create_run: 幂等校验、iteration_id 不存�?
+    - update_run_status: 合法/非法状态迁�?
+    - create_step: run_id 不存�?
     - update_step_status: 合法/非法状态迁移、retried_count/degraded 更新
-    - create_artifact: 重复 hash、run_id 不存在
-    - find_cached_step: 命中/未命中
+    - create_artifact: 重复 hash、run_id 不存�?
+    - find_cached_step: 命中/未命�?
     - compute_input_hash / compute_cache_key
     - increment_step_retried_count
     - update_step_output_artifact_ids
     - list_runs
     - get_artifact_by_hash
 
-使用真实 MySQL 数据库。
+使用真实 MySQL 数据库�?
 """
 import pytest
 

@@ -1,0 +1,75 @@
+name: Daily Full Regression
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  full-regression:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test_root_pw
+          MYSQL_DATABASE: ai_testmaster_test
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_pw
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+        run: |
+          alembic upgrade head
+
+      - name: Prepare test data
+        env:
+          TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+        run: |
+          python scripts/prepare_test_data.py --project all
+
+      - name: Run all scenario regression
+        env:
+          TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+        run: |
+          pytest tests/regression/ \
+            -v --tb=short -m "regression" \
+            --cov=app.pipelines --cov=app.services \
+            --cov-fail-under=50
+
+      - name: Generate diff report on failure
+        if: failure()
+        run: |
+          echo "## Regression Failure Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Failed Scenarios" >> $GITHUB_STEP_SUMMARY
+          echo "Check the test output above for details." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-regression-results
+          path: .coverage

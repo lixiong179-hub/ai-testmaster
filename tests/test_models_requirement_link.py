@@ -130,7 +130,7 @@ class TestRequirementLinkModel:
     def test_requirement_link_auth_config_set_none(self, db, test_project):
         rl = RequirementLink(
             project_id=test_project.id,
-            link_name="空认证链接",
+            link_name="空认证链�?,
             link_type="requirement",
             link_url="https://example.com"
         )
@@ -140,7 +140,7 @@ class TestRequirementLinkModel:
     def test_requirement_link_auth_config_set_empty(self, db, test_project):
         rl = RequirementLink(
             project_id=test_project.id,
-            link_name="空字典认证链接",
+            link_name="空字典认证链�?,
             link_type="requirement",
             link_url="https://example.com"
         )
@@ -150,7 +150,7 @@ class TestRequirementLinkModel:
     def test_requirement_link_auth_config_get_empty(self, db, test_project):
         rl = RequirementLink(
             project_id=test_project.id,
-            link_name="无认证链接",
+            link_name="无认证链�?,
             link_type="requirement",
             link_url="https://example.com"
         )
@@ -165,7 +165,7 @@ class TestRequirementLinkModel:
         for status in ["success", "failed"]:
             rl = RequirementLink(
                 project_id=test_project.id,
-                link_name=f"获取状态-{status}",
+                link_name=f"获取状�?{status}",
                 link_type="requirement",
                 link_url="https://example.com",
                 last_fetch_status=status

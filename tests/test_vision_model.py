@@ -1,8 +1,8 @@
 """
-统一视觉模型适配器单元测试
-覆盖率目标95%
+统一视觉模型适配器单元测�?
+覆盖率目�?5%
 
-使用本地 HTTP 服务器替代 mock，遵循项目"真实环境测试、禁止 Mock"规则。
+使用本地 HTTP 服务器替�?mock，遵循项�?真实环境测试、禁�?Mock"规则�?
 """
 import os
 import json
@@ -42,7 +42,7 @@ def test_image():
 
 
 class _KimiAPIHandler(BaseHTTPRequestHandler):
-    """模拟 Kimi API 的本地 HTTP 处理器。"""
+    """模拟 Kimi API 的本�?HTTP 处理器�?""
 
     response_body: dict = {}
 
@@ -62,7 +62,7 @@ class _KimiAPIHandler(BaseHTTPRequestHandler):
 
 
 class _LocalServer:
-    """管理本地 HTTP 服务器生命周期。"""
+    """管理本地 HTTP 服务器生命周期�?""
 
     def __init__(self, handler_class, response_body: dict):
         handler = type(
@@ -88,7 +88,7 @@ class _LocalServer:
 
 @pytest.fixture
 def kimi_model():
-    """Kimi 模型 fixture，使用真实 API Key。"""
+    """Kimi 模型 fixture，使用真�?API Key�?""
     return UnifiedVisionModel(
         model_type=VisionModelType.KIMI,
         api_key="test-kimi-key",
@@ -97,7 +97,7 @@ def kimi_model():
 
 @pytest.fixture
 def qwen_model():
-    """通义千问模型 fixture。"""
+    """通义千问模型 fixture�?""
     return UnifiedVisionModel(
         model_type=VisionModelType.QWEN,
         api_key="test-qwen-key",
@@ -296,7 +296,7 @@ class TestElementRecognition:
                             [
                                 {
                                     "type": "input",
-                                    "text": "用户名",
+                                    "text": "用户�?,
                                     "x": 100,
                                     "y": 100,
                                     "width": 200,
@@ -320,7 +320,7 @@ class TestElementRecognition:
                 max_retries=1,
                 timeout=5,
             )
-            elements = model.recognize_elements(test_image, "输入框")
+            elements = model.recognize_elements(test_image, "输入�?)
             assert len(elements) == 1
             assert elements[0].type == "input"
         finally:
@@ -386,7 +386,7 @@ class TestDescribeScreenshot:
             "choices": [
                 {
                     "message": {
-                        "content": "这是一个测试页面，包含一个红色方块和文字'Test'。"
+                        "content": "这是一个测试页面，包含一个红色方块和文字'Test'�?
                     }
                 }
             ]
@@ -411,7 +411,7 @@ class TestDescribeScreenshot:
         model = UnifiedVisionModel(model_type=VisionModelType.KIMI)
         model.api_key = ""
         description = model.describe_screenshot(test_image)
-        assert description == "视觉模型未配置"
+        assert description == "视觉模型未配�?
 
 
 class TestVerifyActionResult:
@@ -421,7 +421,7 @@ class TestVerifyActionResult:
                 {
                     "message": {
                         "content": json.dumps(
-                            {"success": True, "reason": "成功跳转到首页"}
+                            {"success": True, "reason": "成功跳转到首�?}
                         )
                     }
                 }
@@ -438,7 +438,7 @@ class TestVerifyActionResult:
                 timeout=5,
             )
             success, reason = model.verify_action_result(
-                test_image, test_image, "点击登录按钮", "跳转到首页"
+                test_image, test_image, "点击登录按钮", "跳转到首�?
             )
             assert success is True
             assert "成功" in reason
@@ -451,7 +451,7 @@ class TestVerifyActionResult:
                 {
                     "message": {
                         "content": json.dumps(
-                            {"success": False, "reason": "页面未发生变化"}
+                            {"success": False, "reason": "页面未发生变�?}
                         )
                     }
                 }
@@ -471,7 +471,7 @@ class TestVerifyActionResult:
                 test_image, test_image, "点击按钮", "预期变化"
             )
             assert success is False
-            assert "未发生变化" in reason
+            assert "未发生变�? in reason
         finally:
             server.stop()
 
@@ -482,7 +482,7 @@ class TestVerifyActionResult:
             test_image, test_image, "点击", "预期"
         )
         assert success is False
-        assert "未配置" in reason
+        assert "未配�? in reason
 
 
 class TestElementInfo:
@@ -530,7 +530,7 @@ class TestErrorHandling:
             timeout=1,
         )
         description = model.describe_screenshot(test_image)
-        assert "无法" in description or "未配置" in description
+        assert "无法" in description or "未配�? in description
 
     def test_timeout_error(self, test_image):
         model = UnifiedVisionModel(
@@ -542,7 +542,7 @@ class TestErrorHandling:
             timeout=1,
         )
         description = model.describe_screenshot(test_image)
-        assert "无法" in description or "未配置" in description
+        assert "无法" in description or "未配�? in description
 
     def test_http_401_error(self, test_image):
         class _ErrorHandler(BaseHTTPRequestHandler):

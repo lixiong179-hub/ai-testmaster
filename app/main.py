@@ -38,20 +38,13 @@ async def lifespan(app: FastAPI):
         db = PrimarySessionLocal()
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
-            admin_password = os.getenv("ADMIN_INITIAL_PASSWORD")
+            admin_password = settings.ADMIN_INITIAL_PASSWORD or os.getenv("ADMIN_INITIAL_PASSWORD")
             if not admin_password:
-                if settings.ENVIRONMENT == "prod":
-                    admin_password = secrets.token_urlsafe(16)
-                    logger.warning(
-                        "生产环境未设置 ADMIN_INITIAL_PASSWORD，"
-                        "已生成随机管理员密码。请通过环境变量配置！"
-                    )
-                else:
-                    admin_password = "admin123"
-                    logger.warning(
-                        "开发环境使用默认管理员密码(admin123)，"
-                        "生产环境请务必设置 ADMIN_INITIAL_PASSWORD 环境变量"
-                    )
+                admin_password = secrets.token_urlsafe(16)
+                logger.warning(
+                    "未设置 ADMIN_INITIAL_PASSWORD，已生成随机管理员密码。"
+                    "请通过环境变量 ADMIN_INITIAL_PASSWORD 配置！"
+                )
             admin = User(
                 username="admin",
                 email="admin@example.com",

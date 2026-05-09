@@ -1,7 +1,7 @@
 import uuid
 import pytest
 
-pytestmark = pytest.mark.skip(reason="API契约变更（认证/项目配置接口重构），测试需要完全重写")
+pytestmark = pytest.mark.skip(reason="API契约变更（认�?项目配置接口重构），测试需要完全重�?)
 
 from tests.helpers import (
     assertResponseSuccess,

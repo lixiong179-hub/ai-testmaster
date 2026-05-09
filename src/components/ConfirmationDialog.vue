@@ -29,7 +29,7 @@
           :placeholder="field.placeholder || '请选择'"
         >
           <el-option
-            v-for="opt in (field.options || [])"
+            v-for="opt in field.options || []"
             :key="opt.value"
             :label="opt.label"
             :value="opt.value"

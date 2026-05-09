@@ -22,11 +22,11 @@ from app.utils.unified_vision_model import (
 
 
 class TestUnifiedVisionModelSupplement:
-    """统一视觉模型补充测试类"""
+    """统一视觉模型补充测试�?""
 
     @pytest.fixture
     def mock_model(self):
-        """创建带Mock的模型实例"""
+        """创建带Mock的模型实�?""
         with patch.dict('os.environ', {'KIMI_API_KEY': 'test-key'}):
             model = UnifiedVisionModel(
                 model_type=VisionModelType.KIMI,
@@ -35,11 +35,11 @@ class TestUnifiedVisionModelSupplement:
             return model
 
     # ============================================================================
-    # 初始化测试
+    # 初始化测�?
     # ============================================================================
 
     def test_init_without_api_key(self):
-        """测试没有API Key时的初始化"""
+        """测试没有API Key时的初始�?""
         with patch.dict('os.environ', {}, clear=True):
             with patch.object(UnifiedVisionModel, '_get_from_env_or_settings', return_value=None):
                 model = UnifiedVisionModel(
@@ -48,9 +48,9 @@ class TestUnifiedVisionModelSupplement:
                 )
                 assert model.api_key is None or model.api_key == ''
 
-    @pytest.mark.skip(reason="timeout默认值已从60变更为300")
+    @pytest.mark.skip(reason="timeout默认值已�?0变更�?00")
     def test_init_default_values(self):
-        """测试默认值"""
+        """测试默认�?""
         with patch.dict('os.environ', {'KIMI_API_KEY': 'test-key'}):
             model = UnifiedVisionModel(model_type=VisionModelType.KIMI)
             assert model.max_retries == 3
@@ -59,11 +59,11 @@ class TestUnifiedVisionModelSupplement:
             assert model.temperature == 0.3
 
     # ============================================================================
-    # 请求体构建测试
+    # 请求体构建测�?
     # ============================================================================
 
     def test_build_request_payload_standard(self, mock_model):
-        """测试标准OpenAI格式请求体"""
+        """测试标准OpenAI格式请求�?""
         system_prompt = "You are a test engineer"
         user_content = [
             {"type": "text", "text": "Hello"},
@@ -78,7 +78,7 @@ class TestUnifiedVisionModelSupplement:
         assert len(payload["messages"]) == 2
 
     def test_build_request_payload_qwen(self):
-        """测试通义千问请求体"""
+        """测试通义千问请求�?""
         with patch.dict('os.environ', {'QWEN_API_KEY': 'test-key'}):
             model = UnifiedVisionModel(
                 model_type=VisionModelType.QWEN,
@@ -98,7 +98,7 @@ class TestUnifiedVisionModelSupplement:
             assert "parameters" in payload
 
     def test_build_request_payload_baidu(self):
-        """测试文心一言请求体"""
+        """测试文心一言请求�?""
         with patch.dict('os.environ', {'BAIDU_API_KEY': 'test-key'}):
             model = UnifiedVisionModel(
                 model_type=VisionModelType.BAIDU,
@@ -209,7 +209,7 @@ class TestUnifiedVisionModelSupplement:
         assert result is None
 
     def test_parse_response_empty(self, mock_model):
-        """测试空响应解析"""
+        """测试空响应解�?""
         response = {}
         
         result = mock_model._parse_response(response)
@@ -237,14 +237,14 @@ class TestUnifiedVisionModelSupplement:
 
     @patch('app.utils.unified_vision_model.requests.post')
     def test_make_request_retry_success(self, mock_post, mock_model):
-        """测试API请求重试后成功"""
+        """测试API请求重试后成�?""
         mock_response_success = MagicMock()
         mock_response_success.status_code = 200
         mock_response_success.json.return_value = {
             "choices": [{"message": {"content": "Success after retry"}}]
         }
         
-        # 模拟重试成功 - 第一次返回None（模拟异常被捕获），第二次成功
+        # 模拟重试成功 - 第一次返回None（模拟异常被捕获），第二次成�?
         call_count = [0]
         def side_effect(*args, **kwargs):
             call_count[0] += 1
@@ -261,7 +261,7 @@ class TestUnifiedVisionModelSupplement:
         payload = {"test": "payload"}
         result = mock_model._make_request(payload)
         
-        # 验证至少调用了1次，最多3次
+        # 验证至少调用�?次，最�?�?
         assert mock_post.call_count >= 1
         assert mock_post.call_count <= 3
 
@@ -270,7 +270,7 @@ class TestUnifiedVisionModelSupplement:
         """测试API请求所有重试都失败"""
         mock_post.side_effect = Exception("Persistent error")
         
-        # 临时设置max_retries为1以加快测试
+        # 临时设置max_retries�?以加快测�?
         original_retries = mock_model.max_retries
         mock_model.max_retries = 1
         
@@ -300,7 +300,7 @@ class TestUnifiedVisionModelSupplement:
         """测试401错误处理"""
         error = Exception("401 Client Error")
         
-        # 验证方法不抛出异常
+        # 验证方法不抛出异�?
         mock_model._handle_request_error(error)
         # 方法执行成功即可
 
@@ -410,7 +410,7 @@ class TestUnifiedVisionModelSupplement:
         
         result = mock_model.describe_screenshot(screenshot=b"fake_image")
         
-        assert result == "视觉模型未配置"
+        assert result == "视觉模型未配�?
 
     @patch('app.utils.unified_vision_model.requests.post')
     def test_describe_screenshot_api_failure(self, mock_post, mock_model):
@@ -455,7 +455,7 @@ class TestUnifiedVisionModelSupplement:
             prompt="test"
         )
         
-        assert result == "视觉模型未配置"
+        assert result == "视觉模型未配�?
 
     @patch('app.utils.unified_vision_model.requests.post')
     def test_analyze_image_with_custom_prompt(self, mock_post, mock_model):
@@ -519,7 +519,7 @@ class TestUnifiedVisionModelSupplement:
         )
         
         assert success is False
-        assert reason == "视觉模型未配置"
+        assert reason == "视觉模型未配�?
 
     @patch('app.utils.unified_vision_model.requests.post')
     def test_verify_action_result_api_failure(self, mock_post, mock_model):
@@ -541,7 +541,7 @@ class TestUnifiedVisionModelSupplement:
     # ============================================================================
 
     def test_parse_verification_result_valid(self, mock_model):
-        """测试解析有效的验证结果"""
+        """测试解析有效的验证结�?""
         content = '{"success": true, "reason": "Test passed"}'
         
         success, reason = mock_model._parse_verification_result(content)
@@ -556,7 +556,7 @@ class TestUnifiedVisionModelSupplement:
         success, reason = mock_model._parse_verification_result(content)
         
         assert success is False
-        # 验证返回了错误信息（具体文本可能不同）
+        # 验证返回了错误信息（具体文本可能不同�?
         assert reason is not None
         assert len(reason) > 0
 
@@ -591,18 +591,18 @@ class TestUnifiedVisionModelSupplement:
         assert center_y == 220  # 200 + 40/2
 
     # ============================================================================
-    # 提示词测试
+    # 提示词测�?
     # ============================================================================
 
     def test_get_element_recognition_prompt(self, mock_model):
-        """测试获取元素识别提示词"""
+        """测试获取元素识别提示�?""
         prompt = mock_model._get_element_recognition_prompt()
         
-        assert "UI测试工程师" in prompt
+        assert "UI测试工程�? in prompt
         assert "JSON" in prompt
 
     def test_get_action_verification_prompt(self, mock_model):
-        """测试获取操作验证提示词"""
+        """测试获取操作验证提示�?""
         prompt = mock_model._get_action_verification_prompt()
         
         assert "测试验证" in prompt
@@ -619,7 +619,7 @@ class TestUnifiedVisionModelSupplement:
             assert model.model_type == VisionModelType.KIMI
 
     def test_create_vision_model_invalid_type(self):
-        """测试创建无效类型的模型"""
+        """测试创建无效类型的模�?""
         with patch.dict('os.environ', {'KIMI_API_KEY': 'test-key'}):
             model = create_vision_model("invalid_type")
             # 应该回退到默认的Kimi
@@ -681,7 +681,7 @@ class TestUnifiedVisionModelSupplement:
         assert len(result) == 0
 
     def test_parse_element_recognition_below_confidence(self, mock_model):
-        """测试置信度低于阈值的元素被过滤"""
+        """测试置信度低于阈值的元素被过�?""
         content = '[{"type": "button", "text": "Low", "x": 100, "y": 200, "width": 80, "height": 40, "confidence": 0.5}]'
         
         result = mock_model._parse_element_recognition(content, min_confidence=0.8)

@@ -134,9 +134,17 @@ def _build_graph_prompt_data(
 ) -> Dict[str, Any]:
     """构建流程图模式所需的Prompt数据。"""
     from app.services.case_generation_prompt_builder import PromptBuilder
+    from app.services.flow_validation import validate_flow_structure
 
     nodes_list = [n.model_dump() for n in flow_sort_data.nodes]
     edges_list = [e.model_dump() for e in flow_sort_data.edges]
+
+    # M1B-6: 后端流程结构校验（仅记录，不阻断）
+    errors, warnings = validate_flow_structure(nodes_list, edges_list)
+    if errors:
+        logger.warning(f"流程图校验发现 {len(errors)} 个错误: {errors}")
+    if warnings:
+        logger.info(f"流程图校验发现 {len(warnings)} 个警告: {warnings}")
     module_info = flow_sort_data.module_info
 
     test_point = _prepare_test_point(context, description, priority)
@@ -164,7 +172,8 @@ def _build_graph_prompt_data(
         'case_type': context.get('case_type'),
         'exec_mode': context.get('exec_mode', 'all'),
         'project_config': context.get('project_config'),
-        'graph_prompt': graph_prompt
+        'graph_prompt': graph_prompt,
+        'flow_validation': {'errors': errors, 'warnings': warnings},
     }
 
 

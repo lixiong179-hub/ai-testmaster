@@ -24,7 +24,13 @@
     </div>
 
     <!-- 测试数据列表 -->
-    <el-table class="test-data-table" :data="testDataList" style="width: 100%" border v-loading="loading">
+    <el-table
+      class="test-data-table"
+      :data="testDataList"
+      style="width: 100%"
+      border
+      v-loading="loading"
+    >
       <el-table-column type="index" label="序号" width="60" />
       <el-table-column label="字段名称" min-width="150">
         <template #default="{ row }">

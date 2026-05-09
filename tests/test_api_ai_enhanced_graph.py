@@ -1,9 +1,9 @@
 """
-AI增强端点集成测试 - 流程图模式
+AI增强端点集成测试 - 流程图模�?
 
-覆盖范围：
-- AIGenerateEnhancedRequest Schema校验（mode/flow_sort_data）
-- 请求体大小限制（nodes≤100, edges≤200）
+覆盖范围�?
+- AIGenerateEnhancedRequest Schema校验（mode/flow_sort_data�?
+- 请求体大小限制（nodes�?00, edges�?00�?
 - _build_graph_prompt_data 共享函数
 - _build_linear_prompt_data 共享函数
 - _format_case_response 共享函数
@@ -25,19 +25,19 @@ class TestAIGenerateEnhancedRequest:
     """测试AIGenerateEnhancedRequest请求模型"""
 
     def test_valid_linear_request(self):
-        """测试正常线性模式请求"""
+        """测试正常线性模式请�?""
         req = AIGenerateEnhancedRequest(
             project_id=1,
-            description="测试登录功能，需要验证用户名和密码"
+            description="测试登录功能，需要验证用户名和密�?
         )
         assert req.mode == 'linear'
         assert req.flow_sort_data is None
 
     def test_valid_graph_request(self):
-        """测试正常流程图模式请求"""
+        """测试正常流程图模式请�?""
         flow_data = FlowSortDataSchema(
             nodes=[
-                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录页')
+                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录�?)
             ],
             edges=[]
         )
@@ -51,7 +51,7 @@ class TestAIGenerateEnhancedRequest:
         assert req.flow_sort_data is not None
 
     def test_invalid_mode(self):
-        """测试无效mode值"""
+        """测试无效mode�?""
         with pytest.raises(ValidationError) as exc_info:
             AIGenerateEnhancedRequest(
                 project_id=1,
@@ -130,7 +130,7 @@ class TestBuildGraphPromptData:
     def flow_sort_data(self):
         return FlowSortDataSchema(
             nodes=[
-                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录页', ocr_text='请输入账号'),
+                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录�?, ocr_text='请输入账�?),
                 FlowNodeSchema(screen_id=2, screen_order=2, flow_type='main', screen_name='首页', ocr_text='欢迎回来')
             ],
             edges=[
@@ -153,11 +153,11 @@ class TestBuildGraphPromptData:
     def test_includes_requirement_content(self, flow_sort_data):
         result = _build_graph_prompt_data(
             flow_sort_data=flow_sort_data,
-            context={"requirement_content": "用户需要登录系统"},
+            context={"requirement_content": "用户需要登录系�?},
             description="测试登录",
             priority=2
         )
-        assert "用户需要登录系统" in result['graph_prompt']
+        assert "用户需要登录系�? in result['graph_prompt']
 
     def test_includes_module_info(self, flow_sort_data):
         result = _build_graph_prompt_data(
@@ -174,17 +174,17 @@ class TestBuildLinearPromptData:
 
     def test_returns_prompt_data(self):
         result = _build_linear_prompt_data(
-            context={"requirement_content": "测试需求"},
+            context={"requirement_content": "测试需�?},
             description="测试描述",
             priority=2,
             case_type='ui_automation',
             exec_mode='all'
         )
         assert 'requirement_content' in result
-        assert result['requirement_content'] == "测试需求"
+        assert result['requirement_content'] == "测试需�?
 
     def test_includes_ui_specs(self):
-        ui_specs = [{"screen_name": "测试页", "ui_spec": {"elements": []}}]
+        ui_specs = [{"screen_name": "测试�?, "ui_spec": {"elements": []}}]
         result = _build_linear_prompt_data(
             context={"ui_specs": ui_specs},
             description="测试",
@@ -203,7 +203,7 @@ class TestFormatCaseResponse:
         generated_case = {
             "title": "测试用例",
             "module": "测试模块",
-            "precondition": "已登录",
+            "precondition": "已登�?,
             "steps": [],
             "expected_result": "成功"
         }

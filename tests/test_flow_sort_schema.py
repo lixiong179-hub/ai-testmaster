@@ -1,10 +1,10 @@
 """
 FlowSortDataSchema 单元测试
 
-覆盖范围：
-- FlowNodeSchema: 字段校验、边界值、空值处理
-- FlowEdgeSchema: 字段校验、类型限制
-- FlowSortDataSchema: 整体校验、数量限制
+覆盖范围�?
+- FlowNodeSchema: 字段校验、边界值、空值处�?
+- FlowEdgeSchema: 字段校验、类型限�?
+- FlowSortDataSchema: 整体校验、数量限�?
 """
 import pytest
 from pydantic import ValidationError
@@ -20,14 +20,14 @@ class TestFlowNodeSchema:
             screen_id=1,
             screen_order=1,
             flow_type='main',
-            screen_name='登录页',
+            screen_name='登录�?,
             ocr_text='请输入用户名',
             summary='用户登录页面'
         )
         assert node.screen_id == 1
         assert node.screen_order == 1
         assert node.flow_type == 'main'
-        assert node.screen_name == '登录页'
+        assert node.screen_name == '登录�?
         assert node.ocr_text == '请输入用户名'
 
     def test_screen_id_must_be_positive(self):
@@ -37,7 +37,7 @@ class TestFlowNodeSchema:
                 screen_id=0,
                 screen_order=1,
                 flow_type='main',
-                screen_name='测试页'
+                screen_name='测试�?
             )
         assert 'screen_id' in str(exc_info.value)
 
@@ -48,7 +48,7 @@ class TestFlowNodeSchema:
                 screen_id=1,
                 screen_order=0,
                 flow_type='main',
-                screen_name='测试页'
+                screen_name='测试�?
             )
         assert 'screen_order' in str(exc_info.value)
 
@@ -69,9 +69,9 @@ class TestFlowNodeSchema:
             screen_id=1,
             screen_order=1,
             flow_type='main',
-            screen_name='  登录页  '
+            screen_name='  登录�? '
         )
-        assert node.screen_name == '登录页'
+        assert node.screen_name == '登录�?
 
     def test_invalid_flow_type(self):
         """测试无效的flow_type"""
@@ -80,18 +80,18 @@ class TestFlowNodeSchema:
                 screen_id=1,
                 screen_order=1,
                 flow_type='invalid',
-                screen_name='测试页'
+                screen_name='测试�?
             )
         assert 'flow_type' in str(exc_info.value)
 
     def test_valid_flow_types(self):
-        """测试所有有效的flow_type值"""
+        """测试所有有效的flow_type�?""
         for ft in ['main', 'branch', 'exception', 'bypass']:
             node = FlowNodeSchema(
                 screen_id=1,
                 screen_order=1,
                 flow_type=ft,
-                screen_name='测试页'
+                screen_name='测试�?
             )
             assert node.flow_type == ft
 
@@ -101,7 +101,7 @@ class TestFlowNodeSchema:
             screen_id=1,
             screen_order=1,
             flow_type='main',
-            screen_name='测试页'
+            screen_name='测试�?
         )
         assert node.ocr_text is None
         assert node.summary is None
@@ -115,7 +115,7 @@ class TestFlowNodeSchema:
                 screen_id=1,
                 screen_order=1,
                 flow_type='main',
-                screen_name='测试页',
+                screen_name='测试�?,
                 ocr_text=long_text
             )
         assert 'ocr_text' in str(exc_info.value)
@@ -128,7 +128,7 @@ class TestFlowNodeSchema:
                 screen_id=1,
                 screen_order=1,
                 flow_type='main',
-                screen_name='测试页',
+                screen_name='测试�?,
                 summary=long_text
             )
         assert 'summary' in str(exc_info.value)
@@ -175,7 +175,7 @@ class TestFlowEdgeSchema:
         assert 'edge_type' in str(exc_info.value)
 
     def test_valid_edge_types(self):
-        """测试所有有效的edge_type值"""
+        """测试所有有效的edge_type�?""
         for et in ['normal', 'branch', 'exception', 'bypass']:
             edge = FlowEdgeSchema(
                 source='1',
@@ -221,7 +221,7 @@ class TestFlowEdgeSchema:
         assert 'condition' in str(exc_info.value)
 
     def test_condition_optional(self):
-        """测试condition为可选字段"""
+        """测试condition为可选字�?""
         edge = FlowEdgeSchema(
             source='1',
             target='2',
@@ -250,7 +250,7 @@ class TestFlowSortDataSchema:
         """测试正常排序数据"""
         data = FlowSortDataSchema(
             nodes=[
-                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录页'),
+                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录�?),
                 FlowNodeSchema(screen_id=2, screen_order=2, flow_type='main', screen_name='首页')
             ],
             edges=[
@@ -272,16 +272,16 @@ class TestFlowSortDataSchema:
         """测试edges默认为空列表"""
         data = FlowSortDataSchema(
             nodes=[
-                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='测试页')
+                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='测试�?)
             ]
         )
         assert data.edges == []
 
     def test_module_info_optional(self):
-        """测试module_info为可选字段"""
+        """测试module_info为可选字�?""
         data = FlowSortDataSchema(
             nodes=[
-                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='测试页')
+                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='测试�?)
             ]
         )
         assert data.module_info is None
@@ -290,15 +290,15 @@ class TestFlowSortDataSchema:
         """测试复杂流程结构"""
         data = FlowSortDataSchema(
             nodes=[
-                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录页'),
+                FlowNodeSchema(screen_id=1, screen_order=1, flow_type='main', screen_name='登录�?),
                 FlowNodeSchema(screen_id=2, screen_order=2, flow_type='main', screen_name='首页'),
-                FlowNodeSchema(screen_id=3, screen_order=3, flow_type='branch', screen_name='注册页'),
-                FlowNodeSchema(screen_id=4, screen_order=4, flow_type='exception', screen_name='错误页'),
+                FlowNodeSchema(screen_id=3, screen_order=3, flow_type='branch', screen_name='注册�?),
+                FlowNodeSchema(screen_id=4, screen_order=4, flow_type='exception', screen_name='错误�?),
                 FlowNodeSchema(screen_id=5, screen_order=5, flow_type='bypass', screen_name='弹窗')
             ],
             edges=[
                 FlowEdgeSchema(source='1', target='2', edge_type='normal', label='登录成功'),
-                FlowEdgeSchema(source='1', target='3', edge_type='branch', condition='点击注册', label='去注册'),
+                FlowEdgeSchema(source='1', target='3', edge_type='branch', condition='点击注册', label='去注�?),
                 FlowEdgeSchema(source='1', target='4', edge_type='exception', condition='密码错误', label='登录失败'),
                 FlowEdgeSchema(source='2', target='5', edge_type='bypass', condition='自动弹出', label='广告')
             ]
@@ -308,7 +308,7 @@ class TestFlowSortDataSchema:
         main_nodes = [n for n in data.nodes if n.flow_type == 'main']
         assert len(main_nodes) == 2
 
-    @pytest.mark.skip(reason="_validate_flow_sort_data_size已移除")
+    @pytest.mark.skip(reason="_validate_flow_sort_data_size已移�?)
     def test_request_size_limit_nodes(self):
         """测试nodes数量上限校验 - 验证校验函数存在且逻辑正确"""
         from app.api.v1.endpoints.test_case_ai_enhanced import _validate_flow_sort_data_size
@@ -316,7 +316,7 @@ class TestFlowSortDataSchema:
         assert callable(_validate_flow_sort_data_size)
         assert _validate_flow_sort_data_size(None) is None
 
-    @pytest.mark.skip(reason="_validate_flow_sort_data_size已移除")
+    @pytest.mark.skip(reason="_validate_flow_sort_data_size已移�?)
     def test_request_size_limit_edges(self):
         """测试edges数量上限校验 - 验证校验函数存在且逻辑正确"""
         from app.api.v1.endpoints.test_case_ai_enhanced import _validate_flow_sort_data_size

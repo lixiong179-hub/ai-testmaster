@@ -26,9 +26,11 @@
     items, total = paginate_query(db, db.query(User), page=2, page_size=20)
 """
 from sqlalchemy.orm import Session
-from typing import Optional, List, TypeVar, Type
+from typing import Optional, List, TypeVar, Type, Callable, Any
 from sqlalchemy import and_, or_
+from sqlalchemy.exc import OperationalError, InterfaceError
 from loguru import logger
+import time
 
 # 泛型类型变量，用于标注SQLAlchemy模型类的类型，
 # 使方法返回值类型与传入的model参数类型一致，便于IDE类型推断
@@ -267,7 +269,11 @@ class DatabaseHelper:
             db.commit()
             return True
         except Exception as e:
-            logger.error(f"删除记录失败: {e}")
+            logger.error(
+                f"删除记录失败: [{type(e).__name__}] {e}, "
+                f"实例类型: {type(instance).__name__}, "
+                f"会话: active={db.is_active if hasattr(db, 'is_active') else 'N/A'}"
+            )
             db.rollback()
             return False
 
@@ -297,7 +303,10 @@ class DatabaseHelper:
             db.commit()
             return True
         except Exception as e:
-            logger.error(f"事务提交失败: {e}")
+            logger.error(
+                f"事务提交失败: [{type(e).__name__}] {e}, "
+                f"会话: active={db.is_active if hasattr(db, 'is_active') else 'N/A'}"
+            )
             db.rollback()
             return False
 
@@ -331,50 +340,39 @@ class TransactionHelper:
     """
 
     @staticmethod
-    def with_transaction(db: Session, operation: callable, *args, **kwargs):
-        """
-        使用事务执行操作（异常上抛模式）
-
-        在事务中执行指定操作，成功则提交，失败则回滚并重新抛出原始异常。
-        调用方需自行捕获异常进行处理。
-
-        适用场景：
-            - 需要根据异常类型做差异化处理的业务逻辑
-            - 需要在异常发生时中断业务流程并向上传播的场景
-            - 与其他事务操作组成原子性业务流程的场景
-
-        Args:
-            db: SQLAlchemy数据库会话，用于事务的commit/rollback
-            operation: 要执行的操作函数，该函数内执行数据库写操作
-            *args: 传递给操作函数的位置参数
-            **kwargs: 传递给操作函数的关键字参数
-
-        Returns:
-            操作函数的返回值，类型由operation函数决定
-
-        Raises:
-            Exception: 操作函数抛出的任何异常，回滚后原样重新抛出
-
-        使用示例：
+    def with_transaction(
+        db: Session, operation: Callable[..., Any], *args, **kwargs
+    ) -> Any:
+        """使用事务执行操作（异常上抛模式），对瞬时错误自动重试。"""
+        last_exception = None
+        for attempt in range(3):
             try:
-                result = tx_helper.with_transaction(
-                    db, create_user, db, user_data
+                result = operation(*args, **kwargs)
+                db.commit()
+                return result
+            except Exception as e:
+                last_exception = e
+                logger.error(
+                    f"事务操作失败, 回滚(第{attempt + 1}次): "
+                    f"[{type(e).__name__}] {e}, "
+                    f"会话: active={db.is_active if hasattr(db, 'is_active') else 'N/A'}"
                 )
-            except IntegrityError:
-                handle_duplicate_user()
-        """
-        try:
-            result = operation(*args, **kwargs)
-            db.commit()
-            return result
-        except Exception as e:
-            logger.error(f"事务操作失败，回滚: {e}")
-            db.rollback()
-            # 重新抛出原始异常，让调用方决定如何处理
-            raise
+                try:
+                    db.rollback()
+                except Exception as rollback_err:
+                    logger.error(f"回滚失败: {rollback_err}")
+                if not isinstance(e, (OperationalError, InterfaceError)):
+                    raise
+                if attempt < 2:
+                    time.sleep(1 * (attempt + 1))
+                    continue
+                raise
+        raise last_exception
 
     @staticmethod
-    def safe_execute(db: Session, operation: callable, *args, **kwargs):
+    def safe_execute(
+        db: Session, operation: Callable[..., Any], *args, **kwargs
+    ) -> tuple[bool, Any]:
         """
         安全执行操作（安全返回元组模式）
 
@@ -412,9 +410,14 @@ class TransactionHelper:
             db.commit()
             return True, result
         except Exception as e:
-            logger.error(f"操作失败: {e}")
-            db.rollback()
-            # 将异常信息转为字符串返回，不抛出异常
+            logger.error(
+                f"操作失败: [{type(e).__name__}] {e}, "
+                f"会话: active={db.is_active if hasattr(db, 'is_active') else 'N/A'}"
+            )
+            try:
+                db.rollback()
+            except Exception as rollback_err:
+                logger.error(f"回滚失败: {rollback_err}")
             return False, str(e)
 
 

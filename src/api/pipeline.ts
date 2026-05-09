@@ -1,6 +1,12 @@
 import request from '@/utils/request'
 
-export type PipelineRunStatus = 'pending' | 'running' | 'completed' | 'failed' | 'waiting_for_user' | 'cancelled'
+export type PipelineRunStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'waiting_for_user'
+  | 'cancelled'
 export type PipelineStepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped' | 'degraded'
 
 export interface PipelineStep {
@@ -48,6 +54,7 @@ export interface PipelineResumeRequest {
 
 export interface PipelineRunResponse {
   run_id: number
+  pipeline_run_id?: number
   iteration_id: number
   status: PipelineRunStatus
   scenario: number
@@ -120,7 +127,72 @@ export interface SupplementSignalsResponse {
   has_change_summary: boolean
 }
 
+export interface Scenario4PrecheckRequest {
+  project_id: number
+  ui_project_id?: number
+  screen_ids?: number[]
+  iteration_id?: number
+  test_point_ids?: number[]
+}
+
+export interface Scenario4PrecheckResponse {
+  project_id: number
+  history_cases: {
+    total: number
+    included: number
+    active: number
+    draft: number
+    pending_review: number
+    archived: number
+    deleted: number
+  }
+  test_points: {
+    total: number
+    selected: number
+  }
+  ui: {
+    selected_screen_count: number
+    parsed_screen_count: number
+    unparsed_screen_count: number
+    parse_failed_count: number
+    usable_screen_ids: number[]
+  }
+  can_run: boolean
+  blocking_reasons: string[]
+  warnings: string[]
+}
+
+export interface PipelineSummary {
+  run_id: number
+  status: PipelineRunStatus
+  scenario: number
+  actions: {
+    keep: number
+    needs_modify: number
+    locator_broken: number
+    locator_and_modify: number
+    deprecate: number
+    add_new: number
+    conflict: number
+    pending_review: number
+  }
+  persisted_case_ids: number[]
+  artifact_kinds: string[]
+}
+
 export const pipelineApi = {
+  precheckScenario4: async (
+    data: Scenario4PrecheckRequest
+  ): Promise<{ code: number; message: string; data: Scenario4PrecheckResponse }> => {
+    return request.post('/api/v1/pipeline/scenario-4/precheck', data)
+  },
+
+  getPipelineSummary: async (
+    runId: number
+  ): Promise<{ code: number; message: string; data: PipelineSummary }> => {
+    return request.get(`/api/v1/pipeline/${runId}/summary`)
+  },
+
   runPipeline: async (
     iterationId: number,
     data: PipelineRunRequest

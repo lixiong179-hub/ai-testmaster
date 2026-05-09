@@ -131,7 +131,6 @@ export function useResourceList(
           )
           const fileItems = extractListItems(fileRes)
             .filter((item: Record<string, unknown>) => {
-              if (item.resource_type === 'ui_mockup') return false
               if (resourceTypeFilter && item.resource_type !== resourceTypeFilter) return false
               return true
             })
@@ -273,6 +272,11 @@ export function useResourceList(
     return labelMap[type] || type
   }
 
+  const refreshAndResetPage = async () => {
+    pagination.page = 1
+    await getResources()
+  }
+
   return reactive({
     resources,
     total,
@@ -284,6 +288,7 @@ export function useResourceList(
     filterForm,
 
     getResources,
+    refreshAndResetPage,
     handleSearch,
     handleReset,
     handleSizeChange,

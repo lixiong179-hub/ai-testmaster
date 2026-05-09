@@ -1,5 +1,5 @@
 """
-参数化器覆盖率补充测试
+参数化器覆盖率补充测�?
 
 目标：将覆盖率提升到95%以上
 """
@@ -15,7 +15,7 @@ from app.services.test_data_parameterizer import (
 
 
 class TestParameterizerCoverage:
-    """参数化器覆盖率测试"""
+    """参数化器覆盖率测�?""
 
     @pytest.fixture
     def parameterizer(self):
@@ -23,7 +23,7 @@ class TestParameterizerCoverage:
         return TestDataParameterizer()
 
     def test_parse_empty_text(self, parameterizer):
-        """测试解析 - 空文本"""
+        """测试解析 - 空文�?""
         result = parameterizer.parse("")
         assert result == ""
 
@@ -37,7 +37,7 @@ class TestParameterizerCoverage:
         # 通过mock让replace_param函数抛出异常
         with patch.object(parameterizer, '_resolve_param', side_effect=Exception("测试异常")):
             result = parameterizer.parse("${random.number}")
-        # 应该返回原始文本或包含占位符的文本
+        # 应该返回原始文本或包含占位符的文�?
         assert "${random.number}" in result or result == "${random.number}"
 
     def test_resolve_param_invalid_format(self, parameterizer):
@@ -51,7 +51,7 @@ class TestParameterizerCoverage:
         assert "${unknown.param}" in result
 
     def test_resolve_param_handler_exception(self, parameterizer):
-        """测试解析参数 - 处理器异常"""
+        """测试解析参数 - 处理器异�?""
         # mock一个会抛出异常的处理器
         with patch.dict(parameterizer._param_handlers, {'test': lambda x: 1/0}):
             result = parameterizer._resolve_param("test.param")
@@ -73,7 +73,7 @@ class TestParameterizerCoverage:
         assert len(result) == 8  # HH:MM:SS
 
     def test_handle_date_param_timestamp(self, parameterizer):
-        """测试处理date参数 - 时间戳"""
+        """测试处理date参数 - 时间�?""
         result = parameterizer._handle_date_param("timestamp")
         assert result.isdigit()
 
@@ -108,7 +108,7 @@ class TestParameterizerCoverage:
         assert "${project.unknown}" in result
 
     def test_handle_random_param_phone(self, parameterizer):
-        """测试处理random参数 - 手机号"""
+        """测试处理random参数 - 手机�?""
         result = parameterizer._handle_random_param("phone")
         assert len(result) == 11
         assert result.startswith("1")
@@ -139,12 +139,12 @@ class TestParameterizerCoverage:
         assert len(result) > 0
 
     def test_handle_random_param_id_card(self, parameterizer):
-        """测试处理random参数 - 身份证"""
+        """测试处理random参数 - 身份�?""
         result = parameterizer._handle_random_param("id_card")
         assert len(result) == 18
 
     def test_handle_random_param_bank_card(self, parameterizer):
-        """测试处理random参数 - 银行卡"""
+        """测试处理random参数 - 银行�?""
         result = parameterizer._handle_random_param("bank_card")
         assert len(result) >= 16
 
@@ -154,7 +154,7 @@ class TestParameterizerCoverage:
         assert result.startswith("http")
 
     def test_handle_random_param_boolean(self, parameterizer):
-        """测试处理random参数 - 布尔值"""
+        """测试处理random参数 - 布尔�?""
         result = parameterizer._handle_random_param("boolean")
         assert result in ["true", "false"]
 
@@ -211,14 +211,14 @@ class TestParameterizerCoverage:
         assert "时间:" in result
 
     def test_parse_with_date_timestamp(self, parameterizer):
-        """测试解析 - 时间戳"""
-        template = "时间戳: ${date.timestamp}"
+        """测试解析 - 时间�?""
+        template = "时间�? ${date.timestamp}"
         result = parameterizer.parse(template)
         assert "${date.timestamp}" not in result
-        assert "时间戳:" in result
+        assert "时间�?" in result
 
     def test_parse_with_random_phone(self, parameterizer):
-        """测试解析 - 随机手机号"""
+        """测试解析 - 随机手机�?""
         template = "手机: ${random.phone}"
         result = parameterizer.parse(template)
         assert "${random.phone}" not in result
@@ -246,18 +246,18 @@ class TestParameterizerCoverage:
         assert "地址:" in result
 
     def test_parse_with_random_id_card(self, parameterizer):
-        """测试解析 - 随机身份证"""
-        template = "身份证: ${random.id_card}"
+        """测试解析 - 随机身份�?""
+        template = "身份�? ${random.id_card}"
         result = parameterizer.parse(template)
         assert "${random.id_card}" not in result
-        assert "身份证:" in result
+        assert "身份�?" in result
 
     def test_parse_with_random_bank_card(self, parameterizer):
-        """测试解析 - 随机银行卡"""
-        template = "银行卡: ${random.bank_card}"
+        """测试解析 - 随机银行�?""
+        template = "银行�? ${random.bank_card}"
         result = parameterizer.parse(template)
         assert "${random.bank_card}" not in result
-        assert "银行卡:" in result
+        assert "银行�?" in result
 
     def test_parse_with_random_url(self, parameterizer):
         """测试解析 - 随机URL"""
@@ -267,7 +267,7 @@ class TestParameterizerCoverage:
         assert "URL:" in result
 
     def test_parse_with_random_boolean(self, parameterizer):
-        """测试解析 - 随机布尔值"""
+        """测试解析 - 随机布尔�?""
         template = "布尔: ${random.boolean}"
         result = parameterizer.parse(template)
         assert "${random.boolean}" not in result
@@ -294,11 +294,11 @@ class TestParameterizerCoverage:
 
     def test_parse_caching_mechanism(self, parameterizer):
         """测试解析 - 缓存机制"""
-        # 第一次解析
+        # 第一次解�?
         result1 = parameterizer.parse("${random.number}")
-        # 第二次解析相同参数
+        # 第二次解析相同参�?
         result2 = parameterizer.parse("${random.number}")
-        # 应该使用缓存，结果相同
+        # 应该使用缓存，结果相�?
         assert result1 == result2
 
     def test_parse_multiple_different_params(self, parameterizer):
@@ -314,7 +314,7 @@ class TestParameterContextCoverage:
     """参数上下文覆盖率测试"""
 
     def test_context_with_user_id(self):
-        """测试上下文 - 带用户ID"""
+        """测试上下�?- 带用户ID"""
         context = ParameterContext(
             execution_id="test-001",
             user_id=123,
@@ -324,7 +324,7 @@ class TestParameterContextCoverage:
         assert context.project_id is None
 
     def test_context_with_project_id(self):
-        """测试上下文 - 带项目ID"""
+        """测试上下�?- 带项目ID"""
         context = ParameterContext(
             execution_id="test-001",
             user_id=None,
@@ -334,7 +334,7 @@ class TestParameterContextCoverage:
         assert context.project_id == 456
 
     def test_context_with_both_ids(self):
-        """测试上下文 - 带用户ID和项目ID"""
+        """测试上下�?- 带用户ID和项目ID"""
         context = ParameterContext(
             execution_id="test-001",
             user_id=123,
@@ -359,14 +359,14 @@ class TestConvenienceFunctions:
         assert "${execution.id}" not in result
 
     def test_create_parameter_context_default(self):
-        """测试创建上下文 - 默认参数"""
+        """测试创建上下�?- 默认参数"""
         context = create_parameter_context()
         assert context.execution_id.startswith("EXEC_")
         assert context.user_id is None
         assert context.project_id is None
 
     def test_create_parameter_context_with_params(self):
-        """测试创建上下文 - 带参数"""
+        """测试创建上下�?- 带参�?""
         context = create_parameter_context(
             execution_id="custom-id",
             user_id=123,

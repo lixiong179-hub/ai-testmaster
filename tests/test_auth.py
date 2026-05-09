@@ -1,6 +1,6 @@
 """
 认证模块单元测试
-测试JWT工具函数和认证端点
+测试JWT工具函数和认证端�?
 """
 import pytest
 from datetime import timedelta
@@ -19,15 +19,15 @@ from app.utils.jwt_utils import (
 from app.core.exception import AuthenticationError
 
 
-# 创建测试客户端
+# 创建测试客户�?
 client = TestClient(app)
 
 
 class TestJWTUtils:
-    """JWT工具函数测试类"""
+    """JWT工具函数测试�?""
     
     def test_password_hash(self):
-        """测试密码加密和验证"""
+        """测试密码加密和验�?""
         password = "test_password123"
         hashed = get_password_hash(password)
         
@@ -104,7 +104,7 @@ class TestJWTUtils:
 
 
 class TestAuthEndpoints:
-    """认证端点测试类"""
+    """认证端点测试�?""
     
     def test_login_success(self):
         """测试登录成功"""
@@ -199,7 +199,7 @@ class TestHealthEndpoint:
     """健康检查端点测试类"""
     
     def test_health_check(self):
-        """测试健康检查接口"""
+        """测试健康检查接�?""
         response = client.get("/health")
         
         assert response.status_code == 200
@@ -209,7 +209,7 @@ class TestHealthEndpoint:
         assert "environment" in data
     
     def test_root_endpoint(self):
-        """测试根路径接口"""
+        """测试根路径接�?""
         response = client.get("/")
         
         assert response.status_code == 200

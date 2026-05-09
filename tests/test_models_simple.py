@@ -1,6 +1,6 @@
 """
 数据模型简单覆盖率测试
-测试模型类的基本结构和字段
+测试模型类的基本结构和字�?
 """
 import sys
 import os
@@ -25,7 +25,7 @@ class TestProjectModelStructure(unittest.TestCase):
         from app.models.project import Project
         from sqlalchemy import inspect
         
-        # 检查关键字段存在
+        # 检查关键字段存�?
         self.assertTrue(hasattr(Project, 'id'))
         self.assertTrue(hasattr(Project, 'name'))
         self.assertTrue(hasattr(Project, 'description'))
@@ -47,10 +47,10 @@ class TestTestCaseModelStructure(unittest.TestCase):
 
 
 class TestTestPointModelStructure(unittest.TestCase):
-    """测试测试点模型结构"""
+    """测试测试点模型结�?""
     
     def test_test_point_import(self):
-        """测试测试点模型可以导入"""
+        """测试测试点模型可以导�?""
         from app.models.test_point import TestPoint
         self.assertTrue(hasattr(TestPoint, '__tablename__'))
 
@@ -104,7 +104,7 @@ class TestModelsInit(unittest.TestCase):
     """测试模型包初始化"""
     
     def test_models_package_import(self):
-        """测试模型包可以导入"""
+        """测试模型包可以导�?""
         from app.db.database import Base
         self.assertIsNotNone(Base)
 

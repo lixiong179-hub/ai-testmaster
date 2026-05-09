@@ -118,7 +118,7 @@ async def login(
                 password = json_data.get("password")
                 captcha_id = captcha_id or json_data.get("captcha_id")
                 captcha_code = captcha_code or json_data.get("captcha_code")
-            except:
+            except (ValueError, KeyError):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="参数验证失败"

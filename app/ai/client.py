@@ -43,7 +43,7 @@ class AIResponse:
         content: 原始文本响应
         parsed: 解析后的结构化数据（如 JSON 对象），可选
         usage: Token 用量统计
-        model_version: 实际使用的模型标识（如 "deepseek-chat"）
+        model_version: 实际使用的模型标识（如 "deepseek-v4-flash"）
         latency_ms: 调用耗时（毫秒）
         raw_response: 原始 API 响应对象，可选（调试用）
         degraded: 是否由 fallback 模型生成

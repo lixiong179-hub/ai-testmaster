@@ -306,6 +306,10 @@ class BackwardScanService:
                     "AI 返回校验失败 (attempt {}/{}): {}",
                     attempt, MAX_BATCH_RETRIES, result.errors,
                 )
+                _record_json_validation_failure(
+                    step_name="backward_scan",
+                    detail={"attempt": attempt, "errors": result.errors[:3]},
+                )
             except Exception as e:
                 logger.warning(
                     "AI 调用异常 (attempt {}/{}): {}",
@@ -407,3 +411,15 @@ def _compute_scan_confidence(verdicts: List[BackwardCaseVerdict]) -> float:
 
     certain = sum(1 for v in verdicts if v.verdict != BackwardVerdict.UNCERTAIN)
     return certain / len(verdicts)
+
+
+def _record_json_validation_failure(
+    step_name: str,
+    detail: Optional[Dict[str, Any]] = None,
+) -> None:
+    """记录 F2 JSON 校验失败指标（失败不阻塞业务）。"""
+    try:
+        from app.services.metrics_service import record_metric
+        record_metric("json_validation_failure", step_name=step_name, detail=detail)
+    except Exception:
+        pass

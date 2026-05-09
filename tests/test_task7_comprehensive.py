@@ -8,7 +8,7 @@ Task 7 综合单元测试
 - ExecutionReplayService
 
 注意: 使用真实MySQL数据库，不使用Mock
-覆盖率目标: >= 95%
+覆盖率目�? >= 95%
 """
 import pytest
 import asyncio
@@ -23,7 +23,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 from app.db.database import Base
 
-# 导入所有模型
+# 导入所有模�?
 from app.models import (
     User, Project, TestTask, TestCase, TestPoint,
     TestStep, TestData, TestResult, TestReport, ElementLocator,
@@ -86,7 +86,7 @@ def test_project(db_session, test_user):
     project = Project(
         id=10000,
         name="Task7测试项目",
-        description="用于Task7测试的项目",
+        description="用于Task7测试的项�?,
         user_id=test_user.id
     )
     db_session.add(project)
@@ -172,7 +172,7 @@ def replay_service():
 # ==================== VideoRecord模型测试 ====================
 
 class TestVideoRecordModel:
-    """VideoRecord模型测试类"""
+    """VideoRecord模型测试�?""
     
     def test_video_record_creation(self, db_session, test_task, test_case):
         """测试VideoRecord创建"""
@@ -225,7 +225,7 @@ class TestVideoRecordModel:
         db_session.commit()
     
     def test_video_record_file_size_human(self, db_session, test_task, test_case):
-        """测试file_size_human属性"""
+        """测试file_size_human属�?""
         test_cases = [
             (512, "512.00 B"),
             (1024, "1.00 KB"),
@@ -253,10 +253,10 @@ class TestVideoRecordModel:
 # ==================== VideoService测试 ====================
 
 class TestVideoService:
-    """视频服务测试类"""
+    """视频服务测试�?""
     
     def test_service_initialization(self, video_service):
-        """测试服务初始化"""
+        """测试服务初始�?""
         assert video_service is not None
         assert video_service._video_base_dir.exists()
     
@@ -267,8 +267,8 @@ class TestVideoService:
         assert path.suffix == ".webm"
     
     def test_get_video_url(self, video_service):
-        """测试获取视频URL - 使用相对于video_base_dir的路径"""
-        # 创建一个测试视频文件
+        """测试获取视频URL - 使用相对于video_base_dir的路�?""
+        # 创建一个测试视频文�?
         test_video = video_service._video_base_dir / "test_video.webm"
         test_video.touch()
         
@@ -277,7 +277,7 @@ class TestVideoService:
         assert "test_video.webm" in url
     
     def test_video_info_creation(self):
-        """测试VideoInfo创建 - 使用正确的参数"""
+        """测试VideoInfo创建 - 使用正确的参�?""
         info = VideoInfo(
             id=1,
             task_id=1,
@@ -291,7 +291,7 @@ class TestVideoService:
         assert info.file_size == 1024
     
     def test_video_info_to_dict(self):
-        """测试VideoInfo转字典"""
+        """测试VideoInfo转字�?""
         info = VideoInfo(
             id=1,
             task_id=1,
@@ -306,7 +306,7 @@ class TestVideoService:
         assert "file_size_human" in info_dict
     
     def test_check_ffmpeg_available(self, video_service):
-        """测试ffmpeg可用性检查 - 异步方法"""
+        """测试ffmpeg可用性检�?- 异步方法"""
         # 使用asyncio.run运行异步方法
         result = asyncio.run(video_service._check_ffmpeg_available())
         assert isinstance(result, bool)
@@ -315,16 +315,16 @@ class TestVideoService:
 # ==================== VisibilityConfigService测试 ====================
 
 class TestVisibilityConfigService:
-    """可见模式配置服务测试类"""
+    """可见模式配置服务测试�?""
     
     def test_service_initialization(self, visibility_service):
-        """测试服务初始化"""
+        """测试服务初始�?""
         assert visibility_service is not None
-        # 使用类常量而不是实例属性
+        # 使用类常量而不是实例属�?
         assert VisibilityConfigService.DEFAULT_GLOBAL_CONFIG is not None
     
     def test_default_config_values(self):
-        """测试默认配置值 - 使用VisibilityConfig对象"""
+        """测试默认配置�?- 使用VisibilityConfig对象"""
         config = VisibilityConfigService.DEFAULT_GLOBAL_CONFIG
         assert config.headless == True  # 默认无头模式
         assert config.record_video == False
@@ -334,17 +334,17 @@ class TestVisibilityConfigService:
     def test_get_global_config(self, visibility_service):
         """测试获取全局配置 - 返回VisibilityConfig对象"""
         config = visibility_service.get_global_config()
-        # 返回的是VisibilityConfig对象，不是字典
+        # 返回的是VisibilityConfig对象，不是字�?
         assert hasattr(config, "headless")
         assert hasattr(config, "record_video")
         assert hasattr(config, "video_resolution")
-        # 可以转换为字典
+        # 可以转换为字�?
         config_dict = config.to_dict()
         assert "headless" in config_dict
         assert "record_video" in config_dict
     
     def test_visibility_config_to_dict(self):
-        """测试VisibilityConfig转字典"""
+        """测试VisibilityConfig转字�?""
         config = VisibilityConfig(
             headless=False,
             record_video=True,
@@ -381,7 +381,7 @@ class TestVisibilityConfigService:
 # ==================== ExecutionReplayService测试 ====================
 
 class TestExecutionReplayService:
-    """执行回放服务测试类"""
+    """执行回放服务测试�?""
     
     def test_replay_event_creation(self):
         """测试回放事件创建"""
@@ -394,7 +394,7 @@ class TestExecutionReplayService:
         assert event.event_type == "click"
     
     def test_replay_event_to_dict(self):
-        """测试ReplayEvent转字典"""
+        """测试ReplayEvent转字�?""
         event = ReplayEvent(
             timestamp=1.5,
             event_type="input",
@@ -405,7 +405,7 @@ class TestExecutionReplayService:
         assert event_dict["event_type"] == "input"
     
     def test_execution_timeline_creation(self):
-        """测试执行时间线创建"""
+        """测试执行时间线创�?""
         timeline = ExecutionTimeline(
             execution_id="test_exec_001",
             start_time=datetime.utcnow(),
@@ -417,7 +417,7 @@ class TestExecutionReplayService:
         assert timeline.events == []
     
     def test_execution_timeline_to_dict(self):
-        """测试ExecutionTimeline转字典"""
+        """测试ExecutionTimeline转字�?""
         timeline = ExecutionTimeline(
             execution_id="test_exec_001",
             start_time=datetime.utcnow(),
@@ -433,10 +433,10 @@ class TestExecutionReplayService:
 # ==================== 集成测试 ====================
 
 class TestTask7Integration:
-    """Task 7集成测试类"""
+    """Task 7集成测试�?""
     
     def test_video_record_workflow(self, db_session, test_task, test_case):
-        """测试视频记录完整工作流"""
+        """测试视频记录完整工作�?""
         # 1. 创建视频记录
         video = VideoRecord(
             id=10050,
@@ -459,7 +459,7 @@ class TestTask7Integration:
         assert result is not None
         assert result.file_size == 1024000
         
-        # 3. 更新状态
+        # 3. 更新状�?
         result.status = "archived"
         db_session.commit()
         
@@ -474,12 +474,12 @@ class TestTask7Integration:
         assert deleted is None
     
     def test_services_integration(self, video_service, visibility_service):
-        """测试服务间集成"""
-        # 验证所有服务可以共存
+        """测试服务间集�?""
+        # 验证所有服务可以共�?
         assert video_service is not None
         assert visibility_service is not None
         
-        # 验证各服务配置
+        # 验证各服务配�?
         config = visibility_service.get_global_config()
         assert config.headless == True  # 默认无头模式
         

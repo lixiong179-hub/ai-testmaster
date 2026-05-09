@@ -1,19 +1,19 @@
 """M3-T01 ReverseInfer Step 单元测试
 
-覆盖：
+覆盖�?
     - should_run / cache_key / validate_output / fallback
-    - execute 新项目模式（仅有 UI，无历史指纹）
-    - execute 旧项目模式（UI + 历史指纹）
+    - execute 新项目模式（仅有 UI，无历史指纹�?
+    - execute 旧项目模式（UI + 历史指纹�?
     - execute 缺少 raw_signals / project_id / UI
-    - AI 返回解析：有效 JSON / 无效 JSON / 数组回退
+    - AI 返回解析：有�?JSON / 无效 JSON / 数组回退
     - pause_for_confirmation 低置信度触发
     - _parse_infer_response / _validate_new_project_output / _validate_old_project_output
     - _build_ui_text / _build_fingerprint_text
     - _hash_dict / _clamp_float
-    - 新项目校验：缺 overall_confidence / 缺 capability 字段 / 非数组
-    - 旧项目校验：缺 change_summary / change_summary 非对象 / 子字段非数组
+    - 新项目校验：�?overall_confidence / �?capability 字段 / 非数�?
+    - 旧项目校验：�?change_summary / change_summary 非对�?/ 子字段非数组
 
-使用真实 MySQL 数据库 + MockAIClient。
+使用真实 MySQL 数据�?+ MockAIClient�?
 """
 import json
 import pytest
@@ -43,19 +43,19 @@ def _make_raw_signals(project_id: int, **overrides) -> dict:
         "ui_descriptions": [
             {
                 "screen_id": 1,
-                "screen_name": "登录页",
+                "screen_name": "登录�?,
                 "description": "用户输入账号密码登录",
             },
             {
                 "screen_id": 2,
-                "screen_name": "注册页",
-                "description": "新用户填写信息注册",
+                "screen_name": "注册�?,
+                "description": "新用户填写信息注�?,
             },
         ],
         "ui_specs": [
             {
                 "screen_id": 1,
-                "screen_name": "登录页",
+                "screen_name": "登录�?,
                 "ui_spec": {
                     "components": [
                         {"type": "input", "name": "username"},
@@ -66,7 +66,7 @@ def _make_raw_signals(project_id: int, **overrides) -> dict:
             },
             {
                 "screen_id": 2,
-                "screen_name": "注册页",
+                "screen_name": "注册�?,
                 "ui_spec": {
                     "components": [
                         {"type": "input", "name": "email"},
@@ -277,12 +277,12 @@ class TestExecuteNewProject:
             "uncertain_questions": [
                 {
                     "question": "登录失败是否有锁定机制？",
-                    "context": "登录页",
+                    "context": "登录�?,
                     "suggested_answer": "通常3次失败后锁定30分钟",
                 }
             ],
             "overall_confidence": 0.85,
-            "analysis_summary": "系统包含用户认证和注册两大核心能力",
+            "analysis_summary": "系统包含用户认证和注册两大核心能�?,
         })
         step = ReverseInfer()
         ctx = make_ctx(raw_signals_payload=_make_raw_signals(1))
@@ -304,7 +304,7 @@ class TestExecuteNewProject:
                     "key": "user_auth",
                     "description": "用户通过账号密码登录",
                     "confidence": 0.9,
-                    "supporting_evidence": "登录页控件",
+                    "supporting_evidence": "登录页控�?,
                 }
             ],
             "uncertain_questions": [],
@@ -324,7 +324,7 @@ class TestExecuteNewProject:
                 {
                     "name": "未知功能",
                     "key": "unknown",
-                    "description": "无法确定的功能",
+                    "description": "无法确定的功�?,
                     "confidence": 0.3,
                     "supporting_evidence": "模糊的UI元素",
                 }
@@ -354,7 +354,7 @@ class TestExecuteNewProject:
         ctx = make_ctx(raw_signals_payload=signals)
         result = step.execute(ctx)
         assert result.success is False
-        assert "无 UI 信息" in (result.error or "")
+        assert "�?UI 信息" in (result.error or "")
 
     def test_invalid_json_response(self, make_ctx, mock_ai):
         mock_ai.set_response("reverse_infer", "not valid json at all")
@@ -362,7 +362,7 @@ class TestExecuteNewProject:
         ctx = make_ctx(raw_signals_payload=_make_raw_signals(1))
         result = step.execute(ctx)
         assert result.success is False
-        assert "非有效 JSON" in (result.error or "")
+        assert "非有�?JSON" in (result.error or "")
 
     def test_missing_signals(self, make_ctx):
         step = ReverseInfer()
@@ -387,11 +387,11 @@ class TestExecuteOldProject:
             "change_summary": {
                 "new_capabilities": [
                     {
-                        "name": "验证码校验",
+                        "name": "验证码校�?,
                         "key": "captcha_verify",
-                        "description": "登录时需输入图形验证码",
+                        "description": "登录时需输入图形验证�?,
                         "confidence": 0.9,
-                        "supporting_evidence": "登录页新增captcha输入框和验证码图片",
+                        "supporting_evidence": "登录页新增captcha输入框和验证码图�?,
                     }
                 ],
                 "modified_capabilities": [
@@ -399,19 +399,19 @@ class TestExecuteOldProject:
                         "old_key": "user_auth",
                         "old_name": "用户认证",
                         "new_name": "用户认证",
-                        "change_description": "登录流程增加验证码校验步骤",
+                        "change_description": "登录流程增加验证码校验步�?,
                         "change_type": "business_logic",
                         "confidence": 0.85,
                     }
                 ],
                 "removed_capabilities": [],
-                "ui_only_changes": "登录按钮样式从蓝色变为绿色",
+                "ui_only_changes": "登录按钮样式从蓝色变为绿�?,
             },
             "uncertain_questions": [
                 {
-                    "question": "验证码是否有失效时间？",
-                    "context": "登录页",
-                    "suggested_answer": "通常60秒失效",
+                    "question": "验证码是否有失效时间�?,
+                    "context": "登录�?,
+                    "suggested_answer": "通常60秒失�?,
                 }
             ],
             "overall_confidence": 0.85,
@@ -441,7 +441,7 @@ class TestExecuteOldProject:
                 "ui_only_changes": "",
             },
             "uncertain_questions": [
-                {"question": "完全不确定变更内容", "context": "全部页面", "suggested_answer": ""},
+                {"question": "完全不确定变更内�?, "context": "全部页面", "suggested_answer": ""},
             ],
             "overall_confidence": 0.3,
             "analysis_summary": "无法确定变更",
@@ -466,7 +466,7 @@ class TestExecuteOldProject:
                     "key": "user_auth",
                     "description": "用户登录",
                     "confidence": 0.9,
-                    "supporting_evidence": "登录页控件",
+                    "supporting_evidence": "登录页控�?,
                 }
             ],
             "uncertain_questions": [],
@@ -489,7 +489,7 @@ class TestExecuteOldProject:
         assert result.artifact_payload["mode"] == "new_project"
 
 
-# ==================== 纯函数测试 ====================
+# ==================== 纯函数测�?====================
 
 class TestHashDict:
     def test_dict(self):
@@ -528,8 +528,8 @@ class TestBuildUiText:
     def test_with_descriptions_and_specs(self):
         signals = _make_raw_signals(1)
         text = _build_ui_text(signals["ui_descriptions"], signals["ui_specs"])
-        assert "登录页" in text
-        assert "注册页" in text
+        assert "登录�? in text
+        assert "注册�? in text
         assert "username" in text
 
     def test_empty(self):
@@ -543,14 +543,14 @@ class TestBuildFingerprintText:
         text = _build_fingerprint_text(fp)
         assert "用户管理" in text
         assert "订单管理" in text
-        assert "旧用例摘要" in text
+        assert "旧用例摘�? in text
 
     def test_none(self):
-        assert _build_fingerprint_text(None) == "（无历史用例指纹）"
+        assert _build_fingerprint_text(None) == "（无历史用例指纹�?
 
     def test_empty_list(self):
         fp = {"fingerprints": [], "total_count": 0}
-        assert _build_fingerprint_text(fp) == "（无历史用例指纹）"
+        assert _build_fingerprint_text(fp) == "（无历史用例指纹�?
 
 
 class TestParseInferResponse:
@@ -568,7 +568,7 @@ class TestParseInferResponse:
         assert _parse_infer_response("not json") is None
 
     def test_json_in_text(self):
-        parsed = _parse_infer_response('一些文本 {"overall_confidence": 0.7} 更多文本')
+        parsed = _parse_infer_response('一些文�?{"overall_confidence": 0.7} 更多文本')
         assert parsed is not None
         assert parsed["overall_confidence"] == 0.7
 

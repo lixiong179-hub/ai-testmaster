@@ -21,6 +21,17 @@
       </template>
     </el-upload>
 
+    <!-- 资源名称输入框（仅图片上传时显示） -->
+    <div v-if="previewList.length > 0 && isAllImages" class="resource-name-input">
+      <span class="name-label">资源名称：</span>
+      <el-input
+        v-model="prototypeName"
+        placeholder="请输入资源名称（用于UI原型项目汇总展示）"
+        size="small"
+        style="flex: 1"
+      />
+    </div>
+
     <!-- 全局资源类型覆盖 + 清空 -->
     <div v-if="previewList.length > 0" class="global-override">
       <span class="override-label">统一资源类型：</span>
@@ -56,12 +67,7 @@
 
     <!-- 上传按钮 -->
     <div v-if="showUploadButton && previewList.length > 0" class="upload-actions">
-      <el-button
-        type="primary"
-        :loading="uploading"
-        :disabled="!projectId"
-        @click="handleUpload"
-      >
+      <el-button type="primary" :loading="uploading" :disabled="!projectId" @click="handleUpload">
         开始上传（{{ previewList.length }}个文件）
       </el-button>
     </div>
@@ -73,12 +79,15 @@ import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { fileApi, type FileBatchUploadResponse } from '@/api/file'
+import { uiPrototypeApi } from '@/api/uiPrototype'
 import {
   RESOURCE_TYPE_OPTIONS,
   RESOURCE_TYPE_TAG_MAP,
   detectResourceType,
   getResourceTypeLabel,
 } from '@/constants/resource'
+
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'])
 
 /** 预览项 */
 interface PreviewItem {
@@ -111,7 +120,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (e: 'success', data: FileBatchUploadResponse): void
+  (e: 'success', data: FileBatchUploadResponse | Record<string, unknown>): void
   (e: 'error', error: unknown): void
 }>()
 
@@ -119,6 +128,7 @@ const uploadRef = ref()
 const previewList = ref<PreviewItem[]>([])
 const uploading = ref(false)
 const globalResourceType = ref('')
+const prototypeName = ref('')
 
 const computedAccept = computed(
   () =>
@@ -149,6 +159,10 @@ const handleFileChange = (
       effectiveType: globalResourceType.value || detected,
     }
   })
+
+  if (isAllImages.value && !prototypeName.value && previewList.value.length > 0) {
+    prototypeName.value = previewList.value[0].name.replace(/\.[^.]+$/, '')
+  }
 }
 
 /** 文件数量超限 */
@@ -167,7 +181,29 @@ watch(globalResourceType, (val) => {
 const clearFiles = (): void => {
   previewList.value = []
   globalResourceType.value = ''
+  prototypeName.value = ''
   uploadRef.value?.clearFiles()
+}
+
+/** 检测是否所有文件均为图片类型 */
+const isAllImages = computed<boolean>(
+  () =>
+    previewList.value.length > 0 &&
+    previewList.value.every((item) => {
+      const ext = item.name.split('.').pop()?.toLowerCase() ?? ''
+      return IMAGE_EXTENSIONS.has(ext)
+    })
+)
+
+/** 获取原型名称 */
+const getPrototypeName = (): string => {
+  if (prototypeName.value) {
+    return prototypeName.value
+  }
+  if (globalResourceType.value === 'ui_mockup' && previewList.value.length > 0) {
+    return previewList.value[0].name.replace(/\.[^.]+$/, '')
+  }
+  return 'UI原型图'
 }
 
 /** 执行上传 */
@@ -184,13 +220,26 @@ const handleUpload = async (): Promise<FileBatchUploadResponse | null> => {
   uploading.value = true
   try {
     const files = previewList.value.map((item) => item.raw)
-    const resourceType = globalResourceType.value || 'other'
-    // iteration_id: null/undefined/0 均不传，后端默认为 NULL（未关联迭代）
     const iterationIdParam =
-      props.iterationId != null && props.iterationId > 0
-        ? props.iterationId
-        : undefined
+      props.iterationId != null && props.iterationId >= 0 ? props.iterationId : undefined
 
+    if (isAllImages.value) {
+      const response = await uiPrototypeApi.uploadUIScreens(
+        props.projectId as number,
+        files,
+        getPrototypeName(),
+        undefined,
+        iterationIdParam
+      )
+      const result = response?.data ?? response
+      const total = (result as Record<string, unknown>)?.total ?? 0
+      ElMessage.success(`成功创建UI原型项目，包含 ${total} 张图片`)
+      emit('success', response as unknown as Record<string, unknown>)
+      clearFiles()
+      return null
+    }
+
+    const resourceType = globalResourceType.value || 'other'
     const response = await fileApi.batchUploadFiles(
       props.projectId as number,
       files,
@@ -214,7 +263,7 @@ const handleUpload = async (): Promise<FileBatchUploadResponse | null> => {
     clearFiles()
     return response
   } catch (error: unknown) {
-    ElMessage.error('批量上传失败')
+    ElMessage.error(isAllImages.value ? 'UI原型图上传失败' : '批量上传失败')
     emit('error', error)
     return null
   } finally {
@@ -231,6 +280,22 @@ defineExpose({ upload: handleUpload, clearFiles, fileCount, uploading })
 <style scoped>
 .requirement-uploader {
   width: 100%;
+}
+
+.resource-name-input {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  gap: 8px;
+}
+
+.name-label {
+  font-size: 13px;
+  color: #606266;
+  white-space: nowrap;
 }
 
 .global-override {

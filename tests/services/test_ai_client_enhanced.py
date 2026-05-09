@@ -3,10 +3,10 @@ AI客户端JSON解析增强单元测试
 
 覆盖范围（基于真实AI返回的损坏格式）:
 - clean_json_string() 6种修复策略逐一验证
-- extract_json_objects_fallback() 增强版4层解析
+- extract_json_objects_fallback() 增强�?层解�?
 - parse_test_point_object() 边界情况
 - extract_value() 类型覆盖
-- 真实损坏场景复现（本次核心bug修复验证）
+- 真实损坏场景复现（本次核心bug修复验证�?
 - fix_common_json_issues() 通用修复
 """
 import pytest
@@ -30,7 +30,7 @@ def ai_client():
 class TestCleanJsonStringSixStrategies:
 
     def test_strategy0_valid_json_passthrough(self):
-        valid = '{"module": "登录", "function": "验证", "point": "测试点描述", "priority": 1}'
+        valid = '{"module": "登录", "function": "验证", "point": "测试点描�?, "priority": 1}'
         result = clean_json_string(valid)
         assert result == valid
         parsed = json.loads(result)
@@ -69,7 +69,7 @@ class TestCleanJsonStringSixStrategies:
                 pass
 
     def test_strategy5_missing_key_quote(self):
-        input_str = '{module": "登录", function": "验证", "point": "测试点"}'
+        input_str = '{module": "登录", function": "验证", "point": "测试�?}'
         result = clean_json_string(input_str)
         if result:
             parsed = json.loads(result)
@@ -100,7 +100,7 @@ class TestCleanJsonStringEdgeCases:
             assert '\x08' not in parsed['key']
 
     def test_unicode_content(self):
-        input_str = '{"module": "用户管理🔐", "function": "登录✅", "point": "中文测试点描述"}'
+        input_str = '{"module": "用户管理🔐", "function": "登录�?, "point": "中文测试点描�?}'
         result = clean_json_string(input_str)
         assert result is not None
         parsed = json.loads(result)
@@ -130,23 +130,23 @@ class TestExtractFallbackRealWorldScenarios:
 
     def test_scenario_1_missing_quotes_on_keys(self):
         content = '''[
-  {module: "链接管理模块", function: 新增"添加人"字段", point: 验证在黑白名单链接列表中新增的添加人列正确显示, priority: 1},
-  {module: "链接管理模块", function: 新增"添加人"字段", point: 验证添加新链接时添加人字段自动填充为当前执行操作的用户身份, priority: 1}
+  {module: "链接管理模块", function: 新增"添加�?字段", point: 验证在黑白名单链接列表中新增的添加人列正确显�? priority: 1},
+  {module: "链接管理模块", function: 新增"添加�?字段", point: 验证添加新链接时添加人字段自动填充为当前执行操作的用户身�? priority: 1}
 ]'''
         results = extract_json_objects_fallback(content)
         assert isinstance(results, list)
 
     def test_scenario_2_concatenated_objects_no_comma(self):
         content = '''[
-{"module": "用户管理", "function": "登录功能", "point": "验证正确用户名密码可以成功登录系统", "priority": 1}
-{"module": "用户管理", "function": "登录功能", "point": "验证错误密码三次后锁定账户30分钟", "priority": 2}
+{"module": "用户管理", "function": "登录功能", "point": "验证正确用户名密码可以成功登录系�?, "priority": 1}
+{"module": "用户管理", "function": "登录功能", "point": "验证错误密码三次后锁定账�?0分钟", "priority": 2}
 {"module": "用户管理", "function": "登录功能", "point": "验证账号不存在时提示友好错误信息", "priority": 3}
 ]'''
         results = extract_json_objects_fallback(content)
-        assert len(results) >= 2, f"应提取到至少2个测试点，实际: {len(results)}"
+        assert len(results) >= 2, f"应提取到至少2个测试点，实�? {len(results)}"
 
     def test_scenario_3_mixed_quotes_and_missing_commas(self):
-        content = '''[{module:"订单管理",function:"创建订单",point:"验证用户可以成功创建新订单并生成订单号",priority:1}{module:"订单管理",function:"支付订单",point:"验证支付金额与订单金额一致",priority:1}]'''
+        content = '''[{module:"订单管理",function:"创建订单",point:"验证用户可以成功创建新订单并生成订单�?,priority:1}{module:"订单管理",function:"支付订单",point:"验证支付金额与订单金额一�?,priority:1}]'''
         results = extract_json_objects_fallback(content)
         assert isinstance(results, list)
 
@@ -154,17 +154,17 @@ class TestExtractFallbackRealWorldScenarios:
         content = '''{
 "module": "商品管理",
 "function": "商品搜索",
-"point": "验证输入关键词可以搜索到匹配的商品列表",
+"point": "验证输入关键词可以搜索到匹配的商品列�?,
 "priority": 1
 }
 {
 "module": "商品管理",
 "function": "商品详情",
-"point": "验证点击商品可以查看完整的商品详细信息",
+"point": "验证点击商品可以查看完整的商品详细信�?,
 "priority": 2
 }'''
         results = extract_json_objects_fallback(content)
-        assert len(results) >= 1, f"逐行格式应能提取，实际: {len(results)}"
+        assert len(results) >= 1, f"逐行格式应能提取，实�? {len(results)}"
 
     def test_scenario_5_ai_text_surrounding_json(self):
         content = '''根据需求文档分析，以下是提取的测试点：
@@ -173,20 +173,20 @@ class TestExtractFallbackRealWorldScenarios:
   {
     "module": "权限管理",
     "function": "角色分配",
-    "point": "验证管理员可以为用户分配正确的角色权限",
+    "point": "验证管理员可以为用户分配正确的角色权�?,
     "priority": 1
   }
 ]
 
-以上测试点覆盖了核心业务流程。'''
+以上测试点覆盖了核心业务流程�?''
         results = extract_json_objects_fallback(content)
         assert len(results) >= 1
 
     def test_scenario_6_markdown_code_block(self):
         content = '''```json
 [
-  {"module": "报告模块", "function": "导出Excel", "point": "验证导出的Excel数据与页面展示一致", "priority": 1},
-  {"module": "报告模块", "function": "打印预览", "point": "验证打印预览格式与实际打印一致", "priority": 2}
+  {"module": "报告模块", "function": "导出Excel", "point": "验证导出的Excel数据与页面展示一�?, "priority": 1},
+  {"module": "报告模块", "function": "打印预览", "point": "验证打印预览格式与实际打印一�?, "priority": 2}
 ]
 ```'''
         results = extract_json_objects_fallback(content)
@@ -194,7 +194,7 @@ class TestExtractFallbackRealWorldScenarios:
 
     def test_scenario_7_special_chars_in_chinese_quotes(self):
         content = '''[
-  {"module": "设置模块", "function": "通知设置", "point": "验证开启\"推送通知\"后可以收到消息推送", "priority": 1},
+  {"module": "设置模块", "function": "通知设置", "point": "验证开启\"推送通知\"后可以收到消息推�?, "priority": 1},
   {"module": "设置模块", "function": "隐私设置", "point": "验证隐藏手机号中间四位显示为****", "priority": 2}
 ]'''
         results = extract_json_objects_fallback(content)
@@ -206,12 +206,12 @@ class TestExtractFallbackRealWorldScenarios:
             points.append(f'''{{
 "module": "模块{i}",
 "function": "功能{i}",
-"point": "这是第{i}个测试点的详细描述用于验证批量提取能力",
+"point": "这是第{i}个测试点的详细描述用于验证批量提取能�?,
 "priority": {(i % 3) + 1}
 }}''')
         content = '[\n' + ',\n'.join(points) + '\n]'
         results = extract_json_objects_fallback(content)
-        assert len(results) >= 10, f"大批量应提取到>=10个，实际: {len(results)}"
+        assert len(results) >= 10, f"大批量应提取�?=10个，实际: {len(results)}"
 
 
 class TestExtractFallbackMethodCoverage:
@@ -230,8 +230,8 @@ class TestExtractFallbackMethodCoverage:
         assert len(results) >= 1
 
     def test_method2_regex_point_extraction(self):
-        content = '''一些文本
-{"module": "M1", "function": "F1", "point": "这是一个测试点描述应该被提取出来", "priority": 1}
+        content = '''一些文�?
+{"module": "M1", "function": "F1", "point": "这是一个测试点描述应该被提取出�?, "priority": 1}
 更多文本内容
 {"module": "M2", "function": "F2", "point": "另一个测试点也应该被提取", "priority": 2}
 结尾文本'''
@@ -250,13 +250,13 @@ class TestExtractFallbackMethodCoverage:
 
     def test_all_methods_run_before_return(self):
         content = '''[
-{module: "坏格式1", point: "点1", priority: 1}
-{module: "坏格式2", point: "点2", priority: 2}
-无效文本行
+{module: "坏格�?", point: "�?", priority: 1}
+{module: "坏格�?", point: "�?", priority: 2}
+无效文本�?
 "point": "独立的点3"
 {
 "module": "独立对象",
-"point": "点4",
+"point": "�?",
 "priority": 3
 }
 ]'''
@@ -276,10 +276,10 @@ class TestParseTestPointObjectDetailed:
         assert result['priority'] == 1
 
     def test_module_optional(self):
-        text = '{"function": "F", "point": "有point就够了", "priority": 2}'
+        text = '{"function": "F", "point": "有point就够�?, "priority": 2}'
         result = parse_test_point_object(text)
         assert result is not None
-        assert result['point'] == '有point就够了'
+        assert result['point'] == '有point就够�?
 
     def test_function_optional(self):
         text = '{"module": "M", "point": "只需要point", "priority": 1}'
@@ -304,14 +304,14 @@ class TestParseTestPointObjectDetailed:
     def test_multiline_point(self):
         text = '''{
 "module": "M",
-"point": "第一行描述
-第二行描述
-第三行描述",
+"point": "第一行描�?
+第二行描�?
+第三行描�?,
 "priority": 1
 }'''
         result = parse_test_point_object(text)
         assert result is not None
-        assert '第一行' in result['point']
+        assert '第一�? in result['point']
 
     def test_garbage_input_returns_none(self):
         assert parse_test_point_object("") is None
@@ -417,7 +417,7 @@ class TestContentProtection:
             results = extract_json_objects_fallback(content)
             assert isinstance(results, list)
         except Exception as e:
-            pytest.fail(f"超大内容不应抛异常: {e}")
+            pytest.fail(f"超大内容不应抛异�? {e}")
 
     def test_empty_content(self):
         assert extract_json_objects_fallback('') == []

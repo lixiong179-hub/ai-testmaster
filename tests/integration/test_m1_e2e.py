@@ -1,15 +1,15 @@
-"""M1 集成测试 — 场景 1 + 场景 2 端到端验证
+"""M1 集成测试 �?场景 1 + 场景 2 端到端验�?
 
 覆盖范围:
-    - 场景 1（PRD + 测试点 + UI）：完整 Pipeline 跑通，生成 active 用例
-    - 场景 2（PRD + 测试点，无 UI）：完整 Pipeline 跑通，生成 draft 用例
-    - Pipeline 运行状态验证（completed）
-    - 产物验证（raw_signals / aligned_testpoints / generated_cases / quality_scores）
+    - 场景 1（PRD + 测试�?+ UI）：完整 Pipeline 跑通，生成 active 用例
+    - 场景 2（PRD + 测试点，�?UI）：完整 Pipeline 跑通，生成 draft 用例
+    - Pipeline 运行状态验证（completed�?
+    - 产物验证（raw_signals / aligned_testpoints / generated_cases / quality_scores�?
     - 用例持久化验证（TestCase 表记录）
     - 用例 lifecycle_status 验证
-    - Pipeline 运行记录可查询
+    - Pipeline 运行记录可查�?
 
-使用真实 MySQL 数据库 + MockAIClient，不使用 FastAPI TestClient。
+使用真实 MySQL 数据�?+ MockAIClient，不使用 FastAPI TestClient�?
 """
 import json
 import pytest
@@ -31,24 +31,24 @@ SCENARIO_1_CASES = [
         "module": "登录模块",
         "priority": 1,
         "case_type": "UI",
-        "precondition": "用户已注册",
+        "precondition": "用户已注�?,
         "steps": [
             {"step_no": 1, "action": "打开登录页面", "expected": "显示登录表单", "locator": "#login-form"},
-            {"step_no": 2, "action": "输入用户名和密码", "expected": "输入框显示内容", "locator": "#username"},
-            {"step_no": 3, "action": "点击登录按钮", "expected": "跳转到首页", "locator": "#login-btn"},
+            {"step_no": 2, "action": "输入用户名和密码", "expected": "输入框显示内�?, "locator": "#username"},
+            {"step_no": 3, "action": "点击登录按钮", "expected": "跳转到首�?, "locator": "#login-btn"},
         ],
-        "expected_result": "用户成功登录并跳转首页",
+        "expected_result": "用户成功登录并跳转首�?,
     },
     {
         "title": "密码重置功能验证",
         "module": "登录模块",
         "priority": 2,
         "case_type": "UI",
-        "precondition": "用户已注册",
+        "precondition": "用户已注�?,
         "steps": [
             {"step_no": 1, "action": "点击忘记密码链接", "expected": "显示重置页面", "locator": "#forgot-link"},
         ],
-        "expected_result": "密码重置邮件已发送",
+        "expected_result": "密码重置邮件已发�?,
     },
 ]
 
@@ -58,9 +58,9 @@ SCENARIO_2_CASES = [
         "module": "登录模块",
         "priority": 1,
         "case_type": "API",
-        "precondition": "用户已注册",
+        "precondition": "用户已注�?,
         "steps": [
-            {"step_no": 1, "action": "发送 POST /api/login", "expected": "返回 200 和 token"},
+            {"step_no": 1, "action": "发�?POST /api/login", "expected": "返回 200 �?token"},
         ],
         "expected_result": "接口返回认证令牌",
     },
@@ -117,7 +117,7 @@ def s1_iteration(db, testProject):
     prd_input = IterationInput(
         iteration_id=iteration.id,
         kind="prd",
-        payload={"content": "用户登录模块需求文档：支持用户名密码登录、密码重置功能"},
+        payload={"content": "用户登录模块需求文档：支持用户名密码登录、密码重置功�?},
         content_hash="m1_e2e_s1_prd_hash",
     )
     db.add(prd_input)
@@ -310,8 +310,8 @@ class TestM1CrossScenario:
         db.add_all([iter1, iter2])
         db.flush()
 
-        tp1 = TestPoint(project_id=testProject.id, module="M1", point="场景1测试点", priority=1)
-        tp2 = TestPoint(project_id=testProject.id, module="M1", point="场景2测试点", priority=1)
+        tp1 = TestPoint(project_id=testProject.id, module="M1", point="场景1测试�?, priority=1)
+        tp2 = TestPoint(project_id=testProject.id, module="M1", point="场景2测试�?, priority=1)
         db.add_all([tp1, tp2])
         db.flush()
 

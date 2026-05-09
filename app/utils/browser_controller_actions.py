@@ -21,6 +21,15 @@ class ActionMixin:
 
     @require_initialized
     @handle_browser_errors
+    async def hover(self, x: int, y: int) -> None:
+        if x < 0 or y < 0:
+            raise ValueError(f"坐标必须非负: ({x}, {y})")
+        logger.info(f"悬停坐标: ({x}, {y})")
+        assert self._page is not None
+        await self._page.mouse.move(x, y)
+
+    @require_initialized
+    @handle_browser_errors
     async def click_element(self, selector: str) -> None:
         if not selector:
             raise ValueError("CSS选择器不能为空")

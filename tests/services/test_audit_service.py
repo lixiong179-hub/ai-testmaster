@@ -1,12 +1,12 @@
 """
 M1-T16 Audit Service 测试模块
 
-覆盖：
+覆盖�?
     - log_action 正常写入
-    - log_action 非法 action 抛 ValueError
-    - query_logs 多维度过滤
+    - log_action 非法 action �?ValueError
+    - query_logs 多维度过�?
     - count_logs 统计
-    - AuditLog 不可变性（UPDATE/DELETE 抛 RuntimeError）
+    - AuditLog 不可变性（UPDATE/DELETE �?RuntimeError�?
     - _build_filters 共享逻辑
 """
 import pytest

@@ -37,9 +37,9 @@ class TestCreateCapability:
         assert cap.status == "deprecated"
 
     def test_create_duplicate_key_same_project_raises(self, db, testProject):
-        create_capability(db, project_id=testProject.id, key="dup_key", title="第一个")
+        create_capability(db, project_id=testProject.id, key="dup_key", title="第一�?)
         with pytest.raises(DuplicateCapabilityKeyError):
-            create_capability(db, project_id=testProject.id, key="dup_key", title="第二个")
+            create_capability(db, project_id=testProject.id, key="dup_key", title="第二�?)
 
     def test_create_same_key_different_project_ok(self, db, testProject):
         from app.models.project import Project
@@ -58,8 +58,8 @@ class TestCreateCapability:
         db.add(proj2)
         db.flush()
 
-        create_capability(db, project_id=testProject.id, key="shared_key", title="项目1的能力")
-        cap2 = create_capability(db, project_id=proj2.id, key="shared_key", title="项目2的能力")
+        create_capability(db, project_id=testProject.id, key="shared_key", title="项目1的能�?)
+        cap2 = create_capability(db, project_id=proj2.id, key="shared_key", title="项目2的能�?)
         assert cap2.project_id == proj2.id
 
 
@@ -77,7 +77,7 @@ class TestGetCapability:
 
 
 class TestListCapabilities:
-    """按项目列出能力"""
+    """按项目列出能�?""
 
     def test_list_by_project(self, db, testProject):
         create_capability(db, project_id=testProject.id, key="list_a", title="A")
@@ -97,7 +97,7 @@ class TestListCapabilities:
 
     def test_list_empty_for_new_project(self, db, testProject):
         caps = get_capabilities_by_project(db, project_id=testProject.id)
-        # 可能已有其他测试创建的，但不应包含非本项目数据
+        # 可能已有其他测试创建的，但不应包含非本项目数�?
         for c in caps:
             assert c.project_id == testProject.id
 
@@ -106,18 +106,18 @@ class TestUpdateCapability:
     """更新能力"""
 
     def test_update_title(self, db, testProject):
-        cap = create_capability(db, project_id=testProject.id, key="upd_test", title="旧标题")
-        updated = update_capability(db, cap.id, title="新标题")
-        assert updated.title == "新标题"
+        cap = create_capability(db, project_id=testProject.id, key="upd_test", title="旧标�?)
+        updated = update_capability(db, cap.id, title="新标�?)
+        assert updated.title == "新标�?
 
     def test_update_key_duplicate_raises(self, db, testProject):
-        create_capability(db, project_id=testProject.id, key="existing_key", title="已存在")
-        cap2 = create_capability(db, project_id=testProject.id, key="to_update", title="待更新")
+        create_capability(db, project_id=testProject.id, key="existing_key", title="已存�?)
+        cap2 = create_capability(db, project_id=testProject.id, key="to_update", title="待更�?)
         with pytest.raises(DuplicateCapabilityKeyError):
             update_capability(db, cap2.id, key="existing_key")
 
     def test_update_nonexistent_returns_none(self, db):
-        result = update_capability(db, 99999, title="不存在")
+        result = update_capability(db, 99999, title="不存�?)
         assert result is None
 
 
@@ -125,7 +125,7 @@ class TestDeleteCapability:
     """删除能力"""
 
     def test_delete_success(self, db, testProject):
-        cap = create_capability(db, project_id=testProject.id, key="del_test", title="待删除")
+        cap = create_capability(db, project_id=testProject.id, key="del_test", title="待删�?)
         assert delete_capability(db, cap.id) is True
         assert get_capability_by_id(db, cap.id) is None
 

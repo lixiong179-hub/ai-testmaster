@@ -16,12 +16,7 @@
             >
               确认并继续
             </el-button>
-            <el-button
-              v-if="isPolling"
-              :icon="Loading"
-              circle
-              loading
-            />
+            <el-button v-if="isPolling" :icon="Loading" circle loading />
             <el-button @click="fetchRunData()" :icon="Refresh">刷新</el-button>
           </div>
         </div>
@@ -35,9 +30,15 @@
         <el-descriptions :column="3" border class="run-info">
           <el-descriptions-item label="运行 ID">{{ runData.id }}</el-descriptions-item>
           <el-descriptions-item label="迭代 ID">{{ runData.iteration_id }}</el-descriptions-item>
-          <el-descriptions-item label="Pipeline 版本">{{ runData.pipeline_version }}</el-descriptions-item>
-          <el-descriptions-item label="开始时间">{{ formatTime(runData.started_at) }}</el-descriptions-item>
-          <el-descriptions-item label="结束时间">{{ formatTime(runData.finished_at) }}</el-descriptions-item>
+          <el-descriptions-item label="Pipeline 版本">{{
+            runData.pipeline_version
+          }}</el-descriptions-item>
+          <el-descriptions-item label="开始时间">{{
+            formatTime(runData.started_at)
+          }}</el-descriptions-item>
+          <el-descriptions-item label="结束时间">{{
+            formatTime(runData.finished_at)
+          }}</el-descriptions-item>
           <el-descriptions-item label="耗时">{{ duration }}</el-descriptions-item>
         </el-descriptions>
 
@@ -71,12 +72,7 @@
               >
                 降级
               </el-tag>
-              <el-tag
-                v-if="row.retried_count > 0"
-                type="info"
-                size="small"
-                class="retry-badge"
-              >
+              <el-tag v-if="row.retried_count > 0" type="info" size="small" class="retry-badge">
                 重试{{ row.retried_count }}次
               </el-tag>
             </template>
@@ -146,7 +142,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { ArrowLeft, Refresh, Loading } from '@element-plus/icons-vue'
 import { pipelineApi, type PipelineRun } from '@/api/pipeline'
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue'
@@ -167,7 +163,7 @@ const isPolling = computed(() => {
 
 const confirmReason = computed(() => {
   if (runData.value?.pause_payload && typeof runData.value.pause_payload === 'object') {
-    return (runData.value.pause_payload as Record<string, unknown>).reason as string || ''
+    return ((runData.value.pause_payload as Record<string, unknown>).reason as string) || ''
   }
   return runData.value?.error || 'Pipeline 需要人工确认后继续'
 })
@@ -176,12 +172,20 @@ const confirmSchema = computed(() => {
   if (runData.value?.pause_payload && typeof runData.value.pause_payload === 'object') {
     const schema = (runData.value.pause_payload as Record<string, unknown>).schema
     if (schema && typeof schema === 'object') {
-      return schema as { fields: Array<{ key: string; label: string; type: string; options?: Array<{ label: string; value: string }>; placeholder?: string; required?: boolean }> }
+      return schema as {
+        fields: Array<{
+          key: string
+          label: string
+          type: 'select' | 'textarea' | 'number' | 'text'
+          options?: Array<{ label: string; value: string }>
+          placeholder?: string
+          required?: boolean
+        }>
+      }
     }
   }
   return null
 })
-
 
 const stepNameMap: Record<string, string> = {
   signal_gatherer: '信号采集',
@@ -225,9 +229,7 @@ const runStatusText = computed(() => {
 const duration = computed(() => {
   if (!runData.value?.started_at) return '—'
   const start = new Date(runData.value.started_at).getTime()
-  const end = runData.value.finished_at
-    ? new Date(runData.value.finished_at).getTime()
-    : Date.now()
+  const end = runData.value.finished_at ? new Date(runData.value.finished_at).getTime() : Date.now()
   return formatDuration(end - start)
 })
 
@@ -328,7 +330,7 @@ async function doResume(payload: Record<string, unknown>) {
   try {
     await pipelineApi.resumePipeline(
       runData.value.id,
-      Object.keys(payload).length > 0 ? payload : undefined,
+      Object.keys(payload).length > 0 ? payload : undefined
     )
     ElMessage.success('Pipeline 已恢复')
     await fetchRunData()

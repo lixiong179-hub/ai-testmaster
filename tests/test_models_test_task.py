@@ -160,7 +160,7 @@ class TestTaskStatusConstants:
 
     def test_labels_mapping(self):
         assert TaskStatus.LABELS[TaskStatus.PENDING] == "等待执行"
-        assert TaskStatus.LABELS[TaskStatus.RUNNING] == "执行中"
+        assert TaskStatus.LABELS[TaskStatus.RUNNING] == "执行�?
         assert TaskStatus.LABELS[TaskStatus.COMPLETED] == "执行完成"
         assert TaskStatus.LABELS[TaskStatus.FAILED] == "执行失败"
-        assert TaskStatus.LABELS[TaskStatus.STOPPED] == "已停止"
+        assert TaskStatus.LABELS[TaskStatus.STOPPED] == "已停�?

@@ -1,12 +1,12 @@
 """
-验证码服务单元测试
+验证码服务单元测�?
 
 覆盖范围:
 - CaptchaService 单例模式
-- generate() 生成验证码
-- verify() 校验验证码
-- 一次性使用验证
-- 过期时间检查
+- generate() 生成验证�?
+- verify() 校验验证�?
+- 一次性使用验�?
+- 过期时间检�?
 - IP频率限制
 - 自动清理过期数据
 """
@@ -33,7 +33,7 @@ class TestCaptchaServiceSingleton:
     """单例模式测试"""
 
     def test_singleton_pattern(self):
-        """测试CaptchaService是单例"""
+        """测试CaptchaService是单�?""
         service1 = CaptchaService()
         service2 = CaptchaService()
         assert service1 is service2
@@ -45,7 +45,7 @@ class TestCaptchaServiceSingleton:
 
 
 class TestCaptchaGenerate:
-    """验证码生成测试"""
+    """验证码生成测�?""
 
     def test_generate_returns_tuple(self):
         """测试generate返回元组(captcha_id, code)"""
@@ -54,13 +54,13 @@ class TestCaptchaGenerate:
         assert len(result) == 2
 
     def test_generate_captcha_id_format(self):
-        """测试captcha_id是32位字符串"""
+        """测试captcha_id�?2位字符串"""
         captcha_id, code = captcha_service.generate()
         assert isinstance(captcha_id, str)
         assert len(captcha_id) == 32
 
     def test_generate_code_is_numeric(self):
-        """测试code是4位数字字符串"""
+        """测试code�?位数字字符串"""
         captcha_id, code = captcha_service.generate()
         assert isinstance(code, str)
         assert len(code) == 4
@@ -72,18 +72,18 @@ class TestCaptchaGenerate:
         for _ in range(10):
             _, code = captcha_service.generate()
             results.add(code)
-        # 10次生成应该至少有几个不同的
+        # 10次生成应该至少有几个不同�?
         assert len(results) >= 3
 
     def test_generate_with_ip(self):
-        """测试带IP参数的生成"""
+        """测试带IP参数的生�?""
         captcha_id, code = captcha_service.generate(ip="127.0.0.1")
         assert captcha_id is not None
         assert code is not None
 
 
 class TestCaptchaVerify:
-    """验证码校验测试"""
+    """验证码校验测�?""
 
     def test_verify_correct_code(self):
         """测试正确验证码校验通过"""
@@ -92,14 +92,14 @@ class TestCaptchaVerify:
         assert result is True
 
     def test_verify_wrong_code(self):
-        """测试错误验证码校验失败"""
+        """测试错误验证码校验失�?""
         captcha_id, code = captcha_service.generate()
         wrong_code = "0000" if code != "0000" else "1111"
         result = captcha_service.verify(captcha_id, wrong_code)
         assert result is False
 
     def test_verify_case_insensitive(self):
-        """测试大小写不敏感（数字无影响，但接口支持）"""
+        """测试大小写不敏感（数字无影响，但接口支持�?""
         captcha_id, code = captcha_service.generate()
         result = captcha_service.verify(captcha_id, code.upper())
         assert result is True
@@ -116,17 +116,17 @@ class TestCaptchaVerify:
 
 
 class TestCaptchaOneTimeUse:
-    """一次性使用测试"""
+    """一次性使用测�?""
 
     def test_cannot_use_twice(self):
-        """测试验证码只能使用一次"""
+        """测试验证码只能使用一�?""
         captcha_id, code = captcha_service.generate()
         
-        # 第一次使用成功
+        # 第一次使用成�?
         first_result = captcha_service.verify(captcha_id, code)
         assert first_result is True
         
-        # 第二次使用失败
+        # 第二次使用失�?
         second_result = captcha_service.verify(captcha_id, code)
         assert second_result is False
 
@@ -136,13 +136,13 @@ class TestCaptchaExpiry:
 
     def test_expired_captcha_fails(self):
         """测试过期的验证码无法使用"""
-        # 直接操作内部存储来模拟过期
+        # 直接操作内部存储来模拟过�?
         old_captcha_id, code = captcha_service.generate()
         
         # 手动将过期时间设置为过去
         import time as _time
         if old_captcha_id in captcha_service._store:
-            captcha_service._store[old_captcha_id] = (code, _time.time() - 3600)  # 1小时前
+            captcha_service._store[old_captcha_id] = (code, _time.time() - 3600)  # 1小时�?
         
         result = captcha_service.verify(old_captcha_id, code)
         assert result is False
@@ -152,12 +152,12 @@ class TestCaptchaRateLimit:
     """IP频率限制测试"""
 
     def test_rate_limit_enforced(self):
-        """测试同一IP的频率限制"""
+        """测试同一IP的频率限�?""
         ip = "192.168.1.100"
         
-        # 快速请求超过限制（默认10次/分钟）
+        # 快速请求超过限制（默认10�?分钟�?
         with pytest.raises(Exception) as exc_info:
-            for i in range(15):  # 超过10次限制
+            for i in range(15):  # 超过10次限�?
                 try:
                     captcha_service.generate(ip=ip)
                 except Exception as e:
@@ -171,14 +171,14 @@ class TestCaptchaCleanup:
     """自动清理测试"""
 
     def test_cleanup_removes_expired(self):
-        """测试清理功能移除过期验证码"""
+        """测试清理功能移除过期验证�?""
         # 生成一些验证码
         ids = []
         for _ in range(5):
             cid, _ = captcha_service.generate()
             ids.append(cid)
         
-        # 手动设置部分为过期
+        # 手动设置部分为过�?
         import time as _time
         if ids[0] in captcha_service._store:
             captcha_service._store[ids[0]] = (captcha_service._store[ids[0]][0], _time.time() - 600)
@@ -186,7 +186,7 @@ class TestCaptchaCleanup:
         # 执行清理
         captcha_service._cleanup()
         
-        # 验证过期的已被移除
+        # 验证过期的已被移�?
         assert ids[0] not in captcha_service._store
         # 验证未过期的仍在
         assert ids[-1] in captcha_service._store
@@ -196,7 +196,7 @@ class TestCaptchaEdgeCases:
     """边界情况测试"""
 
     def test_custom_length(self):
-        """测试自定义长度"""
+        """测试自定义长�?""
         captcha_id, code = captcha_service.generate(length=6)
         assert len(code) == 6
 
@@ -210,7 +210,7 @@ class TestCaptchaEdgeCases:
             pass  # 允许抛出异常
 
     def test_concurrent_generation(self):
-        """测试并发生成不冲突"""
+        """测试并发生成不冲�?""
         import threading
         results = []
         errors = []

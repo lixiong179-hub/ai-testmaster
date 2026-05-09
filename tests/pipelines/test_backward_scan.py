@@ -1,13 +1,13 @@
 """M2-T04 BackwardScan Step + Service 单元测试
 
-覆盖：
+覆盖�?
     - BackwardScan Step: should_run / cache_key / execute / validate_output / fallback
     - BackwardScanService: scan / _slice_by_module / _process_batch / _call_ai_with_retry / _fallback_split / _mark_uncertain
-    - 重试机制：3次重试 → 切半 → 单条 → UNCERTAIN
+    - 重试机制�?次重�?�?切半 �?单条 �?UNCERTAIN
     - 预算不足降级
     - _extract_change_signals / _compute_scan_confidence
 
-使用真实 MySQL 数据库 + MockAIClient。
+使用真实 MySQL 数据�?+ MockAIClient�?
 """
 import json
 import pytest
@@ -230,7 +230,7 @@ class TestBackwardScanServiceScan:
     def test_scan_with_empty_fingerprints(self, mock_ai):
         service = BackwardScanService(ai_client=mock_ai, batch_size=50)
         verdicts, stats = service.scan(
-            change_signals="无变更",
+            change_signals="无变�?,
             fingerprints=[],
         )
 
@@ -330,10 +330,10 @@ class TestBackwardScanServiceMarkUncertain:
 class TestExtractChangeSignals:
     def test_with_prd(self):
         signals = _extract_change_signals({
-            "prd_content": "新增验证码",
+            "prd_content": "新增验证�?,
             "test_points": [],
         })
-        assert "新增验证码" in signals
+        assert "新增验证�? in signals
 
     def test_with_test_points(self):
         signals = _extract_change_signals({
@@ -344,7 +344,7 @@ class TestExtractChangeSignals:
 
     def test_empty_signals(self):
         signals = _extract_change_signals({})
-        assert "无明确变更信号" in signals
+        assert "无明确变更信�? in signals
 
 
 class TestComputeScanConfidence:
@@ -360,7 +360,7 @@ class TestComputeScanConfidence:
     def test_half_uncertain(self):
         verdicts = [
             BackwardCaseVerdict(case_id=1, verdict="VALID", confidence=0.9, hint="有效"),
-            BackwardCaseVerdict(case_id=2, verdict="UNCERTAIN", confidence=0.3, hint="不确定"),
+            BackwardCaseVerdict(case_id=2, verdict="UNCERTAIN", confidence=0.3, hint="不确�?),
         ]
         assert _compute_scan_confidence(verdicts) == 0.5
 
@@ -371,7 +371,7 @@ class TestBackwardScanExecute:
             "verdicts": [
                 {"case_id": 100, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
                 {"case_id": 101, "verdict": "NEEDS_MODIFY", "confidence": 0.8, "hint": "需修改"},
-                {"case_id": 102, "verdict": "LOCATOR_ONLY", "confidence": 0.75, "hint": "定位器失效"},
+                {"case_id": 102, "verdict": "LOCATOR_ONLY", "confidence": 0.75, "hint": "定位器失�?},
             ]
         })
         mock_ai.set_response("backward_scan", ai_response)
@@ -482,7 +482,7 @@ class TestSliceByModuleUnclassified:
         service = BackwardScanService(ai_client=MockAIClient(), batch_size=50)
         batches = service._slice_by_module(fps)
         assert len(batches) == 1
-        assert batches[0][0] == "未分类"
+        assert batches[0][0] == "未分�?
 
     def test_all_modules_empty_string(self):
         fps = [

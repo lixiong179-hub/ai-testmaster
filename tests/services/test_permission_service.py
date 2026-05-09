@@ -93,9 +93,9 @@ class TestPermissionService:
     def test_update_permission(self, db):
         perm = _create_permission(db, code="upd:perm")
         result = PermissionService.update_permission(
-            db, perm.id, PermissionUpdate(name="新名称")
+            db, perm.id, PermissionUpdate(name="新名�?)
         )
-        assert result.name == "新名称"
+        assert result.name == "新名�?
 
     def test_update_permission_dict(self, db):
         perm = _create_permission(db, code="upd2:perm")

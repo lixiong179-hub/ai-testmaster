@@ -33,7 +33,8 @@ from app.api.v1.endpoints import (
     auth, user, test_task, project, file, test_point, test_case,
     requirement_link, ui_prototype, iteration, execution,
     execution_visualization, batch_locator, test_data, case_quality,
-    report, visibility, audit_log, pipeline, review_inbox
+    report, visibility, audit_log, pipeline, review_inbox, pipeline_metrics,
+    test_case_lineage, pipeline_dashboard
 )
 
 api_router = APIRouter()
@@ -97,3 +98,12 @@ api_router.include_router(pipeline.router, tags=["Pipeline管理"])
 
 # 评审Inbox路由（模块自带prefix=/review）
 api_router.include_router(review_inbox.router, tags=["评审Inbox"])
+
+# Pipeline监控指标路由（模块自带prefix=/pipeline/metrics）
+api_router.include_router(pipeline_metrics.router, tags=["Pipeline监控指标"])
+
+# 用例血缘路由（模块自带prefix=/case-lineage）
+api_router.include_router(test_case_lineage.router, tags=["用例血缘"])
+
+# Pipeline仪表盘路由（模块自带prefix=/pipeline/dashboard）
+api_router.include_router(pipeline_dashboard.router, tags=["Pipeline仪表盘"])

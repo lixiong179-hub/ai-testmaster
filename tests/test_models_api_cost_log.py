@@ -57,7 +57,7 @@ class TestApiCostLogModel:
     def test_create_api_cost_log(self, db, test_task):
         log = ApiCostLog(
             task_id=test_task.id,
-            model="deepseek-chat",
+            model="deepseek-v4-flash",
             api_type="test_generation",
             output_tokens=500,
             cost=Decimal("0.015000"),
@@ -68,7 +68,7 @@ class TestApiCostLogModel:
         db.refresh(log)
         assert log.id is not None
         assert log.task_id == test_task.id
-        assert log.model == "deepseek-chat"
+        assert log.model == "deepseek-v4-flash"
         assert log.api_type == "test_generation"
         assert log.output_tokens == 500
         db.delete(log)
@@ -91,7 +91,7 @@ class TestApiCostLogModel:
         db.commit()
 
     def test_api_cost_log_model_values(self, db):
-        for model in ["deepseek-chat", "qwen", "kimi"]:
+        for model in ["deepseek-v4-flash", "qwen", "kimi"]:
             log = ApiCostLog(
                 model=model,
                 api_type="test_generation"
@@ -106,7 +106,7 @@ class TestApiCostLogModel:
     def test_api_cost_log_api_type_values(self, db):
         for api_type in ["test_generation", "analysis", "vision"]:
             log = ApiCostLog(
-                model="deepseek-chat",
+                model="deepseek-v4-flash",
                 api_type=api_type
             )
             db.add(log)
@@ -119,7 +119,7 @@ class TestApiCostLogModel:
     def test_api_cost_log_status_values(self, db):
         for status in ["success", "failed", "timeout"]:
             log = ApiCostLog(
-                model="deepseek-chat",
+                model="deepseek-v4-flash",
                 api_type="test_generation",
                 status=status
             )
@@ -132,7 +132,7 @@ class TestApiCostLogModel:
 
     def test_api_cost_log_with_error(self, db):
         log = ApiCostLog(
-            model="deepseek-chat",
+            model="deepseek-v4-flash",
             api_type="test_generation",
             status="failed",
             error_message="API调用超时"
@@ -147,7 +147,7 @@ class TestApiCostLogModel:
 
     def test_api_cost_log_cost_precision(self, db):
         log = ApiCostLog(
-            model="deepseek-chat",
+            model="deepseek-v4-flash",
             api_type="test_generation",
             cost=Decimal("0.000001")
         )
@@ -160,7 +160,7 @@ class TestApiCostLogModel:
 
     def test_api_cost_log_repr(self, db):
         log = ApiCostLog(
-            model="deepseek-chat",
+            model="deepseek-v4-flash",
             api_type="test_generation",
             cost=Decimal("0.010000")
         )
@@ -169,6 +169,6 @@ class TestApiCostLogModel:
         db.refresh(log)
         repr_str = repr(log)
         assert "ApiCostLog" in repr_str
-        assert "deepseek-chat" in repr_str
+        assert "deepseek-v4-flash" in repr_str
         db.delete(log)
         db.commit()

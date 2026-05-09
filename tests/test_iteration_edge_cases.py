@@ -2,16 +2,16 @@
 迭代管理功能边界场景测试 - P1边界测试
 
 测试范围:
-- 并发和竞态条件
-- 权限和安全验证
+- 并发和竞态条�?
+- 权限和安全验�?
 - 数据兼容性和向后兼容
 
-技术要求:
-- 使用真实MySQL数据库（禁止Mock）
-- 测试并发场景下的数据一致性
-- 验证权限控制的有效性
+技术要�?
+- 使用真实MySQL数据库（禁止Mock�?
+- 测试并发场景下的数据一致�?
+- 验证权限控制的有效�?
 
-作者: 软件测试工程师
+作�? 软件测试工程�?
 日期: 2026-04-13
 """
 import pytest
@@ -40,13 +40,13 @@ from app.crud import ui_prototype as ui_prototype_crud
 
 @pytest.fixture(scope="function")
 def test_user(testUser):
-    """使用conftest提供的测试用户"""
+    """使用conftest提供的测试用�?""
     return testUser
 
 
 @pytest.fixture(scope="function")
 def other_user(db):
-    """创建另一个测试用户（用于权限测试）"""
+    """创建另一个测试用户（用于权限测试�?""
     from app.utils.jwt_utils import get_password_hash
 
     user = User(
@@ -77,10 +77,10 @@ def test_project(db, test_user):
 
 @pytest.fixture(scope="function")
 def other_project(db, other_user):
-    """创建属于其他用户的项目"""
+    """创建属于其他用户的项�?""
     project = Project(
         name=f"其他用户项目_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
-        description="用于权限测试的项目",
+        description="用于权限测试的项�?,
         user_id=other_user.id,
         project_type="web"
     )
@@ -105,15 +105,15 @@ def test_iteration(db, test_project):
     yield iteration
 
 
-# ==================== 测试6: 并发和竞态条件 ====================
+# ==================== 测试6: 并发和竞态条�?====================
 
 class TestConcurrencyAndRaceConditions:
-    """并发操作和竞态条件测试"""
+    """并发操作和竞态条件测�?""
 
     @pytest.mark.skip(reason="多线程独立引擎与session级testEngine存在锁冲突，需重构测试基础设施")
     def test_concurrent_create_same_name_iteration(self, db, test_project):
         """
-        测试同时创建同名迭代的唯一性约束
+        测试同时创建同名迭代的唯一性约�?
 
         场景: 多个线程/协程同时尝试创建同名迭代
         预期: 只有1个成功，其余抛出ValueError或IntegrityError
@@ -125,7 +125,7 @@ class TestConcurrencyAndRaceConditions:
         errors = []
 
         def create_iteration_attempt(attempt_id):
-            """尝试创建迭代的函数"""
+            """尝试创建迭代的函�?""
             # 每个线程需要独立的session
             engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
             SessionLocal = sessionmaker(bind=engine)
@@ -149,7 +149,7 @@ class TestConcurrencyAndRaceConditions:
             finally:
                 session.close()
 
-        # 使用5个并发线程
+        # 使用5个并发线�?
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = [
                 executor.submit(create_iteration_attempt, i)
@@ -165,10 +165,10 @@ class TestConcurrencyAndRaceConditions:
                     errors.append(message)
 
         # 验证结果
-        assert success_count == 1, f"应该只有1个成功，实际有{success_count}个"
-        assert error_count == 4, f"应该有4个失败，实际有{error_count}个"
+        assert success_count == 1, f"应该只有1个成功，实际有{success_count}�?
+        assert error_count == 4, f"应该�?个失败，实际有{error_count}�?
 
-        # 验证数据库中只有1条记录
+        # 验证数据库中只有1条记�?
         iterations = db.query(Iteration).filter(
             Iteration.project_id == test_project.id,
             Iteration.name == iteration_name
@@ -183,21 +183,21 @@ class TestConcurrencyAndRaceConditions:
         """
         iteration_id = test_iteration.id
 
-        # 第一次删除
+        # 第一次删�?
         result1 = iteration_crud.delete_iteration(
             db=db,
             iteration_id=iteration_id
         )
         assert result1 is True
 
-        # 第二次删除（应该返回False）
+        # 第二次删除（应该返回False�?
         result2 = iteration_crud.delete_iteration(
             db=db,
             iteration_id=iteration_id
         )
         assert result2 is False
 
-        # 第三次删除（仍然返回False）
+        # 第三次删除（仍然返回False�?
         result3 = iteration_crud.delete_iteration(
             db=db,
             iteration_id=iteration_id
@@ -209,14 +209,14 @@ class TestConcurrencyAndRaceConditions:
         """
         测试并发更新同一迭代
 
-        场景: 多个线程同时更新同一迭代的不同字段
+        场景: 多个线程同时更新同一迭代的不同字�?
         预期: 所有更新都能成功（最后写入的值生效）
         """
         iteration_id = test_iteration.id
         results = []
 
         def update_iteration_field(field_name, value):
-            """更新迭代字段的函数"""
+            """更新迭代字段的函�?""
             engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
             SessionLocal = sessionmaker(bind=engine)
             session = SessionLocal()
@@ -246,11 +246,11 @@ class TestConcurrencyAndRaceConditions:
             for future in as_completed(futures):
                 results.append(future.result())
 
-        # 验证所有更新都执行了（至少没有异常）
+        # 验证所有更新都执行了（至少没有异常�?
         successes = [r for r in results if r[0] == "success"]
-        assert len(successes) >= 2  # 至少大部分成功
+        assert len(successes) >= 2  # 至少大部分成�?
 
-        # 验证最终状态
+        # 验证最终状�?
         final_iteration = db.query(Iteration).filter(
             Iteration.id == iteration_id
         ).first()
@@ -267,7 +267,7 @@ class TestConcurrencyAndRaceConditions:
         uploaded_files = []
 
         def upload_file_to_iteration(file_index):
-            """上传文件的函数"""
+            """上传文件的函�?""
             engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
             SessionLocal = sessionmaker(bind=engine)
             session = SessionLocal()
@@ -289,7 +289,7 @@ class TestConcurrencyAndRaceConditions:
             finally:
                 session.close()
 
-        # 并发上传10个文件
+        # 并发上传10个文�?
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = [
                 executor.submit(upload_file_to_iteration, i)
@@ -314,10 +314,10 @@ class TestConcurrencyAndRaceConditions:
         assert len(files_in_iteration) == 10
 
 
-# ==================== 测试7: 权限和安全 ====================
+# ==================== 测试7: 权限和安�?====================
 
 class TestPermissionsAndSecurity:
-    """权限和安全验证测试"""
+    """权限和安全验证测�?""
 
     @pytest.mark.asyncio
     async def test_unauthorized_user_cannot_access_iterations(self, client, auth_headers_other_user, test_project, test_iteration):
@@ -327,7 +327,7 @@ class TestPermissionsAndSecurity:
         from app.db.database import get_db
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            # 尝试获取他人项目的迭代列表
+            # 尝试获取他人项目的迭代列�?
             response = await ac.get(
                 f"/api/v1/iteration/list/{test_project.id}",
                 headers=auth_headers_other_user
@@ -338,7 +338,7 @@ class TestPermissionsAndSecurity:
 
     @pytest.mark.asyncio
     async def test_unauthorized_user_cannot_create_iteration(self, client, auth_headers_other_user, test_project):
-        """测试无权限用户无法在他人项目中创建迭代"""
+        """测试无权限用户无法在他人项目中创建迭�?""
         from httpx import AsyncClient, ASGITransport
         from app.main import app
 
@@ -392,12 +392,12 @@ class TestPermissionsAndSecurity:
 
     def test_cannot_move_file_to_other_project_iteration(self, db, test_project, other_project, test_iteration):
         """
-        测试不能将文件移动到其他项目的迭代
+        测试不能将文件移动到其他项目的迭�?
 
         场景: 尝试将A项目的文件的iteration_id设置为B项目的迭代ID
         预期: 数据一致性检查应阻止此操作（通过业务逻辑层）
         """
-        # 在test_project下创建文件
+        # 在test_project下创建文�?
         file_obj = file_crud.create_project_file(
             db=db,
             project_id=test_project.id,
@@ -406,7 +406,7 @@ class TestPermissionsAndSecurity:
             file_url="/uploads/test/security.pdf"
         )
 
-        # 在other_project下创建迭代
+        # 在other_project下创建迭�?
         other_iteration = iteration_crud.create_iteration(
             db=db,
             project_id=other_project.id,
@@ -414,7 +414,7 @@ class TestPermissionsAndSecurity:
             version="v1.0"
         )
 
-        # 尝试将文件移动到其他项目的迭代（直接修改DB）
+        # 尝试将文件移动到其他项目的迭代（直接修改DB�?
         # 注意: 这里的测试是为了验证如果绕过API直接修改DB会怎样
         # 实际应用中API层应该有验证
         original_iteration_id = file_obj.iteration_id
@@ -423,13 +423,13 @@ class TestPermissionsAndSecurity:
         file_obj.iteration_id = other_iteration.id
         db.commit()
 
-        # 虽然DB层面可能允许（取决于外键约束），但查询时应该能发现不一致
-        # 这里记录这个潜在的安全隐患
+        # 虽然DB层面可能允许（取决于外键约束），但查询时应该能发现不一�?
+        # 这里记录这个潜在的安全隐�?
         moved_file = db.query(ProjectFile).filter(
             ProjectFile.id == file_obj.id
         ).first()
 
-        # 如果系统允许跨项目移动，这是一个安全隐患
+        # 如果系统允许跨项目移动，这是一个安全隐�?
         # 正确的做法是API层验证iteration_id必须属于同一project
         if moved_file.iteration_id == other_iteration.id:
             # 标记为已知问题（需要在API层修复）
@@ -449,14 +449,14 @@ class TestPermissionsAndSecurity:
         iter_in_other = iteration_crud.create_iteration(
             db=db,
             project_id=other_project.id,
-            name="Test Project Iteration",  # 同名！
+            name="Test Project Iteration",  # 同名�?
             version="v1.0"
         )
 
-        # 验证两个项目都能有同名迭代（因为唯一约束是project_id + name）
+        # 验证两个项目都能有同名迭代（因为唯一约束是project_id + name�?
         assert iter_in_test.id != iter_in_other.id
 
-        # 查询test_project的迭代不应包含other_project的
+        # 查询test_project的迭代不应包含other_project�?
         test_iters = iteration_crud.get_iterations_by_project(
             db=db,
             project_id=test_project.id
@@ -477,10 +477,10 @@ class TestBackwardCompatibility:
 
     def test_legacy_null_iteration_id_shows_in_uncategorized(self, db, test_project):
         """
-        测试旧数据（iteration_id为NULL）在"未分类"视图下的显示
+        测试旧数据（iteration_id为NULL）在"未分�?视图下的显示
 
-        场景: 模拟旧系统中没有iteration_id的文件
-        预期: 这些文件应该在筛选iteration_id=-1时出现
+        场景: 模拟旧系统中没有iteration_id的文�?
+        预期: 这些文件应该在筛选iteration_id=-1时出�?
         """
         # 创建没有iteration_id的文件（模拟旧数据）
         legacy_file = file_crud.create_project_file(
@@ -489,10 +489,10 @@ class TestBackwardCompatibility:
             file_name="legacy_document.docx",
             file_type="docx",
             file_url="/uploads/test/legacy.docx",
-            iteration_id=None  # 明确设置为None（旧数据特征）
+            iteration_id=None  # 明确设置为None（旧数据特征�?
         )
 
-        # 筛选未分类文件（iteration_id=-1）
+        # 筛选未分类文件（iteration_id=-1�?
         uncategorized_files = file_crud.get_project_files(
             db=db,
             project_id=test_project.id,
@@ -508,10 +508,10 @@ class TestBackwardCompatibility:
         """
         测试没有任何迭代的项目的基本操作
 
-        场景: 项目从未创建过迭代
+        场景: 项目从未创建过迭�?
         预期: 文件上传、查询等基本功能正常工作
         """
-        # 创建不带迭代的文件
+        # 创建不带迭代的文�?
         file1 = file_crud.create_project_file(
             db=db,
             project_id=test_project.id,
@@ -528,14 +528,14 @@ class TestBackwardCompatibility:
             file_url="/uploads/test/noiter2.png"
         )
 
-        # 查询所有文件（不传iteration_id）
+        # 查询所有文件（不传iteration_id�?
         all_files = file_crud.get_project_files(
             db=db,
             project_id=test_project.id
         )
         assert len(all_files) == 2
 
-        # 查询未分类文件
+        # 查询未分类文�?
         uncategorized = file_crud.get_project_files(
             db=db,
             project_id=test_project.id,
@@ -554,12 +554,12 @@ class TestBackwardCompatibility:
 
     def test_mixed_old_and_new_data_coexistence(self, db, test_project, test_iteration):
         """
-        测试新旧数据共存的情况
+        测试新旧数据共存的情�?
 
-        场景: 项目中有部分文件有iteration_id，部分没有
-        预期: 各种筛选都能正确工作
+        场景: 项目中有部分文件有iteration_id，部分没�?
+        预期: 各种筛选都能正确工�?
         """
-        # 创建旧数据（无iteration_id）
+        # 创建旧数据（无iteration_id�?
         old_files = []
         for i in range(3):
             f = file_crud.create_project_file(
@@ -572,7 +572,7 @@ class TestBackwardCompatibility:
             )
             old_files.append(f)
 
-        # 创建新数据（有iteration_id）
+        # 创建新数据（有iteration_id�?
         new_files = []
         for i in range(3):
             f = file_crud.create_project_file(
@@ -612,12 +612,12 @@ class TestBackwardCompatibility:
 
     def test_ui_prototype_legacy_data_compatibility(self, db, test_project):
         """
-        测试UI原型数据的向后兼容性
+        测试UI原型数据的向后兼容�?
 
         场景: 旧版本中的UI原型项目没有iteration_id
         预期: 这些原型项目在筛选未分类时应出现
         """
-        # 创建没有iteration_id的UI原型项目（旧数据）
+        # 创建没有iteration_id的UI原型项目（旧数据�?
         proto_legacy = ui_prototype_crud.create_ui_prototype_project(
             db=db,
             project_id=test_project.id,
@@ -626,7 +626,7 @@ class TestBackwardCompatibility:
             iteration_id=None
         )
 
-        # 筛选未分类的原型项目
+        # 筛选未分类的原型项�?
         uncategorized_protos = ui_prototype_crud.get_ui_prototype_projects_by_project(
             db=db,
             project_id=test_project.id,
@@ -641,7 +641,7 @@ class TestBackwardCompatibility:
         """
         测试前端传递iteration_id=0的处理（前后端参数兼容性）
 
-        场景: 前端在某些情况下传递0表示"未选择迭代"
+        场景: 前端在某些情况下传�?表示"未选择迭代"
         预期: 后端正确处理0值，转换为None
         """
         # 创建文件并绑定到迭代
@@ -654,7 +654,7 @@ class TestBackwardCompatibility:
             iteration_id=test_iteration.id
         )
 
-        # 模拟前端传0的情况
+        # 模拟前端�?的情�?
         frontend_value = 0
         backend_value = frontend_value if frontend_value > 0 else None
 
@@ -677,12 +677,12 @@ class TestBackwardCompatibility:
         """
         测试大量迭代的性能
 
-        场景: 项目下有100个迭代
+        场景: 项目下有100个迭�?
         预期: 分页查询性能可接受（<1秒）
         """
         import time
 
-        # 批量创建100个迭代
+        # 批量创建100个迭�?
         start_time = time.time()
         for i in range(100):
             iteration_crud.create_iteration(
@@ -692,7 +692,7 @@ class TestBackwardCompatibility:
                 version=f"v{i+1}.0"
             )
         create_time = time.time() - start_time
-        print(f"\n创建100个迭代耗时: {create_time:.2f}秒")
+        print(f"\n创建100个迭代耗时: {create_time:.2f}�?)
 
         # 测试分页查询性能
         start_time = time.time()
@@ -703,7 +703,7 @@ class TestBackwardCompatibility:
             limit=20
         )
         query_time = time.time() - start_time
-        print(f"分页查询耗时: {query_time:.2f}秒")
+        print(f"分页查询耗时: {query_time:.2f}�?)
 
         # 验证结果
         assert len(page1) == 20
@@ -716,7 +716,7 @@ class TestBackwardCompatibility:
             project_id=test_project.id
         )
         count_time = time.time() - start_time
-        print(f"计数查询耗时: {count_time:.2f}秒")
+        print(f"计数查询耗时: {count_time:.2f}�?)
 
         assert total >= 100
 
@@ -745,22 +745,22 @@ def auth_headers_other_user(other_user):
 """
 运行方式:
 
-1. 运行所有边界测试:
+1. 运行所有边界测�?
    pytest tests/test_iteration_edge_cases.py -v
 
-2. 只运行并发测试:
+2. 只运行并发测�?
    pytest tests/test_iteration_edge_cases.py::TestConcurrencyAndRaceConditions -v
 
-3. 只运行权限测试:
+3. 只运行权限测�?
    pytest tests/test_iteration_edge_cases.py::TestPermissionsAndSecurity -v
 
-4. 只运行兼容性测试:
+4. 只运行兼容性测�?
    pytest tests/test_iteration_edge_cases.py::TestBackwardCompatibility -v
 
-5. 运行时显示详细输出:
+5. 运行时显示详细输�?
    pytest tests/test_iteration_edge_cases.py -v -s
 
-预期通过的测试用例数: 约15-20个
+预期通过的测试用例数: �?5-20�?
 特殊标记:
    - xfail: 已知问题（如API层缺少某项验证）
    - skip: 条件不满足时跳过

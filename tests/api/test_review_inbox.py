@@ -1,12 +1,12 @@
 """评审 Inbox API 测试
 
 覆盖范围:
-    - GET /review/{id}/decisions — 列表（判决过滤 + 置信度排序）
-    - POST /review/{id}/decisions/{did}/decide — 单条人工判定（锁+冲突）
-    - POST /review/{id}/decisions/batch-decide — 批量判定（原子性回滚）
-    - POST /review/{id}/finalize — 最终化（锁释放+不可变性）
+    - GET /review/{id}/decisions �?列表（判决过�?+ 置信度排序）
+    - POST /review/{id}/decisions/{did}/decide �?单条人工判定（锁+冲突�?
+    - POST /review/{id}/decisions/batch-decide �?批量判定（原子性回滚）
+    - POST /review/{id}/finalize �?最终化（锁释放+不可变性）
 
-使用真实 MySQL、HTTP TestClient + JWT。
+使用真实 MySQL、HTTP TestClient + JWT�?
 """
 import pytest
 

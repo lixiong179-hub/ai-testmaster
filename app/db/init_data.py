@@ -31,6 +31,9 @@
 """
 from contextlib import contextmanager
 from typing import Generator
+import os
+import secrets
+import warnings
 from sqlalchemy.orm import Session
 from app.db.database import get_db, init_db
 from app.models.user import User, Role, Permission, user_role
@@ -76,28 +79,35 @@ def init_admin_user() -> User:
     创建默认管理员用户（幂等操作）
 
     如果 admin 用户不存在则创建，已存在则跳过。
-    默认凭据：admin / password123（生产环境应在首次登录后立即修改）
+    密码优先从 ADMIN_INITIAL_PASSWORD 环境变量读取，
+    未配置时使用 secrets.token_urlsafe(16) 生成随机密码并输出警告。
 
     Returns:
         User: 管理员用户对象（新建或已存在的）
 
     注意：
-        默认密码 password123 仅用于初始化，生产环境部署后必须强制修改。
         密码通过 get_password_hash() 进行 bcrypt 哈希存储，不存明文。
+        生产环境必须通过环境变量 ADMIN_INITIAL_PASSWORD 设置强密码。
     """
     with _db_session() as db:
-        # 幂等检查：先查询是否已存在 admin 用户，避免重复创建导致唯一约束冲突
         admin_user = db.query(User).filter(User.username == "admin").first()
         if not admin_user:
+            password = os.environ.get("ADMIN_INITIAL_PASSWORD") or secrets.token_urlsafe(16)
+            if not os.environ.get("ADMIN_INITIAL_PASSWORD"):
+                warnings.warn(
+                    "未设置 ADMIN_INITIAL_PASSWORD，已生成随机管理员密码。"
+                    "请通过环境变量 ADMIN_INITIAL_PASSWORD 配置！",
+                    UserWarning
+                )
             admin_user = User(
                 username="admin",
                 email="admin@example.com",
-                password_hash=get_password_hash("password123"),  # bcrypt哈希存储，非明文
+                password_hash=get_password_hash(password),
                 is_active=True
             )
             db.add(admin_user)
             db.commit()
-            print("默认管理员用户创建成功: admin / password123")
+            print(f"默认管理员用户创建成功: admin / {password}")
         else:
             print("管理员用户已存在")
         return admin_user

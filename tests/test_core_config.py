@@ -94,7 +94,7 @@ class TestSettingsProperties:
 class TestEnsureSecretKeys:
     def test_empty_database_url_raises(self):
         s = Settings(DATABASE_URL="")
-        with pytest.raises(ValueError, match="DATABASE_URL 未配置"):
+        with pytest.raises(ValueError, match="DATABASE_URL 未配�?):
             s._ensure_secret_keys()
 
     def test_sqlite_database_url_raises(self):

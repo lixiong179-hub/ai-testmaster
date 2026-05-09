@@ -1,12 +1,12 @@
 """
-M3-T06 场景 5 流水线端到端测试（旧项目无新 PRD）
+M3-T06 场景 5 流水线端到端测试（旧项目无新 PRD�?
 
-覆盖：
-    - 场景注册表查询（get_scenario(5) 返回正确配置）
-    - 依赖链验证（含 ReverseInfer → TestPointAlignment 额外链）
-    - ReverseInfer 旧项目无 UI 模式（历史指纹 → 推断能力）
+覆盖�?
+    - 场景注册表查询（get_scenario(5) 返回正确配置�?
+    - 依赖链验证（�?ReverseInfer �?TestPointAlignment 额外链）
+    - ReverseInfer 旧项目无 UI 模式（历史指�?�?推断能力�?
     - 场景 5 完整 Pipeline 端到端（11 步）
-    - 双向扫描 + Reconciliation 合并矩阵（与场景 4 共享）
+    - 双向扫描 + Reconciliation 合并矩阵（与场景 4 共享�?
     - should_run / cache_key / validate_output / fallback
 """
 import json
@@ -51,12 +51,12 @@ def _make_old_project_infer_response() -> str:
                 "key": "user_management",
                 "description": "用户登录、注册、信息管理的业务能力",
                 "confidence": 0.88,
-                "supporting_evidence": "历史用例涵盖登录和注册流程",
+                "supporting_evidence": "历史用例涵盖登录和注册流�?,
             },
         ],
         "uncertain_questions": [],
         "overall_confidence": 0.88,
-        "analysis_summary": "从 3 条历史用例推断出 1 个业务能力：用户管理",
+        "analysis_summary": "�?3 条历史用例推断出 1 个业务能力：用户管理",
     })
 
 
@@ -103,12 +103,12 @@ def _build_case_gen_mock() -> str:
         {
             "title": "登录功能回归验证",
             "module": "用户管理",
-            "precondition": "用户已注册",
+            "precondition": "用户已注�?,
             "steps": [
-                {"action": "输入正确的用户名和密码", "expected": "登录成功"},
-                {"action": "点击登录按钮", "expected": "跳转到首页"},
+                {"action": "输入正确的用户名和密�?, "expected": "登录成功"},
+                {"action": "点击登录按钮", "expected": "跳转到首�?},
             ],
-            "expected_result": "成功登录并跳转首页",
+            "expected_result": "成功登录并跳转首�?,
             "priority": 1,
             "case_type": "functional",
         }

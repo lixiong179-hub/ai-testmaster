@@ -97,13 +97,13 @@ export interface TaskSummary {
 }
 
 function extractTaskResponseData<T>(response: unknown): T {
-    const r = response as Record<string, unknown> | undefined
-    const data = r?.data
-    const deepData = (data as Record<string, unknown> | undefined)?.data
-    if (deepData && typeof deepData === 'object') return deepData as T
-    if (data && typeof data === 'object') return data as T
-    if (r && typeof r === 'object') return r as T
-    return {} as T
+  const r = response as Record<string, unknown> | undefined
+  const data = r?.data
+  const deepData = (data as Record<string, unknown> | undefined)?.data
+  if (deepData && typeof deepData === 'object') return deepData as T
+  if (data && typeof data === 'object') return data as T
+  if (r && typeof r === 'object') return r as T
+  return {} as T
 }
 
 // 任务存储

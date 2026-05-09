@@ -2,7 +2,7 @@ import os
 import uuid
 import pytest
 
-pytestmark = pytest.mark.skip(reason="API契约变更，测试需要完全重写")
+pytestmark = pytest.mark.skip(reason="API契约变更，测试需要完全重�?)
 from tests.helpers import assertResponseSuccess, assertResponseError
 from app.models.project import ProjectFile
 

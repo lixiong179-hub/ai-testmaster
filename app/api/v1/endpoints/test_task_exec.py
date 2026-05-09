@@ -19,6 +19,7 @@ from datetime import datetime
 from app.db.database import get_db
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
+from app.models.project import Project
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
@@ -26,6 +27,20 @@ from app.core.exception import create_response
 from loguru import logger
 
 router = APIRouter()
+
+
+def _verify_task_access(
+    db: Session, task: TestTask, current_user: User
+) -> None:
+    project = db.query(Project).filter(
+        Project.id == task.project_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此任务"
+        )
 
 
 @router.post("/{task_id}/run")
@@ -41,6 +56,8 @@ async def run_test_task(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="测试任务不存在"
         )
+
+    _verify_task_access(db, task, current_user)
 
     # 创建测试执行器
     executor = TestExecutionEngineV2(db)
@@ -76,6 +93,8 @@ async def get_task_summary(
         task = db.query(TestTask).filter(TestTask.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail="任务不存在")
+
+        _verify_task_access(db, task, current_user)
 
         stats = db.query(
             func.count(TestResult.id).label('total'),

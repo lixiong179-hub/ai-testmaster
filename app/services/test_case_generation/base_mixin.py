@@ -257,7 +257,7 @@ class TestCaseGenerationBaseMixin:
             extractor = FileContentExtractor(self.db)
             result = await extractor.extract_file_content(file, force_refresh)
             if result.get("success"):
-                return result.get("content")
+                return result.get("content") or ""
         return file.content
 
     def _build_ui_description(self, ui_descriptions: List[Dict[str, Any]]) -> str:

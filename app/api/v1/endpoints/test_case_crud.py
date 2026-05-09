@@ -78,6 +78,7 @@ async def create_test_case(
         summary=test_case.summary,
         summary_model_version=test_case.summary_model_version,
         parent_case_id=test_case.parent_case_id,
+        ai_change_type=test_case.ai_change_type,
         test_category=test_case.test_category if test_case.test_category else None
     )
 
@@ -144,7 +145,7 @@ async def get_test_cases(
     requirement_file_id: Optional[int] = Query(default=None, description="需求文件ID"),
     lifecycle_status: Optional[str] = Query(default=None, description="生命周期状态（逗号分隔多值）"),
     page: int = Query(default=1, ge=1, description="页码"),
-    page_size: int = Query(default=10, ge=1, le=100, description="每页数量"),
+    page_size: int = Query(default=10, ge=1, le=500, description="每页数量"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

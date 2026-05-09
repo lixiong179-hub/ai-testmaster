@@ -5,7 +5,9 @@
         <div class="card-header">
           <div>
             <div class="card-title">项目列表</div>
-            <div class="card-subtitle">从项目进入任务、执行与测试点管理，是整条测试业务链路的起点。</div>
+            <div class="card-subtitle">
+              从项目进入任务、执行与测试点管理，是整条测试业务链路的起点。
+            </div>
           </div>
           <el-button type="primary" @click="openCreateDialog">创建项目</el-button>
         </div>
@@ -59,12 +61,18 @@
           <template #default="scope">
             <el-space wrap>
               <el-button size="small" @click="goToDetail(scope.row.id)">详情</el-button>
-              <el-button size="small" type="primary" plain @click="goToTaskList(scope.row.id)">任务</el-button>
-              <el-button size="small" type="success" plain @click="goToTestPointManagement(scope.row.id)"
+              <el-button size="small" type="primary" plain @click="goToTaskList(scope.row.id)"
+                >任务</el-button
+              >
+              <el-button
+                size="small"
+                type="success"
+                plain
+                @click="goToTestPointManagement(scope.row.id)"
                 >测试点</el-button
               >
               <el-button size="small" type="danger" @click="confirmDelete(scope.row.id)"
-              >删除</el-button
+                >删除</el-button
               >
             </el-space>
           </template>
@@ -72,7 +80,9 @@
         <template #empty>
           <div class="project-empty-state">
             <div class="project-empty-title">还没有可用项目</div>
-            <div class="project-empty-text">建议先创建项目，后续任务、执行与测试点管理都会围绕项目展开。</div>
+            <div class="project-empty-text">
+              建议先创建项目，后续任务、执行与测试点管理都会围绕项目展开。
+            </div>
             <el-button type="primary" @click="openCreateDialog">创建首个项目</el-button>
           </div>
         </template>
@@ -381,7 +391,6 @@ onMounted(() => {
 .project-list {
   padding: 20px;
 }
-
 
 .card-header {
   display: flex;

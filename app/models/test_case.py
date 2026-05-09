@@ -31,7 +31,7 @@ from sqlalchemy.orm import relationship, Session
 from datetime import datetime
 from app.utils.db_time import utcnow
 from app.db.database import Base
-import threading
+import contextvars
 
 
 class TestCase(Base):
@@ -95,11 +95,13 @@ class TestCase(Base):
     # 生命周期与血缘字段
     lifecycle_status = Column(String(30), nullable=False, default="draft", comment="生命周期状态：draft/active/pending_review/needs_modify/locator_broken/deprecated/archived")  # 生命周期状态，变更必经 LifecycleService
     prior_quality_score = Column(Float, nullable=True, comment="先验质量分（0-100），生成时由 QualityGate 计算")
+    posterior_quality_score = Column(Float, nullable=True, comment="后验质量分（0-100），评审+执行后回填")
     deprecated_at = Column(DateTime, nullable=True, comment="进入deprecated状态的时间戳，用于冷却期计算")  # 由 LifecycleService.transition() 在进入 deprecated 时设置
     summary = Column(Text, nullable=True, comment="AI生成的用例摘要")  # AI摘要，用于去重和检索
     summary_version = Column(Integer, nullable=False, default=0, comment="摘要版本号，0=未生成")  # 摘要版本，AI重算时递增
     summary_model_version = Column(String(64), nullable=True, comment="生成摘要的AI模型版本")  # 跟踪模型升级触发的批量重算
     parent_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="SET NULL"), nullable=True, comment="父用例ID，用于用例衍生/拆分")  # 血缘关系，SET NULL保留子用例
+    ai_change_type = Column(String(20), nullable=True, comment="AI评审结果：added=查漏新增/modified=补缺修正/deprecated=去冗废弃")  # AI用例评审标注，手动创建的用例此字段为空
     last_review_id = Column(Integer, ForeignKey("code_reviews.id", ondelete="SET NULL"), nullable=True, comment="最近一次评审ID")  # 关联评审记录
 
     __table_args__ = (
@@ -126,13 +128,18 @@ class TestCase(Base):
 
 
 # ==================== lifecycle_status 保护机制 ====================
-# 线程局部标记：LifecycleService 执行迁移时设置，允许通过；其他途径修改则抛错
+# contextvars 上下文标记：LifecycleService 执行迁移时设置，允许通过；其他途径修改则抛错
 #
 # 设计说明：
 #   guard 注册在 Session 基类上（@event.listens_for(Session, "before_flush")），
 #   因此所有 Session 实例都会触发拦截，包括业务 Session、迁移脚本、管理后台等。
 #   非业务场景如需绕过 guard，必须显式调用 enable_lifecycle_transition() /
 #   disable_lifecycle_transition()，确保意图明确可追溯。
+#
+# 使用 contextvars 而非 threading.local() 的原因：
+#   FastAPI 异步模式下，同一线程内可能并发多个协程。threading.local() 在线程内
+#   对所有协程共享，可能导致协程 A 开启了 lifecycle 许可，协程 B 绕过 guard。
+#   contextvars 天然支持 asyncio 协程隔离，每个协程有独立的上下文副本。
 #
 # 批量操作逃生舱：
 #   对于数据迁移、批量修复等场景，可使用 enable/disable 包裹批量操作：
@@ -144,22 +151,24 @@ class TestCase(Base):
 #       finally:
 #           disable_lifecycle_transition()
 
-_lifecycle_guard = threading.local()
+_lifecycle_guard: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    'lifecycle_transition_allowed', default=False
+)
 
 
 def _lifecycle_transition_allowed() -> bool:
-    """检查当前线程是否允许修改 lifecycle_status（仅 LifecycleService 调用时为 True）。"""
-    return getattr(_lifecycle_guard, 'allowed', False)
+    """检查当前上下文是否允许修改 lifecycle_status（仅 LifecycleService 调用时为 True）。"""
+    return _lifecycle_guard.get()
 
 
 def enable_lifecycle_transition():
     """LifecycleService 调用前设置允许标记。"""
-    _lifecycle_guard.allowed = True
+    _lifecycle_guard.set(True)
 
 
 def disable_lifecycle_transition():
     """LifecycleService 调用后清除允许标记。"""
-    _lifecycle_guard.allowed = False
+    _lifecycle_guard.set(False)
 
 
 @event.listens_for(Session, "before_flush")

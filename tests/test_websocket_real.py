@@ -18,11 +18,11 @@ from app.utils.jwt_utils import create_access_token
 
 
 class TestWebSocketReal:
-    """WebSocket真实测试类"""
+    """WebSocket真实测试�?""
     
     @pytest.fixture
     def client(self):
-        """创建测试客户端"""
+        """创建测试客户�?""
         return TestClient(app)
     
     @pytest.fixture
@@ -42,7 +42,7 @@ class TestWebSocketReal:
             assert data["execution_id"] == execution_id
             assert "WebSocket连接成功" in data["message"]
         
-        print("✅ 测试1通过: WebSocket连接建立成功")
+        print("�?测试1通过: WebSocket连接建立成功")
     
     def test_websocket_invalid_token(self, client):
         """测试2: WebSocket无效Token拒绝连接"""
@@ -53,10 +53,10 @@ class TestWebSocketReal:
             with pytest.raises(Exception):
                 websocket.receive_json()
         
-        print("✅ 测试2通过: WebSocket无效Token拒绝连接")
+        print("�?测试2通过: WebSocket无效Token拒绝连接")
     
     def test_websocket_heartbeat(self, client, valid_token):
-        """测试3: WebSocket心跳检测"""
+        """测试3: WebSocket心跳检�?""
         execution_id = "test_execution_003"
         
         with client.websocket_connect(f"/api/v1/ws/execution/{execution_id}?token={valid_token}") as websocket:
@@ -70,7 +70,7 @@ class TestWebSocketReal:
             data = websocket.receive_json()
             assert data["type"] == "pong"
         
-        print("✅ 测试3通过: WebSocket心跳检测正常")
+        print("�?测试3通过: WebSocket心跳检测正�?)
     
     def test_websocket_broadcast_message(self, client, valid_token):
         """测试4: WebSocket广播消息"""
@@ -80,7 +80,7 @@ class TestWebSocketReal:
             # 接收连接成功消息
             websocket.receive_json()
             
-            # 模拟后端发送广播消息
+            # 模拟后端发送广播消�?
             async def send_broadcast():
                 await manager.broadcast(execution_id, {
                     "type": "test",
@@ -96,17 +96,17 @@ class TestWebSocketReal:
             assert data["message"] == "广播测试"
             assert "timestamp" in data
         
-        print("✅ 测试4通过: WebSocket广播消息正常")
+        print("�?测试4通过: WebSocket广播消息正常")
     
     def test_websocket_send_log(self, client, valid_token):
-        """测试5: WebSocket发送执行日志"""
+        """测试5: WebSocket发送执行日�?""
         execution_id = "test_execution_005"
         
         with client.websocket_connect(f"/api/v1/ws/execution/{execution_id}?token={valid_token}") as websocket:
             # 接收连接成功消息
             websocket.receive_json()
             
-            # 模拟发送日志
+            # 模拟发送日�?
             async def send_log():
                 await manager.send_log(
                     execution_id=execution_id,
@@ -126,17 +126,17 @@ class TestWebSocketReal:
             assert data["status"] == "success"
             assert data["message"] == "按钮点击成功"
         
-        print("✅ 测试5通过: WebSocket发送执行日志正常")
+        print("�?测试5通过: WebSocket发送执行日志正�?)
     
     def test_websocket_send_progress(self, client, valid_token):
-        """测试6: WebSocket发送进度更新"""
+        """测试6: WebSocket发送进度更�?""
         execution_id = "test_execution_006"
         
         with client.websocket_connect(f"/api/v1/ws/execution/{execution_id}?token={valid_token}") as websocket:
             # 接收连接成功消息
             websocket.receive_json()
             
-            # 模拟发送进度
+            # 模拟发送进�?
             async def send_progress():
                 await manager.send_progress(
                     execution_id=execution_id,
@@ -155,17 +155,17 @@ class TestWebSocketReal:
             assert data["percentage"] == 40.0
             assert data["estimated_remaining_seconds"] == 30
         
-        print("✅ 测试6通过: WebSocket发送进度更新正常")
+        print("�?测试6通过: WebSocket发送进度更新正�?)
     
     def test_websocket_send_status(self, client, valid_token):
-        """测试7: WebSocket发送状态更新"""
+        """测试7: WebSocket发送状态更�?""
         execution_id = "test_execution_007"
         
         with client.websocket_connect(f"/api/v1/ws/execution/{execution_id}?token={valid_token}") as websocket:
             # 接收连接成功消息
             websocket.receive_json()
             
-            # 模拟发送状态
+            # 模拟发送状�?
             async def send_status():
                 await manager.send_status(
                     execution_id=execution_id,
@@ -175,16 +175,16 @@ class TestWebSocketReal:
             
             asyncio.run(send_status())
             
-            # 接收状态消息
+            # 接收状态消�?
             data = websocket.receive_json()
             assert data["type"] == "status"
             assert data["status"] == "running"
             assert data["message"] == "正在执行步骤3"
         
-        print("✅ 测试7通过: WebSocket发送状态更新正常")
+        print("�?测试7通过: WebSocket发送状态更新正�?)
     
     def test_websocket_multiple_clients(self, client, valid_token):
-        """测试8: 多个客户端同时连接"""
+        """测试8: 多个客户端同时连�?""
         execution_id = "test_execution_008"
         
         # 连接3个客户端
@@ -196,7 +196,7 @@ class TestWebSocketReal:
                     ws2.receive_json()
                     ws3.receive_json()
                     
-                    # 发送广播
+                    # 发送广�?
                     async def send_broadcast():
                         await manager.broadcast(execution_id, {
                             "type": "multi_test",
@@ -205,7 +205,7 @@ class TestWebSocketReal:
                     
                     asyncio.run(send_broadcast())
                     
-                    # 所有客户端都应该收到消息
+                    # 所有客户端都应该收到消�?
                     data1 = ws1.receive_json()
                     data2 = ws2.receive_json()
                     data3 = ws3.receive_json()
@@ -214,7 +214,7 @@ class TestWebSocketReal:
                     assert data2["type"] == "multi_test"
                     assert data3["type"] == "multi_test"
         
-        print("✅ 测试8通过: 多个客户端同时连接正常")
+        print("�?测试8通过: 多个客户端同时连接正�?)
     
     def test_websocket_different_execution_ids(self, client, valid_token):
         """测试9: 不同execution_id隔离"""
@@ -227,7 +227,7 @@ class TestWebSocketReal:
                 ws1.receive_json()
                 ws2.receive_json()
                 
-                # 向execution_id_1发送消息
+                # 向execution_id_1发送消�?
                 async def send_to_first():
                     await manager.broadcast(execution_id_1, {
                         "type": "isolated_test",
@@ -246,13 +246,13 @@ class TestWebSocketReal:
                 assert manager.get_connection_count(execution_id_1) == 1
                 assert manager.get_connection_count(execution_id_2) == 1
         
-        print("✅ 测试9通过: 不同execution_id隔离正常")
+        print("�?测试9通过: 不同execution_id隔离正常")
     
     def test_websocket_connection_stats(self, client, valid_token):
         """测试10: WebSocket连接统计API"""
         execution_id = "test_execution_010"
         
-        # 连接前统计
+        # 连接前统�?
         response = client.get("/api/v1/ws/stats")
         assert response.status_code == 200
         stats_before = response.json()
@@ -261,16 +261,16 @@ class TestWebSocketReal:
             # 接收连接成功消息
             websocket.receive_json()
             
-            # 连接后统计
+            # 连接后统�?
             response = client.get("/api/v1/ws/stats")
             assert response.status_code == 200
             stats_after = response.json()
             
-            # 验证连接数增加
+            # 验证连接数增�?
             assert stats_after["total_connections"] == stats_before["total_connections"] + 1
             assert execution_id in stats_after["executions"]
         
-        print("✅ 测试10通过: WebSocket连接统计API正常")
+        print("�?测试10通过: WebSocket连接统计API正常")
     
     def test_websocket_invalid_json(self, client, valid_token):
         """测试11: WebSocket无效JSON处理"""
@@ -288,10 +288,10 @@ class TestWebSocketReal:
             assert data["type"] == "error"
             assert "Invalid JSON" in data["message"]
         
-        print("✅ 测试11通过: WebSocket无效JSON处理正常")
+        print("�?测试11通过: WebSocket无效JSON处理正常")
     
     def test_websocket_connection_limit(self, client, valid_token):
-        """测试12: WebSocket连接数限制"""
+        """测试12: WebSocket连接数限�?""
         execution_id = "test_execution_012"
         
         # 连接10个客户端（达到限制）
@@ -303,15 +303,15 @@ class TestWebSocketReal:
                 ws.__enter__()
                 ws.receive_json()  # 接收连接成功消息
             
-            # 第11个连接应该被拒绝
+            # �?1个连接应该被拒绝
             with pytest.raises(Exception):
                 with client.websocket_connect(f"/api/v1/ws/execution/{execution_id}?token={valid_token}") as ws11:
                     ws11.receive_json()
             
-            print("✅ 测试12通过: WebSocket连接数限制正常")
+            print("�?测试12通过: WebSocket连接数限制正�?)
             
         finally:
-            # 清理所有连接
+            # 清理所有连�?
             for ws in websockets:
                 try:
                     ws.__exit__(None, None, None)

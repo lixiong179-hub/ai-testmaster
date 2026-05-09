@@ -124,6 +124,48 @@ export interface UIDeleteResponse {
   message: string
 }
 
+export interface ProjectFlowData {
+  nodes: Array<{
+    id: string
+    screen_id: number
+    screen_name: string
+    summary?: string
+    ui_spec_elements?: Array<Record<string, unknown>>
+    flow_type: 'main' | 'branch' | 'exception' | 'bypass'
+    main_order?: number
+    image_url?: string
+    position: { x: number; y: number }
+    flow_meta?: Record<string, unknown>
+  }>
+  edges: Array<{
+    id: string
+    source: string
+    target: string
+    edge_type: 'normal' | 'branch' | 'exception' | 'bypass'
+    condition?: string
+    label: string
+    trigger_action?: string
+    pre_action?: string
+    note?: string
+  }>
+  module_info?: {
+    name: string
+    description: string
+  }
+}
+
+export interface FlowDataSaveResponse {
+  code: number
+  data: {
+    id: number
+    project_id: number
+    flow_data: ProjectFlowData
+    create_time: string
+    update_time: string
+  }
+  msg: string
+}
+
 export const uiPrototypeApi = {
   getUIPrototypeProjectList: async (
     projectId: number,
@@ -132,7 +174,7 @@ export const uiPrototypeApi = {
     iterationId?: number
   ): Promise<UIPrototypeProject[]> => {
     const params: Record<string, string | number> = { page, page_size: pageSize }
-    if (iterationId) {
+    if (iterationId != null) {
       params.iteration_id = iterationId
     }
     return request.get(`/api/v1/ui-prototype/project/list/${projectId}`, { params })
@@ -165,7 +207,7 @@ export const uiPrototypeApi = {
     if (prototypeProjectId) {
       formData.append('prototype_project_id', prototypeProjectId.toString())
     }
-    if (iterationId) {
+    if (iterationId != null) {
       formData.append('iteration_id', iterationId.toString())
     }
     files.forEach((file) => {
@@ -218,6 +260,19 @@ export const uiPrototypeApi = {
     return request.put(`/api/v1/ui-prototype/screen/${screenId}/order`, {
       screen_order: screenOrder,
     })
+  },
+
+  saveProjectFlowData: async (
+    projectId: number,
+    flowData: ProjectFlowData
+  ): Promise<FlowDataSaveResponse> => {
+    return request.put(`/api/v1/ui-prototype/flow/${projectId}`, {
+      flow_data: flowData,
+    })
+  },
+
+  getProjectFlowData: async (projectId: number): Promise<FlowDataSaveResponse> => {
+    return request.get(`/api/v1/ui-prototype/flow/${projectId}`)
   },
 }
 

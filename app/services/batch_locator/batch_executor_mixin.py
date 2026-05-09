@@ -58,8 +58,8 @@ class BatchExecutorMixin:
                         await browser.click_element(locator.css_selector)
                         await asyncio.sleep(0.5)
                         return
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"CSS选择器点击失败，回退到坐标点击: {e}")
                 coord = locator.ai_coordinate if isinstance(locator.ai_coordinate, dict) else {}
                 if coord:
                     x = coord.get("x", 0) + coord.get("width", 0) // 2

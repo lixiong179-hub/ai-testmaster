@@ -97,7 +97,7 @@ _default_vision_model: Optional[UnifiedVisionModel] = None
 def get_default_vision_model() -> UnifiedVisionModel:
     """获取全局默认视觉模型实例
 
-    首次调用时创建默认配置的UnifiedVisionModel实例，
+    首次调用时根据settings.VISION_MODEL_DEFAULT创建实例，
     后续调用返回同一实例。
 
     Returns:
@@ -105,7 +105,9 @@ def get_default_vision_model() -> UnifiedVisionModel:
     """
     global _default_vision_model
     if _default_vision_model is None:
-        _default_vision_model = UnifiedVisionModel()
+        from app.core.config import settings
+        default_model = getattr(settings, 'VISION_MODEL_DEFAULT', 'mimo')
+        _default_vision_model = UnifiedVisionModel(model_type=VisionModelType(default_model))
     return _default_vision_model
 
 

@@ -67,7 +67,7 @@ class TestExceptionClasses:
 
     def test_database_exception(self):
         exc = DatabaseException()
-        assert exc.msg == "数据库操作失败"
+        assert exc.msg == "数据库操作失�?
         assert exc.code == 500
 
     def test_database_exception_custom_msg(self):
@@ -97,12 +97,12 @@ class TestExceptionClasses:
 
     def test_not_found_exception(self):
         exc = NotFoundException()
-        assert exc.msg == "资源不存在"
+        assert exc.msg == "资源不存�?
         assert exc.code == 404
 
     def test_unauthorized_exception(self):
         exc = UnauthorizedException()
-        assert exc.msg == "未授权"
+        assert exc.msg == "未授�?
         assert exc.code == 401
 
     def test_authentication_error(self):
@@ -113,7 +113,7 @@ class TestExceptionClasses:
 
     def test_duplicate_exception(self):
         exc = DuplicateException()
-        assert exc.msg == "资源已存在"
+        assert exc.msg == "资源已存�?
         assert exc.code == 409
 
 

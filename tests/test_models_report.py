@@ -76,7 +76,7 @@ class TestTestReportModel:
         for status in ["pending", "running", "completed", "failed"]:
             report = TestReport(
                 project_id=test_project.id,
-                name=f"状态报告-{status}",
+                name=f"状态报�?{status}",
                 status=status
             )
             db.add(report)
@@ -111,13 +111,13 @@ class TestTestReportModel:
         report = TestReport(
             project_id=test_project.id,
             name="内容报告",
-            description="测试通过率80%",
+            description="测试通过�?0%",
             content={"pass_rate": 0.8, "details": []}
         )
         db.add(report)
         db.commit()
         db.refresh(report)
-        assert report.description == "测试通过率80%"
+        assert report.description == "测试通过�?0%"
         assert report.content == {"pass_rate": 0.8, "details": []}
         db.delete(report)
         db.commit()

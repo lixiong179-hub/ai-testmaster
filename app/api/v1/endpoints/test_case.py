@@ -25,6 +25,7 @@ from app.api.v1.endpoints.test_case_status import router as status_router
 from app.api.v1.endpoints.test_case_version import router as version_router
 from app.api.v1.endpoints.test_case_ai import router as ai_router
 from app.api.v1.endpoints.test_case_ai_stream import router as ai_stream_router
+from app.api.v1.endpoints.test_case_lineage import router as lineage_router
 
 # 测试用例管理路由，包含CRUD、工作流、版本、AI生成等子模块
 router = APIRouter(prefix="/testCase", tags=["测试用例管理"])
@@ -37,3 +38,4 @@ router.include_router(status_router)
 router.include_router(version_router)
 router.include_router(ai_router)
 router.include_router(ai_stream_router)
+router.include_router(lineage_router)

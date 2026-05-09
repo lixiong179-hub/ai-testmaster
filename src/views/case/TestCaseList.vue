@@ -105,10 +105,7 @@
       <!-- 统计数据区域 -->
       <div v-else class="stats-section" v-loading="loading">
         <div class="stats-cards">
-          <div
-            class="stat-card stat-total"
-            @click="applyStatsCardFilter(null)"
-          >
+          <div class="stat-card stat-total" @click="applyStatsCardFilter(null)">
             <div class="stat-icon">
               <el-icon><Document /></el-icon>
             </div>
@@ -117,10 +114,7 @@
               <span class="stat-label">全部用例</span>
             </div>
           </div>
-          <div
-            class="stat-card stat-success"
-            @click="applyStatsCardFilter('')"
-          >
+          <div class="stat-card stat-success" @click="applyStatsCardFilter('')">
             <div class="stat-icon">
               <el-icon><SuccessFilled /></el-icon>
             </div>
@@ -129,10 +123,7 @@
               <span class="stat-label">生成成功</span>
             </div>
           </div>
-          <div
-            class="stat-card stat-failed"
-            @click="applyStatsCardFilter('')"
-          >
+          <div class="stat-card stat-failed" @click="applyStatsCardFilter('')">
             <div class="stat-icon">
               <el-icon><CircleCloseFilled /></el-icon>
             </div>
@@ -141,10 +132,7 @@
               <span class="stat-label">生成失败</span>
             </div>
           </div>
-          <div
-            class="stat-card stat-manual"
-            @click="applyStatsCardFilter('manual')"
-          >
+          <div class="stat-card stat-manual" @click="applyStatsCardFilter('manual')">
             <div class="stat-icon">
               <el-icon><Edit /></el-icon>
             </div>
@@ -153,10 +141,7 @@
               <span class="stat-label">手工测试</span>
             </div>
           </div>
-          <div
-            class="stat-card stat-ui"
-            @click="applyStatsCardFilter('ui_automation')"
-          >
+          <div class="stat-card stat-ui" @click="applyStatsCardFilter('ui_automation')">
             <div class="stat-icon">
               <el-icon><Monitor /></el-icon>
             </div>
@@ -165,10 +150,7 @@
               <span class="stat-label">UI自动化</span>
             </div>
           </div>
-          <div
-            class="stat-card stat-api"
-            @click="applyStatsCardFilter('api_automation')"
-          >
+          <div class="stat-card stat-api" @click="applyStatsCardFilter('api_automation')">
             <div class="stat-icon">
               <el-icon><Connection /></el-icon>
             </div>

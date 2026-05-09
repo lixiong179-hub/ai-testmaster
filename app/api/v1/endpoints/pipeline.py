@@ -15,7 +15,7 @@ from loguru import logger
 from app.db.database import get_db
 from app.models.user import User
 from app.models.iteration import Iteration
-from app.models.pipeline import Artifact
+from app.models.pipeline import Artifact, PipelineRun
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
 
@@ -37,6 +37,225 @@ class SupplementSignalsRequest(BaseModel):
     answers: list[dict] = Field(default_factory=list, description="对 AI 疑问的回答")
     change_summary: Optional[dict] = Field(None, description="变更摘要（旧项目模式）")
     notes: Optional[str] = Field(None, description="补充说明")
+
+
+class Scenario4PrecheckRequest(BaseModel):
+    project_id: int = Field(..., ge=1, description="项目ID")
+    ui_project_id: Optional[int] = Field(None, description="UI原型项目ID")
+    screen_ids: Optional[list[int]] = Field(None, description="UI屏幕ID列表")
+    iteration_id: Optional[int] = Field(None, description="已有迭代ID（可选）")
+    test_point_ids: Optional[list[int]] = Field(None, description="测试点ID列表（可选）")
+
+
+def _verify_project_access(db: Session, project_id: int, current_user: User) -> None:
+    from app.models.project import Project
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.user_id == current_user.id,
+    ).first()
+    if not project:
+        raise HTTPException(status_code=403, detail="无权限操作此项目")
+
+
+@router.post("/scenario-4/precheck", response_model=dict)
+async def precheck_scenario_4(
+    body: Scenario4PrecheckRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _verify_project_access(db, body.project_id, current_user)
+
+    from app.models.test_case import TestCase
+    from app.models.test_point import TestPoint
+    from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen
+
+    blocking_reasons: list[str] = []
+    warnings: list[str] = []
+
+    history_cases_total = (
+        db.query(TestCase)
+        .filter(TestCase.project_id == body.project_id)
+        .count()
+    )
+    history_cases_included = (
+        db.query(TestCase)
+        .filter(
+            TestCase.project_id == body.project_id,
+            TestCase.lifecycle_status != "archived",
+            TestCase.is_deleted == False,
+        )
+        .count()
+    )
+    history_cases_active = (
+        db.query(TestCase)
+        .filter(
+            TestCase.project_id == body.project_id,
+            TestCase.lifecycle_status == "active",
+            TestCase.is_deleted == False,
+        )
+        .count()
+    )
+    history_cases_draft = (
+        db.query(TestCase)
+        .filter(
+            TestCase.project_id == body.project_id,
+            TestCase.lifecycle_status == "draft",
+            TestCase.is_deleted == False,
+        )
+        .count()
+    )
+    history_cases_pending_review = (
+        db.query(TestCase)
+        .filter(
+            TestCase.project_id == body.project_id,
+            TestCase.lifecycle_status == "pending_review",
+            TestCase.is_deleted == False,
+        )
+        .count()
+    )
+    history_cases_archived = (
+        db.query(TestCase)
+        .filter(
+            TestCase.project_id == body.project_id,
+            TestCase.lifecycle_status == "archived",
+        )
+        .count()
+    )
+    history_cases_deleted = (
+        db.query(TestCase)
+        .filter(TestCase.project_id == body.project_id, TestCase.is_deleted == True)
+        .count()
+    )
+
+    test_points_total = (
+        db.query(TestPoint)
+        .filter(TestPoint.project_id == body.project_id)
+        .count()
+    )
+    test_points_selected = 0
+    if body.test_point_ids:
+        owned_count = (
+            db.query(TestPoint)
+            .filter(
+                TestPoint.id.in_(body.test_point_ids),
+                TestPoint.project_id == body.project_id,
+            )
+            .count()
+        )
+        if owned_count != len(body.test_point_ids):
+            raise HTTPException(
+                status_code=403,
+                detail="部分测试点不属于当前项目",
+            )
+        test_points_selected = owned_count
+
+    screen_ids_to_check = body.screen_ids
+    if body.ui_project_id and not body.screen_ids:
+        if body.ui_project_id:
+            prototype_project = (
+                db.query(UIPrototypeProject)
+                .filter(
+                    UIPrototypeProject.id == body.ui_project_id,
+                    UIPrototypeProject.project_id == body.project_id,
+                )
+                .first()
+            )
+            if not prototype_project:
+                raise HTTPException(
+                    status_code=403,
+                    detail="UI原型项目不属于当前项目",
+                )
+            screens = (
+                db.query(UIPrototypeScreen)
+                .filter(
+                    UIPrototypeScreen.prototype_project_id == body.ui_project_id,
+                )
+                .all()
+            )
+            screen_ids_to_check = [s.id for s in screens]
+        else:
+            screen_ids_to_check = []
+
+    if screen_ids_to_check and body.ui_project_id:
+        owner_check = (
+                db.query(UIPrototypeScreen)
+                .filter(
+                    UIPrototypeScreen.id.in_(screen_ids_to_check),
+                    UIPrototypeScreen.prototype_project_id == body.ui_project_id,
+                )
+                .all()
+            )
+        valid_ids = {s.id for s in owner_check}
+        invalid_ids = set(screen_ids_to_check) - valid_ids
+        if invalid_ids:
+            raise HTTPException(
+                status_code=403,
+                detail=f"屏幕 {invalid_ids} 不属于 UI 原型项目 {body.ui_project_id}",
+            )
+
+    selected_screen_count = len(screen_ids_to_check) if screen_ids_to_check else 0
+    parsed_screen_count = 0
+    unparsed_screen_count = 0
+    parse_failed_count = 0
+    usable_screen_ids: list[int] = []
+
+    if screen_ids_to_check:
+        for sid in screen_ids_to_check:
+            screen = (
+                db.query(UIPrototypeScreen)
+                .filter(UIPrototypeScreen.id == sid)
+                .first()
+            )
+            if not screen:
+                continue
+            if screen.parse_status == "completed":
+                parsed_screen_count += 1
+                if screen.ui_spec is not None:
+                    usable_screen_ids.append(sid)
+            elif screen.parse_status in ("failed",):
+                parse_failed_count += 1
+            else:
+                unparsed_screen_count += 1
+
+    if history_cases_included == 0:
+        blocking_reasons.append("项目下没有可扫描的历史用例（已排除 archived 和已删除用例）")
+    if parsed_screen_count == 0:
+        blocking_reasons.append("没有已解析的 UI 页面")
+    if unparsed_screen_count > 0:
+        warnings.append(f"{unparsed_screen_count} 个页面未解析，已排除")
+    if parse_failed_count > 0:
+        warnings.append(f"{parse_failed_count} 个页面解析失败，已排除")
+    if not body.test_point_ids:
+        warnings.append("未选择测试点，场景 4 仍可运行但建议选择以获得更精确的对齐结果")
+
+    can_run = len(blocking_reasons) == 0
+
+    return create_response(data={
+        "project_id": body.project_id,
+        "history_cases": {
+            "total": history_cases_total,
+            "included": history_cases_included,
+            "active": history_cases_active,
+            "draft": history_cases_draft,
+            "pending_review": history_cases_pending_review,
+            "archived": history_cases_archived,
+            "deleted": history_cases_deleted,
+        },
+        "test_points": {
+            "total": test_points_total,
+            "selected": test_points_selected,
+        },
+        "ui": {
+            "selected_screen_count": selected_screen_count,
+            "parsed_screen_count": parsed_screen_count,
+            "unparsed_screen_count": unparsed_screen_count,
+            "parse_failed_count": parse_failed_count,
+            "usable_screen_ids": usable_screen_ids,
+        },
+        "can_run": can_run,
+        "blocking_reasons": blocking_reasons,
+        "warnings": warnings,
+    })
 
 
 def _verify_iteration_access(
@@ -93,6 +312,34 @@ async def run_pipeline(
         )
         db.flush()
 
+        existing_runs = (
+            db.query(PipelineRun)
+            .filter(
+                PipelineRun.iteration_id == iteration_id,
+                PipelineRun.id != run.id,
+            )
+            .count()
+        )
+        current_version = scenario_config.get("version", "1.0")
+        if existing_runs > 0 and current_version != "1.0":
+            last_run = (
+                db.query(PipelineRun)
+                .filter(
+                    PipelineRun.iteration_id == iteration_id,
+                    PipelineRun.id != run.id,
+                )
+                .order_by(PipelineRun.id.desc())
+                .first()
+            )
+            if last_run and last_run.pipeline_version != current_version:
+                _record_version_rerun_metric(
+                    db, iteration_id=iteration_id,
+                    detail={
+                        "old_version": last_run.pipeline_version,
+                        "new_version": current_version,
+                    },
+                )
+
         if iteration.status == "draft":
             from app.services.iteration_service import transition_iteration_status
             transition_iteration_status(db, iteration_id, "in_pipeline")
@@ -117,6 +364,7 @@ async def run_pipeline(
         return create_response(
             data={
                 "run_id": run.id,
+                "pipeline_run_id": run.id,
                 "iteration_id": iteration_id,
                 "status": run.status,
                 "scenario": body.scenario,
@@ -330,10 +578,10 @@ async def get_inferred_summary(
                 "is_old_project": payload.get("is_old_project", False),
                 "mode": payload.get("mode", "new_project"),
                 "parsed": payload.get("parsed", {}),
-                "analysis_summary": payload.get("parsed", {}).get("analysis_summary", ""),
-                "uncertain_questions": payload.get("parsed", {}).get("uncertain_questions", []),
-                "inferred_capabilities": payload.get("parsed", {}).get("inferred_capabilities", []),
-                "change_summary": payload.get("parsed", {}).get("change_summary"),
+                "analysis_summary": (payload.get("parsed") or {}).get("analysis_summary", ""),
+                "uncertain_questions": (payload.get("parsed") or {}).get("uncertain_questions", []),
+                "inferred_capabilities": (payload.get("parsed") or {}).get("inferred_capabilities", []),
+                "change_summary": (payload.get("parsed") or {}).get("change_summary"),
                 "needs_confirmation": payload.get("confidence", 1.0) < 0.7,
                 "provenance": artifact.provenance or {},
                 "run_status": run.status,
@@ -431,3 +679,20 @@ async def supplement_signals(
         db.rollback()
         logger.error("保存补全信号失败: {}", e)
         raise HTTPException(status_code=500, detail=f"保存补全信号失败: {str(e)}")
+
+
+def _record_version_rerun_metric(
+    db: Session,
+    iteration_id: Optional[int] = None,
+    detail: Optional[dict] = None,
+) -> None:
+    """记录 F14 Pipeline 版本升级强制重跑指标（失败不阻塞业务）。"""
+    try:
+        from app.services.metrics_service import record_metric
+        record_metric(
+            "pipeline_version_rerun",
+            iteration_id=iteration_id,
+            detail=detail,
+        )
+    except Exception as e:
+        logger.debug(f"记录pipeline版本重跑指标失败(不影响业务): {e}")

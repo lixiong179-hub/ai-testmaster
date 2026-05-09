@@ -4,7 +4,7 @@
 测试范围:
 - 测试数据CRUD操作
 - 测试数据生成
-- 参数化功能
+- 参数化功�?
 - 自动推断生成
 """
 import pytest
@@ -19,7 +19,7 @@ from app.models.test_data import TestData, DataType, GenerationRule
 
 
 class TestTestDataService:
-    """测试数据服务测试类"""
+    """测试数据服务测试�?""
 
     @pytest.fixture
     def db_session(self):
@@ -48,7 +48,7 @@ class TestTestDataService:
             min_value=None,
             max_value=None,
             enum_values=None,
-            description="用户名",
+            description="用户�?,
             is_required=True,
             sort_order=0
         )
@@ -103,7 +103,7 @@ class TestTestDataService:
         assert result is None
 
     def test_get_test_data_by_step(self, service, db_session, sample_test_data):
-        """测试获取步骤的所有测试数据"""
+        """测试获取步骤的所有测试数�?""
         # 准备
         db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = [sample_test_data]
 
@@ -167,8 +167,8 @@ class TestTestDataService:
              patch.object(db_session, 'refresh') as mock_refresh:
             result = service.auto_generate_for_step(100, action_description)
 
-        # 验证 - 自动推断会返回识别到的字段
-        assert len(result) >= 1  # 至少会识别到一个输入字段
+        # 验证 - 自动推断会返回识别到的字�?
+        assert len(result) >= 1  # 至少会识别到一个输入字�?
 
     def test_auto_generate_for_step_search(self, service, db_session):
         """测试自动推断生成 - 搜索场景"""
@@ -206,7 +206,7 @@ class TestTestDataGenerator:
 
     @pytest.fixture
     def generator(self):
-        """创建生成器实例"""
+        """创建生成器实�?""
         return TestDataGenerator()
 
     def test_generate_data_text(self, generator):
@@ -229,7 +229,7 @@ class TestTestDataGenerator:
         assert "@" in result
 
     def test_generate_data_phone(self, generator):
-        """测试生成手机号数据"""
+        """测试生成手机号数�?""
         result = generator.generate_data(
             field_type=DataType.PHONE,
             field_name="phone"
@@ -261,7 +261,7 @@ class TestTestDataGenerator:
         assert len(parts) == 3
 
     def test_generate_data_boolean(self, generator):
-        """测试生成布尔值数据"""
+        """测试生成布尔值数�?""
         result = generator.generate_data(
             field_type=DataType.BOOLEAN,
             field_name="boolean"
@@ -312,9 +312,9 @@ class TestTestDataGenerator:
             field_type=DataType.TEXT,
             field_name="custom",
             generation_rule=GenerationRule.CUSTOM,
-            rule_config={"custom_value": "自定义值"}
+            rule_config={"custom_value": "自定义�?}
         )
-        assert result == "自定义值"
+        assert result == "自定义�?
 
     def test_generate_data_with_empty_rule(self, generator):
         """测试使用EMPTY规则生成数据"""
@@ -357,16 +357,16 @@ class TestTestDataGenerator:
         assert any(c in result for c in "!@#$%^&*()")
 
     def test_get_cached_value(self, generator):
-        """测试获取缓存值"""
-        # 第一次获取应该生成新值
+        """测试获取缓存�?""
+        # 第一次获取应该生成新�?
         result1 = generator.get_cached_value("test_key", DataType.TEXT, "test_field")
-        # 第二次获取应该返回缓存值
+        # 第二次获取应该返回缓存�?
         result2 = generator.get_cached_value("test_key", DataType.TEXT, "test_field")
         assert result1 == result2
 
     def test_reset_generated_values(self, generator):
-        """测试重置生成的值"""
-        # 生成一个值
+        """测试重置生成的�?""
+        # 生成一个�?
         result1 = generator.get_cached_value("test_key", DataType.TEXT, "test_field")
         # 重置
         generator.reset_generated_values()
@@ -377,7 +377,7 @@ class TestTestDataGenerator:
 
 
 class TestTestDataParameterizer:
-    """测试数据参数化器测试类"""
+    """测试数据参数化器测试�?""
 
     @pytest.fixture
     def parameterizer(self):
@@ -386,11 +386,11 @@ class TestTestDataParameterizer:
 
     @pytest.fixture
     def context(self):
-        """创建参数上下文"""
+        """创建参数上下�?""
         return ParameterContext(execution_id="test-001")
 
     def test_parse_random_product_name(self, parameterizer):
-        """测试解析 - 随机产品名"""
+        """测试解析 - 随机产品�?""
         template = "产品: ${random.product_name}"
         result = parameterizer.parse(template)
         assert "${random.product_name}" not in result
@@ -411,7 +411,7 @@ class TestTestDataParameterizer:
         assert "${date.now}" not in result
 
     def test_parse_user_name(self, parameterizer):
-        """测试解析 - 用户名"""
+        """测试解析 - 用户�?""
         template = "用户: ${user.name}"
         result = parameterizer.parse(template)
         assert "${user.name}" not in result
@@ -425,7 +425,7 @@ class TestTestDataParameterizer:
         assert "ID:" in result
 
     def test_parse_caching(self, parameterizer):
-        """测试解析缓存 - 相同执行ID返回相同值"""
+        """测试解析缓存 - 相同执行ID返回相同�?""
         template = "${random.product_name}"
         result1 = parameterizer.parse(template)
         result2 = parameterizer.parse(template)
@@ -434,28 +434,28 @@ class TestTestDataParameterizer:
 
     def test_parse_no_placeholder(self, parameterizer):
         """测试解析 - 无占位符"""
-        template = "普通文本"
+        template = "普通文�?
         result = parameterizer.parse(template)
-        assert result == "普通文本"
+        assert result == "普通文�?
 
     def test_parse_multiple_placeholders(self, parameterizer):
-        """测试解析 - 多个占位符"""
-        template = "${user.name} 在 ${date.today} 购买了 ${random.product_name}"
+        """测试解析 - 多个占位�?""
+        template = "${user.name} �?${date.today} 购买�?${random.product_name}"
         result = parameterizer.parse(template)
         assert "${user.name}" not in result
         assert "${date.today}" not in result
         assert "${random.product_name}" not in result
-        assert "购买了" in result
+        assert "购买�? in result
 
     def test_parse_unknown_placeholder(self, parameterizer):
-        """测试解析 - 未知占位符"""
+        """测试解析 - 未知占位�?""
         template = "${unknown.placeholder}"
         result = parameterizer.parse(template)
         # 未知占位符应保持原样
         assert "${unknown.placeholder}" in result
 
     def test_parse_empty_template(self, parameterizer):
-        """测试解析 - 空模板"""
+        """测试解析 - 空模�?""
         template = ""
         result = parameterizer.parse(template)
         assert result == ""
@@ -470,7 +470,7 @@ class TestTestDataParameterizer:
         assert "${date.-1}" not in result_yesterday
 
     def test_parse_date_year_month_day(self, parameterizer):
-        """测试解析 - 年月日"""
+        """测试解析 - 年月�?""
         template_year = "${date.year}"
         template_month = "${date.month}"
         template_day = "${date.day}"
@@ -482,15 +482,15 @@ class TestTestDataParameterizer:
         assert result_day.isdigit()
 
     def test_get_cached_params(self, parameterizer):
-        """测试获取缓存的参数"""
-        # 先解析一些内容
+        """测试获取缓存的参�?""
+        # 先解析一些内�?
         parameterizer.parse("${random.product_name}")
         cached = parameterizer.get_cached_params()
         assert isinstance(cached, dict)
 
     def test_clear_cache(self, parameterizer):
         """测试清除缓存"""
-        # 先解析一些内容
+        # 先解析一些内�?
         parameterizer.parse("${random.product_name}")
         # 清除缓存
         parameterizer.clear_cache()
@@ -498,10 +498,10 @@ class TestTestDataParameterizer:
 
 
 class TestDataTypeAndGenerationRule:
-    """数据类型和生成规则枚举测试"""
+    """数据类型和生成规则枚举测�?""
 
     def test_data_type_values(self):
-        """测试数据类型枚举值"""
+        """测试数据类型枚举�?""
         assert DataType.TEXT.value == "text"
         assert DataType.EMAIL.value == "email"
         assert DataType.PHONE.value == "phone"
@@ -515,7 +515,7 @@ class TestDataTypeAndGenerationRule:
         assert DataType.ENUM.value == "enum"
 
     def test_generation_rule_values(self):
-        """测试生成规则枚举值"""
+        """测试生成规则枚举�?""
         assert GenerationRule.RANDOM.value == "random"
         assert GenerationRule.BOUNDARY_MIN.value == "boundary_min"
         assert GenerationRule.BOUNDARY_MAX.value == "boundary_max"
@@ -555,7 +555,7 @@ class TestTestDataModel:
         assert test_data.data_value == "test_value"
 
     def test_test_data_to_dict(self):
-        """测试测试数据转换为字典"""
+        """测试测试数据转换为字�?""
         test_data = TestData(
             id=1,
             step_id=100,
@@ -587,7 +587,7 @@ class TestTestDataModel:
         assert result["is_required"] is True
 
     def test_test_data_to_dict_with_enum_values(self):
-        """测试测试数据转换为字典 - 包含枚举值"""
+        """测试测试数据转换为字�?- 包含枚举�?""
         test_data = TestData(
             id=1,
             step_id=100,
@@ -601,7 +601,7 @@ class TestTestDataModel:
             min_value=None,
             max_value=None,
             enum_values='["active", "inactive", "pending"]',
-            description="状态",
+            description="状�?,
             is_required=True,
             sort_order=0
         )
@@ -611,7 +611,7 @@ class TestTestDataModel:
         assert result["enum_values"] == ["active", "inactive", "pending"]
 
     def test_test_data_to_dict_boolean_conversion(self):
-        """测试测试数据转换为字典 - 布尔值转换"""
+        """测试测试数据转换为字�?- 布尔值转�?""
         test_data = TestData(
             id=1,
             step_id=100,
@@ -625,7 +625,7 @@ class TestTestDataModel:
             min_value=None,
             max_value=None,
             enum_values=None,
-            description="是否激活",
+            description="是否激�?,
             is_required=True,
             sort_order=0
         )
@@ -637,10 +637,10 @@ class TestTestDataModel:
 
 
 class TestParameterContext:
-    """参数上下文测试"""
+    """参数上下文测�?""
 
     def test_context_creation(self):
-        """测试上下文创建"""
+        """测试上下文创�?""
         context = ParameterContext(
             execution_id="test-001",
             user_id=1,
@@ -656,12 +656,12 @@ class TestParameterContext:
         """测试上下文默认时间戳"""
         context = ParameterContext(execution_id="test-001")
         assert context.execution_timestamp != ""
-        # 验证时间戳格式
+        # 验证时间戳格�?
         assert len(context.execution_timestamp) == 14  # YYYYMMDDHHMMSS
         assert context.execution_timestamp.isdigit()
 
     def test_context_custom_timestamp(self):
-        """测试上下文自定义时间戳"""
+        """测试上下文自定义时间�?""
         context = ParameterContext(
             execution_id="test-001",
             execution_timestamp="20240101120000"
@@ -690,7 +690,7 @@ class TestDataConstraints:
         assert constraints.pattern == "^[a-z]+$"
 
     def test_constraints_defaults(self):
-        """测试约束默认值"""
+        """测试约束默认�?""
         constraints = DataConstraints()
         assert constraints.min_length is None
         assert constraints.max_length is None

@@ -45,7 +45,7 @@ class TestSubclassExceptions:
     def test_database_exception(self):
         exc = DatabaseException()
         assert exc.code == 500
-        assert "数据库" in exc.msg
+        assert "数据�? in exc.msg
 
     def test_database_exception_custom_msg(self):
         exc = DatabaseException("连接超时")
@@ -147,7 +147,7 @@ def _make_request(path="/test/path", query_string=""):
 
 
 class TestBaseExceptionHandler:
-    """测试 base_exception_handler — 自定义业务异常处理"""
+    """测试 base_exception_handler �?自定义业务异常处�?""
 
     @pytest.mark.asyncio
     async def test_base_exception_returns_json(self):
@@ -170,13 +170,13 @@ class TestBaseExceptionHandler:
     @pytest.mark.asyncio
     async def test_base_exception_404(self):
         request = _make_request("/api/users/9999")
-        exc = NotFoundException("用户不存在")
+        exc = NotFoundException("用户不存�?)
         response = await base_exception_handler(request, exc)
         assert response.status_code == 404
 
 
 class TestHttpExceptionHandler:
-    """测试 http_exception_handler — FastAPI HTTPException 处理"""
+    """测试 http_exception_handler �?FastAPI HTTPException 处理"""
 
     @pytest.mark.asyncio
     async def test_http_404(self):
@@ -196,23 +196,23 @@ class TestHttpExceptionHandler:
 
 
 class TestDatabaseExceptionHandler:
-    """测试 database_exception_handler — 数据库异常脱敏处理"""
+    """测试 database_exception_handler �?数据库异常脱敏处�?""
 
     @pytest.mark.asyncio
     async def test_integrity_error(self):
-        """IntegrityError 应返回脱敏消息，不暴露 SQL 细节"""
+        """IntegrityError 应返回脱敏消息，不暴�?SQL 细节"""
         request = _make_request()
         exc = IntegrityError("INSERT INTO users...", "params", None)
         response = await database_exception_handler(request, exc)
         assert response.status_code == 500
         body = response.body.decode()
-        assert "完整性约束" in body
+        assert "完整性约�? in body
         # 关键：不暴露原始 SQL
         assert "INSERT INTO" not in body
 
     @pytest.mark.asyncio
     async def test_operational_error(self):
-        """OperationalError 应返回连接失败提示"""
+        """OperationalError 应返回连接失败提�?""
         request = _make_request()
         exc = OperationalError("Connection refused", "params", None)
         response = await database_exception_handler(request, exc)
@@ -228,11 +228,11 @@ class TestDatabaseExceptionHandler:
         response = await database_exception_handler(request, exc)
         assert response.status_code == 500
         body = response.body.decode()
-        assert "数据库操作失败" in body
+        assert "数据库操作失�? in body
 
 
 class TestValidationExceptionHandler:
-    """测试 validation_exception_handler — Pydantic 验证异常"""
+    """测试 validation_exception_handler �?Pydantic 验证异常"""
 
     @pytest.mark.asyncio
     async def test_validation_error_returns_field_details(self):
@@ -250,7 +250,7 @@ class TestValidationExceptionHandler:
 
 
 class TestRequestValidationExceptionHandler:
-    """测试 request_validation_exception_handler — Query/Path 参数验证"""
+    """测试 request_validation_exception_handler �?Query/Path 参数验证"""
 
     @pytest.mark.asyncio
     async def test_request_validation_error(self):
@@ -266,7 +266,7 @@ class TestRequestValidationExceptionHandler:
 
 
 class TestGeneralExceptionHandler:
-    """测试 general_exception_handler — 兜底异常处理"""
+    """测试 general_exception_handler �?兜底异常处理"""
 
     @pytest.mark.asyncio
     async def test_unexpected_error_returns_500(self):
@@ -276,8 +276,8 @@ class TestGeneralExceptionHandler:
         response = await general_exception_handler(request, exc)
         assert response.status_code == 500
         body = response.body.decode()
-        assert "服务器内部错误" in body
-        # 关键安全检查：不向客户端暴露原始异常信息
+        assert "服务器内部错�? in body
+        # 关键安全检查：不向客户端暴露原始异常信�?
         assert "null pointer" not in body
 
 
@@ -287,14 +287,14 @@ class TestRegisterExceptionHandlers:
     def test_registers_all_handlers(self):
         app = MagicMock()
         register_exception_handlers(app)
-        # 应注册 6 个异常处理器
+        # 应注�?6 个异常处理器
         assert app.add_exception_handler.call_count == 6
 
     def test_exception_handler_order(self):
-        """验证注册顺序：最具体优先，Exception 最后"""
+        """验证注册顺序：最具体优先，Exception 最�?""
         app = MagicMock()
         register_exception_handlers(app)
         calls = app.add_exception_handler.call_args_list
-        # 最后一个注册的应该是 Exception（兜底）
+        # 最后一个注册的应该�?Exception（兜底）
         last_exc_class = calls[-1][0][0]
         assert last_exc_class is Exception

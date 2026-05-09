@@ -18,13 +18,14 @@ UI原型解析端点模块
     - 批量解析按页面顺序依次处理
     - 测试流程基于页面间跳转关系自动生成
 """
+import asyncio
 import traceback
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
 from sqlalchemy.orm import Session
 from loguru import logger
 
-from app.db.database import get_db
+from app.db.database import get_db, get_db_context
 from app.schemas.ui_prototype import (
     UIScreenParseRequest,
     UIFlowGenerateRequest,
@@ -99,19 +100,53 @@ async def parse_ui_screens(
             )
 
         target_project_id = next(iter(screen_project_ids))
-        pipeline = UISpecParsePipeline(
-            db, target_project_id, current_user.id, UPLOAD_DIR, parse_mode=parse_request.parse_mode
-        )
-        result = await pipeline.batch_parse_screens(parse_request.screen_ids)
 
-        if parse_request.prototype_project_id:
-            ui_prototype_crud.update_prototype_project_stats(
-                db, parse_request.prototype_project_id
-            )
+        # 后台执行解析，使用独立数据库会话，避免请求会话被关闭
+        # 不在此处预设 running 状态，由 pipeline.parse_screen() 逐屏设置，保证进度条渐进推进
+        async def _run_parse_background():
+            try:
+                with get_db_context() as bg_db:
+                    pipeline = UISpecParsePipeline(
+                        bg_db, target_project_id, current_user.id, UPLOAD_DIR,
+                        parse_mode=parse_request.parse_mode
+                    )
+                    result = await pipeline.batch_parse_screens(parse_request.screen_ids)
+
+                    if parse_request.prototype_project_id:
+                        ui_prototype_crud.update_prototype_project_stats(
+                            bg_db, parse_request.prototype_project_id
+                        )
+
+                logger.info(
+                    f"[后台解析完成] project_id={target_project_id} "
+                    f"success={result.get('success', 0)} failed={result.get('failed', 0)}"
+                )
+            except Exception as e:
+                logger.error(f"[后台解析异常] {e}\n{traceback.format_exc()}")
+                # 将仍在 running 或 pending 状态的屏幕标记为 failed
+                try:
+                    with get_db_context() as bg_db:
+                        for screen_id in parse_request.screen_ids:
+                            screen = ui_prototype_crud.get_ui_screen_by_id(
+                                bg_db, screen_id, target_project_id
+                            )
+                            if screen and screen.parse_status in ("running", "pending"):
+                                ui_prototype_crud.update_ui_screen_parse_status(
+                                    bg_db, screen_id, "failed", str(e)
+                                )
+                except Exception as mark_err:
+                    logger.error(f"[后台解析] 标记失败状态异常: {mark_err}")
+
+        task = asyncio.create_task(_run_parse_background())
+        task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
 
         return create_response(
-            data=result,
-            msg=f"解析完成，成功{result['success']}个，失败{result['failed']}个"
+            data={
+                "task_id": f"parse_{target_project_id}",
+                "screen_ids": parse_request.screen_ids,
+                "parse_mode": parse_request.parse_mode,
+            },
+            msg=f"解析任务已启动，共{len(parse_request.screen_ids)}个屏幕"
         )
     except HTTPException:
         raise
@@ -157,12 +192,52 @@ async def parse_prototype_project(
                 detail="无权限操作此项目或项目不存在",
             )
 
-        pipeline = UISpecParsePipeline(
-            db, db_project.id, current_user.id, UPLOAD_DIR, parse_mode=parse_mode
-        )
-        result = await pipeline.parse_prototype_project(prototype_project_id)
+        # 后台执行解析，使用独立数据库会话
+        # 不在此处预设 running 状态，由 pipeline 逐屏设置，保证进度条渐进推进
+        async def _run_project_parse_background():
+            try:
+                with get_db_context() as bg_db:
+                    pipeline = UISpecParsePipeline(
+                        bg_db, db_project.id, current_user.id, UPLOAD_DIR,
+                        parse_mode=parse_mode
+                    )
+                    result = await pipeline.parse_prototype_project(prototype_project_id)
 
-        return create_response(data=result, msg="解析完成")
+                logger.info(
+                    f"[后台项目解析完成] prototype_project_id={prototype_project_id} "
+                    f"success={result.get('success', 0)} failed={result.get('failed', 0)}"
+                )
+            except Exception as e:
+                logger.error(f"[后台项目解析异常] {e}\n{traceback.format_exc()}")
+                # 将仍在 running 或 pending 状态的屏幕标记为 failed
+                try:
+                    with get_db_context() as bg_db:
+                        for status_to_mark in ("running", "pending"):
+                            stuck_screens = ui_prototype_crud.get_ui_screens_by_project(
+                                db=bg_db,
+                                project_id=db_project.id,
+                                user_id=current_user.id,
+                                prototype_project_id=prototype_project_id,
+                                parse_status=status_to_mark
+                            )
+                            for s in stuck_screens:
+                                ui_prototype_crud.update_ui_screen_parse_status(
+                                    bg_db, s.id, "failed", str(e)
+                                )
+                except Exception as mark_err:
+                    logger.error(f"[后台项目解析] 标记失败状态异常: {mark_err}")
+
+        task = asyncio.create_task(_run_project_parse_background())
+        task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
+
+        return create_response(
+            data={
+                "task_id": f"parse_project_{prototype_project_id}",
+                "prototype_project_id": prototype_project_id,
+                "parse_mode": parse_mode,
+            },
+            msg="解析任务已启动"
+        )
     except HTTPException:
         raise
     except Exception as e:

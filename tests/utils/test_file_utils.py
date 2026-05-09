@@ -37,7 +37,7 @@ class TestValidateFileFormat:
 
 class TestDetectResourceType:
     def test_keyword_requirement(self):
-        assert detect_resource_type("需求文档.docx", "docx") == "requirement"
+        assert detect_resource_type("需求文�?docx", "docx") == "requirement"
 
     def test_keyword_ui(self):
         assert detect_resource_type("UI设计.png", "png") == "ui_mockup"
@@ -77,12 +77,12 @@ class TestValidateFileMime:
     def test_zip_invalid_mime(self):
         result = validate_file_mime("zip", "application/pdf")
         assert result is not None
-        assert "压缩包" in result
+        assert "压缩�? in result
 
     def test_mismatched_mime(self):
         result = validate_file_mime("pdf", "image/png")
         assert result is not None
-        assert "不匹配" in result
+        assert "不匹�? in result
 
     def test_unknown_extension_valid(self):
         result = validate_file_mime("xyz", "application/octet-stream")
@@ -164,7 +164,7 @@ class TestParseUrl:
 
 
 class _OKHandler(BaseHTTPRequestHandler):
-    """返回 200 的本地 HTTP 处理器。"""
+    """返回 200 的本�?HTTP 处理器�?""
 
     def do_GET(self):
         self.send_response(200)
@@ -177,7 +177,7 @@ class _OKHandler(BaseHTTPRequestHandler):
 
 
 class _RedirectHandler(BaseHTTPRequestHandler):
-    """返回 302 重定向的本地 HTTP 处理器。"""
+    """返回 302 重定向的本地 HTTP 处理器�?""
 
     def do_GET(self):
         self.send_response(302)

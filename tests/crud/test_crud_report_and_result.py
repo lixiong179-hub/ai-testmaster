@@ -61,7 +61,7 @@ def test_case(db, test_project):
         project_id=test_project.id,
         module="测试模块",
         title="测试用例",
-        precondition="无",
+        precondition="�?,
         steps_json=[{"step": "步骤1", "action": "操作", "param": ""}],
         expected_result="预期结果",
         priority=2,
@@ -103,7 +103,7 @@ class TestCreateTestReport:
 
     def test_create_without_task(self, db, test_project):
         report_data = TestReportCreate(
-            name="汇总报告",
+            name="汇总报�?,
             project_id=test_project.id,
         )
         report = create_test_report(db, report_data, user_id=1)
@@ -160,25 +160,25 @@ class TestGetTestReportById:
 class TestUpdateTestReport:
     def test_update_name(self, db, test_project):
         report_data = TestReportCreate(
-            name="旧名称",
+            name="旧名�?,
             project_id=test_project.id,
         )
         report = create_test_report(db, report_data, user_id=1)
-        update_data = TestReportUpdate(name="新名称")
+        update_data = TestReportUpdate(name="新名�?)
         result = update_test_report(db, report.id, test_project.id, update_data)
         assert result is not None
-        assert result.name == "新名称"
+        assert result.name == "新名�?
 
     def test_update_partial(self, db, test_project):
         report_data = TestReportCreate(
             name="部分更新",
-            description="旧描述",
+            description="旧描�?,
             project_id=test_project.id,
         )
         report = create_test_report(db, report_data, user_id=1)
-        update_data = TestReportUpdate(description="新描述")
+        update_data = TestReportUpdate(description="新描�?)
         result = update_test_report(db, report.id, test_project.id, update_data)
-        assert result.description == "新描述"
+        assert result.description == "新描�?
         assert result.name == "部分更新"
 
     def test_update_nonexistent(self, db, test_project):
@@ -211,7 +211,7 @@ class TestGetTestReportsByTask:
             test_task_id=test_task.id,
         )
         report_data2 = TestReportCreate(
-            name="无任务报告",
+            name="无任务报�?,
             project_id=test_project.id,
         )
         create_test_report(db, report_data1, user_id=1)

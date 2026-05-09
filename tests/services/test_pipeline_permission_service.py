@@ -1,15 +1,15 @@
 """
 M1-T14 Pipeline Permission Service 测试模块
 
-覆盖：
-    - init_pipeline_roles 初始化4种角色+权限
+覆盖�?
+    - init_pipeline_roles 初始�?种角�?权限
     - init_pipeline_roles 幂等
-    - check_pipeline_permission 各角色权限校验
+    - check_pipeline_permission 各角色权限校�?
     - check_pipeline_permission scope 层级
     - check_pipeline_permission project_id=None + scope=own
     - assign_pipeline_role / revoke_pipeline_role
     - assign_pipeline_role 审计日志
-    - require_permission 装饰器
+    - require_permission 装饰�?
 """
 import pytest
 

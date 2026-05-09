@@ -1,4 +1,4 @@
-"""Service层业务逻辑测试 - 扩展覆盖率"""
+"""Service层业务逻辑测试 - 扩展覆盖�?""
 import pytest
 from datetime import datetime
 from app.services.case_quality.models import CaseQualityAnalysisRequest, CaseQualityReport
@@ -233,7 +233,7 @@ class TestNoStrLeakageInServiceReturns:
 
 class TestFileLineLimits:
     def test_all_service_files_under_300_lines(self):
-        """验证所有Service文件不超过300行"""
+        """验证所有Service文件不超�?00�?""
         import subprocess
         result = subprocess.run(
             ['powershell', '-Command', '''
@@ -255,7 +255,7 @@ class TestFileLineLimits:
 
 class TestTypeAnnotations:
     def test_service_methods_have_return_types(self):
-        """验证服务方法有返回类型注解"""
+        """验证服务方法有返回类型注�?""
         import inspect
         from app.services.task_service.core_mixin import TestTaskCoreMixin
         
@@ -265,7 +265,7 @@ class TestTypeAnnotations:
                 assert sig.return_annotation != inspect.Parameter.empty, f"Method {name} missing return type"
 
     def test_execution_replay_methods_have_return_types(self):
-        """验证执行回放方法有返回类型注解"""
+        """验证执行回放方法有返回类型注�?""
         import inspect
         from app.services.execution_replay.legacy_service import ExecutionReplayService
         

@@ -23,6 +23,8 @@ export interface TestCase {
   create_time?: string
   generate_status?: number
   lifecycle_status?: string
+  parent_case_id?: number | null
+  ai_change_type?: 'added' | 'modified' | 'deprecated'
 }
 
 export interface TestCaseCreate {
@@ -36,6 +38,8 @@ export interface TestCaseCreate {
   priority?: number
   case_type?: string
   generate_status?: number
+  parent_case_id?: number | null
+  ai_change_type?: 'added' | 'modified' | 'deprecated'
 }
 
 export interface TestCaseExecute {
@@ -231,7 +235,10 @@ export interface AIEnhancedGenerateResponse {
   test_data: Record<string, Record<string, string | number | boolean | null>>
   expected_result?: string
   priority?: number
+  change_type?: 'added' | 'modified' | 'deprecated'
+  parent_case_id?: number | null
   message: string
+  // AI 返回的 change_type 映射为 ai_change_type 入库
 }
 
 function extractResponseData<T>(response: ApiResponse<T> | T): T {
@@ -242,6 +249,25 @@ function extractResponseData<T>(response: ApiResponse<T> | T): T {
 }
 
 // ============== API 定义 ==============
+
+export interface LineageNode {
+  id: number
+  case_no: string
+  title: string
+  lifecycle_status: string
+  iteration_id?: number | null
+  created_at?: string | null
+  parent_case_id?: number | null
+  children: LineageNode[]
+}
+
+export interface LineageResponse {
+  root: LineageNode
+  ancestors: LineageNode[]
+  chain_length: number
+  warning: boolean
+  warning_threshold: number
+}
 
 export const testCaseApi = {
   getCaseList: async (params: CaseQueryParams): Promise<CasePageResponse> => {
@@ -512,6 +538,13 @@ export const testCaseApi = {
     const response = await request.post('/api/v1/testCase/import', formData)
     return extractResponseData<ImportResult>(
       response as unknown as ApiResponse<ImportResult> | ImportResult
+    )
+  },
+
+  getLineage: async (caseId: number): Promise<LineageResponse> => {
+    const response = await request.get(`/api/v1/testCase/${caseId}/lineage`)
+    return extractResponseData<LineageResponse>(
+      response as unknown as ApiResponse<LineageResponse> | LineageResponse
     )
   },
 }

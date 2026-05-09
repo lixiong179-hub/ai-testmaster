@@ -1,5 +1,5 @@
 """
-浏览器控制器覆盖率测试
+浏览器控制器覆盖率测�?
 提升 browser_controller.py 的测试覆盖率
 """
 import sys
@@ -23,7 +23,7 @@ from app.utils.browser_controller import (
 
 
 class TestBrowserType(unittest.TestCase):
-    """测试浏览器类型枚举"""
+    """测试浏览器类型枚�?""
     
     def test_browser_types(self):
         """测试所有浏览器类型"""
@@ -33,7 +33,7 @@ class TestBrowserType(unittest.TestCase):
 
 
 class TestBrowserConfig(unittest.TestCase):
-    """测试浏览器配置"""
+    """测试浏览器配�?""
     
     def test_default_config(self):
         """测试默认配置"""
@@ -44,7 +44,7 @@ class TestBrowserConfig(unittest.TestCase):
         self.assertEqual(config.viewport_height, 1080)
     
     def test_custom_config(self):
-        """测试自定义配置"""
+        """测试自定义配�?""
         config = BrowserConfig(
             browser_type=BrowserType.FIREFOX,
             headless=False,
@@ -61,14 +61,14 @@ class TestBrowserErrors(unittest.TestCase):
     """测试浏览器错误类"""
     
     def test_browser_error(self):
-        """测试基础浏览器错误"""
-        error = BrowserError("浏览器错误")
-        self.assertEqual(str(error), "浏览器错误")
+        """测试基础浏览器错�?""
+        error = BrowserError("浏览器错�?)
+        self.assertEqual(str(error), "浏览器错�?)
     
     def test_browser_not_initialized_error(self):
         """测试未初始化错误"""
-        error = BrowserNotInitializedError("浏览器未初始化")
-        self.assertEqual(str(error), "浏览器未初始化")
+        error = BrowserNotInitializedError("浏览器未初始�?)
+        self.assertEqual(str(error), "浏览器未初始�?)
     
     def test_browser_navigation_error(self):
         """测试导航错误"""
@@ -76,9 +76,9 @@ class TestBrowserErrors(unittest.TestCase):
         self.assertEqual(str(error), "导航失败")
     
     def test_browser_element_not_found_error(self):
-        """测试元素未找到错误"""
-        error = ElementNotFoundError("元素未找到")
-        self.assertEqual(str(error), "元素未找到")
+        """测试元素未找到错�?""
+        error = ElementNotFoundError("元素未找�?)
+        self.assertEqual(str(error), "元素未找�?)
 
 
 if __name__ == '__main__':

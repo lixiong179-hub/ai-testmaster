@@ -113,11 +113,7 @@
                   >
                     部分解析 ({{ project.parsed_count }}/{{ project.screen_count }})
                   </el-tag>
-                  <el-tag
-                    v-else-if="project.parse_status === 'failed'"
-                    type="danger"
-                    size="small"
-                  >
+                  <el-tag v-else-if="project.parse_status === 'failed'" type="danger" size="small">
                     解析失败
                   </el-tag>
                   <el-tag v-else type="info" size="small"> 待解析 </el-tag>
@@ -136,6 +132,74 @@
             </el-button>
           </div>
         </div>
+      </el-form-item>
+
+      <!-- 历史用例 -->
+      <el-form-item v-if="store.formData.project_id" label="历史用例">
+        <template v-if="store.isLoadingProjectCases">
+          <el-skeleton :rows="1" animated />
+        </template>
+        <template v-else-if="store.projectCases.length > 0">
+        <div class="history-case-selector">
+          <div class="history-case-toolbar">
+            <span class="history-case-stat">共 <strong>{{ store.projectCases.length }}</strong> 条</span>
+            <el-tag v-if="store.selectedHistoryCaseIds.length > 0" size="small" type="primary" effect="dark">
+              已选 {{ store.selectedHistoryCaseIds.length }}
+            </el-tag>
+            <div class="history-case-actions">
+              <el-button
+                link
+                type="primary"
+                size="small"
+                @mousedown.prevent
+                @click.stop.prevent="selectAllHistoryCases"
+                :disabled="store.projectCases.length === 0 || store.selectedHistoryCaseIds.length >= store.projectCases.length"
+              >
+                全选
+              </el-button>
+              <el-button
+                link
+                type="danger"
+                size="small"
+                @mousedown.prevent
+                @click.stop.prevent="store.selectedHistoryCaseIds = []; store._historyCaseUserCleared = true"
+                :disabled="store.selectedHistoryCaseIds.length === 0"
+              >
+                清空
+              </el-button>
+            </div>
+          </div>
+          <el-select
+            v-model="store.selectedHistoryCaseIds"
+            @change="(val: number[]) => { if (val.length > 0) store._historyCaseUserCleared = false; else store._historyCaseUserCleared = true }"
+            multiple
+            filterable
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="默认评审全部用例，可取消勾选不想评审的用例"
+            style="width: 100%"
+            :max-collapse-tags="3"
+            :loading="store.isLoadingProjectCases"
+          >
+            <el-option
+              v-for="c in store.projectCases"
+              :key="c.id"
+              :label="`[${c.module}] ${c.title}`"
+              :value="c.id"
+            />
+          </el-select>
+          <div class="history-case-tip">
+            <span v-if="store.selectedHistoryCaseIds.length > 0">
+              已选 {{ store.selectedHistoryCaseIds.length }} 条
+            </span>
+            <span v-else>不选择则默认评审项目全部用例</span>
+          </div>
+        </div>
+        </template>
+        <template v-else>
+          <span style="color: #909399; font-size: 13px">当前项目暂无用例，生成用例后可在此评审查漏补缺</span>
+        </template>
       </el-form-item>
 
       <!-- UI屏幕预览和排序区域 -->
@@ -199,6 +263,7 @@
             @update:sort-data="store.handleFlowSortUpdate"
             @preview-prompt="handlePreviewPrompt"
             @preview-screen="handleFlowNodePreview"
+            @test-point-link="handleTestPointLink"
           />
         </div>
         <div v-else class="ui-screens-empty">
@@ -395,6 +460,35 @@
               </el-popover>
             </div>
           </transition>
+
+          <!-- 推荐测试点（页面路径联动） -->
+          <div v-if="relatedTestPointIds.length > 0" class="tp-recommend">
+            <div class="tp-recommend-header">
+              <el-icon><Connection /></el-icon>
+              <span>推荐测试点（基于选中页面路径）</span>
+            </div>
+            <div class="tp-recommend-list">
+              <el-tag
+                v-for="id in relatedTestPointIds"
+                :key="id"
+                :type="store.formData.test_point_ids.includes(id) ? 'success' : 'info'"
+                effect="plain"
+                size="small"
+                class="tp-recommend-tag"
+                @click="
+                  store.formData.test_point_ids.includes(id)
+                    ? store.removeTestPoint(id)
+                    : store.addTestPoint(id)
+                "
+                style="cursor: pointer"
+              >
+                {{ store.getTestPointLabel(id) }}
+                <el-icon v-if="store.formData.test_point_ids.includes(id)" style="margin-left: 2px"
+                  ><CircleCheck
+                /></el-icon>
+              </el-tag>
+            </div>
+          </div>
         </div>
       </el-form-item>
 
@@ -437,70 +531,110 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowRight, Refresh, Search, Rank, View } from '@element-plus/icons-vue'
+import {
+  ArrowRight,
+  Refresh,
+  Search,
+  Rank,
+  View,
+  Connection,
+  CircleCheck,
+} from '@element-plus/icons-vue'
 import FlowSortEditor from '@/components/case/FlowSortEditor.vue'
 import { useGenerateStore } from '@/store/useGenerateStore'
+import { useTestPointLink } from '@/composables/useTestPointLink'
 
 const store = useGenerateStore()
 const fetchingRequirement = ref(false)
+const { matchScreenName } = useTestPointLink()
+const relatedTestPointIds = ref<number[]>([])
+
+const selectAllHistoryCases = () => {
+  store.selectedHistoryCaseIds = store.projectCases.map((c) => c.id)
+}
 
 type FlowSortValidationResult = {
-    errors: string[]
-    warnings: string[]
+  errors: string[]
+  warnings: string[]
 }
 
 type FlowSortEditorExpose = InstanceType<typeof FlowSortEditor> & {
-    getFlowSortSubmitData?: () => { mode: 'graph'; flow_sort_data: Record<string, unknown> }
-    getFlowValidationIssues?: () => FlowSortValidationResult
+  getFlowSortSubmitData?: () => { mode: 'graph'; flow_sort_data: Record<string, unknown> }
+  getFlowValidationIssues?: () => FlowSortValidationResult
 }
 
 const flowSortEditorRef = ref<InstanceType<typeof FlowSortEditor> | null>(null)
 
 /** 暴露 FlowSortEditor 引用供父组件获取 */
 function getFlowSortEditorRef(): FlowSortEditorExpose | null {
-    return flowSortEditorRef.value as FlowSortEditorExpose | null
+  return flowSortEditorRef.value as FlowSortEditorExpose | null
 }
 
 const handlePreviewPrompt = () => {
-    const editor = flowSortEditorRef.value as FlowSortEditorExpose | null
-    const validation = editor?.getFlowValidationIssues?.()
-    if (validation?.errors.length) {
-        ElMessage.warning(validation.errors[0])
-        return
-    }
-    if (validation?.warnings.length) {
-        ElMessage.warning(validation.warnings[0])
-    }
-    const submitData = editor?.getFlowSortSubmitData?.()
-    if (submitData?.flow_sort_data) {
-        console.log('[Prompt预览] flow_sort_data:', JSON.stringify(submitData.flow_sort_data, null, 2))
-        ElMessage.info('Prompt 数据已输出到控制台')
-    } else {
-        ElMessage.warning('当前尚未生成页面流程数据')
-    }
+  const editor = flowSortEditorRef.value as FlowSortEditorExpose | null
+  const validation = editor?.getFlowValidationIssues?.()
+  if (validation?.errors.length) {
+    ElMessage.warning(validation.errors[0])
+    return
+  }
+  if (validation?.warnings.length) {
+    ElMessage.warning(validation.warnings[0])
+  }
+  const submitData = editor?.getFlowSortSubmitData?.()
+  if (submitData?.flow_sort_data) {
+    console.log('[Prompt预览] flow_sort_data:', JSON.stringify(submitData.flow_sort_data, null, 2))
+    ElMessage.info('Prompt 数据已输出到控制台')
+  } else {
+    ElMessage.warning('当前尚未生成页面流程数据')
+  }
 }
 
 const handleFlowNodePreview = (screenData: {
-    screen_id: number
-    screen_name: string
-    image_url?: string
+  screen_id: number
+  screen_name: string
+  image_url?: string
 }) => {
-    const screen = store.uiScreens.find((s) => s.id === screenData.screen_id)
-    if (screen && store.screenImageUrls[screen.id]) {
-        // 由父组件处理图片预览
-        emitPreviewScreen(store.screenImageUrls[screen.id])
+  const screen = store.uiScreens.find((s) => s.id === screenData.screen_id)
+  if (screen && store.screenImageUrls[screen.id]) {
+    // 由父组件处理图片预览
+    emitPreviewScreen(store.screenImageUrls[screen.id])
+  }
+}
+
+const handleTestPointLink = (screenIds: number[]) => {
+  if (!screenIds.length || !store.testPoints.length) {
+    relatedTestPointIds.value = []
+    return
+  }
+  const screenNames = store.uiScreens
+    .filter((s) => screenIds.includes(s.id))
+    .map((s) => s.screen_name || '')
+    .filter(Boolean)
+  if (!screenNames.length) {
+    relatedTestPointIds.value = []
+    return
+  }
+  const results: number[] = []
+  for (const tp of store.testPoints) {
+    for (const name of screenNames) {
+      if (matchScreenName(tp, name) && !results.includes(tp.id)) {
+        results.push(tp.id)
+        break
+      }
     }
+  }
+  relatedTestPointIds.value = results
 }
 
 const emit = defineEmits<{
-    'next': []
-    'skip-to-step2': []
-    'go-resource-manage': []
-    'preview-screen': [url: string]
+  next: []
+  'skip-to-step2': []
+  'go-resource-manage': []
+  'preview-screen': [url: string]
 }>()
 
 function emitPreviewScreen(url: string) {
-    emit('preview-screen', url)
+  emit('preview-screen', url)
 }
 
 defineExpose({ getFlowSortEditorRef })
@@ -508,202 +642,261 @@ defineExpose({ getFlowSortEditorRef })
 
 <style scoped>
 .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .ui-mockup-section {
-    width: 100%;
+  width: 100%;
 }
 
 .version-selector {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .version-option {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .version-name {
-    flex: 1;
+  flex: 1;
 }
 
 .screen-preview-form-item :deep(.el-form-item__content) {
-    width: 100%;
-    min-height: 0;
-    display: block;
+  width: 100%;
+  min-height: 0;
+  display: block;
 }
 
 .screen-preview-wrapper {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px;
-    border-radius: 16px;
-    background: linear-gradient(180deg, #fcfdff 0%, #f7f9fc 100%);
-    border: 1px solid #ebeef5;
-    box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fcfdff 0%, #f7f9fc 100%);
+  border: 1px solid #ebeef5;
+  box-sizing: border-box;
 }
 
 .screen-preview-overview {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    padding-bottom: 4px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 4px;
 }
 
 .preview-overview-main {
-    flex: 1;
-    min-width: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .preview-overview-title {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .preview-overview-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .preview-overview-desc {
-    font-size: 13px;
-    line-height: 1.6;
-    color: #606266;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #606266;
 }
 
 .preview-overview-tips {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .preview-tip-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: #fff;
-    border: 1px solid #e4e7ed;
-    color: #606266;
-    font-size: 12px;
-    white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  color: #606266;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .screen-sort-editor {
-    min-height: clamp(460px, 62vh, 760px);
+  min-height: clamp(460px, 62vh, 760px);
 }
 
 .ui-screens-empty {
-    width: 100%;
-    padding: 40px 0;
-    border: 1px dashed #dcdfe6;
-    border-radius: 12px;
-    background: #fafbfc;
+  width: 100%;
+  padding: 40px 0;
+  border: 1px dashed #dcdfe6;
+  border-radius: 12px;
+  background: #fafbfc;
 }
 
 .context-preview {
-    max-width: 800px;
+  max-width: 800px;
+}
+
+/* 历史用例选择器 */
+.history-case-selector {
+  width: 100%;
+}
+
+.history-case-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.history-case-stat {
+  color: #606266;
+}
+
+.history-case-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.history-case-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #909399;
 }
 
 /* 测试点选择器 */
 .test-point-selector {
-    width: 100%;
-    border-radius: 8px;
-    border: 1px solid #e4e7ed;
-    background: #fff;
-    overflow: hidden;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+  background: #fff;
+  overflow: hidden;
 }
 
 .tp-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 14px;
-    background: #f8f9fb;
-    border-bottom: 1px solid #ebeef5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: #f8f9fb;
+  border-bottom: 1px solid #ebeef5;
 }
 
 .tp-toolbar-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 13px;
-    color: #606266;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #606266;
 }
 
 .tp-toolbar-left strong {
-    color: #303133;
+  color: #303133;
 }
 
 .tp-toolbar-right {
-    display: flex;
-    gap: 4px;
+  display: flex;
+  gap: 4px;
 }
 
 .tp-select {
-    width: 100%;
+  width: 100%;
 }
 
 .tp-select :deep(.el-input__wrapper) {
-    border-radius: 0;
-    box-shadow: none !important;
-    padding: 4px 12px;
-    background: #fafbfc;
+  border-radius: 0;
+  box-shadow: none !important;
+  padding: 4px 12px;
+  background: #fafbfc;
 }
 
 .tp-select :deep(.el-input__wrapper:hover) {
-    background: #f0f2f5;
+  background: #f0f2f5;
 }
 
 .tp-select :deep(.el-input__wrapper.is-focus) {
-    box-shadow: none !important;
-    background: #fff;
+  box-shadow: none !important;
+  background: #fff;
 }
 
 .tp-chips {
-    padding: 10px 14px;
-    background: #f8f9fb;
-    border-top: 1px solid #ebeef5;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+  padding: 10px 14px;
+  background: #f8f9fb;
+  border-top: 1px solid #ebeef5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tp-recommend {
+  padding: 10px 14px;
+  background: #f0f7ff;
+  border-top: 1px solid #d9ecff;
+}
+
+.tp-recommend-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #409eff;
+  margin-bottom: 8px;
+}
+
+.tp-recommend-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tp-recommend-tag {
+  transition: all 0.2s;
+}
+
+.tp-recommend-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
 }
 
 @media (max-width: 1200px) {
-    .screen-preview-overview {
-        flex-direction: column;
-    }
+  .screen-preview-overview {
+    flex-direction: column;
+  }
 
-    .preview-overview-tips {
-        justify-content: flex-start;
-    }
+  .preview-overview-tips {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 768px) {
-    .screen-preview-wrapper {
-        padding: 12px;
-        border-radius: 12px;
-    }
+  .screen-preview-wrapper {
+    padding: 12px;
+    border-radius: 12px;
+  }
 
-    .screen-sort-editor {
-        min-height: 420px;
-    }
+  .screen-sort-editor {
+    min-height: 420px;
+  }
 }
 </style>

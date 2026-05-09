@@ -55,14 +55,39 @@ class Persist(PipelineStep):
                 tp = entry.get("test_point", {})
                 case_data_list = entry.get("case_data", [])
 
+                # 从 entry 中获取 task 信息，推导 ai_change_type 和 parent_case_id
+                task = entry.get("task")
+                parent_case_id: Optional[int] = None
+                ai_change_type: Optional[str] = None
+                if task:
+                    task_type = task.get("task_type", "")
+                    parent_case_id = task.get("case_id")  # 原用例ID（modify/locator_fix 模式）
+                    if task_type == "modify":
+                        ai_change_type = "modified"
+                    elif task_type == "locator_fix":
+                        ai_change_type = "locator_fix"
+                    elif task_type == "create":
+                        ai_change_type = "added"
+
+                    if task_type == "modify" and parent_case_id is None:
+                        logger.warning(
+                            "modify 任务缺少 parent_case_id: task_id={}",
+                            task.get("task_id", "unknown"),
+                        )
+
                 for case_data in case_data_list:
                     try:
                         tp_id = tp.get("id")
-                        score_info = score_map.get(tp_id, {})
+                        # 优先从 case_data 取 QualityGate 直接写入的分数（解决同 tp 多用例覆盖问题）
+                        prior_score = case_data.get("prior_quality_score")
+                        grade = case_data.get("prior_quality_grade")
+                        if prior_score is None:
+                            score_info = score_map.get(case_data.get("title", ""), {})
+                            prior_score = score_info.get("score")
+                            grade = score_info.get("grade") if score_info else None
                         lifecycle = case_data.get("lifecycle_status", "draft")
-                        prior_score = score_info.get("score")
-                        if score_info and score_info.get("grade") == "D":
-                            lifecycle = "pending_review"  # 双重保障：QualityGate 已设置但此处再次确认
+                        if grade == "D":
+                            lifecycle = "pending_review"
 
                         case_no = _generate_case_no(ctx, project_id)
 
@@ -80,7 +105,7 @@ class Persist(PipelineStep):
                             project_id=project_id,
                             test_point_id=tp_id,
                             module=case_data.get("module", tp.get("module", "")),
-                            title=case_data.get("title", ""),
+                            title=case_data.get("title") or tp.get("point", "测试用例") or "(无标题)",
                             precondition=case_data.get("precondition", ""),
                             steps_json=steps_json,
                             expected_result=case_data.get("expected_result", ""),
@@ -88,9 +113,17 @@ class Persist(PipelineStep):
                             case_type=case_data.get("case_type", "functional"),
                             lifecycle_status=lifecycle,
                             prior_quality_score=prior_score,
+                            parent_case_id=parent_case_id,
+                            ai_change_type=ai_change_type,
                         )
                         ctx.db.add(new_case)
                         ctx.db.flush()
+                        _persist_case_steps(
+                            ctx,
+                            new_case.id,
+                            steps_json,
+                            cases_artifact.get("has_ui", False),
+                        )
                         persisted_ids.append(new_case.id)
 
                     except Exception as e:
@@ -109,19 +142,83 @@ class Persist(PipelineStep):
                 error="所有用例持久化失败",
             )
 
+        # --- 一致性校验 ---
+        tasks_artifact = ctx.get_artifact("generation_tasks")
+
+        expected_count = 0
+        deprecation_suggestions: list = []
+        deprecation_suggestions_count = 0
+
+        if tasks_artifact:
+            generation_tasks = tasks_artifact.get("generation_tasks", [])
+            deprecation_suggestions = tasks_artifact.get("deprecation_suggestions", [])
+            deprecation_suggestions_count = len(deprecation_suggestions)
+            expected_count = sum(
+                1 for t in generation_tasks
+                if t.get("task_type") in ("create", "modify", "locator_fix")
+            )
+
+        persisted_count = len(persisted_ids)
+
+        consistency_check = {
+            "expected_count": expected_count,
+            "persisted_count": persisted_count,
+            "deprecation_suggestions_count": deprecation_suggestions_count,
+            "is_consistent": True,
+            "warning": None,
+        }
+
+        # 验证 deprecation 对应的旧用例状态
+        if deprecation_suggestions:
+            from app.models.test_case import TestCase as _TC
+            deprecation_check: dict = {
+                "total": len(deprecation_suggestions),
+                "verified": 0,
+                "not_found": 0,
+                "already_deprecated": 0,
+            }
+            for ds in deprecation_suggestions[:20]:  # 最多检查20条
+                case_id = ds.get("case_id")
+                if case_id:
+                    old_case = ctx.db.query(_TC).filter(_TC.id == case_id).first()
+                    if old_case is None:
+                        deprecation_check["not_found"] += 1
+                    elif old_case.lifecycle_status == "deprecated":
+                        deprecation_check["already_deprecated"] += 1
+                    deprecation_check["verified"] += 1
+            consistency_check["deprecation_verification"] = deprecation_check
+            if deprecation_check["not_found"] > 0:
+                logger.warning(
+                    "deprecation 验证: {} 条旧用例未找到",
+                    deprecation_check["not_found"],
+                )
+
+        artifact_confidence_val = 1.0
+
+        if expected_count > 0:
+            ratio = persisted_count / expected_count if expected_count > 0 else 1.0
+            if ratio < 0.8 or ratio > 1.2:
+                consistency_check["is_consistent"] = False
+                consistency_check["warning"] = (
+                    f"持久化数量 ({persisted_count}) 与预期 ({expected_count}) 差异较大，比率: {ratio:.2f}"
+                )
+                logger.warning("一致性校验失败: {}", consistency_check["warning"])
+                artifact_confidence_val = min(artifact_confidence_val, 0.7)
+
         payload = {
             "iteration_id": ctx.iteration_id,
             "project_id": project_id,
             "persisted_case_ids": persisted_ids,
             "total_persisted": len(persisted_ids),
             "failed_persist": failed_persist,
+            "consistency_check": consistency_check,
         }
 
         return StepResult(
             success=True,
             artifact_payload=payload,
             artifact_kind="persisted_case_ids",
-            artifact_confidence=1.0,
+            artifact_confidence=artifact_confidence_val,
             artifact_provenance={
                 "step": self.name,
                 "version": self.version,
@@ -140,15 +237,57 @@ class Persist(PipelineStep):
         )
 
 
-def _build_score_map(scores_artifact: Optional[Dict[str, Any]]) -> Dict[int, Dict]:
+def _build_score_map(scores_artifact: Optional[Dict[str, Any]]) -> Dict[str, Dict]:
+    """构建 case_title -> score_info 映射（fallback 用）。
+
+    主路径优先从 case_data 取 QualityGate 直接写入的分数，
+    此函数仅在 case_data 缺少分数时作为 fallback。
+    使用 case_title 而非 tp_id 作为键，避免同一测试点多用例覆盖。
+    """
     if not scores_artifact:
         return {}
     result = {}
     for score in scores_artifact.get("scores", []):
-        tp_id = score.get("test_point_id")
-        if tp_id:
-            result[tp_id] = score
+        title = score.get("case_title", "")
+        if title:
+            result[title] = score
     return result
+
+
+def _persist_case_steps(
+    ctx: PipelineContext,
+    case_id: int,
+    steps_json: List[Dict[str, Any]],
+    has_ui: bool,
+) -> None:
+    from app.models.test_case import TestStep
+
+    for index, step_data in enumerate(steps_json, start=1):
+        action = (
+            step_data.get("action")
+            or step_data.get("step")
+            or step_data.get("description")
+            or ""
+        )
+        expected = (
+            step_data.get("expected")
+            or step_data.get("expected_result")
+            or step_data.get("expect")
+            or ""
+        )
+        has_locator = int(step_data.get("has_locator", 0)) if has_ui else 0
+        locator_status = step_data.get("locator_status") if has_ui else "pending"
+        ctx.db.add(TestStep(
+            test_case_id=case_id,
+            step_number=index,
+            action=str(action),
+            expected_result=str(expected),
+            has_locator=has_locator,
+            locator_status=locator_status or "pending",
+            action_type=step_data.get("action_type"),
+            input_value=step_data.get("input_value"),
+            target_element=step_data.get("target_element"),
+        ))
 
 
 def _generate_case_no(ctx: PipelineContext, project_id: int) -> str:

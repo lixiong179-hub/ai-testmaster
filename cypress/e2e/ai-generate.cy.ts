@@ -238,7 +238,12 @@ describe('AI生成用例功能测试', () => {
                 )
               }
 
-              const dispatchMouse = (element: Element | Document, type: string, x: number, y: number) => {
+              const dispatchMouse = (
+                element: Element | Document,
+                type: string,
+                x: number,
+                y: number
+              ) => {
                 const target = element === win.document ? win.document : (element as Element)
                 target.dispatchEvent(
                   new win.MouseEvent(type, {
@@ -346,8 +351,12 @@ describe('AI生成用例功能测试', () => {
       expect(req.body.mode).to.equal('graph')
       expect(req.body.flow_sort_data).to.exist
       expect(req.body.flow_sort_data.nodes).to.have.length(mockScreens.length)
-      expect(req.body.flow_sort_data.nodes.map((node: any) => node.screen_id)).to.deep.equal([17, 18])
-      expect(req.body.flow_sort_data.nodes.map((node: any) => node.screen_order)).to.deep.equal([1, 2])
+      expect(req.body.flow_sort_data.nodes.map((node: any) => node.screen_id)).to.deep.equal([
+        17, 18,
+      ])
+      expect(req.body.flow_sort_data.nodes.map((node: any) => node.screen_order)).to.deep.equal([
+        1, 2,
+      ])
       expect(req.body.flow_sort_data.edges).to.deep.equal([])
 
       req.reply({
@@ -475,12 +484,13 @@ describe('AI生成用例功能测试', () => {
     assertEdgeStyle('rgb(245, 108, 108)', '5 5')
     changeNodeFlowType(18, '分支流程', 'flow-type-branch')
 
-    cy.get('.flow-sort-editor .toolbar-actions .action-group .el-button')
-      .eq(2)
-      .click()
+    cy.get('.flow-sort-editor .toolbar-actions .action-group .el-button').eq(2).click()
     cy.contains('.el-message', '已撤销').should('exist')
 
-    cy.get('.vue-flow__node[data-id="node_18"] .flow-node-card').should('have.class', 'flow-type-main')
+    cy.get('.vue-flow__node[data-id="node_18"] .flow-node-card').should(
+      'have.class',
+      'flow-type-main'
+    )
     assertEdgeStyle('rgb(245, 108, 108)', '5 5')
     cy.get('.vue-flow__edge .vue-flow__edge-path')
       .should('have.attr', 'marker-end')

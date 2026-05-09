@@ -1,16 +1,16 @@
 """M2-T03 BackwardScan Prompt + Schema 单元测试
 
-覆盖：
-    - BackwardVerdict 枚举值
+覆盖�?
+    - BackwardVerdict 枚举�?
     - BackwardCaseVerdict Schema 校验
     - BackwardScanOutput 去重校验
     - validate_backward_output 正常/异常/边界场景
-    - confidence < 0.7 自动改 UNCERTAIN
-    - 缺少/多余 case_id 检测
+    - confidence < 0.7 自动�?UNCERTAIN
+    - 缺少/多余 case_id 检�?
     - build_backward_scan_prompt 模板构建
-    - _format_cases_for_prompt 格式化
+    - _format_cases_for_prompt 格式�?
 
-使用纯 Pydantic 校验，无需数据库。
+使用�?Pydantic 校验，无需数据库�?
 """
 import json
 import pytest
@@ -189,7 +189,7 @@ class TestValidateBackwardOutput:
     def test_uncertain_verdict_not_double_corrected(self):
         raw = {
             "verdicts": [
-                {"case_id": 1, "verdict": "UNCERTAIN", "confidence": 0.3, "hint": "已是不确定"},
+                {"case_id": 1, "verdict": "UNCERTAIN", "confidence": 0.3, "hint": "已是不确�?},
             ]
         }
         result = validate_backward_output(raw)
@@ -249,9 +249,9 @@ class TestValidateBackwardOutput:
     def test_multiple_auto_corrections(self):
         raw = {
             "verdicts": [
-                {"case_id": 1, "verdict": "VALID", "confidence": 0.3, "hint": "低"},
+                {"case_id": 1, "verdict": "VALID", "confidence": 0.3, "hint": "�?},
                 {"case_id": 2, "verdict": "NEEDS_MODIFY", "confidence": 0.5, "hint": "也低"},
-                {"case_id": 3, "verdict": "DEPRECATED", "confidence": 0.9, "hint": "高"},
+                {"case_id": 3, "verdict": "DEPRECATED", "confidence": 0.9, "hint": "�?},
             ]
         }
         result = validate_backward_output(raw, expected_case_ids=[1, 2, 3])
@@ -288,10 +288,10 @@ class TestBuildBackwardScanPrompt:
 
     def test_empty_cases(self):
         prompt = build_backward_scan_prompt(
-            change_signals="无变更",
+            change_signals="无变�?,
             cases=[],
         )
-        assert "无现有用例" in prompt
+        assert "无现有用�? in prompt
 
     def test_system_prompt_contains_verdicts(self):
         assert "VALID" in BACKWARD_SCAN_SYSTEM_PROMPT
@@ -312,7 +312,7 @@ class TestFormatCasesForPrompt:
 
     def test_format_empty_list(self):
         text = _format_cases_for_prompt([])
-        assert "无现有用例" in text
+        assert "无现有用�? in text
 
     def test_format_multiple_cases(self):
         cases = [
@@ -332,21 +332,21 @@ class TestFormatCasesForPrompt:
                 "summary": "摘要",
                 "priority": 1,
                 "lifecycle_status": "active",
-                "precondition": "用户已登录",
+                "precondition": "用户已登�?,
                 "steps_json": [{"step": "点击提交", "expected": "提交成功"}],
             },
         ]
         text = _format_cases_for_prompt(cases)
-        assert "前置条件: 用户已登录" in text
+        assert "前置条件: 用户已登�? in text
         assert "点击提交" in text
 
 
 class TestFormatStepsJson:
     def test_none_steps(self):
-        assert _format_steps_json(None) == "无"
+        assert _format_steps_json(None) == "�?
 
     def test_empty_list(self):
-        assert _format_steps_json([]) == "无"
+        assert _format_steps_json([]) == "�?
 
     def test_valid_steps(self):
         steps = [{"step": "点击登录", "expected": "登录成功"}]
@@ -372,5 +372,5 @@ class TestNormalizeVerdictNonString:
     def test_non_string_non_matching_upper(self):
         with pytest.raises(ValidationError):
             BackwardCaseVerdict(
-                case_id=21, verdict="UNKNOWN_VERDICT", confidence=0.9, hint="非法字符串"
+                case_id=21, verdict="UNKNOWN_VERDICT", confidence=0.9, hint="非法字符�?
             )

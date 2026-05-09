@@ -55,6 +55,7 @@ from app.models import code_review
 from app.models import bug
 from app.models import video_record
 from app.models import test_case_data
+from app.models import project_flow_data
 
 # Alembic Config对象
 config = context.config
@@ -67,7 +68,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # 为'autogenerate'支持添加元数据目标
-target_metadata = Base
+target_metadata = Base.metadata
 
 
 def get_url():
