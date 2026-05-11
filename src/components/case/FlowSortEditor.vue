@@ -201,10 +201,16 @@
               <span class="save-text error-text save-error-text">保存失败</span>
             </span>
           </template>
+          <template v-else-if="flowSortStore.saveStatus === 'unsaved'">
+            <span class="save-status-inner">
+              <el-icon color="#e6a23c"><Clock /></el-icon>
+              <span class="save-text">未保存</span>
+            </span>
+          </template>
           <template v-else>
             <span class="save-status-inner">
-              <el-icon color="#909399"><Clock /></el-icon>
-              <span class="save-text">未保存</span>
+              <el-icon color="#67c23a"><CircleCheck /></el-icon>
+              <span class="save-text">已保存</span>
             </span>
           </template>
         </div>
