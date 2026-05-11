@@ -196,11 +196,6 @@ export const useFlowSortStore = defineStore('flowSort', () => {
       await uiPrototypeApi.saveProjectFlowData(projectId.value, flowData)
       saveStatus.value = 'saved'
       lastSavedHash.value = computeHash(sortData.value)
-
-      if (statusTimer) clearTimeout(statusTimer)
-      statusTimer = setTimeout(() => {
-        saveStatus.value = 'idle'
-      }, STATUS_HIDE_MS)
     } catch (error: unknown) {
       const status = extractStatusFromError(error)
 
