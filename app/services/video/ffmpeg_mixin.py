@@ -2,10 +2,8 @@
 """
 import os
 import subprocess
-from typing import Optional, Dict, Any
+from typing import Optional
 from loguru import logger
-
-from app.services.video.models import VideoInfo
 
 
 class FFmpegMixin:

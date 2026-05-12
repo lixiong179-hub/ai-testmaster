@@ -110,9 +110,7 @@ const goBack = () => {
 }
 
 // 处理分页
-const handlePageChange = (page: number, pageSize: number) => {
-  // 这里可以处理分页逻辑，例如从后端获取更多数据
-  console.log('Page changed:', page, pageSize)
+const handlePageChange = (_page: number, _pageSize: number) => {
 }
 
 // 处理导出PDF

@@ -20,7 +20,6 @@ from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.batch_locator_service import BatchLocatorService
 from app.core.exception import create_response
-from loguru import logger
 
 router = APIRouter()
 

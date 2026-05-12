@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """任务推送Mixin - 处理执行日志和进度的WebSocket实时推送。
 
 本模块实现任务执行过程中的实时消息推送功能，通过PushService
@@ -26,8 +28,11 @@
     推送失败不影响任务执行，仅记录warning日志。
 """
 from datetime import datetime
-from typing import Dict, Any
+from typing import TYPE_CHECKING
 from loguru import logger
+
+if TYPE_CHECKING:
+    from app.services.push_service import PushService
 
 
 class TaskPushMixin:

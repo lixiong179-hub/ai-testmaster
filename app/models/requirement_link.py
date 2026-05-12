@@ -21,7 +21,6 @@ UI原型图链接等外部资源链接，支持带认证的外部资源访问。
     防止凭据泄露。
 """
 import json as _json
-from datetime import datetime
 from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean
 from sqlalchemy.orm import relationship

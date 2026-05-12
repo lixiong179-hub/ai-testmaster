@@ -2,7 +2,6 @@ from typing import Optional, Dict, Any, List
 from loguru import logger
 
 from app.utils.browser_controller_base import (
-    BrowserControllerV2,
     ElementInfo,
     require_initialized,
     handle_browser_errors,

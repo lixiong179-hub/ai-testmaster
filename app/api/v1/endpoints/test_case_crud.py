@@ -43,51 +43,18 @@ from loguru import logger
 router = APIRouter()
 
 
-@router.post("/")
-async def create_test_case(
-    test_case: TestCaseCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """创建测试用例（含步骤和测试数据，编号自动生成）"""
-    # 验证用户对项目的访问权限
-    project = db.query(Project).filter(
-        Project.id == test_case.project_id,
-        Project.user_id == current_user.id
-    ).first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
-        )
+def merge_test_data_to_steps(test_case: TestCaseCreate) -> list:
+    steps_list = [step.model_dump() for step in test_case.steps]
+    top_level_test_data = getattr(test_case, 'test_data', None)
+    if top_level_test_data and isinstance(top_level_test_data, dict) and steps_list:
+        steps_list[0]['test_data'] = top_level_test_data
+    return steps_list
 
-    new_test_case = TestCase(
-        project_id=test_case.project_id,
-        case_no=test_case.case_no if test_case.case_no else f"CASE{test_case.project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
-        module=test_case.module,
-        title=test_case.title,
-        precondition=test_case.precondition,
-        steps_json=[step.model_dump() for step in test_case.steps],
-        expected_result=test_case.expected_result,
-        priority=test_case.priority,
-        case_type=test_case.case_type,
-        exec_script=test_case.exec_script,
-        generate_status=test_case.generate_status,
-        lifecycle_status=test_case.lifecycle_status,
-        test_point_id=test_case.test_point_id,
-        summary=test_case.summary,
-        summary_model_version=test_case.summary_model_version,
-        parent_case_id=test_case.parent_case_id,
-        ai_change_type=test_case.ai_change_type,
-        test_category=test_case.test_category if test_case.test_category else None
-    )
 
-    db.add(new_test_case)
-    db.flush()
-
-    for i, step_data in enumerate(test_case.steps):
+def create_steps_and_test_data(test_case: TestCaseCreate, new_test_case_id: int, db: Session) -> None:
+    for i, step_data in enumerate(test_case.steps or []):
         step = TestStep(
-            test_case_id=new_test_case.id,
+            test_case_id=new_test_case_id,
             step_number=i + 1,
             action=step_data.action,
             expected_result=step_data.expected_result if step_data.expected_result else "",
@@ -132,6 +99,51 @@ async def create_test_case(
                     sort_order=j
                 )
                 db.add(test_data_record)
+
+
+@router.post("/")
+async def create_test_case(
+    test_case: TestCaseCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """创建测试用例（含步骤和测试数据，编号自动生成）"""
+    # 验证用户对项目的访问权限
+    project = db.query(Project).filter(
+        Project.id == test_case.project_id,
+        Project.user_id == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此项目"
+        )
+
+    new_test_case = TestCase(
+        project_id=test_case.project_id,
+        case_no=test_case.case_no if test_case.case_no else f"CASE{test_case.project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+        module=test_case.module,
+        title=test_case.title,
+        precondition=test_case.precondition,
+        steps_json=merge_test_data_to_steps(test_case),
+        expected_result=test_case.expected_result,
+        priority=test_case.priority,
+        case_type=test_case.case_type,
+        exec_script=test_case.exec_script,
+        generate_status=test_case.generate_status,
+        lifecycle_status=test_case.lifecycle_status,
+        test_point_id=test_case.test_point_id,
+        summary=test_case.summary,
+        summary_model_version=test_case.summary_model_version,
+        parent_case_id=test_case.parent_case_id,
+        ai_change_type=test_case.ai_change_type,
+        test_category=test_case.test_category if test_case.test_category else None
+    )
+
+    db.add(new_test_case)
+    db.flush()
+
+    create_steps_and_test_data(test_case, new_test_case.id, db)
 
     db.commit()
     db.refresh(new_test_case)

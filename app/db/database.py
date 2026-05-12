@@ -28,7 +28,7 @@
     当未配置从库时（DATABASE_URL_SLAVE 为空），从库引擎自动降级为主库，
     保证单库部署场景下系统正常运行。
 """
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.pool import QueuePool

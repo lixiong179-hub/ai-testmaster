@@ -30,6 +30,22 @@
 使用方式：
     from app.crud.test_case import create_test_case, get_test_cases_by_project
 """
+
+__all__ = [
+    # 查询函数（来自 test_case_query）
+    "get_test_case_by_id",
+    "get_test_case_by_case_no",
+    "get_test_cases_by_project",
+    "get_test_cases_by_project_and_user",
+    "get_test_cases_count",
+    "get_failed_test_cases",
+    # 变更函数（来自 test_case_mutate）
+    "create_test_case",
+    "update_test_case",
+    "delete_test_case",
+    "batch_create_test_cases",
+]
+
 from app.crud.test_case_query import (
     get_test_case_by_id,
     get_test_case_by_case_no,

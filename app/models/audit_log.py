@@ -21,7 +21,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Index, event
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, Index, event
 from sqlalchemy.orm import Session
 from app.utils.db_time import utcnow
 from app.db.database import Base

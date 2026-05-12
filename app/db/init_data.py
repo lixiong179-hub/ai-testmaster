@@ -37,11 +37,6 @@ import warnings
 from sqlalchemy.orm import Session
 from app.db.database import get_db, init_db
 from app.models.user import User, Role, Permission, user_role
-from app.models.project import Project, ProjectFile
-from app.models.test_case import TestCase, TestStep
-from app.models.test_task import TestTask
-from app.models.test_result import TestResult
-from app.models.report import TestReport
 from app.utils.jwt_utils import get_password_hash
 
 

@@ -1,17 +1,15 @@
 """可见模式配置服务 - 核心配置CRUD
 """
-import os
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Tuple
 from pathlib import Path
 from loguru import logger
 
-from app.models.project import Project
 from app.models.test_task import TestTask
 from app.models.test_case import TestCase
-from app.services.visibility_config.models import VisibilityConfig, VisibilityLevel
 from app.services.visibility_config.env_loader import VisibilityEnvLoader
 from app.services.visibility_config.validator import VisibilityConfigValidator
 from app.services.visibility_config.merger import VisibilityConfigMerger
+from app.services.visibility_config.models import VisibilityConfig
 
 
 class VisibilityConfigCoreMixin:

@@ -22,7 +22,6 @@ from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.visibility_config_service import (
-    VisibilityConfigService,
     VisibilityConfig,
     get_visibility_config_service
 )

@@ -25,7 +25,6 @@ import os
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import Optional
 from app.db.database import get_db
 from app.models.project import Project, ProjectFile
 from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen, UIScreenTestCaseLink
@@ -157,7 +156,7 @@ async def create_iteration(
         raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="创建迭代失败")
 
@@ -195,7 +194,7 @@ async def get_iterations(
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="获取迭代列表失败")
 
 
@@ -218,7 +217,7 @@ async def get_iteration(
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="获取迭代详情失败")
 
 
@@ -256,7 +255,7 @@ async def update_iteration(
         raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="更新迭代失败")
 
@@ -315,7 +314,7 @@ async def finalize_iteration(
         raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="定稿迭代失败")
 

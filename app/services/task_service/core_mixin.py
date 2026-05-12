@@ -1,21 +1,10 @@
-from typing import List, Dict, Any
-from datetime import datetime
-import time
 import asyncio
-import os
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from typing import List
+
 from app.crud.test_task import (
     update_test_task_status,
     update_test_task_progress
 )
-from app.crud.test_result import (
-    create_test_result,
-    update_test_result
-)
-from app.models.test_case import TestCase
-from app.core.config import settings
-from app.utils.websocket import manager
 from loguru import logger
 
 
@@ -46,7 +35,6 @@ class TaskCoreMixin:
             "fail_count": 0
         }
         # 启动异步任务
-        import asyncio
         asyncio.create_task(self._execute_task(task_id, project_id, case_ids))
 
     def stop_task(self, task_id: int) -> None:

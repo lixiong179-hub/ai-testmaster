@@ -16,8 +16,7 @@
     - app.utils.unified_vision.model_types: ElementInfo数据类
     - app.utils.unified_vision.response_parser_mixin: 响应解析
 """
-from typing import Optional, Dict, Any, List
-from loguru import logger
+from typing import Optional, Dict, Any
 
 from app.utils.unified_vision.model_types import ElementInfo
 

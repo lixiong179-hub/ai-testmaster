@@ -20,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
-from app.models.enums import ReviewKind, ReviewStatus, ReviewTargetKind
+from app.models.enums import ReviewStatus
 from app.utils.db_time import utcnow
 
 VALID_VERDICTS = {"keep", "modify", "deprecate"}

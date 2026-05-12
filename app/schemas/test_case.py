@@ -113,6 +113,7 @@ class TestCaseCreate(TestCaseBase):
     summary_model_version: Optional[str] = Field(None, description="生成摘要的AI模型版本")  # 可选，AI模型版本
     parent_case_id: Optional[int] = Field(None, description="父用例ID")  # 可选，血缘关系
     ai_change_type: Optional[str] = Field(None, description="AI评审结果：added/modified/deprecated")  # 可选，AI用例评审标注
+    test_data: Optional[Dict[str, Any]] = Field(None, description="用例级测试数据（normal/boundary/abnormal）")
 
 
 class TestCaseResponse(TestCaseBase):

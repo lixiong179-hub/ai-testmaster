@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from app.core.config import settings
 from app.db.database import Base, get_db
+from app.db.smart_sync import DatabaseSyncTool
 from app.utils.jwt_utils import create_access_token, get_password_hash
 
 os.environ.setdefault("ENVIRONMENT", "test")
@@ -36,6 +37,8 @@ def testEngine():
         connect_args={"init_command": "SET sql_mode='NO_ENGINE_SUBSTITUTION'"},
     )
     Base.metadata.create_all(engine)
+    sync_tool = DatabaseSyncTool(engine=engine)
+    sync_tool.sync_all_tables(Base, auto_fix=True)
     yield engine
     engine.dispose()
 

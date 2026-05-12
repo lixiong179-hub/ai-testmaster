@@ -2,9 +2,8 @@
 
 提供场景配置查询接口，供 API 端点和 Pipeline Runner 使用。
 """
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, Optional
 
-from app.pipelines.base import PipelineStep
 from app.pipelines.steps.signal_gatherer import SignalGatherer
 from app.pipelines.steps.testpoint_alignment import TestPointAlignment
 from app.pipelines.steps.case_generation import CaseGeneration

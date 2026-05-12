@@ -9,7 +9,6 @@ from loguru import logger
 
 from app.interfaces.element_recognizer import ElementRecognizer, RecognitionResult
 from app.utils.unified_vision_model import UnifiedVisionModel
-from app.core.constants import LOGIN_KEYWORDS
 
 
 class VisionRecognizer(ElementRecognizer):

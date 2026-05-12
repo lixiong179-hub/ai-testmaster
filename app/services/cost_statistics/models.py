@@ -1,5 +1,5 @@
 """成本统计数据模型定义。"""
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 

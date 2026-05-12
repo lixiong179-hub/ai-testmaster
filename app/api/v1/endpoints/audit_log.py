@@ -105,5 +105,5 @@ async def get_audit_logs(
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="查询审计日志失败")

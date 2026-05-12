@@ -28,7 +28,7 @@
 import random
 import string
 import time
-from typing import Optional, Tuple
+from typing import Tuple
 from collections import defaultdict
 from loguru import logger
 

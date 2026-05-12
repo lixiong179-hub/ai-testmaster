@@ -24,9 +24,8 @@
     TaskService.start_task -> _execute_task -> [循环] execute_case
     -> _run_case_by_mode -> TestExecutionEngineV2.execute_test_task
 """
-import asyncio
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any
 from loguru import logger
 from app.models.test_task import TestTask
 from app.models.test_case import TestCase

@@ -3,7 +3,6 @@ import re
 import xml.etree.ElementTree as ET
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
-from loguru import logger
 
 
 class UIAutomatorError(Exception):

@@ -150,7 +150,7 @@ async def update_test_point(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        project = check_project_permission(db, project_id, current_user.id)
+        _ = check_project_permission(db, project_id, current_user.id)
         from app.crud.test_point import get_test_point_by_id
         test_point = get_test_point_by_id(db, test_point_id, project_id)
         if not test_point:
@@ -210,7 +210,7 @@ async def batch_delete_test_points(
 ):
     MAX_BATCH_DELETE = 100
     try:
-        project = check_project_permission(db, project_id, current_user.id)
+        _ = check_project_permission(db, project_id, current_user.id)
         if not ids or not isinstance(ids, list):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -261,7 +261,7 @@ async def delete_test_point(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        project = check_project_permission(db, project_id, current_user.id)
+        _ = check_project_permission(db, project_id, current_user.id)
         from app.crud.test_point import get_test_point_by_id
         test_point = get_test_point_by_id(db, test_point_id, project_id)
         if not test_point:

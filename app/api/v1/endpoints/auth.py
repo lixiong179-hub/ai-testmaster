@@ -17,8 +17,20 @@
     - oauth2_scheme: OAuth2密码模式令牌提取器
 """
 from fastapi import APIRouter
-from app.api.v1.endpoints.auth_deps import get_current_user, require_project_owner, ProjectAccessChecker, oauth2_scheme
 from app.api.v1.endpoints.auth_endpoints import router as endpoints_router
+from app.api.v1.endpoints.auth_deps import (
+    get_current_user,
+    require_project_owner,
+    ProjectAccessChecker,
+    oauth2_scheme,
+)
+
+__all__ = [
+    "get_current_user",
+    "require_project_owner",
+    "ProjectAccessChecker",
+    "oauth2_scheme",
+]
 
 # 认证管理路由，前缀 /auth，包含登录/注册/验证码等端点
 router = APIRouter(prefix="/auth", tags=["认证管理"])

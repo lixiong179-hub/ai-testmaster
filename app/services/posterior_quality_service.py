@@ -18,10 +18,9 @@
     - app.services.metrics_service : record_metric
 """
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import func, and_, case
+from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)

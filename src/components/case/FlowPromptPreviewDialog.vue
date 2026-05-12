@@ -123,7 +123,14 @@ const fetchPreview = async () => {
     })) as PreviewApiResponse
     previewData.value = response.data.data
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : '预览失败'
+    const axiosErr = e as { response?: { data?: { detail?: unknown } }; message?: string } | undefined
+    let msg = '预览失败'
+    if (axiosErr?.response?.data?.detail) {
+      const detail = axiosErr.response.data.detail
+      msg = typeof detail === 'string' ? detail : JSON.stringify(detail)
+    } else if (e instanceof Error) {
+      msg = e.message
+    }
     ElMessage.error(msg)
     visible.value = false
   } finally {

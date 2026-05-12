@@ -2,7 +2,7 @@
 """
 import re
 import json
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from loguru import logger
 
 from app.services.selector_registry import SelectorRegistry

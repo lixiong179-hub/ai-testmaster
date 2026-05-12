@@ -6,7 +6,6 @@ from typing import Dict, Any, Optional, List
 from loguru import logger
 
 from app.utils.ai_client_core import (
-    AIClientBase,
     AIServiceError,
     AIResponseParseError,
     AIResponseFormatError,

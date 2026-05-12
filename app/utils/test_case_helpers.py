@@ -24,12 +24,14 @@ def _build_step_response(step: Dict, step_number: Optional[int] = None) -> Dict[
     response = {
         "step": action,
         "action": action,
+        "description": step.get("description", ""),
         "param": step.get("param", ""),
         "test_data": step.get("test_data", {}),
         "expected_result": step.get("expected_result", ""),
         "action_type": step.get("action_type", ""),
         "input_value": step.get("input_value", ""),
         "target_element": step.get("target_element", ""),
+        "ui_elements": step.get("ui_elements", []),
     }
 
     if step_number is not None:

@@ -36,13 +36,7 @@ import json
 from typing import List, Dict, Any, Optional
 from loguru import logger
 
-from app.utils.ai_client import AIServiceError
 from app.core.config import settings
-from app.services.test_data.constants import (
-    DATA_TYPE_STRING, DATA_TYPE_NUMBER, DATA_TYPE_EMAIL,
-    DATA_TYPE_PHONE, DATA_TYPE_DATE, DATA_TYPE_ENUM,
-    DATA_TYPE_BOOLEAN, DATA_TYPE_CUSTOM,
-)
 from app.services.prompt_builder import PromptBuilder
 from app.services.test_data.response_handler import parse_ai_response, validate_generated_data
 

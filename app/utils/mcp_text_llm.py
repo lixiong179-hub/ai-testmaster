@@ -34,7 +34,6 @@ from typing import Optional, Dict, Any
 from loguru import logger
 
 from app.utils.unified_vision_model import UnifiedVisionModel, get_default_vision_model
-from app.core.config import settings
 
 
 # 元素定位理解Prompt模板 — 指导AI分析Accessibility Tree并输出结构化定位信息

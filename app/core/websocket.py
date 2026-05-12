@@ -38,7 +38,6 @@ WebSocket连接管理器
     - loguru.logger: 日志记录
 """
 from typing import Dict, List, Optional, TYPE_CHECKING
-import asyncio
 from fastapi import WebSocket
 from loguru import logger
 from datetime import datetime

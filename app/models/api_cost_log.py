@@ -14,11 +14,8 @@ AI API（如DeepSeek、通义千问、Kimi等）的调用成本，支持成本�
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from datetime import datetime
 from app.utils.db_time import utcnow
-from decimal import Decimal
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Numeric, text
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Numeric, text
 from app.db.database import Base
 
 

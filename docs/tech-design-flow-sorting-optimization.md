@@ -120,7 +120,7 @@ const onEdgeClick = (event: EdgeMouseEvent) => {
 ## 四、落地步骤
 
 ### Phase 1: 后端改造（2h）
-1. `test_case_ai_enhanced.py`：流式端点添加 graph 模式分支
+1. `test_case_ai_generate.py`：流式端点添加 graph 模式分支
 2. `test_case.py`：FlowSortDataSchema 添加数量限制校验
 3. 提取 `_handle_graph_generation` 共享函数
 

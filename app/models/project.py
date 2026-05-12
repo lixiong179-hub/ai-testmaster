@@ -27,7 +27,6 @@
     测试对象密码通过 test_object_password 属性自动加解密，
     数据库中仅存储加密后的密文（test_object_password_encrypted 列）。
 """
-from datetime import datetime
 from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Index
 from sqlalchemy.orm import relationship

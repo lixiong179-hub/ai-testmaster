@@ -3,7 +3,7 @@
 综合评分权重调整：
     复杂度 0.3 + 冗余度 0.3 + 覆盖度 0.4（覆盖度内部已按三维度加权）
 """
-from typing import Dict, Any, List, Optional
+from typing import List
 from loguru import logger
 
 from app.services.case_quality.models import (

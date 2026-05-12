@@ -34,10 +34,9 @@
     - completed: 已完成
     - archived: 已归档
 """
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 from sqlalchemy.orm import Session
 from app.models.iteration import Iteration
-from typing import List, Optional
 from datetime import datetime
 from app.utils.db_time import utcnow
 
@@ -256,6 +255,6 @@ def delete_iteration(db: Session, iteration_id: int, cleanup_callback: Optional[
         db.delete(db_iteration)  # 硬删除：物理移除数据库记录
         db.commit()
         return True
-    except Exception as e:
+    except Exception:
         db.rollback()  # 异常时回滚事务，确保数据一致性
         raise

@@ -33,10 +33,9 @@
     - 4: 执行停止（自动记录end_time）
 """
 from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import datetime
 from app.models.test_task import TestTask
-from app.models.project import Project
 
 
 def create_test_task(

@@ -1,30 +1,20 @@
 import request, { type ApiResponse } from '@/utils/request'
+import type { TestCase, TestCaseStep, TestCaseAIGenerate } from '@/types/testCase'
+
+export type { TestCase, TestCaseStep, TestCaseAIGenerate }
 
 // ============== 类型定义 ==============
 
-export interface TestCaseStep {
-  step: number
-  action: string
-  param: string
-}
-
-export interface TestCase {
-  id: number
-  case_no: string
-  project_id: number
-  module: string
-  title: string
-  precondition?: string
-  steps?: TestCaseStep[]
+export interface TestCaseApiStep {
+  step?: number | string
+  action?: string
+  param?: string
   expected_result?: string
-  priority: number
-  case_type: string
-  exec_script?: string
-  create_time?: string
-  generate_status?: number
-  lifecycle_status?: string
-  parent_case_id?: number | null
-  ai_change_type?: 'added' | 'modified' | 'deprecated'
+  action_type?: string
+  input_value?: string
+  target_element?: string
+  description?: string
+  ui_elements?: Array<{ type?: string; label?: string }>
 }
 
 export interface TestCaseCreate {
@@ -33,10 +23,12 @@ export interface TestCaseCreate {
   module?: string
   title: string
   precondition?: string
-  steps?: TestCaseStep[]
+  steps?: TestCaseApiStep[]
   expected_result?: string
   priority?: number
   case_type?: string
+  test_category?: string
+  test_data?: Record<string, Record<string, string | number | boolean | null>>
   generate_status?: number
   parent_case_id?: number | null
   ai_change_type?: 'added' | 'modified' | 'deprecated'
@@ -108,6 +100,8 @@ export interface TestCaseAIEnhancedRequest {
     test_point_ids?: number[]
     current_test_point?: unknown
     project_config?: unknown
+    history_cases?: unknown[]
+    base_case?: Record<string, unknown>
   }
 }
 
@@ -229,16 +223,30 @@ export interface AIEnhancedGenerateResponse {
   name?: string
   module?: string
   case_type?: string
+  test_category?: string
+  case_category?: string
   type?: string
   precondition?: string
-  steps: TestCaseStep[]
+  steps: TestCaseApiStep[]
   test_data: Record<string, Record<string, string | number | boolean | null>>
   expected_result?: string
   priority?: number
   change_type?: 'added' | 'modified' | 'deprecated'
   parent_case_id?: number | null
   message: string
-  // AI 返回的 change_type 映射为 ai_change_type 入库
+}
+
+export interface BatchCreateRequest {
+  cases: TestCaseCreate[]
+}
+
+export interface BatchCreateResponse {
+  success_count: number
+  fail_count: number
+  created_ids: number[]
+  errors: string[]
+  total: number
+  message: string
 }
 
 function extractResponseData<T>(response: ApiResponse<T> | T): T {
@@ -288,6 +296,13 @@ export const testCaseApi = {
   createCase: async (data: TestCaseCreate): Promise<TestCase> => {
     const response = await request.post('/api/v1/testCase/', data)
     return extractResponseData<TestCase>(response as unknown as ApiResponse<TestCase> | TestCase)
+  },
+
+  batchCreateCases: async (data: BatchCreateRequest): Promise<BatchCreateResponse> => {
+    const response = await request.post('/api/v1/testCase/batch-create', data)
+    return extractResponseData<BatchCreateResponse>(
+      response as unknown as ApiResponse<BatchCreateResponse> | BatchCreateResponse
+    )
   },
 
   updateCase: async (id: number, data: TestCaseUpdateData): Promise<TestCase> => {
@@ -452,10 +467,10 @@ export const testCaseApi = {
 
   aiGenerateCaseEnhanced: async (
     data: TestCaseAIEnhancedRequest
-  ): Promise<AIEnhancedGenerateResponse> => {
-    const response = await request.post('/api/v1/testCase/ai-generate-enhanced', data)
-    return extractResponseData<AIEnhancedGenerateResponse>(
-      response as unknown as ApiResponse<AIEnhancedGenerateResponse> | AIEnhancedGenerateResponse
+  ): Promise<AIEnhancedGenerateResponse[]> => {
+    const response = await request.post('/api/v1/testCase/ai-enhanced-generate', data)
+    return extractResponseData<AIEnhancedGenerateResponse[]>(
+      response as unknown as ApiResponse<AIEnhancedGenerateResponse[]> | AIEnhancedGenerateResponse[]
     )
   },
 
@@ -549,7 +564,6 @@ export const testCaseApi = {
   },
 }
 
-// @ts-ignore: 保留向后兼容引用
-export const caseApi = testCaseApi
+export const caseApi: typeof testCaseApi = testCaseApi
 
 export default testCaseApi

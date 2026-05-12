@@ -11,7 +11,7 @@
     - app.services.config_service : LINEAGE_CHAIN_WARNING_LENGTH
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session

@@ -1,8 +1,8 @@
 """
 API V1版本路由模块
 
-本模块为API V1版本的聚合入口，将所有业务模块的路由统一注册到api_router下。
-所有V1版本的API端点均通过此模块注册，路径前缀为 /api/v1。
+本模块为API V1版本的模块索引入口，列出所有已注册的业务端点模块。
+路由实际注册由 app/main.py 统一管理，各模块 router 直接挂载到 FastAPI app。
 
 路由注册概览:
     - /auth              - 认证管理（登录/注册/验证码）
@@ -24,11 +24,9 @@ API V1版本路由模块
     - /audit-log         - 审计日志
 
 注意:
-    - 所有模块均在自身APIRouter中定义了prefix，此处不再重复添加
+    - 所有模块均在自身APIRouter中定义了prefix
     - 所有端点均需要Bearer令牌认证（除认证模块的登录/注册/验证码端点外）
 """
-from fastapi import APIRouter
-
 from app.api.v1.endpoints import (
     auth, user, test_task, project, file, test_point, test_case,
     requirement_link, ui_prototype, iteration, execution,
@@ -36,74 +34,3 @@ from app.api.v1.endpoints import (
     report, visibility, audit_log, pipeline, review_inbox, pipeline_metrics,
     test_case_lineage, pipeline_dashboard
 )
-
-api_router = APIRouter()
-
-# 认证路由（模块自带prefix=/auth）
-api_router.include_router(auth.router, tags=["认证"])
-
-# 用户与权限管理路由（模块自带prefix=/user）
-api_router.include_router(user.router, tags=["用户权限管理"])
-
-# 测试任务路由（模块自带prefix=/test_task）
-api_router.include_router(test_task.router, tags=["测试任务"])
-
-# 项目管理路由（模块自带prefix=/project）
-api_router.include_router(project.router, tags=["项目管理"])
-
-# 文件管理路由（模块自带prefix=/file）
-api_router.include_router(file.router, tags=["文件管理"])
-
-# 测试点路由（模块自带prefix=/test-point）
-api_router.include_router(test_point.router, tags=["测试点管理"])
-
-# 测试用例路由（模块自带prefix=/testCase）
-api_router.include_router(test_case.router, tags=["测试用例管理"])
-
-# 需求链接管理路由（模块自带prefix=/requirement-link）
-api_router.include_router(requirement_link.router, tags=["需求链接管理"])
-
-# UI原型管理路由（模块自带prefix=/ui-prototype）
-api_router.include_router(ui_prototype.router, tags=["UI原型管理"])
-
-# 迭代管理路由（模块自带prefix=/iteration）
-api_router.include_router(iteration.router, tags=["迭代管理"])
-
-# 测试执行路由（模块自带prefix=/execution）
-api_router.include_router(execution.router, tags=["测试执行"])
-
-# 执行可视化路由（模块自带prefix=/execution，与execution共享前缀）
-api_router.include_router(execution_visualization.router, tags=["测试执行可视化"])
-
-# 批量定位器路由（模块自带prefix=/batch-locator）
-api_router.include_router(batch_locator.router, tags=["批量定位器"])
-
-# 测试数据路由（模块自带prefix=/test-data）
-api_router.include_router(test_data.router, tags=["测试数据管理"])
-
-# 用例质量路由（模块自带prefix=/quality）
-api_router.include_router(case_quality.router, tags=["用例质量"])
-
-# 测试报告路由（模块自带prefix=/report）
-api_router.include_router(report.router, tags=["测试报告管理"])
-
-# 可见性管理路由（模块自带prefix=/visibility）
-api_router.include_router(visibility.router, tags=["可见性管理"])
-
-# 审计日志路由（模块自带prefix=/audit-log）
-api_router.include_router(audit_log.router, tags=["审计日志"])
-
-# Pipeline管理路由（模块自带prefix=/pipeline）
-api_router.include_router(pipeline.router, tags=["Pipeline管理"])
-
-# 评审Inbox路由（模块自带prefix=/review）
-api_router.include_router(review_inbox.router, tags=["评审Inbox"])
-
-# Pipeline监控指标路由（模块自带prefix=/pipeline/metrics）
-api_router.include_router(pipeline_metrics.router, tags=["Pipeline监控指标"])
-
-# 用例血缘路由（模块自带prefix=/case-lineage）
-api_router.include_router(test_case_lineage.router, tags=["用例血缘"])
-
-# Pipeline仪表盘路由（模块自带prefix=/pipeline/dashboard）
-api_router.include_router(pipeline_dashboard.router, tags=["Pipeline仪表盘"])

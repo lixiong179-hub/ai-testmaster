@@ -33,7 +33,7 @@ from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, UniqueConstraint, Index, CheckConstraint
 from sqlalchemy.orm import relationship
 from app.db.database import Base
-from app.models.enums import IterationPipelineStatus, IterationInputKind
+from app.models.enums import IterationPipelineStatus
 
 
 class Iteration(Base):

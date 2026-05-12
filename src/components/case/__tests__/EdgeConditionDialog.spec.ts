@@ -155,9 +155,9 @@ describe('EdgeConditionDialog', () => {
     expect(wrapper.text()).toContain('触发条件')
   })
 
-  it('should hide condition input for normal edge type', () => {
+  it('should always show condition textarea (all fields visible)', () => {
     const wrapper = mountDialog({ visible: true })
-    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(wrapper.find('textarea').exists()).toBe(true)
   })
 
   it('should emit confirm with correct data', async () => {
@@ -177,6 +177,9 @@ describe('EdgeConditionDialog', () => {
         {
           edge_type: 'branch',
           condition: '用户点击高级筛选按钮',
+          trigger_action: '',
+          pre_action: '',
+          note: '',
           label: '条件分支',
         },
       ],
@@ -193,12 +196,13 @@ describe('EdgeConditionDialog', () => {
     expect(wrapper.emitted('update:visible')).toEqual([[false]])
   })
 
-  it('should reset form when dialog closes', async () => {
+  it('should reset form values when dialog closes', async () => {
     const wrapper = mountDialog({ visible: true })
 
     await wrapper.find('.el-select').setValue('branch')
     await nextTick()
-    await wrapper.find('textarea').setValue('测试条件')
+    const textareas = wrapper.findAll('textarea')
+    await textareas[0].setValue('测试条件')
     await nextTick()
 
     await wrapper.findComponent(ElDialogStub).vm.$emit('close')
@@ -208,7 +212,7 @@ describe('EdgeConditionDialog', () => {
     await wrapper.setProps({ visible: true })
     await nextTick()
 
-    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect((textareas[0].element as HTMLTextAreaElement).value).toBe('')
   })
 
   it('should populate form when edgeData is provided', async () => {
@@ -222,22 +226,22 @@ describe('EdgeConditionDialog', () => {
     expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('网络超时错误')
   })
 
-  it('should use correct label for different edge types', async () => {
+  it('should use correct placeholder for different edge types', async () => {
     const testCases = [
-      { type: 'branch' as const, expectedLabel: '触发条件' },
-      { type: 'exception' as const, expectedLabel: '异常场景' },
-      { type: 'bypass' as const, expectedLabel: '出现时机' },
+      { type: 'branch' as const, expectedPlaceholder: '例如：用户点击高级筛选按钮' },
+      { type: 'exception' as const, expectedPlaceholder: '例如：输入非法字符或接口超时' },
+      { type: 'bypass' as const, expectedPlaceholder: '例如：进入页面自动弹出' },
     ]
 
     for (const testCase of testCases) {
       const wrapper = mountDialog({
         visible: true,
-        edgeData: { edge_type: testCase.type, condition: '' },
+        edgeData: { edge_type: testCase.type, condition: '', trigger_action: '', pre_action: '', note: '' },
       })
       await nextTick()
 
-      const labels = wrapper.findAll('.el-form-item__label').map((item) => item.text())
-      expect(labels).toContain(testCase.expectedLabel)
+      const textareas = wrapper.findAll('textarea')
+      expect(textareas[0].attributes('placeholder')).toBe(testCase.expectedPlaceholder)
     }
   })
 })

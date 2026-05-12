@@ -45,7 +45,6 @@ class NavigationMixin:
     @require_initialized
     @handle_browser_errors
     async def take_screenshot(self, config: Optional[ScreenshotConfig] = None) -> bytes:
-        import time
         config = config or ScreenshotConfig()
         screenshot_options: Dict[str, Any] = {"type": config.type}
         if config.full_page:

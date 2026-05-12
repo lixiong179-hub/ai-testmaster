@@ -14,7 +14,6 @@ UI原型辅助工具模块
 import os
 import cv2
 import numpy as np
-from pathlib import Path
 from app.core.config import settings
 from app.schemas.ui_prototype import UIScreenResponse
 

@@ -1,10 +1,9 @@
-from typing import List, Dict, Any
 from datetime import datetime
-import asyncio
+from typing import Dict, Any
 from sqlalchemy.orm import Session
 from app.crud.test_result import create_test_result
 from app.models.test_case import TestCase
-from app.core.config import settings
+from app.core.websocket import manager
 from loguru import logger
 
 
@@ -54,7 +53,7 @@ class TaskExecutionMixin:
             logger.info(f"[跳过手工测试用例] 用例ID={test_case.id}, 用例编号={test_case.case_no}, 用例标题={test_case.title}")
             exec_status = 0
             exec_log += "\n手工测试，跳过执行"
-            test_result = create_test_result(
+            _ = create_test_result(
                 db=db,
                 task_id=task_id,
                 project_id=project_id,
@@ -75,7 +74,7 @@ class TaskExecutionMixin:
             logger.info(f"[跳过接口测试用例] 用例ID={test_case.id}, 用例编号={test_case.case_no}, 用例标题={test_case.title}（当前仅支持UI自动化）")
             exec_status = 0
             exec_log += "\n接口测试，跳过执行（当前仅支持UI自动化）"
-            test_result = create_test_result(
+            _ = create_test_result(
                 db=db,
                 task_id=task_id,
                 project_id=project_id,
@@ -144,7 +143,7 @@ class TaskExecutionMixin:
         except Exception as e:
             logger.error(f"用例执行异常: {e}")
             exec_status = 2  # 2: 执行失败
-            exec_log += f"\n执行结果: 异常"
+            exec_log += "\n执行结果: 异常"
             error_msg = str(e)
         finally:
             # 独立执行时（非任务级别共享），清理临时前置条件服务
@@ -154,8 +153,8 @@ class TaskExecutionMixin:
                 except Exception:
                     pass
 
-        # 保存执行结果
-        test_result = create_test_result(
+        # 保存执行结果（函数内部已写入数据库，返回值无需使用）
+        _ = create_test_result(
             db=db,
             task_id=task_id,
             project_id=project_id,

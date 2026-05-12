@@ -2,13 +2,11 @@
 """
 from pathlib import Path
 import os
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 from loguru import logger
-from sqlalchemy.orm import Session
 
 from app.models.video_record import VideoRecord
-from app.services.video.models import VideoStatus
 
 
 class CleanupMixin:

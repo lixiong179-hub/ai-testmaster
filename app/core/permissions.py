@@ -22,7 +22,6 @@
     - app.api.v1.endpoints.auth.get_current_user: 获取当前登录用户
     - app.models.user.User: 用户模型（含is_superuser字段和roles关联）
 """
-from functools import wraps
 from typing import List, Optional
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session

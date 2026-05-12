@@ -37,15 +37,10 @@ TestCaseGenerationService组合使用。
 from typing import List, Dict, Any, Optional, AsyncGenerator
 from loguru import logger
 
-from app.models.test_case import TestCase, TestStep
-from app.models.project import Project
-from app.utils.ai_client import AIServiceError
-from app.core.config import settings
 from app.services.case_generation.core_mixin import (
     ContentSanitizer,
     TEST_CATEGORY_UI_AUTO,
     TEST_CATEGORY_MANUAL,
-    TEST_CATEGORY_API_AUTO,
 )
 from app.services.case_generation.steps_validate_mixin import StepsValidateMixin
 
@@ -110,7 +105,7 @@ class StepsMixin(StepsValidateMixin):
 
         # 判断是否有UI信息和需求信息
         has_ui = bool(ui_description and ui_description.strip()) or bool(context.get("ui_specs", []))
-        has_requirement = bool(requirement_content and requirement_content.strip())
+        _ = bool(requirement_content and requirement_content.strip())
 
         # 自动判断用例分类
         if not has_ui:

@@ -9,8 +9,8 @@
 401（无认证）和 422/400（空数据校验）分别由 FastAPI get_current_user 依赖和 Pydantic schema
 层覆盖，在 schema 测试中已单独验证。
 
-注意: 直接调用端点函数时，create_response 中的 data 为 ORM 对象（未经过 FastAPI 序列化），
-需要通过属性访问（.project_id）而非字典访问（["project_id"]）。
+注意: 直接调用端点函数时，create_response 中的 data 为序列化后的 dict
+（经过 _serialize_project_flow_data 处理），通过字典访问（["project_id"]）。
 """
 import pytest
 from fastapi import HTTPException, status
@@ -87,8 +87,8 @@ class TestPutFlowData:
         )
         assert response["code"] == 200
         assert response["data"] is not None
-        # 直接调用时 data 为 ORM 对象，使用属性访问
-        assert response["data"].project_id == api_project.id
+        # 直接调用时 data 为序列化后的 dict，使用字典访问
+        assert response["data"]["project_id"] == api_project.id
 
     @pytest.mark.asyncio
     async def test_update_returns_200(self, db, api_project, testUser):
@@ -112,7 +112,7 @@ class TestPutFlowData:
             current_user=testUser,
         )
         assert r2["code"] == 200
-        assert r2["data"].project_id == api_project.id
+        assert r2["data"]["project_id"] == api_project.id
 
     @pytest.mark.asyncio
     async def test_wrong_user_returns_403(self, db, other_user, testUser):
@@ -155,7 +155,7 @@ class TestGetFlowData:
         )
         assert response["code"] == 200
         assert response["data"] is not None
-        assert response["data"].project_id == api_project.id
+        assert response["data"]["project_id"] == api_project.id
 
     @pytest.mark.asyncio
     async def test_returns_null_when_no_data(self, db, api_project, testUser):

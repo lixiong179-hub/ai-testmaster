@@ -1,5 +1,4 @@
 """Legacy 清理Mixin - 兼容原始 video_service.py 的清理逻辑。"""
-from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 from loguru import logger

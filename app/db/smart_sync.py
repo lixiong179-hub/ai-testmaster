@@ -54,16 +54,13 @@
 import sys
 import os
 import logging
-import importlib
 import re
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Dict, Tuple, Any
 
 # 将当前目录加入 sys.path，确保直接执行时能正确导入项目模块
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from sqlalchemy import create_engine, text, inspect
-from sqlalchemy.orm import declarative_base
-from app.core.config import settings
+from sqlalchemy import text, inspect
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +97,8 @@ class DatabaseSyncTool:
     # 合法示例：user_name, id, create_time, is_active
     # 非法示例：name; DROP TABLE users--, 1col, col-name
     COLUMN_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+    COLUMN_TYPE_PATTERN = re.compile(r'^[a-zA-Z][a-zA-Z0-9_() ,.]*$')
+    SQL_INJECTION_PATTERN = re.compile(r'[;\'"\\-]', re.IGNORECASE)
 
     def _validate_column_name(self, name: str) -> bool:
         """
@@ -274,15 +273,23 @@ class DatabaseSyncTool:
             ValueError: 列名未通过安全验证时抛出
         """
         col_name = col_info['name']
-        # 安全验证：列名必须通过正则白名单检查，防止SQL注入
         if not self._validate_column_name(col_name):
             raise ValueError(f"Invalid column name: {col_name}")
         col_type = col_info['type']
+        if not self.COLUMN_TYPE_PATTERN.match(col_type):
+            raise ValueError(f"Invalid column type: {col_type}")
         nullable = "NULL" if col_info['nullable'] else "NOT NULL"
-        # 默认值处理：排除 None 和字符串 'None'，避免生成无效的 DEFAULT None
-        default = f" DEFAULT {col_info['default']}" if col_info['default'] and col_info['default'] != 'None' else ""
-        # 列注释：MySQL 的 COMMENT 语法，便于数据库管理员理解字段含义
-        comment = f" COMMENT '{col_info['comment']}'" if col_info['comment'] else ""
+        default_raw = col_info['default']
+        default = ""
+        if default_raw and default_raw != 'None':
+            if self.SQL_INJECTION_PATTERN.search(str(default_raw)):
+                raise ValueError(f"Invalid default value: {default_raw}")
+            default = f" DEFAULT {default_raw}"
+        comment_raw = col_info.get('comment', '')
+        comment = ""
+        if comment_raw:
+            escaped_comment = str(comment_raw).replace("'", "\\'")
+            comment = f" COMMENT '{escaped_comment}'"
 
         sql = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type} {nullable}{default}{comment}"
         return sql
@@ -514,7 +521,7 @@ def smart_sync_database(Base, auto_fix: bool = True) -> Dict:
                 )
     else:
         # 所有表结构一致，记录信息级别日志
-        logger.info(f"数据库检查完成: 所有表结构已同步")
+        logger.info("数据库检查完成: 所有表结构已同步")
 
     return report
 

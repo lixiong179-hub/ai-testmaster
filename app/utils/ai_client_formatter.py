@@ -1,6 +1,5 @@
 import re
-from typing import Dict, Any, List
-from loguru import logger
+from typing import Dict, Any
 
 from app.utils.ai_client_parser import (
     infer_test_category,
@@ -42,8 +41,8 @@ def normalize_new_format(case: Dict[str, Any]) -> Dict[str, Any]:
             'target_element': step.get('target_element', ''),
             'description': f"{step.get('step', i + 1)}. {step.get('action', '')}",
             'expected_result': expected_result,
-            'test_data': [],
-            'ui_elements': []
+            'test_data': step.get('test_data', []),
+            'ui_elements': step.get('ui_elements', [])
         })
 
     def _add_step_number(text: str, idx: int) -> str:
@@ -80,19 +79,20 @@ def normalize_new_format(case: Dict[str, Any]) -> Dict[str, Any]:
         'test_category': test_category,
         'priority': case.get('priority', 'P2'),
         'expected_result': overall_expected or case.get('expected_result', ''),
-        'test_data': {},
-        'steps': normalized_steps
+        'test_data': case.get('test_data', {}),
+        'steps': normalized_steps,
+        'change_type': case.get('change_type', 'added'),
+        'parent_case_id': case.get('parent_case_id'),
+        'case_category': case.get('case_category', '')
     }
 
 
 def normalize_old_format(case: Dict[str, Any]) -> Dict[str, Any]:
-    priority = case.get('priority', 2)
-    if priority == 1 or priority == '1':
-        priority_str = 'P0'
-    elif priority == 3 or priority == '3':
-        priority_str = 'P3'
-    else:
-        priority_str = 'P2'
+    from app.core.constants import normalize_priority
+    raw_priority = case.get('priority', 2)
+    priority_val = normalize_priority(raw_priority)
+    priority_map = {1: 'P0', 2: 'P2', 3: 'P3'}
+    priority_str = priority_map.get(priority_val, 'P2')
     raw_steps = case.get('steps', [])
     normalized_steps = []
     for i, step in enumerate(raw_steps):
@@ -147,5 +147,8 @@ def normalize_old_format(case: Dict[str, Any]) -> Dict[str, Any]:
         'priority': priority_str,
         'expected_result': case.get('expected_result', ''),
         'test_data': case.get('test_data', {}),
-        'steps': normalized_steps
+        'steps': normalized_steps,
+        'change_type': case.get('change_type', 'added'),
+        'parent_case_id': case.get('parent_case_id'),
+        'case_category': case.get('case_category', '')
     }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useFlowSortStore } from '../flowSort'
+import type { FlowDataSaveResponse } from '@/api/uiPrototype'
 
 vi.mock('@/api/uiPrototype', () => ({
   uiPrototypeApi: {
@@ -63,6 +64,17 @@ describe('flowSortStore', () => {
       store.setProjectId(42)
       expect(store.projectId).toBe(42)
     })
+
+    it('有未保存数据时自动触发保存', async () => {
+      store.updateNodes([makeNode('n1')])
+      store.triggerAutoSave()
+      expect(store.saveStatus).toBe('unsaved')
+
+      store.setProjectId(1)
+      vi.advanceTimersByTime(2000)
+      await flushMicro()
+      expect(uiPrototypeApi.saveProjectFlowData).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('updateNodes / updateEdges', () => {
@@ -86,8 +98,9 @@ describe('flowSortStore', () => {
   })
 
   describe('triggerAutoSave', () => {
-    it('projectId 为 null 时不触发保存', async () => {
+    it('projectId 为 null 时标记为未保存但不触发API', async () => {
       store.triggerAutoSave()
+      expect(store.saveStatus).toBe('unsaved')
       vi.advanceTimersByTime(3000)
       await flushMicro()
       expect(uiPrototypeApi.saveProjectFlowData).not.toHaveBeenCalled()
@@ -153,11 +166,11 @@ describe('flowSortStore', () => {
   })
 
   describe('performSave', () => {
-    const successRes = {
+    const successRes: FlowDataSaveResponse = {
       code: 200,
       data: { id: 1, project_id: 1, flow_data: { nodes: [], edges: [] }, create_time: '', update_time: '' },
       msg: 'ok',
-    } as const
+    }
 
     it('成功保存后状态: unsaved → saving → saved → 3s → idle', async () => {
       vi.mocked(uiPrototypeApi.saveProjectFlowData).mockResolvedValue(successRes)
@@ -223,6 +236,24 @@ describe('flowSortStore', () => {
       await flushMicro()
       expect(uiPrototypeApi.saveProjectFlowData).toHaveBeenCalledTimes(1)
       expect(store.saveStatus).toBe('error')
+    })
+
+    it('超时错误(status=null)自动重试一次后成功', async () => {
+      const mock = vi.mocked(uiPrototypeApi.saveProjectFlowData)
+      const successRes = { code: 0, data: { id: 1, project_id: 1, flow_data: { nodes: [], edges: [] }, create_time: '', update_time: '' }, msg: 'ok' }
+      const err = new Error('timeout of 30000ms exceeded')
+      mock.mockRejectedValueOnce(err).mockResolvedValueOnce(successRes)
+      store.setProjectId(1)
+
+      store.triggerAutoSave()
+      vi.advanceTimersByTime(2000)
+      await flushMicro()
+      expect(mock).toHaveBeenCalledTimes(1)
+
+      vi.advanceTimersByTime(3000)
+      await flushMicro()
+      expect(mock).toHaveBeenCalledTimes(2)
+      expect(store.saveStatus).toBe('saved')
     })
   })
 
@@ -291,7 +322,7 @@ describe('flowSortStore', () => {
       createStore()
       vi.mocked(uiPrototypeApi.getProjectFlowData).mockResolvedValue({
         code: 200,
-        data: null as unknown as { flow_data: never },
+        data: null as unknown as FlowDataSaveResponse['data'],
         msg: '暂无保存数据',
       })
       store.setProjectId(1)
@@ -341,7 +372,7 @@ describe('flowSortStore', () => {
       store.triggerAutoSave()
       vi.advanceTimersByTime(2000)
       await flushMicro()
-      const callCount = uiPrototypeApi.saveProjectFlowData.mock.calls.length
+      const callCount = vi.mocked(uiPrototypeApi.saveProjectFlowData).mock.calls.length
 
       store.triggerAutoSave()
       vi.advanceTimersByTime(2000)

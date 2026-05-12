@@ -23,7 +23,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.schemas.ui_prototype import UIPrototypeProjectCreate, FlowDataSaveRequest, FlowDataResponse
+from app.schemas.ui_prototype import UIPrototypeProjectCreate, FlowDataSaveRequest
 from app.models.user import User
 from app.models.project import Project
 from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen, UIScreenTestCaseLink
@@ -31,7 +31,6 @@ from app.models.project_flow_data import ProjectFlowData
 from app.api.v1.endpoints.auth import get_current_user
 from app.crud import ui_prototype as ui_prototype_crud
 from app.crud.project_flow_data import save_project_flow_data, get_project_flow_data
-from app.api.v1.endpoints.ui_prototype.helpers import _build_screen_response
 from app.core.exception import create_response
 from loguru import logger
 
@@ -265,7 +264,7 @@ async def save_flow_data(
             flow_data=flow_request.flow_data,
         )
 
-        return create_response(data=result, msg="保存成功")
+        return create_response(data=_serialize_project_flow_data(result), msg="保存成功")
     except HTTPException:
         raise
     except Exception as e:
@@ -274,6 +273,16 @@ async def save_flow_data(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="保存项目流程数据失败，请稍后重试"
         )
+
+
+def _serialize_project_flow_data(pfd: ProjectFlowData) -> dict:
+    return {
+        "id": pfd.id,
+        "project_id": pfd.project_id,
+        "flow_data": pfd.flow_data,
+        "create_time": pfd.create_time.isoformat() if pfd.create_time else None,
+        "update_time": pfd.update_time.isoformat() if pfd.update_time else None,
+    }
 
 
 @router.get("/flow/{project_id}", response_model=dict)
@@ -306,7 +315,7 @@ async def get_flow_data(
         )
 
         if result:
-            return create_response(data=result)
+            return create_response(data=_serialize_project_flow_data(result))
         else:
             return create_response(data=None, msg="暂无保存数据")
     except HTTPException:

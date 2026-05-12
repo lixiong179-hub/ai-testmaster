@@ -98,7 +98,7 @@ def clean_json_string(json_str: str) -> Optional[str]:
     except json.JSONDecodeError:
         pass
     # 策略2：单引号替换为双引号
-    fixed = re.sub(r"'([^']*)'", r'"\1', json_str)
+    fixed = re.sub(r"'([^']*)'", r'"\1"', json_str)
     try:
         json.loads(fixed)
         return fixed

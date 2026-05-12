@@ -1,6 +1,5 @@
 """Legacy 查询Mixin - execution_replay_service.py 原始查询逻辑。"""
-from typing import Optional, Dict, Any, List
-from loguru import logger
+from typing import Optional, List
 
 from app.services.execution_replay.legacy_models import ReplayEvent
 

@@ -801,10 +801,12 @@ import { testCaseViewApi } from '@/api/testCaseView'
 import { downloadFromResponse, parseBlobError } from '@/utils/download'
 import { createQuickVerify } from '@/api/testExecution'
 import type { TestCase } from '@/types/testCase'
-import type { TechnicalView } from '@/api/testCaseView'
 import BatchLocatorDialog from './BatchLocatorDialog.vue'
 import LineageTree from '@/components/case/LineageTree.vue'
 import { getLocatorTypeLabel, getLocatorTypeTagType } from '@/utils/locatorType'
+import { useCaseEdit } from '@/composables/useCaseEdit'
+import { useTechnicalView, VIEW_TYPES } from '@/composables/useTechnicalView'
+import { useCellEdit } from '@/composables/useCellEdit'
 
 // ==================== 常量定义 ====================
 const PRIORITY_MAP: Record<number, { label: string; type: any }> = {
@@ -813,30 +815,12 @@ const PRIORITY_MAP: Record<number, { label: string; type: any }> = {
   3: { label: '低(P3)', type: 'success' },
 }
 
-const DEFAULT_PRIORITY = 2
-
-const LOCATOR_STATUS_MAP: Record<string, { label: string; type: string }> = {
-  recorded: { label: '已定位', type: 'success' },
-  pending: { label: '待定位', type: 'warning' },
-  failed: { label: '定位失败', type: 'danger' },
-}
-
-const VIEW_TYPES = {
-  BUSINESS: 'business',
-  TECHNICAL: 'technical',
-} as const
-
 const route = useRoute()
 const router = useRouter()
 
 // 状态
 const loading = ref(false)
-const saving = ref(false)
-const isEditing = ref(false)
 const lineageExpanded = ref(false)
-const currentView = ref<(typeof VIEW_TYPES)[keyof typeof VIEW_TYPES]>(VIEW_TYPES.BUSINESS)
-const viewLoading = ref(false)
-const technicalViewData = ref<TechnicalView | null>(null)
 
 // 纠正模式相关状态
 const isCorrectionMode = ref(false)
@@ -845,10 +829,6 @@ const issueType = ref<'case_issue' | 'product_bug' | 'needs_review'>('case_issue
 const failureReason = ref('')
 const aiAnalysisText = ref('')
 
-// 技术视图内联编辑状态
-const editingCell = ref<{ stepIndex: number; field: string } | null>(null)
-const editingValue = ref('')
-const cellSaving = ref(false)
 const showSuggestionPanel = ref(true)
 
 // 快速验证相关状态
@@ -882,24 +862,6 @@ const parsePreconditionLoading = ref(false)
 // 用例数据
 const caseItem = ref<TestCase | null>(null)
 
-// 编辑表单
-const editForm = ref({
-  title: '',
-  module: '',
-  precondition: '',
-  expected_result: '',
-  priority: DEFAULT_PRIORITY,
-  case_type: '',
-  test_category: '',
-  steps: [] as Array<{
-    _uid?: number
-    step_number?: number
-    action: string
-    expected_result: string
-    param?: string
-  }>,
-})
-
 // 计算属性 - 业务视图步骤
 const businessSteps = computed(() => {
   if (!caseItem.value?.steps) return []
@@ -908,6 +870,64 @@ const businessSteps = computed(() => {
 
 // 获取用例ID
 const caseId = computed(() => Number(route.params.caseId) || 0)
+
+// ==================== Composable 注入 ====================
+
+// 获取用例详情（提前声明，供 composable 回调）
+const fetchCaseDetail = async () => {
+  if (!caseId.value) return
+
+  loading.value = true
+  try {
+    caseItem.value = (await testCaseApi.getCase(caseId.value)) as TestCase
+
+    if (caseItem.value && !caseItem.value.steps) {
+      caseItem.value.steps = []
+    }
+
+    // 初始化编辑表单
+    initEditForm()
+  } catch (error: any) {
+    console.error('获取用例详情失败:', error)
+    const errorMsg = error.response?.data?.detail || error.message || '获取用例详情失败'
+    ElMessage.error(errorMsg)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 用例编辑 composable
+const {
+  isEditing,
+  saving,
+  editForm,
+  initEditForm,
+  toggleEdit,
+  cancelEdit,
+  saveEdit,
+} = useCaseEdit(caseItem, caseId, fetchCaseDetail)
+
+// 技术视图 composable
+const {
+  currentView,
+  viewLoading,
+  technicalViewData,
+  fetchTechnicalView,
+  handleViewChange,
+  getLocatorStatusType,
+  getLocatorStatusLabel,
+  formatLocatorCoverage,
+} = useTechnicalView(caseId)
+
+// 单元格编辑 composable
+const {
+  editingCell,
+  editingValue,
+  cellSaving,
+  startCellEdit,
+  cancelCellEdit,
+  saveCellEdit,
+} = useCellEdit(caseId, technicalViewData, issueType)
 
 // Excel 导出状态
 const exportingExcel = ref(false)
@@ -967,103 +987,7 @@ const formatTime = (time?: string) => {
   }
 }
 
-// 获取用例详情
-const fetchCaseDetail = async () => {
-  if (!caseId.value) return
-
-  loading.value = true
-  try {
-    caseItem.value = (await testCaseApi.getCase(caseId.value)) as TestCase
-
-    if (caseItem.value && !caseItem.value.steps) {
-      caseItem.value.steps = []
-    }
-
-    // 初始化编辑表单
-    initEditForm()
-  } catch (error: any) {
-    console.error('获取用例详情失败:', error)
-    const errorMsg = error.response?.data?.detail || error.message || '获取用例详情失败'
-    ElMessage.error(errorMsg)
-  } finally {
-    loading.value = false
-  }
-}
-
-// 初始化编辑表单
-const initEditForm = () => {
-  if (!caseItem.value) return
-
-  editForm.value = {
-    title: caseItem.value.title || '',
-    module: caseItem.value.module || '',
-    precondition: caseItem.value.precondition || '',
-    expected_result: caseItem.value.expected_result || '',
-    priority: caseItem.value.priority || 2,
-    case_type: caseItem.value.case_type || '',
-    test_category: caseItem.value.test_category || '',
-    steps: caseItem.value.steps ? JSON.parse(JSON.stringify(caseItem.value.steps)) : [],
-  }
-}
-
-// 切换编辑状态
-const toggleEdit = () => {
-  if (isEditing.value) {
-    cancelEdit()
-  } else {
-    isEditing.value = true
-    initEditForm()
-  }
-}
-
-// 取消编辑
-const cancelEdit = () => {
-  isEditing.value = false
-  initEditForm()
-}
-
-// 保存编辑
-const saveEdit = async () => {
-  // 验证
-  if (!editForm.value.title.trim()) {
-    ElMessage.warning('请输入用例标题')
-    return
-  }
-  if (editForm.value.steps.length === 0) {
-    ElMessage.warning('请至少添加一个测试步骤')
-    return
-  }
-
-  saving.value = true
-  try {
-    // 构建更新数据
-    const updateData: any = {
-      title: editForm.value.title,
-      module: editForm.value.module,
-      precondition: editForm.value.precondition,
-      expected_result: editForm.value.expected_result,
-      priority: editForm.value.priority,
-      case_type: editForm.value.case_type,
-      test_category: editForm.value.test_category,
-      steps: editForm.value.steps,
-    }
-
-    await testCaseApi.updateCase(caseId.value, updateData)
-    ElMessage.success('保存成功')
-    isEditing.value = false
-
-    // 重新获取数据
-    await fetchCaseDetail()
-  } catch (error: any) {
-    console.error('保存失败:', error)
-    const errorMsg = error.response?.data?.detail || error.message || '保存失败'
-    ElMessage.error(errorMsg)
-  } finally {
-    saving.value = false
-  }
-}
-
-// 添加步骤
+// ==================== 工具函数 ====================
 const addStep = () => {
   editForm.value.steps.push({
     _uid: Date.now() + Math.random(),
@@ -1127,52 +1051,6 @@ const copyCase = async () => {
     console.error('复制失败:', error)
     ElMessage.error('复制失败，请手动复制')
   }
-}
-
-// 获取技术视图
-const fetchTechnicalView = async () => {
-  if (!caseId.value) return
-  viewLoading.value = true
-  try {
-    technicalViewData.value = await testCaseViewApi.getTechnicalView(caseId.value)
-  } catch (error: any) {
-    console.error('获取技术视图失败:', error)
-    const errorMsg = error.response?.data?.detail || error.message || '获取技术视图失败'
-    ElMessage.error(errorMsg)
-  } finally {
-    viewLoading.value = false
-  }
-}
-
-// 切换视图
-const handleViewChange = async (view: (typeof VIEW_TYPES)[keyof typeof VIEW_TYPES]) => {
-  if (currentView.value === view) return
-  currentView.value = view
-  if (view === VIEW_TYPES.TECHNICAL) {
-    await fetchTechnicalView()
-  }
-}
-
-// 获取定位状态标签类型
-const getLocatorStatusType = (status: string) => {
-  return LOCATOR_STATUS_MAP[status]?.type || 'info'
-}
-
-// 获取定位状态标签文本
-const getLocatorStatusLabel = (status: string) => {
-  return LOCATOR_STATUS_MAP[status]?.label || status
-}
-
-// 格式化定位覆盖率显示
-const formatLocatorCoverage = (coverage: number | string): string => {
-  if (typeof coverage === 'number') {
-    return `${coverage.toFixed(1)}%`
-  }
-  // 如果已经是字符串（比如"85.5%"），直接返回
-  if (typeof coverage === 'string' && coverage.endsWith('%')) {
-    return coverage
-  }
-  return `${coverage}%`
 }
 
 // ==================== 前置条件步骤相关方法 ====================
@@ -1271,69 +1149,6 @@ const getStepRowClass = ({ rowIndex }: { row: any; rowIndex: number }) => {
     return 'highlighted-step'
   }
   return ''
-}
-
-// 开始单元格编辑
-const startCellEdit = (stepIndex: number, field: string, value: any) => {
-  if (issueType.value === 'product_bug') return
-  editingCell.value = { stepIndex, field }
-  editingValue.value = value || ''
-}
-
-// 取消单元格编辑
-const cancelCellEdit = () => {
-  editingCell.value = null
-  editingValue.value = ''
-}
-
-// 保存单元格编辑
-const saveCellEdit = async () => {
-  if (!editingCell.value || !technicalViewData.value) return
-
-  const { stepIndex, field } = editingCell.value
-  const step = technicalViewData.value.steps[stepIndex]
-  if (!step) return
-
-  if (!editingValue.value.trim() && (field === 'action' || field === 'expected_result')) {
-    ElMessage.warning('内容不能为空')
-    return
-  }
-
-  cellSaving.value = true
-  try {
-    const stepId = step.step_id || step.step_number
-
-    if (field === 'action' || field === 'expected_result') {
-      const stepsPayload = technicalViewData.value.steps.map((s, i) => ({
-        step_number: s.step_number,
-        action: i === stepIndex && field === 'action' ? editingValue.value : s.action || '',
-        expected_result:
-          i === stepIndex && field === 'expected_result'
-            ? editingValue.value
-            : s.expected_result || '',
-      }))
-      await testCaseApi.updateCase(caseId.value, { steps: stepsPayload })
-    } else if (field === 'css_selector' || field === 'xpath') {
-      await testCaseApi.updateStepLocator(caseId.value, stepId, {
-        [field]: editingValue.value,
-      })
-    }
-
-    if (field === 'action') step.action = editingValue.value
-    else if (field === 'expected_result') step.expected_result = editingValue.value
-    else if (field === 'css_selector' && step.locator)
-      step.locator.css_selector = editingValue.value
-    else if (field === 'xpath' && step.locator) step.locator.xpath = editingValue.value
-
-    ElMessage.success('保存成功')
-    editingCell.value = null
-    editingValue.value = ''
-  } catch (error: any) {
-    console.error('保存失败:', error)
-    ElMessage.error(error.response?.data?.detail || '保存失败')
-  } finally {
-    cellSaving.value = false
-  }
 }
 
 // 处理纠正入口参数
@@ -1503,295 +1318,5 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.case-detail {
-  padding: 20px;
-  background-color: #f5f7fa;
-  min-height: calc(100vh - 60px);
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-
-    h2 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 600;
-      color: #303133;
-    }
-  }
-
-  .header-right {
-    display: flex;
-    gap: 12px;
-  }
-}
-
-.loading-container,
-.empty-container {
-  padding: 60px 0;
-}
-
-.case-content {
-  .info-section {
-    margin-bottom: 30px;
-  }
-
-  .bug-warning-alert {
-    margin-bottom: 20px;
-  }
-
-  .correction-alert {
-    margin-bottom: 20px;
-  }
-
-  .quick-verify-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding: 12px 16px;
-    background: #f0f9eb;
-    border-radius: 8px;
-    border: 1px solid #e1f3d8;
-
-    .verify-hint {
-      color: #67c23a;
-      font-size: 13px;
-    }
-  }
-
-  .suggestion-panel {
-    margin-top: 16px;
-    border: 1px solid #e4e7ed;
-    border-radius: 8px;
-    overflow: hidden;
-
-    .suggestion-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 16px;
-      background: #fdf6ec;
-      font-weight: 600;
-      font-size: 14px;
-      color: #e6a23c;
-
-      .el-button {
-        margin-left: auto;
-      }
-    }
-
-    .suggestion-body {
-      padding: 12px 16px;
-      font-size: 13px;
-      line-height: 1.8;
-
-      .suggestion-item {
-        margin-bottom: 8px;
-
-        p {
-          margin: 4px 0;
-          color: #606266;
-        }
-      }
-    }
-  }
-
-  .section {
-    margin-bottom: 30px;
-
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .section-title {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-      color: #303133;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #409eff;
-    }
-
-    .static-content {
-      padding: 16px;
-      background-color: #f5f7fa;
-      border-radius: 4px;
-      line-height: 1.6;
-      color: #606266;
-      min-height: 60px;
-      white-space: pre-wrap;
-    }
-
-    .editable-content {
-      :deep(.el-textarea__inner) {
-        resize: none;
-      }
-    }
-  }
-
-  .case-no {
-    font-family: 'Courier New', monospace;
-    font-weight: 600;
-    color: #409eff;
-  }
-
-  .case-title {
-    font-weight: 500;
-  }
-
-  .steps-view {
-    .step-index {
-      font-weight: 600;
-      color: #409eff;
-    }
-
-    .step-content {
-      line-height: 1.6;
-      color: #606266;
-      white-space: pre-wrap;
-    }
-
-    .coverage-info {
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-    }
-
-    .test-data-item {
-      display: flex;
-      align-items: center;
-      margin-bottom: 4px;
-      font-size: 12px;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-    }
-
-    .test-data-value {
-      color: #606266;
-      max-width: 120px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .steps-editor {
-    .step-item {
-      background: #fafbfc;
-      border: 1px solid #e4e7ed;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
-
-      .step-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-
-        .step-number {
-          font-weight: 600;
-          color: #409eff;
-          font-size: 14px;
-        }
-      }
-
-      .step-fields {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-      }
-
-      .step-field {
-        label {
-          display: block;
-          font-size: 12px;
-          color: #909399;
-          margin-bottom: 4px;
-          font-weight: 500;
-        }
-      }
-    }
-  }
-
-  .save-actions {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    padding-top: 20px;
-    border-top: 1px solid #ebeef5;
-  }
-}
-
-:deep(.highlighted-step) {
-  background-color: #fdf6ec !important;
-  border-left: 3px solid #e6a23c;
-}
-
-.cell-display {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  min-height: 28px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: #f5f7fa;
-
-    .edit-icon {
-      opacity: 1;
-    }
-  }
-
-  span {
-    flex: 1;
-    word-break: break-all;
-  }
-
-  .edit-icon {
-    opacity: 0;
-    color: #409eff;
-    font-size: 14px;
-    margin-left: 4px;
-    transition: opacity 0.2s;
-  }
-}
-
-.cell-editing {
-  :deep(.el-input--small .el-input__wrapper) {
-    min-height: 30px;
-  }
-
-  .cell-actions {
-    display: flex;
-    gap: 4px;
-    margin-top: 4px;
-
-    :deep(.el-button--small) {
-      min-height: 30px;
-      padding: 5px 10px;
-    }
-  }
-}
-
-.version-pagination {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
-}
+@import './CaseDetail.scss';
 </style>

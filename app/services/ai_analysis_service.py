@@ -31,7 +31,6 @@
     analyze_project使用AsyncGenerator实现流式进度推送，
     前端可实时展示分析进度和中间状态。
 """
-import json
 from typing import List, Dict, Any, AsyncGenerator
 from sqlalchemy.orm import Session
 from app.models.project import Project, ProjectFile
@@ -40,7 +39,6 @@ from app.crud.test_point import batch_create_test_points
 from app.utils.ai_client import ai_client
 from app.services.ai_analysis_utils import (
     read_file_content,
-    generate_analysis_prompt,
     parse_ai_response,
 )
 from app.utils.ai_client_prompt import build_ui_spec_description
@@ -245,7 +243,7 @@ def _build_ui_extract_content(screens: List[UIPrototypeScreen]) -> str:
                     else:
                         flow_lines.append(f"  - {flow}")
                 if flow_lines:
-                    sections[-1] += f"\n\n页面跳转流程：\n" + "\n".join(flow_lines)
+                    sections[-1] += "\n\n页面跳转流程：\n" + "\n".join(flow_lines)
 
     return "\n\n".join(sections) if sections else ""
 

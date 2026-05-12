@@ -12,8 +12,6 @@
 import base64
 from typing import Dict, Any
 
-from app.core.constants import AUTH_FAILURE_KEYWORDS
-
 
 def build_auth_headers(auth_type: str, auth_config: Dict[str, Any]) -> Dict[str, str]:
     """根据认证类型构建HTTP请求头。

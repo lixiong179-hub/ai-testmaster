@@ -8,21 +8,16 @@
 权限: Bearer令牌认证
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import List, Optional
+from typing import Optional
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.requirement_link import (
     RequirementLinkCreate,
     RequirementLinkUpdate,
     RequirementLinkResponse,
-    RequirementLinkDetailResponse,
-    RequirementLinkListRequest,
     RequirementLinkListResponse,
     AuthConfigResponse,
-    FetchContentRequest,
-    FetchContentResponse,
     AuthTypeEnum,
-    LinkTypeEnum
 )
 from app.models.user import User
 from app.models.project import Project

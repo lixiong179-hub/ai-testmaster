@@ -582,7 +582,6 @@ const handlePreviewPrompt = () => {
   }
   const submitData = editor?.getFlowSortSubmitData?.()
   if (submitData?.flow_sort_data) {
-    console.log('[Prompt预览] flow_sort_data:', JSON.stringify(submitData.flow_sort_data, null, 2))
     ElMessage.info('Prompt 数据已输出到控制台')
   } else {
     ElMessage.warning('当前尚未生成页面流程数据')

@@ -226,10 +226,10 @@ export const typeLayeredAutoLayout = (
   const branchNodes = nodes.filter((n) => getNodeData(n).flow_type === 'branch')
   const exceptionNodes = nodes.filter((n) => getNodeData(n).flow_type === 'exception')
   const bypassNodes = nodes.filter((n) => getNodeData(n).flow_type === 'bypass')
-  const orphanNodes = nodes.filter(
-    (n) => getNodeData(n).flow_type !== 'main' &&
-      !edges.some((e) => e.target === n.id || e.source === n.id)
-  )
+  const orphanNodes = nodes.filter((n) => {
+    if (getNodeData(n).flow_type === 'main') return false
+    return !edges.some((e) => e.target === n.id || e.source === n.id)
+  })
 
   const positionMap = new Map<string, { x: number; y: number }>()
 

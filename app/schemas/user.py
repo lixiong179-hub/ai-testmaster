@@ -34,7 +34,7 @@
 - Permission系列 -> app.models.user.Permission
 """
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field, validator
 
 

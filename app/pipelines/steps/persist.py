@@ -3,7 +3,6 @@
 将生成的测试用例写入数据库，
 设置 lifecycle_status、关联测试点、生成用例编号。
 """
-import hashlib
 from typing import Any, ClassVar, Dict, List, Optional
 
 from loguru import logger

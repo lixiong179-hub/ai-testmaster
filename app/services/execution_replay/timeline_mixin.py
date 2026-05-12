@@ -1,9 +1,8 @@
 """时间线构建Mixin - 构建执行过程的时间线视图。
 """
 import os
-from typing import Optional, Dict, Any, List
+from typing import Optional
 from loguru import logger
-from sqlalchemy.orm import Session
 
 from app.models.test_case import TestCaseExecution, TestStep, TestCasePreconditionStep
 from app.services.execution_replay.models import (

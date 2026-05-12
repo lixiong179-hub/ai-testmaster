@@ -1,4 +1,3 @@
-from typing import List, Optional
 from datetime import datetime, timedelta
 """
 用例质量报告端点模块
@@ -21,7 +20,6 @@ from datetime import datetime, timedelta
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
 from loguru import logger
 
 from app.db.database import get_db

@@ -38,6 +38,11 @@ function getTimeoutByUrl(url?: string): number {
     return TIMEOUT_CONFIG.ai
   }
 
+  // 流程数据保存接口（节点/边数据量较大）
+  if (lowerUrl.includes('/ui-prototype/flow/')) {
+    return TIMEOUT_CONFIG.upload
+  }
+
   // 文件上传/导出接口
   if (
     lowerUrl.includes('/upload') ||
@@ -107,7 +112,7 @@ service.interceptors.request.use(
 
 // 响应拦截器
 service.interceptors.response.use(
-  (response: AxiosResponse) => {
+  ((response: AxiosResponse) => {
     if (response.config.responseType === 'blob') {
       return response
     }
@@ -116,7 +121,7 @@ service.interceptors.response.use(
       return res
     }
     return { code: 0, msg: 'success', message: 'success', data: res } as ApiResponse
-  },
+  }) as unknown as Parameters<typeof service.interceptors.response.use>[0],
   (error) => {
     // 处理401错误，跳转到登录页面
     if (error.response && error.response.status === 401) {

@@ -7,7 +7,7 @@ Stagehand在远程Browserbase浏览器上执行操作，
 from typing import Optional, Dict, Any
 from loguru import logger
 
-from app.services.test_execution_engine.models import ActionType, StepExecutionError
+from app.services.test_execution_engine.models import ActionType
 
 
 class SelfHealingStagehandMixin:

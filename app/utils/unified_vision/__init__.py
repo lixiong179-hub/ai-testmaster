@@ -27,8 +27,7 @@ Mixin模块：
     model = UnifiedVisionModel(model_type=VisionModelType.OPENAI)
     result = model.analyze_image(screenshot_bytes, "请描述这个页面")
 """
-import os
-from typing import Optional, Dict, Any
+from typing import Optional
 
 from app.utils.unified_vision.model_types import (
     VisionModelType, ElementInfo, ModelProviderConfig, MODEL_PROVIDER_CONFIGS,

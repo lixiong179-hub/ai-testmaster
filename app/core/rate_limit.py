@@ -32,7 +32,6 @@ import time
 from collections import defaultdict, deque
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Optional
 from loguru import logger
 
 from app.core.config import settings

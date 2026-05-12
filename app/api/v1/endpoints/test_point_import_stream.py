@@ -249,9 +249,9 @@ async def import_xmind_stream(
                 "X-Accel-Buffering": "no",
             },
         )
-    except XmindParseError as e:
+    except XmindParseError:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
         async def _error_gen():
-            yield _sse_event("error", {"detail": str(e), "error_type": "parse_error"})
+            yield _sse_event("error", {"detail": "XMind解析失败", "error_type": "parse_error"})
         return StreamingResponse(_error_gen(), media_type="text/event-stream")

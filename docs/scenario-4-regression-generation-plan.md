@@ -7,7 +7,7 @@
 ```text
 src/views/case/ai-generate.vue
 -> src/store/useGenerateStore.ts
--> POST /api/v1/testCase/ai-generate-enhanced
+-> POST /api/v1/testCase/ai-enhanced-generate
 ```
 
 该链路适合基于需求、UI、测试点快速生成新测试用例草稿，但不执行场景 4 Pipeline，因此不会完整维护旧项目变更场景下的历史用例关系。
@@ -62,7 +62,7 @@ SignalGatherer
 - 不要求用户手动逐条选择旧用例。
 - 不做复杂的历史用例多维筛选器。
 - 不实现完整可视化 Reconciliation 矩阵大屏。
-- 不替换现有 `ai-generate-enhanced` 接口。
+- 不替换现有 `ai-enhanced-generate` 接口。
 
 ## 4. 推荐产品形态
 
@@ -93,7 +93,7 @@ src/views/requirement/ui-prototype.vue
 ```text
 选择资源和测试点
 -> generate-context
--> ai-generate-enhanced
+-> ai-enhanced-generate
 -> 前端预览
 -> 手动保存
 ```
@@ -298,7 +298,7 @@ POST /api/v1/pipeline/iteration/{iteration_id}/run
 
 验收标准：
 
-- 不再调用 `/api/v1/testCase/ai-generate-enhanced`。
+- 不再调用 `/api/v1/testCase/ai-enhanced-generate`。
 - 返回 `pipeline_run_id` 后跳转进度页。
 - Pipeline 状态为 `completed` 或 `waiting_for_user` 时页面能正确展示。
 
@@ -442,7 +442,7 @@ export interface Scenario4PrecheckResponse {
 
 - 场景 4 页面只调用统一 API 封装。
 - TypeScript 类型覆盖预检、启动、摘要、迭代输入写入。
-- 点击启动时调用 Pipeline API，而不是 `/api/v1/testCase/ai-generate-enhanced`。
+- 点击启动时调用 Pipeline API，而不是 `/api/v1/testCase/ai-enhanced-generate`。
 
 ### FE-08 UI 原型项目到 screen_ids 的转换规则
 
@@ -905,7 +905,7 @@ cypress/e2e/scenario-4-regression-generation.cy.ts
 - 前端使用统一 API 封装。
 - 预检接口具备权限校验。
 - 新 UI 输入能写入 `IterationInput(kind="prototype")`。
-- 场景 4 不再走 `/api/v1/testCase/ai-generate-enhanced`。
+- 场景 4 不再走 `/api/v1/testCase/ai-enhanced-generate`。
 
 ### P1 验收
 

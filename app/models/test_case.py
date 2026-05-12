@@ -28,7 +28,6 @@
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float, event, Index
 from sqlalchemy.orm import relationship, Session
-from datetime import datetime
 from app.utils.db_time import utcnow
 from app.db.database import Base
 import contextvars

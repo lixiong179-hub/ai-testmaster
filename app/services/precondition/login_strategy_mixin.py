@@ -27,13 +27,11 @@
 import asyncio
 import os
 import uuid
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from loguru import logger
 
 from app.utils.browser_controller_v2 import ScreenshotConfig
 from app.services.precondition.models import (
-    PreconditionError,
-    LoginError,
     LoginFormInfo,
     PreconditionTimingConfig,
 )
@@ -203,7 +201,6 @@ class LoginStrategyMixin:
             logger.warning("浏览器或视觉模型未初始化，无法识别验证码")
             return ""
         try:
-            screenshot = await self.browser_controller.take_screenshot()
             cfg = self._timing_config
             # 裁剪验证码区域，添加边距确保完整
             clip_config = ScreenshotConfig(

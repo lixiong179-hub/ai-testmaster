@@ -35,15 +35,10 @@ export const useProjectStore = defineStore('project', {
     async fetchProjects() {
       this.loading = true
       try {
-        console.log('开始获取项目列表，参数:', {
-          page: this.currentPage,
-          page_size: this.pageSize,
-        })
         const response: ProjectListResponse = await ProjectAPI.getProjectList({
           page: this.currentPage,
           page_size: this.pageSize,
         })
-        console.log('获取项目列表成功，响应:', response)
         this.projects = response?.data?.items || []
         this.total = response?.data?.total || 0
       } catch (error: unknown) {

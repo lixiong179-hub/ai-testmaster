@@ -15,8 +15,6 @@ import json
 import re
 from typing import Any, ClassVar, Dict, List, Optional
 
-from loguru import logger
-
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
 

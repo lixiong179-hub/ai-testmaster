@@ -2,7 +2,6 @@
 """
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from loguru import logger
 from app.models.test_case import TestCase

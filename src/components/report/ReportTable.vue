@@ -68,7 +68,7 @@ import { useRouter } from 'vue-router'
 import { TestCaseResult } from '@/api/report'
 import { ArrowDown } from '@element-plus/icons-vue'
 
-const props = defineProps<{
+defineProps<{
   testCases: TestCaseResult[]
   total: number
 }>()

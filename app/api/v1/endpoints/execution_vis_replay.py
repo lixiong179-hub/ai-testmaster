@@ -24,7 +24,6 @@ from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.execution_replay_service import (
-    ExecutionReplayService,
     get_execution_replay_service
 )
 from app.api.v1.endpoints.execution_vis_schemas import (

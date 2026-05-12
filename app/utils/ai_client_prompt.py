@@ -22,7 +22,6 @@ AI提示词构建模块
 """
 import re
 from typing import Dict, Any, Optional, List
-from loguru import logger
 
 
 def build_weight_model(has_ui: bool, has_requirement: bool, has_test_point: bool) -> tuple:
@@ -103,7 +102,7 @@ def build_weight_model(has_ui: bool, has_requirement: bool, has_test_point: bool
 - ⚠️ **缺少需求文档**：可能导致生成的测试用例偏离实际业务功能
 - 请基于现有信息生成合理的测试用例，但需注意可能无法完全贴合实际需求"""
         weight_example = ""
-        weight_warning = f"- ⚠️ 警告：当前未提供需求文档，建议上传需求文档以确保用例贴合实际功能"
+        weight_warning = "- ⚠️ 警告：当前未提供需求文档，建议上传需求文档以确保用例贴合实际功能"
     else:
         weight_desc = "## 数据源权重\n- 基于可用信息生成测试用例"
         weight_example = ""

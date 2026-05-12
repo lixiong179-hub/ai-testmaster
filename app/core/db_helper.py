@@ -27,7 +27,6 @@
 """
 from sqlalchemy.orm import Session
 from typing import Optional, List, TypeVar, Type, Callable, Any
-from sqlalchemy import and_, or_
 from sqlalchemy.exc import OperationalError, InterfaceError
 from loguru import logger
 import time

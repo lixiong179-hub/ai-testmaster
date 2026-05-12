@@ -57,7 +57,7 @@
 │                          │  { nodes, edges, module_info }│   │
 │                          └──────────────┬───────────────┘   │
 └─────────────────────────────────────────┼───────────────────┘
-                                          │ POST /api/v1/case/ai-generate-enhanced
+                                          │ POST /api/v1/case/ai-enhanced-generate
                                           ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                        后端（FastAPI）                       │
@@ -707,7 +707,7 @@ def build_prompt(screenshot_data: dict, mode: str) -> str:
 |----------|----------|
 | `src/views/case/ai-generate.vue` | 替换原有拖拽排序区域，集成 FlowSortEditor |
 | `app/services/case_generation_steps.py` | 增加 graph 模式上下文处理逻辑 |
-| `app/api/v1/endpoints/test_case_ai_enhanced.py` | 增加 mode 参数接收与路由 |
+| `app/api/v1/endpoints/test_case_ai_generate.py` | 增加 mode 参数接收与路由 |
 | `app/schemas/test_case.py` | 增加 FlowSortData Schema |
 | `package.json` | 新增 @vue-flow 依赖 |
 
@@ -773,7 +773,7 @@ def build_prompt(screenshot_data: dict, mode: str) -> str:
 | 现有拖拽排序逻辑 | `ai-generate.vue` L179-L207, L2336-L2416 |
 | AI 用例生成服务 | `app/services/case_generation_ai.py` |
 | AI 用例生成步骤服务 | `app/services/case_generation_steps.py` |
-| AI 生成 API 端点 | `app/api/v1/endpoints/test_case_ai_enhanced.py` |
+| AI 生成 API 端点 | `app/api/v1/endpoints/test_case_ai_generate.py` |
 | UI 屏幕 Schema | `app/schemas/ui_prototype.py` |
 
 ### 8.2 参考文档

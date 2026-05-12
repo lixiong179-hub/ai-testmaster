@@ -24,7 +24,7 @@ from typing import Optional, Dict, Any
 
 from app.services.test_execution_engine.action_executor_basic_mixin import ActionExecutorBasicMixin
 from app.services.test_execution_engine.action_executor_complex_mixin import ActionExecutorComplexMixin
-from app.services.test_execution_engine.models import ActionType, StepExecutionError
+from app.services.test_execution_engine.models import ActionType
 
 
 class ActionExecutorMixin(ActionExecutorBasicMixin, ActionExecutorComplexMixin):

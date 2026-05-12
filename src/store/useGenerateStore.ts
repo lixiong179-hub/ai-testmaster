@@ -5,6 +5,7 @@ import { testPointApi, type TestPoint } from '@/api/testPoint'
 import { fileApi, type ProjectFile } from '@/api/file'
 import { type Project } from '@/api/project'
 import caseApi from '@/api/case'
+import type { TestCaseApiStep, BatchCreateResponse, TestCaseAIEnhancedRequest } from '@/api/case'
 import request, { type ApiResponse } from '@/utils/request'
 import { uiPrototypeApi, type UIPrototypeProject, type UIScreen } from '@/api/uiPrototype'
 import type { FlowNodeData, FlowEdgeData } from '@/store/flowSort'
@@ -21,6 +22,7 @@ export interface GeneratedStep {
   target_element?: string
   test_data?: Record<string, unknown>
   description?: string
+  ui_elements?: Array<{ type?: string; label?: string }>
 }
 
 /** 生成用例的数据结构 */
@@ -31,6 +33,7 @@ export interface GeneratedCase {
   title: string
   module: string
   case_type: string
+  test_category?: string
   precondition: string
   test_data?: Record<string, Record<string, string | number | boolean | null>>
   steps: GeneratedStep[]
@@ -48,10 +51,12 @@ export interface EditingCase {
   title: string
   module: string
   case_type: string
+  test_category?: string
   precondition: string
   expected_result: string
   priority: number
   steps: GeneratedStep[]
+  test_data?: Record<string, Record<string, string | number | boolean | null>>
   ai_change_type?: 'added' | 'modified' | 'deprecated'
   parent_case_id?: number | null
 }
@@ -83,13 +88,11 @@ export interface GenerateFormData {
   extra_requirements: string
 }
 
-let _caseNoCounter = 0
-
 function generateCaseNo(projectId: number | '', extraSuffix?: number): string {
-  _caseNoCounter++
   const ts = Date.now()
+  const rand = Math.random().toString(36).substring(2, 8)
   const suffix = extraSuffix != null ? `-${extraSuffix}` : ''
-  return `CASE${String(projectId)}-${ts}-${_caseNoCounter}${suffix}`
+  return `CASE${String(projectId)}-${ts}-${rand}${suffix}`
 }
 
 function normalizePriority(priority: unknown): number {
@@ -98,7 +101,11 @@ function normalizePriority(priority: unknown): number {
     if (priority > 3) return 3
     return priority
   }
-  const pMap: Record<string, number> = { P0: 1, P2: 2, P3: 3, '1': 1, '2': 2, '3': 3 }
+  const pMap: Record<string, number> = {
+    P0: 1, P1: 1, P2: 2, P3: 3,
+    high: 1, medium: 2, low: 3,
+    '1': 1, '2': 2, '3': 3,
+  }
   return pMap[String(priority)] || 2
 }
 
@@ -139,6 +146,7 @@ export const useGenerateStore = defineStore('generate', () => {
   const selectedUiPrototypeProjectId = ref<number | ''>('')
   const uiScreens = ref<UIScreen[]>([])
   const screenImageUrls = ref<Record<number, string>>({})
+  const isLoadingScreenImages = ref(false)
   const showParseWarning = ref(true)
 
   // ========== 历史用例参考 ==========
@@ -485,7 +493,8 @@ export const useGenerateStore = defineStore('generate', () => {
         uiScreens.value = response.data.items.sort(
           (a: UIScreen, b: UIScreen) => (a.screen_order || 0) - (b.screen_order || 0)
         )
-        loadScreenImages()
+        cleanupScreenImages()
+        await loadScreenImages()
       }
     } catch (error) {
       console.error('获取 UI 屏幕列表失败:', error)
@@ -493,23 +502,40 @@ export const useGenerateStore = defineStore('generate', () => {
   }
 
   const loadScreenImages = async () => {
-    for (const screen of uiScreens.value) {
-      if (screen.id && !screenImageUrls.value[screen.id]) {
-        try {
-          const response = await request.get(`/api/v1/file/preview-screen/${screen.id}`, {
-            responseType: 'blob',
+    if (isLoadingScreenImages.value) return
+    isLoadingScreenImages.value = true
+    try {
+      const screensToLoad = uiScreens.value.filter(
+        (screen) => screen.id && !screenImageUrls.value[screen.id]
+      )
+      const BATCH_SIZE = 5
+      for (let i = 0; i < screensToLoad.length; i += BATCH_SIZE) {
+        const batch = screensToLoad.slice(i, i + BATCH_SIZE)
+        await Promise.allSettled(
+          batch.map(async (screen) => {
+            try {
+              const response = await request.get(`/api/v1/file/preview-screen/${screen.id}`, {
+                responseType: 'blob',
+              })
+              const blob =
+                response.data instanceof Blob
+                  ? response.data
+                  : new Blob([response.data], { type: 'image/jpeg' })
+              if (blob.size > 0) {
+                const oldUrl = screenImageUrls.value[screen.id]
+                if (oldUrl?.startsWith('blob:')) {
+                  URL.revokeObjectURL(oldUrl)
+                }
+                screenImageUrls.value[screen.id] = URL.createObjectURL(blob)
+              }
+            } catch (e) {
+              console.warn(`加载屏幕图片失败: ${screen.id}`, e)
+            }
           })
-          const blob =
-            response.data instanceof Blob
-              ? response.data
-              : new Blob([response.data], { type: 'image/jpeg' })
-          if (blob.size > 0) {
-            screenImageUrls.value[screen.id] = URL.createObjectURL(blob)
-          }
-        } catch (e) {
-          console.warn(`加载屏幕图片失败: ${screen.id}`, e)
-        }
+        )
       }
+    } finally {
+      isLoadingScreenImages.value = false
     }
   }
 
@@ -517,8 +543,15 @@ export const useGenerateStore = defineStore('generate', () => {
     showParseWarning.value = true
     lastContext.value = {}
     selectedUiPrototypeProjectId.value = projectId as number | ''
+    const flowSortStore = useFlowSortStore()
     if (projectId) {
+      if (formData.project_id) {
+        flowSortStore.setProjectId(formData.project_id as number)
+      }
       await loadUIScreens(projectId as number)
+      if (formData.project_id) {
+        await flowSortStore.loadFromBackend()
+      }
       if (uiScreens.value.length > 0) {
         formData.ui_screen_ids = uiScreens.value.map((s) => s.id)
       } else {
@@ -527,6 +560,7 @@ export const useGenerateStore = defineStore('generate', () => {
     } else {
       uiScreens.value = []
       formData.ui_screen_ids = []
+      flowSortStore.reset()
     }
   }
 
@@ -538,10 +572,16 @@ export const useGenerateStore = defineStore('generate', () => {
     formData.test_point_ids = []
     contextPreview.value = null
     lastContext.value = {}
+    generatedCases.value = []
+    currentCaseIndex.value = -1
     selectedUiPrototypeProjectId.value = ''
     uiPrototypeProjects.value = []
     uiScreens.value = []
-    useFlowSortStore().reset()
+    const flowSortStore = useFlowSortStore()
+    flowSortStore.reset()
+    if (formData.project_id) {
+      flowSortStore.setProjectId(formData.project_id as number)
+    }
     selectedHistoryCaseIds.value = []
     _historyCaseUserCleared.value = false
     projectCases.value = []
@@ -744,12 +784,12 @@ export const useGenerateStore = defineStore('generate', () => {
     let completed = 0
 
     const progressInterval = setInterval(() => {
-      const targetPct = Math.min(90, Math.round((completed / total) * 90))
+      const targetPct = Math.min(70, 25 + Math.round((completed / total) * 45))
       if (progress.value < targetPct) {
-        progress.value = Math.min(progress.value + 5, targetPct)
-        progressText.value = `生成中... ${completed}/${total} (${progress.value}%)`
+        progress.value = targetPct
+        progressText.value = `AI生成中... ${completed}/${total}`
       }
-    }, 300)
+    }, 500)
 
     try {
       let context: Record<string, unknown> = {
@@ -758,6 +798,9 @@ export const useGenerateStore = defineStore('generate', () => {
         test_points: [],
         project_config: null,
       }
+
+      progress.value = 5
+      progressText.value = '正在准备生成上下文...'
 
       if (formData.project_id) {
         const contextResponse: ApiResponse<{
@@ -778,8 +821,8 @@ export const useGenerateStore = defineStore('generate', () => {
             selectedHistoryCaseIds.value.length > 0
               ? selectedHistoryCaseIds.value
               : selectedHistoryCaseIds.value.length === 0 && _historyCaseUserCleared.value
-                ? []  // 用户主动清空 → 不查任何用例
-                : undefined,  // 初始状态 → 自动查全部
+                ? []
+                : undefined,
         })
 
         if (contextResponse?.data) {
@@ -793,12 +836,17 @@ export const useGenerateStore = defineStore('generate', () => {
             history_cases: data.history_cases || [],
           }
           lastContext.value = { ...context }
+
+          progress.value = 15
+          progressText.value = '上下文准备完成，开始构建生成数据...'
         }
       }
 
       const allTestPoints = (context.test_points || []) as TestPoint[]
 
       for (let i = 0; i < targetPoints.length; i++) {
+        if (!generating.value) break
+
         const tpId = targetPoints[i]
         const tpInfo = allTestPoints.find((tp) => tp.id === tpId)
         const tpLabel = tpInfo ? `${tpInfo.module} - ${tpInfo.point}` : `测试点#${tpId}`
@@ -819,54 +867,92 @@ export const useGenerateStore = defineStore('generate', () => {
               test_point_ids: [tpId],
             },
           }
-          apiData.mode = 'graph'
+          const flowSortStore = useFlowSortStore()
+          apiData.mode = flowSortStore.nodes.length > 0 ? 'graph' : 'linear'
           apiData.flow_sort_data = flowSortSubmitData?.flow_sort_data || {
-            nodes: uiScreens.value.map((screen, index) => ({
-              screen_id: screen.id,
-              screen_order: index + 1,
-              flow_type: 'main',
-              screen_name: screen.screen_name,
-              ui_spec_elements: screen.ui_spec?.elements || [],
-              summary: screen.summary || '',
+            nodes: flowSortStore.nodes.length > 0
+              ? flowSortStore.nodes.map((n, index) => ({
+                  screen_id: n.screen_id,
+                  screen_order: index + 1,
+                  flow_type: n.flow_type,
+                  main_order: n.main_order,
+                  screen_name: n.screen_name,
+                  ui_spec_elements: n.ui_spec_elements || [],
+                  summary: n.summary || '',
+                  flow_meta: n.flow_meta || undefined,
+                }))
+              : uiScreens.value.map((screen, index) => ({
+                  screen_id: screen.id,
+                  screen_order: index + 1,
+                  flow_type: 'main' as const,
+                  screen_name: screen.screen_name,
+                  ui_spec_elements: screen.ui_spec?.elements || [],
+                  summary: screen.summary || '',
+                })),
+            edges: flowSortStore.edges.map((e) => ({
+              source: String(e.source),
+              target: String(e.target),
+              edge_type: e.edge_type,
+              condition: e.condition || '',
+              label: e.label || '',
+              trigger_action: e.trigger_action || '',
+              pre_action: e.pre_action || '',
+              note: e.note || '',
             })),
-            edges: [],
             module_info: flowSortModuleInfo.value,
           }
 
-          const response = await caseApi.aiGenerateCaseEnhanced(
-            apiData as unknown as Parameters<typeof caseApi.aiGenerateCaseEnhanced>[0]
-          )
-          const caseData = response
+          progress.value = 50
+          progressText.value = 'AI正在生成测试用例...'
 
-          generatedCases.value.push({
-            id: Date.now() + i,
-            test_point_id: tpId,
-            test_point_label: tpLabel,
-            title: caseData.title || caseData.name || `${tpLabel} 测试用例`,
-            module: caseData.module || tpInfo?.module || '',
-            case_type: caseData.case_type || caseData.type || formData.case_type,
-            precondition: caseData.precondition || '',
-            test_data: caseData.test_data,
-            steps: (caseData.steps || []) as GeneratedStep[],
-            expected_result: caseData.expected_result || '',
-            priority: caseData.priority || formData.priority,
-            scene: formData.scene,
-            ai_change_type: caseData.change_type || 'added',
-            parent_case_id: caseData.parent_case_id ?? null,
-          })
+          const casesArray = await caseApi.aiGenerateCaseEnhanced(
+            apiData as unknown as TestCaseAIEnhancedRequest
+          )
+          const casesData = Array.isArray(casesArray) ? casesArray : [casesArray]
+
+          for (let cIdx = 0; cIdx < casesData.length; cIdx++) {
+            const caseData = casesData[cIdx]
+            generatedCases.value.push({
+              id: Date.now() + i * 100 + cIdx,
+              test_point_id: tpId,
+              test_point_label: `${tpLabel} - ${caseData.case_category || '正向'}`,
+              title: caseData.title || caseData.name || `${tpLabel} 测试用例`,
+              module: caseData.module || tpInfo?.module || '',
+              case_type: caseData.case_type || caseData.type || formData.case_type,
+              test_category: caseData.test_category || caseData.case_category || '',
+              precondition: caseData.precondition || '',
+              test_data: caseData.test_data,
+              steps: (caseData.steps || []) as GeneratedStep[],
+              expected_result: caseData.expected_result || '',
+              priority: caseData.priority || formData.priority,
+              scene: formData.scene,
+              ai_change_type: caseData.change_type || 'added',
+              parent_case_id: caseData.parent_case_id ?? null,
+            })
+
+            progressText.value = `正在保存 ${caseData.title || '用例'}...`
+            const saved = await saveSingleCaseToDb(
+              generatedCases.value[generatedCases.value.length - 1]
+            )
+            if (!saved) {
+              const failedCase = generatedCases.value[generatedCases.value.length - 1]
+              failedCase._error = '保存失败'
+            }
+          }
         } catch (err: unknown) {
           const error = err as {
             response?: { data?: { detail?: string } }
             message?: string
           }
           generatedCases.value.push({
-            id: Date.now() + i,
+            id: Date.now() + i * 100,
             test_point_id: tpId,
             test_point_label: tpLabel,
             title: `${tpLabel} 测试用例（生成失败）`,
             module: tpInfo?.module || '',
             case_type: formData.case_type,
             precondition: '',
+            test_data: {},
             steps: [],
             expected_result: '',
             priority: formData.priority,
@@ -882,16 +968,20 @@ export const useGenerateStore = defineStore('generate', () => {
         progressText.value = `生成中... ${completed}/${total}`
       }
 
-      currentCaseIndex.value = 0
-      progress.value = 100
-      progressText.value = `生成完成！共 ${generatedCases.value.length} 条`
-      const failCount = generatedCases.value.filter((c) => c._error).length
-      if (failCount === 0) {
-        ElMessage.success(`成功生成 ${generatedCases.value.length} 条测试用例`)
+      if (!generating.value) {
+        progressText.value = `已取消，已生成 ${generatedCases.value.length} 条`
       } else {
-        ElMessage.warning(
-          `生成完成：${generatedCases.value.length - failCount} 成功，${failCount} 失败`
-        )
+        currentCaseIndex.value = 0
+        progress.value = 100
+        progressText.value = `生成完成！共 ${generatedCases.value.length} 条`
+        const failCount = generatedCases.value.filter((c) => c._error).length
+        if (failCount === 0) {
+          ElMessage.success(`成功生成 ${generatedCases.value.length} 条测试用例`)
+        } else {
+          ElMessage.warning(
+            `生成完成：${generatedCases.value.length - failCount} 成功，${failCount} 失败`
+          )
+        }
       }
     } catch (error: unknown) {
       const err = error as {
@@ -921,18 +1011,12 @@ export const useGenerateStore = defineStore('generate', () => {
     }
 
     generating.value = true
-    progress.value = 0
-    progressText.value = '准备重新生成...'
-
-    const progressInterval = setInterval(() => {
-      if (progress.value < 90) {
-        progress.value += 10
-        progressText.value = `生成中... ${progress.value}%`
-      }
-    }, 500)
+    progress.value = 10
+    progressText.value = '正在调用AI继续生成...'
 
     try {
-      const apiData = {
+      const flowSortStore = useFlowSortStore()
+      const apiData: Record<string, unknown> = {
         project_id: Number(formData.project_id),
         description: formData.scene || `基于已有用例"${current.title}"继续优化生成`,
         case_type: formData.case_type || current.case_type,
@@ -940,6 +1024,32 @@ export const useGenerateStore = defineStore('generate', () => {
         priority: formData.priority || current.priority || 2,
         enhanced_mode: formData.enhanced_mode !== undefined ? formData.enhanced_mode : true,
         extra_requirements: formData.extra_requirements || '',
+        mode: flowSortStore.nodes.length > 0 ? 'graph' as const : 'linear' as const,
+        flow_sort_data: flowSortStore.nodes.length > 0
+          ? {
+              nodes: flowSortStore.nodes.map((n, index) => ({
+                screen_id: n.screen_id,
+                screen_order: index + 1,
+                flow_type: n.flow_type,
+                main_order: n.main_order,
+                screen_name: n.screen_name,
+                ui_spec_elements: n.ui_spec_elements || [],
+                summary: n.summary || '',
+                flow_meta: n.flow_meta || undefined,
+              })),
+              edges: flowSortStore.edges.map((e) => ({
+                source: String(e.source),
+                target: String(e.target),
+                edge_type: e.edge_type,
+                condition: e.condition || '',
+                label: e.label || '',
+                trigger_action: e.trigger_action || '',
+                pre_action: e.pre_action || '',
+                note: e.note || '',
+              })),
+              module_info: flowSortModuleInfo.value,
+            }
+          : undefined,
         context: {
           base_case: {
             title: current.title,
@@ -957,10 +1067,14 @@ export const useGenerateStore = defineStore('generate', () => {
         },
       }
 
-      const response = await caseApi.aiGenerateCaseEnhanced(
-        apiData as unknown as Parameters<typeof caseApi.aiGenerateCaseEnhanced>[0]
+      const casesArray = await caseApi.aiGenerateCaseEnhanced(
+        apiData as unknown as TestCaseAIEnhancedRequest
       )
-      const caseData = response
+      const casesData = Array.isArray(casesArray) ? casesArray : [casesArray]
+      const caseData = casesData[0]
+      if (!caseData) {
+        throw new Error('AI 未返回有效用例数据')
+      }
 
       if (currentCaseIndex.value >= 0 && currentCaseIndex.value < generatedCases.value.length) {
         generatedCases.value[currentCaseIndex.value] = {
@@ -976,6 +1090,17 @@ export const useGenerateStore = defineStore('generate', () => {
           ai_change_type: caseData.change_type || 'added',
           parent_case_id: caseData.parent_case_id ?? null,
           _error: undefined,
+          _saved: false,
+        }
+      }
+
+      progressText.value = '正在保存...'
+      if (currentCaseIndex.value >= 0 && currentCaseIndex.value < generatedCases.value.length) {
+        const saved = await saveSingleCaseToDb(
+          generatedCases.value[currentCaseIndex.value]
+        )
+        if (!saved) {
+          generatedCases.value[currentCaseIndex.value]._error = '保存失败'
         }
       }
 
@@ -994,25 +1119,89 @@ export const useGenerateStore = defineStore('generate', () => {
       generateErrorSuggestions()
       ElMessage.error(errorMessage.value)
     } finally {
-      clearInterval(progressInterval)
       generating.value = false
     }
   }
 
   const handleCancel = () => {
+    if (!generating.value) return
     ElMessageBox.confirm('确定要取消生成吗？', '取消确认', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
     }).then(() => {
       generating.value = false
-      progress.value = 0
       progressText.value = '已取消'
+      errorMessage.value = ''
       ElMessage.info('生成已取消')
     })
   }
 
   // ========== 保存逻辑 ==========
+  const buildStepsPayload = (steps: GeneratedStep[] | undefined): TestCaseApiStep[] => {
+    return (steps || []).map((s: GeneratedStep, i: number) => ({
+      step: String(s.step || i + 1),
+      action: s.action || '',
+      param: s.input_value || s.param || '',
+      expected_result: s.expected_result || '',
+      action_type: s.action_type || '',
+      input_value: s.input_value || '',
+      target_element: s.target_element || '',
+      ui_elements: s.ui_elements || [],
+    }))
+  }
+
+  const buildCaseCreatePayload = (c: {
+    id?: number
+    title?: string
+    module?: string
+    case_type?: string
+    precondition?: string
+    steps?: GeneratedStep[]
+    expected_result?: string
+    priority?: number
+    test_category?: string
+    test_data?: Record<string, unknown>
+    parent_case_id?: number | null
+    ai_change_type?: 'added' | 'modified' | 'deprecated'
+  }): {
+    project_id: number
+    case_no: string
+    title: string
+    module: string
+    case_type: string
+    precondition: string
+    steps: TestCaseApiStep[]
+    expected_result: string
+    priority: number
+    test_category: string
+    test_data: Record<string, Record<string, string | number | boolean | null>>
+    generate_status: number
+    parent_case_id?: number | null
+    ai_change_type?: 'added' | 'modified' | 'deprecated'
+  } => {
+    const stepsPayload = buildStepsPayload(c.steps)
+    const priority = normalizePriority(c.priority ?? 2)
+    return {
+      project_id: Number(formData.project_id),
+      case_no: generateCaseNo(formData.project_id, c.id),
+      title: c.title || '未命名测试用例',
+      module: c.module || '默认模块',
+      case_type: c.case_type || '',
+      precondition: c.precondition || '系统已通过配置自动登录至目标页面',
+      steps:
+        stepsPayload.length > 0
+          ? stepsPayload
+          : [{ step: 1, action: '执行测试', param: '预期结果正常' }],
+      expected_result: c.expected_result || '操作成功',
+      priority,
+      test_category: c.test_category || c.case_type || '',
+      test_data: (c.test_data || {}) as Record<string, Record<string, string | number | boolean | null>>,
+      generate_status: 1,
+      parent_case_id: c.parent_case_id ?? undefined,
+      ai_change_type: c.ai_change_type || undefined,
+    }
+  }
   const handleSaveCase = async () => {
     const caseToSave = isEditingResult.value ? editingCase.value : viewingCase.value
     if (!caseToSave) {
@@ -1030,34 +1219,20 @@ export const useGenerateStore = defineStore('generate', () => {
 
     saving.value = true
     try {
-      const stepsPayload = (caseToSave.steps || []).map((s: GeneratedStep, i: number) => ({
-        step: String(s.step || i + 1),
-        action: s.action || '',
-        param: s.input_value || s.param || '',
-        expected_result: s.expected_result || '',
-        action_type: s.action_type || '',
-        input_value: s.input_value || '',
-        target_element: s.target_element || '',
-      }))
-      const priority = normalizePriority(caseToSave.priority)
-
-      await caseApi.createCase({
-        project_id: Number(formData.project_id),
-        case_no: generateCaseNo(formData.project_id),
-        title: caseToSave.title || '未命名测试用例',
-        module: caseToSave.module || '默认模块',
-        case_type: caseToSave.case_type || '',
-        precondition: caseToSave.precondition || '系统已通过配置自动登录至目标页面',
-        steps:
-          stepsPayload.length > 0
-            ? (stepsPayload as unknown as import('@/api/case').TestCaseStep[])
-            : [{ step: 1, action: '执行测试', param: '预期结果正常' }],
-        expected_result: caseToSave.expected_result || '操作成功',
-        priority,
-        generate_status: 1,
-        parent_case_id: caseToSave.parent_case_id ?? undefined,
-        ai_change_type: caseToSave.ai_change_type || undefined,
+      const payload = buildCaseCreatePayload({
+        title: caseToSave.title,
+        module: caseToSave.module,
+        case_type: caseToSave.case_type,
+        precondition: caseToSave.precondition,
+        steps: caseToSave.steps,
+        expected_result: caseToSave.expected_result,
+        priority: caseToSave.priority,
+        test_category: caseToSave.test_category,
+        test_data: caseToSave.test_data,
+        parent_case_id: caseToSave.parent_case_id,
+        ai_change_type: caseToSave.ai_change_type,
       })
+      await caseApi.createCase(payload)
       ElMessage.success(`"${caseToSave.title}" 保存成功`)
       isEditingResult.value = false
 
@@ -1073,6 +1248,32 @@ export const useGenerateStore = defineStore('generate', () => {
     }
   }
 
+  const saveSingleCaseToDb = async (c: {
+    id: number
+    title?: string
+    module?: string
+    case_type?: string
+    precondition?: string
+    steps?: GeneratedStep[]
+    expected_result?: string
+    priority?: number
+    test_category?: string
+    test_data?: Record<string, unknown>
+    parent_case_id?: number | null
+    ai_change_type?: 'added' | 'modified' | 'deprecated'
+    _saved?: boolean
+  }): Promise<boolean> => {
+    try {
+      const payload = buildCaseCreatePayload(c)
+      await caseApi.createCase(payload)
+      c._saved = true
+      return true
+    } catch (e) {
+      console.error(`[saveSingleCaseToDb] 用例 "${c.title}" 保存失败:`, e)
+      return false
+    }
+  }
+
   const saveAllCases = async () => {
     const toSave = generatedCases.value.filter((c) => !c._error && !c._saved)
     if (toSave.length === 0) {
@@ -1081,52 +1282,37 @@ export const useGenerateStore = defineStore('generate', () => {
     }
 
     saving.value = true
-    let successCount = 0
-    let failCount = 0
 
-    for (const c of toSave) {
-      try {
-        const stepsPayload = (c.steps || []).map((s: GeneratedStep, i: number) => ({
-          step: String(s.step || i + 1),
-          action: s.action || '',
-          param: s.input_value || s.param || '',
-          expected_result: s.expected_result || '',
-          action_type: s.action_type || '',
-          input_value: s.input_value || '',
-          target_element: s.target_element || '',
-        }))
-        const priority = normalizePriority(c.priority)
+    try {
+      const payloads = toSave.map((c) => buildCaseCreatePayload(c))
+      const result: BatchCreateResponse = await caseApi.batchCreateCases({ cases: payloads })
 
-        await caseApi.createCase({
-          project_id: Number(formData.project_id),
-          case_no: generateCaseNo(formData.project_id, c.id),
-          title: c.title || '未命名测试用例',
-          module: c.module || '默认模块',
-          case_type: c.case_type || '',
-          precondition: c.precondition || '系统已通过配置自动登录至目标页面',
-          steps:
-            stepsPayload.length > 0
-              ? (stepsPayload as unknown as import('@/api/case').TestCaseStep[])
-              : [{ step: 1, action: '执行测试', param: '预期结果正常' }],
-          expected_result: c.expected_result || '操作成功',
-          priority,
-          generate_status: 1,
-          parent_case_id: c.parent_case_id ?? undefined,
-          ai_change_type: c.ai_change_type || undefined,
+      if (result.fail_count === 0) {
+        toSave.forEach((c) => {
+          c._saved = true
         })
-        c._saved = true
-        successCount++
-      } catch (e) {
-        console.error(`保存失败(${c.title}):`, e)
-        failCount++
+        ElMessage.success(`全部保存成功，共 ${result.success_count} 条`)
+      } else {
+        ElMessage.warning(
+          `批量保存异常，切换为逐条保存...`
+        )
+        let retryOk = 0
+        let retryFail = 0
+        for (const c of toSave) {
+          const ok = await saveSingleCaseToDb(c)
+          if (ok) retryOk++
+          else retryFail++
+        }
+        ElMessage.warning(
+          `保存完成：${retryOk} 成功，${retryFail} 失败`
+        )
       }
-    }
-
-    saving.value = false
-    if (failCount === 0) {
-      ElMessage.success(`全部保存成功，共 ${successCount} 条`)
-    } else {
-      ElMessage.warning(`保存完成：${successCount} 成功，${failCount} 失败`)
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
+      const detail = err.response?.data?.detail
+      ElMessage.error(detail && typeof detail === 'string' ? detail : '批量保存失败')
+    } finally {
+      saving.value = false
     }
   }
 
@@ -1138,10 +1324,12 @@ export const useGenerateStore = defineStore('generate', () => {
       title: current.title || '',
       module: current.module || '',
       case_type: current.case_type || '',
+      test_category: current.test_category || '',
       precondition: current.precondition || '',
       expected_result: current.expected_result || '',
       priority: current.priority || 2,
       steps: current.steps ? JSON.parse(JSON.stringify(current.steps)) : [],
+      test_data: current.test_data || {},
     }
     isEditingResult.value = true
   }
@@ -1186,6 +1374,7 @@ export const useGenerateStore = defineStore('generate', () => {
     errorMessage.value = ''
     errorSuggestions.value = []
     isEditingResult.value = false
+    lastContext.value = {}
     currentStep.value = 0
   }
 
@@ -1207,7 +1396,7 @@ export const useGenerateStore = defineStore('generate', () => {
     const typeMap: Record<string, string> = {
       ui_automation: 'success',
       manual: 'info',
-      api_automation: '',
+      api_automation: 'primary',
       performance: 'warning',
       security: 'danger',
       UI: 'success',

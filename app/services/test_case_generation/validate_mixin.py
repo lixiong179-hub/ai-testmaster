@@ -10,6 +10,7 @@ from app.models.test_case import TestCase, TestStep
 from app.models.project import Project
 from app.utils.ai_client import AIServiceError
 from app.core.config import settings
+from app.core.constants import normalize_priority
 
 
 class TestCaseGenerationValidateMixin:
@@ -37,15 +38,23 @@ class TestCaseGenerationValidateMixin:
         case_no = f"CASE{project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
         steps = generated_case.get("steps", [])
+        case_test_data = generated_case.get("test_data")
         steps_json = []
         for i, step in enumerate(steps):
-            steps_json.append({
+            step_entry = {
                 "step": step.get("step", str(i + 1)),
                 "description": step.get("description", ""),
                 "action": step.get("action", "执行"),
                 "expected_result": step.get("expected_result", ""),
-                "param": step.get("param", "")
-            })
+                "param": step.get("param", ""),
+                "action_type": step.get("action_type", ""),
+                "input_value": step.get("input_value", ""),
+                "target_element": step.get("target_element", ""),
+                "test_data": step.get("test_data", []),
+            }
+            if i == 0 and case_test_data:
+                step_entry["test_data"] = case_test_data
+            steps_json.append(step_entry)
 
         test_case = TestCase(
             project_id=project_id,
@@ -57,9 +66,11 @@ class TestCaseGenerationValidateMixin:
             precondition=generated_case.get("precondition", ""),
             steps_json=steps_json,
             expected_result=generated_case.get("expected_result", ""),
-            priority=generated_case.get("priority", test_point.get("priority", 2)),
+            priority=normalize_priority(generated_case.get("priority", test_point.get("priority", 2))),
             case_type=generated_case.get("case_type") or generated_case.get("test_category") or "manual",
-            test_category=generated_case.get("case_category", "manual"),
+            test_category=generated_case.get("test_category") or generated_case.get("case_category", "manual"),
+            parent_case_id=generated_case.get("parent_case_id"),
+            ai_change_type=generated_case.get("change_type"),
             generate_status=1
         )
 
@@ -72,6 +83,9 @@ class TestCaseGenerationValidateMixin:
                 step_number=i + 1,
                 action=step.get("action", step.get("description", step.get("step", "执行"))),
                 expected_result=step.get("expected_result", step.get("param", "预期结果正常")),
+                action_type=step.get("action_type", ""),
+                input_value=step.get("input_value", ""),
+                target_element=step.get("target_element", ""),
                 is_business_view=1,
                 is_technical_view=1
             )
