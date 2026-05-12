@@ -15,9 +15,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from datetime import datetime
 from app.utils.db_time import utcnow
-from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey
 from sqlalchemy.orm import relationship

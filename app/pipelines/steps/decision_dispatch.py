@@ -89,7 +89,7 @@ class DecisionDispatch(PipelineStep):
         verdicts = merged.get("verdicts", [])
         fps = fingerprints.get("fingerprints", []) if fingerprints else []
         cands = candidates.get("candidates", []) if candidates else []
-        aligned_tps = aligned.get("aligned_testpoints", []) if aligned else []
+        _ = aligned.get("aligned_testpoints", []) if aligned else []
 
         # 构建 fingerprint 按 case_id 的索引，用于快速查找 original_case
         fp_by_case_id: Dict[int, Dict[str, Any]] = {}

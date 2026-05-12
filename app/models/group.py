@@ -18,7 +18,6 @@
 注意：
     本模块通过动态扩展 User 和 Role 模型添加 groups 关联关系。
 """
-from datetime import datetime
 from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, String, DateTime, Text, Table, ForeignKey
 from sqlalchemy.orm import relationship

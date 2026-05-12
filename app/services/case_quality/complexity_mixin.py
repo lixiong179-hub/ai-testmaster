@@ -1,6 +1,6 @@
 """复杂度评估Mixin - 评估测试用例的步骤复杂度。
 """
-from typing import Dict, Any, List
+from typing import List
 from loguru import logger
 
 from app.models.test_case import TestStep, TestCasePreconditionStep

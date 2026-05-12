@@ -1,12 +1,9 @@
 """
 可见模式配置数据模型
 """
-import os
-from typing import Optional, Dict, Any, Tuple
+from typing import Dict, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from loguru import logger
 
 
 class VisibilityLevel(str, Enum):

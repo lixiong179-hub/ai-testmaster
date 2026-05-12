@@ -62,8 +62,6 @@ class TaskBatchExecutorMixin:
         task.start_time = utcnow()
         self.db.commit()
 
-        task_start_time = utcnow()
-
         try:
             if self.precondition_service:
                 env_config = {}
@@ -140,7 +138,6 @@ class TaskBatchExecutorMixin:
                 self.db.commit()
                 return self._get_task_summary(task_id)
 
-            total_cases = len(test_results)
             passed_cases = 0
             failed_cases = 0
 

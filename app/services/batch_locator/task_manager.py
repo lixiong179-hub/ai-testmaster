@@ -4,8 +4,6 @@ from typing import Dict, Optional, Any
 from loguru import logger
 from app.utils.db_time import utcnow
 
-from app.services.batch_locator.models import BatchRecordReport
-
 
 class BatchTaskManager:
 

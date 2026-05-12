@@ -5,12 +5,12 @@
 import gzip
 import json
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 from sqlalchemy import text
-from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -26,6 +26,7 @@ _TABLES_FOR_BACKUP = [
 ]
 
 _ALLOWED_TABLE_NAMES = {t["name"] for t in _TABLES_FOR_BACKUP}
+_COLUMN_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
 
 def archive_iterations(db: Session, retention_days: Optional[int] = None, dry_run: bool = False) -> int:
@@ -210,7 +211,10 @@ def backup_tables(db: Session, output_dir: Optional[str] = None) -> Dict[str, in
             _logger.warning("跳过未授权的表名: %s", table_name)
             continue
         columns = [c.strip() for c in table_info["columns"].split(",")]
-        col_list = ", ".join(f"`{c.strip()}`" for c in table_info["columns"].split(","))
+        for col in columns:
+            if not _COLUMN_NAME_PATTERN.match(col):
+                raise ValueError(f"Invalid column name in backup config: {col}")
+        col_list = ", ".join(f"`{c}`" for c in columns)
         rows = db.execute(text(f"SELECT {col_list} FROM `{table_name}`")).fetchall()
 
         export_file = backup_dir / f"{table_name}.jsonl"

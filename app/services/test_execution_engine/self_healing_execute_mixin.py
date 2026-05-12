@@ -12,11 +12,10 @@
 import asyncio
 from typing import Optional, Dict, Any
 from loguru import logger
-from sqlalchemy import text as sql_text
 
 from app.models.element_locator import ElementLocator
 from app.services.test_execution_engine.models import (
-    ExecutionStatus, ActionType, StepExecutionError,
+    ActionType, StepExecutionError,
 )
 
 

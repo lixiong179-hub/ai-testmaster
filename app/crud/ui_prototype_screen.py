@@ -28,7 +28,7 @@ UI原型页面查询操作模块
     - _apply_iteration_filter 使用outerjoin处理-1（未关联迭代）的情况，
       因为页面可能没有关联的原型项目
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from app.models.ui_prototype import (
@@ -36,7 +36,6 @@ from app.models.ui_prototype import (
     UIScreenTestCaseLink,
 )
 from app.models.project import Project
-from app.utils.db_time import utcnow
 
 
 def _apply_iteration_filter(query: Any, iteration_id: Optional[int]) -> Any:

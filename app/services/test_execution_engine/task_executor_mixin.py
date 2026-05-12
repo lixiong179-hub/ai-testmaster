@@ -5,7 +5,7 @@
     - _generate_execution_summary: 生成执行摘要
     - get_execution_history: 获取执行历史
 """
-from typing import Optional, Dict, Any, List
+from typing import Optional, List
 from loguru import logger
 
 from app.models.test_case import (
@@ -164,7 +164,7 @@ class TaskExecutorMixin:
         summary = f"执行完成: 总计{total}步, 通过{passed}步, 失败{failed}步"
         if failed > 0:
             failed_steps = [r for r in self._step_results if r.status == ExecutionStatus.FAILED]
-            summary += f"\n失败步骤: " + ", ".join([f"第{r.step_number}步" for r in failed_steps])
+            summary += "\n失败步骤: " + ", ".join([f"第{r.step_number}步" for r in failed_steps])
         return summary
 
     def get_execution_history(

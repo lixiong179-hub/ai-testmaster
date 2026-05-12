@@ -5,7 +5,7 @@ from typing import Optional, Dict, Any
 from loguru import logger
 
 from app.services.test_execution_engine.models import (
-    ActionType, StepExecutionError,
+    StepExecutionError,
 )
 
 

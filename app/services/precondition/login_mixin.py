@@ -33,7 +33,6 @@
 import asyncio
 import os
 from datetime import datetime
-from typing import Optional, Dict, Any
 from loguru import logger
 
 from app.services.precondition.login_strategy_mixin import (
@@ -48,7 +47,6 @@ from app.services.precondition.login_strategy_mixin import (
 from app.services.precondition.models import (
     PreconditionError,
     LoginError,
-    PreconditionTimingConfig,
 )
 from app.services.precondition.decorator import handle_precondition_errors
 

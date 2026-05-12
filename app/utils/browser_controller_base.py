@@ -1,6 +1,6 @@
 import functools
 import traceback
-from typing import Optional, Dict, Any, Tuple, Callable, List
+from typing import Optional, Dict, Any, Tuple, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from loguru import logger

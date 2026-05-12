@@ -10,8 +10,6 @@
 XMind导入端点已迁移至 test_point_import.py。
 所有端点均需要Bearer令牌认证。
 """
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session

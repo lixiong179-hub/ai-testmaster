@@ -48,12 +48,12 @@
     app = FastAPI()
     register_exception_handlers(app)
 """
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
 from pydantic import ValidationError
-from typing import Dict, Any, Union
+from typing import Dict, Any
 from datetime import datetime
 import logging
 

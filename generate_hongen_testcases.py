@@ -460,7 +460,7 @@ def generate_test_cases():
 4. 需求文档(ID=19)已提取内容
 5. 测试点已定义""",
             "steps_json": [
-                {"step": 1, "action": "构造POST请求到 /api/v1/test-case/ai-generate-enhanced", "expected_result": "请求URL正确"},
+                {"step": 1, "action": "构造POST请求到 /api/v1/test-case/ai-enhanced-generate", "expected_result": "请求URL正确"},
                 {"step": 2, "action": "请求体包含:", "expected_result": "参数完整"},
                 {"step": 3, "action": "  - project_id: 3", "expected_result": ""},
                 {"step": 4, "action": "  - description: '链接管理模块-添加人字段功能测试'", "expected_result": ""},

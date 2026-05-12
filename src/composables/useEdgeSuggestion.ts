@@ -24,8 +24,8 @@ interface UIElement {
 
 const extractKeywords = (name: string): string[] => {
   const cleaned = name
-    .replace(/[页/面/屏/窗口]/g, '')
-    .replace(/[（）()[]\]【】]/g, ' ')
+    .replace(/[页面屏幕窗口]/g, '')
+    .replace(/[（）()[\]【】]/g, ' ')
     .trim()
   const parts = cleaned.split(/[\s\-_/]+/).filter((p) => p.length > 0)
   return parts.length > 0 ? parts : [name]

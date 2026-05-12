@@ -2,7 +2,6 @@
 """
 import json
 from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
 from loguru import logger
 from app.models.test_data import TestData, DataType, GenerationRule
 from app.services.test_data_gen_constants import DataConstraints

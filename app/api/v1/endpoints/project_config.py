@@ -19,7 +19,7 @@
     - 被测对象信息与Web环境配置关联存储
     - 设备配置以JSON格式存储
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.project import TestObjectInfoUpdate, ProjectConfigUpdate

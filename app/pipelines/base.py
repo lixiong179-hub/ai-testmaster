@@ -13,8 +13,12 @@ Pipeline Step 基础接口与数据结构
     - cache_key 支持幂等缓存
     - fallback 提供失败兜底
 """
-from typing import Protocol, ClassVar, Optional, Any, List, Dict, runtime_checkable
-from dataclasses import dataclass, field
+from __future__ import annotations
+from typing import Protocol, ClassVar, Optional, Any, List, Dict, runtime_checkable, TYPE_CHECKING
+from dataclasses import dataclass
+
+if TYPE_CHECKING:
+    from app.pipelines.context import PipelineContext
 
 
 @dataclass

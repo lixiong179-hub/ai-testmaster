@@ -7,12 +7,9 @@
 每个策略独立实现，由 _ai_self_heal_action 统一调度。
 自愈成功后通过 _update_locator_after_healing 回写新定位器。
 """
-import re
 from typing import Optional, Dict, Any
 from loguru import logger
-from sqlalchemy import text as sql_text
 
-from app.models.element_locator import ElementLocator
 from app.services.test_execution_engine.models import ActionType, StepExecutionError
 
 

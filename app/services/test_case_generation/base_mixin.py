@@ -6,16 +6,14 @@ import re
 import html
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from loguru import logger
 
 from app.models.test_point import TestPoint
 from app.models.project import ProjectFile
 from app.models.ui_prototype import UIPrototypeScreen
 from app.crud import test_point as test_point_crud
 from app.crud import file as file_crud
-from app.services.case_generation.test_point_loader import _extract_function_from_ai_prompt
+from app.services.test_case_generation.test_point_loader import _extract_function_from_ai_prompt
 from app.services.file_content_extractor import get_file_content
-from app.core.config import settings
 
 DEFAULT_TEST_POINT_PAGE_SIZE = 100
 MAX_TEST_POINT_PAGE_SIZE = 500

@@ -523,7 +523,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import {
   ArrowLeft,
   VideoPlay,
@@ -536,25 +536,25 @@ import {
   Warning,
 } from '@element-plus/icons-vue'
 import {
-  startTestExecution,
-  pauseTestExecution,
-  resumeTestExecution,
-  stopTestExecution,
   getExecutionStatus,
   getExecutionLogs,
   getStepScreenshot,
   getVisibilityConfig,
   updateVisibilityConfig,
-  startReplay as startReplayApi,
-  pauseReplay as pauseReplayApi,
-  stopReplay as stopReplayApi,
-  analyzeFailure,
-  type FailureAnalysisResult,
   getConnectedDevices,
 } from '@/api/testExecution'
+import type { ExecutionMode } from '@/api/testExecution'
 import testTaskApi from '@/api/testTask'
 import request from '@/utils/request'
-import { connectWebSocket, disconnectWebSocket } from '@/utils/websocket'
+import { unwrapApiResponse } from '@/utils/api'
+import { useExecutionControl } from '@/composables/useExecutionControl'
+import { useExecutionWebSocket } from '@/composables/useExecutionWebSocket'
+import { useVideoReplay } from '@/composables/useVideoReplay'
+import {
+  useFailureAnalysis,
+  ISSUE_TYPE_LABELS,
+  ISSUE_TYPE_COLORS,
+} from '@/composables/useFailureAnalysis'
 
 // 路由
 const route = useRoute()
@@ -569,19 +569,13 @@ const executionLogs = ref<any[]>([])
 const currentStepIndex = ref(0)
 const currentScreenshot = ref('')
 const videoUrl = ref('')
-const videoDuration = ref(0)
-const isVideoPlaying = ref(false)
-const videoCurrentTime = ref(0)
-const controlLoading = ref(false)
 const saveConfigLoading = ref(false)
 const showConfigDialog = ref(false)
 const showScreenshotFullscreen = ref(false)
 const viewMode = ref<'list' | 'timeline'>('list')
 const screenshotType = ref<'before' | 'after'>('after')
 const activeTab = ref('logs')
-const replaySpeed = ref(1)
 const logsContainer = ref<HTMLElement>()
-const videoPlayer = ref<HTMLVideoElement>()
 
 // 可见模式配置
 const visibilityConfig = ref({
@@ -594,67 +588,12 @@ const videoResolution = ref('1280x720')
 // 环境选择与初始化控制
 const targetEnv = ref('test')
 const autoInitEnabled = ref(true)
-const executionMode = ref<'preprocess' | 'realtime' | 'smart' | 'mobile_realtime' | 'mobile_smart'>(
-  'smart'
-)
+const executionMode = ref<ExecutionMode>('smart')
 const mobileDeviceId = ref<string>('')
 const connectedDevices = ref<Array<{ udid: string; model?: string; state: string }>>([])
 const loadingDevices = ref(false)
 const useMcpMode = ref(true)
 const envOptions = ref<Array<{ name: string; url: string; username?: string }>>([])
-
-// 失败分析相关状态
-const failureAnalysisMap = ref<Record<number, FailureAnalysisResult>>({})
-const analysisLoading = ref(false)
-const issueTypeMap = ref<Record<number, 'case_issue' | 'product_bug' | 'needs_review'>>({})
-
-const ISSUE_TYPE_LABELS: Record<string, string> = {
-  case_issue: '用例问题',
-  product_bug: 'Bug问题',
-  needs_review: '待人工判断',
-}
-
-const ISSUE_TYPE_COLORS: Record<string, string> = {
-  case_issue: 'warning',
-  product_bug: 'danger',
-  needs_review: 'info',
-}
-
-function unwrapApiResponse<T = any>(response: any): { code?: number; data?: T; message?: string } {
-  if (response && typeof response === 'object') {
-    if (
-      typeof response.code !== 'undefined' ||
-      typeof response.message !== 'undefined' ||
-      typeof response.msg !== 'undefined'
-    ) {
-      return {
-        code: response.code,
-        data: response.data,
-        message: response.message || response.msg,
-      } as { code?: number; data?: T; message?: string }
-    }
-
-    if (
-      response.data &&
-      typeof response.data === 'object' &&
-      (typeof response.data.code !== 'undefined' ||
-        typeof response.data.message !== 'undefined' ||
-        typeof response.data.msg !== 'undefined')
-    ) {
-      return {
-        code: response.data.code,
-        data: response.data.data,
-        message: response.data.message || response.data.msg,
-      } as { code?: number; data?: T; message?: string }
-    }
-  }
-
-  return {
-    code: 200,
-    data: response as T,
-    message: '',
-  }
-}
 
 function getTaskPayload() {
   return taskInfo.value?.task || taskInfo.value || null
@@ -705,54 +644,8 @@ function buildExecutionStatusFallback() {
   }
 }
 
-// WebSocket连接
-let wsConnection: any = null
+// ---- 数据加载方法 ----
 
-// 计算属性
-const progressPercentage = computed(() => {
-  if (!executionStatus.value) return 0
-  const currentStep = Number(executionStatus.value.current_step || 0)
-  const totalSteps = Number(executionStatus.value.total_steps || 0)
-  if (totalSteps <= 0) return 0
-  return Math.round((currentStep / totalSteps) * 100)
-})
-
-const progressStatus = computed(() => {
-  const status = executionStatus.value?.status
-  if (status === 'completed') return 'success'
-  if (status === 'failed') return 'exception'
-  return ''
-})
-
-const statusText = computed(() => {
-  const statusMap: Record<string, string> = {
-    pending: '等待执行',
-    running: '执行中',
-    paused: '已暂停',
-    completed: '执行完成',
-    failed: '执行失败',
-    stopped: '已停止',
-  }
-  return statusMap[executionStatus.value?.status] || '未知状态'
-})
-
-const statusTagType = computed(() => {
-  const typeMap: Record<string, any> = {
-    pending: 'info',
-    running: 'primary',
-    paused: 'warning',
-    completed: 'success',
-    failed: 'danger',
-    stopped: 'info',
-  }
-  return typeMap[executionStatus.value?.status] || 'info'
-})
-
-const currentStep = computed(() => {
-  return executionSteps.value[currentStepIndex.value]
-})
-
-// 方法
 const loadTaskInfo = async () => {
   try {
     const res = await testTaskApi.getTaskDetail(taskId.value)
@@ -832,6 +725,10 @@ const loadExecutionLogs = async () => {
   }
 }
 
+const currentStep = computed(() => {
+  return executionSteps.value[currentStepIndex.value]
+})
+
 const loadStepScreenshot = async () => {
   if (!currentStep.value) return
   try {
@@ -868,101 +765,119 @@ const loadConnectedDevices = async () => {
   }
 }
 
-const startExecution = async () => {
-  if (executionMode.value.startsWith('mobile_') && !mobileDeviceId.value) {
-    ElMessage.warning('移动端模式请先选择目标设备')
-    return
-  }
-  controlLoading.value = true
-  try {
-    const res = await startTestExecution(taskId.value, {
-      headless: visibilityConfig.value.headless,
-      recordVideo: visibilityConfig.value.recordVideo,
-      targetEnv: targetEnv.value,
-      skipInit: !autoInitEnabled.value,
-      executionMode: executionMode.value,
-      mobileDeviceId: executionMode.value.startsWith('mobile_') ? mobileDeviceId.value : undefined,
-      use_mcp: useMcpMode.value,
-    })
-    const body = unwrapApiResponse<any>(res)
-    if (body.code === 200) {
-      syncTaskInfoStatus(1)
-      executionStatus.value = {
-        ...executionStatus.value,
-        status: body.data?.status || 'running',
-        current_step: Number(executionStatus.value?.current_step || 0),
-        total_steps: Number(executionStatus.value?.total_steps || 0),
-      }
-      ElMessage.success('开始执行')
-      await loadTaskInfo()
-      await loadExecutionStatus()
-      connectWebSocketForRealtimeUpdate()
-    } else {
-      ElMessage.error(body.message || '开始执行失败')
-    }
-  } catch (error) {
-    console.error('开始执行失败:', error)
-    ElMessage.error('开始执行失败')
-  } finally {
-    controlLoading.value = false
+const scrollToBottom = () => {
+  if (logsContainer.value) {
+    logsContainer.value.scrollTop = logsContainer.value.scrollHeight
   }
 }
 
-const pauseExecution = async () => {
-  controlLoading.value = true
-  try {
-    const res = await pauseTestExecution(taskId.value)
-    const body = unwrapApiResponse<any>(res)
-    if (body.code === 200) {
-      ElMessage.success('已暂停')
-      await loadExecutionStatus()
-    }
-  } catch (error) {
-    console.error('暂停失败:', error)
-    ElMessage.error('暂停失败')
-  } finally {
-    controlLoading.value = false
-  }
-}
+// ---- Composables ----
 
-const resumeExecution = async () => {
-  controlLoading.value = true
-  try {
-    const res = await resumeTestExecution(taskId.value)
-    const body = unwrapApiResponse<any>(res)
-    if (body.code === 200) {
-      ElMessage.success('已恢复')
-      await loadExecutionStatus()
-    }
-  } catch (error) {
-    console.error('恢复失败:', error)
-    ElMessage.error('恢复失败')
-  } finally {
-    controlLoading.value = false
-  }
-}
+// WebSocket实时更新（先初始化，因为执行控制依赖它）
+const { connectWebSocketForRealtimeUpdate } = useExecutionWebSocket({
+  taskId: () => taskId.value,
+  executionSteps,
+  currentStepIndex,
+  executionLogs,
+  executionStatus,
+  loadStepScreenshot,
+  scrollToBottom,
+})
 
-const stopExecution = async () => {
-  try {
-    await ElMessageBox.confirm('确定要停止执行吗？', '确认', {
-      type: 'warning',
-    })
-    controlLoading.value = true
-    const res = await stopTestExecution(taskId.value)
-    const body = unwrapApiResponse<any>(res)
-    if (body.code === 200) {
-      ElMessage.success('已停止')
-      await loadExecutionStatus()
-    }
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      console.error('停止失败:', error)
-      ElMessage.error('停止失败')
-    }
-  } finally {
-    controlLoading.value = false
+// 执行控制
+const {
+  controlLoading,
+  startExecution,
+  pauseExecution,
+  resumeExecution,
+  stopExecution,
+} = useExecutionControl({
+  taskId: () => taskId.value,
+  executionStatus,
+  visibilityConfig,
+  targetEnv,
+  autoInitEnabled,
+  executionMode,
+  mobileDeviceId,
+  useMcpMode,
+  syncTaskInfoStatus,
+  loadTaskInfo,
+  loadExecutionStatus,
+  connectWebSocketForRealtimeUpdate: () => connectWebSocketForRealtimeUpdate(),
+})
+
+// 视频回放
+const videoPlayer = ref<HTMLVideoElement>()
+const {
+  isVideoPlaying,
+  videoCurrentTime,
+  videoDuration,
+  replaySpeed,
+  toggleVideoPlay,
+  seekVideo,
+  onVideoTimeChange,
+  startReplay,
+  pauseReplay,
+  stopReplay,
+} = useVideoReplay({
+  taskId: () => taskId.value,
+  taskInfo,
+  videoPlayer,
+})
+
+// 失败分析
+const {
+  failureAnalysisMap,
+  analysisLoading,
+  issueTypeMap,
+  handleAnalyzeFailure,
+  handleCorrectCase,
+} = useFailureAnalysis({
+  executionStatus,
+})
+
+// ---- 计算属性 ----
+
+const progressPercentage = computed(() => {
+  if (!executionStatus.value) return 0
+  const currentStep = Number(executionStatus.value.current_step || 0)
+  const totalSteps = Number(executionStatus.value.total_steps || 0)
+  if (totalSteps <= 0) return 0
+  return Math.round((currentStep / totalSteps) * 100)
+})
+
+const progressStatus = computed(() => {
+  const status = executionStatus.value?.status
+  if (status === 'completed') return 'success'
+  if (status === 'failed') return 'exception'
+  return ''
+})
+
+const statusText = computed(() => {
+  const statusMap: Record<string, string> = {
+    pending: '等待执行',
+    running: '执行中',
+    paused: '已暂停',
+    completed: '执行完成',
+    failed: '执行失败',
+    stopped: '已停止',
   }
-}
+  return statusMap[executionStatus.value?.status] || '未知状态'
+})
+
+const statusTagType = computed(() => {
+  const typeMap: Record<string, any> = {
+    pending: 'info',
+    running: 'primary',
+    paused: 'warning',
+    completed: 'success',
+    failed: 'danger',
+    stopped: 'info',
+  }
+  return typeMap[executionStatus.value?.status] || 'info'
+})
+
+// ---- 页面交互方法 ----
 
 const selectStep = (index: number) => {
   currentStepIndex.value = index
@@ -1017,12 +932,6 @@ const formatLogTime = (timestamp: string) => {
   return date.toLocaleTimeString('zh-CN')
 }
 
-const scrollToBottom = () => {
-  if (logsContainer.value) {
-    logsContainer.value.scrollTop = logsContainer.value.scrollHeight
-  }
-}
-
 const goBack = () => {
   goToTaskList()
 }
@@ -1051,56 +960,6 @@ const goToTestPointManagement = () => {
     return
   }
   router.push('/home/case/test-point-management')
-}
-
-const handleAnalyzeFailure = async (step: any, index: number) => {
-  if (failureAnalysisMap.value[index]) return
-  analysisLoading.value = true
-  try {
-    const resultId = step.result_id || step.id
-    if (!resultId) {
-      ElMessage.warning('无法获取执行结果ID，请稍后重试')
-      analysisLoading.value = false
-      return
-    }
-    const res = await analyzeFailure(resultId)
-    const data = (res as any).data?.data || (res as any).data
-    if (data) {
-      failureAnalysisMap.value[index] = data
-      issueTypeMap.value[index] = data.suggested_type
-    }
-  } catch (error: any) {
-    console.error('分析失败原因出错:', error)
-    ElMessage.error(error.response?.data?.detail || '分析失败原因出错')
-  } finally {
-    analysisLoading.value = false
-  }
-}
-
-const handleCorrectCase = (step: any, index: number) => {
-  if (issueTypeMap.value[index] === 'product_bug') {
-    ElMessage.warning('这是Bug问题，不允许修改用例！')
-    return
-  }
-  const caseId = step.case_id || executionStatus.value?.case_id
-  if (!caseId) {
-    ElMessage.warning('无法获取用例ID')
-    return
-  }
-  const analysis = failureAnalysisMap.value[index]
-  const query: Record<string, string> = {
-    correction: 'true',
-    stepIndex: String(index),
-    issueType: issueTypeMap.value[index] || 'case_issue',
-  }
-  if (analysis) {
-    query.failureReason = encodeURIComponent(analysis.reason || '')
-    query.aiAnalysis = encodeURIComponent(analysis.ai_analysis || '')
-  }
-  router.push({
-    path: `/home/case/detail/${caseId}`,
-    query,
-  })
 }
 
 const saveVisibilityConfig = async () => {
@@ -1151,86 +1010,8 @@ const loadVisibilityConfig = async () => {
   }
 }
 
-// WebSocket连接
-const connectWebSocketForRealtimeUpdate = () => {
-  wsConnection = connectWebSocket(`/ws/execution/${taskId.value}`, {
-    onMessage: (data: any) => {
-      if (data.type === 'step_update') {
-        executionSteps.value = data.steps
-        if (data.current_step) {
-          currentStepIndex.value = data.current_step - 1
-          loadStepScreenshot()
-        }
-      } else if (data.type === 'log') {
-        executionLogs.value.push(data.log)
-        nextTick(() => scrollToBottom())
-      } else if (data.type === 'status_update') {
-        executionStatus.value = data.status
-      }
-    },
-    onError: (error: any) => {
-      console.error('WebSocket错误:', error)
-    },
-  })
-}
+// ---- 监听 ----
 
-// 视频控制
-const toggleVideoPlay = () => {
-  if (videoPlayer.value) {
-    if (isVideoPlaying.value) {
-      videoPlayer.value.pause()
-    } else {
-      videoPlayer.value.play()
-    }
-    isVideoPlaying.value = !isVideoPlaying.value
-  }
-}
-
-const seekVideo = (seconds: number) => {
-  if (videoPlayer.value) {
-    videoPlayer.value.currentTime += seconds
-  }
-}
-
-const onVideoTimeChange = (value: number) => {
-  if (videoPlayer.value) {
-    videoPlayer.value.currentTime = value
-  }
-}
-
-// 回放控制
-const startReplay = async () => {
-  try {
-    const executionId = `${taskId.value}_${taskInfo.value?.case_id}`
-    await startReplayApi(executionId)
-    ElMessage.success('开始回放')
-  } catch (error) {
-    console.error('开始回放失败:', error)
-    ElMessage.error('开始回放失败')
-  }
-}
-
-const pauseReplay = async () => {
-  try {
-    const executionId = `${taskId.value}_${taskInfo.value?.case_id}`
-    await pauseReplayApi(executionId)
-    ElMessage.success('已暂停回放')
-  } catch (error) {
-    console.error('暂停回放失败:', error)
-  }
-}
-
-const stopReplay = async () => {
-  try {
-    const executionId = `${taskId.value}_${taskInfo.value?.case_id}`
-    await stopReplayApi(executionId)
-    ElMessage.success('已停止回放')
-  } catch (error) {
-    console.error('停止回放失败:', error)
-  }
-}
-
-// 监听
 watch(screenshotType, () => {
   loadStepScreenshot()
 })
@@ -1239,7 +1020,8 @@ watch(currentStepIndex, () => {
   loadStepScreenshot()
 })
 
-// 生命周期
+// ---- 生命周期 ----
+
 const initializePage = async () => {
   await loadTaskInfo()
   await loadExecutionStatus()
@@ -1253,600 +1035,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (wsConnection) {
-    disconnectWebSocket(wsConnection)
-  }
+  // WebSocket断开由 useExecutionWebSocket 的 onUnmounted 自动处理
 })
 </script>
 
 <style scoped lang="scss">
-.test-execution-page {
-  padding: 20px;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background:
-    radial-gradient(circle at top right, rgba(64, 158, 255, 0.1), transparent 28%),
-    linear-gradient(180deg, #f7faff 0%, #f3f6fb 100%);
-
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    padding: 20px 24px;
-    border-radius: 24px;
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.98) 0%,
-      rgba(245, 249, 255, 0.98) 100%
-    );
-    box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-
-      .page-title {
-        margin: 0;
-        font-size: 20px;
-        color: #1f2d3d;
-      }
-    }
-
-    .header-right {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-
-      .execution-options {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-
-        .env-selector {
-          width: 280px;
-        }
-
-        .init-switch {
-          --el-switch-on-color: #409eff;
-        }
-      }
-
-      .journey-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-    }
-  }
-
-  .execution-progress {
-    margin-bottom: 20px;
-    padding: 18px 20px;
-    background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.96) 0%,
-      rgba(247, 250, 255, 0.96) 100%
-    );
-    border: 1px solid rgba(220, 230, 241, 0.9);
-    border-radius: 20px;
-    box-shadow: 0 12px 28px rgba(31, 45, 61, 0.06);
-
-    .progress-text {
-      font-size: 14px;
-      color: #606266;
-    }
-
-    .progress-info {
-      margin-top: 10px;
-      display: flex;
-      align-items: center;
-      gap: 15px;
-
-      .time-remaining {
-        color: #909399;
-        font-size: 14px;
-      }
-    }
-  }
-
-  .main-content {
-    flex: 1;
-    display: flex;
-    gap: 20px;
-    overflow: hidden;
-
-    .steps-panel {
-      width: 300px;
-      background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.98) 0%,
-        rgba(249, 251, 255, 0.98) 100%
-      );
-      border-radius: 20px;
-      box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
-      display: flex;
-      flex-direction: column;
-
-      .panel-header {
-        padding: 18px 18px 16px;
-        border-bottom: 1px solid rgba(228, 235, 243, 0.92);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        h3 {
-          margin: 0;
-          font-size: 16px;
-        }
-      }
-
-      .steps-list {
-        flex: 1;
-        overflow-y: auto;
-        padding: 10px;
-
-        .step-item {
-          display: flex;
-          align-items: flex-start;
-          padding: 12px;
-          margin-bottom: 8px;
-          border-radius: 14px;
-          cursor: pointer;
-          transition: all 0.3s;
-
-          &:hover {
-            background: rgba(64, 158, 255, 0.06);
-          }
-
-          &.active {
-            background: rgba(64, 158, 255, 0.1);
-            border-left: 3px solid #409eff;
-          }
-
-          &.success {
-            border-left: 3px solid #67c23a;
-          }
-
-          &.failed {
-            border-left: 3px solid #f56c6c;
-          }
-
-          &.running {
-            border-left: 3px solid #409eff;
-            animation: pulse 2s infinite;
-          }
-
-          .step-number {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: #e4e7ed;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            margin-right: 10px;
-            flex-shrink: 0;
-          }
-
-          .step-content {
-            flex: 1;
-            min-width: 0;
-
-            .step-action {
-              font-weight: 500;
-              margin-bottom: 4px;
-              word-break: break-all;
-            }
-
-            .step-target {
-              font-size: 12px;
-              color: #909399;
-              margin-bottom: 4px;
-            }
-
-            .step-status {
-              display: flex;
-              align-items: center;
-              gap: 8px;
-
-              .execution-time {
-                font-size: 12px;
-                color: #909399;
-              }
-            }
-          }
-
-          .step-icon {
-            margin-left: 8px;
-            font-size: 16px;
-
-            .is-loading {
-              animation: rotating 2s linear infinite;
-            }
-          }
-        }
-      }
-
-      .steps-timeline {
-        flex: 1;
-        overflow-y: auto;
-        padding: 15px;
-
-        .timeline-step {
-          cursor: pointer;
-          padding: 10px;
-          border-radius: 12px;
-          transition: background 0.3s;
-
-          &:hover {
-            background: rgba(64, 158, 255, 0.06);
-          }
-
-          &.active {
-            background: rgba(64, 158, 255, 0.1);
-          }
-
-          .step-action {
-            font-weight: 500;
-            margin-bottom: 4px;
-          }
-
-          .step-target {
-            font-size: 12px;
-            color: #909399;
-          }
-        }
-      }
-    }
-
-    .screenshot-panel {
-      flex: 1;
-      background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.98) 0%,
-        rgba(249, 251, 255, 0.98) 100%
-      );
-      border-radius: 20px;
-      box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
-      display: flex;
-      flex-direction: column;
-
-      .panel-header {
-        padding: 18px 18px 16px;
-        border-bottom: 1px solid rgba(228, 235, 243, 0.92);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        h3 {
-          margin: 0;
-          font-size: 16px;
-        }
-      }
-
-      .screenshot-container {
-        flex: 1;
-        padding: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(180deg, #f7faff 0%, #f3f6fb 100%);
-        overflow: auto;
-
-        .screenshot-wrapper {
-          position: relative;
-          max-width: 100%;
-          max-height: 100%;
-
-          .screenshot-image {
-            max-width: 100%;
-            max-height: 100%;
-            border-radius: 12px;
-            box-shadow: 0 18px 36px rgba(31, 45, 61, 0.16);
-            cursor: zoom-in;
-          }
-
-          .element-highlight {
-            position: absolute;
-            border: 3px solid #f56c6c;
-            border-radius: 4px;
-            pointer-events: none;
-            animation: highlight-pulse 2s infinite;
-          }
-        }
-      }
-
-      .ai-analysis {
-        padding: 15px;
-        border-top: 1px solid rgba(228, 235, 243, 0.92);
-        background: linear-gradient(180deg, #f7faff 0%, #f3f7fd 100%);
-
-        .analysis-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 8px;
-          color: #409eff;
-          font-weight: 500;
-        }
-
-        .analysis-content {
-          color: #606266;
-          line-height: 1.6;
-        }
-      }
-    }
-
-    .side-panel {
-      width: 350px;
-      background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.98) 0%,
-        rgba(249, 251, 255, 0.98) 100%
-      );
-      border-radius: 20px;
-      box-shadow: 0 18px 40px rgba(31, 45, 61, 0.08);
-      display: flex;
-      flex-direction: column;
-
-      :deep(.el-tabs) {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-
-        .el-tabs__content {
-          flex: 1;
-          overflow: auto;
-        }
-      }
-
-      .logs-container {
-        height: 100%;
-        overflow-y: auto;
-        padding: 14px;
-        font-family: 'Courier New', monospace;
-        font-size: 12px;
-        line-height: 1.6;
-
-        .log-item {
-          margin-bottom: 6px;
-          padding: 8px 10px;
-          border-radius: 10px;
-
-          &.info {
-            color: #409eff;
-          }
-
-          &.success {
-            color: #67c23a;
-          }
-
-          &.warning {
-            color: #e6a23c;
-          }
-
-          &.error {
-            color: #f56c6c;
-            background: #fef0f0;
-          }
-
-          .log-time {
-            color: #909399;
-            margin-right: 8px;
-          }
-
-          .log-level {
-            font-weight: bold;
-            margin-right: 8px;
-          }
-        }
-      }
-
-      .video-container {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 10px;
-
-        .execution-video {
-          max-width: 100%;
-          max-height: 300px;
-          border-radius: 4px;
-        }
-      }
-
-      .video-controls {
-        padding: 10px;
-        border-top: 1px solid #ebeef5;
-
-        .video-progress {
-          margin-top: 10px;
-        }
-      }
-
-      .replay-controls {
-        padding: 20px;
-
-        .replay-speed {
-          margin-top: 20px;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-
-          .el-slider {
-            flex: 1;
-          }
-        }
-      }
-    }
-  }
-
-  .form-tip {
-    font-size: 12px;
-    color: #909399;
-    margin-top: 4px;
-  }
-
-  .env-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    .env-name {
-      font-weight: 600;
-      color: #303133;
-      min-width: 50px;
-    }
-
-    .env-url {
-      color: #606266;
-      font-size: 12px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 160px;
-    }
-
-    .env-account {
-      color: #909399;
-      font-size: 11px;
-      margin-left: auto;
-    }
-  }
-}
-
-@media (max-width: 1280px) {
-  .test-execution-page {
-    height: auto;
-    min-height: 100vh;
-
-    .main-content {
-      flex-direction: column;
-
-      .steps-panel,
-      .side-panel {
-        width: 100%;
-      }
-    }
-  }
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-@keyframes rotating {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes highlight-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(245, 108, 108, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 10px rgba(245, 108, 108, 0);
-  }
-}
-
-.screenshot-fullscreen-dialog {
-  :deep(.el-dialog__body) {
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .fullscreen-image {
-    max-width: 100%;
-    max-height: 80vh;
-  }
-}
-
-.step-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 8px;
-  flex-shrink: 0;
-}
-
-.issue-tag {
-  flex-shrink: 0;
-}
-
-.bug-warning-alert {
-  margin: 12px 0;
-}
-
-.failure-analysis-detail {
-  margin: 12px 0;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  overflow: hidden;
-
-  .analysis-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 16px;
-    background: #f5f7fa;
-    font-weight: 600;
-    font-size: 14px;
-  }
-
-  .analysis-body {
-    padding: 12px 16px;
-    font-size: 13px;
-    line-height: 1.8;
-
-    .confidence {
-      margin-left: 8px;
-      color: #909399;
-      font-size: 12px;
-    }
-
-    .indicators {
-      margin: 8px 0;
-      padding-left: 16px;
-
-      ul {
-        margin: 4px 0;
-        padding-left: 16px;
-
-        li {
-          color: #606266;
-          font-size: 12px;
-        }
-      }
-    }
-
-    .issue-type-switch {
-      margin-top: 12px;
-      padding-top: 10px;
-      border-top: 1px dashed #e4e7ed;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-  }
-}
+@import './TestExecution.scss';
 </style>

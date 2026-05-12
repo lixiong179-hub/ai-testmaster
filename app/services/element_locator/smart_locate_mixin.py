@@ -175,7 +175,7 @@ class SmartLocateMixin:
 
 """
 
-        base_prompt += f"""请返回JSON格式：
+        base_prompt += """请返回JSON格式：
 {{
     "x": 元素左上角x坐标（整数）,
     "y": 元素左上角y坐标（整数）,

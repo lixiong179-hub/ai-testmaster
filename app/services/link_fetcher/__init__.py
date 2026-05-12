@@ -1,7 +1,6 @@
 """Link Fetcher Service - 带认证的链接内容获取服务
 支持多种认证方式：Basic Auth、Bearer Token、API Key、Cookie、无认证
 """
-from typing import Optional, Dict, Any, Tuple
 
 from app.services.link_fetcher.core_mixin import LinkFetcherCoreMixin
 from app.services.link_fetcher.content_mixin import LinkFetcherContentMixin

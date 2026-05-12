@@ -5,7 +5,6 @@ import json
 from typing import List, Dict, Any, Optional
 from loguru import logger
 
-from app.utils.ai_client import AIServiceError
 from app.core.config import settings
 from app.services.test_case_generation.base_mixin import (
     ContentSanitizer, TEST_CATEGORY_MANUAL, TEST_CATEGORY_UI_AUTO

@@ -347,7 +347,7 @@ describe('AI生成用例功能测试', () => {
   })
 
   it('无边也能提交 graph 数据', () => {
-    cy.intercept('POST', '**/api/v1/testCase/ai-generate-enhanced', (req) => {
+    cy.intercept('POST', '**/api/v1/testCase/ai-enhanced-generate', (req) => {
       expect(req.body.mode).to.equal('graph')
       expect(req.body.flow_sort_data).to.exist
       expect(req.body.flow_sort_data.nodes).to.have.length(mockScreens.length)

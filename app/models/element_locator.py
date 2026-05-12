@@ -19,11 +19,10 @@
 定位策略优先级：
     CSS选择器 > XPath > 元素ID > 元素Name > AI坐标识别
 """
-from datetime import datetime
 from app.utils.db_time import utcnow
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, JSON, ForeignKey, text
+from sqlalchemy import Column, Integer, String, Float, DateTime, JSON, ForeignKey, text
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base

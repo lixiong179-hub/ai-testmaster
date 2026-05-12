@@ -23,7 +23,6 @@
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Table, JSON
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from app.utils.db_time import utcnow
 from app.db.database import Base
 

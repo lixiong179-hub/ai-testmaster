@@ -19,7 +19,7 @@
 import base64
 from typing import Optional, Dict, Any
 
-from app.utils.unified_vision.model_types import VisionModelType, ModelProviderConfig, MODEL_PROVIDER_CONFIGS
+from app.utils.unified_vision.model_types import VisionModelType
 
 
 class RequestBuilderMixin:

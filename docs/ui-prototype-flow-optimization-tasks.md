@@ -1664,7 +1664,7 @@ AI
 
 关键文件：
 
-- `app/api/v1/endpoints/test_case_ai_enhanced.py`
+- `app/api/v1/endpoints/test_case_ai_generate.py`
 - `app/api/v1/endpoints/test_case_ai.py`
 - `app/services/case_generation_prompt_builder.py`
 - `app/services/prompt_builder/case_prompt.py`
@@ -2472,7 +2472,7 @@ def test_graph_prompt_ignores_invalid_edge_without_crash():
 
 #### 涉及文件
 
-- `app/api/v1/endpoints/test_case_ai_enhanced.py`
+- `app/api/v1/endpoints/test_case_ai_generate.py`
 - `app/api/v1/endpoints/test_case_ai.py`
 - 可选新增：`app/services/flow_validation.py`
 
@@ -2839,11 +2839,11 @@ npx vitest run src/components/case/__tests__/FlowNodeCard.spec.ts
 **后端 (BE-01/BE-02)**:
 - 修改 `app/services/prompt_builder/case_prompt.py`：`_append_main_flow` + 3 个独立 append 函数 → `_append_nested_flow` 单函数，分支/异常/旁路嵌套在对应主干步骤下（├─/└─ 树形符号）
 - 新增 `app/services/prompt_builder/helpers.py` 辅助函数：`_infer_condition`（触发条件自动推断）、`_render_flow_meta_hint`（flow_meta 补充信息渲染）、`_group_edges_by_source`（按源节点分组连线）
-- 同步修改 `app/services/case_generation_prompt_builder.py`（被 `test_case_ai_enhanced.py` 使用的独立入口）
+- 同步修改 `app/services/case_generation_prompt_builder.py`（被 `test_case_ai_generate.py` 使用的独立入口）
 
 **后端 (BE-04)**:
 - 新增 `app/services/flow_validation.py`：`validate_flow_structure` 函数，错误级别（空节点/无主干/缺 target/指向不存在节点）+ 警告级别（多主干无 normal 连线/缺 condition/孤立节点），M1B 阶段仅记录不阻断
-- 修改 `app/api/v1/endpoints/test_case_ai.py` 和 `test_case_ai_enhanced.py`：在 `_build_graph_prompt_data` 中调用校验
+- 修改 `app/api/v1/endpoints/test_case_ai.py` 和 `test_case_ai_generate.py`：在 `_build_graph_prompt_data` 中调用校验
 
 ### 32.3 自动化测试结果
 

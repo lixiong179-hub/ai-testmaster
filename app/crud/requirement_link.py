@@ -47,10 +47,8 @@
 """
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 from app.models.requirement_link import RequirementLink
 from app.models.project import Project
-from datetime import datetime
 from app.utils.db_time import utcnow
 
 

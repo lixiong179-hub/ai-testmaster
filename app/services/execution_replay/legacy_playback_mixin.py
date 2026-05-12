@@ -3,7 +3,7 @@ import asyncio
 from typing import Optional, Dict, Any, Callable
 from loguru import logger
 
-from app.services.execution_replay.legacy_models import ReplayEvent, ReplaySession
+from app.services.execution_replay.legacy_models import ReplayEvent
 
 
 class LegacyPlaybackMixin:

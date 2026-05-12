@@ -21,7 +21,7 @@
     本模块使用 datetime.now 而非 utcnow 作为时间默认值，
     与其他模型模块保持一致需评估是否迁移为UTC时间。
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime

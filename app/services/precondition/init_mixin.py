@@ -4,7 +4,6 @@ from typing import Optional
 
 from loguru import logger
 
-from app.services.precondition.models import PreconditionError
 from app.services.precondition.decorator import handle_precondition_errors
 
 

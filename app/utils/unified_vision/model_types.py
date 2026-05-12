@@ -15,8 +15,8 @@
     - 百度 (ernie-4.0-8k): 文心大模型，百度自定义API格式
     - 智谱 (glm-4v): GLM视觉模型，OpenAI兼容API格式
 """
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, field
+from typing import Dict, Any
+from dataclasses import dataclass
 from enum import Enum
 
 

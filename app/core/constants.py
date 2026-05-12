@@ -57,6 +57,31 @@ class TestCasePriority(IntEnum):
     LOW = 3       # 低优先级：边界场景、非核心功能，可延后执行
 
 
+def normalize_priority(value) -> int:
+    """将各种格式的优先级值标准化为1-3整数。
+
+    支持: int直接钳位; str支持P0-P3/high/medium/low及数字字符串;
+    其他类型回退为MEDIUM(2)。
+    """
+    if isinstance(value, int):
+        return max(1, min(3, value))
+    if isinstance(value, str):
+        mapping = {
+            "high": TestCasePriority.HIGH.value,
+            "medium": TestCasePriority.MEDIUM.value,
+            "low": TestCasePriority.LOW.value,
+            "P0": TestCasePriority.HIGH.value,
+            "P1": TestCasePriority.HIGH.value,
+            "P2": TestCasePriority.MEDIUM.value,
+            "P3": TestCasePriority.LOW.value,
+            "1": TestCasePriority.HIGH.value,
+            "2": TestCasePriority.MEDIUM.value,
+            "3": TestCasePriority.LOW.value,
+        }
+        return mapping.get(value, TestCasePriority.MEDIUM.value)
+    return TestCasePriority.MEDIUM.value
+
+
 class TestCaseType(str, Enum):
     """测试用例类型枚举。
 

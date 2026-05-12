@@ -21,7 +21,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.models.report import TestReport
 from app.schemas.test_report import TestReportResponse, TestReportList, ReportGenerateRequest, ReportExportRequest
 from app.crud.test_report import get_test_reports, get_test_report_by_id, delete_test_report as crud_delete_report
 from app.services.report_service import ReportService
@@ -108,7 +107,7 @@ async def get_test_reports_list(
             reports=[TestReportResponse.model_validate(report) for report in reports],
             total=total
         )
-    except Exception as e:
+    except Exception:
         # 兜底逻辑：返回空列表
         return TestReportList(
             reports=[],
@@ -196,8 +195,10 @@ async def export_test_report(
                 "Content-Disposition": f"attachment; filename={filename}"
             }
         )
-    except Exception as e:
-        logger.error(f"导出报告失败: {e}")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.error("导出报告失败")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="导出报告失败"

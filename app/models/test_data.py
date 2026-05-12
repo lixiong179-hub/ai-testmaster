@@ -19,7 +19,6 @@
 import json
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLEnum, Boolean
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from app.utils.db_time import utcnow
 from enum import Enum
 

@@ -2,22 +2,17 @@
 """
 import json
 import asyncio
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from loguru import logger
-from sqlalchemy.orm import Session
 
-from app.models.test_case import TestCase, TestStep, TestCasePreconditionStep, TestCaseExecution
+from app.models.test_case import TestStep
 from app.models.element_locator import ElementLocator
 from app.models.enums import LocatorStatus
-from app.services.precondition_service import PreconditionService
-from app.services.element_locator_service import ElementLocatorService
-from app.utils.browser_controller_v2 import BrowserControllerV2
-from app.utils.unified_vision_model import UnifiedVisionModel
 from app.utils.db_time import utcnow
 
 from app.services.test_execution_engine.models import (
     ExecutionStatus, ActionType, ExecutionMode, StepExecutionError,
-    StepExecutionResult, TestExecutionResult, handle_execution_errors,
+    StepExecutionResult,
 )
 
 
@@ -82,7 +77,7 @@ class PreconditionMixin:
                             env_config = resolved_web_cfg.get(fallback_env, {})
                             logger.warning(f"目标环境 '{target_env}' 不存在，回退到 '{fallback_env}'")
                         else:
-                            logger.warning(f"项目无可用环境配置，使用项目默认配置")
+                            logger.warning("项目无可用环境配置，使用项目默认配置")
 
                 await self.precondition_service.read_test_object_info(
                     project,

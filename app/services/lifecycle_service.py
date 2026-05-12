@@ -327,8 +327,8 @@ def _create_new_version_case(
         modification_hint: 修改提示。
         actor_id: 操作人 ID。
     """
-    # 🔴#2: 动态计算版本号 — 查询血缘链中已有版本数
-    existing_versions = db.query(TestCase).filter(
+    # 动态计算版本号 — 查询血缘链中已有版本数
+    _ = db.query(TestCase).filter(
         TestCase.parent_case_id == old_case.id
     ).count()
     # 也检查旧用例自身是否是某个父用例的子版本（追溯血缘链根节点）

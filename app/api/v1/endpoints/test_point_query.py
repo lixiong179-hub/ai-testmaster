@@ -18,7 +18,7 @@
     - 统计信息包含关联用例数量和覆盖率
 """
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session

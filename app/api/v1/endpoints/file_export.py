@@ -16,12 +16,10 @@
     - 下载文件返回原始文件流
     - Excel导出支持按项目筛选数据
 """
-from fastapi import APIRouter
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
-    status,
 )
 from fastapi.responses import FileResponse
 from typing import Optional

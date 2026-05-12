@@ -3,7 +3,6 @@
 支持 PDF、Word (docx)、Excel、文本文件、图片和压缩包
 """
 import os
-import re
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from loguru import logger

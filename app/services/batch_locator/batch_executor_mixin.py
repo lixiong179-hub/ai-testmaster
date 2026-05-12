@@ -7,7 +7,6 @@ from loguru import logger
 from app.models.test_case import TestStep
 from app.models.element_locator import ElementLocator
 from app.models.enums import LocatorStatus
-from app.utils.db_time import utcnow
 from app.utils.browser_controller_v2 import BrowserControllerV2
 
 

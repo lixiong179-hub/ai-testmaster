@@ -2,11 +2,10 @@
 """
 import asyncio
 import uuid
-from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime
 from loguru import logger
 
-from app.services.execution_replay.models import ReplaySession, ExecutionTimeline
+from app.services.execution_replay.models import ReplaySession
 
 
 class SessionManagerMixin:

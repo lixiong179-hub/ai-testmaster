@@ -23,10 +23,8 @@ WebSocket端点模块
     - 连接断开后自动重连
     - 心跳检测间隔30秒
 """
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.core.websocket import manager
-from app.api.v1.endpoints.auth import get_current_user
-from app.models.user import User
 from app.utils.jwt_utils import decode_token
 import json
 
@@ -61,7 +59,7 @@ async def execution_websocket(
         if not payload:
             await websocket.close(code=1008, reason="Invalid token")
             return
-    except Exception as e:
+    except Exception:
         await websocket.close(code=1008, reason="Token validation failed")
         return
     
@@ -126,8 +124,8 @@ async def execution_websocket(
                 
     except WebSocketDisconnect:
         pass
-    except Exception as e:
-        logger.error(f"WebSocket异常: {e}")
+    except Exception:
+        pass
     finally:
         manager.disconnect(websocket, execution_id)
 

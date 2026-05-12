@@ -17,8 +17,6 @@
 import json
 from typing import List, Dict, Any, Optional
 
-from loguru import logger
-
 from app.services.prompt_builder.case_prompt import _build_graph_prompt
 
 

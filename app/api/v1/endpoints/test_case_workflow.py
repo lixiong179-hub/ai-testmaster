@@ -29,7 +29,6 @@ from app.models.user import User
 from app.services.test_case_view_service import TestCaseViewService
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.permissions import require_technical_view
-from app.utils.test_case_helpers import build_test_case_response
 from app.utils.db_time import utcnow
 from app.core.exception import create_response
 from loguru import logger

@@ -23,7 +23,7 @@ Pipeline 监控指标模型模块
     - app.utils.db_time.utcnow : UTC 时间戳
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from sqlalchemy import Column, Integer, String, DateTime, Float, JSON, Index, Text, text
+from sqlalchemy import Column, Integer, String, DateTime, Float, JSON, Index, text
 from app.utils.db_time import utcnow
 from app.db.database import Base
 

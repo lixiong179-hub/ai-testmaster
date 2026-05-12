@@ -1,14 +1,10 @@
 """移动端AI元素识别Mixin - AI视觉识别与缓存管理。"""
-import re
-import json
 from typing import Optional, Dict, Any
 from loguru import logger
 
-from app.utils.adb_controller import AdbController, AdbError
-from app.utils.uiautomator_helper import UIAutomatorHelper, UIAutomatorError
-from app.utils.unified_vision_model import UnifiedVisionModel
+from app.utils.adb_controller import AdbError
+from app.utils.uiautomator_helper import UIAutomatorError
 from app.models.element_locator import ElementLocator
-from app.services.mobile_ai_executor.types import MobileRecognitionError
 
 
 class MobileRecognitionMixin:

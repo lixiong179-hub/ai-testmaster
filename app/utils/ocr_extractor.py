@@ -81,8 +81,6 @@ class OCRExtractor:
         self._init_ocr()
         import numpy as np
         import cv2
-        import tempfile
-        import os
 
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)

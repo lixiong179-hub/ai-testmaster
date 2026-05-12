@@ -4,7 +4,7 @@
     analyze_project_quality 采用批量预取 + 项目级嵌入向量缓存，
     将 O(N²) 数据库查询降至 O(1) 批量查询 + O(N) 内存计算。
 """
-from typing import Dict, Any, List, Optional, Set
+from typing import Dict, Any, List, Set
 from datetime import datetime, timedelta
 from loguru import logger
 

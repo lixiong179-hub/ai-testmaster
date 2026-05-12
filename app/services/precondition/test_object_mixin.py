@@ -11,7 +11,6 @@ from app.services.precondition.models import (
     TestObjectType,
     PreconditionConfigError,
     TestObjectInfo,
-    PreconditionTimingConfig,
 )
 from app.services.precondition.decorator import handle_precondition_errors
 

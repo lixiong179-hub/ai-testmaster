@@ -11,7 +11,7 @@ AI客户端核心基础模块
     - app.core.config.settings: 全局配置（API地址、密钥、模型名）
 """
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 from openai import OpenAI
 from app.core.config import settings
 from loguru import logger

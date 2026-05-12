@@ -23,7 +23,6 @@ from app.pipelines.prompts.backward_scan import (
 )
 from app.pipelines.schemas.backward_verdict import (
     BackwardCaseVerdict,
-    BackwardScanOutput,
     BackwardVerdict,
     validate_backward_output,
 )

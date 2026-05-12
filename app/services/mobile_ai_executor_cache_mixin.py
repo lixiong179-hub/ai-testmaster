@@ -2,9 +2,8 @@
 """
 import json
 import asyncio
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any
 from loguru import logger
-from app.utils.unified_vision_model import UnifiedVisionModel, create_vision_model
 from app.models.element_locator import ElementLocator
 from app.services.mobile_ai_executor_types import MobileRecognitionError
 

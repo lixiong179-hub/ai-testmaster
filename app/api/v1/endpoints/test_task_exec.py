@@ -14,8 +14,6 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Optional
-from datetime import datetime
 from app.db.database import get_db
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
@@ -73,7 +71,7 @@ async def run_test_task(
             "task": executed_task,
             "summary": summary
         }
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="执行测试任务失败"

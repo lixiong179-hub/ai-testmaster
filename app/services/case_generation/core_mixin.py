@@ -17,17 +17,14 @@
 依赖关系:
     - app.services.case_generation.context_mixin: ContextMixin上下文构建
 """
-import json
 import re
 import html
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from loguru import logger
 
 from app.services.case_generation.context_mixin import (
     ContextMixin,
     DEFAULT_TEST_POINT_PAGE_SIZE,
-    MAX_TEST_POINT_PAGE_SIZE,
 )
 
 # 用例分类常量，用于标识用例的执行方式

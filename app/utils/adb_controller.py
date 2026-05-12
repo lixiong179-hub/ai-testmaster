@@ -27,9 +27,8 @@ import asyncio
 import re
 import subprocess
 import sys
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Tuple
 from dataclasses import dataclass
-from loguru import logger
 
 
 class AdbError(Exception):
@@ -194,7 +193,6 @@ class AdbController:
             udid = parts[0]
             state = parts[1]
             model = None
-            android_version = None
             for part in parts[2:]:
                 if part.startswith("model:"):
                     model = part.split(":", 1)[1]

@@ -36,6 +36,8 @@ export interface TestCase {
   create_time?: string
   generate_status?: number
   lifecycle_status?: string
+  parent_case_id?: number | null
+  ai_change_type?: 'added' | 'modified' | 'deprecated'
 }
 
 export interface TestCaseGenerateRequest {
@@ -53,4 +55,9 @@ export interface TestCaseListResponse {
 
 export interface TestCaseRetryRequest {
   case_ids?: number[]
+}
+
+export interface TestCaseAIGenerate {
+  scene: string
+  case_type: string
 }

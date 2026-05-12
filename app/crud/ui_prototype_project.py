@@ -187,7 +187,7 @@ def update_prototype_project_stats(
         - parsed_count=screen_count -> completed（全部解析完成）
         - 其他 -> partial（部分解析完成）
     """
-    from sqlalchemy import case, func, Integer
+    from sqlalchemy import case, func
     from app.models.ui_prototype import UIPrototypeScreen
 
     project = (

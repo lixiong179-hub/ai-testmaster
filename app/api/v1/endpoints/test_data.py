@@ -34,7 +34,7 @@ from loguru import logger
 
 from app.db.database import get_db
 from app.models.user import User
-from app.models.test_data import TestData, DataType, GenerationRule
+from app.models.test_data import DataType, GenerationRule
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.test_data_service import TestDataService
 

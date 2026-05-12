@@ -1,7 +1,7 @@
 """成本查询Mixin - 提供AI调用成本的查询与聚合能力。
 """
 from typing import Dict, Any
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 from loguru import logger
 from app.models.test_case import TestCase, TestStep
 from app.services.cost_statistics_models import CostStatistics, _build_empty_statistics

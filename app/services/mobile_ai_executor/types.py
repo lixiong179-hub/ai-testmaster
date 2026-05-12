@@ -1,6 +1,4 @@
 """移动端AI执行器类型定义 - 兼容原始 mobile_ai_executor.py。"""
-import re
-import json
 from typing import Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum

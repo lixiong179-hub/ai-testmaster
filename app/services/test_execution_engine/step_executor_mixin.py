@@ -4,11 +4,10 @@
 """
 import json
 import asyncio
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any
 from loguru import logger
 
 from app.models.test_case import TestStep
-from app.models.element_locator import ElementLocator
 from app.utils.db_time import utcnow
 
 from app.services.test_execution_engine.models import (

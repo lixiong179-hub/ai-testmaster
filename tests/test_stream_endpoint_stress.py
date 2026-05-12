@@ -67,7 +67,7 @@ class TestStreamEndpointFormat:
             flow_sort_data=flow_data
         )
 
-        with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case_enhanced') as mock_gen:
+        with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced') as mock_gen:
             mock_gen.return_value = {
                 'title': '测试用例',
                 'steps': [{'step': '1', 'description': '步骤1'}]
@@ -99,7 +99,7 @@ class TestStreamEndpointFormat:
             enhanced_mode=True
         )
 
-        with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case_enhanced') as mock_gen:
+        with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced') as mock_gen:
             mock_gen.return_value = {
                 'title': '测试用例',
                 'steps': [{'step': '1', 'description': '步骤1'}]
@@ -130,7 +130,7 @@ class TestStreamEndpointFormat:
             enhanced_mode=True
         )
 
-        with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case_enhanced') as mock_gen:
+        with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced') as mock_gen:
             mock_gen.side_effect = Exception("AI服务异常")
 
             response = await ai_enhanced_generate_stream(
@@ -162,7 +162,7 @@ class TestStreamConcurrency:
             for i in range(3)
         ]
 
-        with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case') as mock_gen:
+        with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case') as mock_gen:
             mock_gen.return_value = {
                 'title': '测试用例',
                 'steps': [{'step': '1', 'description': '步骤1'}]
@@ -215,7 +215,7 @@ class TestStreamConcurrency:
             flow_sort_data=flow_data
         )
 
-        with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case_enhanced') as mock_gen:
+        with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced') as mock_gen:
             mock_gen.return_value = {
                 'title': '大数据量测试',
                 'steps': [{'step': '1', 'description': '步骤1'}]
@@ -250,7 +250,7 @@ class TestStreamEdgeCases:
             enhanced_mode=True
         )
 
-        with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case_enhanced') as mock_gen:
+        with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced') as mock_gen:
             mock_gen.return_value = {'title': '空数据测�?, 'steps': []}
 
             response = await ai_enhanced_generate_stream(
@@ -275,7 +275,7 @@ class TestStreamEdgeCases:
             enhanced_mode=False
         )
 
-        with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case') as mock_gen:
+        with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case') as mock_gen:
             mock_gen.return_value = {
                 'title': '基础模式测试',
                 'steps': [{'step': '1', 'description': '步骤1'}]
@@ -324,7 +324,7 @@ class TestStreamEdgeCases:
             enhanced_mode=True
         )
 
-        with patch('app.api.v1.endpoints.test_case_ai_enhanced.generate_test_case_enhanced') as mock_gen:
+        with patch('app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced') as mock_gen:
             mock_gen.return_value = {
                 'title': '中文测试用例',
                 'steps': [{'step': '1', 'description': '点击"确定"按钮'}]

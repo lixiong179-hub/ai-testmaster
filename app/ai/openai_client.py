@@ -155,7 +155,7 @@ class OpenAIClient:
                 try:
                     parsed = json.loads(content)
                 except json.JSONDecodeError:
-                    logger.warning(f"AI response is not valid JSON despite schema constraint")
+                    logger.warning("AI response is not valid JSON despite schema constraint")
 
             ai_response = AIResponse(
                 content=content,

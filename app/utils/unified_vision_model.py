@@ -12,7 +12,7 @@ import json
 import time
 import requests
 from typing import List, Dict, Any, Optional, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from loguru import logger
 
@@ -238,7 +238,7 @@ class UnifiedVisionModel:
         content_parts = []
         for item in user_content:
             if item.get('type') == 'image':
-                content_parts.append(f"[图片]")
+                content_parts.append("[图片]")
             else:
                 content_parts.append(item.get('text', ''))
         

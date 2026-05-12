@@ -26,7 +26,6 @@ UI原型模型模块
     本模块必须在 test_case.py 之前导入，因为 TestCase 模型通过
     secondary="ui_screen_test_case_links" 引用本模块定义的关联表。
 """
-from datetime import datetime
 from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean
 from sqlalchemy.orm import relationship

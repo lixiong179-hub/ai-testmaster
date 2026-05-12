@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.client import AIClient
 from app.models.pipeline import PipelineRun, PipelineStep as PipelineStepModel, Artifact
+from app.utils.db_time import utcnow
 
 
 class PipelineContext:

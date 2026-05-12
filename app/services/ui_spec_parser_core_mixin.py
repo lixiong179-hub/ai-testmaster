@@ -6,14 +6,7 @@ import re
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
 from loguru import logger
-from app.utils.unified_vision_model import UnifiedVisionModel
 from app.core.config import settings
-from app.services.prompt_builder import (
-    SINGLE_IMAGE_PROMPT,
-    MULTI_IMAGE_FLOW_PROMPT,
-    BATCH_SUMMARY_PROMPT,
-)
-from app.services.ui_spec_ocr import UISpecOCR
 
 
 class UISpecCoreMixin:

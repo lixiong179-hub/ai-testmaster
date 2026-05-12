@@ -20,11 +20,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from typing import Optional
 from app.utils.db_time import utcnow
 from app.db.database import get_db
 from app.models.user import User
-from app.models.test_task import TestTask
 from app.models.test_result import TestResult
 from app.models.test_case import TestCase, TestStep
 from app.models.enums import LocatorStatus

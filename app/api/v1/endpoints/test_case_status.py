@@ -1,4 +1,3 @@
-import json
 from typing import Optional
 
 """
@@ -22,14 +21,13 @@ from typing import Optional
     - 工作流状态: draft -> review -> approved/rejected -> deprecated
     - 纠正状态: None -> failed_correction -> correcting -> verifying -> verified
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.models.test_case import TestCase, TestStep
+from app.models.test_case import TestCase
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
-from app.utils.test_case_helpers import build_test_case_response
 from app.core.exception import create_response
 from loguru import logger
 

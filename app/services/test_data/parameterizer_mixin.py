@@ -7,7 +7,7 @@
 - 参数类型自动推断
 """
 import re
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from loguru import logger
 
 

@@ -32,7 +32,6 @@ import json
 from typing import Dict, Any
 from loguru import logger
 
-from app.utils.ai_client import AIServiceError
 from app.core.config import settings
 from app.services.prompt_builder import PromptBuilder
 from app.services.case_generation.ai_parse_mixin import AIParseMixin
@@ -156,7 +155,7 @@ class AIMixin(AIParseMixin):
                     generated_case = self._parse_ai_response(content)
                     return generated_case
 
-            except httpx.TimeoutException as e:
+            except httpx.TimeoutException:
                 # 超时异常，可重试
                 last_error = f"AI API请求超时 (尝试 {attempt + 1}/{max_retries})"
                 logger.warning(last_error)

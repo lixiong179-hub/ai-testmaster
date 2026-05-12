@@ -13,7 +13,6 @@ AI单条/上下文生成测试用例端点模块
 权限要求: 所有端点需要Bearer令牌认证
 """
 from typing import Optional, List, Any
-import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session

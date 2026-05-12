@@ -190,7 +190,7 @@ def _parse_ai_response(text: str, expected_count: int) -> Optional[List[Dict[str
         json_text = json_match.group()
         try:
             parsed = json.loads(json_text)
-        except json.JSONDecodeError as exc:
+        except json.JSONDecodeError:
             repaired_text = _repair_json_text(json_text)
             try:
                 parsed = json.loads(repaired_text)

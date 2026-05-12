@@ -54,7 +54,6 @@ from app.services.element_locator_service import ElementLocatorService
 from app.services.test_data import TestDataGenerator as TestDataService
 from app.utils.browser_controller_v2 import BrowserControllerV2
 from app.utils.unified_vision_model import UnifiedVisionModel
-from loguru import logger
 
 
 class TestExecutionEngineV2(

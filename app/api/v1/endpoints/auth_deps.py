@@ -12,7 +12,6 @@
 
 路由前缀: 无（本模块不定义路由，仅提供依赖项）
 """
-from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -69,7 +68,7 @@ async def get_current_user(
         return user
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise credentials_exception
 
 

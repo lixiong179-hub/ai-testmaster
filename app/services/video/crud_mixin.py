@@ -1,9 +1,8 @@
 """CRUD Mixin - 视频记录的数据库增删改查操作。
 """
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, List
 from loguru import logger
-from sqlalchemy.orm import Session
 
 from app.models.video_record import VideoRecord
 from app.services.video.models import VideoInfo, VideoStatus

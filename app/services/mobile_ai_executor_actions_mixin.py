@@ -1,15 +1,11 @@
 """移动端AI动作Mixin - 实现移动端点击/输入/滑动等操作。
 """
 import asyncio
-from typing import Optional, Dict, Any, List, Tuple
-from loguru import logger
-from app.utils.adb_controller import AdbController, AdbError, DeviceNotConnectedError
-from app.utils.uiautomator_helper import UIAutomatorHelper, UIAutomatorError, UIElement
-from app.utils.unified_vision_model import UnifiedVisionModel
-from app.models.element_locator import ElementLocator
+from typing import Dict, Any
+from app.utils.adb_controller import AdbError
+from app.utils.uiautomator_helper import UIAutomatorError
 from app.services.mobile_ai_executor_types import (
-    MobileActionType, MobileAIError, MobileDeviceError,
-    MobileRecognitionError, MobileActionResult
+    MobileActionType, MobileActionResult,
 )
 
 

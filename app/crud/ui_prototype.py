@@ -43,6 +43,32 @@ UI原型CRUD主入口模块
 使用方式：
     from app.crud.ui_prototype import create_ui_screen, get_ui_screens_by_project
 """
+
+__all__ = [
+    # 项目级函数（来自 ui_prototype_project）
+    "create_ui_prototype_project",
+    "get_ui_prototype_projects_by_project",
+    "get_ui_prototype_projects_count",
+    "update_prototype_project_stats",
+    "update_prototype_project_merged_flow",
+    # 页面查询函数（来自 ui_prototype_screen）
+    "_apply_iteration_filter",
+    "get_ui_screen_by_id",
+    "get_ui_screens_by_project",
+    "get_ui_screens_count",
+    "get_test_cases_by_screen",
+    "get_parsed_ui_screens_for_case_generation",
+    # 页面变更函数（来自 ui_prototype_screen_mutate）
+    "create_ui_screen",
+    "update_ui_screen_parse_result",
+    "update_ui_screen_parse_status",
+    "update_ui_screen_review",
+    "delete_ui_screen",
+    "link_ui_screen_to_test_case",
+    "update_ui_screen_order",
+    "batch_create_ui_screens",
+]
+
 from app.crud.ui_prototype_project import (
     create_ui_prototype_project,
     get_ui_prototype_projects_by_project,

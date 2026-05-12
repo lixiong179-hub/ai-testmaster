@@ -1,12 +1,14 @@
 """移动端AI动作执行Mixin - 各类移动端操作的执行逻辑。"""
 import asyncio
-from typing import Optional, Dict, Any
+import re
+import json
+from typing import Optional
 from loguru import logger
 
-from app.utils.adb_controller import AdbController, AdbError
-from app.utils.uiautomator_helper import UIAutomatorHelper, UIAutomatorError
+from app.utils.adb_controller import AdbError
 from app.services.mobile_ai_executor.types import (
     MobileActionType, MobileActionResult, MobileAIError, MobileDeviceError,
+    MobileRecognitionError,
 )
 
 

@@ -182,7 +182,7 @@ class TechnicalViewMixin:
             f"# 编号: {view.get('case_no', '')}",
             "", "import pytest",
             "from playwright.async_api import async_playwright", "",
-            f"@pytest.mark.asyncio",
+            "@pytest.mark.asyncio",
             f"async def test_{(view.get('case_no') or 'unknown').lower()}():",
             '    async with async_playwright() as p:',
             '        browser = await p.chromium.launch(headless=False)',
@@ -208,7 +208,7 @@ class TechnicalViewMixin:
                     safe_text = text.replace("'", "\\'").replace('"', '\\"')
                     lines.append(f"        await page.fill('{safe_css}', '{safe_text}')")
             else:
-                lines.append(f"        # 无定位器，使用文本匹配执行操作")
+                lines.append("        # 无定位器，使用文本匹配执行操作")
                 safe_action = action.replace("'", "\\'").replace('"', '\\"')
                 if "点击" in action or "click" in action.lower():
                     lines.append(f"        await page.get_by_text('{safe_action}').click()")

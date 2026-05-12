@@ -29,7 +29,7 @@ from app.models.test_result import TestResult
 from app.models.test_case import TestCase
 from app.models.project import Project
 from app.models.user import User
-from app.api.v1.endpoints.auth import oauth2_scheme, get_current_user
+from app.api.v1.endpoints.auth import get_current_user
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
 from app.core.exception import create_response
 from loguru import logger
@@ -121,7 +121,6 @@ async def create_test_task(
             case_map = {tc.id: tc for tc in test_cases}
 
             # 使用批量插入优化性能（避免逐个db.add）
-            from sqlalchemy import insert
             task_results_to_insert = []
             for case_id in test_case_ids:
                 test_case = case_map.get(case_id)

@@ -9,19 +9,15 @@
 5. 多图流转合并
 6. 与测试用例关联
 """
-import asyncio
-import shutil
 import os
 from typing import List, Dict, Any, Optional, Tuple
-from datetime import datetime
 import base64
 
 from sqlalchemy.orm import Session
 
 from app.crud import ui_prototype as ui_prototype_crud
-from app.services.ui_spec_parser import ui_spec_parser, UISpecParser
+from app.services.ui_spec_parser import UISpecParser
 from app.services.ui_spec_parser.pipeline_upload_mixin import PipelineUploadMixin
-from app.utils.unified_vision_model import get_default_vision_model
 from app.core.config import settings
 from loguru import logger
 

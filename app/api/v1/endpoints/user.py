@@ -1,4 +1,4 @@
-from typing import List, Optional, Any
+from typing import List, Any
 """
 用户管理端点模块
 
@@ -18,8 +18,8 @@ from typing import List, Optional, Any
     - 用户信息包括用户名、邮箱、创建时间等
     - 修改密码需验证旧密码
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -27,15 +27,14 @@ from app.schemas.user import (
     User, UserCreate, UserUpdate, UserWithRoles,
     Role, RoleCreate, RoleUpdate,
     Permission, PermissionCreate, PermissionUpdate,
-    Token, UserLogin
+    Token,
 )
 from app.services.user_service import (
-    UserService, RoleService, PermissionService, UserRoleService, RBACService
+    UserService, RoleService, PermissionService, UserRoleService,
 )
-from app.api.v1.endpoints.auth import oauth2_scheme, get_current_user
+from app.api.v1.endpoints.auth import get_current_user
 from app.utils.jwt_utils import create_access_token
 from app.core.config import settings
-from app.core.exception import create_response
 from loguru import logger
 
 router = APIRouter(prefix="/user", tags=["user"])

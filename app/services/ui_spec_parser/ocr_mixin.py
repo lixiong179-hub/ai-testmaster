@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 """
 UI Spec Parser - OCR与文本模型Mixin
 提供OCR文字提取、带位置信息提取、LLM文本结构化能力
 """
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
 from loguru import logger
 
 from app.utils.ocr_extractor import OCRExtractor, OCRExtractorError
 from app.core.config import settings
+
+if TYPE_CHECKING:
+    from openai import OpenAI
 
 
 class UISpecOcrMixin:
@@ -26,7 +31,6 @@ class UISpecOcrMixin:
         首次调用时创建实例，后续直接返回缓存。
         """
         if self._text_model is None:
-            from openai import OpenAI
             from app.utils.ai_client_core import get_ai_client
             text_api_key = getattr(settings, 'TEXT_MODEL_API_KEY', '') or settings.DEEPSEEK_API_KEY
             text_base_url = getattr(settings, 'TEXT_MODEL_API_URL', '') or getattr(settings, 'DEEPSEEK_BASE_URL', 'https://api.deepseek.com')

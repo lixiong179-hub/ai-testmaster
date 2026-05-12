@@ -83,20 +83,20 @@ describe('FlowNodeCard', () => {
 
     it('should render compact card in overview mode', () => {
       const wrapper = mountCard({ displayMode: 'overview' })
-      expect(wrapper.find('.node-compact-body').exists()).toBe(true)
-      expect(wrapper.find('.compact-name').exists()).toBe(true)
-      expect(wrapper.find('.node-image').exists()).toBe(false)
-      expect(wrapper.find('.node-footer').exists()).toBe(false)
+      expect(wrapper.find('.node-image--overview').exists()).toBe(true)
+      expect(wrapper.find('.screen-name--overview').exists()).toBe(true)
+      expect(wrapper.find('.node-footer--overview').exists()).toBe(true)
     })
 
     it('should show screen name in compact body', () => {
       const wrapper = mountCard({ displayMode: 'overview' })
-      expect(wrapper.find('.compact-name').text()).toBe('登录页')
+      expect(wrapper.find('.screen-name--overview').text()).toBe('登录页')
     })
 
-    it('should show summary in compact body when available', () => {
+    it('should not show summary in overview mode', () => {
       const wrapper = mountCard({ displayMode: 'overview' })
-      expect(wrapper.find('.compact-summary').text()).toBe('用户登录入口')
+      expect(wrapper.find('.screen-summary').exists()).toBe(false)
+      expect(wrapper.find('.screen-name--overview').exists()).toBe(true)
     })
 
     it('should apply display-overview class in overview mode', () => {
@@ -159,9 +159,9 @@ describe('FlowNodeCard', () => {
   })
 
   describe('preview event', () => {
-    it('should emit preview when clicking compact body in overview mode', async () => {
+    it('should emit preview when clicking overview image', async () => {
       const wrapper = mountCard({ displayMode: 'overview' })
-      await wrapper.find('.node-compact-body').trigger('click')
+      await wrapper.find('.node-image--overview').trigger('click')
       expect(wrapper.emitted('preview')).toBeTruthy()
     })
   })

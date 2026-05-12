@@ -241,7 +241,6 @@ __all__ = [
 
 
 def _cleanup_mcp_client():
-    global _mcp_client
     if _mcp_client and _mcp_client._process and _mcp_client._process.returncode is None:
         try:
             _mcp_client._process.terminate()

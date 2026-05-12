@@ -14,13 +14,13 @@ from datetime import timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, and_, case, Integer, text
+from sqlalchemy import func, case, Integer, text
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User
 from app.models.pipeline import PipelineRun, PipelineStep
-from app.models.pipeline_metric import PipelineMetric, FMEA_METRICS
+from app.models.pipeline_metric import PipelineMetric
 from app.ai.call_log import AICallLog
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response

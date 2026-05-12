@@ -34,6 +34,7 @@
 """
 from app.db.database import primary_engine
 from app.utils.jwt_utils import get_password_hash
+from app.core.config import get_settings
 from sqlalchemy import text
 
 
@@ -134,11 +135,11 @@ def init_database():
         # 插入默认管理员用户 - 幂等检查
         # ============================================================
         # 先查询 admin 用户是否已存在，避免重复插入违反唯一约束
-        result = conn.execute(text("SELECT id FROM users WHERE username = 'admin'"))
+        result = conn.execute(text("SELECT id FROM users WHERE username = :username"), {"username": "admin"})
         if not result.fetchone():
-            # 使用参数化查询插入管理员，防止SQL注入
-            # 密码通过 get_password_hash() 进行 bcrypt 哈希，不存储明文
-            password_hash = get_password_hash("password123")
+            settings = get_settings()
+            admin_password = settings.ADMIN_INITIAL_PASSWORD or "changeme"
+            password_hash = get_password_hash(admin_password)
             conn.execute(
                 text("INSERT INTO users (username, email, password_hash, is_active) VALUES (:username, :email, :password_hash, :is_active)"),
                 {
@@ -148,7 +149,7 @@ def init_database():
                     "is_active": True
                 }
             )
-            print("默认管理员用户创建成功: admin / password123")
+            print("默认管理员用户创建成功: admin / ****")
         else:
             print("管理员用户已存在")
 

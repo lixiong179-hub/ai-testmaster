@@ -32,7 +32,7 @@ from app.services.case_generation.flow_tree_mixin import FlowTreeMixin
 from app.services.case_generation.context_loader import load_requirement_content, load_ui_data
 from app.services.case_generation.test_point_loader import (
     load_test_points, get_file_content_helper,
-    DEFAULT_TEST_POINT_PAGE_SIZE, MAX_TEST_POINT_PAGE_SIZE
+    DEFAULT_TEST_POINT_PAGE_SIZE,
 )
 
 

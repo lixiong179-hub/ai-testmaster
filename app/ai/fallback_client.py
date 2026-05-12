@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 
 from loguru import logger
 
-from app.ai.client import AIResponse, TokenUsage
+from app.ai.client import AIResponse
 
 
 class FallbackAIClient:

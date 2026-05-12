@@ -12,7 +12,6 @@
 - UserInfoResponse 映射 User Model 的部分字段，通过 from_attributes 支持 ORM 对象转换
 """
 from pydantic import BaseModel, Field, EmailStr, model_validator
-from typing import Optional
 from datetime import datetime
 
 

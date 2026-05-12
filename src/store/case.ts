@@ -224,7 +224,7 @@ export const useCaseStore = defineStore('case', {
       try {
         const caseItem = this.testCases.find((c) => c.id === caseId)
         if (!caseItem) throw new Error('用例不存在')
-        const { id, case_no, create_time, generate_status, ...copyData } = caseItem
+        const { id: _id, case_no: _case_no, create_time: _create_time, generate_status: _generate_status, ...copyData } = caseItem
         const { title, module, priority, case_type, precondition, steps, expected_result } =
           copyData
         await testCaseApi.createCase({

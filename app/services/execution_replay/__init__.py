@@ -19,7 +19,7 @@ Mixin组合:
     4. 支持播放/暂停/跳转/调速
     5. 会话超时自动清理
 """
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Callable
 from sqlalchemy.orm import Session
 
 from app.services.execution_replay.models import (

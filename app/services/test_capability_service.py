@@ -81,7 +81,7 @@ def update_capability(
     except IntegrityError as e:
         db.rollback()
         raise DuplicateCapabilityKeyError(
-            f"Capability key conflict after update"
+            "Capability key conflict after update"
         ) from e
     db.refresh(capability)
     return capability

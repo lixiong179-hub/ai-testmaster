@@ -19,7 +19,7 @@
 """
 import json
 import re
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from loguru import logger
 
 from app.utils.unified_vision.model_types import ElementInfo, VisionModelType

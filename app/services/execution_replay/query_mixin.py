@@ -3,9 +3,6 @@
 import os
 import base64
 from typing import Optional, Dict, Any, List
-from loguru import logger
-
-from app.services.execution_replay.models import ReplayEvent
 
 
 class QueryMixin:

@@ -1,6 +1,6 @@
 """移动端AI类型定义 - 定义移动端执行器的枚举、异常和结果模型。
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 

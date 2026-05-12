@@ -144,12 +144,8 @@ export const usePathPlayback = () => {
         nextEdgeId: branchEdgeToMain,
       },
     ]
-    if (nextMainNodeId) {
-      const nextMainStep = playPath.value[nextMainIdx]
-      newSteps.push({
-        ...nextMainStep,
-        nodeId: nextMainNodeId,
-      } as PlayStep)
+    if (nextMainIdx < playPath.value.length) {
+      newSteps.push(...playPath.value.slice(nextMainIdx))
     }
     playPath.value = newSteps
     currentPlayIndex.value = currentPlayIndex.value + 1

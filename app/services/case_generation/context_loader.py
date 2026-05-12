@@ -2,9 +2,7 @@
 """
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from loguru import logger
 
-from app.models.project import ProjectFile
 from app.models.ui_prototype import UIPrototypeScreen
 from app.crud import file as file_crud
 from app.services.file_content_extractor import get_file_content

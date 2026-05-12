@@ -1,7 +1,7 @@
 """MCP识别器 - 通过MCP协议与外部识别服务交互实现元素识别。
 """
 import json
-from typing import Optional, Dict, Any, List
+from typing import Optional, List
 
 from loguru import logger
 

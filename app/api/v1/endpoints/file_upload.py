@@ -17,7 +17,6 @@
     - 支持按项目ID关联文件
 """
 
-from fastapi import APIRouter
 from fastapi import (
     APIRouter,
     Depends,
@@ -183,7 +182,7 @@ async def upload_file(
         }
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         if saved_file_path and os.path.exists(saved_file_path):
             try:
                 os.remove(saved_file_path)

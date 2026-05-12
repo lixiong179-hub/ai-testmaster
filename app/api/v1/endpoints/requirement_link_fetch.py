@@ -56,11 +56,9 @@ async def fetch_link_content(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权限操作此项目"
             )
-        cached = False
         if not request.force_refresh and link.cached_content and link.last_fetch_time:
             expire_time = link.last_fetch_time + timedelta(minutes=link.cache_expire_minutes)
             if utcnow() < expire_time:
-                cached = True
                 return FetchContentResponse(
                     success=True,
                     content=link.cached_content,

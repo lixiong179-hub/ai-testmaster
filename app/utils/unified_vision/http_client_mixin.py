@@ -19,12 +19,10 @@
     - app.utils.unified_vision.model_types: 模型类型和配置
 """
 import os
-import json
 import httpx
-from typing import Optional, Dict, Any
-from loguru import logger
+from typing import Dict, Any
 
-from app.utils.unified_vision.model_types import VisionModelType, MODEL_PROVIDER_CONFIGS
+from app.utils.unified_vision.model_types import VisionModelType
 
 
 class HTTPClientMixin:
