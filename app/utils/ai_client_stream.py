@@ -41,6 +41,7 @@ from app.utils.ai_client_core import (
     AIResponseParseError,
     _detect_ai_error,
 )
+from app.core.constants import TimeoutConfig
 from app.utils.ai_client_parser import (
     fix_common_json_issues,
     extract_json_objects_fallback,
@@ -137,7 +138,7 @@ class AIStreamMixin:
         for attempt in range(self.max_retries):
             try:
                 logger.info(f"AI分析需求（流式响应） - 尝试 {attempt + 1}/{self.max_retries}")
-                response = requests.post(self.api_url, headers=headers, json=data, stream=True, timeout=120)
+                response = requests.post(self.api_url, headers=headers, json=data, stream=True, timeout=TimeoutConfig.AI_API)
                 response.raise_for_status()
                 for chunk in response.iter_content(chunk_size=1024):
                     if chunk:

@@ -17,8 +17,6 @@
     - /captcha, /captcha/generate, /login, /register: 无需认证
     - /me: 需要Bearer令牌认证
 """
-import random
-import string
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
 from sqlalchemy.orm import Session
@@ -29,6 +27,7 @@ from app.models.user import User
 from app.schemas.auth import RegisterRequest
 from app.api.v1.endpoints.auth_deps import get_current_user
 from app.utils.jwt_utils import verify_password, get_password_hash, create_access_token
+from app.services.captcha_service import captcha_service
 
 router = APIRouter()
 
@@ -54,25 +53,21 @@ def get_client_ip(request: Request) -> str:
 
 @router.get("/captcha", response_model=dict)
 @router.get("/captcha/generate", response_model=dict)
-async def get_captcha() -> dict:
-    """
-    获取验证码（开发模式）
-
-    当前为开发模式，直接返回明文验证码文本。
-    生产环境应替换为图形验证码或短信验证码。
-
-    Returns:
-        dict: 包含captcha_id和验证码文本的响应
-    """
-    captcha_text = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-    captcha_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=16))
-    return create_response(
-        data={
-            "captcha_id": captcha_id,
-            "code": captcha_text,
-            "message": "验证码获取成功（开发模式，直接返回文本）"
-        }
-    )
+async def get_captcha(request: Request) -> dict:
+    try:
+        captcha_id, code = captcha_service.generate(ip=get_client_ip(request))
+        return create_response(
+            data={
+                "captcha_id": captcha_id,
+                "code": code,
+            }
+        )
+    except Exception as e:
+        logger.warning(f"验证码生成失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"验证码获取失败: {str(e)}"
+        )
 
 
 @router.post("/login", response_model=dict)
@@ -84,33 +79,7 @@ async def login(
     captcha_code: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
-    """
-    用户登录
-
-    支持表单(Form)和JSON两种请求格式。当表单参数为空时，尝试从请求体JSON中解析。
-    登录成功后返回JWT访问令牌和用户基本信息。
-
-    请求参数:
-        - username: 用户名（必填）
-        - password: 密码（必填）
-        - captcha_id: 验证码ID（可选，暂未校验）
-        - captcha_code: 验证码内容（可选，暂未校验）
-
-    响应格式:
-        - access_token: JWT令牌
-        - token_type: "bearer"
-        - user: 用户基本信息（id, username, email, is_active）
-
-    权限要求: 无需认证
-
-    Raises:
-        HTTPException 400: 参数验证失败
-        HTTPException 401: 用户名或密码错误
-        HTTPException 403: 账号已被禁用
-        HTTPException 500: 服务器内部错误
-    """
     try:
-        # 优先尝试从表单参数获取，若为空则从JSON请求体解析
         if username is None or password is None:
             try:
                 json_data = await request.json()
@@ -123,20 +92,31 @@ async def login(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="参数验证失败"
                 )
-        
+
         if not username or not password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="请提供用户名和密码"
             )
-        
+
+        if not captcha_id or not captcha_code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="请提供验证码"
+            )
+
+        if not captcha_service.verify(captcha_id, captcha_code, ip=get_client_ip(request)):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="验证码错误或已过期"
+            )
+
         user = db.query(User).filter(User.username == username).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="用户名或密码错误"
             )
-        # 检查账号是否被禁用
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -149,7 +129,6 @@ async def login(
                 detail="用户名或密码错误"
             )
         logger.info(f"用户登录成功: username={user.username}, ip={get_client_ip(request)}")
-        # 生成JWT访问令牌，包含用户ID和用户名
         access_token = create_access_token({"sub": str(user.id), "username": user.username})
         return create_response(
             data={

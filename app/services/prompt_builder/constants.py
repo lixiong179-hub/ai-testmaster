@@ -10,6 +10,9 @@ SINGLE_IMAGE_PROMPT = """你是一个专业的UI/UX分析师。请仔细分析�
 2. 字符串值如无内容请用""，数组为空请用[]，无法确定的字段用null。
 3. 对于无法确定或存在歧义的内容，请在warnings数组中说明原因。
 4. 充分利用你的视觉能力：描述颜色、图标、字体大小相对关系、间距、对齐方式等。
+5. state字段必须如实反映元素当前状态：若按钮置灰则填"disabled"，若输入框标红则填"error"，若Tab被选中则填"selected"，若开关打开则填"active"；仅当元素完全正常且无特殊状态时才填"normal"。
+6. description字段必须包含元素的视觉特征和交互行为描述：形状（圆角/直角）、边框（颜色/粗细）、背景色、阴影、占位文本、点击后的预期行为等，禁止留空。
+7. semantic_hint字段必须提供元素的语义化描述：用简短短语说明该元素在业务流程中的作用（如"提交登录表单"、"切换到注册页"、"输入验证码"），与label字段的区别是semantic_hint描述功能意图而非显示文本。
 
 输出格式：
 {
@@ -23,16 +26,16 @@ SINGLE_IMAGE_PROMPT = """你是一个专业的UI/UX分析师。请仔细分析�
   },
   "elements": [
     {
-      "type": "button|input|text|icon|navigation|list_item|checkbox|radio|switch|slider|form|dropdown|image|video",
+      "type": "button|input|text|icon|navigation|list_item|checkbox|radio|switch|slider|form|dropdown|image|video|container",
       "label": "可见的标签文字",
-      "semantic": "语义化描述，如：提交按钮、用户名输入框",
+      "semantic_hint": "语义化描述该元素的业务功能意图，如：提交登录表单、切换到注册页、输入手机号",
       "position": "top_left|top_center|top_right|center|bottom_left|bottom_center|bottom_right|full_width",
       "state": "normal|disabled|selected|active|error|hidden",
       "interactive": true/false,
       "color": "前景色或背景色描述，如 '蓝色文字'、'白色背景'",
       "font_size": "small|medium|large 或相对描述（如 '比正文大'）",
       "icon": "图标描述（如 '左箭头'、'搜索图标'），无图标则为 null",
-      "description": "详细描述，包括形状、边框、圆角、阴影等"
+      "description": "详细描述元素的视觉特征和交互行为：形状（圆角/直角）、边框（颜色/粗细）、背景色、阴影、占位文本、点击后预期行为等"
     }
   ],
   "navigation": {
@@ -83,38 +86,62 @@ SINGLE_IMAGE_PROMPT = """你是一个专业的UI/UX分析师。请仔细分析�
     {
       "type": "icon",
       "label": "",
-      "semantic": "返回按钮",
+      "semantic_hint": "返回上一页",
       "position": "top_left",
       "state": "normal",
       "interactive": true,
       "color": "灰色",
       "font_size": null,
       "icon": "左箭头",
-      "description": "左上角箭头图标，点击返回上一页"
+      "description": "左上角箭头图标，灰色，点击后返回上一页"
     },
     {
       "type": "input",
       "label": "手机号",
-      "semantic": "手机号输入框",
+      "semantic_hint": "输入注册手机号",
       "position": "center",
       "state": "normal",
       "interactive": true,
       "color": "#333333 文字",
       "font_size": "medium",
       "icon": "手机图标",
-      "description": "带手机图标，占位文本'请输入手机号'，底部有灰色分割线"
+      "description": "带手机图标前缀，占位文本'请输入手机号'，底部灰色分割线，输入时文字为深色"
+    },
+    {
+      "type": "input",
+      "label": "密码",
+      "semantic_hint": "输入登录密码",
+      "position": "center",
+      "state": "normal",
+      "interactive": true,
+      "color": "#333333 文字",
+      "font_size": "medium",
+      "icon": "锁图标",
+      "description": "带锁图标前缀，占位文本'请输入密码'，右侧有眼睛切换显示/隐藏，底部灰色分割线"
     },
     {
       "type": "button",
       "label": "登录",
-      "semantic": "登录提交按钮",
+      "semantic_hint": "提交登录表单",
+      "position": "center",
+      "state": "disabled",
+      "interactive": true,
+      "color": "白色文字，灰色背景（因未填写表单而置灰）",
+      "font_size": "large",
+      "icon": null,
+      "description": "圆角按钮（8px圆角），全宽，内边距12px，当前因手机号和密码为空而处于置灰不可点击状态，填写后变为蓝色可点击"
+    },
+    {
+      "type": "text",
+      "label": "忘记密码？",
+      "semantic_hint": "跳转到密码重置页",
       "position": "center",
       "state": "normal",
       "interactive": true,
-      "color": "白色文字，蓝色背景 #1890ff",
-      "font_size": "large",
+      "color": "#1890ff 蓝色",
+      "font_size": "small",
       "icon": null,
-      "description": "圆角按钮，全宽，内边距12px"
+      "description": "右对齐蓝色链接文字，点击后跳转到找回密码页面"
     }
   ],
   "navigation": {
@@ -138,8 +165,8 @@ SINGLE_IMAGE_PROMPT = """你是一个专业的UI/UX分析师。请仔细分析�
     }
   ],
   "flows": {
-    "expected_next_screens": ["首页", "注册页"],
-    "trigger_actions": ["点击登录按钮", "点击注册链接"]
+    "expected_next_screens": ["首页", "注册页", "找回密码页"],
+    "trigger_actions": ["点击登录按钮", "点击注册链接", "点击忘记密码"]
   },
   "ui_adaptation_checks": [
     {
@@ -227,11 +254,13 @@ TEXT_STRUCTURE_PROMPT = """你是一个专业的UI/UX分析师。以下是从UI�
   "purpose": "页面的主要功能和目的",
   "elements": [
     {
-      "type": "button|input|text|link|dropdown|checkbox|switch|icon",
+      "type": "button|input|text|link|dropdown|checkbox|switch|icon|container|list_item|radio|slider|form|image|video",
       "label": "可见的标签文字",
-      "semantic": "语义化描述，如：提交按钮、用户名输入框",
+      "semantic_hint": "语义化描述该元素的业务功能意图，如：提交登录表单、切换到注册页、输入手机号",
       "position": "top|center|bottom（根据位置数值判断）",
-      "interactive": true/false
+      "state": "normal|disabled|selected|active|error|hidden（根据上下文推断，如按钮通常为normal，已选中的Tab为selected）",
+      "interactive": true/false,
+      "description": "详细描述元素的视觉特征和交互行为：根据文字内容和常见UI模式推断形状、边框、背景色、占位文本、点击后预期行为等"
     }
   ],
   "navigation": {
@@ -250,7 +279,10 @@ TEXT_STRUCTURE_PROMPT = """你是一个专业的UI/UX分析师。以下是从UI�
 1. 如果文字内容无法确定类型，type 使用 "text"。
 2. 根据常见的 UI 模式推断：例如"登录"、"注册"通常是按钮，"用户名"、"密码"通常是输入框标签。
 3. 位置字段根据提供的数值粗略判断：top（前20%）、center（20%-80%）、bottom（80%以后）。
-4. 仅输出纯JSON，不要输出解释。
+4. state字段必须如实推断：若按钮文字暗示不可操作（如"确认"但缺少必要条件）则填"disabled"，若Tab文字是当前激活项则填"selected"，否则填"normal"。
+5. description字段禁止留空，必须根据文字内容和常见UI模式推断元素的视觉特征和交互行为。
+6. semantic_hint字段必须提供元素的业务功能意图，与label字段的区别是semantic_hint描述功能意图而非显示文本。
+7. 仅输出纯JSON，不要输出解释。
 
 以下是OCR提取的文字（带位置标记）：
 

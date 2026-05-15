@@ -108,7 +108,7 @@ class ReverseInfer(PipelineStep):
             logger.info("ReverseInfer: 新项目模式，无历史指纹")
 
         try:
-            response = ctx.ai_client.complete(
+            response = ctx.get_ai_client().complete(
                 prompt=user_prompt,
                 system=system_prompt,
                 temperature=0.3,

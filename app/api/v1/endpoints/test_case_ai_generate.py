@@ -172,11 +172,23 @@ async def ai_enhanced_generate(
             f"AI生成增强模式 - 接收到的context: "
             f"{json.dumps(context, ensure_ascii=False, default=str)[:500]}"
         )
+
+        # 上下文质量校验：至少有一项有效内容
+        has_requirement = bool(context.get("requirement_content", "").strip())
+        has_ui = bool(context.get("ui_specs")) or bool(context.get("ui_descriptions"))
+        has_flow = request.mode == "graph" and request.flow_sort_data and len(request.flow_sort_data.nodes) > 0
+        if not has_requirement and not has_ui and not has_flow:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="生成上下文为空：请上传需求文档、UI原型图或配置流程节点，确保AI有足够的输入信息"
+            )
+
         if request.mode == "graph":
             prompt_data = _build_graph_prompt_data(
                 flow_sort_data=request.flow_sort_data,
                 context=context, description=description,
                 priority=request.priority,
+                case_type=request.case_type or None,
             )
             generated_case = await asyncio.to_thread(generate_test_case_enhanced, prompt_data)
         elif request.enhanced_mode:
@@ -278,6 +290,15 @@ async def get_generation_context(
         "project_name": project.name,
         "project_type": project.project_type or "web",
     }
+
+    # 查漏补缺模式：用户选择了历史用例但未选测试点 → 不自动加载测试点
+    has_explicit_history = request.history_case_ids is not None and len(request.history_case_ids) > 0
+    has_explicit_test_points = request.test_point_ids and len(request.test_point_ids) > 0
+    if has_explicit_history and not has_explicit_test_points:
+        context["test_points"] = []
+        test_points_count = 0
+        logger.info(f"项目 {request.project_id}: 历史用例查漏补缺模式，跳过测试点自动加载")
+
     return create_response(data={
         "requirement_content": context.get("requirement_content", ""),
         "requirement_length": len(context.get("requirement_content", "")),

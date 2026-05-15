@@ -3,9 +3,11 @@
 from typing import Optional, Dict, Tuple
 from pathlib import Path
 from loguru import logger
+from sqlalchemy.orm import Session
 
 from app.models.test_task import TestTask
 from app.models.test_case import TestCase
+from app.models.project import Project
 from app.services.visibility_config.env_loader import VisibilityEnvLoader
 from app.services.visibility_config.validator import VisibilityConfigValidator
 from app.services.visibility_config.merger import VisibilityConfigMerger
@@ -55,7 +57,6 @@ class VisibilityConfigCoreMixin:
         logger.info(f"全局可见模式配置已更新: headless={config.headless}, record_video={config.record_video}")
 
     def get_task_config(self, task: TestTask) -> VisibilityConfig:
-        """获取任务级别的可见模式配置"""
         global_config = self.get_global_config()
         if hasattr(task, 'visibility_config') and task.visibility_config:
             try:
@@ -63,6 +64,24 @@ class VisibilityConfigCoreMixin:
                 return VisibilityConfigMerger.merge(global_config, task_config)
             except Exception as e:
                 logger.warning(f"解析任务可见模式配置失败: {e}，使用全局配置")
+        return global_config
+
+    def get_project_config(self, db: Session, project_id: int) -> VisibilityConfig:
+        global_config = self.get_global_config()
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            logger.warning(f"项目不存在: {project_id}，使用全局配置")
+            return global_config
+        project_vis_config = None
+        if hasattr(project, 'config') and project.config:
+            vis_cfg = project.config.get("visibility_config") if isinstance(project.config, dict) else None
+            if vis_cfg and isinstance(vis_cfg, dict):
+                try:
+                    project_vis_config = VisibilityConfig.from_dict(vis_cfg)
+                except Exception as e:
+                    logger.warning(f"解析项目可见模式配置失败: {e}")
+        if project_vis_config:
+            return VisibilityConfigMerger.merge(global_config, project_vis_config)
         return global_config
 
     def get_case_config(self, case: TestCase, task: Optional[TestTask] = None) -> VisibilityConfig:

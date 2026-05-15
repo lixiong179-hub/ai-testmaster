@@ -14,6 +14,7 @@ export interface TestCaseApiStep {
   input_value?: string
   target_element?: string
   description?: string
+  display_action?: string
   ui_elements?: Array<{ type?: string; label?: string }>
 }
 
@@ -48,9 +49,20 @@ export interface TestPointData {
   priority: number
 }
 
+export interface FlowMetaData {
+  parent_node_id?: string
+  parent_main_node_id?: string
+  trigger_condition?: string
+  pre_action?: string
+  expected_result?: string
+  bypass_reason?: string
+  note?: string
+}
+
 export interface FlowNodeSubmitData {
   screen_id: number
   screen_order: number
+  main_order?: number
   flow_type: 'main' | 'branch' | 'exception' | 'bypass'
   screen_name: string
   ocr_text?: string
@@ -61,7 +73,11 @@ export interface FlowNodeSubmitData {
     semantic?: string
     position?: string
     interactive?: boolean
+    state?: string
+    description?: string
   }>
+  flow_meta?: FlowMetaData
+  image_url?: string
 }
 
 export interface FlowEdgeSubmitData {
@@ -70,6 +86,9 @@ export interface FlowEdgeSubmitData {
   edge_type: 'normal' | 'branch' | 'exception' | 'bypass'
   condition?: string
   label: string
+  trigger_action?: string
+  pre_action?: string
+  note?: string
 }
 
 export interface FlowSortSubmitData {

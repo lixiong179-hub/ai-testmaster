@@ -8,9 +8,9 @@ from loguru import logger
 
 from app.models.test_case import TestCase, TestStep
 from app.models.project import Project
-from app.utils.ai_client import AIServiceError
 from app.core.config import settings
 from app.core.constants import normalize_priority
+from app.services.test_case_generation.quality_validator import compute_quality_score
 
 
 class TestCaseGenerationValidateMixin:
@@ -56,6 +56,13 @@ class TestCaseGenerationValidateMixin:
                 step_entry["test_data"] = case_test_data
             steps_json.append(step_entry)
 
+        case_type = generated_case.get("case_type") or generated_case.get("test_category") or "manual"
+        case_category = generated_case.get("case_category", "")
+        test_category_value = generated_case.get("test_category") or case_type
+        if case_category and case_category not in str(test_category_value):
+            test_category_value = f"{case_category},{test_category_value}"
+        quality_score = compute_quality_score([generated_case]) if case_category else None
+
         test_case = TestCase(
             project_id=project_id,
             requirement_file_id=requirement_file_id,
@@ -67,11 +74,12 @@ class TestCaseGenerationValidateMixin:
             steps_json=steps_json,
             expected_result=generated_case.get("expected_result", ""),
             priority=normalize_priority(generated_case.get("priority", test_point.get("priority", 2))),
-            case_type=generated_case.get("case_type") or generated_case.get("test_category") or "manual",
-            test_category=generated_case.get("test_category") or generated_case.get("case_category", "manual"),
+            case_type=case_type,
+            test_category=test_category_value,
             parent_case_id=generated_case.get("parent_case_id"),
             ai_change_type=generated_case.get("change_type"),
-            generate_status=1
+            generate_status=1,
+            prior_quality_score=quality_score,
         )
 
         self.db.add(test_case)
@@ -129,14 +137,3 @@ class TestCaseGenerationValidateMixin:
                 logger.warning(f"自动解析前置条件失败 (用例ID={test_case.id}): {e}")
 
         return test_case
-
-    def _get_default_case(self, test_point: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        获取默认测试用例（已废弃，不再使用）
-
-        警告: 此方法已废弃，不再用于AI调用失败时的fallback。
-        如果AI调用失败，应抛出异常而不是返回假数据。
-        此方法保留仅为避免代码破坏性变更，但不应被调用。
-        """
-        logger.error("调用了已废弃的 _get_default_case 方法，不应发生！")
-        raise AIServiceError("AI生成失败，无法返回默认测试用例")

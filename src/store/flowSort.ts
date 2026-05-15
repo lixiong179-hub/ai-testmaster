@@ -61,6 +61,8 @@ export interface FlowNodeData {
     semantic?: string
     position?: string
     interactive?: boolean
+    state?: string
+    description?: string
   }>
   flow_type: 'main' | 'branch' | 'exception' | 'bypass'
   main_order?: number

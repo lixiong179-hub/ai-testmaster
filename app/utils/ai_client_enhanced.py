@@ -12,15 +12,89 @@ from app.utils.ai_client_core import (
 )
 from app.utils.ai_client_parser import (
     fix_common_json_issues,
+    clean_json_string,
     infer_action_type,
 )
 from app.utils.ai_client_formatter import (
     normalize_new_format,
     normalize_old_format,
 )
-from app.services.prompt_builder.comparison_examples import get_comparison_examples
+from app.services.prompt_builder.comparison_examples import (
+    get_comparison_examples,
+    get_title_spec_rules,
+    get_precondition_spec_rules,
+    get_automation_friendly_rules,
+)
+from app.services.test_case_generation.quality_validator import (
+    validate_cases_quality,
+    compute_quality_score,
+    QUALITY_MIN_SCORE,
+)
 
-AI_GENERATE_MAX_TOKENS = 8192
+AI_GENERATE_MAX_TOKENS = 16384
+
+
+def _repair_truncated_json(json_str: str) -> Optional[str]:
+    if not json_str or len(json_str) < 10:
+        return None
+    repaired = json_str.rstrip()
+    if repaired.endswith(']') or repaired.endswith('}'):
+        return None
+    in_string = False
+    escape_next = False
+    for ch in repaired:
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == '\\' and in_string:
+            escape_next = True
+            continue
+        if ch == '"' and not escape_next:
+            in_string = not in_string
+            continue
+    if in_string:
+        repaired += '"'
+    last_brace = repaired.rfind('}')
+    last_bracket = repaired.rfind(']')
+    last_struct = max(last_brace, last_bracket)
+    if last_struct > 0:
+        repaired = repaired[:last_struct + 1]
+    repaired = re.sub(r',\s*$', '', repaired)
+    open_brackets = 0
+    open_braces = 0
+    in_string = False
+    escape_next = False
+    for ch in repaired:
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == '\\' and in_string:
+            escape_next = True
+            continue
+        if ch == '"' and not escape_next:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == '[':
+            open_brackets += 1
+        elif ch == ']':
+            open_brackets -= 1
+        elif ch == '{':
+            open_braces += 1
+        elif ch == '}':
+            open_braces -= 1
+    while open_braces > 0:
+        repaired += '}'
+        open_braces -= 1
+    while open_brackets > 0:
+        repaired += ']'
+        open_brackets -= 1
+    try:
+        json.loads(repaired)
+        return repaired
+    except json.JSONDecodeError:
+        return None
 
 
 def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -96,7 +170,7 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
 ---
 
 ## 输出格式要求
-0. 必须返回3条测试用例，分别覆盖正向（case_category=positive）、边界（case_category=boundary）、异常（case_category=exception）三种测试类型
+0. 必须返回测试用例，至少覆盖正向（case_category=positive）、边界（case_category=boundary）、异常（case_category=exception）三种测试类型，每种类型至少1条用例。如果需求或UI涉及多个功能点或页面，请为每个功能点分别生成用例，总数不少于3条
 请严格按照以下JSON数组格式输出（不要添加markdown代码块标记）：
 [
   {{
@@ -170,16 +244,9 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
   }}
 ]
 
-## 标题规范
-- 格式：「场景/条件」+「操作」+「验证重点」，如"未选单词时纸张听写按钮置灰不可点击"
-- 看到标题即知用例目的，禁止使用"功能验证""界面测试""XX测试"等模糊词
-- 好标题："无网络时提交批改显示网络错误提示""编辑状态下未选中生词删除按钮置灰""输入有效邮箱和密码注册成功"
-- 坏标题："功能验证""界面测试""听写功能测试""Video Test Case"
-- 长度15-40字
+{get_title_spec_rules()}
 
-## 前置条件规范
-- 必须包含"账号已登录"和"设备网络正常"，有权限相关场景必须补充权限状态（如"相机权限已开启"）
-- 禁止仅写"账号已登录"或"APP运行正常"等不完整前置
+{get_precondition_spec_rules()}
 
 {get_comparison_examples()}
 
@@ -189,28 +256,38 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
 3. **优先级**：P0(核心功能)/P2(一般验证)/P3(边界异常)
 4. **覆盖要求**：必须覆盖需求文档所有功能点；每个测试点至少一个用例；有UI原型图时操作对象须与UI元素对应
 5. **格式统一**：step字段为字符串类型；必须包含test_data字段（normal/boundary/abnormal三个空对象）
+"""
 
-前置条件规范：
-- 必须包含"账号已登录"和网络环境（Web端写"浏览器网络正常"，App端写"设备网络正常"），有权限相关场景必须补充权限状态（如"相机权限已开启"）
-- 禁止仅写"账号已登录"或"APP运行正常"等不完整前置
-- 前置条件只约束环境与权限，禁止依赖特定业务数据（如"列表有数据""数据较多"），确保用例任意环境可独立执行；如需特定数据才能测试（如编辑/删除场景），应在步骤中先创建数据，而非在前置中假设数据已存在
-- 前置条件不能包含操作步骤或页面导航状态（如"已进入详情页""在列表页面"），导航到达目标页面必须作为步骤体现，确保用例可独立自动化执行
+        case_type = context.get('case_type')
+        if case_type:
+            prompt += f"\n## 用例类型约束\n"
+            prompt += f"所有用例的 case_type 字段必须统一为 \"{case_type}\"，不允许生成其他类型的用例。\n"
+            type_guidance = {
+                "ui_automation": "步骤必须包含UI元素交互，action_type使用click/input/scroll等UI操作，预期结果可自动化验证",
+                "manual": "允许包含需要人工判断的步骤，预期结果允许主观描述，不要求完全可自动化",
+                "api_automation": "用例聚焦接口层面验证，步骤以API请求/响应断言为主，无需UI元素引用",
+                "performance": "关注响应时间、并发数、吞吐量等性能指标，预期结果包含数值阈值",
+                "security": "关注XSS注入、SQL注入、权限绕过、敏感数据泄露等安全验证点",
+            }
+            extra = type_guidance.get(case_type, "")
+            if extra:
+                prompt += f"{extra}\n"
 
-自动化友好规范：
-- 步骤和预期必须支持自动化断言，预期结果需有可量化判定标准（如"无白屏""无接口报错""按钮置灰"）
-- 禁止"页面正常""功能正常""没问题"等无法断言的模糊描述
-- 步骤必须包含从登录后到达目标页面的完整导航操作，禁止将导航隐藏在前置条件中
-- 弱网、异常条件等自动化无法实现的场景标注case_type为manual
+        prompt += f"""
+{get_automation_friendly_rules()}
 """
 
     client = get_ai_client()
     max_retries = 3
+    messages = [{"role": "user", "content": prompt}]
+    is_graph_mode = bool(graph_prompt)
+    min_case_count = 3 if is_graph_mode else 1
     for attempt in range(max_retries):
         try:
             logger.info(f"增强版AI生成测试用例 - 尝试 {attempt + 1}/{max_retries}")
             response = client.chat.completions.create(
                 model=client.model_name,
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
                 temperature=0.3,
                 max_tokens=AI_GENERATE_MAX_TOKENS
             )
@@ -218,7 +295,10 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
             if not resp_content:
                 raise AIResponseParseError("AI返回内容为空")
             resp_content = resp_content.strip()
-            if resp_content.startswith("```"):
+            code_block_match = re.search(r'```(?:json)?\s*\n?([\s\S]*?)\n?\s*```', resp_content)
+            if code_block_match:
+                resp_content = code_block_match.group(1).strip()
+            elif resp_content.startswith("```"):
                 resp_content = re.sub(r'^```(?:json)?\s*\n?', '', resp_content)
                 resp_content = re.sub(r'\n?```\s*$', '', resp_content)
                 resp_content = resp_content.strip()
@@ -226,38 +306,86 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
             try:
                 generated_case = json.loads(resp_content)
             except json.JSONDecodeError:
-                json_match = re.search(r'\[[\s\S]*\]', resp_content)
+                json_match = re.search(r'\[[\s\S]*\]\s*$', resp_content)
                 if not json_match:
                     json_match = re.search(r'\{[\s\S]*\}', resp_content)
                 if json_match:
+                    matched_str = json_match.group(0)
                     try:
-                        generated_case = json.loads(json_match.group(0))
+                        generated_case = json.loads(matched_str)
                     except json.JSONDecodeError:
-                        fixed = fix_common_json_issues(json_match.group(0))
+                        fixed = fix_common_json_issues(matched_str)
                         if fixed:
                             try:
                                 generated_case = json.loads(fixed)
                             except json.JSONDecodeError:
                                 pass
+                        if generated_case is None:
+                            cleaned = clean_json_string(matched_str)
+                            if cleaned:
+                                try:
+                                    generated_case = json.loads(cleaned)
+                                except json.JSONDecodeError:
+                                    pass
+                        if generated_case is None:
+                            repaired = _repair_truncated_json(matched_str)
+                            if repaired:
+                                try:
+                                    generated_case = json.loads(repaired)
+                                except json.JSONDecodeError:
+                                    pass
             if generated_case is not None:
+                normalized_cases: list = []
                 if isinstance(generated_case, list):
-                    normalized_cases = []
                     for case_item in generated_case:
                         if isinstance(case_item, dict):
                             if 'expected_results' in case_item and isinstance(case_item.get('expected_results'), list):
                                 normalized_cases.append(normalize_new_format(case_item))
                             else:
                                 normalized_cases.append(normalize_old_format(case_item))
-                    if normalized_cases:
-                        logger.info(f"增强版AI生成测试用例成功，共{len(normalized_cases)}条")
-                        return normalized_cases
                 elif isinstance(generated_case, dict):
                     if 'expected_results' in generated_case and isinstance(generated_case.get('expected_results'), list):
-                        normalized_case = normalize_new_format(generated_case)
+                        normalized_cases.append(normalize_new_format(generated_case))
                     else:
-                        normalized_case = normalize_old_format(generated_case)
-                    logger.info("增强版AI生成测试用例成功，共1条")
-                    return [normalized_case]
+                        normalized_cases.append(normalize_old_format(generated_case))
+                if not normalized_cases:
+                    logger.warning(f"AI返回内容格式化后为空 (尝试 {attempt + 1}/{max_retries})")
+                    if attempt < max_retries - 1:
+                        time.sleep(2)
+                        continue
+                    raise AIResponseParseError("AI返回内容格式化后为空")
+                passed, issues = validate_cases_quality(normalized_cases, min_count=min_case_count)
+                quality_score = compute_quality_score(normalized_cases)
+                if passed:
+                    logger.info(
+                        f"增强版AI生成测试用例成功，共{len(normalized_cases)}条，质量分{quality_score:.0f}"
+                    )
+                    return normalized_cases
+                if quality_score >= QUALITY_MIN_SCORE:
+                    logger.warning(
+                        f"用例质量分{quality_score:.0f}≥阈值{QUALITY_MIN_SCORE}，"
+                        f"存在次要问题: {issues}"
+                    )
+                    return normalized_cases
+                if attempt < max_retries - 1:
+                    feedback = (
+                        "上一次生成的用例存在以下质量问题，请逐一修正后重新生成：\n"
+                        + "\n".join(f"- {issue}" for issue in issues)
+                    )
+                    messages.append({"role": "assistant", "content": resp_content[:3000]})
+                    messages.append({"role": "user", "content": feedback})
+                    logger.warning(
+                        f"用例质量分{quality_score:.0f}<阈值{QUALITY_MIN_SCORE}，"
+                        f"触发质量反馈重试 (尝试 {attempt + 1}/{max_retries})，"
+                        f"问题数: {len(issues)}"
+                    )
+                    time.sleep(2)
+                    continue
+                logger.error(
+                    f"用例质量分{quality_score:.0f}<阈值{QUALITY_MIN_SCORE}，"
+                    f"已达最大重试次数，降级返回，问题数: {len(issues)}"
+                )
+                return normalized_cases
             logger.warning(f"AI返回内容无法解析 (尝试 {attempt + 1}/{max_retries})")
             if attempt < max_retries - 1:
                 time.sleep(2)

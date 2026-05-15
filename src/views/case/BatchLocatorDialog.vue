@@ -133,7 +133,7 @@
             <el-collapse-item
               v-for="step in report.step_results"
               :key="step.step_id"
-              :title="`步骤 ${step.step_number}: ${step.action}`"
+              :title="`步骤 ${step.step_number}: ${step.display_action || step.description || step.action}`"
             >
               <div class="step-detail-content">
                 <div class="detail-row">

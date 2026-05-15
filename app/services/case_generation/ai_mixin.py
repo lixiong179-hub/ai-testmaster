@@ -107,10 +107,21 @@ class AIMixin(AIParseMixin):
         priority = test_point.get("priority", 2)
 
         # 构建结构化Prompt
-        prompt = PromptBuilder.build_linear_prompt(
-            requirement_content=requirement_content, ui_description=ui_description,
-            module=module, function=function, point=point, priority=priority, ui_specs=ui_specs
-        )
+        try:
+            result = PromptBuilder().for_test_case(
+                mode='linear',
+                requirement_content=requirement_content,
+                ui_description=ui_description,
+                module=module, function=function,
+                point=point, priority=priority,
+                ui_specs=ui_specs
+            )
+            prompt = result['prompt']
+        except Exception:
+            prompt = PromptBuilder.build_linear_prompt(
+                requirement_content=requirement_content, ui_description=ui_description,
+                module=module, function=function, point=point, priority=priority, ui_specs=ui_specs
+            )
 
         # 构建API请求头和载荷
         headers = {

@@ -65,7 +65,7 @@
               <li v-for="(step, index) in caseItem.steps" :key="index">
                 <span class="step-number">{{ step.step_number || step.step || index + 1 }}</span>
                 <span class="step-content"
-                  >{{ step.action }}{{ step.param ? ` (${step.param})` : '' }}</span
+                  >{{ step.display_action || step.description || step.step || step.action }}{{ step.param ? ` (${step.param})` : '' }}</span
                 >
                 <span v-if="(step as any).expected" class="step-expected"
                   >→ {{ (step as any).expected }}</span

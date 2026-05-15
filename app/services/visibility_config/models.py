@@ -1,7 +1,7 @@
 """
 可见模式配置数据模型
 """
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, List
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -34,12 +34,12 @@ class VisibilityConfig:
     action_delay_ms: int = 500  # 操作间隔延迟(毫秒)
 
     # 调试
-    highlight_elements: bool = True  # 高亮操作元素
-    show_ai_analysis: bool = True  # 显示AI分析过程
+    highlight_elements: bool = True
+    show_ai_analysis: bool = True
+    hidden_fields: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典"""
-        return {
+        result = {
             "headless": self.headless,
             "record_video": self.record_video,
             "video_resolution": self.video_resolution,
@@ -50,8 +50,10 @@ class VisibilityConfig:
             "execution_speed": self.execution_speed,
             "action_delay_ms": self.action_delay_ms,
             "highlight_elements": self.highlight_elements,
-            "show_ai_analysis": self.show_ai_analysis
+            "show_ai_analysis": self.show_ai_analysis,
+            "hidden_fields": self.hidden_fields,
         }
+        return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'VisibilityConfig':
@@ -79,6 +81,8 @@ class VisibilityConfig:
             config.highlight_elements = data["highlight_elements"]
         if "show_ai_analysis" in data:
             config.show_ai_analysis = data["show_ai_analysis"]
+        if "hidden_fields" in data:
+            config.hidden_fields = list(data["hidden_fields"])
         return config
 
 

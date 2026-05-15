@@ -55,6 +55,7 @@ def _build_ui_specs_text(ui_specs: List[Dict[str, Any]]) -> str:
 def _build_graph_prompt_data(
     flow_sort_data: FlowSortDataSchema,
     context: Dict[str, Any], description: str, priority: int,
+    case_type: Optional[str] = None,
 ) -> Dict[str, Any]:
     """构建流程图模式所需的Prompt数据。"""
     from app.services.prompt_builder import PromptBuilder
@@ -62,10 +63,12 @@ def _build_graph_prompt_data(
     nodes_list = [n.model_dump() for n in flow_sort_data.nodes]
     edges_list = [e.model_dump() for e in flow_sort_data.edges]
 
-    # M1B-6: 后端流程结构校验（仅记录，不阻断）
+    # 后端流程结构校验（错误时阻断，警告仅记录）
     errors, warnings = validate_flow_structure(nodes_list, edges_list)
     if errors:
-        logger.warning(f"流程图校验发现 {len(errors)} 个错误: {errors}")
+        error_msg = f"流程图结构校验失败: {'; '.join(errors[:5])}"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
     if warnings:
         logger.info(f"流程图校验发现 {len(warnings)} 个警告: {warnings}")
     module_info = flow_sort_data.module_info
@@ -73,10 +76,12 @@ def _build_graph_prompt_data(
     ui_specs = context.get("ui_specs", [])
     ui_specs_text = _build_ui_specs_text(ui_specs)
     test_point_json = json.dumps(test_point, ensure_ascii=False)
+    history_cases = context.get("history_cases")
     graph_prompt = PromptBuilder.build_graph_prompt(
         nodes=nodes_list, edges=edges_list, module_info=module_info,
         requirement_content=context.get("requirement_content", ""),
         test_point_json=test_point_json, ui_specs_text=ui_specs_text,
+        history_cases=history_cases, case_type=case_type,
     )
     logger.info(f"流程图模式：接收到 {len(nodes_list)} 个节点，{len(edges_list)} 条连线")
     return {
@@ -84,7 +89,7 @@ def _build_graph_prompt_data(
         "ui_description": "",
         "ui_spec": ui_specs[0].get("ui_spec", {}) if ui_specs else {},
         "ui_specs": ui_specs, "test_point": test_point,
-        "case_type": context.get("case_type"),
+        "case_type": case_type or context.get("case_type"),
         "exec_mode": context.get("exec_mode", "all"),
         "project_config": context.get("project_config"),
         "graph_prompt": graph_prompt,

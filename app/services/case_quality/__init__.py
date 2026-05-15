@@ -19,6 +19,9 @@ Mixin组合:
     - 冗余度: 步骤重复、逻辑重复、数据重复
     - 建议: 基于评估结果的改进建议
 """
+from types import SimpleNamespace
+from typing import Any, Dict
+
 from sqlalchemy.orm import Session
 
 from app.services.case_quality.models import (
@@ -59,6 +62,65 @@ class CaseQualityAnalyzer(
             db: 数据库会话。
         """
         self.db = db
+
+    def analyze_case(self, case_data: Dict[str, Any]) -> Dict[str, Any]:
+        steps_raw = case_data.get("steps", [])
+        steps = []
+        if isinstance(steps_raw, list):
+            for i, s in enumerate(steps_raw):
+                if isinstance(s, dict):
+                    steps.append(SimpleNamespace(
+                        id=i,
+                        action=s.get("action", s.get("description", "")),
+                        target_element=s.get("target_element", ""),
+                        expected_result=s.get("expected_result", s.get("expected", "")),
+                        step_number=i + 1,
+                    ))
+                elif isinstance(s, str):
+                    steps.append(SimpleNamespace(
+                        id=i,
+                        action=s,
+                        target_element="",
+                        expected_result="",
+                        step_number=i + 1,
+                    ))
+        elif isinstance(steps_raw, str) and steps_raw.strip():
+            steps.append(SimpleNamespace(
+                id=0,
+                action=steps_raw,
+                target_element="",
+                expected_result="",
+                step_number=1,
+            ))
+
+        precondition_steps = []
+        precondition_raw = case_data.get("precondition", "")
+        if precondition_raw:
+            precondition_steps.append(SimpleNamespace(
+                action=str(precondition_raw),
+                step_number=1,
+            ))
+
+        complexity = self._analyze_complexity(steps, precondition_steps)
+
+        fake_case = SimpleNamespace(
+            id=-1,
+            title=case_data.get("title", ""),
+            project_id=-1,
+            test_point_id=None,
+        )
+        redundancy = self._analyze_redundancy(fake_case, steps, all_cases=[])
+
+        coverage = self._analyze_coverage(steps, coverage_context={}, case=None)
+
+        suggestions = self._generate_optimization_suggestions(complexity, redundancy, coverage)
+
+        return {
+            "complexity_score": complexity.score,
+            "coverage_score": coverage.score,
+            "redundancy_score": redundancy.score,
+            "suggestion_count": len(suggestions),
+        }
 
 
 __all__ = [

@@ -147,7 +147,7 @@ def list_decisions(
         raise
     except Exception as e:
         logger.error("获取决策列表失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"获取决策列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取决策列表失败")
 
 
 @router.post("/{review_id}/decisions/{decision_id}/decide", response_model=dict)
@@ -204,7 +204,7 @@ def decide_single(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error("提交人工判定失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"提交人工判定失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="提交人工判定失败")
 
 
 @router.post("/{review_id}/decisions/batch-decide", response_model=dict)
@@ -277,7 +277,7 @@ def decide_batch(
     except Exception as e:
         db.rollback()
         logger.error("批量人工判定失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"批量人工判定失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="批量人工判定失败")
 
 
 @router.post("/{review_id}/finalize", response_model=dict)
@@ -310,7 +310,7 @@ def finalize_review(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error("最终化评审失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"最终化评审失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="最终化评审失败")
 
 
 class RollbackRequest(BaseModel):
@@ -362,7 +362,7 @@ def rollback_decision(
     except Exception as e:
         db.rollback()
         logger.error("回滚决策失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"回滚决策失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="回滚决策失败")
 
 
 @router.post("/{review_id}/undo-decision/{decision_id}", response_model=dict)
@@ -402,7 +402,7 @@ def undo_decision(
     except Exception as e:
         db.rollback()
         logger.error("撤销决策失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"撤销决策失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="撤销决策失败")
 
 
 def require_admin(current_user: User = Depends(get_current_user)):
@@ -441,7 +441,41 @@ def undo_finalize(
     except Exception as e:
         db.rollback()
         logger.error("撤销最终化失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"撤销最终化失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="撤销最终化失败")
+
+
+@router.post("/{review_id}/apply-decisions", response_model=dict)
+def apply_decisions_endpoint(
+    review_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        _verify_review_access(db, review_id, current_user)
+        review = review_service.get_review(db, review_id)
+        if review is None:
+            raise HTTPException(status_code=404, detail="评审不存在")
+        if not review.is_finalized():
+            raise HTTPException(status_code=400, detail="评审未最终化，无法应用决策")
+
+        from app.services.decision_application_service import apply_decisions
+        results = apply_decisions(review_id=review_id, db=db, actor_id=current_user.id)
+        db.commit()
+
+        return create_response(
+            data={
+                "review_id": review_id,
+                "applied_count": len(results),
+                "success_count": sum(1 for r in results if r.success),
+                "failed_count": sum(1 for r in results if not r.success),
+            },
+            msg="决策应用完成",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("手动应用决策失败: {}", e)
+        raise HTTPException(status_code=500, detail="手动应用决策失败")
 
 
 def _check_zero_edit_confirmation(

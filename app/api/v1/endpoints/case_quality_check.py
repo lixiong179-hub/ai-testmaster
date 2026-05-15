@@ -279,7 +279,7 @@ async def batch_analyze_cases(
                 "case_name": "",
                 "overall_score": 0,
                 "status": "failed",
-                "error": str(e)
+                "error": "分析失败"
             })
 
     success_results = [r for r in results if r["status"] == "success"]

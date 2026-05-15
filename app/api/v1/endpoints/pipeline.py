@@ -38,7 +38,7 @@ from app.api.v1.endpoints.pipeline_artifacts import record_version_rerun_metric 
 # 从子模块重新导出端点函数，保持外部 import 路径兼容
 from app.api.v1.endpoints.pipeline_precheck import precheck_scenario_4
 from app.api.v1.endpoints.pipeline_resume import resume_pipeline
-from app.api.v1.endpoints.pipeline_artifacts import get_inferred_summary, supplement_signals
+from app.api.v1.endpoints.pipeline_artifacts import get_inferred_summary, supplement_signals, get_pipeline_summary
 
 __all__ = [
     "PipelineRunRequest",
@@ -50,6 +50,7 @@ __all__ = [
     "resume_pipeline",
     "get_inferred_summary",
     "supplement_signals",
+    "get_pipeline_summary",
 ]
 
 router = APIRouter(prefix="/pipeline", tags=["Pipeline管理"])
@@ -58,10 +59,14 @@ router = APIRouter(prefix="/pipeline", tags=["Pipeline管理"])
 from app.api.v1.endpoints.pipeline_precheck import router as _precheck_router
 from app.api.v1.endpoints.pipeline_resume import router as _resume_router
 from app.api.v1.endpoints.pipeline_artifacts import router as _artifacts_router
+from app.api.v1.endpoints.pipeline_dashboard import router as _dashboard_router
+from app.api.v1.endpoints.pipeline_metrics import router as _metrics_router
 
 router.include_router(_precheck_router)
 router.include_router(_resume_router)
 router.include_router(_artifacts_router)
+router.include_router(_dashboard_router)
+router.include_router(_metrics_router)
 
 
 @router.post("/iteration/{iteration_id}/run", response_model=dict)
@@ -167,7 +172,7 @@ async def run_pipeline(
     except Exception as e:
         db.rollback()
         logger.error("Pipeline 运行失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"Pipeline 运行失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="Pipeline 运行失败")
 
 
 @router.get("/{run_id}", response_model=dict)
@@ -229,4 +234,4 @@ async def get_pipeline_run(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取 Pipeline 状态失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取 Pipeline 状态失败")

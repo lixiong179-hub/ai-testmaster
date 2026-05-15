@@ -13,6 +13,8 @@ export type EditorNodeData = {
     semantic?: string
     position?: string
     interactive?: boolean
+    state?: string
+    description?: string
   }>
   flow_type: FlowNodeData['flow_type']
   main_order?: number
@@ -81,18 +83,89 @@ export const FLOW_TYPE_LABEL_MAP: Record<string, string> = {
 
 export const getNodeData = (node: FlowEditorNode) => node.data as EditorNodeData
 
-export const getMainNodesInOrder = (nodes: FlowEditorNode[]) =>
-  [...nodes]
-    .filter((node) => getNodeData(node).flow_type === 'main')
-    .sort((a, b) => {
-      const aOrder = getNodeData(a).main_order ?? Number.MAX_SAFE_INTEGER
-      const bOrder = getNodeData(b).main_order ?? Number.MAX_SAFE_INTEGER
-      if (aOrder !== bOrder) return aOrder - bOrder
-      return a.position.x - b.position.x
-    })
+/**
+ * 从边数据中推导主干链顺序。
+ * 按 main→main 类型边进行拓扑排序，返回按边的 source→target 链排列的主干节点 ID 列表。
+ * 若无有效的 main→main 边，返回 null。
+ */
+const deriveMainOrderFromEdges = (mainNodeIds: Set<string>, edges: Edge[]): string[] | null => {
+  const incoming = new Map<string, string>() // target → source (每个节点最多一个 main incoming)
+  for (const e of edges) {
+    const edgeType = (e.data as { edge_type?: string })?.edge_type
+    if (edgeType === 'normal' && mainNodeIds.has(e.source) && mainNodeIds.has(e.target)) {
+      if (!incoming.has(e.target)) {
+        incoming.set(e.target, e.source)
+      }
+    }
+  }
 
-export const getOrderedNodesForSubmit = (nodes: FlowEditorNode[]) => {
-  const mainNodes = getMainNodesInOrder(nodes)
+  if (incoming.size === 0) return null
+
+  const allSources = new Set(incoming.values())
+  const headCandidates = [...mainNodeIds].filter((id) => !incoming.has(id) && allSources.has(id))
+
+  let headId: string | undefined
+  if (headCandidates.length === 1) {
+    headId = headCandidates[0]
+  } else if (headCandidates.length > 1) {
+    // 多个候选：取 x 坐标最小的作为链头
+    headId = headCandidates[0]
+  } else {
+    // 无纯源头节点，取任意主干节点作为起点
+    headId = [...mainNodeIds][0]
+  }
+
+  const ordered: string[] = [headId]
+  const visited = new Set<string>([headId])
+  let current = headId
+
+  // 沿 incoming map 反向遍历（target → source），改用 outgoing 方式遍历
+  // 重建 outgoing: source → target
+  const outgoing = new Map<string, string>()
+  for (const [target, source] of incoming) {
+    outgoing.set(source, target)
+  }
+
+  while (outgoing.has(current)) {
+    const next = outgoing.get(current)!
+    if (visited.has(next)) break // 环检测
+    visited.add(next)
+    ordered.push(next)
+    current = next
+  }
+
+  return ordered.length > 1 ? ordered : null
+}
+
+export const getMainNodesInOrder = (nodes: FlowEditorNode[], edges?: Edge[]): FlowEditorNode[] => {
+  const mainNodes = nodes.filter((node) => getNodeData(node).flow_type === 'main')
+
+  // 优先从边拓扑推导顺序
+  if (edges) {
+    const mainNodeIds = new Set(mainNodes.map((n) => n.id))
+    const edgeOrder = deriveMainOrderFromEdges(mainNodeIds, edges)
+    if (edgeOrder) {
+      const orderMap = new Map(edgeOrder.map((id, idx) => [id, idx]))
+      return mainNodes.sort((a, b) => {
+        const aOrder = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER
+        const bOrder = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER
+        if (aOrder !== bOrder) return aOrder - bOrder
+        return a.position.x - b.position.x
+      })
+    }
+  }
+
+  // Fallback：按 main_order 排序
+  return [...mainNodes].sort((a, b) => {
+    const aOrder = getNodeData(a).main_order ?? Number.MAX_SAFE_INTEGER
+    const bOrder = getNodeData(b).main_order ?? Number.MAX_SAFE_INTEGER
+    if (aOrder !== bOrder) return aOrder - bOrder
+    return a.position.x - b.position.x
+  })
+}
+
+export const getOrderedNodesForSubmit = (nodes: FlowEditorNode[], edges?: Edge[]) => {
+  const mainNodes = getMainNodesInOrder(nodes, edges)
   const otherNodes = [...nodes]
     .filter((node) => getNodeData(node).flow_type !== 'main')
     .sort((a, b) => {
@@ -102,8 +175,8 @@ export const getOrderedNodesForSubmit = (nodes: FlowEditorNode[]) => {
   return [...mainNodes, ...otherNodes]
 }
 
-export const normalizeMainNodeOrders = (nodes: FlowEditorNode[]) => {
-  const mainNodes = getMainNodesInOrder(nodes)
+export const normalizeMainNodeOrders = (nodes: FlowEditorNode[], edges?: Edge[]) => {
+  const mainNodes = getMainNodesInOrder(nodes, edges)
   const mainOrderMap = new Map(mainNodes.map((node, index) => [node.id, index + 1]))
 
   return nodes.map((node) => {
@@ -115,15 +188,13 @@ export const normalizeMainNodeOrders = (nodes: FlowEditorNode[]) => {
       }
     }
 
-    // main_order 仅主干节点持有，非主干节点显式剔除
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { main_order: _mainOrder, ...restData } = nodeData
     return { ...node, data: restData }
   })
 }
 
-export const layoutMainNodesByOrder = (nodes: FlowEditorNode[]) => {
-  const mainNodes = getMainNodesInOrder(nodes)
+export const layoutMainNodesByOrder = (nodes: FlowEditorNode[], edges?: Edge[]) => {
+  const mainNodes = getMainNodesInOrder(nodes, edges)
   const positionMap = new Map(
     mainNodes.map((node, index) => [node.id, { x: index * 280, y: node.position.y }])
   )
@@ -185,7 +256,9 @@ export type FlowEdgeInput = {
 }
 
 export const validateFlowData = (
-  nodes: (Pick<FlowNodeData, 'screen_id' | 'screen_name' | 'flow_type'> & { position?: { x: number; y: number } })[],
+  nodes: (Pick<FlowNodeData, 'screen_id' | 'screen_name' | 'flow_type'> & {
+    position?: { x: number; y: number }
+  })[],
   edges: FlowEdgeInput[]
 ): FlowValidationResult => {
   const errors: string[] = []
@@ -206,7 +279,12 @@ export const validateFlowData = (
       errors.push(`存在未命名页面（screen_id=${node.screen_id}）`)
     }
     if (node.position) {
-      if (node.position.x < -2000 || node.position.x > 15000 || node.position.y < -2000 || node.position.y > 15000) {
+      if (
+        node.position.x < -2000 ||
+        node.position.x > 15000 ||
+        node.position.y < -2000 ||
+        node.position.y > 15000
+      ) {
         warnings.push(`${node.screen_name} 位置可能超出画布可视区域`)
       }
     }
@@ -247,6 +325,50 @@ export const validateFlowData = (
 /** 距离阈值（px），用于自动连线 */
 export const AUTO_CONNECT_DISTANCE = 350
 
+export interface EdgeHandles {
+  sourceHandle: string
+  targetHandle: string
+  edgeType: 'normal' | 'branch' | 'exception' | 'bypass'
+}
+
+/**
+ * 根据源/目标节点 flow_type 推断边类型及连接点 handle。
+ * 主干：水平 right→left；分支：向下 bottom→top；异常/旁路：向上 top→bottom。
+ */
+export const inferEdgeType = (sourceType: string, targetType: string): EdgeHandles => {
+  let edgeType: 'normal' | 'branch' | 'exception' | 'bypass'
+  if (sourceType === 'main' && targetType === 'main') {
+    edgeType = 'normal'
+  } else if (targetType === 'branch') {
+    edgeType = 'branch'
+  } else if (targetType === 'exception') {
+    edgeType = 'exception'
+  } else if (targetType === 'bypass') {
+    edgeType = 'bypass'
+  } else if (sourceType !== 'main' && targetType === 'main') {
+    edgeType = 'normal'
+  } else {
+    edgeType = 'branch'
+  }
+
+  let sourceHandle: string
+  let targetHandle: string
+  if (edgeType !== 'normal') {
+    if (edgeType === 'exception' || edgeType === 'bypass') {
+      sourceHandle = 'source-top'
+      targetHandle = 'target-bottom'
+    } else {
+      sourceHandle = 'source-bottom'
+      targetHandle = 'target-top'
+    }
+  } else {
+    sourceHandle = 'source-right'
+    targetHandle = 'target-left'
+  }
+
+  return { edgeType, sourceHandle, targetHandle }
+}
+
 /**
  * 基于节点物理距离自动生成连线。
  * 距离小于阈值的节点对自动建立边，方向从左/上到右/下。
@@ -282,32 +404,10 @@ export const generateAutoEdges = (
 
         if (source.id === target.id) continue
 
-        // 根据目标节点 flow_type 推断边类型
-        const sourceType = getNodeData(source).flow_type
-        const targetType = getNodeData(target).flow_type
-
-        let edgeType: 'normal' | 'branch' | 'exception' | 'bypass'
-        if (sourceType === 'main' && targetType === 'main') {
-          edgeType = 'normal'
-        } else if (targetType === 'branch') {
-          edgeType = 'branch'
-        } else if (targetType === 'exception') {
-          edgeType = 'exception'
-        } else if (targetType === 'bypass') {
-          edgeType = 'bypass'
-        } else if (sourceType !== 'main' && targetType === 'main') {
-          // 分支/异常/旁路 → 主干：视为回归主干，用 normal
-          edgeType = 'normal'
-        } else {
-          edgeType = 'branch'
-        }
-
-        // 根据相对位置选择连接点：水平主导用左右，垂直主导用上下
-        const absDx = Math.abs(dx)
-        const absDy = Math.abs(dy)
-        const isVertical = absDy > absDx
-        const sourceHandle = isVertical ? 'source-bottom' : 'source-right'
-        const targetHandle = isVertical ? 'target-top' : 'target-left'
+        const { edgeType, sourceHandle, targetHandle } = inferEdgeType(
+          getNodeData(source).flow_type,
+          getNodeData(target).flow_type
+        )
 
         edges.push({
           id: `auto_${source.id}_${target.id}`,

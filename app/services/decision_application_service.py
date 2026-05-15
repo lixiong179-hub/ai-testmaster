@@ -16,11 +16,11 @@
 """
 import hashlib
 import json
-import logging
 import time
 from dataclasses import dataclass, field
 from typing import Optional, List
 
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.services.lifecycle_service import transition as lifecycle_transition
@@ -31,8 +31,6 @@ from app.services.lifecycle_service import (
 )
 from app.pipelines.steps.reconciliation import MergedAction
 from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -61,9 +59,14 @@ class ApplyResult:
 
 def apply_decisions(
     db: Session,
-    decisions: List[ApplyDecision],
+    decisions: Optional[List[ApplyDecision]] = None,
     actor_id: Optional[int] = None,
+    review_id: Optional[int] = None,
 ) -> List[ApplyResult]:
+    if decisions is None and review_id is not None:
+        decisions = _load_decisions_from_review(review_id, db)
+    if decisions is None:
+        decisions = []
     results: List[ApplyResult] = []
     for decision in decisions:
         result = apply_single(db, decision, actor_id=actor_id)
@@ -207,7 +210,6 @@ def _handle_locator_and_modify(
         return _build_result(decision, success=True)
 
     try:
-        enable_lifecycle_transition()
         base_no = case.case_no.rsplit("-v", 1)[0] if "-v" in case.case_no else case.case_no
         parent_version = int(case.case_no.rsplit("-v", 1)[1]) if "-v" in case.case_no else 1
         new_case = TestCase(
@@ -231,13 +233,15 @@ def _handle_locator_and_modify(
             parent_case_id=case.id,
             last_review_id=decision.review_id,
         )
-        db.add(new_case)
-        db.flush()
+        enable_lifecycle_transition()
+        try:
+            db.add(new_case)
+            db.flush()
+        finally:
+            disable_lifecycle_transition()
         new_case_id = new_case.id
     except Exception as e:
         return _build_result(decision, success=False, error=f"创建新版本失败: {e}")
-    finally:
-        disable_lifecycle_transition()
 
     return _build_result(decision, success=True, new_case_id=new_case_id)
 
@@ -298,7 +302,7 @@ def _handle_add_new(
     from app.pipelines.runner import PipelineRunner
     from app.pipelines.context import PipelineContext
     from app.pipelines.scenarios import get_scenario
-    from app.ai.openai_client import OpenAIClient
+    from app.api.v1.endpoints.pipeline_resume import create_ai_client
     from app.services import pipeline_service, iteration_service
 
     case_data = decision.case_data or {}
@@ -367,7 +371,7 @@ def _handle_add_new(
         iteration_service.transition_iteration_status(db, iteration_id, "in_pipeline")
 
         # 创建 AI Client 与 PipelineContext
-        ai_client = OpenAIClient()
+        ai_client = create_ai_client()
         ctx = PipelineContext(
             db=db,
             ai_client=ai_client,
@@ -390,7 +394,7 @@ def _handle_add_new(
                 case_ids = persisted.get("case_ids", [])
                 generated_count = len(case_ids) if isinstance(case_ids, list) else 0
             logger.info(
-                "_handle_add_new 成功: iteration_id=%d, generated_count=%d",
+                "_handle_add_new 成功: iteration_id={}, generated_count={}",
                 iteration_id, generated_count,
             )
             return ApplyResult(
@@ -403,11 +407,11 @@ def _handle_add_new(
             error_msg = f"Pipeline 执行失败，状态: {run.status}"
             if run.error:
                 error_msg += f"，错误: {run.error}"
-            logger.error("_handle_add_new Pipeline 失败: %s", error_msg)
+            logger.error("_handle_add_new Pipeline 失败: {}", error_msg)
             return _build_result(decision, success=False, error=error_msg)
 
     except Exception as e:
-        logger.error("_handle_add_new 失败: %s", e, exc_info=True)
+        logger.error("_handle_add_new 失败: {}", e)
         return _build_result(decision, success=False, error=f"add_new 处理异常: {str(e)}")
 
 
@@ -428,3 +432,38 @@ def _handle_pending_review(decision: ApplyDecision) -> ApplyResult:
         deferred=True,
         deferred_reason="pending_review deferred for manual evaluation",
     )
+
+
+def _load_decisions_from_review(review_id: int, db: Session) -> List[ApplyDecision]:
+    from app.models.review import IterationReview, ReviewDecision
+    review = db.get(IterationReview, review_id)
+    if review is None:
+        return []
+    review_decisions = db.query(ReviewDecision).filter(
+        ReviewDecision.review_id == review_id,
+    ).all()
+    result: List[ApplyDecision] = []
+    for rd in review_decisions:
+        merged_action = _verdict_to_action(rd.final_verdict, rd.conflict_marker)
+        ad = ApplyDecision(
+            target_kind=rd.target_kind,
+            target_id=rd.target_id,
+            merged_action=merged_action,
+            modification_hint=rd.modification_hint,
+            deprecate_reason=rd.deprecate_reason,
+            confidence=rd.ai_confidence / 100.0 if rd.ai_confidence is not None else 0.0,
+            review_id=review_id,
+        )
+        result.append(ad)
+    return result
+
+
+def _verdict_to_action(verdict: str, conflict: bool) -> str:
+    if conflict:
+        return MergedAction.CONFLICT
+    mapping = {
+        "keep": MergedAction.KEEP,
+        "modify": MergedAction.NEEDS_MODIFY,
+        "deprecate": MergedAction.DEPRECATE,
+    }
+    return mapping.get(verdict, MergedAction.PENDING_REVIEW)

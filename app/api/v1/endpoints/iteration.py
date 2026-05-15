@@ -282,7 +282,7 @@ async def delete_iteration(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"删除迭代失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="删除迭代失败")
 
 
 @router.post("/{iteration_id}/finalize", response_model=dict)
@@ -369,7 +369,7 @@ async def add_iteration_input(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"添加迭代输入失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="添加迭代输入失败")
 
 
 @router.post("/{iteration_id}/pipeline/run", response_model=dict)

@@ -21,6 +21,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
+from app.services.visibility_config import VisibilityConfigService
 from app.core.exception import create_response
 from loguru import logger
 
@@ -64,8 +65,13 @@ async def run_test_task(
     try:
         executed_task = await executor.execute_test_task(task_id)
 
-        # 获取执行摘要
         summary = executor.get_task_execution_summary(task_id)
+
+        vis_service = VisibilityConfigService()
+        config = vis_service.get_project_config(db, task.project_id)
+        hidden_fields = config.hidden_fields or []
+        if hidden_fields:
+            summary = {k: v for k, v in summary.items() if k not in hidden_fields}
 
         return {
             "task": executed_task,

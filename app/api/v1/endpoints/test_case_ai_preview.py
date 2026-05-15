@@ -78,6 +78,7 @@ async def preview_graph_prompt(
                 request.context.get("test_point", {}), ensure_ascii=False
             ),
             ui_specs_text=request.context.get("ui_specs_text", ""),
+            history_cases=request.context.get("history_cases"),
         )
 
         return PreviewGraphPromptResponse(
@@ -93,4 +94,4 @@ async def preview_graph_prompt(
         )
     except Exception as e:
         logger.error(f"预览Graph Prompt失败: {e}")
-        raise HTTPException(status_code=500, detail=f"预览失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="预览失败")

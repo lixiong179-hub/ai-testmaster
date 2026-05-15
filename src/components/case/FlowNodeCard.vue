@@ -191,10 +191,12 @@
       </div>
     </template>
 
+    <Handle type="source" :position="Position.Top" id="source-top" />
     <Handle type="source" :position="Position.Right" id="source-right" />
     <Handle type="source" :position="Position.Bottom" id="source-bottom" />
     <Handle type="target" :position="Position.Left" id="target-left" />
     <Handle type="target" :position="Position.Top" id="target-top" />
+    <Handle type="target" :position="Position.Bottom" id="target-bottom" />
   </div>
 </template>
 

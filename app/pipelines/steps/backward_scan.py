@@ -73,7 +73,7 @@ class BackwardScan(PipelineStep):
         all_fps = fingerprints.get("fingerprints", [])
 
         service = BackwardScanService(
-            ai_client=ctx.ai_client,
+            ai_client=ctx.get_ai_client(),
             batch_size=BATCH_SIZE,
         )
 

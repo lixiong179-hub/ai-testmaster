@@ -27,8 +27,8 @@ class AIGenerateRequest(BaseModel):
     @field_validator("description")
     @classmethod
     def validate_description(cls, v: str) -> str:
-        if len(v.strip()) < 10:
-            raise ValueError("描述不能为空且至少需要10个字符")
+        if len(v.strip()) < 5:
+            raise ValueError("描述不能为空且至少需要5个字符")
         if len(v) > 10000:
             raise ValueError(f"描述过长({len(v)}字符)，最大允许10000字符")
         return v.strip()
@@ -54,7 +54,7 @@ class AIGenerateEnhancedRequest(BaseModel):
     @field_validator("case_type")
     @classmethod
     def validate_case_type(cls, v: str | None) -> str | None:
-        if v is None:
+        if not v:
             return None
         valid_types = (
             "ui_automation", "manual", "api_automation", "performance",
@@ -131,6 +131,20 @@ class SingleGenerateRequest(BaseModel):
     force_refresh: bool = False
     case_type: Optional[str] = None
 
+    @field_validator("case_type")
+    @classmethod
+    def validate_case_type(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        valid_types = (
+            "ui_automation", "manual", "api_automation", "performance",
+            "security", "functional", "api_auto", "UI", "API",
+        )
+        if v not in valid_types:
+            raise ValueError(f"不支持的用例类型: {v}")
+        from app.core.constants import TestCaseType
+        return TestCaseType.from_legacy(v).value
+
     @field_validator("requirement_file_ids", "ui_file_ids", "ui_screen_ids")
     @classmethod
     def ensure_list(cls, v: List[int] | None) -> List[int]:
@@ -162,6 +176,20 @@ class BatchGenerateRequest(BaseModel):
     test_point_page: int = 1
     test_point_page_size: int = 100
     case_type: Optional[str] = None
+
+    @field_validator("case_type")
+    @classmethod
+    def validate_case_type(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        valid_types = (
+            "ui_automation", "manual", "api_automation", "performance",
+            "security", "functional", "api_auto", "UI", "API",
+        )
+        if v not in valid_types:
+            raise ValueError(f"不支持的用例类型: {v}")
+        from app.core.constants import TestCaseType
+        return TestCaseType.from_legacy(v).value
 
     @field_validator("test_point_ids", "requirement_file_ids", "ui_file_ids", "ui_screen_ids")
     @classmethod

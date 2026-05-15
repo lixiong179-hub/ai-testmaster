@@ -15,6 +15,7 @@ from app.pipelines.steps.forward_scan import ForwardScan
 from app.pipelines.steps.reconciliation import Reconciliation
 from app.pipelines.steps.scenario_candidates import ScenarioCandidateExtractor
 from app.pipelines.steps.reverse_infer import ReverseInfer
+from app.pipelines.steps.decision_dispatch import DecisionDispatch
 
 __all__ = [
     "SignalGatherer",
@@ -28,4 +29,5 @@ __all__ = [
     "Reconciliation",
     "ScenarioCandidateExtractor",
     "ReverseInfer",
+    "DecisionDispatch",
 ]

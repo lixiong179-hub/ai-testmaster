@@ -1,13 +1,12 @@
 import { ref, watch, nextTick, type Ref } from 'vue'
-import {
-  type Connection as FlowConnection,
-  type EdgeChange,
-} from '@vue-flow/core'
+import { type Connection as FlowConnection, type EdgeChange } from '@vue-flow/core'
 import { ElMessage } from 'element-plus'
 import {
   type FlowEditorNode,
   type FlowGraphEdge,
   type EdgeStyleConfig,
+  getNodeData,
+  inferEdgeType,
 } from '@/composables/useFlowEditor'
 import { type EdgeSuggestion } from '@/composables/useEdgeSuggestion'
 
@@ -76,8 +75,13 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
 
   // ---------- 状态 ----------
 
-  /** 当前连接信息（新建连线时暂存 source/target） */
-  const currentConnection = ref<{ source: string; target: string } | null>(null)
+  /** 当前连接信息（新建连线时暂存 source/target 和 handle） */
+  const currentConnection = ref<{
+    source: string
+    target: string
+    sourceHandle?: string
+    targetHandle?: string
+  } | null>(null)
 
   /** 边条件弹窗可见性 */
   const conditionDialogVisible = ref(false)
@@ -89,7 +93,10 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
   const editingEdgeId = ref<string | null>(null)
 
   /** 边删除前快照，用于 onEdgesChange 中恢复撤销 */
-  let preChangeEdgesSnapshot: { nodes: FlowEditorNode[]; edges: FlowGraphEdge[] } | null = null
+  const preChangeEdgesSnapshot = ref<{
+    nodes: FlowEditorNode[]
+    edges: FlowGraphEdge[]
+  } | null>(null)
 
   // ---------- watch: 弹窗关闭时清理编辑状态 ----------
 
@@ -110,7 +117,7 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
         return
       }
       if (newVal.length < oldVal.length) {
-        preChangeEdgesSnapshot = {
+        preChangeEdgesSnapshot.value = {
           nodes: JSON.parse(JSON.stringify(vueFlowNodes.value)),
           edges: JSON.parse(JSON.stringify(oldVal)),
         }
@@ -123,7 +130,39 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
 
   /** 新建连线处理 - 打开条件弹窗 */
   const onConnect = (connection: FlowConnection): void => {
-    currentConnection.value = { source: connection.source, target: connection.target }
+    const {
+      source,
+      target,
+      sourceHandle: rawSourceHandle,
+      targetHandle: rawTargetHandle,
+    } = connection
+    const sourceHandle = rawSourceHandle ?? undefined
+    const targetHandle = rawTargetHandle ?? undefined
+    let finalSourceHandle = sourceHandle
+    let finalTargetHandle = targetHandle
+
+    if (!sourceHandle || !targetHandle) {
+      const sourceNode = vueFlowNodes.value.find((n) => n.id === source)
+      const targetNode = vueFlowNodes.value.find((n) => n.id === target)
+      if (sourceNode && targetNode) {
+        const handles = inferEdgeType(
+          sourceNode.data?.flow_type as string,
+          targetNode.data?.flow_type as string
+        )
+        finalSourceHandle = handles.sourceHandle
+        finalTargetHandle = handles.targetHandle
+      } else {
+        finalSourceHandle = 'source-right'
+        finalTargetHandle = 'target-left'
+      }
+    }
+
+    currentConnection.value = {
+      source,
+      target,
+      sourceHandle: finalSourceHandle,
+      targetHandle: finalTargetHandle,
+    }
     currentEdgeForm.value = null
     editingEdgeId.value = null
     conditionDialogVisible.value = true
@@ -202,6 +241,8 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
         id: `edge_${Date.now()}`,
         source: currentConnection.value.source,
         target: currentConnection.value.target,
+        sourceHandle: currentConnection.value.sourceHandle,
+        targetHandle: currentConnection.value.targetHandle,
         type: 'default',
         animated: true,
         label: edgeData.label,
@@ -227,14 +268,12 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
 
   /** 边变更处理 - 含撤销快照逻辑 */
   const onEdgesChange = (changes: EdgeChange[]): void => {
-    const removedIds = new Set(
-      changes.filter((c) => c.type === 'remove').map((c) => c.id)
-    )
+    const removedIds = new Set(changes.filter((c) => c.type === 'remove').map((c) => c.id))
     if (removedIds.size > 0) {
-      if (preChangeEdgesSnapshot) {
-        historyStack.value.push(preChangeEdgesSnapshot)
+      if (preChangeEdgesSnapshot.value) {
+        historyStack.value.push(preChangeEdgesSnapshot.value)
         if (historyStack.value.length > 50) historyStack.value.shift()
-        preChangeEdgesSnapshot = null
+        preChangeEdgesSnapshot.value = null
       } else {
         saveSnapshot()
       }
@@ -250,13 +289,22 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
   const handleEdgeSuggestionsConfirmed = (accepted: EdgeSuggestion[]): void => {
     if (accepted.length === 0) return
     saveSnapshot()
-    const newEdges: FlowGraphEdge[] = accepted.map((s) => ({
-      id: `edge_${s.sourceNodeId}_${s.targetNodeId}_${Date.now()}`,
-      source: s.sourceNodeId,
-      target: s.targetNodeId,
-      type: 'default',
-      data: { edge_type: 'branch', condition: '' },
-    }))
+    const newEdges: FlowGraphEdge[] = accepted.map((s) => {
+      const sourceNode = vueFlowNodes.value.find((n) => n.id === s.sourceNodeId)
+      const targetNode = vueFlowNodes.value.find((n) => n.id === s.targetNodeId)
+      const sourceType = sourceNode ? getNodeData(sourceNode).flow_type : 'main'
+      const targetType = targetNode ? getNodeData(targetNode).flow_type : 'branch'
+      const handles = inferEdgeType(sourceType, targetType)
+      return {
+        id: `edge_${s.sourceNodeId}_${s.targetNodeId}_${Date.now()}`,
+        source: s.sourceNodeId,
+        target: s.targetNodeId,
+        sourceHandle: handles.sourceHandle,
+        targetHandle: handles.targetHandle,
+        type: 'default' as const,
+        data: { edge_type: handles.edgeType, condition: '' },
+      }
+    })
     vueFlowEdges.value = applyAllEdgeStyles([...vueFlowEdges.value, ...newEdges])
     emitSortData()
     ElMessage.success(`已应用 ${accepted.length} 条建议连线`)

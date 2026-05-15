@@ -203,7 +203,7 @@
                     >
                       <div class="case-step-num">{{ step.step_number }}</div>
                       <div class="case-step-content">
-                        <div class="case-step-action">{{ step.action }}</div>
+                        <div class="case-step-action">{{ step.display_action || step.description || step.action }}</div>
                         <div v-if="step.expected_result" class="case-step-expected">
                           预期：{{ step.expected_result }}
                         </div>
@@ -434,7 +434,7 @@ const getPriorityLabel = (priority: number): string => {
 
 const formatCaseStepSummary = (item: XmindPreviewCaseItem): string => {
   if (!item.steps.length) return '无步骤'
-  return item.steps.map((step) => `${step.step_number}.${step.action}`).join(' → ')
+  return item.steps.map((step) => `${step.step_number}.${step.display_action || step.description || step.action}`).join(' → ')
 }
 
 const handlePreviewTabChange = () => {

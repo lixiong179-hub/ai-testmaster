@@ -41,11 +41,24 @@ from app.models.enums import LocatorStatus
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
 from app.services.execution_replay_service import get_execution_replay_service
+from app.services.visibility_config import VisibilityConfigService
 from app.core.exception import create_response
 from app.utils.db_time import utcnow
 from loguru import logger
 
 router = APIRouter()
+
+
+def _filter_by_visibility(data: dict, hidden_fields: list) -> dict:
+    if not hidden_fields:
+        return data
+    return {k: v for k, v in data.items() if k not in hidden_fields}
+
+
+def _get_hidden_fields(db: Session, project_id: int) -> list:
+    vis_service = VisibilityConfigService()
+    config = vis_service.get_project_config(db, project_id)
+    return config.hidden_fields or []
 
 
 def verify_project_permission(db: Session, project_id: int, user_id: int) -> Project:
@@ -345,6 +358,8 @@ async def analyze_failure(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="关联的测试用例不存在")
 
         analysis = _perform_failure_analysis(result, test_case, db)
+        hidden_fields = _get_hidden_fields(db, test_case.project_id)
+        analysis = _filter_by_visibility(analysis, hidden_fields)
         return create_response(data=analysis, message="失败原因分析完成")
     except HTTPException:
         raise

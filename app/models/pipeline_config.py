@@ -11,18 +11,12 @@ Pipeline 配置模型模块
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, UniqueConstraint
 from app.utils.db_time import utcnow
 from app.db.database import Base
 
 
 class PipelineConfig(Base):
-    """
-    Pipeline 配置项模型
-
-    集中管理所有可调参数，key 唯一。
-    敏感配置（API key 等）仍在环境变量 / settings，不入 DB。
-    """
     __tablename__ = "pipeline_config"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -35,6 +29,7 @@ class PipelineConfig(Base):
     description = Column(Text, nullable=True, comment="配置项说明")
     updated_by = Column(Integer, nullable=True, comment="最后修改人ID")
     updated_at = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow, comment="最后修改时间")
+    enable_posterior_scoring = Column(Boolean, nullable=False, default=False, server_default="0", comment="Pipeline完成后是否触发后验评分")
 
     __table_args__ = (
         UniqueConstraint("key", name="uq_pipeline_config_key"),

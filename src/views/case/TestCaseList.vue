@@ -660,7 +660,7 @@ const copyCase = (caseItem: TestCase) => {
     `模块: ${caseItem.module}\n` +
     `标题: ${caseItem.title}\n` +
     `前置条件: ${caseItem.precondition}\n` +
-    `测试步骤:\n${caseItem.steps?.map((step) => `${step.step_number}. ${step.action}`).join('\n')}\n` +
+    `测试步骤:\n${caseItem.steps?.map((step) => `${step.step_number || ''}. ${step.display_action || step.description || step.step || step.action || ''}`).join('\n')}\n` +
     `预期结果: ${caseItem.expected_result}\n` +
     `优先级: ${priorityText(caseItem.priority)}\n` +
     `用例类型: ${caseItem.case_type}`

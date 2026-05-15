@@ -376,6 +376,21 @@ class PreconditionStepBatchSave(BaseModel):
 
 # ==================== 流程图排序相关Schema ====================
 
+class FlowMetaSchema(BaseModel):
+    """流程补充信息Schema - 节点的扩展元数据
+
+    业务用途：接收前端流程编辑器中非主干节点的补充信息
+    与前端映射：对应 FlowMetaData 接口
+    """
+    parent_node_id: Optional[str] = Field(None, max_length=50, description="挂靠父节点ID")
+    parent_main_node_id: Optional[str] = Field(None, max_length=50, description="兼容旧数据的父节点ID")
+    trigger_condition: Optional[str] = Field(None, max_length=500, description="触发条件")
+    pre_action: Optional[str] = Field(None, max_length=500, description="前置操作")
+    expected_result: Optional[str] = Field(None, max_length=500, description="预期结果")
+    bypass_reason: Optional[str] = Field(None, max_length=500, description="旁路原因")
+    note: Optional[str] = Field(None, max_length=500, description="备注")
+
+
 class FlowNodeSchema(BaseModel):
     """流程图节点Schema - 接收前端传递的排序数据
 
@@ -393,6 +408,11 @@ class FlowNodeSchema(BaseModel):
     ocr_text: Optional[str] = Field(None, max_length=5000, description="OCR识别的页面文本")
     ui_spec_elements: Optional[List[Dict[str, Any]]] = Field(None, description="UI元素列表（从ui_spec提取）")
     summary: Optional[str] = Field(None, max_length=1000, description="AI解析摘要")
+    flow_meta: Optional[FlowMetaSchema] = Field(
+        None,
+        description="流程补充信息，含 pre_action/expected_result/bypass_reason/note"
+    )
+    image_url: Optional[str] = Field(None, max_length=2000, description="截图URL，用于多模态Prompt")
 
     @field_validator('screen_name')
     @classmethod
@@ -416,6 +436,9 @@ class FlowEdgeSchema(BaseModel):
     )
     condition: Optional[str] = Field(None, max_length=500, description="触发条件/异常场景")
     label: str = Field(..., min_length=1, max_length=100, description="连线显示标签")
+    trigger_action: Optional[str] = Field(None, max_length=500, description="触发动作描述")
+    pre_action: Optional[str] = Field(None, max_length=500, description="前置操作描述")
+    note: Optional[str] = Field(None, max_length=500, description="备注信息")
 
     @field_validator('label')
     @classmethod

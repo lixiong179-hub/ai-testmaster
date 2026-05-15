@@ -11,7 +11,7 @@ from app.db.database import get_db
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.lineage_service import get_lineage, LineageResult
 
-router = APIRouter(prefix="/case-lineage")
+router = APIRouter()
 
 
 @router.get("/{test_case_id}/lineage", response_model=LineageResult)

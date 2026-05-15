@@ -213,6 +213,26 @@ class Persist(PipelineStep):
             "consistency_check": consistency_check,
         }
 
+        enable_posterior = ctx.get_config("ENABLE_POSTERIOR_SCORING", False)
+        if not enable_posterior:
+            from app.models.pipeline_config import PipelineConfig
+            config_row = ctx.db.query(PipelineConfig).first()
+            if config_row and getattr(config_row, "enable_posterior_scoring", False):
+                enable_posterior = True
+
+        if enable_posterior:
+            try:
+                from app.services.posterior_quality_service import compute_and_persist_posterior
+                posterior_result = compute_and_persist_posterior(ctx.db, project_id)
+                payload["posterior_scoring"] = posterior_result
+                logger.info(
+                    "后验评分已触发: project_id={}, score={}",
+                    project_id,
+                    posterior_result.get("posterior_quality_score"),
+                )
+            except Exception as e:
+                logger.error("后验评分触发失败: project_id={}, error={}", project_id, e)
+
         return StepResult(
             success=True,
             artifact_payload=payload,

@@ -76,13 +76,29 @@ TRANSITION_RULES: dict[tuple[str, str], dict] = {
         "description": "UI 变更导致 locator 失效",
     },
     (TestCaseLifecycleStatus.ACTIVE.value, TestCaseLifecycleStatus.DEPRECATED.value): {
-        "requires": ["deprecate_reason", "review_id"],
-        "description": "废弃，需原因 + 评审",
+        "requires": ["deprecate_reason"],
+        "description": "废弃，需原因",
+    },
+    (TestCaseLifecycleStatus.NEEDS_MODIFY.value, TestCaseLifecycleStatus.ACTIVE.value): {
+        "requires": [],
+        "description": "撤销需修改，恢复为活跃",
     },
     (TestCaseLifecycleStatus.NEEDS_MODIFY.value, TestCaseLifecycleStatus.PENDING_REVIEW.value): {
         "requires": [],
         "description": "创建新版本提交审核",
         "side_effect": "archive_old_version",
+    },
+    (TestCaseLifecycleStatus.DEPRECATED.value, TestCaseLifecycleStatus.ACTIVE.value): {
+        "requires": [],
+        "description": "撤销废弃，恢复为活跃",
+    },
+    (TestCaseLifecycleStatus.DRAFT.value, TestCaseLifecycleStatus.DEPRECATED.value): {
+        "requires": ["deprecate_reason"],
+        "description": "草稿用例废弃",
+    },
+    (TestCaseLifecycleStatus.NEEDS_MODIFY.value, TestCaseLifecycleStatus.DEPRECATED.value): {
+        "requires": ["deprecate_reason"],
+        "description": "需修改用例废弃",
     },
     (TestCaseLifecycleStatus.LOCATOR_BROKEN.value, TestCaseLifecycleStatus.ACTIVE.value): {
         "requires": [],

@@ -46,7 +46,7 @@ export const usePathPlayback = () => {
   }
 
   const buildMainPath = (nodes: FlowEditorNode[], edges: Edge[]): PlayStep[] => {
-    const mainNodes = getMainNodesInOrder(nodes)
+    const mainNodes = getMainNodesInOrder(nodes, edges)
     if (mainNodes.length === 0) return []
     const steps: PlayStep[] = []
     for (let i = 0; i < mainNodes.length; i += 1) {

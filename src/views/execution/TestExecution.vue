@@ -138,7 +138,7 @@
           >
             <div class="step-number">{{ index + 1 }}</div>
             <div class="step-content">
-              <div class="step-action">{{ step.action }}</div>
+              <div class="step-action">{{ step.display_action || step.description || step.action }}</div>
               <div class="step-target" v-if="step.target">{{ step.target }}</div>
               <div class="step-status">
                 <el-tag :type="getStepStatusType(step.status)" size="small">
@@ -199,7 +199,7 @@
               :class="{ active: currentStepIndex === index }"
               @click="selectStep(index)"
             >
-              <div class="step-action">{{ step.action }}</div>
+              <div class="step-action">{{ step.display_action || step.description || step.action }}</div>
               <div class="step-target" v-if="step.target">{{ step.target }}</div>
             </div>
           </el-timeline-item>

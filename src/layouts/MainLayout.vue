@@ -138,6 +138,7 @@ import {
   Check,
   Timer,
 } from '@element-plus/icons-vue'
+import { useFlowSortStore } from '@/store/flowSort'
 
 // 路由实例
 const router = useRouter()
@@ -236,9 +237,11 @@ const handleProfile = () => {
   router.push('/home/system/profile')
 }
 
-// 处理退出登录
+// 退出登录
 const handleLogout = () => {
   localStorage.removeItem('token')
+  const flowSortStore = useFlowSortStore()
+  flowSortStore.reset()
   ElMessage.success('退出登录成功')
   router.push('/login')
 }

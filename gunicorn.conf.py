@@ -26,7 +26,7 @@ max_requests = 10000
 max_requests_jitter = 1000
 
 # 超时时间（秒）
-timeout = 120
+timeout = 180
 keepalive = 5
 
 # 日志配置

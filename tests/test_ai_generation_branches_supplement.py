@@ -6,7 +6,7 @@ AI测试用例生成 - 遗漏分支补充测试
 2. case_generation.AIMixin: _generate_case_with_ai重试/超时/HTTP错误/请求错误/响应格式错误
 3. TestCaseGenerationAiMixin: generate_test_case_for_point UI关键词/分类推断, _build_ui_description
 4. AIParseMixin: _parse_ai_response多级解析策略
-5. TestCaseGenerationValidateMixin: _save_test_case完整流程, AUTO_PARSE_PRECONDITION分支, _get_default_case废弃方法
+5. TestCaseGenerationValidateMixin: _save_test_case完整流程, AUTO_PARSE_PRECONDITION分支
 6. TestCaseGenerationBatchMixin: generate_test_cases_batch全流程(空测试点/warning/部分失败/全部成功)
 7. batch-generate/stream端点
 8. ContextMixin: _sort_flow_nodes
@@ -585,12 +585,6 @@ class TestValidateMixinSaveTestCase:
             mock_parse.side_effect = Exception("parse error")
             case = await mixin._save_test_case(real_project.id, generated_case, test_point)
         assert case.id is not None
-
-    def test_get_default_case_raises(self):
-        from app.services.test_case_generation.validate_mixin import TestCaseGenerationValidateMixin
-        mixin = TestCaseGenerationValidateMixin()
-        with pytest.raises(AIServiceError):
-            mixin._get_default_case({"module": "M"})
 
 
 class TestBatchMixin:

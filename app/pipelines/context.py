@@ -140,5 +140,21 @@ class PipelineContext:
             "paused_at": utcnow().isoformat(),
         }
 
+    def get_ai_client(self) -> AIClient:
+        from app.ai.fallback_client import FallbackAIClient
+        if isinstance(self.ai_client, FallbackAIClient):
+            return self.ai_client
+        from app.core.config import settings
+        fallback_model = getattr(settings, "AI_FALLBACK_MODEL_NAME", "")
+        if fallback_model:
+            from app.ai.openai_client import OpenAIClient
+            fallback = OpenAIClient(
+                model=fallback_model,
+                api_key=settings.AI_API_KEY,
+                base_url=settings.AI_BASE_URL,
+            )
+            self.ai_client = FallbackAIClient(primary=self.ai_client, fallback=fallback)
+        return self.ai_client
+
     def get_pause_info(self) -> Optional[Dict[str, Any]]:
         return self._pause_info

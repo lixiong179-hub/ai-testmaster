@@ -56,27 +56,38 @@ def _build_linear_prompt(
 
 {ui_section}
 
+## 覆盖要求（核心）：
+你必须根据测试点的复杂度自行判断生成用例数量，最少3条，复杂测试点建议5-8条，且必须覆盖以下测试类型：
+- 正向用例（Happy Path）：主流程正常操作，至少1条
+- 边界值用例：输入/状态/数据的边界条件，至少1条
+- 异常用例：错误输入、权限缺失、网络异常、容错等，至少1条
+- 安全/性能用例（如涉及）：权限越权、并发、大数据量等，至少1条
+如果测试点涉及安全或性能场景，也应补充对应用例。
+每条用例必须覆盖不同的测试场景，禁止生成内容高度相似的重复用例。
+
 ## 输出要求：
-0. 必须返回3条测试用例，分别覆盖正向（case_category=positive）、边界（case_category=boundary）、异常（case_category=exception）三种测试类型
-1. 只输出JSON格式内容，不要添加任何其他文字
-2. JSON必须包含以下字段：
+1. 只输出JSON数组格式内容，不要添加任何其他文字
+2. 数组中每个对象必须包含以下字段：
    - title: 用例标题（必须具体明确，格式：场景/条件+操作+验证重点，如"无网络时提交批改显示网络错误提示"，禁止"功能验证""界面测试"等模糊词，长度15-40字）
    - module: 模块名称
    - precondition: 前置条件（必须包含"账号已登录"和网络环境（Web端写"浏览器网络正常"，App端写"设备网络正常"），有权限场景补充权限状态；禁止仅写"账号已登录"或"APP运行正常"；前置条件只约束环境与权限，禁止依赖特定业务数据（如"列表有数据""数据较多"），确保用例任意环境可独立执行；如需特定数据才能测试（如编辑/删除场景），应在步骤中先创建数据，而非在前置中假设数据已存在；前置条件不能包含操作步骤或页面导航状态（如"已进入详情页""在列表页面"），导航到达目标页面必须作为步骤体现，确保用例可独立自动化执行）
-   - test_data: 测试数据对象
+   - test_data: 测试数据对象（可选，如有特定测试数据如输入值、文件类型等请填写，无则可省略该字段）
    - steps: 测试步骤数组，每个步骤必须包含：
      * step: 步骤序号（如"1"、"2"、"3"等）
      * description: 步骤描述（必须严谨可复现，禁止口语化如"连续拍摄多张照片"）
-     * action: 具体操作
+     * action: 具体操作（必须是完整的业务操作描述如"点击提交按钮""输入用户名admin"，禁止只写操作类型关键词如"click""input"）
      * action_type: 操作类型（click/input/navigate/scroll/assert/select/verify，如点击写"click"，输入写"input"，导航写"navigate"）
      * input_value: 输入值（click类为空字符串，input类为具体输入值）
      * target_element: 目标元素描述（如"用户名输入框""提交按钮""列表区域"）
-     * expected_result: 该步骤对应的预期结果（必须有具体判定标准，禁止"提交成功""正常显示"等模糊描述）
+     * expected_result: 该步骤对应的预期结果（必须按三段式格式书写"【元素状态】+【具体文案/数值】+【交互结果】"，如"按钮由置灰变为可点击（从disabled态变为enabled态），点击后跳转至首页（URL包含/home）"；禁止"提交成功""正常显示""功能正常""交互跳转正确""无崩溃白屏""UI元素完整"等模糊描述）
      * param: 操作参数（可选，click类为空字符串，input类为输入值）
-   - expected_result: 总体预期结果（必须包含交互校验点如弹窗文案、按钮跳转，禁止只写大致结果）
+   - expected_result: 总体预期结果（必须包含交互校验点如弹窗文案、按钮跳转、元素状态变化，禁止只写大致结果）
    - case_type: 用例类型（ui_automation/manual/api_automation/performance/security）
    - priority: 优先级（1高/2中/3低）
    - case_category: 用例测试类型（positive=正向场景, boundary=边界场景, exception=异常场景）
+   - 原子性原则：一条用例只验证一个测试场景，禁止将主流程与分支/旁路逻辑混合在一条用例中
+   - 步骤确定性原则：每个步骤的操作必须唯一确定，禁止使用"或""或者"等不确定措辞
+   - 自动化可执行原则：case_type为ui_automation时，禁止步骤中出现"手动判断""人工确认""目测"等需要人工介入的描述
    - 自动化友好：步骤和预期必须支持自动化断言，预期需有可量化判定标准（如"无白屏""按钮置灰"），禁止"页面正常""功能正常"等无法断言的描述；步骤必须包含从登录后到达目标页面的完整导航操作，禁止将导航隐藏在前置条件中；弱网、异常条件等自动化无法实现的场景标注case_type为manual
 
 {get_comparison_examples()}
@@ -91,16 +102,15 @@ def _build_linear_prompt(
 - 纯后端逻辑验证（API调用、数据校验）→ api_automation
 - 复杂用户体验测试 → manual
 
-## 输出JSON格式：
+## 输出JSON格式（数组，最少3条，复杂测试点5-8条）：
 [
   {{
     "title": "正向场景+操作+验证重点",
     "module": "模块名称",
     "precondition": "前置条件",
-    "test_data": {{"normal": {{}}, "boundary": {{}}, "abnormal": {{}}}},
     "steps": [
-      {{"step": "1", "description": "步骤1描述", "action": "click", "action_type": "click", "input_value": "", "target_element": "目标元素", "param": "", "expected_result": "步骤1的预期结果"}},
-      {{"step": "2", "description": "步骤2描述", "action": "具体操作", "action_type": "input", "input_value": "输入值", "target_element": "输入框元素", "param": "", "expected_result": "步骤2的预期结果"}}
+      {{"step": "1", "description": "步骤1描述", "action": "点击目标元素", "action_type": "click", "input_value": "", "target_element": "目标元素", "param": "", "expected_result": "步骤1的预期结果"}},
+      {{"step": "2", "description": "步骤2描述", "action": "输入测试数据", "action_type": "input", "input_value": "输入值", "target_element": "输入框元素", "param": "", "expected_result": "步骤2的预期结果"}}
     ],
     "expected_result": "总体预期结果",
     "case_type": "ui_automation",
@@ -111,9 +121,9 @@ def _build_linear_prompt(
     "title": "边界场景+操作+验证重点",
     "module": "模块名称",
     "precondition": "前置条件",
-    "test_data": {{"normal": {{}}, "boundary": {{}}, "abnormal": {{}}}},
+    "test_data": {{"input": "边界值示例", "expected": "对应结果"}},
     "steps": [
-      {{"step": "1", "description": "步骤1描述", "action": "click", "action_type": "click", "input_value": "", "target_element": "目标元素", "param": "", "expected_result": "步骤1的预期结果"}}
+      {{"step": "1", "description": "步骤1描述", "action": "点击目标元素", "action_type": "click", "input_value": "", "target_element": "目标元素", "param": "", "expected_result": "步骤1的预期结果"}}
     ],
     "expected_result": "边界验证预期结果",
     "case_type": "ui_automation",
@@ -124,9 +134,8 @@ def _build_linear_prompt(
     "title": "异常场景+操作+验证重点",
     "module": "模块名称",
     "precondition": "前置条件",
-    "test_data": {{"normal": {{}}, "boundary": {{}}, "abnormal": {{}}}},
     "steps": [
-      {{"step": "1", "description": "步骤1描述", "action": "click", "action_type": "click", "input_value": "", "target_element": "目标元素", "param": "", "expected_result": "步骤1的预期结果"}}
+      {{"step": "1", "description": "步骤1描述", "action": "点击目标元素", "action_type": "click", "input_value": "", "target_element": "目标元素", "param": "", "expected_result": "步骤1的预期结果"}}
     ],
     "expected_result": "异常处理预期结果",
     "case_type": "manual",

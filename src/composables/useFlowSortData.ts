@@ -9,7 +9,7 @@ import type {
   FlowEdgeInput,
   FlowValidationResult,
 } from '@/composables/useFlowEditor'
-import { validateFlowData } from '@/composables/useFlowEditor'
+import { validateFlowData, normalizeMainNodeOrders, getOrderedNodesForSubmit } from '@/composables/useFlowEditor'
 
 /** emit('update:sort-data') 的数据类型 */
 export type EmitSortDataPayload = { mode: string; nodes: FlowNodeData[]; edges: FlowEdgeData[] }
@@ -45,10 +45,11 @@ export default function useFlowSortData(options: UseFlowSortDataOptions): UseFlo
       id: edge.id,
       source: String(sourceScreenId),
       target: String(targetScreenId),
-      edge_type: ((edge.data?.edge_type as string | undefined) || 'normal') as FlowEdgeData['edge_type'],
+      edge_type: ((edge.data?.edge_type as string | undefined) ||
+        'normal') as FlowEdgeData['edge_type'],
       condition: (edge.data?.condition as string | undefined) || undefined,
       trigger_action: (edge.data?.trigger_action as string | undefined) || undefined,
-      label: (typeof edge.label === 'string' && edge.label.trim()) ? edge.label : '连线',
+      label: typeof edge.label === 'string' && edge.label.trim() ? edge.label : '连线',
       pre_action: (edge.data?.pre_action as string | undefined) || undefined,
       note: (edge.data?.note as string | undefined) || undefined,
     }
@@ -56,7 +57,17 @@ export default function useFlowSortData(options: UseFlowSortDataOptions): UseFlo
 
   /** 序列化所有节点和边数据，emit 事件并同步到 flowSort store */
   function emitSortData(): void {
-    const flowNodes: FlowNodeData[] = vueFlowNodes.value.map((node) => ({
+    // 在序列化前从边推导主干顺序并同步 main_order，确保 store 中的 main_order 与画布连线一致
+    const normalizedNodes = normalizeMainNodeOrders(vueFlowNodes.value, vueFlowEdges.value as any)
+
+    // 将边推导的 main_order 同步回 vueFlowNodes，避免后续代码路径读到旧值
+    normalizedNodes.forEach((normalized) => {
+      const existing = vueFlowNodes.value.find((n) => n.id === normalized.id)
+      if (existing) {
+        existing.data = { ...existing.data, main_order: getNodeData(normalized).main_order }
+      }
+    })
+    const flowNodes: FlowNodeData[] = normalizedNodes.map((node) => ({
       id: node.id,
       screen_id: getNodeData(node).screen_id,
       screen_name: getNodeData(node).screen_name,
@@ -79,7 +90,7 @@ export default function useFlowSortData(options: UseFlowSortDataOptions): UseFlo
 
   /** 获取提交给后端的完整流程数据 */
   function getFlowSortSubmitData(): { flow_sort_data: FlowSortSubmitData } {
-    const sortedNodes = [...vueFlowNodes.value]
+    const sortedNodes = getOrderedNodesForSubmit(vueFlowNodes.value, vueFlowEdges.value as any)
     return {
       flow_sort_data: {
         nodes: sortedNodes.map((node, index) => ({
@@ -91,10 +102,9 @@ export default function useFlowSortData(options: UseFlowSortDataOptions): UseFlo
           ui_spec_elements: getNodeData(node).ui_spec_elements || [],
           summary: getNodeData(node).summary || '',
           flow_meta: getNodeData(node).flow_meta || undefined,
+          image_url: getNodeData(node).image_url || undefined,
         })),
-        edges: vueFlowEdges.value
-          .map(serializeEdge)
-          .filter((e): e is FlowEdgeData => e !== null),
+        edges: vueFlowEdges.value.map(serializeEdge).filter((e): e is FlowEdgeData => e !== null),
         module_info: moduleInfo.value || { name: '', description: '' },
       },
     }
@@ -103,13 +113,15 @@ export default function useFlowSortData(options: UseFlowSortDataOptions): UseFlo
   /** 获取流程校验问题 */
   function getFlowValidationIssues(): FlowValidationResult {
     const flowData = getFlowSortSubmitData().flow_sort_data
-    const edges: FlowEdgeInput[] = flowData.edges.map((edge): FlowEdgeInput => ({
-      source: edge.source,
-      target: edge.target,
-      edge_type: edge.edge_type as FlowEdgeInput['edge_type'],
-      condition: edge.condition || '',
-      label: edge.label,
-    }))
+    const edges: FlowEdgeInput[] = flowData.edges.map(
+      (edge): FlowEdgeInput => ({
+        source: edge.source,
+        target: edge.target,
+        edge_type: edge.edge_type as FlowEdgeInput['edge_type'],
+        condition: edge.condition || '',
+        label: edge.label,
+      })
+    )
     return validateFlowData(flowData.nodes, edges)
   }
 

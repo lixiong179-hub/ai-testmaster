@@ -1,5 +1,6 @@
 import { ref, nextTick, type Ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { Edge } from '@vue-flow/core'
 import type { FlowMetaData } from '@/store/flowSort'
 import type {
   EditorNodeData,
@@ -7,7 +8,7 @@ import type {
   FlowEditorNode,
   FlowGraphEdge,
 } from '@/composables/useFlowEditor'
-import { FLOW_TYPE_LABEL_MAP } from '@/composables/useFlowEditor'
+import { FLOW_TYPE_LABEL_MAP, inferEdgeType } from '@/composables/useFlowEditor'
 
 /** 快速创建分支时的虚拟 screen_id 偏移量 */
 const VIRTUAL_SCREEN_ID_OFFSET = 1000
@@ -24,14 +25,14 @@ export interface UseFlowTypeOpsOptions {
   currentEdgeStyles: Ref<Record<string, EdgeStyleConfig>>
   isOverviewMode: Ref<boolean>
   getNodeData: (node: FlowEditorNode) => EditorNodeData
-  getMainNodesInOrder: (nodes: FlowEditorNode[]) => FlowEditorNode[]
-  normalizeMainNodeOrders: (nodes: FlowEditorNode[]) => FlowEditorNode[]
+  getMainNodesInOrder: (nodes: FlowEditorNode[], edges?: Edge[]) => FlowEditorNode[]
+  normalizeMainNodeOrders: (nodes: FlowEditorNode[], edges?: Edge[]) => FlowEditorNode[]
   normalizeEdges: (edges: any[], styleMap?: any, isOverview?: boolean) => any[]
   autoLayoutByMode: (
     mode: string,
     nodes: FlowEditorNode[],
     edges: FlowGraphEdge[],
-    focusedNodeId?: string | null,
+    focusedNodeId?: string | null
   ) => FlowEditorNode[]
   layoutMode: Ref<string>
   focusedNodeId: Ref<string | null>
@@ -61,8 +62,6 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
     normalizeMainNodeOrders,
     normalizeEdges,
     autoLayoutByMode: autoLayout,
-    layoutMode,
-    focusedNodeId,
     getEdgeStyle,
     isProgrammaticEdgeChange,
     fitView,
@@ -92,9 +91,9 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
       isProgrammaticEdgeChange.value = true
       vueFlowEdges.value = vueFlowEdges.value.filter(
         (e: any) =>
-          !(e.target === nodeId && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type)),
+          !(e.target === nodeId && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type))
       )
-      const nextMainOrder = getMainNodesInOrder(vueFlowNodes.value).length + 1
+      const nextMainOrder = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as any).length + 1
       vueFlowNodes.value = normalizeMainNodeOrders(
         vueFlowNodes.value.map((node) => {
           if (node.id !== nodeId) return node
@@ -109,13 +108,15 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
             },
           }
         }),
+        vueFlowEdges.value as any,
       )
       emitSortData()
+      // 使用 focused-path 模式仅重新排列该节点及其路径相关节点，保留其他节点位置
       vueFlowNodes.value = autoLayout(
-        layoutMode.value,
+        'focused-path',
         vueFlowNodes.value,
         vueFlowEdges.value as any,
-        focusedNodeId.value,
+        nodeId
       )
       return
     }
@@ -136,6 +137,21 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
 
     saveSnapshot()
 
+    const currentMainNodesBefore = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as any)
+    const nodeIndexBefore = currentMainNodesBefore.findIndex((n) => n.id === nodeId)
+    const wasMainNode = nodeIndexBefore >= 0 && type !== 'main'
+
+    let predecessorMainId: string | null = null
+    let successorMainId: string | null = null
+    if (wasMainNode) {
+      if (nodeIndexBefore > 0) {
+        predecessorMainId = currentMainNodesBefore[nodeIndexBefore - 1].id
+      }
+      if (nodeIndexBefore < currentMainNodesBefore.length - 1) {
+        successorMainId = currentMainNodesBefore[nodeIndexBefore + 1].id
+      }
+    }
+
     vueFlowNodes.value = normalizeMainNodeOrders(
       vueFlowNodes.value.map((node) => {
         if (node.id !== nodeId) return node
@@ -150,25 +166,43 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
           },
         }
       }),
+      vueFlowEdges.value as any,
     )
 
+    isProgrammaticEdgeChange.value = true
+
+    vueFlowEdges.value = vueFlowEdges.value.filter((e: any) => {
+      if (e.target === nodeId && e.source === parentNodeId && e.data?.edge_type !== 'normal') {
+        return false
+      }
+      if (e.source === nodeId || e.target === nodeId) {
+        if (predecessorMainId && successorMainId) {
+          if (
+            (e.source === predecessorMainId && e.target === nodeId) ||
+            (e.source === nodeId && e.target === successorMainId)
+          ) {
+            return false
+          }
+        } else if (e.source === nodeId || e.target === nodeId) {
+          return false
+        }
+      }
+      return true
+    })
+
     if (parentNodeId) {
-      isProgrammaticEdgeChange.value = true
-      vueFlowEdges.value = vueFlowEdges.value.filter(
-        (e: any) =>
-          !(e.target === nodeId && e.source === parentNodeId && e.data?.edge_type !== 'normal'),
-      )
       const existingEdgeIndex = vueFlowEdges.value.findIndex(
-        (e: any) => e.target === nodeId && e.source === parentNodeId,
+        (e: any) => e.target === nodeId && e.source === parentNodeId
       )
       const style = getEdgeStyle(type)
+      const handles = inferEdgeType('main', type)
       const newEdge: FlowGraphEdge = {
         id:
-          existingEdgeIndex >= 0
-            ? vueFlowEdges.value[existingEdgeIndex].id
-            : `edge_${Date.now()}`,
+          existingEdgeIndex >= 0 ? vueFlowEdges.value[existingEdgeIndex].id : `edge_${Date.now()}`,
         source: parentNodeId,
         target: nodeId,
+        sourceHandle: handles.sourceHandle,
+        targetHandle: handles.targetHandle,
         type: 'default',
         animated: true,
         style,
@@ -189,31 +223,49 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
             ...vueFlowEdges.value.slice(existingEdgeIndex + 1),
           ] as any,
           currentEdgeStyles.value,
-          isOverviewMode.value,
+          isOverviewMode.value
         ) as any
       } else {
         vueFlowEdges.value = normalizeEdges(
           [...vueFlowEdges.value, newEdge] as any,
           currentEdgeStyles.value,
-          isOverviewMode.value,
+          isOverviewMode.value
         ) as any
       }
-    } else {
-      isProgrammaticEdgeChange.value = true
-      vueFlowEdges.value = vueFlowEdges.value.filter(
-        (e: any) =>
-          !(e.target === nodeId && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type)),
+    }
+
+    if (predecessorMainId && successorMainId) {
+      const existingDirectEdge = vueFlowEdges.value.find(
+        (e: any) => e.source === predecessorMainId && e.target === successorMainId
       )
+      const mainChainEdge: FlowGraphEdge = {
+        id: existingDirectEdge?.id || `edge_${predecessorMainId}_${successorMainId}_${Date.now()}`,
+        source: predecessorMainId,
+        target: successorMainId,
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
+        type: 'default',
+        label: existingDirectEdge?.label || '连线',
+        data: existingDirectEdge?.data || { edge_type: 'normal' },
+      }
+      if (existingDirectEdge) {
+        vueFlowEdges.value = vueFlowEdges.value.map((e: any) =>
+          e.id === existingDirectEdge.id ? mainChainEdge : e
+        )
+      } else {
+        vueFlowEdges.value = [...vueFlowEdges.value, mainChainEdge]
+      }
     }
 
     flowTypeConfigVisible.value = false
     pendingFlowTypeChange.value = null
     pendingFlowMeta.value = null
+    // 使用 focused-path 模式仅重新排列新分支及其路径相关节点，保留其他节点位置
     vueFlowNodes.value = autoLayout(
-      layoutMode.value,
+      'focused-path',
       vueFlowNodes.value,
       vueFlowEdges.value as any,
-      focusedNodeId.value,
+      nodeId
     )
     emitSortData()
     nextTick(() => {
@@ -238,7 +290,7 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
             if (!val || !val.trim()) return '页面名称不能为空'
             return true
           },
-        },
+        }
       )
 
       saveSnapshot()
@@ -264,10 +316,13 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
         },
       }
 
+      const branchHandles = inferEdgeType('main', 'branch')
       const branchEdge: FlowGraphEdge = {
         id: `edge_${mainNodeId}_${branchId}`,
         source: mainNodeId,
         target: branchId,
+        sourceHandle: branchHandles.sourceHandle,
+        targetHandle: branchHandles.targetHandle,
         type: 'default',
         data: {
           edge_type: 'branch',
@@ -282,16 +337,17 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
       vueFlowEdges.value = normalizeEdges(
         [...vueFlowEdges.value, branchEdge] as any,
         currentEdgeStyles.value,
-        isOverviewMode.value,
+        isOverviewMode.value
       ) as any
 
       selectedNodes.value = [branchId]
       branchCounter.value++
+      // 使用 focused-path 模式仅重新排列新分支及其路径相关节点，保留其他节点位置
       vueFlowNodes.value = autoLayout(
-        layoutMode.value,
+        'focused-path',
         vueFlowNodes.value,
         vueFlowEdges.value as any,
-        focusedNodeId.value,
+        branchId
       )
       emitSortData()
       ElMessage.success(`已创建分支节点：${branchName.trim()}`)
@@ -321,14 +377,17 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
           },
         }
       }),
+      vueFlowEdges.value as any,
     )
 
     if (type === 'main') {
       isProgrammaticEdgeChange.value = true
       vueFlowEdges.value = vueFlowEdges.value.filter(
         (e: any) =>
-          !(selectedSet.has(e.target) &&
-            ['branch', 'exception', 'bypass'].includes(e.data?.edge_type)),
+          !(
+            selectedSet.has(e.target) &&
+            ['branch', 'exception', 'bypass'].includes(e.data?.edge_type)
+          )
       )
     }
 
@@ -337,16 +396,22 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
         const targetNode = vueFlowNodes.value.find((n) => n.id === edge.target)
         if (!targetNode) return edge
         const targetType = getNodeData(targetNode).flow_type
+        const sourceNode = vueFlowNodes.value.find((n) => n.id === edge.source)
+        const sourceType = sourceNode ? getNodeData(sourceNode).flow_type : 'main'
+        const newEdgeType = targetType === 'main' ? 'normal' : targetType
+        const handles = inferEdgeType(sourceType, targetType)
         return {
           ...edge,
-          data: { ...edge.data, edge_type: targetType === 'main' ? 'normal' : targetType },
+          sourceHandle: handles.sourceHandle,
+          targetHandle: handles.targetHandle,
+          data: { ...edge.data, edge_type: newEdgeType },
         }
-      }),
+      })
     )
 
     emitSortData()
     ElMessage.success(
-      `已将 ${selectedNodes.value.length} 个节点设为${FLOW_TYPE_LABEL_MAP[type] || type}`,
+      `已将 ${selectedNodes.value.length} 个节点设为${FLOW_TYPE_LABEL_MAP[type] || type}`
     )
   }
 
