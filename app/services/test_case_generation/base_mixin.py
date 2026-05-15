@@ -3,7 +3,6 @@ Test Case Generation Service - 基础方法Mixin
 包含内容清洗器、上下文获取、UI描述构建等基础能力
 """
 import re
-import html
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
@@ -49,7 +48,7 @@ class ContentSanitizer:
         content = re.sub(r'```(?:json|yaml|xml|markdown|prompt|system)', '', content, flags=re.IGNORECASE)
         content = re.sub(r'```', '', content)
         content = re.sub(r'<[^>]+>', '', content)
-        content = html.escape(content)
+        content = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', content)
         for pattern in cls.INJECTION_PATTERNS:
             content = re.sub(pattern, '[已过滤]', content, flags=re.IGNORECASE)
         if len(content) > max_length:

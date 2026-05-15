@@ -207,26 +207,46 @@
               <el-icon><Edit /></el-icon>编辑
             </el-button>
             <template v-else>
-              <el-button type="success" size="small" @click="store.handleSaveCase">
-                <el-icon><Check /></el-icon>保存
+              <el-button
+                type="success"
+                size="small"
+                @click="store.handleSaveCase"
+                :loading="store.saving"
+              >
+                <el-icon><Check /></el-icon>保存修改
               </el-button>
               <el-button size="small" @click="store.cancelEditResult">取消</el-button>
             </template>
             <el-button
               v-if="!store.isEditingResult"
-              type="primary"
+              type="danger"
               size="small"
-              @click="store.handleSaveCase"
-              :loading="store.saving"
+              plain
+              @click="store.handleDeleteCase(store.currentCaseIndex)"
             >
-              <el-icon><Check /></el-icon>保存用例
+              <el-icon><Delete /></el-icon>删除
+            </el-button>
+            <el-button
+              v-if="!store.isEditingResult"
+              type="warning"
+              size="small"
+              plain
+              @click="store.handleRegenerateCase(store.currentCaseIndex)"
+              :loading="store.generating"
+            >
+              <el-icon><Refresh /></el-icon>重新生成
             </el-button>
           </div>
         </div>
       </template>
 
       <!-- 用例导航条 -->
-      <div class="case-nav-bar" v-if="store.generatedCases.length > 1 && !store.isEditingResult">
+      <div class="case-nav-bar" v-if="store.generatedCases.length > 0 && !store.isEditingResult">
+        <el-checkbox
+          :model-value="store.allSelected"
+          @change="store.toggleSelectAll()"
+          :indeterminate="store.hasSelected && !store.allSelected"
+        />
         <button
           class="case-nav-btn"
           :disabled="store.currentCaseIndex <= 0"
@@ -243,11 +263,20 @@
               active: idx === store.currentCaseIndex,
               error: c._error,
               saved: c._saved,
+              selected: store.selectedCaseIndices.has(idx),
             }"
             @click="store.currentCaseIndex = idx"
             :title="c.title"
-            >{{ idx + 1 }}</span
           >
+            <el-checkbox
+              :model-value="store.selectedCaseIndices.has(idx)"
+              @change="store.toggleCaseSelection(idx)"
+              @click.stop
+              size="small"
+              class="case-dot-checkbox"
+            />
+            {{ idx + 1 }}
+          </span>
         </div>
         <button
           class="case-nav-btn"
@@ -256,15 +285,18 @@
         >
           下一条
         </button>
-        <div class="case-batch-actions">
+        <div class="case-batch-actions" v-if="store.hasSelected">
           <el-button
-            type="success"
+            type="warning"
             size="small"
-            @click="store.saveAllCases"
-            :loading="store.saving"
-            :disabled="store.generatedCases.every((c) => c._error || c._saved)"
+            plain
+            @click="store.handleRegenerateSelected"
+            :loading="store.generating"
           >
-            全部保存 ({{ store.generatedCases.filter((c) => !c._error && !c._saved).length }})
+            重新生成 ({{ store.selectedCount }})
+          </el-button>
+          <el-button type="danger" size="small" plain @click="store.handleDeleteSelected">
+            删除 ({{ store.selectedCount }})
           </el-button>
         </div>
       </div>
@@ -302,12 +334,27 @@
           </el-descriptions-item>
           <el-descriptions-item label="评审结果" v-if="store.viewingCase.ai_change_type">
             <el-tag
-              :type="store.viewingCase.ai_change_type === 'added' ? 'success' : store.viewingCase.ai_change_type === 'modified' ? 'warning' : 'danger'"
+              :type="
+                store.viewingCase.ai_change_type === 'added'
+                  ? 'success'
+                  : store.viewingCase.ai_change_type === 'modified'
+                    ? 'warning'
+                    : 'danger'
+              "
               size="small"
             >
-              {{ store.viewingCase.ai_change_type === 'added' ? '查漏·新增' : store.viewingCase.ai_change_type === 'modified' ? '补缺·修正' : '去冗·废弃' }}
+              {{
+                store.viewingCase.ai_change_type === 'added'
+                  ? '查漏·新增'
+                  : store.viewingCase.ai_change_type === 'modified'
+                    ? '补缺·修正'
+                    : '去冗·废弃'
+              }}
             </el-tag>
-            <span v-if="store.viewingCase.parent_case_id" style="margin-left: 6px; color: #909399; font-size: 12px">
+            <span
+              v-if="store.viewingCase.parent_case_id"
+              style="margin-left: 6px; color: #909399; font-size: 12px"
+            >
               源用例 #{{ store.viewingCase.parent_case_id }}
             </span>
           </el-descriptions-item>
@@ -409,7 +456,10 @@
               <el-card>
                 <div class="step-content">
                   <div class="step-desc">{{ step.description || step.step }}</div>
-                  <div class="step-action"><strong>操作:</strong> {{ step.action }}</div>
+                  <div class="step-action">
+                    <strong>操作:</strong>
+                    {{ step.display_action || step.description || step.action }}
+                  </div>
                   <div
                     v-if="step.test_data && Object.keys(step.test_data).length > 0"
                     class="step-data"
@@ -502,13 +552,8 @@
       </div>
 
       <div class="result-actions-bottom" v-if="!store.isEditingResult">
-        <el-button @click.stop="store.currentStep = 1">修改配置</el-button>
-        <el-button type="primary" @click="store.handleSaveCase" :loading="store.saving"
-          >保存当前用例</el-button
-        >
-        <el-button type="success" @click="store.handleContinueGenerate" :loading="store.generating"
-          >基于此用例继续生成</el-button
-        >
+        <el-button type="info" @click.stop="store.currentStep = 1">调整配置重新生成</el-button>
+        <el-button type="primary" @click="handleFinish">完成</el-button>
       </div>
     </el-card>
 
@@ -545,7 +590,15 @@
 </template>
 
 <script setup lang="ts">
-import { MagicStick, Close, Check, Refresh, InfoFilled, Edit } from '@element-plus/icons-vue'
+import {
+  MagicStick,
+  Close,
+  Check,
+  Refresh,
+  InfoFilled,
+  Edit,
+  Delete,
+} from '@element-plus/icons-vue'
 import { useGenerateStore } from '@/store/useGenerateStore'
 import FlowIssueDialog from '@/components/case/FlowIssueDialog.vue'
 
@@ -559,6 +612,11 @@ const store = useGenerateStore()
 const handleRetry = () => {
   store.handleRetry()
   emit('generate')
+}
+
+const handleFinish = () => {
+  store.resetGenerateState()
+  store.currentStep = 0
 }
 </script>
 
@@ -873,6 +931,28 @@ const handleRetry = () => {
   background: #f0f9eb;
   border-color: #67c23a;
   color: #67c23a;
+}
+
+.case-dot.selected {
+  box-shadow: 0 0 0 2px #e6a23c;
+}
+
+.case-dot-checkbox {
+  margin-right: 0;
+  height: 14px;
+  vertical-align: middle;
+}
+
+.case-dot-checkbox :deep(.el-checkbox__inner) {
+  width: 12px;
+  height: 12px;
+}
+
+.case-dot-checkbox :deep(.el-checkbox__inner::after) {
+  height: 6px;
+  left: 3px;
+  top: 1px;
+  width: 3px;
 }
 
 .case-batch-actions {

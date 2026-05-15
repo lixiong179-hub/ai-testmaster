@@ -90,7 +90,8 @@ class TestTask(Base):
     success_count = Column(Integer, nullable=False, default=0, comment="成功用例数")                    # 执行通过的用例计数
     fail_count = Column(Integer, nullable=False, default=0, comment="失败用例数")                       # 执行失败的用例计数
     total_count = Column(Integer, nullable=False, default=0, comment="总用例数")                        # 待执行用例总数
-    progress = Column(Integer, nullable=False, default=0, comment="执行进度（0-100）")                  # 执行进度百分比，0-100
+    progress = Column(Integer, nullable=False, default=0, comment="执行进度（0-100）")
+    visibility_config = Column(JSON, nullable=True, comment="可见模式配置")
     create_time = Column(DateTime, default=datetime.now, index=True, comment="创建时间")                # 任务创建时间
     update_time = Column(DateTime, default=datetime.now, onupdate=datetime.now, index=True, comment="更新时间")  # 任务更新时间
     

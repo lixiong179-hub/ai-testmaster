@@ -19,12 +19,22 @@ def _build_step_response(step: Dict, step_number: Optional[int] = None) -> Dict[
     Returns:
         标准化的步骤字典
     """
-    action = step.get("action", step.get("step", step.get("description", "执行")))
+    raw_action = step.get("action", "")
+    raw_description = step.get("description", "")
+    if raw_description and len(raw_description) > len(raw_action):
+        display_action = raw_description
+    elif raw_action:
+        display_action = raw_action
+    elif raw_description:
+        display_action = raw_description
+    else:
+        display_action = "执行"
 
     response = {
-        "step": action,
-        "action": action,
-        "description": step.get("description", ""),
+        "step": step.get("step", ""),
+        "action": raw_action,
+        "description": raw_description,
+        "display_action": display_action,
         "param": step.get("param", ""),
         "test_data": step.get("test_data", {}),
         "expected_result": step.get("expected_result", ""),

@@ -29,6 +29,8 @@ export interface StepResult {
   step_id: number
   step_number: number
   action: string
+  description?: string
+  display_action?: string
   success: boolean
   message: string
   locator_id?: number

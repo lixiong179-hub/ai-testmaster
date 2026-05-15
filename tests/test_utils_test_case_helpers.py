@@ -14,38 +14,49 @@ class TestBuildStepResponse:
     def test_basic_step_with_action(self):
         step = {"action": "click", "param": "btn_login", "expected_result": "clicked"}
         result = _build_step_response(step)
-        assert result["step"] == "click"
+        assert result["step"] == ""
         assert result["action"] == "click"
+        assert result["display_action"] == "click"
+        assert result["description"] == ""
         assert result["param"] == "btn_login"
         assert result["expected_result"] == "clicked"
 
     def test_step_with_step_key(self):
-        step = {"step": "输入用户�?, "param": "admin"}
+        step = {"step": "1", "action": "input", "param": "admin"}
         result = _build_step_response(step)
-        assert result["step"] == "输入用户�?
-        assert result["action"] == "输入用户�?
+        assert result["step"] == "1"
+        assert result["action"] == "input"
+        assert result["display_action"] == "input"
 
     def test_step_with_description_key(self):
         step = {"description": "验证页面加载", "expected_result": "加载成功"}
         result = _build_step_response(step)
-        assert result["step"] == "验证页面加载"
-        assert result["action"] == "验证页面加载"
+        assert result["step"] == ""
+        assert result["action"] == ""
+        assert result["display_action"] == "验证页面加载"
+        assert result["description"] == "验证页面加载"
 
-    def test_action_priority_over_step(self):
-        step = {"action": "click", "step": "输入用户�?}
+    def test_action_with_description_priority(self):
+        step = {"action": "click", "description": "点击提交按钮提交订单", "param": "btn_submit"}
         result = _build_step_response(step)
-        assert result["step"] == "click"
+        assert result["step"] == ""
         assert result["action"] == "click"
+        assert result["description"] == "点击提交按钮提交订单"
+        assert result["display_action"] == "点击提交按钮提交订单"
 
-    def test_step_priority_over_description(self):
-        step = {"step": "输入密码", "description": "验证页面"}
+    def test_action_longer_than_description(self):
+        step = {"action": "点击提交按钮提交订单", "description": "click"}
         result = _build_step_response(step)
-        assert result["step"] == "输入密码"
+        assert result["action"] == "点击提交按钮提交订单"
+        assert result["description"] == "click"
+        assert result["display_action"] == "点击提交按钮提交订单"
 
-    def test_empty_step_uses_default(self):
+    def test_both_action_and_description_empty(self):
         result = _build_step_response({})
-        assert result["step"] == "执行"
-        assert result["action"] == "执行"
+        assert result["step"] == ""
+        assert result["action"] == ""
+        assert result["description"] == ""
+        assert result["display_action"] == "执行"
         assert result["param"] == ""
         assert result["expected_result"] == ""
         assert result["test_data"] == {}
@@ -76,6 +87,7 @@ class TestBuildStepResponse:
     def test_all_fields_populated(self):
         step = {
             "action": "input",
+            "description": "输入用户名admin",
             "param": "username",
             "test_data": {"key": "val"},
             "expected_result": "entered",
@@ -88,18 +100,20 @@ class TestBuildStepResponse:
         assert result["action_type"] == "text_input"
         assert result["input_value"] == "admin"
         assert result["target_element"] == "#username"
+        assert result["display_action"] == "输入用户名admin"
 
 
 class TestConvertStepsToResponse:
     def test_normal_steps(self):
         steps = [
-            {"step": "步骤1", "action": "click", "param": "btn"},
-            {"step": "步骤2", "action": "input", "param": "field"},
+            {"step": "1", "action": "click", "param": "btn"},
+            {"step": "2", "action": "input", "param": "field"},
         ]
         result = convert_steps_to_response(steps)
         assert len(result) == 2
         assert result[0]["step_number"] == 1
         assert result[1]["step_number"] == 2
+        assert result[0]["display_action"] == "click"
 
     def test_empty_list(self):
         assert convert_steps_to_response([]) == []
@@ -127,6 +141,16 @@ class TestConvertStepsToResponse:
         assert result[1]["step_number"] == 2
         assert result[2]["step_number"] == 3
 
+    def test_steps_with_description_preferred_for_display(self):
+        steps = [
+            {"action": "click", "description": "点击登录按钮"},
+            {"action": "input", "description": "输入用户名admin"},
+        ]
+        result = convert_steps_to_response(steps)
+        assert result[0]["display_action"] == "点击登录按钮"
+        assert result[0]["action"] == "click"
+        assert result[1]["display_action"] == "输入用户名admin"
+
 
 class TestConvertAiStepsToResponse:
     def test_normal_ai_steps(self):
@@ -153,11 +177,11 @@ class MockTestCase:
         self.id = kwargs.get("id", 1)
         self.project_id = kwargs.get("project_id", 100)
         self.case_no = kwargs.get("case_no", "TC-001")
-        self.module = kwargs.get("module", "登录模块")
-        self.title = kwargs.get("title", "登录测试")
-        self.precondition = kwargs.get("precondition", "系统已启�?)
+        self.module = kwargs.get("module", "login_module")
+        self.title = kwargs.get("title", "login_test")
+        self.precondition = kwargs.get("precondition", "system_ready")
         self.steps_json = kwargs.get("steps_json", [{"action": "click", "param": "btn"}])
-        self.expected_result = kwargs.get("expected_result", "登录成功")
+        self.expected_result = kwargs.get("expected_result", "login_success")
         self.priority = kwargs.get("priority", 1)
         self.case_type = kwargs.get("case_type", "UI")
         self.test_category = kwargs.get("test_category", None)
@@ -173,11 +197,11 @@ class TestBuildTestCaseResponse:
         assert result["id"] == 1
         assert result["project_id"] == 100
         assert result["case_no"] == "TC-001"
-        assert result["module"] == "登录模块"
-        assert result["title"] == "登录测试"
-        assert result["precondition"] == "系统已启�?
+        assert result["module"] == "login_module"
+        assert result["title"] == "login_test"
+        assert result["precondition"] == "system_ready"
         assert len(result["steps"]) == 1
-        assert result["expected_result"] == "登录成功"
+        assert result["expected_result"] == "login_success"
         assert result["priority"] == 1
         assert result["case_type"] == "UI"
         assert result["create_time"] == "2024-01-01T12:00:00"
@@ -196,7 +220,7 @@ class TestBuildTestCaseResponse:
         class MinimalCase:
             id = 1
             project_id = 200
-            title = "最小用�?
+            title = "minimal"
             priority = 2
 
         result = build_test_case_response(MinimalCase())
@@ -226,3 +250,11 @@ class TestBuildTestCaseResponse:
         case = MockTestCase(test_category="functional")
         result = build_test_case_response(case)
         assert result["test_category"] == "functional"
+
+    def test_steps_with_display_action(self):
+        case = MockTestCase(steps_json=[
+            {"action": "click", "description": "点击提交按钮"},
+        ])
+        result = build_test_case_response(case)
+        assert result["steps"][0]["display_action"] == "点击提交按钮"
+        assert result["steps"][0]["action"] == "click"

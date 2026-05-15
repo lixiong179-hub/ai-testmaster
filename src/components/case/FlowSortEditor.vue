@@ -242,7 +242,10 @@
           <svg
             v-if="showGroupBackground && nodeGroups.length > 0"
             class="group-bg-svg"
-            :style="{ transform: `translate(${svgViewBox.x}px, ${svgViewBox.y}px) scale(${currentZoom})`, transformOrigin: '0 0' }"
+            :style="{
+              transform: `translate(${svgViewBox.x}px, ${svgViewBox.y}px) scale(${currentZoom})`,
+              transformOrigin: '0 0',
+            }"
           >
             <rect
               v-for="group in nodeGroups"
@@ -266,7 +269,9 @@
               font-size="12"
               :fill="group.strokeColor"
               :opacity="0.6"
-            >{{ group.label }}</text>
+            >
+              {{ group.label }}
+            </text>
           </svg>
           <template #node-custom="nodeProps">
             <FlowNodeCard
@@ -411,7 +416,9 @@
 
     <FlowTypeConfigDialog
       v-model:visible="flowTypeConfigVisible"
-      :flow-type="(pendingFlowTypeChange?.type as Exclude<FlowNodeData['flow_type'], 'main'>) || 'branch'"
+      :flow-type="
+        (pendingFlowTypeChange?.type as Exclude<FlowNodeData['flow_type'], 'main'>) || 'branch'
+      "
       :main-node-options="mainNodeOptions"
       :initial-data="pendingFlowMeta"
       @confirm="handleFlowTypeConfigConfirm"
@@ -432,9 +439,8 @@
     <transition name="tip-fade">
       <div v-if="showShortcutsTip" class="shortcuts-tip">
         <kbd>Delete</kbd> 删除选中 | <kbd>Ctrl+Z</kbd> 撤销 | <kbd>Ctrl+S</kbd> 保存 |
-        <kbd>Ctrl+P</kbd> 预览 Prompt | <kbd>Space</kbd> 预览图片 |
-        <kbd>Ctrl+L</kbd> 自动布局 | <kbd>Ctrl+0</kbd> 适配视图 |
-        <kbd>Esc</kbd> 取消选择
+        <kbd>Ctrl+P</kbd> 预览 Prompt | <kbd>Space</kbd> 预览图片 | <kbd>Ctrl+L</kbd> 自动布局 |
+        <kbd>Ctrl+0</kbd> 适配视图 | <kbd>Esc</kbd> 取消选择
       </div>
     </transition>
   </div>
@@ -442,11 +448,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick, type Ref } from 'vue'
-import {
-  VueFlow,
-  useVueFlow,
-  type Node,
-} from '@vue-flow/core'
+import { VueFlow, useVueFlow, type Node } from '@vue-flow/core'
 import { Background, Controls, MiniMap } from '@vue-flow/additional-components'
 import { ElMessage } from 'element-plus'
 import {
@@ -493,6 +495,7 @@ import {
   FLOW_TYPE_TAG_MAP,
   FLOW_TYPE_LABEL_MAP,
   generateAutoEdges,
+  inferEdgeType,
   AUTO_CONNECT_DISTANCE,
 } from '@/composables/useFlowEditor'
 import useFlowSortData, { type EmitSortDataPayload } from '@/composables/useFlowSortData'
@@ -539,11 +542,7 @@ const draggingNodeId = ref<string | null>(null)
 const isRestoredFromBackend = ref(false)
 
 // ---------- 数据序列化与提交 composable ----------
-const {
-  emitSortData,
-  getFlowSortSubmitData,
-  getFlowValidationIssues,
-} = useFlowSortData({
+const { emitSortData, getFlowSortSubmitData, getFlowValidationIssues } = useFlowSortData({
   vueFlowNodes,
   vueFlowEdges: vueFlowEdges as Ref<FlowGraphEdge[]>,
   emit: (event: 'update:sort-data', data: EmitSortDataPayload) => emit(event, data),
@@ -576,7 +575,9 @@ const {
 } = useFlowSearch({
   vueFlowNodes,
   getNodeData,
-  fitView: (options?: Record<string, unknown>) => { void fitView(options) },
+  fitView: (options?: Record<string, unknown>) => {
+    void fitView(options)
+  },
 })
 
 // ---------- 节点选择与路径高亮 composable ----------
@@ -613,12 +614,7 @@ const {
 } = useFlowEdgeTooltip({})
 
 // ---------- 模块分组背景 composable ----------
-const {
-  showGroupBackground,
-  nodeGroups,
-  svgViewBox,
-  branchChildrenMap,
-} = useFlowGroupBackground({
+const { showGroupBackground, nodeGroups, svgViewBox, branchChildrenMap } = useFlowGroupBackground({
   vueFlowNodes,
   vueFlowEdges: vueFlowEdges as Ref<FlowGraphEdge[]>,
   getNodeData,
@@ -694,13 +690,15 @@ const {
     mode: string,
     nodes: FlowEditorNode[],
     edges: FlowGraphEdge[],
-    focusedNodeId?: string | null,
+    focusedNodeId?: string | null
   ) => FlowEditorNode[],
   layoutMode: layoutMode as Ref<string>,
   focusedNodeId,
   getEdgeStyle,
   isProgrammaticEdgeChange,
-  fitView: async (opts: { duration: number; padding: number }) => { void await fitView(opts) },
+  fitView: async (opts: { duration: number; padding: number }) => {
+    void (await fitView(opts))
+  },
 })
 
 // ---------- 主干排序与删除 composable ----------
@@ -722,6 +720,7 @@ const {
   getNodeData,
   getMainNodesInOrder,
   normalizeMainNodeOrders,
+  applyAllEdgeStyles,
   isProgrammaticEdgeChange,
 })
 
@@ -856,7 +855,7 @@ function applyCollapsedHidden() {
 watch(collapsedParentNodeIds, () => applyCollapsedHidden(), { deep: true })
 
 const mainNodeOptions = computed(() => {
-  const mainNodes = getMainNodesInOrder(vueFlowNodes.value)
+  const mainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as any)
   const nonMainNodes = vueFlowNodes.value.filter((n) => getNodeData(n).flow_type !== 'main')
   const mainOptions = mainNodes.map((node) => ({
     id: node.id,
@@ -869,7 +868,8 @@ const mainNodeOptions = computed(() => {
   const nonMainOptions = nonMainNodes.map((node) => {
     const d = getNodeData(node)
     const parentEdge = vueFlowEdges.value.find(
-      (e: any) => e.target === node.id && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type)
+      (e: any) =>
+        e.target === node.id && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type)
     )
     let depth = 1
     if (parentEdge) {
@@ -928,6 +928,8 @@ watch(
             semantic: el.semantic_hint || el.description,
             position: typeof el.position === 'string' ? el.position : JSON.stringify(el.position),
             interactive: el.interactive,
+            state: el.state,
+            description: el.description,
           })),
           flow_type: 'main' as const,
           main_order: index + 1,
@@ -1001,17 +1003,16 @@ const tryAutoConnectOnDrag = () => {
   if (!draggedNode) return
 
   const existingEdges = new Set(
-    vueFlowEdges.value
-      .filter((e: any) => !e.hidden)
-      .map((e: any) => `${e.source}->${e.target}`)
+    vueFlowEdges.value.filter((e: any) => !e.hidden).map((e: any) => `${e.source}->${e.target}`)
   )
 
   const newEdges: any[] = []
   vueFlowNodes.value.forEach((other) => {
     if (other.id === draggedId || other.hidden) return
-    const dx = draggedNode.position.x - other.position.x
-    const dy = draggedNode.position.y - other.position.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
+    const distance = Math.sqrt(
+      (draggedNode.position.x - other.position.x) ** 2 +
+        (draggedNode.position.y - other.position.y) ** 2
+    )
     if (distance >= AUTO_CONNECT_DISTANCE) return
 
     const source =
@@ -1025,21 +1026,10 @@ const tryAutoConnectOnDrag = () => {
 
     if (existingEdges.has(key) || existingEdges.has(reverseKey)) return
 
-    const sourceType = getNodeData(source).flow_type
-    const targetType = getNodeData(target).flow_type
-    let edgeType: 'normal' | 'branch' | 'exception' | 'bypass' = 'normal'
-    if (sourceType === 'main' && targetType === 'main') edgeType = 'normal'
-    else if (targetType === 'branch') edgeType = 'branch'
-    else if (targetType === 'exception') edgeType = 'exception'
-    else if (targetType === 'bypass') edgeType = 'bypass'
-    else if (sourceType !== 'main' && targetType === 'main') edgeType = 'normal'
-    else edgeType = 'branch'
-
-    const absDx = Math.abs(dx)
-    const absDy = Math.abs(dy)
-    const isVertical = absDy > absDx
-    const sourceHandle = isVertical ? 'source-bottom' : 'source-right'
-    const targetHandle = isVertical ? 'target-top' : 'target-left'
+    const { edgeType, sourceHandle, targetHandle } = inferEdgeType(
+      getNodeData(source).flow_type,
+      getNodeData(target).flow_type
+    )
 
     newEdges.push({
       id: `edge_${source.id}_${target.id}_${Date.now()}`,
@@ -1152,20 +1142,16 @@ const handleKeyDown = (e: KeyboardEvent) => {
     e.preventDefault()
     handleFitView()
   }
-  if (e.code === 'Space') {
+  if (e.code === 'Space' && selectedNodes.value.length === 1) {
     e.preventDefault()
-    if (selectedNodes.value.length === 1) {
-      const node = vueFlowNodes.value.find((item) => item.id === selectedNodes.value[0])
-      if (node) handleNodePreview(getNodeData(node))
-    }
+    const node = vueFlowNodes.value.find((item) => item.id === selectedNodes.value[0])
+    if (node) handleNodePreview(getNodeData(node))
   }
 }
 
 function syncStoreToEditor() {
   const storeNodes = flowSortStore.nodes
   if (storeNodes.length === 0) return
-
-  console.log('[FlowSort] 同步 store 数据到编辑器, nodes:', storeNodes.length, 'edges:', flowSortStore.edges.length)
 
   const screenById = new Map(props.screens.map((s) => [s.id, s]))
 
@@ -1187,12 +1173,24 @@ function syncStoreToEditor() {
   }))
 
   const rawEdges = flowSortStore.edges.map((edge) => {
-    const sourceNode = vueFlowNodes.value.find((n) => getNodeData(n).screen_id === Number(edge.source))
-    const targetNode = vueFlowNodes.value.find((n) => getNodeData(n).screen_id === Number(edge.target))
+    const sourceNode = vueFlowNodes.value.find(
+      (n) => getNodeData(n).screen_id === Number(edge.source)
+    )
+    const targetNode = vueFlowNodes.value.find(
+      (n) => getNodeData(n).screen_id === Number(edge.target)
+    )
+    const sourceType = sourceNode ? getNodeData(sourceNode).flow_type : 'main'
+    const targetType = targetNode ? getNodeData(targetNode).flow_type : 'main'
+    const handles =
+      edge.edge_type !== 'normal'
+        ? inferEdgeType(sourceType, targetType)
+        : { sourceHandle: 'source-right', targetHandle: 'target-left' }
     return {
       id: edge.id,
       source: sourceNode?.id || edge.source,
       target: targetNode?.id || edge.target,
+      sourceHandle: handles.sourceHandle,
+      targetHandle: handles.targetHandle,
       type: 'default',
       data: {
         edge_type: edge.edge_type,
@@ -1207,7 +1205,6 @@ function syncStoreToEditor() {
   vueFlowEdges.value = applyAllEdgeStyles(rawEdges as FlowGraphEdge[])
   saveSnapshot()
   isRestoredFromBackend.value = true
-  console.log('[FlowSort] 编辑器数据已从后端还原')
 }
 
 watch(
@@ -1223,7 +1220,11 @@ watch(
 
 onMounted(() => {
   if (editorRef.value) editorRef.value.focus()
-  if (flowSortStore.isBackendLoaded && flowSortStore.nodes.length > 0 && !isRestoredFromBackend.value) {
+  if (
+    flowSortStore.isBackendLoaded &&
+    flowSortStore.nodes.length > 0 &&
+    !isRestoredFromBackend.value
+  ) {
     nextTick(() => {
       syncStoreToEditor()
     })

@@ -5,14 +5,15 @@ import axios, {
   InternalAxiosRequestConfig,
 } from 'axios'
 import { debounce, throttle } from './debounce'
+import { useFlowSortStore } from '@/store/flowSort'
 
 // 接口类型超时配置（毫秒）
 const TIMEOUT_CONFIG = {
-  default: 30000, // 普通接口 30秒
-  ai: 120000, // AI接口 2分钟
+  default: 30000,       // 普通接口 30秒
+  ai: 180000,           // AI接口 3分钟（含重试）
   aiXmindImport: 300000, // XMind AI增强导入 5分钟
-  upload: 60000, // 文件上传 60秒
-  export: 60000, // 数据导出 60秒
+  upload: 60000,        // 文件上传 60秒
+  export: 60000,        // 数据导出 60秒
 }
 
 // 根据URL判断接口类型并返回对应超时时间
@@ -28,11 +29,13 @@ function getTimeoutByUrl(url?: string): number {
   // AI相关接口
   if (
     lowerUrl.includes('/ai/') ||
+    lowerUrl.includes('/ai-') ||
     lowerUrl.includes('/analyze') ||
     lowerUrl.includes('/generate') ||
     lowerUrl.includes('/extract') ||
     lowerUrl.includes('/test-point') ||
     lowerUrl.includes('/test-case') ||
+    lowerUrl.includes('/testcase') ||
     lowerUrl.includes('/parse')
   ) {
     return TIMEOUT_CONFIG.ai
@@ -125,9 +128,13 @@ service.interceptors.response.use(
   (error) => {
     // 处理401错误，跳转到登录页面
     if (error.response && error.response.status === 401) {
-      // 清除本地存储的token
       localStorage.removeItem('token')
-      // 跳转到登录页面（仅在非登录页面时跳转，避免循环重定向）
+      try {
+        const flowSortStore = useFlowSortStore()
+        flowSortStore.reset()
+      } catch {
+        // flowSortStore 可能未初始化，忽略错误
+      }
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login'
       }

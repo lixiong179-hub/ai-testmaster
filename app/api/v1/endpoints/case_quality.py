@@ -15,8 +15,10 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints.case_quality_check import router as check_router
 from app.api.v1.endpoints.case_quality_report import router as report_router
+from app.api.v1.endpoints.case_quality_posterior import router as posterior_router
 
 router = APIRouter(prefix="/quality", tags=["用例质量"])
 
 router.include_router(check_router)
 router.include_router(report_router)
+router.include_router(posterior_router)

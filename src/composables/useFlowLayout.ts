@@ -15,6 +15,10 @@ export interface LayoutOptions {
   typeGapY: number
   /** 嵌套分支水平偏移（每层缩进） */
   nestedIndentX: number
+  /** 同类型子节点水平间距（单列放不下时水平分布） */
+  childrenHorizontalGap: number
+  /** 同类型子节点单列最大数量，超过后水平分列 */
+  maxChildrenPerColumn: number
 }
 
 const DEFAULT_LAYOUT_OPTIONS: LayoutOptions = {
@@ -24,6 +28,8 @@ const DEFAULT_LAYOUT_OPTIONS: LayoutOptions = {
   branchStartY: 200,
   typeGapY: 60,
   nestedIndentX: 60,
+  childrenHorizontalGap: 280,
+  maxChildrenPerColumn: 4,
 }
 
 /**
@@ -44,7 +50,7 @@ export const layeredAutoLayout = (
   options: Partial<LayoutOptions> = {}
 ): FlowEditorNode[] => {
   const opts = { ...DEFAULT_LAYOUT_OPTIONS, ...options }
-  const mainNodes = getMainNodesInOrder(nodes)
+  const mainNodes = getMainNodesInOrder(nodes, edges)
   const nonMainNodes = nodes.filter((n) => getNodeData(n).flow_type !== 'main')
 
   // 1. Position main nodes horizontally
@@ -53,14 +59,23 @@ export const layeredAutoLayout = (
     positionMap.set(node.id, { x: index * opts.mainGapX, y: opts.mainStartY })
   })
 
-  // 2. Build target→source lookup (prefer branch/exception/bypass edges over normal)
+  // 2. Build target→source lookup (semantic edges take priority, first wins)
   const targetToSourceMap = new Map<string, string>()
   edges.forEach((e) => {
     const edgeType = (e.data as { edge_type?: string })?.edge_type
     const isSemantic = edgeType && ['branch', 'exception', 'bypass'].includes(edgeType)
-    // 语义边优先：如果已有语义边则不覆盖；如果当前是语义边则覆盖普通边
-    if (isSemantic || !targetToSourceMap.has(e.target)) {
+    if (!targetToSourceMap.has(e.target)) {
       targetToSourceMap.set(e.target, e.source)
+    } else if (isSemantic) {
+      const existingEdgeType = edges.find(
+        (pe) => pe.target === e.target && pe.source === targetToSourceMap.get(e.target)
+      )?.data?.edge_type
+      if (
+        !existingEdgeType ||
+        !['branch', 'exception', 'bypass'].includes(existingEdgeType as string)
+      ) {
+        targetToSourceMap.set(e.target, e.source)
+      }
     }
   })
 
@@ -97,47 +112,74 @@ export const layeredAutoLayout = (
     return computeDepth(parentId, visited) + 1
   }
 
-  // 5. Recursive layout: process children of a source node, then recurse into each child
+  // 5. Recursive layout with horizontal grid distribution for siblings
   const layoutChildren = (
     sourceId: string,
     sourcePos: { x: number; y: number },
-    depth: number
+    depth: number,
+    visited: Set<string> = new Set()
   ) => {
+    if (visited.has(sourceId)) return
+    visited.add(sourceId)
+
     const children = childrenBySource.get(sourceId)
     if (!children || children.length === 0) return
 
-    // Separate by type
-    const exceptionChildren = children.filter((n) => getNodeData(n).flow_type === 'exception')
-    const belowChildren = children.filter((n) => getNodeData(n).flow_type !== 'exception')
+    const exceptionChildren = children.filter(
+      (n) => getNodeData(n).flow_type === 'exception' || getNodeData(n).flow_type === 'bypass'
+    )
+    const belowChildren = children.filter(
+      (n) => getNodeData(n).flow_type !== 'exception' && getNodeData(n).flow_type !== 'bypass'
+    )
 
-    // Exception nodes: above the source node
-    exceptionChildren.forEach((child, idx) => {
-      const childPos = {
-        x: sourcePos.x + depth * opts.nestedIndentX,
-        y: sourcePos.y - (idx + 1) * opts.branchGapY,
-      }
-      positionMap.set(child.id, childPos)
-      layoutChildren(child.id, childPos, depth + 1)
-    })
+    const calcRequiredColumns = (count: number) =>
+      Math.max(1, Math.ceil(count / opts.maxChildrenPerColumn))
 
-    // Branch and bypass: below the source node
+    // 在网格中排列子节点
+    const layoutInGrid = (
+      typedChildren: FlowEditorNode[],
+      startX: number,
+      startY: number,
+      cols: number
+    ) => {
+      typedChildren.forEach((child, idx) => {
+        const col = idx % cols
+        const row = Math.floor(idx / cols)
+        const childPos = {
+          x: startX + col * opts.childrenHorizontalGap,
+          y: startY + row * opts.branchGapY,
+        }
+        positionMap.set(child.id, childPos)
+        layoutChildren(child.id, childPos, depth + 1, visited)
+      })
+      // 返回占用的 Y 高度
+      return Math.ceil(typedChildren.length / cols) * opts.branchGapY
+    }
+
+    // Exception nodes: above the source node, grid layout
+    if (exceptionChildren.length > 0) {
+      const cols = calcRequiredColumns(exceptionChildren.length)
+      const totalHeight = Math.ceil(exceptionChildren.length / cols) * opts.branchGapY
+      const startY = sourcePos.y - totalHeight
+      layoutInGrid(exceptionChildren, sourcePos.x + depth * opts.nestedIndentX, startY, cols)
+    }
+
+    // Branch: below the source node
     let currentY = sourcePos.y + opts.branchStartY
-    const belowTypes = ['branch', 'bypass'] as const
+    const belowTypes = ['branch'] as const
 
     belowTypes.forEach((flowType) => {
       const typedChildren = belowChildren.filter((n) => getNodeData(n).flow_type === flowType)
       if (typedChildren.length === 0) return
 
-      typedChildren.forEach((child, idx) => {
-        const childPos = {
-          x: sourcePos.x + depth * opts.nestedIndentX,
-          y: currentY + idx * opts.branchGapY,
-        }
-        positionMap.set(child.id, childPos)
-        layoutChildren(child.id, childPos, depth + 1)
-      })
-
-      currentY += typedChildren.length * opts.branchGapY + opts.typeGapY
+      const cols = calcRequiredColumns(typedChildren.length)
+      const usedHeight = layoutInGrid(
+        typedChildren,
+        sourcePos.x + depth * opts.nestedIndentX,
+        currentY,
+        cols
+      )
+      currentY += usedHeight + opts.typeGapY
     })
   }
 
@@ -199,6 +241,8 @@ const COMPACT_OPTIONS: Partial<LayoutOptions> = {
   branchStartY: 140,
   typeGapY: 40,
   nestedIndentX: 40,
+  childrenHorizontalGap: 220,
+  maxChildrenPerColumn: 5,
 }
 
 /**
@@ -222,7 +266,7 @@ export const typeLayeredAutoLayout = (
   options: Partial<LayoutOptions> = {}
 ): FlowEditorNode[] => {
   const opts = { ...DEFAULT_LAYOUT_OPTIONS, ...options }
-  const mainNodes = getMainNodesInOrder(nodes)
+  const mainNodes = getMainNodesInOrder(nodes, edges)
   const branchNodes = nodes.filter((n) => getNodeData(n).flow_type === 'branch')
   const exceptionNodes = nodes.filter((n) => getNodeData(n).flow_type === 'exception')
   const bypassNodes = nodes.filter((n) => getNodeData(n).flow_type === 'bypass')
@@ -243,14 +287,10 @@ export const typeLayeredAutoLayout = (
     positionMap.set(node.id, { x: index * opts.mainGapX, y: opts.branchStartY })
   })
 
-  // 异常：上方带 Y=-branchStartY
-  exceptionNodes.forEach((node, index) => {
+  // 异常和旁路：上方带 Y=-branchStartY
+  const aboveNodes = [...exceptionNodes, ...bypassNodes]
+  aboveNodes.forEach((node, index) => {
     positionMap.set(node.id, { x: index * opts.mainGapX, y: -opts.branchStartY })
-  })
-
-  // 旁路：最下方带 Y=branchStartY*2
-  bypassNodes.forEach((node, index) => {
-    positionMap.set(node.id, { x: index * opts.mainGapX, y: opts.branchStartY * 2 })
   })
 
   // 孤立节点
@@ -306,9 +346,7 @@ export const focusedPathAutoLayout = (
 
   // 对路径节点执行标准布局
   const pathNodes = nodes.filter((n) => pathNodeIds.has(n.id))
-  const pathEdges = edges.filter(
-    (e) => pathNodeIds.has(e.source) && pathNodeIds.has(e.target)
-  )
+  const pathEdges = edges.filter((e) => pathNodeIds.has(e.source) && pathNodeIds.has(e.target))
   const laidOutPathNodes = layeredAutoLayout(pathNodes, pathEdges, opts)
   const pathPositionMap = new Map(laidOutPathNodes.map((n) => [n.id, n.position]))
 

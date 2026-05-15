@@ -5,8 +5,8 @@
 
 Pipeline = [S1 SignalGatherer, S2 HistoryFingerprint, S3 ReverseInfer,
             S5 TestPointAlignment, S6 BackwardScan, S7 ScenarioCandidateExtractor,
-            S8 ForwardScan, S9 Reconciliation, S11 CaseGeneration,
-            S12 QualityGate, S13 Persist]
+            S8 ForwardScan, S9 Reconciliation, S9.5 DecisionDispatch,
+            S11 CaseGeneration, S12 QualityGate, S13 Persist]
 
 与场景 4 的差异：
     - 场景 4：直接使用用户提供的测试点 + 双向扫描
@@ -24,6 +24,7 @@ from app.pipelines.steps.backward_scan import BackwardScan
 from app.pipelines.steps.scenario_candidates import ScenarioCandidateExtractor
 from app.pipelines.steps.forward_scan import ForwardScan
 from app.pipelines.steps.reconciliation import Reconciliation
+from app.pipelines.steps.decision_dispatch import DecisionDispatch
 from app.pipelines.steps.case_generation import CaseGeneration
 from app.pipelines.steps.quality_gate import QualityGate
 from app.pipelines.steps.persist import Persist
@@ -37,6 +38,7 @@ SCENARIO_5_STEPS: List[Type[PipelineStep]] = [
     ScenarioCandidateExtractor,
     ForwardScan,
     Reconciliation,
+    DecisionDispatch,
     CaseGeneration,
     QualityGate,
     Persist,

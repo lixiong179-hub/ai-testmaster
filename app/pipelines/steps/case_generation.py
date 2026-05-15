@@ -223,7 +223,7 @@ class CaseGeneration(PipelineStep):
                     last_error = ""
 
                     for attempt in range(2):
-                        response = ctx.ai_client.complete(
+                        response = ctx.get_ai_client().complete(
                             prompt=prompt,
                             temperature=0.3,
                             max_tokens=5000,
@@ -991,7 +991,7 @@ def _generate_supplemental(
     supplement_prompt = "\n".join(parts)
 
     try:
-        response = ctx.ai_client.complete(
+        response = ctx.get_ai_client().complete(
             prompt=supplement_prompt,
             temperature=0.4,
             max_tokens=3000,
@@ -1044,7 +1044,7 @@ def _generate_create_case(
     )
     parsed = None
     for attempt in range(2):
-        response = ctx.ai_client.complete(
+        response = ctx.get_ai_client().complete(
             prompt=prompt,
             temperature=0.3,
             max_tokens=5000,
@@ -1099,7 +1099,7 @@ def _generate_modify_case(
     )
     parsed = None
     for attempt in range(2):
-        response = ctx.ai_client.complete(
+        response = ctx.get_ai_client().complete(
             prompt=prompt,
             temperature=0.3,
             max_tokens=5000,
@@ -1156,7 +1156,7 @@ def _generate_locator_fix(
     )
     parsed = None
     for attempt in range(2):
-        response = ctx.ai_client.complete(
+        response = ctx.get_ai_client().complete(
             prompt=prompt,
             temperature=0.2,
             max_tokens=4000,

@@ -13,6 +13,7 @@ export interface TestCaseStep {
   expected_result?: string
   test_data?: Record<string, string | number | boolean | null>
   description?: string
+  display_action?: string
   has_locator?: boolean
   locator?: StepLocator | null
   is_business_view?: boolean

@@ -39,7 +39,7 @@ def normalize_new_format(case: Dict[str, Any]) -> Dict[str, Any]:
             'action_type': action_type,
             'input_value': input_value,
             'target_element': step.get('target_element', ''),
-            'description': f"{step.get('step', i + 1)}. {step.get('action', '')}",
+            'description': step.get('description') or f"{step.get('step', i + 1)}. {step.get('action', '')}",
             'expected_result': expected_result,
             'test_data': step.get('test_data', []),
             'ui_elements': step.get('ui_elements', [])
@@ -96,7 +96,12 @@ def normalize_old_format(case: Dict[str, Any]) -> Dict[str, Any]:
     raw_steps = case.get('steps', [])
     normalized_steps = []
     for i, step in enumerate(raw_steps):
-        action = step.get('action', step.get('description', ''))
+        raw_action = step.get('action', '')
+        raw_description = step.get('description', '')
+        if not raw_action and raw_description:
+            action = raw_description
+        else:
+            action = raw_action
         action_type = infer_action_type(action)
         input_value = ''
         if action_type == 'input':
@@ -118,7 +123,7 @@ def normalize_old_format(case: Dict[str, Any]) -> Dict[str, Any]:
             'action_type': action_type,
             'input_value': input_value,
             'target_element': target_element,
-            'description': step.get('description', f"[{step.get('step', i + 1)}] {action}"),
+            'description': raw_description or f"[{step.get('step', i + 1)}] {action}",
             'expected_result': step.get('expected_result', ''),
             'test_data': step.get('test_data', []),
             'ui_elements': step.get('ui_elements', [])

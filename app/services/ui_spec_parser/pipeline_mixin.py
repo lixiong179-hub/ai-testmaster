@@ -73,6 +73,14 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
                 ui_spec['_parse_mode'] = self.parse_mode
 
                 elements = ui_spec.get('elements', [])
+                for el in elements:
+                    if not isinstance(el, dict):
+                        continue
+                    if el.get('semantic_hint') and not el.get('semantic'):
+                        el['semantic'] = el['semantic_hint']
+                    elif el.get('semantic') and not el.get('semantic_hint'):
+                        el['semantic_hint'] = el['semantic']
+
                 buttons = [e for e in elements if e.get('type') == 'button']
 
                 # 根据解析模式记录对应的模型名称

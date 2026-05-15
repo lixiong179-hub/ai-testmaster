@@ -108,4 +108,4 @@ async def resume_pipeline(
     except Exception as e:
         db.rollback()
         logger.error("Pipeline 恢复失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"Pipeline 恢复失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="Pipeline 恢复失败")

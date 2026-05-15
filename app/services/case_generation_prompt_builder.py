@@ -18,6 +18,7 @@ import json
 from typing import List, Dict, Any, Optional
 
 from app.services.prompt_builder.case_prompt import _build_graph_prompt
+from app.services.prompt_builder.builder import PromptBuilder as UnifiedPromptBuilder
 
 
 class PromptBuilder:
@@ -117,9 +118,9 @@ class PromptBuilder:
         ui_specs: Optional[List[Dict[str, Any]]] = None,
         extra_context: Optional[Dict[str, Any]] = None
     ) -> str:
-        """构建线性模式的Prompt（复用现有逻辑）。
+        """构建线性模式的Prompt（委托给统一PromptBuilder）。
 
-        此方法委托给AIPromptMixin._build_generation_prompt的独立实现，
+        委托给 prompt_builder.PromptBuilder.for_test_case() 统一实现，
         保持与现有线性模式完全一致的行为。支持通过 extra_context 追加
         历史用例去重提示、变更指引、定位器修复指引等上下文段落。
 
@@ -136,10 +137,7 @@ class PromptBuilder:
         Returns:
             完整的Prompt字符串。
         """
-        from app.services.case_generation.ai_prompt_mixin import AIPromptMixin
-
-        mixin = AIPromptMixin()
-        prompt = mixin._build_generation_prompt(
+        prompt = UnifiedPromptBuilder.build_linear_prompt(
             requirement_content=requirement_content,
             ui_description=ui_description,
             module=module,
@@ -149,7 +147,6 @@ class PromptBuilder:
             ui_specs=ui_specs
         )
 
-        # 无额外上下文时直接返回，保持完全向后兼容
         if not extra_context:
             return prompt
 
@@ -157,7 +154,6 @@ class PromptBuilder:
         task_context = extra_context.get("task_context", {})
         sections: List[str] = [prompt]
 
-        # -- 修改模式：在原有用例基础上修改 --
         if task_type == "modify" and task_context.get("original_case"):
             original = task_context["original_case"]
             sections.append("## 原有用例（需基于此修改）")
@@ -183,7 +179,6 @@ class PromptBuilder:
             )
             sections.append("输出完整的修改后用例（而非diff），包含所有字段。")
 
-        # -- 创建模式：提供已有用例摘要避免重复 --
         if task_type == "create" and extra_context.get("history_cases"):
             history = extra_context["history_cases"]
             sections.append("## 项目已有用例（避免重复，以下为已有用例的标题和内容摘要）")
@@ -204,7 +199,6 @@ class PromptBuilder:
                 "并说明对应的已有用例"
             )
 
-        # -- 定位器修复模式 --
         if task_type == "locator_fix" and task_context.get("original_case"):
             original = task_context["original_case"]
             sections.append("## 需要修复定位器的原有用例")

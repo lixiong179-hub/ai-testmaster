@@ -40,7 +40,8 @@ class PromptBuilder:
         function: str = "",
         point: str = "",
         priority: int = 2,
-        ui_specs: Optional[List[Dict[str, Any]]] = None
+        ui_specs: Optional[List[Dict[str, Any]]] = None,
+        case_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """构建测试用例生成 Prompt，支持 graph 和 linear 两种模式。
 
@@ -70,7 +71,8 @@ class PromptBuilder:
                 requirement_content=requirement_content,
                 test_point_json=test_point_json,
                 ui_specs_text=ui_specs_text,
-                include_images=include_images
+                include_images=include_images,
+                case_type=case_type
             )
             return {'prompt': prompt, 'weight_hint': 'graph'}
 
@@ -115,7 +117,9 @@ class PromptBuilder:
         requirement_content: str = "",
         test_point_json: str = "",
         ui_specs_text: str = "",
-        include_images: bool = False
+        include_images: bool = False,
+        history_cases: Optional[List[Dict[str, Any]]] = None,
+        case_type: Optional[str] = None
     ) -> str:
         """构建流程图模式 Prompt（向后兼容接口）。
 
@@ -127,6 +131,8 @@ class PromptBuilder:
             test_point_json: 测试点 JSON 字符串。
             ui_specs_text: UI 规格格式化文本。
             include_images: 是否包含图片 URL。
+            history_cases: 历史用例列表，提供时启用查漏补缺评审模式。
+            case_type: 用例类型，提供时会在 Prompt 中增加约束。
 
         Returns:
             完整的 Prompt 字符串。
@@ -136,7 +142,9 @@ class PromptBuilder:
             requirement_content=requirement_content,
             test_point_json=test_point_json,
             ui_specs_text=ui_specs_text,
-            include_images=include_images
+            include_images=include_images,
+            history_cases=history_cases,
+            case_type=case_type
         )
 
     @staticmethod
@@ -146,7 +154,8 @@ class PromptBuilder:
         module_info: Optional[Dict[str, Any]] = None,
         requirement_content: str = "",
         test_point_json: str = "",
-        ui_specs_text: str = ""
+        ui_specs_text: str = "",
+        history_cases: Optional[List[Dict[str, Any]]] = None
     ) -> str:
         """构建多模态 Prompt（自动包含图片 URL，向后兼容接口）。
 
@@ -157,6 +166,7 @@ class PromptBuilder:
             requirement_content: 需求文档内容。
             test_point_json: 测试点 JSON 字符串。
             ui_specs_text: UI 规格格式化文本。
+            history_cases: 历史用例列表，提供时启用查漏补缺评审模式。
 
         Returns:
             包含图片 URL 引用的完整 Prompt 字符串。
@@ -166,7 +176,8 @@ class PromptBuilder:
             requirement_content=requirement_content,
             test_point_json=test_point_json,
             ui_specs_text=ui_specs_text,
-            include_images=True
+            include_images=True,
+            history_cases=history_cases
         )
 
     @staticmethod

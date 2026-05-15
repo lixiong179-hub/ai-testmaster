@@ -143,9 +143,8 @@ class StepExecutionResult:
     original_selector: Optional[str] = None
     healed_selector: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式，用于API响应序列化。"""
-        return {
+    def to_dict(self, hidden_fields: Optional[list] = None) -> Dict[str, Any]:
+        result = {
             "step_number": self.step_number,
             "action_type": self.action_type.value,
             "status": self.status.value,
@@ -157,6 +156,10 @@ class StepExecutionResult:
             "original_selector": self.original_selector,
             "healed_selector": self.healed_selector,
         }
+        if hidden_fields:
+            for field in hidden_fields:
+                result.pop(field, None)
+        return result
 
 
 @dataclass
@@ -188,9 +191,8 @@ class TestExecutionResult:
     failed_steps: int = 0
     healing_count: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式，用于API响应序列化。"""
-        return {
+    def to_dict(self, hidden_fields: Optional[list] = None) -> Dict[str, Any]:
+        result = {
             "case_id": self.case_id,
             "status": self.status.value,
             "duration_ms": self.duration_ms,
@@ -199,8 +201,12 @@ class TestExecutionResult:
             "passed_steps": self.passed_steps,
             "failed_steps": self.failed_steps,
             "healing_count": self.healing_count,
-            "steps": [s.to_dict() for s in self.steps],
+            "steps": [s.to_dict(hidden_fields=hidden_fields) for s in self.steps],
         }
+        if hidden_fields:
+            for field in hidden_fields:
+                result.pop(field, None)
+        return result
 
 
 @dataclass

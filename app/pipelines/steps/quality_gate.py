@@ -50,6 +50,14 @@ class QualityGate(PipelineStep):
         inferred = ctx.get_artifact("inferred_business_summary") or {}
         aligned = ctx.get_artifact("aligned_testpoints") or {}
 
+        analyzer = None
+        try:
+            from app.services.case_quality import CaseQualityAnalyzer
+            if ctx.db is not None:
+                analyzer = CaseQualityAnalyzer(ctx.db)
+        except Exception as e:
+            logger.warning("CaseQualityAnalyzer 初始化失败，降级到自研评分: {}", e)
+
         generated_cases = cases_artifact.get("generated_cases", [])
         scores = []
         total_score = 0.0
@@ -83,9 +91,18 @@ class QualityGate(PipelineStep):
             coverage_adj = tp_coverage_adj.get(tp_id, 0.0)
 
             for case_data in case_data_list:
-                score, grade, breakdown = _compute_prior_score(
-                    case_data, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
-                )
+                if analyzer is not None:
+                    try:
+                        score, grade, breakdown = _compute_analyzer_score(analyzer, case_data)
+                    except Exception as e:
+                        logger.warning("CaseQualityAnalyzer 分析失败，降级到自研评分: {}", e)
+                        score, grade, breakdown = _compute_prior_score(
+                            case_data, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                        )
+                else:
+                    score, grade, breakdown = _compute_prior_score(
+                        case_data, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                    )
 
                 # R4: 应用覆盖度加减分（均摊到同测试点每条用例）
                 if coverage_adj != 0.0 and case_data_list:
@@ -120,7 +137,7 @@ class QualityGate(PipelineStep):
         d_grade_entries = _collect_d_grade_cases(generated_cases)
         if d_grade_entries:
             logger.info("R5: 发现 {} 条D级用例，尝试重生成", len(d_grade_entries))
-            _regenerate_d_cases(ctx, d_grade_entries, signals, inferred, aligned, scores)
+            _regenerate_d_cases(ctx, d_grade_entries, signals, inferred, aligned, scores, analyzer)
 
         # BUG-2 fix: 统一清理所有 case_data 中的内部字段 _d_score_idx
         for entry in generated_cases:
@@ -259,6 +276,40 @@ class QualityGate(PipelineStep):
         )
 
 
+def _compute_analyzer_score(
+    analyzer: Any,
+    case_data: Dict[str, Any],
+) -> tuple[float, str, Dict[str, float]]:
+    result = analyzer.analyze_case(case_data)
+
+    complexity_score = result["complexity_score"]
+    coverage_score = result["coverage_score"]
+    redundancy_score = result["redundancy_score"]
+    suggestion_count = result["suggestion_count"]
+
+    complexity_norm = (10 - complexity_score) / 10 * 100
+    coverage_norm = coverage_score / 10 * 100
+    redundancy_norm = (10 - redundancy_score) / 10 * 100
+    suggestion_norm = max(0, 100 - suggestion_count * 10)
+
+    score = complexity_norm * 0.3 + coverage_norm * 0.3 + redundancy_norm * 0.2 + suggestion_norm * 0.2
+    score = max(0.0, min(100.0, round(score, 2)))
+
+    breakdown: Dict[str, float] = {
+        "analyzer_complexity": round(complexity_score, 2),
+        "analyzer_coverage": round(coverage_score, 2),
+        "analyzer_redundancy": round(redundancy_score, 2),
+        "analyzer_suggestion_count": float(suggestion_count),
+        "complexity_norm": round(complexity_norm, 2),
+        "coverage_norm": round(coverage_norm, 2),
+        "redundancy_norm": round(redundancy_norm, 2),
+        "suggestion_norm": round(suggestion_norm, 2),
+    }
+
+    grade = _score_to_grade(score)
+    return score, grade, breakdown
+
+
 def _compute_prior_score(
     case_data: Dict[str, Any],
     tp: Dict[str, Any],
@@ -325,7 +376,8 @@ def _compute_prior_score(
     content_score += title_score
 
     # steps 充分性（25分）
-    steps_score = _score_steps(case_data.get("steps", []))
+    case_type = case_data.get("case_type", "")
+    steps_score = _score_steps(case_data.get("steps", []), case_type=case_type)
     content_breakdown["steps_quality"] = steps_score
     content_score += steps_score
 
@@ -368,8 +420,10 @@ _VAGUE_TITLE_PATTERNS = re.compile(
 
 # 模糊预期结果黑名单
 _VAGUE_EXPECTED_PATTERNS = re.compile(
-    r'(正常|成功|正常显示|功能正常|页面正常|操作成功|提交成功|'
-    r'显示正常|运行正常|无异常|无报错|正常工作)',
+    r'(正常显示|提交成功|功能正常|页面正常|操作成功|'
+    r'显示正常|运行正常|没问题|交互跳转正确|无崩溃白屏|'
+    r'UI元素完整|无崩溃|无白屏|流程正常|'
+    r'无异常|无报错|正常工作)',
     re.IGNORECASE,
 )
 
@@ -397,6 +451,13 @@ _VERB_STACKING_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# 从 quality_validator 导入共享正则模式，避免重复定义导致维护不一致
+from app.services.test_case_generation.quality_validator import (
+    _STEP_UNCERTAINTY_PATTERN,
+    _MANUAL_JUDGMENT_PATTERN,
+    _TITLE_ATOMICITY_VIOLATION,
+)
+
 
 def _score_title(title: str) -> float:
     """评估用例标题规范性（0-25分）。
@@ -404,6 +465,7 @@ def _score_title(title: str) -> float:
     规则:
         - 空标题: 0分
         - 模糊标题（"功能验证"/"XX测试"等）: 5分
+        - 原子性违规（标题混合主流程+分支/旁路逻辑）: 5分
         - 长度 < 15字: 10分（不够具体）
         - 长度 > 40字: 15分（过于冗长）
         - 长度 15-40字且非模糊: 25分
@@ -416,6 +478,8 @@ def _score_title(title: str) -> float:
     base_score: float
 
     if _VAGUE_TITLE_PATTERNS.match(title):
+        base_score = 5.0
+    elif _TITLE_ATOMICITY_VIOLATION.search(title):
         base_score = 5.0
     else:
         length = len(title)
@@ -451,7 +515,7 @@ def _extract_step_number(step: dict) -> int | None:
     return None
 
 
-def _score_steps(steps: Any) -> float:
+def _score_steps(steps: Any, case_type: str = "") -> float:
     """评估测试步骤充分性（0-25分）。
 
     规则:
@@ -461,6 +525,8 @@ def _score_steps(steps: Any) -> float:
         - 3步及以上: 15-25分（按完整比例）
         - 完整性: 每步同时包含 action 和 expected_result 视为完整
         - 步骤序号连续性: 序号不连续时扣减，最多扣5分，不低于0分
+        - 步骤不确定性: 步骤含"或"字措辞时扣减，每处扣3分
+        - 自动化可执行性: ui_automation类型含人工判断时扣减，每处扣5分
     """
     if not steps:
         return 0.0
@@ -480,6 +546,8 @@ def _score_steps(steps: Any) -> float:
     # 检查步骤结构完整性：每步是否同时有 action 和 expected_result
     complete_count = 0
     step_numbers: list[int] = []
+    uncertainty_deduction = 0.0
+    manual_judgment_deduction = 0.0
 
     for s in steps:
         if isinstance(s, dict):
@@ -491,6 +559,13 @@ def _score_steps(steps: Any) -> float:
             num = _extract_step_number(s)
             if num is not None:
                 step_numbers.append(num)
+            # 步骤不确定性检测
+            action_text = (s.get("action") or s.get("description") or "")
+            if _STEP_UNCERTAINTY_PATTERN.search(action_text):
+                uncertainty_deduction += 3.0
+            # 自动化可执行性检测
+            if case_type == "ui_automation" and _MANUAL_JUDGMENT_PATTERN.search(action_text):
+                manual_judgment_deduction += 5.0
 
     completeness_ratio = complete_count / count if count > 0 else 0.0
 
@@ -511,6 +586,14 @@ def _score_steps(steps: Any) -> float:
         if missing_count > 0:
             deduction = min(missing_count, 5)
             score = max(0.0, score - deduction)
+
+    # 步骤不确定性扣减（上限6分）
+    uncertainty_deduction = min(uncertainty_deduction, 6.0)
+    score = max(0.0, score - uncertainty_deduction)
+
+    # 自动化可执行性扣减（上限10分）
+    manual_judgment_deduction = min(manual_judgment_deduction, 10.0)
+    score = max(0.0, score - manual_judgment_deduction)
 
     return score
 
@@ -711,6 +794,7 @@ def _regenerate_d_cases(
     inferred: Dict[str, Any],
     aligned: Dict[str, Any],
     scores: List[Dict[str, Any]],
+    analyzer: Any = None,
 ) -> None:
     """R5: 对D级用例重生成（含上下文补充），替换原D级用例。
 
@@ -824,9 +908,17 @@ def _regenerate_d_cases(
 
             # 重新评分重生成的用例
             for regen_case in regen_cases:
-                score, grade, breakdown = _compute_prior_score(
-                    regen_case, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
-                )
+                if analyzer is not None:
+                    try:
+                        score, grade, breakdown = _compute_analyzer_score(analyzer, regen_case)
+                    except Exception:
+                        score, grade, breakdown = _compute_prior_score(
+                            regen_case, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                        )
+                else:
+                    score, grade, breakdown = _compute_prior_score(
+                        regen_case, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                    )
 
                 # Fix2: 应用覆盖度加减分
                 if per_regen_case_adj != 0.0:

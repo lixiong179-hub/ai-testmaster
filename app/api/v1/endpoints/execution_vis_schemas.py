@@ -31,6 +31,7 @@ class VisibilityConfigSchema(BaseModel):
     action_delay_ms: int = Field(500, ge=0, le=5000, description="操作延迟毫秒")
     highlight_elements: bool = Field(True, description="高亮元素")
     show_ai_analysis: bool = Field(True, description="显示AI分析")
+    hidden_fields: List[str] = Field(default_factory=list, description="API响应中隐藏的字段列表")
 
     @validator('execution_speed')
     def validate_speed(cls, v: str) -> str:

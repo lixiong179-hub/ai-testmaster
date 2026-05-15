@@ -31,6 +31,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
+from app.services.visibility_config import VisibilityConfigService
 from app.core.exception import create_response
 from loguru import logger
 
@@ -221,14 +222,33 @@ async def get_test_task(
 
     _verify_task_access(db, task, current_user)
 
-    # 获取任务关联的测试结果
     task_results = db.query(TestResult).filter(
         TestResult.task_id == task_id
     ).all()
 
+    vis_service = VisibilityConfigService()
+    vis_config = vis_service.get_project_config(db, task.project_id)
+    hidden_fields = vis_config.hidden_fields or []
+
+    results_data = []
+    for tr in task_results:
+        tr_dict = {
+            "id": tr.id,
+            "task_id": tr.task_id,
+            "case_id": tr.case_id,
+            "case_no": getattr(tr, 'case_no', None),
+            "exec_status": tr.exec_status,
+            "exec_time": tr.exec_time,
+            "error_msg": getattr(tr, 'error_msg', None),
+            "exec_log": getattr(tr, 'exec_log', None),
+        }
+        if hidden_fields:
+            tr_dict = {k: v for k, v in tr_dict.items() if k not in hidden_fields}
+        results_data.append(tr_dict)
+
     return {
         "task": task,
-        "results": task_results
+        "results": results_data
     }
 
 

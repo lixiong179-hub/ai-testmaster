@@ -149,6 +149,7 @@ class DecisionDispatch(PipelineStep):
                     reason=reason,
                     fp_by_case_id=fp_by_case_id,
                     need_locator_fix=False,
+                    db=ctx.db,
                 )
                 generation_tasks.append(task)
                 stats["modify_count"] += 1
@@ -158,6 +159,7 @@ class DecisionDispatch(PipelineStep):
                     case_id=case_id,
                     reason=reason,
                     fp_by_case_id=fp_by_case_id,
+                    db=ctx.db,
                 )
                 generation_tasks.append(task)
                 stats["locator_fix_count"] += 1
@@ -168,6 +170,7 @@ class DecisionDispatch(PipelineStep):
                     reason=reason,
                     fp_by_case_id=fp_by_case_id,
                     need_locator_fix=True,
+                    db=ctx.db,
                 )
                 generation_tasks.append(task)
                 stats["modify_count"] += 1
@@ -186,6 +189,7 @@ class DecisionDispatch(PipelineStep):
                     case_id=case_id,
                     skip_reason=f"冲突: {reason}" if reason else "合并冲突，需人工决策",
                     fp_by_case_id=fp_by_case_id,
+                    db=ctx.db,
                 )
                 generation_tasks.append(task)
                 stats["skip_count"] += 1
@@ -196,6 +200,7 @@ class DecisionDispatch(PipelineStep):
                     case_id=case_id,
                     skip_reason="pending_review deferred",
                     fp_by_case_id=fp_by_case_id,
+                    db=ctx.db,
                 )
                 generation_tasks.append(task)
                 stats["skip_count"] += 1
@@ -206,6 +211,33 @@ class DecisionDispatch(PipelineStep):
 
         project_id = merged.get("project_id", 0)
 
+        skip_tasks = [t for t in generation_tasks if t.get("task_type") == "skip"]
+        review_id = None
+        if skip_tasks:
+            try:
+                from app.services.review_service import create_review, add_decision, start_review
+                review = create_review(db=ctx.db, iteration_id=ctx.iteration_id, kind="merged")
+                review_id = review.id
+                start_review(db=ctx.db, review_id=review_id)
+                for skip_task in skip_tasks:
+                    skip_reason = skip_task.get("skip_reason", "")
+                    case_id_for_verdict = skip_task.get("case_id") or 0
+                    if "冲突" in skip_reason:
+                        ai_verdict = "modify"
+                    else:
+                        ai_verdict = "keep"
+                    add_decision(
+                        db=ctx.db,
+                        review_id=review_id,
+                        target_kind="case",
+                        target_id=case_id_for_verdict,
+                        ai_verdict=ai_verdict,
+                        ai_confidence=30,
+                        ai_reason=skip_reason,
+                    )
+            except Exception as e:
+                logger.error("自动创建审核记录失败: {}", e)
+
         payload = {
             "project_id": project_id,
             "generation_tasks": generation_tasks,
@@ -214,6 +246,8 @@ class DecisionDispatch(PipelineStep):
             "total_tasks": len(generation_tasks),
             "total_deprecations": len(deprecation_suggestions),
         }
+        if review_id is not None:
+            payload["review_id"] = review_id
 
         return StepResult(
             success=True,
@@ -359,19 +393,8 @@ class DecisionDispatch(PipelineStep):
 def _resolve_original_case(
     case_id: Optional[int],
     fp_by_case_id: Dict[int, Dict[str, Any]],
+    db: Optional[Any] = None,
 ) -> Optional[Dict[str, Any]]:
-    """从 fingerprint 中查找原始用例信息，并尝试从 DB 补全 steps_json 等字段。
-
-    优先使用 fingerprint 中的基本信息，DB 查询作为补充。
-
-    Args:
-        case_id: 用例 ID。
-        fp_by_case_id: case_id → fingerprint 索引。
-
-    Returns:
-        包含 title/module/steps_json/precondition/expected_result 的字典，
-        或 None（未找到时）。
-    """
     if case_id is None:
         return None
 
@@ -387,22 +410,17 @@ def _resolve_original_case(
         "expected_result": "",
     }
 
-    # 尝试从 DB 获取更完整的用例数据（steps_json / precondition / expected_result）
-    try:
-        from app.db.core import SessionLocal
-        from app.models.test_case import TestCase as _TestCase
-
-        db = SessionLocal()
+    if db is not None:
         try:
+            from app.models.test_case import TestCase as _TestCase
+
             db_case = db.query(_TestCase).filter(_TestCase.id == case_id).first()
             if db_case is not None:
                 original["steps_json"] = _safe_json(db_case.steps_json)
                 original["precondition"] = db_case.precondition or ""
                 original["expected_result"] = db_case.expected_result or ""
-        finally:
-            db.close()
-    except Exception as e:
-        logger.debug("从 DB 补全原始用例信息失败 case_id={}: {}", case_id, e)
+        except Exception as e:
+            logger.debug("从 DB 补全原始用例信息失败 case_id={}: {}", case_id, e)
 
     return original
 
@@ -427,24 +445,14 @@ def _build_modify_task(
     reason: str,
     fp_by_case_id: Dict[int, Dict[str, Any]],
     need_locator_fix: bool,
+    db: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """构建 modify 类型的生成任务。
-
-    Args:
-        case_id: 原用例 ID。
-        reason: 裁决理由，作为 modification_hint。
-        fp_by_case_id: case_id → fingerprint 索引。
-        need_locator_fix: 是否需要同时修复定位器。
-
-    Returns:
-        modify 任务字典。
-    """
     task_id = f"modify_{case_id}" if case_id is not None else "modify_unknown"
     task: Dict[str, Any] = {
         "task_type": "modify",
         "task_id": task_id,
         "case_id": case_id,
-        "original_case": _resolve_original_case(case_id, fp_by_case_id),
+        "original_case": _resolve_original_case(case_id, fp_by_case_id, db=db),
         "change_type": "modified",
         "modification_hint": reason or "需修改",
     }
@@ -457,23 +465,14 @@ def _build_locator_fix_task(
     case_id: Optional[int],
     reason: str,
     fp_by_case_id: Dict[int, Dict[str, Any]],
+    db: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """构建 locator_fix 类型的生成任务。
-
-    Args:
-        case_id: 原用例 ID。
-        reason: 裁决理由。
-        fp_by_case_id: case_id → fingerprint 索引。
-
-    Returns:
-        locator_fix 任务字典。
-    """
     task_id = f"locator_{case_id}" if case_id is not None else "locator_unknown"
     return {
         "task_type": "locator_fix",
         "task_id": task_id,
         "case_id": case_id,
-        "original_case": _resolve_original_case(case_id, fp_by_case_id),
+        "original_case": _resolve_original_case(case_id, fp_by_case_id, db=db),
         "change_type": "locator_fix",
         "locator_hint": reason or "元素定位变更",
     }
@@ -518,17 +517,8 @@ def _build_skip_task(
     case_id: Optional[int],
     skip_reason: str,
     fp_by_case_id: Dict[int, Dict[str, Any]],
+    db: Optional[Any] = None,
 ) -> Dict[str, Any]:
-    """构建 skip 类型的任务（冲突或待审核）。
-
-    Args:
-        case_id: 原用例 ID（可选）。
-        skip_reason: 跳过原因。
-        fp_by_case_id: case_id → fingerprint 索引。
-
-    Returns:
-        skip 任务字典。
-    """
     task_id = f"skip_{case_id}" if case_id is not None else "skip_unknown"
     task: Dict[str, Any] = {
         "task_type": "skip",
@@ -537,7 +527,7 @@ def _build_skip_task(
         "skip_reason": skip_reason,
     }
     if case_id is not None:
-        original = _resolve_original_case(case_id, fp_by_case_id)
+        original = _resolve_original_case(case_id, fp_by_case_id, db=db)
         if original:
             task["original_case"] = original
     return task

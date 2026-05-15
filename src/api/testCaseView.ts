@@ -37,6 +37,8 @@ export interface TechnicalStep {
   step_id: number
   step_number: number
   action: string
+  description?: string
+  display_action?: string
   expected_result: string
   has_locator: boolean
   locator_status: 'pending' | 'recorded' | 'failed'

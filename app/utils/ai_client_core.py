@@ -194,7 +194,7 @@ class AIClientBase:
         logger.info(f"设置缓存数据: {key}, 当前缓存大小: {len(self.cache)}")
 
 
-def get_ai_client(api_key: str = None, base_url: str = None, model_name: str = None) -> OpenAI:
+def get_ai_client(api_key: str = None, base_url: str = None, model_name: str = None, timeout: int = None) -> OpenAI:
     """创建OpenAI客户端实例
 
     工厂函数，支持自定义API密钥、地址和模型名。
@@ -204,14 +204,16 @@ def get_ai_client(api_key: str = None, base_url: str = None, model_name: str = N
         api_key: API密钥，默认使用settings.DEEPSEEK_API_KEY
         base_url: API基础URL，默认使用 https://api.deepseek.com
         model_name: 模型名称，默认使用settings.DEEPSEEK_MODEL
+        timeout: 请求超时秒数，默认使用TimeoutConfig.AI_API
 
     Returns:
         OpenAI: 配置好的OpenAI客户端实例，附带model_name属性
     """
+    from app.core.constants import TimeoutConfig
     _api_key = api_key or settings.DEEPSEEK_API_KEY
     _base_url = base_url or "https://api.deepseek.com"
     _model_name = model_name or settings.DEEPSEEK_MODEL
-    client = OpenAI(api_key=_api_key, base_url=_base_url)
-    # 将模型名挂载到客户端实例上，方便后续调用时获取
+    _timeout = timeout or TimeoutConfig.AI_API
+    client = OpenAI(api_key=_api_key, base_url=_base_url, timeout=_timeout)
     client.model_name = _model_name
     return client

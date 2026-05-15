@@ -8,7 +8,6 @@ class VisibilityConfigMerger:
 
     @staticmethod
     def merge(base: VisibilityConfig, override: VisibilityConfig) -> VisibilityConfig:
-        """合并两个配置，override覆盖base"""
         merged = VisibilityConfig()
         config_fields = [
             'headless', 'record_video', 'video_resolution', 'video_fps',
@@ -26,5 +25,9 @@ class VisibilityConfigMerger:
                 setattr(merged, field_name, override_value)
             else:
                 setattr(merged, field_name, base_value)
+
+        base_hidden = set(base.hidden_fields) if base.hidden_fields else set()
+        override_hidden = set(override.hidden_fields) if override.hidden_fields else set()
+        merged.hidden_fields = list(base_hidden | override_hidden)
 
         return merged

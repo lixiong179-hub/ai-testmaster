@@ -154,7 +154,7 @@ class StepsValidateMixin:
             expected_result=generated_case.get("expected_result", ""),
             priority=normalize_priority(generated_case.get("priority", test_point.get("priority", 2))),
             case_type=generated_case.get("case_type") or generated_case.get("test_category") or "manual",
-            test_category=generated_case.get("test_category") or generated_case.get("case_category", TEST_CATEGORY_MANUAL),
+            test_category=generated_case.get("test_category") or generated_case.get("case_type") or TEST_CATEGORY_MANUAL,
             parent_case_id=generated_case.get("parent_case_id"),
             ai_change_type=generated_case.get("change_type"),
             generate_status=1

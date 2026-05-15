@@ -64,6 +64,8 @@ export interface XmindPreviewItem {
 export interface XmindPreviewCaseStep {
   step_number: number
   action: string
+  description?: string
+  display_action?: string
   expected_result: string
 }
 

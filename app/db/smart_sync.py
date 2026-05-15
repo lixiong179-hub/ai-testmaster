@@ -55,7 +55,7 @@ import sys
 import os
 import logging
 import re
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Optional
 
 # 将当前目录加入 sys.path，确保直接执行时能正确导入项目模块
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -173,15 +173,47 @@ class DatabaseSyncTool:
         for column in table.columns:
             col_info = {
                 'name': column.name,
-                'type': str(column.type),       # 将 SQLAlchemy 类型对象转为字符串，如 VARCHAR(50)
+                'type': str(column.type),
                 'nullable': column.nullable,
-                'default': str(column.default) if column.default else None,
+                'default': self._resolve_sql_default(column),
                 'primary_key': column.primary_key,
                 'comment': column.comment or ''
             }
             columns.append(col_info)
 
         return columns
+
+    def _resolve_sql_default(self, column) -> Optional[str]:
+        """
+        解析列的 SQL DEFAULT 值，用于 ALTER TABLE 语句
+
+        优先使用 server_default（SQL 侧默认值），
+        其次解析 column.default（Python 侧 ColumnDefault）。
+
+        将 Python 值转为 SQL 字面量：bool → 0/1，int/float → 字符串，str → 加引号
+        """
+        server_default = column.server_default
+        if server_default is not None:
+            arg = getattr(server_default, 'arg', None)
+            if arg is not None:
+                if hasattr(arg, 'text'):
+                    return arg.text
+                return str(arg)
+
+        col_default = column.default
+        if col_default is None:
+            return None
+
+        arg = getattr(col_default, 'arg', None)
+        if arg is None:
+            return None
+        if isinstance(arg, bool):
+            return '1' if arg else '0'
+        if isinstance(arg, (int, float)):
+            return str(arg)
+        if isinstance(arg, str):
+            return f"'{arg}'"
+        return str(arg)
 
     def get_db_columns(self, table_name: str) -> List[Dict]:
         """

@@ -155,7 +155,7 @@ class ForwardScan(PipelineStep):
         if fingerprints:
             all_fps = fingerprints.get("fingerprints", [])
 
-        service = ForwardScanService(ai_client=ctx.ai_client)
+        service = ForwardScanService(ai_client=ctx.get_ai_client())
 
         verdicts = service.scan(
             candidates=candidate_list,

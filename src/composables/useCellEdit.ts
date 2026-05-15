@@ -69,7 +69,10 @@ export function useCellEdit(
       }
 
       // 本地同步更新视图数据
-      if (field === 'action') step.action = editingValue.value
+      if (field === 'action') {
+        step.action = editingValue.value
+        step.description = editingValue.value
+      }
       else if (field === 'expected_result') step.expected_result = editingValue.value
       else if (field === 'css_selector' && step.locator) step.locator.css_selector = editingValue.value
       else if (field === 'xpath' && step.locator) step.locator.xpath = editingValue.value

@@ -22,6 +22,70 @@ from app.core.exception import create_response
 router = APIRouter(tags=["Pipeline管理"])
 
 
+@router.get("/{run_id}/summary", response_model=dict)
+async def get_pipeline_summary(
+    run_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        from app.services import pipeline_service
+
+        run = pipeline_service.get_run(db, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
+
+        verify_iteration_access(db, run.iteration_id, current_user)
+
+        from app.pipelines.scenarios import get_scenario_by_version
+        scenario_config = get_scenario_by_version(run.pipeline_version)
+        scenario_id = 0
+        if scenario_config:
+            from app.pipelines.scenarios import list_scenarios
+            for sid, cfg in list_scenarios().items():
+                if cfg["version"] == run.pipeline_version:
+                    scenario_id = sid
+                    break
+
+        actions = {
+            "keep": 0, "needs_modify": 0, "locator_broken": 0,
+            "locator_and_modify": 0, "deprecate": 0, "add_new": 0,
+            "conflict": 0, "pending_review": 0,
+        }
+        persisted_case_ids: list[int] = []
+        artifact_kinds: list[str] = []
+
+        for artifact in run.artifacts:
+            artifact_kinds.append(artifact.kind)
+            if artifact.kind == "merged_verdicts" and artifact.payload:
+                stats = artifact.payload.get("stats", {})
+                for key in actions:
+                    if key in stats:
+                        actions[key] = stats[key]
+            if artifact.kind == "persisted_case_ids" and artifact.payload:
+                persisted_case_ids = artifact.payload.get("persisted_case_ids", [])
+
+        artifact_kinds = sorted(set(artifact_kinds))
+
+        return create_response(
+            data={
+                "run_id": run.id,
+                "status": run.status,
+                "scenario": scenario_id,
+                "actions": actions,
+                "persisted_case_ids": persisted_case_ids,
+                "artifact_kinds": artifact_kinds,
+            },
+            msg="获取成功",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("获取Pipeline摘要失败: {}", e)
+        raise HTTPException(status_code=500, detail="获取Pipeline摘要失败")
+
+
 @router.get("/{run_id}/inferred-summary", response_model=dict)
 async def get_inferred_summary(
     run_id: int,
@@ -76,7 +140,7 @@ async def get_inferred_summary(
         raise
     except Exception as e:
         logger.error("获取反推摘要失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"获取反推摘要失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取反推摘要失败")
 
 
 @router.put("/{run_id}/supplement-signals", response_model=dict)
@@ -161,7 +225,7 @@ async def supplement_signals(
     except Exception as e:
         db.rollback()
         logger.error("保存补全信号失败: {}", e)
-        raise HTTPException(status_code=500, detail=f"保存补全信号失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="保存补全信号失败")
 
 
 def record_version_rerun_metric(

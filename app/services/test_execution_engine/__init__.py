@@ -52,6 +52,7 @@ from app.services.test_execution_engine.test_data_mixin import TestDataMixin
 from app.services.precondition_service import PreconditionService
 from app.services.element_locator_service import ElementLocatorService
 from app.services.test_data import TestDataGenerator as TestDataService
+from app.services.visibility_config import VisibilityConfigService
 from app.utils.browser_controller_v2 import BrowserControllerV2
 from app.utils.unified_vision_model import UnifiedVisionModel
 
@@ -110,6 +111,7 @@ class TestExecutionEngineV2(
         self.vision_model = vision_model
         self._current_execution = None
         self._step_results = []
+        self._visibility_config = None
 
         self.enable_ai_recognition = enable_ai_recognition
         self.enable_test_data_param = enable_test_data_param

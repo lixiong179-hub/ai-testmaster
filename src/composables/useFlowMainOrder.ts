@@ -1,10 +1,8 @@
 import { type Ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { Edge } from '@vue-flow/core'
 import type { EditorNodeData, FlowEditorNode, FlowGraphEdge } from '@/composables/useFlowEditor'
-import {
-  getMainNodeCount,
-  layoutMainNodesByOrder,
-} from '@/composables/useFlowEditor'
+import { getMainNodeCount, layoutMainNodesByOrder } from '@/composables/useFlowEditor'
 
 export interface UseFlowMainOrderOptions {
   vueFlowNodes: Ref<FlowEditorNode[]>
@@ -15,8 +13,10 @@ export interface UseFlowMainOrderOptions {
   emitSortData: () => void
   saveSnapshot: () => void
   getNodeData: (node: FlowEditorNode) => EditorNodeData
-  getMainNodesInOrder: (nodes: FlowEditorNode[]) => FlowEditorNode[]
-  normalizeMainNodeOrders: (nodes: FlowEditorNode[]) => FlowEditorNode[]
+  getMainNodesInOrder: (nodes: FlowEditorNode[], edges?: Edge[]) => FlowEditorNode[]
+  normalizeMainNodeOrders: (nodes: FlowEditorNode[], edges?: Edge[]) => FlowEditorNode[]
+  /** 对边列表应用完整样式（含路径高亮） */
+  applyAllEdgeStyles: (edges: FlowGraphEdge[]) => FlowGraphEdge[]
   /** 共享的程序化边变更标志（与 useFlowEdgeOps/useFlowTypeOps 共用） */
   isProgrammaticEdgeChange: Ref<boolean>
 }
@@ -37,6 +37,7 @@ export function useFlowMainOrder(options: UseFlowMainOrderOptions) {
     getNodeData,
     getMainNodesInOrder,
     normalizeMainNodeOrders,
+    applyAllEdgeStyles,
     isProgrammaticEdgeChange,
   } = options
 
@@ -67,14 +68,13 @@ export function useFlowMainOrder(options: UseFlowMainOrderOptions) {
     saveSnapshot()
     isProgrammaticEdgeChange.value = true
     vueFlowEdges.value = vueFlowEdges.value.filter(
-      (e: any) => !deletedSet.has(e.source) && !deletedSet.has(e.target),
+      (e: any) => !deletedSet.has(e.source) && !deletedSet.has(e.target)
     )
     vueFlowNodes.value = normalizeMainNodeOrders(
       vueFlowNodes.value.filter((n) => !deletedSet.has(n.id)),
+      vueFlowEdges.value as any,
     )
-    collapsedParentNodeIds.value = collapsedParentNodeIds.value.filter(
-      (id) => !deletedSet.has(id),
-    )
+    collapsedParentNodeIds.value = collapsedParentNodeIds.value.filter((id) => !deletedSet.has(id))
     if (focusedNodeId.value && deletedSet.has(focusedNodeId.value)) {
       focusedNodeId.value = null
     }
@@ -103,20 +103,21 @@ export function useFlowMainOrder(options: UseFlowMainOrderOptions) {
     const selectedNode = vueFlowNodes.value.find((n) => n.id === selectedNodeId)
     if (!selectedNode) return
 
-    const orderedMainNodes = getMainNodesInOrder(vueFlowNodes.value)
+    const orderedMainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as any)
     const currentIndex = orderedMainNodes.findIndex((node) => node.id === selectedNode.id)
     const targetIndex = currentIndex + direction
     if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedMainNodes.length) return
 
     saveSnapshot()
+    isProgrammaticEdgeChange.value = true
     const reorderedMainNodes = [...orderedMainNodes]
     ;[reorderedMainNodes[currentIndex], reorderedMainNodes[targetIndex]] = [
       reorderedMainNodes[targetIndex],
       reorderedMainNodes[currentIndex],
     ]
-    const mainOrderMap = new Map(
-      reorderedMainNodes.map((node, index) => [node.id, index + 1]),
-    )
+    const mainOrderMap = new Map(reorderedMainNodes.map((node, index) => [node.id, index + 1]))
+    // 不传 edges：此处的 main_order 已由显式交换指定，旧边尚未重建，传入 edges 会覆盖为错误顺序。
+    // emitSortData 在边重建后会从新边推导并写回正确的 main_order。
     vueFlowNodes.value = layoutMainNodesByOrder(
       normalizeMainNodeOrders(
         vueFlowNodes.value.map((node) => {
@@ -128,9 +129,32 @@ export function useFlowMainOrder(options: UseFlowMainOrderOptions) {
               main_order: mainOrderMap.get(node.id),
             },
           }
-        }),
-      ),
+        })
+      )
     )
+    const mainNodeIdSet = new Set(reorderedMainNodes.map((n) => n.id))
+    const newMainEdges: FlowGraphEdge[] = []
+    for (let i = 0; i < reorderedMainNodes.length - 1; i++) {
+      const sourceNode = reorderedMainNodes[i]
+      const targetNode = reorderedMainNodes[i + 1]
+      const existingEdge = vueFlowEdges.value.find(
+        (e) => e.source === sourceNode.id && e.target === targetNode.id
+      )
+      newMainEdges.push({
+        ...(existingEdge || { id: `edge_${sourceNode.id}_${targetNode.id}` }),
+        source: sourceNode.id,
+        target: targetNode.id,
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
+        type: 'default',
+        label: existingEdge?.label || '连线',
+        data: existingEdge?.data || { edge_type: 'normal' },
+      })
+    }
+    const nonMainEdges = vueFlowEdges.value.filter(
+      (e) => !mainNodeIdSet.has(e.source) || !mainNodeIdSet.has(e.target)
+    )
+    vueFlowEdges.value = applyAllEdgeStyles([...nonMainEdges, ...newMainEdges])
     emitSortData()
   }
 

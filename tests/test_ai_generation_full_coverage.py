@@ -469,6 +469,46 @@ class TestFormatNormalizationBranches:
         result = normalize_old_format(case)
         assert len(result["steps"]) == 1
 
+    def test_new_format_preserves_original_description(self):
+        case = {
+            "title": "test",
+            "steps": [{"step": "1", "action": "click", "description": "点击提交按钮", "expected_result": "ok"}],
+            "expected_results": ["ok"],
+            "case_type": "ui_automation",
+        }
+        result = normalize_new_format(case)
+        assert result["steps"][0]["description"] == "点击提交按钮"
+        assert result["steps"][0]["action"] == "click"
+
+    def test_new_format_falls_back_description_from_action(self):
+        case = {
+            "title": "test",
+            "steps": [{"step": "1", "action": "点击提交按钮", "description": "", "expected_result": "ok"}],
+            "expected_results": ["ok"],
+            "case_type": "ui_automation",
+        }
+        result = normalize_new_format(case)
+        assert result["steps"][0]["description"] == "1. 点击提交按钮"
+
+    def test_old_format_preserves_action_when_description_longer(self):
+        case = {
+            "title": "test",
+            "steps": [{"action": "click", "description": "点击提交按钮提交订单", "expected_result": "ok"}],
+            "case_type": "ui_automation",
+        }
+        result = normalize_old_format(case)
+        assert result["steps"][0]["action"] == "click"
+        assert result["steps"][0]["description"] == "点击提交按钮提交订单"
+
+    def test_old_format_uses_description_when_action_empty(self):
+        case = {
+            "title": "test",
+            "steps": [{"action": "", "description": "点击提交按钮", "expected_result": "ok"}],
+            "case_type": "ui_automation",
+        }
+        result = normalize_old_format(case)
+        assert result["steps"][0]["action"] == "点击提交按钮"
+
 
 class TestPromptBuilderBranches:
 

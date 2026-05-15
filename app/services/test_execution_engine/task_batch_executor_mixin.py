@@ -58,6 +58,17 @@ class TaskBatchExecutorMixin:
         if not project:
             raise ExecutionError(f"项目不存在: {task.project_id}")
 
+        from app.services.visibility_config import VisibilityConfigService
+        from app.services.visibility_config.merger import VisibilityConfigMerger
+        try:
+            vis_service = VisibilityConfigService()
+            project_config = vis_service.get_project_config(self.db, project.id)
+            task_config = vis_service.get_task_config(task)
+            self._visibility_config = VisibilityConfigMerger.merge(project_config, task_config)
+        except Exception as e:
+            logger.warning("可见模式配置加载失败，使用默认配置: {}", e)
+            self._visibility_config = None
+
         task.status = TaskStatus.RUNNING
         task.start_time = utcnow()
         self.db.commit()

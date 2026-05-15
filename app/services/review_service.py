@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.models.enums import ReviewKind, ReviewStatus, ReviewTargetKind
 from app.models.review import IterationReview, ReviewDecision, ReviewLock, VALID_VERDICTS
 from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
+from app.services.lifecycle_service import transition as lifecycle_transition
 from app.models.audit_log import AuditLog
 from app.utils.db_time import utcnow
 from loguru import logger
@@ -219,6 +220,18 @@ def finalize_review(
 
     db.flush()
     db.expire(review, ["locks"])
+
+    try:
+        from app.services.decision_application_service import apply_decisions
+        apply_decisions(review_id=review.id, db=db)
+    except Exception as e:
+        logger.error("apply_decisions failed for review_id={}: {}", review.id, e)
+        review.status = ReviewStatus.IN_PROGRESS.value
+        review.finalized_at = None
+        review.finalized_by = None
+        db.flush()
+        raise
+
     return review
 
 
@@ -387,21 +400,17 @@ def _reverse_lifecycle(db: Session, case_id: int) -> None:
         return
 
     current_status = case.lifecycle_status
-    try:
-        enable_lifecycle_transition()
-
-        if current_status == "archived":
-            _restore_archived_case(db, case)
-        elif current_status in ("deprecated", "needs_modify", "locator_broken", "pending_review"):
-            case.lifecycle_status = "active"
-        elif current_status == "draft":
-            pass
-        else:
-            logger.debug("undo_decision: skipping lifecycle reversal for case_id={}, status={}", case_id, current_status)
-
-        db.flush()
-    finally:
-        disable_lifecycle_transition()
+    if current_status == "archived":
+        _restore_archived_case(db, case)
+    elif current_status in ("deprecated", "needs_modify", "locator_broken", "pending_review"):
+        try:
+            lifecycle_transition(db, case_id=case.id, to_status="active")
+        except Exception as e:
+            logger.error("lifecycle reverse failed for case_id={}: {}", case_id, e)
+    elif current_status == "draft":
+        pass
+    else:
+        logger.debug("undo_decision: skipping lifecycle reversal for case_id={}, status={}", case_id, current_status)
 
     _deprecate_child_cases(db, case_id)
 
@@ -413,14 +422,15 @@ def _deprecate_child_cases(db: Session, parent_case_id: int) -> None:
     if not children:
         return
 
-    try:
-        enable_lifecycle_transition()
-        for child in children:
-            if child.lifecycle_status not in ("deprecated", "archived"):
-                child.lifecycle_status = "deprecated"
-        db.flush()
-    finally:
-        disable_lifecycle_transition()
+    for child in children:
+        if child.lifecycle_status not in ("deprecated", "archived"):
+            try:
+                lifecycle_transition(
+                    db, case_id=child.id, to_status="deprecated",
+                    reason="parent_case_restored",
+                )
+            except Exception as e:
+                logger.error("deprecate child case failed for case_id={}: {}", child.id, e)
 
 
 def _restore_archived_case(db: Session, archived_case: TestCase) -> None:
@@ -454,8 +464,12 @@ def _restore_archived_case(db: Session, archived_case: TestCase) -> None:
         summary_version=archived_case.summary_version,
         summary_model_version=archived_case.summary_model_version,
     )
-    db.add(restored)
-    db.flush()
+    enable_lifecycle_transition()
+    try:
+        db.add(restored)
+        db.flush()
+    finally:
+        disable_lifecycle_transition()
 
 
 def undo_finalize(

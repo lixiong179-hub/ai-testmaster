@@ -230,7 +230,7 @@
               </el-table-column>
               <el-table-column label="操作" min-width="300">
                 <template #default="{ row }">
-                  <div class="step-content">{{ row.action || '-' }}</div>
+                  <div class="step-content">{{ row.description || row.step || row.action || '-' }}</div>
                 </template>
               </el-table-column>
               <el-table-column label="预期结果" min-width="300">
@@ -645,8 +645,8 @@
             :value="step.step_number"
             :label="step.step_number"
           >
-            步骤 {{ step.step_number }}: {{ step.action?.substring(0, 50) || '-'
-            }}{{ step.action?.length > 50 ? '...' : '' }}
+            步骤 {{ step.step_number }}: {{ step.display_action || step.description || step.action?.substring(0, 50) || '-'
+            }}{{ (step.display_action || step.description || step.action || '').length > 50 ? '...' : '' }}
           </el-checkbox>
         </div>
       </el-checkbox-group>
@@ -1012,7 +1012,7 @@ const copyCase = async () => {
     `模块: ${caseItem.value.module || '-'}\n` +
     `标题: ${caseItem.value.title}\n` +
     `前置条件: ${caseItem.value.precondition || '-'}\n` +
-    `测试步骤:\n${(caseItem.value.steps || []).map((step, i) => `${i + 1}. ${step.action || '-'}\n   预期结果: ${step.expected_result || '-'}`).join('\n')}\n` +
+    `测试步骤:\n${(caseItem.value.steps || []).map((step, i) => `${i + 1}. ${step.display_action || step.description || step.action || '-'}\n   预期结果: ${step.expected_result || '-'}`).join('\n')}\n` +
     `总体预期结果: ${caseItem.value.expected_result || '-'}\n` +
     `优先级: ${getPriorityLabel(caseItem.value.priority)}\n` +
     `用例类型: ${caseItem.value.case_type || '-'}`
