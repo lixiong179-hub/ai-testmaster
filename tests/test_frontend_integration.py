@@ -29,7 +29,7 @@ HONGEN_PROJECT_ID = int(os.environ.get("TEST_PROJECT_ID", "3"))
 
 
 def _check_service_available(url: str, timeout: int = 2) -> bool:
-    """检查服务是否可�?""
+    """检查服务是否可用"""
     try:
         return requests.get(url, timeout=timeout).status_code < 500
     except (requests.ConnectionError, requests.Timeout):
@@ -41,11 +41,11 @@ frontend_available = _check_service_available(BASE_URL)
 
 skip_if_no_backend = pytest.mark.skipif(
     not backend_available,
-    reason=f"后端服务不可�?({API_URL})，请先启�?FastAPI 服务"
+    reason=f"后端服务不可用 ({API_URL})，请先启动 FastAPI 服务"
 )
 skip_if_no_frontend = pytest.mark.skipif(
     not frontend_available,
-    reason=f"前端服务不可�?({BASE_URL})，请先启动前端开发服务器"
+    reason=f"前端服务不可用 ({BASE_URL})，请先启动前端开发服务器"
 )
 
 

@@ -6,7 +6,7 @@ import gzip
 import json
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.utils.db_time import utcnow
 
 _logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def archive_iterations(db: Session, retention_days: Optional[int] = None, dry_ru
     """
     if retention_days is None:
         retention_days = settings.ARCHIVE_RETENTION_DAYS
-    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+    cutoff = utcnow() - timedelta(days=retention_days)
     rows = db.execute(
         text(
             "SELECT id, name, finalized_at FROM iterations "
@@ -61,7 +62,7 @@ def archive_iterations(db: Session, retention_days: Optional[int] = None, dry_ru
     if dry_run:
         return len(rows)
 
-    now_utc = datetime.now(timezone.utc)
+    now_utc = utcnow()
     for r in rows:
         iteration_id = r.id
         db.execute(
@@ -117,7 +118,7 @@ def cleanup_audit_logs(db: Session, retention_days: Optional[int] = None, dry_ru
         retention_days = settings.CLEANUP_AUDIT_LOG_DAYS
     if output_dir is None:
         output_dir = settings.BACKUP_DIR
-    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+    cutoff = utcnow() - timedelta(days=retention_days)
     rows = db.execute(
         text(
             "SELECT id, action, actor_id, target_kind, target_id, detail, "
@@ -139,7 +140,7 @@ def cleanup_audit_logs(db: Session, retention_days: Optional[int] = None, dry_ru
     except OSError as exc:
         _logger.error("创建导出目录失败: %s", exc)
         raise
-    export_file = output_path / f"audit_log_export_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.jsonl"
+    export_file = output_path / f"audit_log_export_{utcnow().strftime('%Y%m%d_%H%M%S')}.jsonl"
 
     try:
         with open(export_file, "w", encoding="utf-8") as f:
@@ -196,7 +197,7 @@ def backup_tables(db: Session, output_dir: Optional[str] = None) -> Dict[str, in
         output_dir = settings.BACKUP_DIR
 
     output_path = Path(output_dir)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = utcnow().strftime("%Y%m%d_%H%M%S")
     backup_dir = output_path / f"pipeline_backup_{timestamp}"
     try:
         backup_dir.mkdir(parents=True, exist_ok=True)
@@ -215,6 +216,9 @@ def backup_tables(db: Session, output_dir: Optional[str] = None) -> Dict[str, in
             if not _COLUMN_NAME_PATTERN.match(col):
                 raise ValueError(f"Invalid column name in backup config: {col}")
         col_list = ", ".join(f"`{c}`" for c in columns)
+        # SAFETY: table_name 已通过 _ALLOWED_TABLE_NAMES 白名单校验（L210），
+        # col_list 中每个列名已通过 _COLUMN_NAME_PATTERN 正则校验（L215-216），
+        # 均为可信的静态标识符，f-string 拼接不存在 SQL 注入风险
         rows = db.execute(text(f"SELECT {col_list} FROM `{table_name}`")).fetchall()
 
         export_file = backup_dir / f"{table_name}.jsonl"
@@ -229,7 +233,7 @@ def backup_tables(db: Session, output_dir: Optional[str] = None) -> Dict[str, in
 
         stats[table_name] = len(rows)
 
-    manifest = {"backup_time": datetime.now(timezone.utc).isoformat(), "tables": stats}
+    manifest = {"backup_time": utcnow().isoformat(), "tables": stats}
     manifest_file = backup_dir / "manifest.json"
     try:
         with open(manifest_file, "w", encoding="utf-8") as f:
@@ -285,7 +289,7 @@ def migrate_artifacts(db: Session, from_version: str, to_version: str, dry_run: 
     if dry_run:
         return len(rows)
 
-    now_utc = datetime.now(timezone.utc)
+    now_utc = utcnow()
     migrated = 0
     for r in rows:
         if r.payload is None:

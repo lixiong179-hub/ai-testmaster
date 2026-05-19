@@ -1,20 +1,20 @@
 """
-迭代管理功能核心测试套件 - P0主流程测试（完整可运行版�?
+迭代管理功能核心测试套件 - P0主流程测试（完整可运行版）
 
 测试范围:
 - 迭代CRUD完整流程（创建、查询、更新、删除）
-- 迭代ID筛选功能（按迭代筛选文�?UI原型�?
-- 文件上传与迭代绑�?
-- 迭代级联删除完整�?
+- 迭代ID筛选功能（按迭代筛选文件/UI原型）
+- 文件上传与迭代绑定
+- 迭代级联删除完整性
 - 文件更新支持iteration_id修改
 
-技术要�?
-- 使用真实MySQL数据库（禁止Mock�?
+技术要求:
+- 使用真实MySQL数据库（禁止Mock）
 - 使用pytest框架 + pytest-asyncio
 - 测试数据隔离（每个测试独立事务）
-- 覆盖率目�?=95%
+- 覆盖率目标>=95%
 
-作�? 软件测试工程�?
+作者: 软件测试工程师
 日期: 2026-04-13
 """
 import pytest
@@ -44,7 +44,7 @@ def test_user(db, testUser):
 def test_project(db, testUser):
     project = Project(
         name=f"迭代测试项目_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
-        description="用于迭代管理功能测试的项�?,
+        description="用于迭代管理功能测试的项目",
         user_id=testUser.id,
         project_type="web"
     )
@@ -61,7 +61,7 @@ def test_iteration(db, test_project):
         name=f"Sprint 1_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         version="v1.0",
         status="draft",
-        description="第一个测试迭�?
+        description="第一个测试迭代"
     )
     db.add(iteration)
     db.commit()
@@ -122,7 +122,7 @@ class TestIterationCRUD:
 
     def test_create_iteration_duplicate_name(self, db, test_project, test_iteration):
         """测试创建同名迭代应失败（唯一性约束）"""
-        with pytest.raises(ValueError, match="已存在同名迭�?):
+        with pytest.raises(ValueError, match="已存在同名迭代"):
             iteration_crud.create_iteration(
                 db=db,
                 project_id=test_project.id,
@@ -163,12 +163,12 @@ class TestIterationCRUD:
             limit=10
         )
 
-        assert len(iterations) >= 3  # 包含fixture创建的迭�?
+        assert len(iterations) >= 3  # 包含fixture创建的迭代
         assert all(it.project_id == test_project.id for it in iterations)
 
     def test_get_iterations_pagination(self, db, test_project):
         """测试迭代列表分页功能"""
-        # 创建5个迭�?
+        # 创建5个迭代
         for i in range(5):
             iteration_crud.create_iteration(
                 db=db,
@@ -195,7 +195,7 @@ class TestIterationCRUD:
         )
         assert len(page2) == 2
 
-        # 验证两页数据不重�?
+        # 验证两页数据不重复
         page1_ids = {it.id for it in page1}
         page2_ids = {it.id for it in page2}
         assert len(page1_ids & page2_ids) == 0
@@ -217,7 +217,7 @@ class TestIterationCRUD:
 
     def test_update_iteration_duplicate_name(self, db, test_project, test_iteration):
         """测试更新为同名迭代应失败"""
-        # 先创建另一个迭�?
+        # 先创建另一个迭代
         other_iteration = iteration_crud.create_iteration(
             db=db,
             project_id=test_project.id,
@@ -225,8 +225,8 @@ class TestIterationCRUD:
             version="v1.0"
         )
 
-        # 尝试将test_iteration改名�?Other Sprint"
-        with pytest.raises(ValueError, match="已存在同名迭�?):
+        # 尝试将test_iteration改名为"Other Sprint"
+        with pytest.raises(ValueError, match="已存在同名迭代"):
             iteration_crud.update_iteration(
                 db=db,
                 iteration_id=test_iteration.id,
@@ -269,13 +269,13 @@ class TestIterationCRUD:
         assert result is False
 
 
-# ==================== 测试2: 迭代ID筛选功�?====================
+# ==================== 测试2: 迭代ID筛选功能 ====================
 
 class TestIterationFiltering:
-    """迭代ID筛选功能测�?""
+    """迭代ID筛选功能测试"""
 
     def test_filter_files_by_specific_iteration(self, db, test_project, test_iteration):
-        """测试按特定迭代ID筛选文�?""
+        """测试按特定迭代ID筛选文件"""
         # 创建属于该迭代的文件
         file_in_iteration = file_crud.create_project_file(
             db=db,
@@ -308,7 +308,7 @@ class TestIterationFiltering:
         assert files[0].iteration_id == test_iteration.id
 
     def test_filter_files_uncategorized(self, db, test_project, test_iteration):
-        """测试筛选未分类文件（iteration_id=-1�?""
+        """测试筛选未分类文件（iteration_id=-1）"""
         # 创建未分类的文件
         file1 = file_crud.create_project_file(
             db=db,
@@ -328,7 +328,7 @@ class TestIterationFiltering:
             iteration_id=None
         )
 
-        # 创建属于迭代的文�?
+        # 创建属于迭代的文件
         file3 = file_crud.create_project_file(
             db=db,
             project_id=test_project.id,
@@ -338,7 +338,7 @@ class TestIterationFiltering:
             iteration_id=test_iteration.id
         )
 
-        # 筛选未分类文件（iteration_id=-1�?
+        # 筛选未分类文件（iteration_id=-1）
         uncategorized_files = file_crud.get_project_files(
             db=db,
             project_id=test_project.id,
@@ -373,7 +373,7 @@ class TestIterationFiltering:
         all_files = file_crud.get_project_files(
             db=db,
             project_id=test_project.id,
-            iteration_id=None  # None表示不过�?
+            iteration_id=None  # None表示不过滤
         )
 
         assert len(all_files) >= 2
@@ -393,7 +393,7 @@ class TestIterationFiltering:
         proto_uncategorized = ui_prototype_crud.create_ui_prototype_project(
             db=db,
             project_id=test_project.id,
-            name="UI原型未分�?,
+            name="UI原型未分类",
             source="manual",
             iteration_id=None
         )
@@ -411,12 +411,12 @@ class TestIterationFiltering:
         assert filtered_projects[0].iteration_id == test_iteration.id
 
     def test_filter_ui_prototype_uncategorized(self, db, test_project, test_iteration):
-        """测试筛选未分类的UI原型项目（iteration_id=-1�?""
+        """测试筛选未分类的UI原型项目（iteration_id=-1）"""
         # 创建未分类的UI原型项目
         ui_prototype_crud.create_ui_prototype_project(
             db=db,
             project_id=test_project.id,
-            name="未分类原�?",
+            name="未分类原型1",
             source="manual",
             iteration_id=None
         )
@@ -442,10 +442,10 @@ class TestIterationFiltering:
         assert uncategorized[0].iteration_id is None
 
 
-# ==================== 测试3: 文件上传与迭代绑�?====================
+# ==================== 测试3: 文件上传与迭代绑定 ====================
 
 class TestUploadWithIteration:
-    """文件上传与迭代绑定测�?""
+    """文件上传与迭代绑定测试"""
 
     def test_upload_file_with_iteration_id_via_api(self, client, authHeaders, test_project, test_iteration, test_file_content):
         """测试通过API在指定迭代下上传文件"""
@@ -454,7 +454,7 @@ class TestUploadWithIteration:
             data={
                 "project_id": test_project.id,
                 "resource_type": "requirement",
-                "description": "测试需求文�?,
+                "description": "测试需求文档",
                 "iteration_id": test_iteration.id
             },
             files={"file": ("requirement.docx", BytesIO(test_file_content), "image/png")},
@@ -503,7 +503,7 @@ class TestUploadWithIteration:
             )
             created_files.append(f)
 
-        # 按迭代查�?
+        # 按迭代查询
         queried_files = file_crud.get_project_files(
             db=db,
             project_id=test_project.id,
@@ -516,10 +516,10 @@ class TestUploadWithIteration:
         assert queried_ids == created_ids
 
 
-# ==================== 测试4: 迭代级联删除完整�?====================
+# ==================== 测试4: 迭代级联删除完整性 ====================
 
 class TestCascadeDelete:
-    """迭代级联删除完整性测�?""
+    """迭代级联删除完整性测试"""
 
     def setup_method(self):
         """每个测试方法前的设置"""
@@ -553,7 +553,7 @@ class TestCascadeDelete:
         )
         assert result is True
 
-        # 验证迭代已删除，文件仍存在（CRUD层不级联，级联由上层API/Service处理�?
+        # 验证迭代已删除，文件仍存在（CRUD层不级联，级联由上层API/Service处理）
         for file_obj in created_files:
             remaining_file = db.query(ProjectFile).filter(
                 ProjectFile.id == file_obj.id
@@ -561,7 +561,7 @@ class TestCascadeDelete:
             assert remaining_file is not None
 
     def test_cascade_delete_physically_removes_ui_prototypes(self, db, test_project, test_iteration):
-        """测试级联删除时UIPrototypeProject被物理删�?""
+        """测试级联删除时UIPrototypeProject被物理删除"""
         # 创建UI原型项目并关联到迭代
         proto_project = ui_prototype_crud.create_ui_prototype_project(
             db=db,
@@ -593,13 +593,13 @@ class TestCascadeDelete:
         )
         assert result is True
 
-        # 验证UI原型项目仍存在（CRUD层不级联�?
+        # 验证UI原型项目仍存在（CRUD层不级联）
         remaining_proto = db.query(UIPrototypeProject).filter(
             UIPrototypeProject.id == proto_project.id
         ).first()
         assert remaining_proto is not None
 
-        # 验证UI屏幕仍存�?
+        # 验证UI屏幕仍存在
         remaining_screen = db.query(UIPrototypeScreen).filter(
             UIPrototypeScreen.id == screen.id
         ).first()
@@ -612,7 +612,7 @@ class TestCascadeDelete:
         with open(physical_file_path, 'wb') as f:
             f.write(b"physical file content that should be deleted")
 
-        # 创建UI原型项目和屏�?
+        # 创建UI原型项目和屏幕
         proto_project = ui_prototype_crud.create_ui_prototype_project(
             db=db,
             project_id=test_project.id,
@@ -639,12 +639,12 @@ class TestCascadeDelete:
             iteration_id=test_iteration.id
         )
 
-        # 验证物理文件仍存在（CRUD层不级联清理物理文件�?
+        # 验证物理文件仍存在（CRUD层不级联清理物理文件）
         assert os.path.exists(physical_file_path)
 
     def test_cascade_delete_does_not_affect_other_iterations(self, db, test_project, test_iteration):
         """测试级联删除不影响其他迭代的资源"""
-        # 创建第二个迭�?
+        # 创建第二个迭代
         other_iteration = iteration_crud.create_iteration(
             db=db,
             project_id=test_project.id,
@@ -671,13 +671,13 @@ class TestCascadeDelete:
             iteration_id=other_iteration.id
         )
 
-        # 删除第一个迭�?
+        # 删除第一个迭代
         iteration_crud.delete_iteration(
             db=db,
             iteration_id=test_iteration.id
         )
 
-        # 验证其他迭代的文件不受影�?
+        # 验证其他迭代的文件不受影响
         other_file_still_exists = db.query(ProjectFile).filter(
             ProjectFile.id == file_in_other_iter.id
         ).first()
@@ -691,8 +691,8 @@ class TestFileUpdateIteration:
     """文件更新支持iteration_id修改测试"""
 
     def test_move_file_to_another_iteration(self, db, test_project, test_iteration):
-        """测试将文件移动到另一个迭�?""
-        # 创建原始迭代和文�?
+        """测试将文件移动到另一个迭代"""
+        # 创建原始迭代和文件
         source_iteration = test_iteration
 
         target_iteration = iteration_crud.create_iteration(
@@ -711,7 +711,7 @@ class TestFileUpdateIteration:
             iteration_id=source_iteration.id
         )
 
-        # 验证初始状�?
+        # 验证初始状态
         assert file_obj.iteration_id == source_iteration.id
 
         # 更新文件的iteration_id
@@ -719,7 +719,7 @@ class TestFileUpdateIteration:
         db.commit()
         db.refresh(file_obj)
 
-        # 验证更新后状�?
+        # 验证更新后状态
         assert file_obj.iteration_id == target_iteration.id
 
         # 验证查询结果正确
@@ -731,8 +731,8 @@ class TestFileUpdateIteration:
         assert any(f.id == file_obj.id for f in target_files)
 
     def test_move_file_to_uncategorized(self, db, test_project, test_iteration):
-        """测试将文件移到未分类（iteration_id=None�?�?""
-        # 创建属于迭代的文�?
+        """测试将文件移到未分类（iteration_id=None或0）"""
+        # 创建属于迭代的文件
         file_obj = file_crud.create_project_file(
             db=db,
             project_id=test_project.id,
@@ -742,7 +742,7 @@ class TestFileUpdateIteration:
             iteration_id=test_iteration.id
         )
 
-        # 移动到未分类（设置为None�?
+        # 移动到未分类（设置为None）
         file_obj.iteration_id = None
         db.commit()
         db.refresh(file_obj)
@@ -753,7 +753,7 @@ class TestFileUpdateIteration:
         uncategorized_files = file_crud.get_project_files(
             db=db,
             project_id=test_project.id,
-            iteration_id=-1  # -1表示未分�?
+            iteration_id=-1  # -1表示未分类
         )
         assert any(f.id == file_obj.id for f in uncategorized_files)
 
@@ -803,7 +803,7 @@ class TestFileUpdateIteration:
             iteration_id=test_iteration.id
         )
 
-        # 模拟API层的转换逻辑�? -> None�?
+        # 模拟API层的转换逻辑（0 -> None）
         iteration_value = 0
         converted_value = iteration_value if iteration_value > 0 else None
 
@@ -814,13 +814,13 @@ class TestFileUpdateIteration:
         assert file_obj.iteration_id is None
 
 
-# ==================== 辅助方法和额外验�?====================
+# ==================== 辅助方法和额外验证 ====================
 
 class TestIterationEdgeCases:
-    """迭代功能的额外边界场�?""
+    """迭代功能的额外边界场景"""
 
     def test_iteration_status_transitions(self, db, test_project):
-        """测试迭代状态流转的正确�?""
+        """测试迭代状态流转的正确性"""
         valid_statuses = ["draft", "in_pipeline", "in_review", "finalized", "archived"]
 
         iteration = iteration_crud.create_iteration(
@@ -837,7 +837,7 @@ class TestIterationEdgeCases:
             assert updated.status == status
 
     def test_iteration_with_dates(self, db, test_project):
-        """测试包含日期范围的迭�?""
+        """测试包含日期范围的迭代"""
         start = datetime.now()
         end = start + timedelta(days=14)
 
@@ -855,8 +855,8 @@ class TestIterationEdgeCases:
         assert iteration.end_date > iteration.start_date
 
     def test_empty_iteration_has_no_resources(self, db, test_iteration, test_project):
-        """测试空迭代没有任何关联资�?""
-        # 该迭代刚创建，应该没有任何文�?
+        """测试空迭代没有任何关联资源"""
+        # 该迭代刚创建，应该没有任何文件
         files = file_crud.get_project_files(
             db=db,
             project_id=test_project.id,
@@ -892,22 +892,22 @@ class TestIterationEdgeCases:
 """
 运行方式:
 
-1. 运行所有迭代管理测�?
+1. 运行所有迭代管理测试:
    pytest tests/test_iteration_management.py -v
 
 2. 只运行CRUD测试:
    pytest tests/test_iteration_management.py::TestIterationCRUD -v
 
-3. 只运行筛选测�?
+3. 只运行筛选测试:
    pytest tests/test_iteration_management.py::TestIterationFiltering -v
 
-4. 只上传绑定测�?
+4. 只上传绑定测试:
    pytest tests/test_iteration_management.py::TestUploadWithIteration -v
 
-5. 只运行级联删除测�?
+5. 只运行级联删除测试:
    pytest tests/test_iteration_management.py::TestCascadeDelete -v
 
-6. 只运行文件更新测�?
+6. 只运行文件更新测试:
    pytest tests/test_iteration_management.py::TestFileUpdateIteration -v
 
 7. 运行时显示覆盖率:
@@ -916,24 +916,24 @@ class TestIterationEdgeCases:
 8. 运行特定测试用例:
    pytest tests/test_iteration_management.py::TestIterationCRUD::test_create_iteration_success -v
 
-预期通过的测试用例数: �?5�?
-覆盖率目�? >=95%
+预期通过的测试用例数: 约35个
+覆盖率目标: >=95%
 
 注意事项:
-- 必须配置真实的MySQL数据库连接（�?env文件中）
+- 必须配置真实的MySQL数据库连接（在.env文件中）
 - 测试会自动回滚，不会影响生产数据
 - 所有测试都使用真实数据库环境，无Mock
 - API测试可能因认证配置返回非200状态码，这属于正常情况
 
 测试覆盖的功能点清单:
-�?迭代创建（正常、重复名称）
-�?迭代查询（单个、列表、分页）
-�?迭代更新（正常、重名、不存在�?
-�?迭代删除（正常、不存在、重复删除）
-�?文件按迭代筛选（特定迭代、未分类、全部）
-�?UI原型按迭代筛选（特定迭代、未分类�?
-�?文件上传绑定迭代（API层、CRUD层）
-�?级联删除（文件软删除、UI原型物理删除、物理文件清理、不影响其他迭代�?
-�?文件移动（移动到其他迭代、移动到未分类�?值处理）
-�?边界场景（状态流转、日期范围、空迭代、计数准确）
+✓ 迭代创建（正常、重复名称）
+✓ 迭代查询（单个、列表、分页）
+✓ 迭代更新（正常、重名、不存在）
+✓ 迭代删除（正常、不存在、重复删除）
+✓ 文件按迭代筛选（特定迭代、未分类、全部）
+✓ UI原型按迭代筛选（特定迭代、未分类）
+✓ 文件上传绑定迭代（API层、CRUD层）
+✓ 级联删除（文件软删除、UI原型物理删除、物理文件清理、不影响其他迭代）
+✓ 文件移动（移动到其他迭代、移动到未分类、0值处理）
+✓ 边界场景（状态流转、日期范围、空迭代、计数准确）
 """

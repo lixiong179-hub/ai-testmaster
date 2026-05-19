@@ -1,0 +1,92 @@
+.test-data-editor {
+  padding: 0;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.editor-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.boundary-config,
+.length-config {
+  display: flex;
+  align-items: center;
+}
+
+.data-value {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.range-value {
+  color: #67c23a;
+  font-size: 12px;
+}
+
+.empty-value {
+  color: #909399;
+}
+
+.description {
+  color: #606266;
+  font-size: 12px;
+}
+
+.preview-value {
+  color: #409eff;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.preview-card {
+  margin-top: 20px;
+}
+
+.test-data-table :deep(.el-input--small .el-input__wrapper),
+.test-data-table :deep(.el-select--small .el-select__wrapper),
+.test-data-table :deep(.el-input-number--small) {
+  min-height: 30px;
+}
+
+.test-data-table :deep(.el-button--small) {
+  min-height: 30px;
+  padding: 5px 10px;
+}
+
+.test-data-table :deep(.el-button--small.is-circle) {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.json-preview {
+  background-color: #f5f7fa;
+  padding: 16px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+}

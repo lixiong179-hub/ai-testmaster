@@ -1,17 +1,17 @@
 """
 M1-T06 IterationService 单元测试
 
-覆盖范围�?
+覆盖范围：
 1. create_iteration 正常创建 + 同名校验
-2. base_iteration_id 校验：不存在 / 不同项目 / �?finalized
-3. add_input 正常添加 + 幂等校验（重�?hash�?
-4. add_input 迭代不存�?
-5. list_iterations 按项目查�?
+2. base_iteration_id 校验：不存在 / 不同项目 / 非 finalized
+3. add_input 正常添加 + 幂等校验（重复 hash）
+4. add_input 迭代不存在
+5. list_iterations 按项目查询
 6. get_iteration 详情
-7. finalize_iteration 正常定稿 + 状态校�?
-8. transition_iteration_status 所有合法路�?+ 非法路径
-9. IterationPipelineStatus 枚举值正确�?
-10. IterationInput 枚举值正确�?
+7. finalize_iteration 正常定稿 + 状态校验
+8. transition_iteration_status 所有合法路径 + 非法路径
+9. IterationPipelineStatus 枚举值正确性
+10. IterationInput 枚举值正确性
 """
 import pytest
 from datetime import datetime, timezone
@@ -102,11 +102,11 @@ class TestCreateIteration:
 
     def test_create_duplicate_name(self, db, test_project, test_user):
         create_iteration(db, test_project.id, "Sprint 1", created_by=test_user.id)
-        with pytest.raises(ValueError, match="已存在同名迭�?):
+        with pytest.raises(ValueError, match="已存在同名迭代"):
             create_iteration(db, test_project.id, "Sprint 1", created_by=test_user.id)
 
     def test_create_with_base_iteration(self, db, test_project, test_user):
-        # 先创建一�?finalized 的基线迭�?
+        # 先创建一个 finalized 的基线迭代
         base = _create_iteration(db, test_project.id, "Base Sprint",
                                  status=IterationPipelineStatus.FINALIZED.value)
         it = create_iteration(
@@ -117,7 +117,7 @@ class TestCreateIteration:
         assert it.base_iteration_id == base.id
 
     def test_base_iteration_not_found(self, db, test_project, test_user):
-        with pytest.raises(BaseIterationValidationError, match="不存�?):
+        with pytest.raises(BaseIterationValidationError, match="不存在"):
             create_iteration(
                 db, test_project.id, "Sprint 1",
                 base_iteration_id=99999,
@@ -133,7 +133,7 @@ class TestCreateIteration:
 
         base = _create_iteration(db, proj_a.id, "Base",
                                  status=IterationPipelineStatus.FINALIZED.value)
-        with pytest.raises(BaseIterationValidationError, match="不属于项�?):
+        with pytest.raises(BaseIterationValidationError, match="不属于项目"):
             create_iteration(
                 db, proj_b.id, "Sprint 1",
                 base_iteration_id=base.id,
@@ -143,7 +143,7 @@ class TestCreateIteration:
     def test_base_iteration_not_finalized(self, db, test_project, test_user):
         base = _create_iteration(db, test_project.id, "Base Sprint",
                                  status=IterationPipelineStatus.DRAFT.value)
-        with pytest.raises(BaseIterationValidationError, match="必须�?finalized"):
+        with pytest.raises(BaseIterationValidationError, match="必须为 finalized"):
             create_iteration(
                 db, test_project.id, "Sprint 2",
                 base_iteration_id=base.id,
@@ -158,7 +158,7 @@ class TestAddInput:
 
     def test_add_file_input(self, db, test_project, test_user):
         it = create_iteration(db, test_project.id, "Sprint 1", created_by=test_user.id)
-        # 创建真实 ProjectFile 以满�?FK 约束
+        # 创建真实 ProjectFile 以满足 FK 约束
         from app.models.project import ProjectFile
         pf = ProjectFile(
             project_id=test_project.id,
@@ -201,7 +201,7 @@ class TestAddInput:
 
     def test_add_input_invalid_kind(self, db, test_project, test_user):
         it = create_iteration(db, test_project.id, "Sprint 1", created_by=test_user.id)
-        with pytest.raises(IterationInputValidationError, match="不合�?):
+        with pytest.raises(IterationInputValidationError, match="不合法"):
             add_input(db, it.id, "invalid_kind", hash_value="h1")
 
     def test_add_input_empty_hash(self, db, test_project, test_user):
@@ -299,7 +299,7 @@ class TestFinalizeIteration:
 # ==================== transition_iteration_status ====================
 
 class TestTransitionIterationStatus:
-    """迭代状态迁移测�?""
+    """迭代状态迁移测试"""
 
     def test_draft_to_in_pipeline(self, db, test_project):
         it = _create_iteration(db, test_project.id, "Sprint 1")
@@ -350,7 +350,7 @@ class TestTransitionIterationStatus:
 # ==================== Enum ====================
 
 class TestEnums:
-    """枚举值正确性测�?""
+    """枚举值正确性测试"""
 
     def test_iteration_pipeline_status_values(self):
         assert IterationPipelineStatus.DRAFT.value == "draft"

@@ -15,7 +15,7 @@ class ExcelExportMixin:
             from openpyxl import Workbook
             from openpyxl.styles import Font, PatternFill, Alignment
 
-            test_case = self.db.query(TestCase).filter(TestCase.id == test_case_id).first()
+            test_case = self.db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
             if not test_case:
                 logger.warning(f"测试用例不存在: {test_case_id}")
                 return False
@@ -111,7 +111,8 @@ class ExcelExportMixin:
                 return False
 
             test_cases = self.db.query(TestCase).filter(
-                TestCase.id.in_(test_case_ids)
+                TestCase.id.in_(test_case_ids),
+                TestCase.is_deleted.is_(False)
             ).all()
 
             if not test_cases:
@@ -164,7 +165,7 @@ class ExcelExportMixin:
                 ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = width
 
             current_row = 2
-            priority_map = {1: "P0", 2: "P1", 3: "P2", 4: "P3"}
+            priority_map = {1: "P0/P1", 2: "P2", 3: "P3"}
 
             # 批量查询所有步骤，避免 N+1
             all_case_ids = [tc.id for tc in test_cases]

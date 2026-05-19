@@ -18,6 +18,7 @@ from loguru import logger
 from app.core.constants import normalize_priority
 from app.schemas.test_case import FlowSortDataSchema
 from app.utils.test_case_helpers import convert_steps_to_response
+from app.utils.db_time import utcnow
 
 
 def _prepare_test_point(
@@ -144,5 +145,5 @@ def _format_case_response(
         "change_type": generated_case.get("change_type", "added"),
         "parent_case_id": generated_case.get("parent_case_id"),
         "generate_status": 1,
-        "create_time": datetime.now().isoformat(),
+        "create_time": utcnow().isoformat(),
     }

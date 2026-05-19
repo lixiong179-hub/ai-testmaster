@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from loguru import logger
 
 from app.services.cost_statistics.models import CostStatistics, CostReport
+from app.utils.db_time import utcnow
 
 
 class CostStatisticsReportMixin:
@@ -24,7 +25,7 @@ class CostStatisticsReportMixin:
         end_date: Optional[datetime] = None
     ) -> CostReport:
         if not end_date:
-            end_date = datetime.now()
+            end_date = utcnow()
         if not start_date:
             start_date = end_date - timedelta(days=30)
 

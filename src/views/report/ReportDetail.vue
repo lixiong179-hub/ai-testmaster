@@ -39,7 +39,7 @@
                   <el-input v-model="report.test_task_name" disabled />
                 </el-form-item>
                 <el-form-item label="创建时间">
-                  <el-input v-model="report.created_at" disabled />
+                  <el-input v-model="report.create_time" disabled />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -51,6 +51,9 @@
                 </el-form-item>
                 <el-form-item label="失败用例">
                   <el-input v-model="report.failed_cases" disabled />
+                </el-form-item>
+                <el-form-item label="阻塞用例">
+                  <el-input v-model="report.blocked_cases" disabled />
                 </el-form-item>
                 <el-form-item label="通过率">
                   <el-input v-model="report.pass_rate" disabled />
@@ -138,8 +141,9 @@ const handleExportPDF = async () => {
 
     loadingInstance.close()
     ElMessage.success('导出PDF成功')
-  } catch (error: any) {
-    ElMessage.error(`导出PDF失败: ${error.message || '未知错误'}`)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : '未知错误'
+    ElMessage.error(`导出PDF失败: ${msg}`)
   } finally {
     exportLoading.value = false
   }
@@ -170,8 +174,9 @@ const handleExportHTML = async () => {
 
     loadingInstance.close()
     ElMessage.success('导出HTML成功')
-  } catch (error: any) {
-    ElMessage.error(`导出HTML失败: ${error.message || '未知错误'}`)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : '未知错误'
+    ElMessage.error(`导出HTML失败: ${msg}`)
   } finally {
     exportLoading.value = false
   }
@@ -191,8 +196,9 @@ const fetchReportDetail = async () => {
 
   try {
     await reportStore.fetchReportDetail(reportId.value, projectId.value)
-  } catch (error: any) {
-    ElMessage.error(error.message || '获取报告详情失败')
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : '获取报告详情失败'
+    ElMessage.error(msg)
   }
 }
 

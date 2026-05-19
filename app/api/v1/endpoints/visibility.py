@@ -73,7 +73,7 @@ async def get_visibility_config(
     elif level == "case":
         from app.models.test_case import TestCase
         from app.models.test_task import TestTask
-        case = db.query(TestCase).filter(TestCase.id == id).first() if id else None
+        case = db.query(TestCase).filter(TestCase.id == id, TestCase.is_deleted.is_(False)).first() if id else None
         task = None
         config = service.get_case_config(case, task) if case else service.get_global_config()
     else:
@@ -135,7 +135,7 @@ async def update_visibility_config(
             )
     elif request.level == "case" and request.id:
         from app.models.test_case import TestCase
-        case = db.query(TestCase).filter(TestCase.id == request.id).first()
+        case = db.query(TestCase).filter(TestCase.id == request.id, TestCase.is_deleted.is_(False)).first()
         if case:
             service.update_case_config(case, new_config)
         else:

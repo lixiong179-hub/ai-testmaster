@@ -18,7 +18,7 @@ def create_test_image_with_button():
     img = Image.new('RGB', (800, 600), color='white')
     draw = ImageDraw.Draw(img)
     
-    # 绘制一个蓝色按�?(模拟登录按钮)
+    # 绘制一个蓝色按钮 (模拟登录按钮)
     button_x, button_y = 300, 250
     button_width, button_height = 200, 60
     
@@ -59,7 +59,7 @@ def create_test_image_with_button():
     
     draw.text((300, 100), title, fill='black', font=title_font)
     
-    # 转换为字�?
+    # 转换为字节
     img_byte_arr = BytesIO()
     img.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
@@ -108,7 +108,7 @@ def test_image_with_button():
 
 @pytest.fixture
 def simple_test_image():
-    """创建简单测试图�?""
+    """创建简单测试图片"""
     return create_simple_test_image()
 
 
@@ -120,14 +120,14 @@ class TestQwenRealAPICall:
     
     @pytest.mark.real_api
     def test_qwen_model_initialization(self, qwen_model):
-        """测试模型初始�?""
+        """测试模型初始化"""
         assert qwen_model.model_type == VisionModelType.QWEN
         assert qwen_model.model_name == "qwen3-vl-flash"
         assert qwen_model.base_url == "https://dashscope.aliyuncs.com/api/v1"
         assert qwen_model.api_key is not None
         assert len(qwen_model.api_key) > 0
-        print(f"\n�?模型初始化成�? {qwen_model.model_name}")
-        print(f"�?API Key: {qwen_model.api_key[:20]}...")
+        print(f"\n✓ 模型初始化成功: {qwen_model.model_name}")
+        print(f"✓ API Key: {qwen_model.api_key[:20]}...")
     
     @pytest.mark.real_api
     def test_qwen_describe_screenshot(self, qwen_model, simple_test_image):
@@ -144,9 +144,9 @@ class TestQwenRealAPICall:
         assert isinstance(description, str)
         assert len(description) > 0
         assert description != "无法描述页面内容"
-        assert description != "视觉模型未配�?
+        assert description != "视觉模型未配置"
         
-        print("�?截图描述测试通过")
+        print("✓ 截图描述测试通过")
     
     @pytest.mark.real_api
     def test_qwen_recognize_elements(self, qwen_model, test_image_with_button):
@@ -160,7 +160,7 @@ class TestQwenRealAPICall:
             min_confidence=0.7
         )
         
-        print(f"识别�?{len(elements)} 个元�?)
+        print(f"识别到 {len(elements)} 个元素")
         
         # 验证返回结果
         assert isinstance(elements, list)
@@ -175,7 +175,7 @@ class TestQwenRealAPICall:
                 assert elem.height > 0
                 assert 0 <= elem.confidence <= 1
         
-        print("�?元素识别测试通过")
+        print("✓ 元素识别测试通过")
     
     @pytest.mark.real_api
     def test_qwen_verify_action_result(self, qwen_model, test_image_with_button):
@@ -183,12 +183,12 @@ class TestQwenRealAPICall:
         print("\n=== 测试操作结果验证 ===")
         print("正在调用通义千问API验证操作...")
         
-        # 使用同一张图片模拟操作前后（实际场景应该不同�?
+        # 使用同一张图片模拟操作前后（实际场景应该不同）
         success, reason = qwen_model.verify_action_result(
             test_image_with_button,
             test_image_with_button,
             "点击登录按钮",
-            "页面跳转到用户主�?
+            "页面跳转到用户主页"
         )
         
         print(f"验证结果: success={success}, reason={reason}")
@@ -199,14 +199,14 @@ class TestQwenRealAPICall:
         assert isinstance(reason, str)
         assert len(reason) > 0
         
-        print("�?操作验证测试通过")
+        print("✓ 操作验证测试通过")
     
     @pytest.mark.real_api
     def test_qwen_api_error_handling(self, qwen_model):
         """测试API错误处理 - 使用无效图片"""
         print("\n=== 测试错误处理 ===")
         
-        # 使用无效的图片数�?
+        # 使用无效的图片数据
         invalid_image = b"invalid_image_data"
         
         # 应该优雅处理错误，不抛出异常
@@ -215,10 +215,10 @@ class TestQwenRealAPICall:
             print(f"错误处理结果: {result}")
             # 可能返回错误信息或空结果
         except Exception as e:
-            print(f"捕获到异�? {e}")
+            print(f"捕获到异常: {e}")
             # 如果抛出异常，也认为是正常的错误处理
         
-        print("�?错误处理测试完成")
+        print("✓ 错误处理测试完成")
 
 
 class TestQwenModelConfiguration:
@@ -228,13 +228,13 @@ class TestQwenModelConfiguration:
         """测试从settings读取配置"""
         from app.core.config import settings
         
-        # 验证配置已加�?
+        # 验证配置已加载
         api_key = settings.QWEN_API_KEY
         model_name = settings.QWEN_MODEL
         default_model = settings.VISION_MODEL_DEFAULT
         
-        print(f"\n配置检�?")
-        print(f"  QWEN_API_KEY: {'已设�? if api_key else '未设�?}")
+        print(f"\n配置检查:")
+        print(f"  QWEN_API_KEY: {'已设置' if api_key else '未设置'}")
         print(f"  QWEN_MODEL: {model_name}")
         print(f"  VISION_MODEL_DEFAULT: {default_model}")
         
@@ -253,7 +253,7 @@ class TestQwenModelConfiguration:
         kimi = create_vision_model("kimi")
         assert kimi.model_type == VisionModelType.KIMI
         
-        print("\n�?多模型创建测试通过")
+        print("\n✓ 多模型创建测试通过")
 
 
 if __name__ == '__main__':

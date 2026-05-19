@@ -500,6 +500,7 @@ import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import caseApi from '@/api/case';
+import testTaskApi from '@/api/testTask';
 import { testDataApi, type TestData, type TestDataCreateRequest, DataType, GenerationRule } from '@/api/testData';
 // 类型从全局 case.d.ts 声明文件获取，无需显式导入
 import { Edit, Switch, Check, ArrowLeft, Plus, Delete, DataLine, RefreshRight, MagicStick } from '@element-plus/icons-vue';
@@ -705,15 +706,16 @@ const handleExecuteConfirm = async () => {
   
   executing.value = true;
   try {
-    const executeData: TestCaseExecute = {
-      case_id: Number(caseId.value),
-      steps: executeSteps.value,
-      actual_result: executeForm.actual_result,
-      status: executeForm.status
-    };
-    
-    await caseApi.executeCase(executeData);
-    ElMessage.success('执行成功');
+    // 后端无独立execute端点，通过创建任务执行
+    const projectId = caseDetail.value?.project_id
+    if (projectId) {
+      await testTaskApi.createTask({
+        task_name: `执行用例-${caseDetail.value?.title || caseId.value}`,
+        project_id: projectId,
+        case_ids: [Number(caseId.value)],
+      })
+    }
+    ElMessage.success('执行任务已创建');
     executeDialogVisible.value = false;
     fetchCaseDetail();
   } catch (error) {

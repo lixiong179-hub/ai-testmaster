@@ -70,7 +70,7 @@ class PipelineMetric(Base):
     detail = Column(JSON, nullable=True, comment="附加详情（如 confidence 值、错误信息）")
     created_at = Column(
         DateTime, nullable=False, default=utcnow,
-        server_default=text("UTC_TIMESTAMP"), comment="记录时间",
+        server_default=text("CURRENT_TIMESTAMP"), comment="记录时间",
     )
 
     __table_args__ = (

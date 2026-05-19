@@ -32,13 +32,18 @@
     本模块仅创建3张核心表，不包含角色、权限、测试用例等业务表。
     如需完整的表结构初始化，请使用 init_data.py 或 init_db()。
 """
+import logging
+import secrets
+
 from app.db.database import primary_engine
 from app.utils.jwt_utils import get_password_hash
 from app.core.config import get_settings
 from sqlalchemy import text
 
+logger = logging.getLogger(__name__)
 
-def init_database():
+
+def init_database() -> None:
     """
     使用原生SQL初始化数据库 - 创建基础表并插入默认管理员
 
@@ -138,7 +143,10 @@ def init_database():
         result = conn.execute(text("SELECT id FROM users WHERE username = :username"), {"username": "admin"})
         if not result.fetchone():
             settings = get_settings()
-            admin_password = settings.ADMIN_INITIAL_PASSWORD or "changeme"
+            admin_password = settings.ADMIN_INITIAL_PASSWORD
+            if not admin_password:
+                admin_password = secrets.token_urlsafe(16)
+                logger.warning("ADMIN_INITIAL_PASSWORD not set, generated random password for admin user")
             password_hash = get_password_hash(admin_password)
             conn.execute(
                 text("INSERT INTO users (username, email, password_hash, is_active) VALUES (:username, :email, :password_hash, :is_active)"),

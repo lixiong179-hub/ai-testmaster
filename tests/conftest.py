@@ -45,33 +45,43 @@ def testEngine():
 
 @pytest.fixture(scope="function")
 def db(testEngine) -> Session:
-    """测试数据库会�?�?自动事务隔离
+    """测试数据库会话 — 自动事务隔离
 
     设计原理:
     1. 外层事务包裹整个测试，测试结束统一 rollback，数据不落库
-    2. 覆写 session.commit() 为 session.flush()，使 service 层的 commit
-       只刷新到外层事务内，不破坏隔离。无需在每个测试中手动 begin_nested()
-    3. 保留 after_transaction_end 事件重启 savepoint，兼容显式
-       begin_nested() + commit() 的用法
+    2. 覆写 session.commit() → session.flush()，使 service 层的 commit
+       只刷新到外层事务内，不破坏隔离
+    3. 覆写 session.rollback() → 仅回滚 savepoint，防止 app 层 rollback
+       破坏外层事务
+    4. after_transaction_end 事件自动重启 savepoint，兼容显式
+       begin_nested() + commit()/rollback() 的用法
     """
     connection = testEngine.connect()
     transaction = connection.begin()
     SessionLocal = sessionmaker(bind=connection)
     session = SessionLocal()
 
-    # 核心：将 commit() 降级�?flush()，service 层的 commit 不会真正提交
-    # 这样 service 代码无需任何修改，测试自动获得事务隔�?
     session.commit = session.flush
 
-    session.begin_nested()
+    _savepoint = {"ref": session.begin_nested()}
 
     @event.listens_for(session, "after_transaction_end")
     def restartSavepoint(sess, trans):
         if trans.nested and not trans._parent.nested:
-            sess.begin_nested()
+            _savepoint["ref"] = sess.begin_nested()
+
+    _orig_rollback = session.rollback
+
+    def _safe_rollback(*args, **kwargs):
+        sp = _savepoint["ref"]
+        if sp is not None and sp.is_active:
+            sp.rollback()
+
+    session.rollback = _safe_rollback
 
     yield session
 
+    session.rollback = _orig_rollback
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="transaction already deassociated")
         transaction.rollback()
@@ -176,13 +186,13 @@ def testAdminUser(db):
 
 @pytest.fixture(scope="function")
 def authHeaders(testUser):
-    token = create_access_token({"sub": str(testUser.username)})
+    token = create_access_token({"sub": str(testUser.id), "username": testUser.username})
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture(scope="function")
 def adminAuthHeaders(testAdminUser):
-    token = create_access_token({"sub": str(testAdminUser.username)})
+    token = create_access_token({"sub": str(testAdminUser.id), "username": testAdminUser.username})
     return {"Authorization": f"Bearer {token}"}
 
 

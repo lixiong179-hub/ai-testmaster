@@ -1,14 +1,14 @@
 """
-功能测试用例通过率测�?
+功能测试用例通过率测试
 验证测试用例执行的成功率是否达到90%以上
 
-测试原则（强制执行）�?
+测试原则（强制执行）：
 1. 真实执行优先：所有测试必须使用真实环境，严禁使用Mock
-2. 覆盖率要求：必须执行足够多的测试用例来统计通过�?
-3. 测试准确性：测试通过率必�?>= 90%
-4. 发现问题优先：测试的目的是发现代码问�?
+2. 覆盖率要求：必须执行足够多的测试用例来统计通过率
+3. 测试准确性：测试通过率必须 >= 90%
+4. 发现问题优先：测试的目的是发现代码问题
 
-注意：这些测试使用真实浏览器和真实测试网�?
+注意：这些测试使用真实浏览器和真实测试网站
 """
 import sys
 import os
@@ -25,8 +25,8 @@ from app.utils.browser_controller_v2 import BrowserControllerV2, BrowserConfig, 
 
 class TestFunctionalPassRate(unittest.TestCase):
     """
-    功能测试用例通过率测�?
-    执行多个测试用例并统计通过�?
+    功能测试用例通过率测试
+    执行多个测试用例并统计通过率
     """
     
     # 使用类变量来共享测试结果
@@ -39,7 +39,7 @@ class TestFunctionalPassRate(unittest.TestCase):
     
     @classmethod
     def tearDownClass(cls):
-        """测试类清�?""
+        """测试类清理"""
         pass
     
     def record_result(self, test_name: str, passed: bool, error_msg: str = None):
@@ -69,7 +69,7 @@ class TestFunctionalPassRate(unittest.TestCase):
                 self.assertIn('title', page_info)
                 
                 self.record_result("访问网站", True)
-                print("�?测试1通过: 访问网站成功")
+                print("✅ 测试1通过: 访问网站成功")
                 
             except Exception as e:
                 self.record_result("访问网站", False, str(e))
@@ -95,11 +95,11 @@ class TestFunctionalPassRate(unittest.TestCase):
                 await controller.initialize()
                 await controller.navigate("https://example.com")
                 
-                # 使用正确的截图配�?
+                # 使用正确的截图配置
                 screenshot_config = ScreenshotConfig(type="png", full_page=False)
                 screenshot_bytes = await controller.take_screenshot(screenshot_config)
                 
-                # 保存截图到文�?
+                # 保存截图到文件
                 with open(temp_file, 'wb') as f:
                     f.write(screenshot_bytes)
                 
@@ -108,7 +108,7 @@ class TestFunctionalPassRate(unittest.TestCase):
                 self.assertGreater(os.path.getsize(temp_file), 0)
                 
                 self.record_result("截图功能", True)
-                print("�?测试2通过: 截图功能正常")
+                print("✅ 测试2通过: 截图功能正常")
                 
             except Exception as e:
                 self.record_result("截图功能", False, str(e))
@@ -140,7 +140,7 @@ class TestFunctionalPassRate(unittest.TestCase):
                 await asyncio.sleep(0.5)
                 
                 self.record_result("页面滚动", True)
-                print("�?测试3通过: 页面滚动正常")
+                print("✅ 测试3通过: 页面滚动正常")
                 
             except Exception as e:
                 self.record_result("页面滚动", False, str(e))
@@ -170,7 +170,7 @@ class TestFunctionalPassRate(unittest.TestCase):
                 self.assertIn("example.com", page_info['url'])
                 
                 self.record_result("获取页面信息", True)
-                print("�?测试4通过: 获取页面信息正常")
+                print("✅ 测试4通过: 获取页面信息正常")
                 
             except Exception as e:
                 self.record_result("获取页面信息", False, str(e))
@@ -191,14 +191,14 @@ class TestFunctionalPassRate(unittest.TestCase):
             try:
                 await controller.initialize()
                 
-                # 导航并等待加载（navigate方法内部已经等待�?
+                # 导航并等待加载（navigate方法内部已经等待）
                 await controller.navigate("https://example.com")
                 
                 # 额外等待确保页面完全加载
                 await asyncio.sleep(1)
                 
                 self.record_result("等待页面加载", True)
-                print("�?测试5通过: 等待页面加载正常")
+                print("✅ 测试5通过: 等待页面加载正常")
                 
             except Exception as e:
                 self.record_result("等待页面加载", False, str(e))
@@ -234,7 +234,7 @@ class TestFunctionalPassRate(unittest.TestCase):
                     self.assertIsNotNone(page_info)
                 
                 self.record_result("多次导航", True)
-                print("�?测试6通过: 多次导航正常")
+                print("✅ 测试6通过: 多次导航正常")
                 
             except Exception as e:
                 self.record_result("多次导航", False, str(e))
@@ -245,13 +245,13 @@ class TestFunctionalPassRate(unittest.TestCase):
         asyncio.run(run_test())
     
     def test_07_browser_restart(self):
-        """测试7: 浏览器重启测�?""
-        print("\n🧪 测试7: 浏览器重启测�?)
+        """测试7: 浏览器重启测试"""
+        print("\n🧪 测试7: 浏览器重启测试")
         
         async def run_test():
             config = BrowserConfig(headless=True)
             
-            # 第一次启�?
+            # 第一次启动
             controller1 = BrowserControllerV2(config)
             try:
                 await controller1.initialize()
@@ -261,7 +261,7 @@ class TestFunctionalPassRate(unittest.TestCase):
                 await controller1.close()
                 raise
             
-            # 第二次启�?
+            # 第二次启动
             controller2 = BrowserControllerV2(config)
             try:
                 await controller2.initialize()
@@ -271,8 +271,8 @@ class TestFunctionalPassRate(unittest.TestCase):
                 await controller2.close()
                 raise
             
-            self.record_result("浏览器重�?, True)
-            print("�?测试7通过: 浏览器重启正�?)
+            self.record_result("浏览器重启", True)
+            print("✅ 测试7通过: 浏览器重启正常")
         
         asyncio.run(run_test())
     
@@ -289,7 +289,7 @@ class TestFunctionalPassRate(unittest.TestCase):
                 
                 # 尝试访问不存在的元素（应该抛出异常）
                 try:
-                    await controller.click(-1, -1)  # 无效的坐�?
+                    await controller.click(-1, -1)  # 无效的坐标
                     # 如果没有抛出异常，说明错误处理有问题
                     self.fail("应该抛出异常但未抛出")
                 except Exception:
@@ -297,7 +297,7 @@ class TestFunctionalPassRate(unittest.TestCase):
                     pass
                 
                 self.record_result("错误处理", True)
-                print("�?测试8通过: 错误处理正常")
+                print("✅ 测试8通过: 错误处理正常")
                 
             except Exception as e:
                 self.record_result("错误处理", False, str(e))
@@ -312,7 +312,7 @@ class TestFunctionalPassRate(unittest.TestCase):
         print("\n🧪 测试9: 视口配置测试")
         
         async def run_test():
-            # 测试不同的视口大�?
+            # 测试不同的视口大小
             configs = [
                 BrowserConfig(headless=True, viewport_width=1920, viewport_height=1080),
                 BrowserConfig(headless=True, viewport_width=1366, viewport_height=768),
@@ -330,12 +330,12 @@ class TestFunctionalPassRate(unittest.TestCase):
                     raise
             
             self.record_result("视口配置", True)
-            print("�?测试9通过: 视口配置正常")
+            print("✅ 测试9通过: 视口配置正常")
         
         asyncio.run(run_test())
     
     def test_10_performance_test(self):
-        """测试10: 性能测试 - 快速连续操�?""
+        """测试10: 性能测试 - 快速连续操作"""
         print("\n🧪 测试10: 性能测试")
         
         async def run_test():
@@ -351,7 +351,7 @@ class TestFunctionalPassRate(unittest.TestCase):
                 
                 start_time = datetime.now()
                 
-                # 快速连续导�?
+                # 快速连续导航
                 for i in range(5):
                     await controller.navigate("https://example.com")
                     screenshot_config = ScreenshotConfig(type="png", full_page=False)
@@ -365,11 +365,11 @@ class TestFunctionalPassRate(unittest.TestCase):
                 end_time = datetime.now()
                 duration = (end_time - start_time).total_seconds()
                 
-                # 验证性能�?次导航应该在30秒内完成�?
-                self.assertLess(duration, 30, f"性能测试失败：{duration}�?)
+                # 验证性能（5次导航应该在30秒内完成）
+                self.assertLess(duration, 30, f"性能测试失败：{duration}秒")
                 
                 self.record_result("性能测试", True)
-                print(f"�?测试10通过: 性能测试正常 ({duration:.2f}�?")
+                print(f"✅ 测试10通过: 性能测试正常 ({duration:.2f}秒)")
                 
             except Exception as e:
                 self.record_result("性能测试", False, str(e))
@@ -386,10 +386,10 @@ class TestFunctionalPassRate(unittest.TestCase):
         asyncio.run(run_test())
     
     def test_99_calculate_pass_rate(self):
-        """测试99: 计算通过率统�?""
-        print("\n📊 计算通过率统�?)
+        """测试99: 计算通过率统计"""
+        print("\n📊 计算通过率统计")
         
-        # 统计结果（使用类变量�?
+        # 统计结果（使用类变量）
         total = len(TestFunctionalPassRate.test_results)
         passed = sum(1 for r in TestFunctionalPassRate.test_results if r['passed'])
         failed = total - passed
@@ -401,24 +401,24 @@ class TestFunctionalPassRate(unittest.TestCase):
         print(f"总测试数: {total}")
         print(f"通过: {passed}")
         print(f"失败: {failed}")
-        print(f"通过�? {pass_rate:.2f}%")
+        print(f"通过率: {pass_rate:.2f}%")
         print(f"{'='*60}")
         
-        # 显示失败的测�?
+        # 显示失败的测试
         if failed > 0:
-            print("\n失败的测�?")
+            print("\n失败的测试:")
             for result in TestFunctionalPassRate.test_results:
                 if not result['passed']:
                     print(f"  - {result['name']}: {result['error']}")
         
-        # 验证通过�?>= 90%
+        # 验证通过率 >= 90%
         self.assertGreaterEqual(
             pass_rate, 
             90, 
-            f"测试通过�?{pass_rate:.2f}% 未达�?90% 要求"
+            f"测试通过率 {pass_rate:.2f}% 未达到 90% 要求"
         )
         
-        print(f"\n�?通过率达�? {pass_rate:.2f}% >= 90%")
+        print(f"\n✅ 通过率达标: {pass_rate:.2f}% >= 90%")
 
 
 if __name__ == '__main__':

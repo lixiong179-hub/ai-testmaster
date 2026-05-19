@@ -9,13 +9,11 @@ export type {
   TestCase,
   TestCaseStep,
   TestCaseCreate,
-  TestCaseExecute,
   TestCaseAIEnhancedRequest,
   CaseQueryParams,
   CasePageResponse,
   TestCaseGenerateRequest,
   TestCaseListResponse,
-  TestCaseRetryRequest,
   ImportResult,
 } from './case'
 
@@ -96,6 +94,7 @@ export { testPointApi } from './testPoint'
 export type {
   TestPoint,
   TestPointAnalyzeRequest,
+  TestPointDraft,
   TestPointListResponse,
   AnalysisProgress,
 } from './testPoint'

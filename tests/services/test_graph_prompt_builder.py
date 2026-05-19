@@ -394,7 +394,7 @@ def test_graph_prompt_with_module_info():
     assert "登录流程" in prompt
 
 
-def test_graph_prompt_nested_structure_has_tree_symbols():
+def test_graph_prompt_nested_structure_has_scene_headers():
     nodes = [
         _make_node(1, "登录页", "main", main_order=1),
         _make_node(2, "忘记密码页", "branch"),
@@ -405,7 +405,8 @@ def test_graph_prompt_nested_structure_has_tree_symbols():
         _make_edge(1, 3, "exception", condition="密码错误"),
     ]
     prompt = _build_graph_prompt(nodes, edges)
-    assert "├─" in prompt or "└─" in prompt
+    assert "场景2: 分支流程" in prompt
+    assert "场景3: 异常流程" in prompt
 
 
 # ── 流程感知历史用例评审 ─────────────────────────────────────

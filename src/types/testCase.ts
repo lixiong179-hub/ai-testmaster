@@ -39,6 +39,10 @@ export interface TestCase {
   lifecycle_status?: string
   parent_case_id?: number | null
   ai_change_type?: 'added' | 'modified' | 'deprecated'
+  depends_on?: string | null
+  anchor_step?: number | null
+  fallback_steps?: string | null
+  setup_api_calls?: string | null
 }
 
 export interface TestCaseGenerateRequest {
@@ -47,15 +51,16 @@ export interface TestCaseGenerateRequest {
 }
 
 export interface TestCaseListResponse {
-  code: number
-  msg: string
-  data: {
-    test_cases: TestCase[]
+  items: TestCase[]
+  total: number
+  page: number
+  page_size: number
+  stats?: {
+    total: number
+    automated: number
+    manual: number
+    high_priority: number
   }
-}
-
-export interface TestCaseRetryRequest {
-  case_ids?: number[]
 }
 
 export interface TestCaseAIGenerate {

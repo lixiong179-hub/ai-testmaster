@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from loguru import logger
 
 from app.models.video_record import VideoRecord
+from app.utils.db_time import utcnow
 
 
 class CleanupMixin:
@@ -25,7 +26,7 @@ class CleanupMixin:
             包含deleted_count、failed_count、freed_mb、retention_days的统计字典。
         """
         retention_days = days or self._retention_days
-        cutoff = datetime.now() - timedelta(days=retention_days)
+        cutoff = utcnow() - timedelta(days=retention_days)
 
         expired_videos = self.db.query(VideoRecord).filter(
             VideoRecord.created_at < cutoff
@@ -115,7 +116,7 @@ class CleanupMixin:
                     try:
                         disk_usage += fp.stat().st_size
                     except OSError:
-                        pass
+                        logger.debug("获取视频文件大小失败")
 
         return {
             "total_count": total_count,

@@ -22,7 +22,7 @@
     - app.api.v1.endpoints.auth.get_current_user: 获取当前登录用户
     - app.models.user.User: 用户模型（含is_superuser字段和roles关联）
 """
-from typing import List, Optional
+from typing import List, Optional, Callable, Any
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -91,7 +91,7 @@ def check_role(user: User, allowed_roles: List[str]) -> bool:
     return any(role in allowed_roles for role in user_roles)
 
 
-def require_roles(roles: List[str]):
+def require_roles(roles: List[str]) -> Callable[..., Any]:
     """
     角色权限依赖项工厂函数
 

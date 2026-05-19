@@ -23,12 +23,13 @@
     - app.models.project : ProjectFile
 """
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy.orm import Session, joinedload
 from app.models.iteration import Iteration, IterationInput
 from app.models.enums import IterationPipelineStatus, IterationInputKind
 from app.models.project import ProjectFile
+from app.utils.db_time import utcnow
 
 
 class IterationStatusTransitionError(ValueError):
@@ -319,7 +320,7 @@ def transition_iteration_status(
 
     # 定稿时自动设置 finalized_at
     if to_status == IterationPipelineStatus.FINALIZED.value:
-        iteration.finalized_at = datetime.now(timezone.utc)
+        iteration.finalized_at = utcnow()
 
     db.flush()
     return iteration

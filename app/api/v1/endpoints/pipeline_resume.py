@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from loguru import logger
 
+from app.ai.client import AIClient
 from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
@@ -19,7 +20,7 @@ from app.core.exception import create_response
 router = APIRouter(tags=["Pipeline管理"])
 
 
-def create_ai_client(model_name: Optional[str] = None):
+def create_ai_client(model_name: Optional[str] = None) -> AIClient:
     """创建 AI 客户端实例，支持主模型 + 降级模型。"""
     from app.ai.openai_client import OpenAIClient
     from app.ai.fallback_client import FallbackAIClient

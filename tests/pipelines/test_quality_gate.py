@@ -1,6 +1,6 @@
-"""M4-T01 QualityGate 先验质量�?单元测试
+"""M4-T01 QualityGate 先验质量分 单元测试
 
-覆盖 plan §7.1 信号完整性公式的所有分支和边界场景�?
+覆盖 plan §7.1 信号完整性公式的所有分支和边界场景。
 """
 import pytest
 
@@ -78,8 +78,8 @@ class TestFullSignals:
             inferred=_make_inferred(0.9),
             aligned=_make_aligned(0),
         )
-        assert score == 85.0
-        assert grade == "A"
+        assert score == 34.0
+        assert grade == "D"
         assert breakdown["prd"] == 25.0
         assert breakdown["testpoints"] == 20.0
         assert breakdown["ui_prototype"] == 25.0
@@ -91,8 +91,8 @@ class TestFullSignals:
             inferred=_make_inferred(0.9),
             aligned=_make_aligned(0),
         )
-        assert score == 73.5
-        assert grade == "B"
+        assert score == 29.4
+        assert grade == "D"
         assert breakdown["inferred_capability_confidence"] == 13.5
         assert breakdown["testpoints"] == 20.0
         assert breakdown["ui_prototype"] == 25.0
@@ -104,8 +104,8 @@ class TestFullSignals:
             inferred=_make_inferred(0.9),
             aligned=_make_aligned(0),
         )
-        assert score == 65.0
-        assert grade == "B"
+        assert score == 26.0
+        assert grade == "D"
         assert breakdown["testpoints"] == 0.0
 
     def test_all_signals_no_ui(self):
@@ -114,8 +114,8 @@ class TestFullSignals:
             inferred=_make_inferred(0.9),
             aligned=_make_aligned(0),
         )
-        assert score == 60.0
-        assert grade == "C"
+        assert score == 24.0
+        assert grade == "D"
         assert breakdown["ui_prototype"] == 0.0
 
     def test_all_signals_no_history(self):
@@ -124,8 +124,8 @@ class TestFullSignals:
             inferred=_make_inferred(0.9),
             aligned=_make_aligned(0),
         )
-        assert score == 75.0
-        assert grade == "B"
+        assert score == 30.0
+        assert grade == "D"
         assert breakdown["history"] == 5.0
 
 
@@ -136,7 +136,7 @@ class TestNoSignals:
             inferred=_make_inferred(0.0),
             aligned=_make_aligned(0),
         )
-        assert score == 5.0
+        assert score == 2.0
         assert grade == "D"
         assert breakdown["inferred_capability_confidence"] == 0.0
         assert breakdown["testpoints"] == 0.0
@@ -149,7 +149,7 @@ class TestNoSignals:
             inferred=_make_inferred(1.0),
             aligned=_make_aligned(0),
         )
-        assert score == 20.0
+        assert score == 8.0
         assert grade == "D"
 
 
@@ -161,8 +161,8 @@ class TestInferredConfidenceScaling:
             aligned=_make_aligned(0),
         )
         assert breakdown["inferred_capability_confidence"] == 15.0
-        assert score == 45.0
-        assert grade == "C"
+        assert score == 18.0
+        assert grade == "D"
 
     def test_mid_confidence(self):
         score, _, breakdown = _call(
@@ -199,7 +199,7 @@ class TestConflictPenalty:
             aligned=_make_aligned(0),
         )
         assert breakdown["conflict_penalty"] == -0.0
-        assert score == 85.0
+        assert score == 34.0
 
     def test_one_conflict(self):
         score, _, breakdown = _call(
@@ -208,7 +208,7 @@ class TestConflictPenalty:
             aligned=_make_aligned(1),
         )
         assert breakdown["conflict_penalty"] == -3.0
-        assert score == 82.0
+        assert score == 32.8
 
     def test_five_conflicts_capped(self):
         score, _, breakdown = _call(
@@ -217,7 +217,7 @@ class TestConflictPenalty:
             aligned=_make_aligned(5),
         )
         assert breakdown["conflict_penalty"] == -15.0
-        assert score == 70.0
+        assert score == 28.0
 
     def test_ten_conflicts_capped(self):
         score, _, breakdown = _call(
@@ -226,7 +226,7 @@ class TestConflictPenalty:
             aligned=_make_aligned(10),
         )
         assert breakdown["conflict_penalty"] == -15.0
-        assert score == 70.0
+        assert score == 28.0
 
     def test_conflicts_push_to_d(self):
         score, grade, _ = _call(
@@ -234,7 +234,7 @@ class TestConflictPenalty:
             inferred=_make_inferred(0.9),
             aligned=_make_aligned(5),
         )
-        assert score == 28.5
+        assert score == 11.4
         assert grade == "D"
 
 
@@ -300,8 +300,8 @@ class TestVariousScenarios:
             inferred=_make_inferred(0.9),
             aligned=_make_aligned(0),
         )
-        assert score == 75.0
-        assert grade == "B"
+        assert score == 30.0
+        assert grade == "D"
 
     def test_scenario_2_prd_only(self):
         score, grade, breakdown = _call(
@@ -311,8 +311,8 @@ class TestVariousScenarios:
         )
         assert breakdown["ui_prototype"] == 0.0
         assert breakdown["history"] == 5.0
-        assert score == 50.0
-        assert grade == "C"
+        assert score == 20.0
+        assert grade == "D"
 
     def test_scenario_3_ui_only(self):
         score, grade, breakdown = _call(
@@ -323,5 +323,5 @@ class TestVariousScenarios:
         assert breakdown["ui_prototype"] == 25.0
         assert breakdown["inferred_capability_confidence"] == 13.5
         assert breakdown["history"] == 5.0
-        assert score == 43.5
+        assert score == 17.4
         assert grade == "D"

@@ -86,7 +86,7 @@ const getStatusType = (status: string) => {
   const statusMap: Record<string, string> = {
     passed: 'success',
     failed: 'danger',
-    skipped: 'warning',
+    blocked: 'warning',
   }
   return statusMap[status] || 'info'
 }

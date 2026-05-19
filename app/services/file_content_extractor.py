@@ -113,7 +113,7 @@ class FileContentExtractor:
             return None
 
 
-async def extract_file_background(file_id: int, db: Session, force_refresh: bool = False):
+async def extract_file_background(file_id: int, db: Session, force_refresh: bool = False) -> None:
     """后台提取文件内容"""
     file = db.query(ProjectFile).filter(ProjectFile.id == file_id).first()
     if not file:

@@ -59,7 +59,7 @@ class TestVisibilityConfigService:
         assert valid is False
         assert msg is not None
 
-    @pytest.mark.skip(reason="get_recommended_config已移除，VisibilityConfigService API重构为分层配�?)
+    @pytest.mark.skip(reason="get_recommended_config已移除，VisibilityConfigService API重构为分层配置")
     def test_get_recommended_config(self):
         service = VisibilityConfigService()
         debug_config = service.get_recommended_config("debug")
@@ -133,7 +133,7 @@ class TestTaskService:
             service.start_task(99999, db)
         )
         assert result["success"] is False
-        assert "不存�? in result["error"]
+        assert "不存在" in result["error"]
 
     @pytest.mark.skip(reason="TaskService构造函数已重构，stop_task不再需要db参数")
     def test_stop_task_nonexistent(self, db):
@@ -143,7 +143,7 @@ class TestTaskService:
             service.stop_task(99999, db)
         )
         assert result["success"] is False
-        assert "不存�? in result["error"]
+        assert "不存在" in result["error"]
 
 
 class TestExecutionModeSelector:

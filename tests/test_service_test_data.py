@@ -1159,7 +1159,7 @@ class TestTestDataGenAutoGenerate:
         db.add(step)
         db.flush()
         service = TestDataService(db)
-        created = service.auto_generate_for_step(step.id, "选择产品�?)
+        created = service.auto_generate_for_step(step.id, "选择产品线")
         assert len(created) >= 1
         field_names = [td.field_name for td in created]
         assert "product_name" in field_names
@@ -1186,7 +1186,7 @@ class TestTestDataGenAutoGenerate:
         db.add(step)
         db.flush()
         service = TestDataService(db)
-        created = service.auto_generate_for_step(step.id, "输入用户�?)
+        created = service.auto_generate_for_step(step.id, "输入用户名")
         field_names = [td.field_name for td in created]
         assert "input_value" in field_names
 

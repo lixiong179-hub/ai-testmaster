@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
+from app.models.enums import ExecStatus
 from app.models.project import Project
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
@@ -102,8 +103,8 @@ async def get_task_summary(
 
         stats = db.query(
             func.count(TestResult.id).label('total'),
-            func.sum(case((TestResult.exec_status == 1, 1), else_=0)).label('success'),
-            func.sum(case((TestResult.exec_status == 2, 1), else_=0)).label('failed'),
+            func.sum(case((TestResult.exec_status == ExecStatus.PASSED, 1), else_=0)).label('success'),
+            func.sum(case((TestResult.exec_status == ExecStatus.FAILED, 1), else_=0)).label('failed'),
         ).filter(TestResult.task_id == task_id).first()
 
         total = stats.total if stats.total else 0

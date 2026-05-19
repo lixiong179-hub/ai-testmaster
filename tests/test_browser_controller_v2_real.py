@@ -1,11 +1,11 @@
 """
 浏览器控制器V2真实测试
 
-测试原则（强制执行）�?
+测试原则（强制执行）：
 1. 真实执行优先：所有测试必须使用真实环境，严禁使用Mock
-2. 覆盖率要求：单元测试覆盖率必�?>= 95%
-3. 测试准确性：测试通过率必�?100%
-4. 发现问题优先：测试的目的是发现代码问�?
+2. 覆盖率要求：单元测试覆盖率必须 >= 95%
+3. 测试准确性：测试通过率必须 100%
+4. 发现问题优先：测试的目的是发现代码问题
 
 注意：这些测试使用真实浏览器，需要安装Playwright
 """
@@ -48,7 +48,7 @@ async def browser_firefox():
     await controller.close()
 
 
-# ==================== 配置类测�?====================
+# ==================== 配置类测试 ====================
 
 def test_browser_config_defaults():
     """测试BrowserConfig默认配置"""
@@ -67,7 +67,7 @@ def test_browser_config_defaults():
 
 
 def test_browser_config_custom():
-    """测试BrowserConfig自定义配�?""
+    """测试BrowserConfig自定义配置"""
     config = BrowserConfig(
         browser_type=BrowserType.FIREFOX,
         headless=True,
@@ -93,24 +93,24 @@ def test_screenshot_config_defaults():
 
 def test_screenshot_config_validation():
     """测试ScreenshotConfig验证"""
-    # 无效的图片格�?
+    # 无效的图片格式
     with pytest.raises(ValueError, match="不支持的图片格式"):
         ScreenshotConfig(type="gif")
     
     # 无效的JPEG质量
-    with pytest.raises(ValueError, match="JPEG质量必须�?-100之间"):
+    with pytest.raises(ValueError, match="JPEG质量必须在0-100之间"):
         ScreenshotConfig(type="jpeg", quality=150)
     
-    # 无效的裁剪区�?
+    # 无效的裁剪区域
     with pytest.raises(ValueError, match="裁剪区域必须包含"):
         ScreenshotConfig(clip={"x": 0, "y": 0})
     
-    with pytest.raises(ValueError, match="必须是非负整�?):
+    with pytest.raises(ValueError, match="必须是非负整数"):
         ScreenshotConfig(clip={"x": -1, "y": 0, "width": 100, "height": 100})
 
 
 def test_element_info_calculations():
-    """测试ElementInfo计算属�?""
+    """测试ElementInfo计算属性"""
     element = ElementInfo(
         x=100,
         y=200,
@@ -127,11 +127,11 @@ def test_element_info_calculations():
     assert element.id == "login-btn"
 
 
-# ==================== 浏览器控制器初始化测�?====================
+# ==================== 浏览器控制器初始化测试 ====================
 
 @pytest.mark.asyncio
 async def test_browser_controller_initialization():
-    """测试浏览器控制器初始�?""
+    """测试浏览器控制器初始化"""
     config = BrowserConfig(headless=True)
     controller = BrowserControllerV2(config)
     
@@ -139,7 +139,7 @@ async def test_browser_controller_initialization():
     assert controller._is_initialized == False
     assert controller._window_size_fixed == False
     
-    # 初始�?
+    # 初始化
     result = await controller.initialize()
     assert result is controller  # 支持链式调用
     assert controller._is_initialized == True
@@ -152,7 +152,7 @@ async def test_browser_controller_initialization():
 
 @pytest.mark.asyncio
 async def test_browser_controller_chromium():
-    """测试Chromium浏览器启�?""
+    """测试Chromium浏览器启动"""
     controller = await create_browser_controller_v2(
         browser_type="chromium",
         headless=True
@@ -169,7 +169,7 @@ async def test_browser_controller_chromium():
 
 @pytest.mark.asyncio
 async def test_browser_controller_firefox():
-    """测试Firefox浏览器启�?""
+    """测试Firefox浏览器启动"""
     controller = await create_browser_controller_v2(
         browser_type="firefox",
         headless=True
@@ -183,7 +183,7 @@ async def test_browser_controller_firefox():
 
 @pytest.mark.asyncio
 async def test_browser_controller_webkit():
-    """测试Webkit浏览器启�?""
+    """测试Webkit浏览器启动"""
     controller = await create_browser_controller_v2(
         browser_type="webkit",
         headless=True
@@ -203,7 +203,7 @@ async def test_navigate_to_valid_url(browser):
     url = "https://www.example.com"
     await browser.navigate(url)
     
-    # URL可能带斜杠，使用startswith检�?
+    # URL可能带斜杠，使用startswith检查
     assert browser.current_url.startswith(url)
     
     page_info = await browser.get_page_info()
@@ -220,7 +220,7 @@ async def test_navigate_to_invalid_url(browser):
 
 @pytest.mark.asyncio
 async def test_navigate_with_different_wait_conditions(browser):
-    """测试不同等待条件的导�?""
+    """测试不同等待条件的导航"""
     url = "https://www.example.com"
     
     # 测试不同wait_until参数
@@ -243,7 +243,7 @@ async def test_take_screenshot_default(browser):
 
 @pytest.mark.asyncio
 async def test_take_screenshot_full_page(browser):
-    """测试全页面截�?""
+    """测试全页面截图"""
     await browser.navigate("https://www.example.com")
     config = ScreenshotConfig(full_page=True)
     screenshot = await browser.take_screenshot(config)
@@ -295,7 +295,7 @@ async def test_click_by_coordinates(browser):
 
 @pytest.mark.asyncio
 async def test_click_element_by_selector(browser):
-    """测试选择器点击元�?""
+    """测试选择器点击元素"""
     await browser.navigate("https://www.example.com")
     
     # 点击h1元素
@@ -304,14 +304,14 @@ async def test_click_element_by_selector(browser):
 
 @pytest.mark.asyncio
 async def test_fill_input(browser):
-    """测试输入框填�?""
+    """测试输入框填写"""
     await browser.navigate("https://www.example.com")
     
-    # 尝试填写搜索框（如果存在�?
+    # 尝试填写搜索框（如果存在）
     try:
         await browser.fill("input[type='search']", "test query")
     except Exception:
-        # 如果不存在搜索框，测试其他输入元�?
+        # 如果不存在搜索框，测试其他输入元素
         pass
 
 
@@ -371,7 +371,7 @@ async def test_execute_javascript_scroll(browser):
 
 @pytest.mark.asyncio
 async def test_get_element_info_existing(browser):
-    """测试获取存在的元素信�?""
+    """测试获取存在的元素信息"""
     await browser.navigate("https://www.example.com")
     
     info = await browser.get_element_info("h1")
@@ -396,14 +396,14 @@ async def test_find_elements_by_text(browser):
     """测试根据文本查找元素"""
     await browser.navigate("https://www.example.com")
     
-    # 查找包含"Example"文本的元�?
+    # 查找包含"Example"文本的元素
     elements = await browser.find_elements_by_text("Example")
     assert isinstance(elements, list)
 
 
 @pytest.mark.asyncio
 async def test_get_all_input_elements(browser):
-    """测试获取所有输入元�?""
+    """测试获取所有输入元素"""
     await browser.navigate("https://www.example.com")
     
     inputs = await browser.get_all_input_elements()
@@ -443,7 +443,7 @@ async def test_refresh_page(browser):
 
 @pytest.mark.asyncio
 async def test_uninitialized_browser_error():
-    """测试未初始化浏览器错�?""
+    """测试未初始化浏览器错误"""
     controller = BrowserControllerV2()
     
     with pytest.raises(Exception):
@@ -465,7 +465,7 @@ async def test_invalid_click_coordinates(browser):
 
 @pytest.mark.asyncio
 async def test_empty_selector_error(browser):
-    """测试空选择器错�?""
+    """测试空选择器错误"""
     from app.utils.browser_controller_v2 import BrowserError
     await browser.navigate("https://www.example.com")
 
@@ -486,28 +486,28 @@ async def test_empty_javascript_error(browser):
         await browser.execute_javascript("")
 
 
-# ==================== 属性测�?====================
+# ==================== 属性测试 ====================
 
 @pytest.mark.asyncio
 async def test_is_initialized_property(browser):
-    """测试is_initialized属�?""
+    """测试is_initialized属性"""
     assert browser.is_initialized == True
 
 
 @pytest.mark.asyncio
 async def test_current_url_property(browser):
-    """测试current_url属�?""
+    """测试current_url属性"""
     url = "https://www.example.com"
     await browser.navigate(url)
 
     assert browser.current_url.startswith(url)
 
 
-# ==================== 多次初始化测�?====================
+# ==================== 多次初始化测试 ====================
 
 @pytest.mark.asyncio
 async def test_multiple_initialization():
-    """测试多次初始�?""
+    """测试多次初始化"""
     controller = await create_browser_controller_v2(headless=True)
     
     # 第二次初始化应该直接返回

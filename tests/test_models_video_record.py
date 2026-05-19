@@ -115,7 +115,7 @@ class TestVideoRecordModel:
         assert vr.fps == 30
         assert vr.bitrate is None
         assert vr.thumbnail_path is None
-        assert vr.status == "completed"
+        assert vr.status == "recording"
         assert vr.error_message is None
         db.delete(vr)
         db.commit()

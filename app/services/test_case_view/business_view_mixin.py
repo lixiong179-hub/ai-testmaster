@@ -14,7 +14,7 @@ class BusinessViewMixin:
 
     def get_business_view(self, test_case_id: int) -> Optional[BusinessTestCaseView]:
         """获取测试用例的业务视图，仅展示is_business_view=1的步骤。"""
-        test_case = self.db.query(TestCase).filter(TestCase.id == test_case_id).first()
+        test_case = self.db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
         if not test_case:
             logger.warning(f"测试用例不存在: {test_case_id}")
             return None

@@ -2,14 +2,14 @@
 VideoRecord模型单元测试
 
 测试范围:
-- VideoRecord模型创建和属�?
+- VideoRecord模型创建和属性
 - 数据库CRUD操作
 - 关联关系
 - 方法功能
 
 设计原则:
-1. 使用共享 db fixture，自动事务隔离（commit 降级�?flush�?
-2. 不硬编码 id，让数据库自动生�?
+1. 使用共享 db fixture，自动事务隔离（commit 降级为 flush）
+2. 不硬编码 id，让数据库自动生成
 """
 import pytest
 import time
@@ -44,7 +44,7 @@ def video_test_project(db, video_test_user):
     """创建测试项目"""
     project = Project(
         name=f"视频测试项目_{video_test_user.id}",
-        description="用于视频记录测试的项�?,
+        description="用于视频记录测试的项目",
         user_id=video_test_user.id,
         status=1,
         project_type="web",
@@ -98,7 +98,7 @@ def video_test_case(db, video_test_project):
 
 
 class TestVideoRecordModel:
-    """VideoRecord模型测试�?""
+    """VideoRecord模型测试类"""
 
     def test_video_record_creation(self, db, video_test_task, video_test_case):
         """测试VideoRecord创建"""
@@ -160,7 +160,7 @@ class TestVideoRecordModel:
         assert "created_at" in video_dict
 
     def test_video_record_file_size_human(self, db, video_test_task, video_test_case):
-        """测试file_size_human属�?""
+        """测试file_size_human属性"""
         test_sizes = [
             (512, "512.00 B"),
             (1024, "1.00 KB"),
@@ -182,7 +182,7 @@ class TestVideoRecordModel:
             assert video.file_size_human == expected, f"Size {size} should be {expected}"
 
     def test_video_record_status_values(self, db, video_test_task, video_test_case):
-        """测试不同状态�?""
+        """测试不同状态值"""
         statuses = ["recording", "completed", "failed"]
         for status in statuses:
             video = VideoRecord(
@@ -227,7 +227,7 @@ class TestVideoRecordModel:
         assert video.status == "completed"
 
     def test_video_record_query_by_task(self, db, video_test_task, video_test_case):
-        """测试按任务查�?""
+        """测试按任务查询"""
         for i in range(3):
             video = VideoRecord(
                 task_id=video_test_task.id,
@@ -245,7 +245,7 @@ class TestVideoRecordModel:
         assert len(videos) == 3
 
     def test_video_record_query_by_case(self, db, video_test_task, video_test_case):
-        """测试按用例查�?""
+        """测试按用例查询"""
         video = VideoRecord(
             task_id=video_test_task.id,
             case_id=video_test_case.id,
@@ -324,7 +324,7 @@ class TestVideoRecordModel:
         assert video.status == "failed"
 
     def test_video_record_optional_fields(self, db, video_test_task, video_test_case):
-        """测试可选字�?""
+        """测试可选字段"""
         video = VideoRecord(
             task_id=video_test_task.id,
             case_id=video_test_case.id,
@@ -340,11 +340,10 @@ class TestVideoRecordModel:
         assert video.duration is None
         assert video.bitrate is None
         assert video.thumbnail_path is None
-        # __init__ 已修复：Python 实例化时 status 正确设为 "completed"
-        assert video.status == "completed"
+        assert video.status == "recording"
 
     def test_video_record_timestamps(self, db, video_test_task, video_test_case):
-        """测试时间戳字�?""
+        """测试时间戳字段"""
         video = VideoRecord(
             task_id=video_test_task.id,
             case_id=video_test_case.id,

@@ -58,7 +58,7 @@ class OpenAIClient:
         self.api_key = api_key or settings.DEEPSEEK_API_KEY
         self.base_url = base_url or settings.DEEPSEEK_API_URL.rsplit("/v1", 1)[0] + "/v1"
         self.temperature = temperature if temperature is not None else settings.AI_TEMPERATURE
-        self.max_tokens = max_tokens or settings.AI_MAX_TOKENS
+        self.max_tokens = max_tokens if max_tokens is not None else settings.AI_MAX_TOKENS
         self.max_retries = max_retries
         self._client: Optional[OpenAI] = None
 
@@ -120,7 +120,7 @@ class OpenAIClient:
         messages.append({"role": "user", "content": prompt})
 
         _temperature = temperature if temperature is not None else self.temperature
-        _max_tokens = max_tokens or self.max_tokens
+        _max_tokens = max_tokens if max_tokens is not None else self.max_tokens
 
         start = time.monotonic()
         try:

@@ -93,10 +93,10 @@ class TestGetFernet:
 
 
 class TestProductionKeyValidation:
-    """测试生产环境缺少 ENCRYPTION_KEY/SALT 时必须报错�?
+    """测试生产环境缺少 ENCRYPTION_KEY/SALT 时必须报错。
 
     直接修改 app.core.config.settings 单例的属性，
-    触发 _get_encryption_config 中的生产环境校验逻辑�?
+    触发 _get_encryption_config 中的生产环境校验逻辑。
     """
 
     def test_production_missing_key_raises_valueerror(self):
@@ -137,10 +137,10 @@ class TestProductionKeyValidation:
 
 
 class TestEncryptPasswordError:
-    """测试加密失败时拒绝存储明文�?
+    """测试加密失败时拒绝存储明文。
 
-    通过临时�?settings.ENVIRONMENT 设为 prod 且清�?ENCRYPTION_KEY�?
-    �?_get_encryption_config 抛出 ValueError，触�?encrypt_password 的异常捕获�?
+    通过临时将 settings.ENVIRONMENT 设为 prod 且清空 ENCRYPTION_KEY，
+    使 _get_encryption_config 抛出 ValueError，触发 encrypt_password 的异常捕获。
     """
 
     def test_encrypt_password_config_failure_raises_valueerror(self):

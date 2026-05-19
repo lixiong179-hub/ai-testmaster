@@ -51,13 +51,15 @@ export const stopTestExecution = (taskId: number) => {
 
 /**
  * 获取执行状态
+ * 后端无独立status端点，通过任务详情获取状态
  */
 export const getExecutionStatus = (taskId: number) => {
-  return request.get(`/api/v1/execution/${taskId}/status`)
+  return request.get(`/api/v1/test_task/${taskId}`)
 }
 
 /**
  * 获取执行日志
+ * 后端无独立logs端点，通过任务执行摘要获取
  */
 export const getExecutionLogs = (
   taskId: number,
@@ -66,14 +68,15 @@ export const getExecutionLogs = (
     limit?: number
   }
 ) => {
-  return request.get(`/api/v1/execution/${taskId}/logs`, { params })
+  return request.get(`/api/v1/test_task/${taskId}/summary`, { params })
 }
 
 /**
  * 获取步骤截图
+ * 后端：GET /api/v1/execution/{task_id}/screenshot/{case_id}/{step_number}/{type}
  */
-export const getStepScreenshot = (taskId: number, stepNumber: number, type: 'before' | 'after') => {
-  return request.get(`/api/v1/execution/${taskId}/screenshot/${stepNumber}/${type}`, {
+export const getStepScreenshot = (taskId: number, caseId: number, stepNumber: number, type: 'before' | 'after') => {
+  return request.get(`/api/v1/execution/${taskId}/screenshot/${caseId}/${stepNumber}/${type}`, {
     responseType: 'blob',
   })
 }

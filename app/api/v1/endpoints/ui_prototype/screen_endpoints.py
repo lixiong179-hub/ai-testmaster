@@ -93,7 +93,7 @@ async def upload_ui_screens(
                 try:
                     os.remove(filepath)
                 except OSError:
-                    pass
+                    logger.debug("删除无效图片文件失败")
                 continue
 
             saved_files.append(

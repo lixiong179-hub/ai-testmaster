@@ -77,7 +77,7 @@ class TestCaseResult(BaseModel):
     """
     case_id: int  # 用例ID
     case_name: str  # 用例名称/标题
-    status: str  # 执行状态：passed/failed/skipped
+    status: str  # 执行状态：passed/failed/blocked
     execution_time: Optional[float] = None  # 可选，执行耗时（秒）
     error_message: Optional[str] = None  # 可选，失败时的错误信息
     steps: Optional[List[Dict[str, Any]]] = None  # 可选，步骤级别的执行详情
@@ -109,11 +109,13 @@ class TestReportResponse(TestReportBase):
     total_cases: int  # 总用例数
     passed_cases: int  # 通过用例数
     failed_cases: int  # 失败用例数
-    skipped_cases: int  # 跳过用例数
+    blocked_cases: int  # 阻塞用例数
+    pass_rate: float = 0.0  # 通过率（百分比）
     start_time: Optional[datetime] = None  # 测试开始时间，可能为空
     end_time: Optional[datetime] = None  # 测试结束时间，可能为空
     execution_time: Optional[int] = None  # 总执行时间（秒），可能为空
     summary: Optional[str] = None  # 报告摘要，AI生成的总结
+    content: Optional[Dict[str, Any]] = None  # 详细报告内容(JSON)
     create_time: datetime  # 创建时间
     update_time: datetime  # 更新时间
 

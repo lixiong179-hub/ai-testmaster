@@ -24,16 +24,15 @@
     - delete_test_results_by_task 使用批量delete，单次commit
 
 执行状态枚举：
-    - 0: 待执行
-    - 1: 执行中
-    - 2: 执行通过
-    - 3: 执行失败
-    - 4: 执行异常
+    - 0: 未执行
+    - 1: 执行成功
+    - 2: 执行失败
+    - 3: 阻塞
 """
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
 from app.models.test_result import TestResult
+from app.utils.db_time import utcnow
 
 
 def create_test_result(
@@ -59,7 +58,7 @@ def create_test_result(
         project_id: 所属项目ID
         case_id: 测试用例ID
         case_no: 用例编号，冗余存储便于查询展示
-        exec_status: 执行状态，0=待执行/1=执行中/2=通过/3=失败/4=异常
+        exec_status: 执行状态，0=未执行/1=执行成功/2=执行失败/3=阻塞
         exec_log: 执行日志（可选），完整的执行过程记录
         error_msg: 错误信息（可选），失败时的错误摘要
         screenshot_url: 截图路径（可选），失败时的界面截图
@@ -196,7 +195,7 @@ def update_test_result(
         test_result.screenshot_url = screenshot_url
 
     # 每次更新自动记录执行时间
-    test_result.exec_time = datetime.now()
+    test_result.exec_time = utcnow()
 
     db.commit()
     db.refresh(test_result)
@@ -218,7 +217,7 @@ def get_test_results_count(
         db: 数据库会话
         task_id: 任务ID
         project_id: 项目ID
-        exec_status: 执行状态（可选），0=待执行/1=执行中/2=通过/3=失败/4=异常
+        exec_status: 执行状态（可选），0=未执行/1=执行成功/2=执行失败/3=阻塞
 
     Returns:
         int: 符合条件的结果数量

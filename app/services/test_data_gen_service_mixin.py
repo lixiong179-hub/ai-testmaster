@@ -46,7 +46,7 @@ class TestDataGenServiceMixin:
         context: Optional[ParameterContext] = None
     ) -> Dict[int, Dict[str, str]]:
         from app.models.test_case import TestCase
-        test_case = self.db.query(TestCase).filter(TestCase.id == case_id).first()
+        test_case = self.db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
         if not test_case:
             logger.warning(f"测试用例不存在: {case_id}")
             return {}

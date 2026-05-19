@@ -1,11 +1,11 @@
 import pytest
 import uuid
 import inspect
-from datetime import datetime
+from app.utils.db_time import utcnow
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-pytestmark = pytest.mark.skip(reason="ExecutionMode/StepExecutionResult/ActionType API已重构，测试需要完全重�?)
+pytestmark = pytest.mark.skip(reason="ExecutionMode/StepExecutionResult/ActionType API已重构，测试需要完全重写")
 
 from app.services.test_execution_engine_v2 import (
     TestExecutionEngineV2,
@@ -83,7 +83,7 @@ def test_data_with_locator(db_session):
         test_case_id=test_case.id,
         step_number=1,
         action="点击提交按钮",
-        expected_result="按钮被点�?,
+        expected_result="按钮被点击",
         action_type="click",
     )
     db_session.add(step)
@@ -166,7 +166,7 @@ class TestPreprocessMode:
         step = TestStep(
             id=99997,
             step_number=1,
-            action="导航到首�?,
+            action="导航到首页",
             action_type="navigate",
             test_case_id=1,
         )
@@ -232,7 +232,7 @@ class TestPreprocessMode:
         step = TestStep(
             id=99993,
             step_number=1,
-            action="等待3�?,
+            action="等待3秒",
             action_type="wait",
             test_case_id=1,
         )
@@ -245,7 +245,7 @@ class TestPreprocessMode:
         step = TestStep(
             id=99992,
             step_number=1,
-            action="滚动到页面底�?,
+            action="滚动到页面底部",
             action_type="scroll",
             test_case_id=1,
         )
@@ -493,7 +493,7 @@ class TestRecordLocatorSource:
 
 class TestStepExecutionResult:
     def test_to_dict(self):
-        now = datetime.utcnow()
+        now = utcnow()
         result = StepExecutionResult(
             step_number=1,
             action="点击按钮",
@@ -517,7 +517,7 @@ class TestStepExecutionResult:
         assert d["execution_detail"] == '{"key": "val"}'
 
     def test_to_dict_minimal(self):
-        now = datetime.utcnow()
+        now = utcnow()
         result = StepExecutionResult(
             step_number=2,
             action="输入文本",
@@ -535,7 +535,7 @@ class TestStepExecutionResult:
         assert d["execution_detail"] is None
 
     def test_to_dict_failed(self):
-        now = datetime.utcnow()
+        now = utcnow()
         result = StepExecutionResult(
             step_number=3,
             action="点击按钮",
@@ -543,16 +543,16 @@ class TestStepExecutionResult:
             start_time=now,
             end_time=now,
             duration_ms=50,
-            error_message="元素未找�?,
+            error_message="元素未找到",
         )
         d = result.to_dict()
         assert d["status"] == "failed"
-        assert d["error_message"] == "元素未找�?
+        assert d["error_message"] == "元素未找到"
 
 
 class TestTestExecutionResult:
     def test_to_dict(self):
-        now = datetime.utcnow()
+        now = utcnow()
         step_result = StepExecutionResult(
             step_number=1,
             action="点击按钮",
@@ -578,7 +578,7 @@ class TestTestExecutionResult:
         assert d["actual_result"] == "通过"
 
     def test_to_dict_minimal(self):
-        now = datetime.utcnow()
+        now = utcnow()
         result = TestExecutionResult(
             execution_id=2,
             test_case_id=200,
@@ -623,7 +623,7 @@ class TestHandleExecutionErrors:
 class TestParseStepAction:
     def test_parse_navigate(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._parse_step_action("导航到首�?)
+        result = engine._parse_step_action("导航到首页")
         assert result["type"] == ActionType.NAVIGATE
 
     def test_parse_navigate_english(self, db_session):
@@ -648,12 +648,12 @@ class TestParseStepAction:
 
     def test_parse_wait(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._parse_step_action("等待3�?)
+        result = engine._parse_step_action("等待3秒")
         assert result["type"] == ActionType.WAIT
 
     def test_parse_scroll(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._parse_step_action("滚动到页面底�?)
+        result = engine._parse_step_action("滚动到页面底部")
         assert result["type"] == ActionType.SCROLL
 
     def test_parse_hover(self, db_session):
@@ -668,7 +668,7 @@ class TestParseStepAction:
 
     def test_parse_captcha(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._parse_step_action("验证码识�?)
+        result = engine._parse_step_action("验证码识别")
         assert result["type"] == ActionType.CAPTCHA
 
     def test_parse_refresh(self, db_session):
@@ -678,7 +678,7 @@ class TestParseStepAction:
 
     def test_parse_keypress(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._parse_step_action("按下回车�?)
+        result = engine._parse_step_action("按下回车键")
         assert result["type"] == ActionType.KEYPRESS
 
     def test_parse_default_click(self, db_session):
@@ -693,12 +693,12 @@ class TestParseStepAction:
 
     def test_parse_fill(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._parse_step_action("填写用户�?)
+        result = engine._parse_step_action("填写用户名")
         assert result["type"] == ActionType.INPUT
 
     def test_parse_check(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._parse_step_action("检查元素是否存�?)
+        result = engine._parse_step_action("检查元素是否存在")
         assert result["type"] == ActionType.VERIFY
 
     def test_parse_english_click(self, db_session):
@@ -715,7 +715,7 @@ class TestParseStepAction:
 class TestExtractUrl:
     def test_extract_http_url(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._extract_url("导航�?https://www.example.com")
+        result = engine._extract_url("导航到 https://www.example.com")
         assert result == "https://www.example.com"
 
     def test_extract_http_url_no_https(self, db_session):
@@ -764,7 +764,7 @@ class TestExtractInputText:
 class TestExtractWaitTime:
     def test_extract_seconds(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._extract_wait_time("等待3�?)
+        result = engine._extract_wait_time("等待3秒")
         assert result == 3
 
     def test_extract_english_seconds(self, db_session):
@@ -774,7 +774,7 @@ class TestExtractWaitTime:
 
     def test_default_wait_time(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
-        result = engine._extract_wait_time("等待一�?)
+        result = engine._extract_wait_time("等待一会")
         assert result == 2
 
 
@@ -783,46 +783,46 @@ class TestGenerateExecutionSummary:
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
         engine._step_results = [
             StepExecutionResult(
-                step_number=1, action="a", status=ExecutionStatus.PASSED, start_time=datetime.utcnow()
+                step_number=1, action="a", status=ExecutionStatus.PASSED, start_time=utcnow()
             ),
             StepExecutionResult(
-                step_number=2, action="b", status=ExecutionStatus.PASSED, start_time=datetime.utcnow()
+                step_number=2, action="b", status=ExecutionStatus.PASSED, start_time=utcnow()
             ),
         ]
         summary = engine._generate_execution_summary()
-        assert "总计2�? in summary
-        assert "通过2�? in summary
-        assert "失败0�? in summary
+        assert "总计2步" in summary
+        assert "通过2步" in summary
+        assert "失败0步" in summary
 
     def test_has_failed(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
         engine._step_results = [
             StepExecutionResult(
-                step_number=1, action="a", status=ExecutionStatus.PASSED, start_time=datetime.utcnow()
+                step_number=1, action="a", status=ExecutionStatus.PASSED, start_time=utcnow()
             ),
             StepExecutionResult(
-                step_number=2, action="b", status=ExecutionStatus.FAILED, start_time=datetime.utcnow()
+                step_number=2, action="b", status=ExecutionStatus.FAILED, start_time=utcnow()
             ),
         ]
         summary = engine._generate_execution_summary()
-        assert "失败1�? in summary
-        assert "�?�? in summary
+        assert "失败1步" in summary
+        assert "第2步" in summary
 
 
 class TestSubstituteParametersInAction:
     def test_substitute_single_param(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
         result = engine._substitute_parameters_in_action(
-            "输入${username}到用户名�?, {"username": "admin"}
+            "输入${username}到用户名框", {"username": "admin"}
         )
-        assert result == "输入admin到用户名�?
+        assert result == "输入admin到用户名框"
 
     def test_substitute_multiple_params(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
         result = engine._substitute_parameters_in_action(
-            "输入${username}�?{password}", {"username": "admin", "password": "123"}
+            "输入${username}和${password}", {"username": "admin", "password": "123"}
         )
-        assert result == "输入admin�?23"
+        assert result == "输入admin和123"
 
     def test_no_substitution_needed(self, db_session):
         engine = TestExecutionEngineV2(db_session, enable_test_data_param=False)
@@ -855,7 +855,7 @@ class TestActionTypeParsing:
         step = TestStep(
             id=99980,
             step_number=1,
-            action="导航�?https://example.com",
+            action="导航到 https://example.com",
             test_case_id=1,
         )
         result = await engine._execute_step(step, execution_mode="preprocess")

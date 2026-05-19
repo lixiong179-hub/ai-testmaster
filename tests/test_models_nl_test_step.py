@@ -77,7 +77,7 @@ class TestNLTestStepModel:
             task_id=test_task.id,
             step_index=1,
             action="input",
-            target_desc="输入用户�?
+            target_desc="输入用户名"
         )
         db.add(step)
         db.commit()
@@ -130,13 +130,13 @@ class TestNLTestStepModel:
             step_index=1,
             action="click",
             target_desc="登录按钮",
-            error_message="元素未找�?,
+            error_message="元素未找到",
             screenshot_path="/screenshots/error.png"
         )
         db.add(step)
         db.commit()
         db.refresh(step)
-        assert step.error_message == "元素未找�?
+        assert step.error_message == "元素未找到"
         assert step.screenshot_path == "/screenshots/error.png"
         db.delete(step)
         db.commit()
@@ -147,12 +147,12 @@ class TestNLTestStepModel:
             step_index=1,
             action="click",
             target_desc="按钮",
-            ai_analysis="定位器可能已过期，建议更新CSS选择�?
+            ai_analysis="定位器可能已过期，建议更新CSS选择器"
         )
         db.add(step)
         db.commit()
         db.refresh(step)
-        assert step.ai_analysis == "定位器可能已过期，建议更新CSS选择�?
+        assert step.ai_analysis == "定位器可能已过期，建议更新CSS选择器"
         db.delete(step)
         db.commit()
 

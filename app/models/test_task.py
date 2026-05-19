@@ -24,8 +24,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from app.db.database import Base
+from app.utils.db_time import utcnow
 
 
 class TaskStatus:
@@ -92,8 +92,8 @@ class TestTask(Base):
     total_count = Column(Integer, nullable=False, default=0, comment="总用例数")                        # 待执行用例总数
     progress = Column(Integer, nullable=False, default=0, comment="执行进度（0-100）")
     visibility_config = Column(JSON, nullable=True, comment="可见模式配置")
-    create_time = Column(DateTime, default=datetime.now, index=True, comment="创建时间")                # 任务创建时间
-    update_time = Column(DateTime, default=datetime.now, onupdate=datetime.now, index=True, comment="更新时间")  # 任务更新时间
+    create_time = Column(DateTime, default=utcnow, index=True, comment="创建时间")                # 任务创建时间
+    update_time = Column(DateTime, default=utcnow, onupdate=utcnow, index=True, comment="更新时间")  # 任务更新时间
     
     # 关系
     project = relationship("Project", back_populates="test_tasks")                                    # 所属项目

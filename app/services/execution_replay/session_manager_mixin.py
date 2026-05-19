@@ -6,6 +6,7 @@ from datetime import datetime
 from loguru import logger
 
 from app.services.execution_replay.models import ReplaySession
+from app.utils.db_time import utcnow
 
 
 class SessionManagerMixin:
@@ -43,7 +44,7 @@ class SessionManagerMixin:
             if loop.is_running():
                 loop.create_task(self._cleanup_expired_sessions())
         except RuntimeError:
-            pass
+            logger.debug("获取事件循环失败，跳过清理任务启动")
 
     async def _cleanup_expired_sessions(self) -> None:
         while True:
@@ -56,7 +57,7 @@ class SessionManagerMixin:
                 logger.error(f"清理过期会话失败: {e}")
 
     def _remove_expired_sessions(self) -> None:
-        now = datetime.now()
+        now = utcnow()
         expired_ids = []
 
         for session_id, session in self._sessions.items():
@@ -74,7 +75,7 @@ class SessionManagerMixin:
     def _update_activity(self, session_id: str) -> None:
         session = self._sessions.get(session_id)
         if session:
-            session.last_activity = datetime.now()
+            session.last_activity = utcnow()
 
     def set_default_speed(self, speed: float) -> None:
         if 0.25 <= speed <= 4.0:

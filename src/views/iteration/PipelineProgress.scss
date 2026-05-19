@@ -1,0 +1,72 @@
+.pipeline-progress {
+  padding: 20px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-left h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-container {
+  padding: 20px;
+}
+
+.pipeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.run-info {
+  margin-bottom: 0;
+}
+
+.error-alert {
+  margin-top: 0;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.step-name {
+  font-weight: 500;
+}
+
+.degraded-badge {
+  margin-left: 4px;
+}
+
+.retry-badge {
+  margin-left: 4px;
+}
+
+.text-muted {
+  color: #c0c4cc;
+}
+
+.steps-table,
+.artifacts-table {
+  width: 100%;
+}

@@ -135,12 +135,12 @@ class TestIterationModel:
         iteration = Iteration(
             project_id=test_project.id,
             name="描述迭代",
-            description="第一个冲刺迭�?
+            description="第一个冲刺迭代"
         )
         db.add(iteration)
         db.commit()
         db.refresh(iteration)
-        assert iteration.description == "第一个冲刺迭�?
+        assert iteration.description == "第一个冲刺迭代"
         db.delete(iteration)
         db.commit()
 

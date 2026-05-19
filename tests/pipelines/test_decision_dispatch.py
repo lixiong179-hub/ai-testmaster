@@ -11,8 +11,8 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from app.pipelines.steps.decision_dispatch import (
-    DecisionDispatch,
+from app.pipelines.steps.decision_dispatch import DecisionDispatch
+from app.pipelines.steps.decision_dispatch._builders import (
     _build_modify_task,
     _build_create_task,
     _build_skip_task,

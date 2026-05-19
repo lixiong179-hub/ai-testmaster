@@ -1,5 +1,6 @@
 import os
 import secrets
+from typing import AsyncGenerator
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,14 +16,14 @@ from app.api.v1.endpoints import auth, project, file, test_task, report, test_po
 from app.api.v1.endpoints import user, websocket, test_case, batch_locator, test_data
 from app.api.v1.endpoints import execution_visualization, case_quality, execution, visibility
 from app.api.v1.endpoints import requirement_link, ui_prototype, iteration, pipeline, review_inbox
-from app.api.v1.endpoints import test_capability
+from app.api.v1.endpoints import test_capability, audit_log
 from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """P3-6: 应用生命周期管理（替代已弃用的 on_event startup）"""
     # 启动阶段
     logger.info(f"{settings.APP_NAME} v{settings.APP_VERSION} 正在启动...")
@@ -124,17 +125,18 @@ app.include_router(iteration.router, prefix="/api/v1")
 app.include_router(pipeline.router, prefix="/api/v1")
 app.include_router(review_inbox.router, prefix="/api/v1")
 app.include_router(test_capability.router, prefix="/api/v1")
+app.include_router(audit_log.router, prefix="/api/v1")
 
 
 # 根路径
 @app.get("/")
-def root():
+def root() -> dict[str, str]:
     return {"message": "AI TestMaster API", "version": settings.APP_VERSION}
 
 
 # 健康检查接口
 @app.get("/health")
-def health_check():
+def health_check() -> dict[str, str]:
     """健康检查接口（含依赖服务状态检测）"""
     health_status = {
         "status": "healthy",

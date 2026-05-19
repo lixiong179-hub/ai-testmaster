@@ -64,7 +64,7 @@ class TestCreateRequirementLink:
             test_project.id,
             auth_type="basic",
             auth_config={"username": "admin", "password": "123"},
-            link_name="带认证链�?,
+            link_name="带认证链接",
         )
         assert link.auth_type == "basic"
 
@@ -167,11 +167,11 @@ class TestUpdateRequirementLink:
     def test_update_fields(self, db, test_project):
         link = _create_link(db, test_project.id)
         result = update_requirement_link(
-            db, link.id, link_name="新名�?, description="新描�?
+            db, link.id, link_name="新名称", description="新描述"
         )
         assert result is not None
-        assert result.link_name == "新名�?
-        assert result.description == "新描�?
+        assert result.link_name == "新名称"
+        assert result.description == "新描述"
         assert result.update_time is not None
 
     def test_protected_fields_ignored(self, db, test_project):
@@ -179,10 +179,10 @@ class TestUpdateRequirementLink:
         original_created_by = link.created_by
         # created_by is a protected field and should be ignored
         result = update_requirement_link(
-            db, link.id, created_by=99999, link_name="新名�?
+            db, link.id, created_by=99999, link_name="新名称"
         )
         assert result.created_by == original_created_by
-        assert result.link_name == "新名�?
+        assert result.link_name == "新名称"
 
     def test_with_project_filter(self, db, test_project):
         link = _create_link(db, test_project.id)

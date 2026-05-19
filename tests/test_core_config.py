@@ -94,7 +94,7 @@ class TestSettingsProperties:
 class TestEnsureSecretKeys:
     def test_empty_database_url_raises(self):
         s = Settings(DATABASE_URL="")
-        with pytest.raises(ValueError, match="DATABASE_URL 未配�?):
+        with pytest.raises(ValueError, match="DATABASE_URL 未配置"):
             s._ensure_secret_keys()
 
     def test_sqlite_database_url_raises(self):
@@ -215,7 +215,7 @@ class TestEnsureSecretKeys:
             CORS_ORIGINS="https://prod.com",
         )
         s.JWT_SECRET_KEY = ""
-        with patch("app.core.config.BASE_DIR", tmp_path):
+        with patch("app.core.key_management.BASE_DIR", tmp_path):
             with pytest.raises(ValueError, match="JWT_SECRET_KEY长度不足"):
                 s._ensure_secret_keys()
 
@@ -226,13 +226,12 @@ class TestEnsureSecretKeys:
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
             ENCRYPTION_KEY="",
+            ENCRYPTION_SALT="already_set_salt_value",
             CORS_ORIGINS="https://prod.com",
         )
-        with patch("app.core.config.BASE_DIR", tmp_path):
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
+        with patch("app.core.key_management.BASE_DIR", tmp_path):
+            with pytest.raises(ValueError, match="ENCRYPTION_KEY"):
                 s._ensure_secret_keys()
-                assert any("ENCRYPTION_KEY" in str(warning.message) for warning in w)
 
     def test_prod_auto_generate_encryption_salt_warns(self, tmp_path):
         s = Settings(
@@ -240,14 +239,13 @@ class TestEnsureSecretKeys:
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
+            ENCRYPTION_KEY="already_set_key_value",
             ENCRYPTION_SALT="",
             CORS_ORIGINS="https://prod.com",
         )
-        with patch("app.core.config.BASE_DIR", tmp_path):
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
+        with patch("app.core.key_management.BASE_DIR", tmp_path):
+            with pytest.raises(ValueError, match="ENCRYPTION_SALT"):
                 s._ensure_secret_keys()
-                assert any("ENCRYPTION_SALT" in str(warning.message) for warning in w)
 
     def test_cached_key_loading(self, tmp_path):
         cache_file = tmp_path / ".secret_keys"
@@ -261,7 +259,7 @@ class TestEnsureSecretKeys:
             ENCRYPTION_KEY="",
             ENCRYPTION_SALT="",
         )
-        with patch("app.core.config.BASE_DIR", tmp_path):
+        with patch("app.core.key_management.BASE_DIR", tmp_path):
             s._ensure_secret_keys()
         assert s.JWT_SECRET_KEY == "cached_jwt_key_value_1234567890123456"
         assert s.ENCRYPTION_KEY == "cached_enc_key"
@@ -276,7 +274,7 @@ class TestEnsureSecretKeys:
             ENVIRONMENT="dev",
             JWT_SECRET_KEY="",
         )
-        with patch("app.core.config.BASE_DIR", tmp_path):
+        with patch("app.core.key_management.BASE_DIR", tmp_path):
             s._ensure_secret_keys()
         assert len(s.JWT_SECRET_KEY) > 0
 
@@ -289,7 +287,7 @@ class TestEnsureSecretKeys:
             ENVIRONMENT="dev",
             JWT_SECRET_KEY="",
         )
-        with patch("app.core.config.BASE_DIR", tmp_path):
+        with patch("app.core.key_management.BASE_DIR", tmp_path):
             s._ensure_secret_keys()
         assert len(s.JWT_SECRET_KEY) > 0
 
@@ -307,7 +305,7 @@ class TestEnsureSecretKeys:
             ENCRYPTION_KEY="already_set_key_value",
             ENCRYPTION_SALT="already_set_salt_value",
         )
-        with patch("app.core.config.BASE_DIR", readonly_dir):
+        with patch("app.core.key_management.BASE_DIR", readonly_dir):
             with warnings.catch_warnings(record=True):
                 warnings.simplefilter("always")
                 s._ensure_secret_keys()

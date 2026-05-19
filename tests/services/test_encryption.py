@@ -5,7 +5,7 @@
 - Project.test_object_password 加密存储/解密读取
 - RequirementLink.auth_config JSON整体加密
 - 旧数据兼容（未加密数据直接返回）
-- 空值处�?
+- 空值处理
 
 要求: 使用真实MySQL数据库，不使用Mock
 """
@@ -60,7 +60,7 @@ class TestProjectPasswordEncryption:
     """Project.test_object_password 加密存储测试"""
 
     def test_password_set_and_get(self, db_session, test_project):
-        """密码设置和读取——核心场�?""
+        """密码设置和读取——核心场景"""
         test_project.test_object_password = "MySecret123"
         db_session.commit()
         db_session.refresh(test_project)
@@ -121,7 +121,7 @@ class TestRequirementLinkAuthConfigEncryption:
         return project
 
     def test_basic_auth_config(self, db_session, test_project_for_link):
-        """Basic认证配置——核心场�?""
+        """Basic认证配置——核心场景"""
         link = RequirementLink(
             project_id=test_project_for_link.id,
             link_name=f"{_TEST_PREFIX}Basic认证",
@@ -192,10 +192,10 @@ class TestRequirementLinkAuthConfigEncryption:
         assert config["value"] == "abc123def456"
 
     def test_empty_auth_config(self, db_session, test_project_for_link):
-        """空认证配�?""
+        """空认证配置"""
         link = RequirementLink(
             project_id=test_project_for_link.id,
-            link_name=f"{_TEST_PREFIX}无认�?,
+            link_name=f"{_TEST_PREFIX}无认证",
             link_type="requirement",
             link_url="https://example.com/public",
             auth_type="none",
@@ -211,7 +211,7 @@ class TestRequirementLinkAuthConfigEncryption:
         """None认证配置"""
         link = RequirementLink(
             project_id=test_project_for_link.id,
-            link_name=f"{_TEST_PREFIX}无配�?,
+            link_name=f"{_TEST_PREFIX}无配置",
             link_type="ui_prototype",
             link_url="https://example.com/proto",
             auth_type="none",

@@ -1,6 +1,6 @@
 """
 洪恩管理系统真实登录测试
-使用真实浏览器访问真实系�?
+使用真实浏览器访问真实系统
 """
 import sys
 import os
@@ -23,7 +23,7 @@ class TestHongenLoginReal(unittest.TestCase):
     """
     
     def setUp(self):
-        """测试前准�?""
+        """测试前准备"""
         self.base_url = "https://admin-jxw-panda-test.ihumand.com"
         self.username = "admin"
         self.password = "admin123"
@@ -62,10 +62,10 @@ class TestHongenLoginReal(unittest.TestCase):
                 self.assertIsNotNone(page_info)
                 self.assertIn('url', page_info)
                 
-                print("�?测试1通过: 成功访问登录页面")
+                print("✅ 测试1通过: 成功访问登录页面")
                 
             except Exception as e:
-                print(f"�?测试1失败: {e}")
+                print(f"❌ 测试1失败: {e}")
                 raise
             finally:
                 await controller.close()
@@ -73,8 +73,8 @@ class TestHongenLoginReal(unittest.TestCase):
         asyncio.run(run_test())
     
     def test_02_login_with_captcha(self):
-        """测试2: 使用账号密码登录（包含验证码识别�?""
-        print("\n🧪 测试2: 使用账号密码登录（包含验证码识别�?)
+        """测试2: 使用账号密码登录（包含验证码识别）"""
+        print("\n🧪 测试2: 使用账号密码登录（包含验证码识别）")
         
         async def run_test():
             config = BrowserConfig(
@@ -95,11 +95,11 @@ class TestHongenLoginReal(unittest.TestCase):
                 
                 # 查找输入元素
                 input_elements = await controller.get_all_input_elements()
-                print(f"🔍 找到 {len(input_elements)} 个输入元�?)
+                print(f"🔍 找到 {len(input_elements)} 个输入元素")
                 
                 # 查找用户名输入框
                 username_selectors = [
-                    'input[placeholder*="用户�?]', 
+                    'input[placeholder*="用户名"]', 
                     'input[placeholder*="账号"]',
                     'input[type="text"]',
                     'input[name="username"]',
@@ -111,7 +111,7 @@ class TestHongenLoginReal(unittest.TestCase):
                     try:
                         element_info = await controller.get_element_info(selector)
                         if element_info:
-                            print(f"�?找到用户名输入框: {selector}")
+                            print(f"✅ 找到用户名输入框: {selector}")
                             await controller.fill(selector, self.username)
                             print(f"📝 已输入用户名: {self.username}")
                             username_found = True
@@ -126,7 +126,7 @@ class TestHongenLoginReal(unittest.TestCase):
                 
                 await asyncio.sleep(1)
                 
-                # 查找密码输入�?
+                # 查找密码输入框
                 password_selectors = [
                     'input[type="password"]',
                     'input[placeholder*="密码"]',
@@ -139,9 +139,9 @@ class TestHongenLoginReal(unittest.TestCase):
                     try:
                         element_info = await controller.get_element_info(selector)
                         if element_info:
-                            print(f"�?找到密码输入�? {selector}")
+                            print(f"✅ 找到密码输入框: {selector}")
                             await controller.fill(selector, self.password)
-                            print(f"📝 已输入密�? {'*' * len(self.password)}")
+                            print(f"📝 已输入密码: {'*' * len(self.password)}")
                             password_found = True
                             break
                     except:
@@ -159,10 +159,10 @@ class TestHongenLoginReal(unittest.TestCase):
                 captcha_result = await self._recognize_captcha(controller)
                 
                 if captcha_result:
-                    print(f"�?验证码识别结�? {captcha_result}")
+                    print(f"✅ 验证码识别结果: {captcha_result}")
                     # 查找验证码输入框
                     captcha_selectors = [
-                        'input[placeholder*="验证�?]',
+                        'input[placeholder*="验证码"]',
                         'input[name="captcha"]',
                         'input#captcha',
                         'input[type="text"]:nth-of-type(3)'
@@ -173,7 +173,7 @@ class TestHongenLoginReal(unittest.TestCase):
                         try:
                             element_info = await controller.get_element_info(selector)
                             if element_info:
-                                print(f"�?找到验证码输入框: {selector}")
+                                print(f"✅ 找到验证码输入框: {selector}")
                                 await controller.fill(selector, captcha_result)
                                 print(f"📝 已输入验证码: {captcha_result}")
                                 captcha_found = True
@@ -186,7 +186,7 @@ class TestHongenLoginReal(unittest.TestCase):
                         await controller.click(800, 590)
                         await controller.type_text(captcha_result)
                 else:
-                    print("⚠️ 验证码识别失败或无需验证�?)
+                    print("⚠️ 验证码识别失败或无需验证码")
                 
                 await asyncio.sleep(1)
                 
@@ -206,9 +206,9 @@ class TestHongenLoginReal(unittest.TestCase):
                     try:
                         element_info = await controller.get_element_info(selector)
                         if element_info:
-                            print(f"�?找到登录按钮: {selector}")
+                            print(f"✅ 找到登录按钮: {selector}")
                             await controller.click_element(selector)
-                            print("🖱�?已点击登录按�?)
+                            print("🖱️ 已点击登录按钮")
                             login_button_found = True
                             break
                     except:
@@ -219,7 +219,7 @@ class TestHongenLoginReal(unittest.TestCase):
                     await controller.click(960, 650)
                 
                 # 等待登录结果
-                print("�?等待登录结果...")
+                print("⏳ 等待登录结果...")
                 await asyncio.sleep(5)
                 
                 # 验证登录成功
@@ -229,24 +229,24 @@ class TestHongenLoginReal(unittest.TestCase):
                 
                 # 检查是否进入首页（URL应该改变或包含特定路径）
                 if 'login' not in current_url.lower() and current_url != self.base_url:
-                    print("�?登录成功，已进入首页")
+                    print("✅ 登录成功，已进入首页")
                 elif 'productLineManage' in current_url or 'index' in current_url:
-                    print("�?登录成功，已进入首页")
+                    print("✅ 登录成功，已进入首页")
                 else:
                     print(f"⚠️ 当前URL: {current_url}")
-                    print("登录可能失败，请检查截�?)
+                    print("登录可能失败，请检查截图")
                 
                 # 截图保存
                 screenshot = await controller.take_screenshot()
                 screenshot_path = 'hongen_login_result.png'
                 with open(screenshot_path, 'wb') as f:
                     f.write(screenshot)
-                print(f"📸 截图已保�? {screenshot_path}")
+                print(f"📸 截图已保存: {screenshot_path}")
                 
-                print("�?测试2完成: 登录流程执行完毕")
+                print("✅ 测试2完成: 登录流程执行完毕")
                 
             except Exception as e:
-                print(f"�?测试2失败: {e}")
+                print(f"❌ 测试2失败: {e}")
                 import traceback
                 traceback.print_exc()
                 raise
@@ -258,13 +258,13 @@ class TestHongenLoginReal(unittest.TestCase):
     
     async def _recognize_captcha(self, controller) -> str:
         """
-        识别验证�?
+        识别验证码
         
         Returns:
             验证码识别结果，如果失败返回空字符串
         """
         try:
-            # 检查视觉模型是否可�?
+            # 检查视觉模型是否可用
             if not self.vision_model.api_key:
                 print("⚠️ 视觉模型未配置API Key，跳过验证码识别")
                 return ""
@@ -272,27 +272,27 @@ class TestHongenLoginReal(unittest.TestCase):
             # 截取页面截图
             screenshot = await controller.take_screenshot()
             
-            # 使用AI识别验证�?
-            prompt = """请仔细分析这个登录页面截图，完成以下任务�?
+            # 使用AI识别验证码
+            prompt = """请仔细分析这个登录页面截图，完成以下任务：
 
-1. 找到验证码图片（通常是一个包含数�?字母/数学运算的图片，位于输入框旁边）
-2. 仔细识别验证码内容，特别注意�?
-   - 数字�?-9
-   - 运算符：+（加）�?（减）�?（乘）�?（除�?
+1. 找到验证码图片（通常是一个包含数字/字母/数学运算的图片，位于输入框旁边）
+2. 仔细识别验证码内容，特别注意：
+   - 数字：0-9
+   - 运算符：+（加）、-（减）、*（乘）、/（除）
    - 请仔细辨认每个字符，确保识别准确
 3. 如果是数学表达式（如"3+5=?"），请计算出结果
-4. 如果是纯数字/字母，直接识�?
+4. 如果是纯数字/字母，直接识别
 
-重要提示�?
+重要提示：
 - 请仔细查看验证码图片中的每个数字和运算符
 - 确保识别准确后再进行计算
-- 验证码通常是一个简单的数学表达�?
+- 验证码通常是一个简单的数学表达式
 
-请返回JSON格式�?
+请返回JSON格式：
 {
     "captcha_type": "math|text",
-    "captcha_original": "原始内容（如 '3+5=?'�?,
-    "captcha_result": "计算或识别结果（�?'8'�?,
+    "captcha_original": "原始内容（如 '3+5=?'）",
+    "captcha_result": "计算或识别结果（如 '8'）",
     "captcha_image_location": {"x": 100, "y": 200, "width": 80, "height": 30},
     "confidence": 0.95
 }
@@ -305,9 +305,9 @@ class TestHongenLoginReal(unittest.TestCase):
             
             response = self.vision_model.describe_screenshot(screenshot)
             
-            # 尝试从响应中解析验证�?
+            # 尝试从响应中解析验证码
             try:
-                # 查找JSON格式的响�?
+                # 查找JSON格式的响应
                 if '"captcha_result"' in response:
                     # 提取JSON部分
                     start_idx = response.find('{')
@@ -319,20 +319,20 @@ class TestHongenLoginReal(unittest.TestCase):
                         if captcha_result and captcha_result != "null":
                             return str(captcha_result)
                 
-                # 如果没有JSON格式，尝试直接提取数�?
+                # 如果没有JSON格式，尝试直接提取数字
                 import re
                 numbers = re.findall(r'\d+', response)
                 if numbers:
                     return numbers[0]
                     
             except Exception as e:
-                print(f"⚠️ 解析验证码响应失�? {e}")
+                print(f"⚠️ 解析验证码响应失败: {e}")
                 print(f"原始响应: {response}")
             
             return ""
             
         except Exception as e:
-            print(f"⚠️ 验证码识别失�? {e}")
+            print(f"⚠️ 验证码识别失败: {e}")
             return ""
 
 

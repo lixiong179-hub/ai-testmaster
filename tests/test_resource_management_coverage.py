@@ -2,17 +2,17 @@
 资源管理模块单元测试 - 补充测试用例
 
 针对资源管理模块（文件上传、迭代管理、资源筛选）编写补充测试
-覆盖现有测试未覆盖的边界场景和潜在缺�?
+覆盖现有测试未覆盖的边界场景和潜在缺陷
 
 覆盖范围:
 1. ZIP路径穿越漏洞防护测试
 2. 迭代CRUD边界场景
 3. 文件删除（真删除vs软删除）验证
-4. iteration_id语义一致性测�?
+4. iteration_id语义一致性测试
 5. 批量上传失败场景测试
-6. 文件类型自动检测测�?
+6. 文件类型自动检测测试
 
-作�? QA团队
+作者: QA团队
 日期: 2026-04-13
 """
 import pytest
@@ -36,7 +36,7 @@ class TestZIPPathTraversalVulnerability:
     """ZIP路径穿越漏洞防护测试"""
 
     def setup_method(self):
-        """每个测试前创建临时目�?""
+        """每个测试前创建临时目录"""
         self.temp_dir = tempfile.mkdtemp()
 
     def teardown_method(self):
@@ -93,14 +93,14 @@ class TestZIPPathTraversalVulnerability:
             zip_filename="malicious.zip"
         )
 
-        assert len(failed) > 0, "路径穿越文件应该被拒�?
+        assert len(failed) > 0, "路径穿越文件应该被拒绝"
         assert any("非法字符" in str(f) for f in failed), "应检测到非法路径"
 
         etc_passwd_path = os.path.join(project_upload_dir, "..", "..", "..", "etc", "passwd")
         assert not os.path.exists(etc_passwd_path), "不应该创建穿越路径的文件"
 
     def test_absolute_path_zip_creates_no_files(self, db_session, test_project):
-        """测试绝对路径ZIP文件被正确拒�?""
+        """测试绝对路径ZIP文件被正确拒绝"""
         malicious_zip = self._create_absolute_path_zip()
         zip_path = os.path.join(self.temp_dir, "absolute.zip")
 
@@ -125,7 +125,7 @@ class TestZIPPathTraversalVulnerability:
             zip_filename="absolute.zip"
         )
 
-        assert len(failed) > 0 or len(uploaded) == 0, "绝对路径文件应该被拒�?
+        assert len(failed) > 0 or len(uploaded) == 0, "绝对路径文件应该被拒绝"
 
     def test_normal_zip_extraction_succeeds(self, db_session, test_project):
         """测试正常ZIP文件可以成功解压"""
@@ -151,7 +151,7 @@ class TestZIPPathTraversalVulnerability:
             name="TestImages"
         )
 
-        assert len(uploaded) > 0, "正常ZIP应该能成功解�?
+        assert len(uploaded) > 0, "正常ZIP应该能成功解压"
 
     def _create_zip_with_images(self) -> bytes:
         """创建包含图片的正常ZIP"""
@@ -179,7 +179,7 @@ class TestIterationCRUDBoundaryCases:
     """迭代CRUD边界场景测试"""
 
     def test_create_iteration_with_very_long_name(self, db_session, test_project):
-        """测试超长迭代名称的处�?""
+        """测试超长迭代名称的处理"""
         long_name = "A" * 500
 
         iteration = iteration_crud.create_iteration(
@@ -193,7 +193,7 @@ class TestIterationCRUDBoundaryCases:
         assert len(iteration.name) == 200
 
     def test_create_iteration_with_special_characters(self, db_session, test_project):
-        """测试包含特殊字符的迭代名�?""
+        """测试包含特殊字符的迭代名称"""
         special_name = "Sprint 1 - 第一阶段 (2024/Q1) [测试]"
 
         iteration = iteration_crud.create_iteration(
@@ -207,7 +207,7 @@ class TestIterationCRUDBoundaryCases:
         assert iteration.name == special_name
 
     def test_update_iteration_name_to_same_name(self, db_session, test_iteration):
-        """测试将迭代名称更新为相同的名称（应该允许�?""
+        """测试将迭代名称更新为相同的名称（应该允许）"""
         original_name = test_iteration.name
 
         updated = iteration_crud.update_iteration(
@@ -251,7 +251,7 @@ class TestFileDeleteBehavior:
     """文件删除行为验证（真删除vs软删除）"""
 
     def test_file_crud_delete_removes_record(self, db_session, test_project):
-        """验证CRUD的delete_file是物理删�?""
+        """验证CRUD的delete_file是物理删除"""
         file_obj = file_crud.create_project_file(
             db=db_session,
             project_id=test_project.id,
@@ -273,7 +273,7 @@ class TestFileDeleteBehavior:
         deleted_file = db_session.query(ProjectFile).filter(
             ProjectFile.id == file_id
         ).first()
-        assert deleted_file is None, "CRUD delete_file是物理删�?
+        assert deleted_file is None, "CRUD delete_file是物理删除"
 
     def test_soft_delete_via_api_sets_inactive(self, db_session, test_project):
         """验证API的delete_file是软删除"""
@@ -293,15 +293,15 @@ class TestFileDeleteBehavior:
             ProjectFile.id == file_id
         ).first()
 
-        assert soft_deleted is not None, "软删除后记录仍存�?
+        assert soft_deleted is not None, "软删除后记录仍存在"
         assert soft_deleted.is_active is False
 
 
 class TestIterationIDSemanticConsistency:
-    """iteration_id语义一致性测�?""
+    """iteration_id语义一致性测试"""
 
     def test_api_upload_accepts_zero_as_uncategorized(self, db_session, test_project):
-        """测试API接受iteration_id=0作为未分类标�?""
+        """测试API接受iteration_id=0作为未分类标识"""
         file_obj = file_crud.create_project_file(
             db=db_session,
             project_id=test_project.id,
@@ -369,14 +369,14 @@ class TestIterationIDSemanticConsistency:
 
 
 class TestFileTypeAutoDetection:
-    """文件类型自动检测测�?""
+    """文件类型自动检测测试"""
 
     def test_detect_requirement_document(self):
-        """测试需求文档类型检�?""
+        """测试需求文档类型检测"""
         test_cases = [
             ("需求文档v1.0.docx", "docx", "requirement"),
             ("PRD.pdf", "pdf", "requirement"),
-            ("产品需�?md", "md", "requirement"),
+            ("产品需求.md", "md", "requirement"),
         ]
 
         for filename, ext, expected in test_cases:
@@ -384,10 +384,10 @@ class TestFileTypeAutoDetection:
             assert result == expected, f"{filename} should be {expected}, got {result}"
 
     def test_detect_ui_mockup(self):
-        """测试UI原型图类型检�?""
+        """测试UI原型图类型检测"""
         test_cases = [
             ("首页设计.png", "png", "ui_mockup"),
-            ("原型�?jpg", "jpg", "ui_mockup"),
+            ("原型图.jpg", "jpg", "ui_mockup"),
             ("UI.webp", "webp", "ui_mockup"),
         ]
 
@@ -396,7 +396,7 @@ class TestFileTypeAutoDetection:
             assert result == expected, f"{filename} should be {expected}, got {result}"
 
     def test_detect_api_doc(self):
-        """测试API文档类型检�?""
+        """测试API文档类型检测"""
         test_cases = [
             ("接口文档.yaml", "yaml", "api_doc"),
             ("API_spec.json", "json", "api_doc"),
@@ -408,7 +408,7 @@ class TestFileTypeAutoDetection:
             assert result == expected, f"{filename} should be {expected}, got {result}"
 
     def test_detect_test_data(self):
-        """测试测试数据类型检�?""
+        """测试测试数据类型检测"""
         test_cases = [
             ("测试数据.csv", "csv", "test_data"),
             ("用例数据.xlsx", "xlsx", "test_data"),
@@ -443,7 +443,7 @@ class TestBatchUploadEdgeCases:
         assert len(result_uploaded) == 0
 
     def test_oversized_zip_rejected(self, db_session, test_project):
-        """测试超大ZIP文件被拒�?""
+        """测试超大ZIP文件被拒绝"""
         try:
             from app.api.v1.endpoints.file_export import _extract_images_from_zip, MAX_ZIP_TOTAL_SIZE
         except ImportError:
@@ -460,7 +460,7 @@ class TestBatchUploadEdgeCases:
             assert True
 
     def test_too_many_entries_rejected(self, db_session, test_project):
-        """测试文件数量过多的ZIP被拒�?""
+        """测试文件数量过多的ZIP被拒绝"""
         try:
             from app.api.v1.endpoints.file_export import _extract_images_from_zip, MAX_ZIP_ENTRIES
         except ImportError:
@@ -533,7 +533,7 @@ class TestFileResponseTransformation:
             assert field in result, f"Missing required field: {field}"
 
     def test_iteration_to_dict_format(self, db_session, test_project):
-        """验证_iteration_to_dict返回正确的格�?""
+        """验证_iteration_to_dict返回正确的格式"""
         from app.api.v1.endpoints.iteration import _iteration_to_dict
 
         iteration = iteration_crud.create_iteration(
@@ -569,7 +569,7 @@ class TestUpdateSortSecurityValidation:
         assert resp.status_code in [400, 401, 422]
 
     def test_negative_file_ids_handled(self, client, authHeaders, test_project):
-        """测试负数文件ID的处�?""
+        """测试负数文件ID的处理"""
         resp = client.post(
             "/api/v1/file/update-sort",
             json=[-1, -100, -999],
@@ -580,10 +580,10 @@ class TestUpdateSortSecurityValidation:
 
 
 class TestProjectOwnershipValidation:
-    """项目归属权验证测�?""
+    """项目归属权验证测试"""
 
     def test_cannot_access_other_user_project_files(self, db_session):
-        """测试不能访问其他用户的项目文�?""
+        """测试不能访问其他用户的项目文件"""
         from app.models import User, Project
         from app.utils.jwt_utils import get_password_hash
 

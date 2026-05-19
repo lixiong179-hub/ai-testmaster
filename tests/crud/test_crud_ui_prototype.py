@@ -63,7 +63,7 @@ def test_case_obj(db, test_project):
         project_id=test_project.id,
         module="UI模块",
         title="UI测试用例",
-        precondition="�?,
+        precondition="无",
         steps_json=[{"step": "步骤1", "action": "操作", "param": ""}],
         expected_result="预期结果",
         priority=2,
@@ -86,7 +86,7 @@ class TestCreateUIPrototypeProject:
 
     def test_create_without_iteration(self, db, test_project):
         pp = create_ui_prototype_project(
-            db, test_project.id, "无迭代原�?, iteration_id=None
+            db, test_project.id, "无迭代原型", iteration_id=None
         )
         assert pp.iteration_id is None
 
@@ -100,7 +100,7 @@ class TestGetUIPrototypeProjectsByProject:
 
     def test_iteration_null_filter(self, db, test_project, testUser):
         create_ui_prototype_project(
-            db, test_project.id, "无迭�?, iteration_id=None
+            db, test_project.id, "无迭代", iteration_id=None
         )
         pps = get_ui_prototype_projects_by_project(
             db, test_project.id, testUser.id, iteration_id=0
@@ -194,10 +194,10 @@ class TestGetUIScreensByProject:
         assert len(screens) == 2
 
     def test_filter_by_parse_status(self, db, test_project, testUser):
-        s1 = create_ui_screen(db, test_project.id, "原型", "已完�?)
+        s1 = create_ui_screen(db, test_project.id, "原型", "已完成")
         s1.parse_status = "completed"
         db.commit()
-        create_ui_screen(db, test_project.id, "原型", "待解�?)
+        create_ui_screen(db, test_project.id, "原型", "待解析")
         screens = get_ui_screens_by_project(
             db, test_project.id, testUser.id, parse_status="completed"
         )
@@ -214,12 +214,12 @@ class TestGetUIScreensCount:
 
 class TestGetTestCasesByScreen:
     def test_empty(self, db, test_project):
-        screen = create_ui_screen(db, test_project.id, "原型", "空页�?)
+        screen = create_ui_screen(db, test_project.id, "原型", "空页面")
         case_ids = get_test_cases_by_screen(db, screen.id)
         assert case_ids == []
 
     def test_with_links(self, db, test_project, test_case_obj):
-        screen = create_ui_screen(db, test_project.id, "原型", "有链接页�?)
+        screen = create_ui_screen(db, test_project.id, "原型", "有链接页面")
         link_ui_screen_to_test_case(db, screen.id, test_case_obj.id)
         case_ids = get_test_cases_by_screen(db, screen.id)
         assert test_case_obj.id in case_ids
@@ -227,22 +227,22 @@ class TestGetTestCasesByScreen:
 
 class TestGetParsedUIScreensForCaseGeneration:
     def test_returns_parsed_only(self, db, test_project, testUser):
-        s1 = create_ui_screen(db, test_project.id, "原型", "已解�?)
+        s1 = create_ui_screen(db, test_project.id, "原型", "已解析")
         s1.parse_status = "completed"
         s1.review_status = "approved"
         db.commit()
-        create_ui_screen(db, test_project.id, "原型", "待解�?)
+        create_ui_screen(db, test_project.id, "原型", "待解析")
         screens = get_parsed_ui_screens_for_case_generation(
             db, test_project.id, testUser.id
         )
         assert len(screens) == 1
 
     def test_approved_only(self, db, test_project, testUser):
-        s1 = create_ui_screen(db, test_project.id, "原型", "已审�?)
+        s1 = create_ui_screen(db, test_project.id, "原型", "已审核")
         s1.parse_status = "completed"
         s1.review_status = "approved"
         db.commit()
-        s2 = create_ui_screen(db, test_project.id, "原型", "已拒�?)
+        s2 = create_ui_screen(db, test_project.id, "原型", "已拒绝")
         s2.parse_status = "completed"
         s2.review_status = "rejected"
         db.commit()
@@ -252,7 +252,7 @@ class TestGetParsedUIScreensForCaseGeneration:
         assert len(screens) == 1
 
     def test_all_including_rejected(self, db, test_project, testUser):
-        s1 = create_ui_screen(db, test_project.id, "原型", "已拒�?)
+        s1 = create_ui_screen(db, test_project.id, "原型", "已拒绝")
         s1.parse_status = "completed"
         s1.review_status = "rejected"
         db.commit()
@@ -315,7 +315,7 @@ class TestUpdateUIScreenParseResult:
 
 class TestUpdateUIScreenParseStatus:
     def test_set_processing(self, db, test_project):
-        screen = create_ui_screen(db, test_project.id, "原型", "处理�?)
+        screen = create_ui_screen(db, test_project.id, "原型", "处理中")
         result = update_ui_screen_parse_status(db, screen.id, "processing")
         assert result.parse_status == "processing"
 
@@ -345,10 +345,10 @@ class TestUpdateUIScreenReview:
         screen = create_ui_screen(db, test_project.id, "原型", "拒绝页面")
         result = update_ui_screen_review(
             db, screen.id, "rejected",
-            reviewer="admin", review_comment="解析不准�?
+            reviewer="admin", review_comment="解析不准确"
         )
         assert result.review_status == "rejected"
-        assert result.review_comment == "解析不准�?
+        assert result.review_comment == "解析不准确"
 
     def test_nonexistent(self, db, test_project):
         result = update_ui_screen_review(db, 99999, "approved")
@@ -420,7 +420,7 @@ class TestBatchCreateUIScreens:
         screens_data = [{}]
         screens = batch_create_ui_screens(db, test_project.id, screens_data)
         assert len(screens) == 1
-        assert screens[0].prototype_name == "未命�?
+        assert screens[0].prototype_name == "未命名"
         assert screens[0].screen_name == "屏幕"
         assert screens[0].file_type == "png"
 

@@ -1,5 +1,5 @@
 """
-元素定位模型覆盖率测�?
+元素定位模型覆盖率测试
 提升 element_locator.py 的测试覆盖率
 """
 import sys
@@ -24,7 +24,7 @@ class TestElementLocatorStructure(unittest.TestCase):
     
     def test_element_locator_columns(self):
         """测试元素定位模型字段"""
-        # 检查关键字段存�?
+        # 检查关键字段存在
         self.assertTrue(hasattr(ElementLocator, 'id'))
         self.assertTrue(hasattr(ElementLocator, 'step_id'))
         self.assertTrue(hasattr(ElementLocator, 'element_description'))

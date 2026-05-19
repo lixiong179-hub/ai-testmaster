@@ -3,12 +3,31 @@
 将生成的测试用例写入数据库，
 设置 lifecycle_status、关联测试点、生成用例编号。
 """
+import json
 from typing import Any, ClassVar, Dict, List, Optional
 
 from loguru import logger
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
+
+
+def _serialize_json_field(value: Any) -> Optional[str]:
+    """将列表或已序列化的字符串统一为 JSON 字符串。
+
+    Args:
+        value: 列表或已序列化的字符串。
+
+    Returns:
+        JSON 字符串或 None。
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return json.dumps(value, ensure_ascii=False)
+    return None
 
 
 class Persist(PipelineStep):
@@ -45,95 +64,105 @@ class Persist(PipelineStep):
 
         from app.models.test_case import TestCase, enable_lifecycle_transition
 
-        enable_lifecycle_transition()
-        try:
-            for entry in generated_cases:
-                if entry.get("status") != "success":
-                    continue
+        # 使用线程锁保护全局生命周期状态，防止并发任务互相干扰
+        import threading
+        if not hasattr(Persist, '_lifecycle_lock'):
+            Persist._lifecycle_lock = threading.Lock()
 
-                tp = entry.get("test_point", {})
-                case_data_list = entry.get("case_data", [])
-
-                # 从 entry 中获取 task 信息，推导 ai_change_type 和 parent_case_id
-                task = entry.get("task")
-                parent_case_id: Optional[int] = None
-                ai_change_type: Optional[str] = None
-                if task:
-                    task_type = task.get("task_type", "")
-                    parent_case_id = task.get("case_id")  # 原用例ID（modify/locator_fix 模式）
-                    if task_type == "modify":
-                        ai_change_type = "modified"
-                    elif task_type == "locator_fix":
-                        ai_change_type = "locator_fix"
-                    elif task_type == "create":
-                        ai_change_type = "added"
-
-                    if task_type == "modify" and parent_case_id is None:
-                        logger.warning(
-                            "modify 任务缺少 parent_case_id: task_id={}",
-                            task.get("task_id", "unknown"),
-                        )
-
-                for case_data in case_data_list:
-                    try:
-                        tp_id = tp.get("id")
-                        # 优先从 case_data 取 QualityGate 直接写入的分数（解决同 tp 多用例覆盖问题）
-                        prior_score = case_data.get("prior_quality_score")
-                        grade = case_data.get("prior_quality_grade")
-                        if prior_score is None:
-                            score_info = score_map.get(case_data.get("title", ""), {})
-                            prior_score = score_info.get("score")
-                            grade = score_info.get("grade") if score_info else None
-                        lifecycle = case_data.get("lifecycle_status", "draft")
-                        if grade == "D":
-                            lifecycle = "pending_review"
-
-                        case_no = _generate_case_no(ctx, project_id)
-
-                        steps_json = case_data.get("steps", [])
-                        if isinstance(steps_json, list):
-                            steps_json = [
-                                s if isinstance(s, dict) else {"step": str(s)}
-                                for s in steps_json
-                            ]
-                        else:
-                            steps_json = []
-
-                        new_case = TestCase(
-                            case_no=case_no,
-                            project_id=project_id,
-                            test_point_id=tp_id,
-                            module=case_data.get("module", tp.get("module", "")),
-                            title=case_data.get("title") or tp.get("point", "测试用例") or "(无标题)",
-                            precondition=case_data.get("precondition", ""),
-                            steps_json=steps_json,
-                            expected_result=case_data.get("expected_result", ""),
-                            priority=case_data.get("priority", 3),
-                            case_type=case_data.get("case_type", "functional"),
-                            lifecycle_status=lifecycle,
-                            prior_quality_score=prior_score,
-                            parent_case_id=parent_case_id,
-                            ai_change_type=ai_change_type,
-                        )
-                        ctx.db.add(new_case)
-                        ctx.db.flush()
-                        _persist_case_steps(
-                            ctx,
-                            new_case.id,
-                            steps_json,
-                            cases_artifact.get("has_ui", False),
-                        )
-                        persisted_ids.append(new_case.id)
-
-                    except Exception as e:
-                        failed_persist += 1
-                        logger.error("用例持久化失败: {}", e)
+        with Persist._lifecycle_lock:
+            enable_lifecycle_transition()
+            try:
+                for entry in generated_cases:
+                    if entry.get("status") != "success":
                         continue
 
-            ctx.db.flush()
-        finally:
-            from app.models.test_case import disable_lifecycle_transition
-            disable_lifecycle_transition()
+                    tp = entry.get("test_point", {})
+                    case_data_list = entry.get("case_data", [])
+
+                    # 从 entry 中获取 task 信息，推导 ai_change_type 和 parent_case_id
+                    task = entry.get("task")
+                    parent_case_id: Optional[int] = None
+                    ai_change_type: Optional[str] = None
+                    if task:
+                        task_type = task.get("task_type", "")
+                        parent_case_id = task.get("case_id")  # 原用例ID（modify/locator_fix 模式）
+                        if task_type == "modify":
+                            ai_change_type = "modified"
+                        elif task_type == "locator_fix":
+                            ai_change_type = "locator_fix"
+                        elif task_type == "create":
+                            ai_change_type = "added"
+
+                        if task_type == "modify" and parent_case_id is None:
+                            logger.warning(
+                                "modify 任务缺少 parent_case_id: task_id={}",
+                                task.get("task_id", "unknown"),
+                            )
+
+                    for case_data in case_data_list:
+                        try:
+                            tp_id = tp.get("id")
+                            # 优先从 case_data 取 QualityGate 直接写入的分数（解决同 tp 多用例覆盖问题）
+                            prior_score = case_data.get("prior_quality_score")
+                            grade = case_data.get("prior_quality_grade")
+                            if prior_score is None:
+                                score_info = score_map.get(case_data.get("title", ""), {})
+                                prior_score = score_info.get("score")
+                                grade = score_info.get("grade") if score_info else None
+                            lifecycle = case_data.get("lifecycle_status", "draft")
+                            if grade == "D":
+                                lifecycle = "pending_review"
+
+                            case_no = _generate_case_no(ctx, project_id)
+
+                            steps_json = case_data.get("steps", [])
+                            if isinstance(steps_json, list):
+                                steps_json = [
+                                    s if isinstance(s, dict) else {"step": str(s)}
+                                    for s in steps_json
+                                ]
+                            else:
+                                steps_json = []
+
+                            new_case = TestCase(
+                                case_no=case_no,
+                                project_id=project_id,
+                                test_point_id=tp_id,
+                                module=case_data.get("module", tp.get("module", "")),
+                                title=case_data.get("title") or tp.get("point", "测试用例") or "(无标题)",
+                                precondition=case_data.get("precondition", ""),
+                                steps_json=steps_json,
+                                expected_result=case_data.get("expected_result", ""),
+                                priority=case_data.get("priority", 3),
+                                case_type=case_data.get("case_type", "ui_automation"),
+                                lifecycle_status=lifecycle,
+                                prior_quality_score=prior_score,
+                                parent_case_id=parent_case_id,
+                                ai_change_type=ai_change_type,
+                                depends_on=case_data.get("depends_on"),
+                                anchor_step=case_data.get("anchor_step"),
+                                fallback_steps=_serialize_json_field(case_data.get("fallback_steps")),
+                                setup_api_calls=_serialize_json_field(case_data.get("setup_api_calls")),
+                            )
+                            ctx.db.add(new_case)
+                            ctx.db.flush()
+                            _persist_case_steps(
+                                ctx,
+                                new_case.id,
+                                steps_json,
+                                cases_artifact.get("has_ui", False),
+                            )
+                            persisted_ids.append(new_case.id)
+
+                        except Exception as e:
+                            failed_persist += 1
+                            logger.error("用例持久化失败: {}", e)
+                            continue
+
+                ctx.db.flush()
+            finally:
+                from app.models.test_case import disable_lifecycle_transition
+                disable_lifecycle_transition()
 
         if not persisted_ids:
             return StepResult(
@@ -281,6 +310,7 @@ def _persist_case_steps(
 ) -> None:
     from app.models.test_case import TestStep
 
+    steps_to_add = []
     for index, step_data in enumerate(steps_json, start=1):
         action = (
             step_data.get("action")
@@ -296,7 +326,7 @@ def _persist_case_steps(
         )
         has_locator = int(step_data.get("has_locator", 0)) if has_ui else 0
         locator_status = step_data.get("locator_status") if has_ui else "pending"
-        ctx.db.add(TestStep(
+        steps_to_add.append(TestStep(
             test_case_id=case_id,
             step_number=index,
             action=str(action),
@@ -308,22 +338,39 @@ def _persist_case_steps(
             target_element=step_data.get("target_element"),
         ))
 
+    if steps_to_add:
+        ctx.db.add_all(steps_to_add)
+
 
 def _generate_case_no(ctx: PipelineContext, project_id: int) -> str:
+    """生成用例编号，格式: TC-{project_id:03d}-{seq:04d}。
+
+    使用 SELECT ... FOR UPDATE 加行级锁防止并发生成重复编号，
+    并基于当前最大编号递增，确保编号连续且唯一。
+    """
+    from sqlalchemy import func
     from app.models.test_case import TestCase
 
-    # 使用 SELECT ... FOR UPDATE 加行级锁，防止并发生成重复编号
+    prefix = f"TC-{project_id:03d}-"
+
+    # 查找当前项目下同前缀的最大编号
     last_case = ctx.db.query(TestCase).filter(
         TestCase.project_id == project_id,
+        TestCase.is_deleted.is_(False),
+        TestCase.case_no.like(f"{prefix}%"),
     ).order_by(TestCase.id.desc()).with_for_update().first()
 
     next_num = 1
     if last_case and last_case.case_no:
         try:
-            prefix = "TC-"
-            num_part = last_case.case_no.replace(prefix, "")
-            next_num = int(num_part.split("-")[-1]) + 1 if "-" in num_part else int(num_part) + 1
+            num_part = last_case.case_no[len(prefix):]
+            next_num = int(num_part) + 1
         except (ValueError, IndexError):
-            next_num = 1
+            # 编号格式异常时，回退到基于 count 的方式
+            count = ctx.db.query(func.count(TestCase.id)).filter(
+                TestCase.project_id == project_id,
+                TestCase.is_deleted.is_(False),
+            ).scalar() or 0
+            next_num = count + 1
 
-    return f"TC-{project_id:03d}-{next_num:04d}"
+    return f"{prefix}{next_num:04d}"

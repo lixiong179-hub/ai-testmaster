@@ -81,10 +81,9 @@ class UserInfoResponse(BaseModel):
     username: str  # 用户名，与User.username对应
     email: str  # 邮箱地址，与User.email对应
     is_active: bool  # 账户是否激活，与User.is_active对应，禁用用户无法登录
-    created_at: datetime  # 账户创建时间，与User.create_time对应
+    created_at: datetime = Field(alias="create_time")
     roles: list[str]  # 用户角色列表，通过User.roles关系获取，用于前端权限控制
 
     class Config:
-        # 启用ORM模式，允许直接从SQLAlchemy Model对象读取属性
-        # 无需手动转换，Pydantic自动从Model属性提取字段值
         from_attributes = True
+        populate_by_name = True

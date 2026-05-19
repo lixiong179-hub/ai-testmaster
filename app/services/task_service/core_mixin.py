@@ -14,7 +14,7 @@ class TaskCoreMixin:
     def __init__(self):
         self.running_tasks = {}  # 存储正在运行的任务
 
-    def start_task(self, task_id: int, project_id: int, case_ids: List[int]):
+    def start_task(self, task_id: int, project_id: int, case_ids: List[int]) -> None:
         """
         开始执行任务
 

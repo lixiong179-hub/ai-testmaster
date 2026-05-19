@@ -100,7 +100,7 @@ class TestRoleModel:
         db.commit()
 
     def test_role_with_permissions(self, db):
-        role = Role(name="perm_role_model", desc="带权限角�?, permissions=["read", "write"])
+        role = Role(name="perm_role_model", desc="带权限角色", permissions=["read", "write"])
         db.add(role)
         db.commit()
         db.refresh(role)
@@ -154,7 +154,7 @@ class TestPermissionModel:
         db.commit()
 
     def test_permission_nullable_fields(self, db):
-        perm = Permission(name="最小权�?, code="minimal_perm")
+        perm = Permission(name="最小权限", code="minimal_perm")
         db.add(perm)
         db.commit()
         db.refresh(perm)
@@ -166,11 +166,11 @@ class TestPermissionModel:
         db.commit()
 
     def test_permission_self_reference(self, db):
-        parent = Permission(name="父权�?, code="parent_perm_model")
+        parent = Permission(name="父权限", code="parent_perm_model")
         db.add(parent)
         db.commit()
         db.refresh(parent)
-        child = Permission(name="子权�?, code="child_perm_model", parent_id=parent.id)
+        child = Permission(name="子权限", code="child_perm_model", parent_id=parent.id)
         db.add(child)
         db.commit()
         db.refresh(child)
@@ -209,10 +209,10 @@ class TestTaskStatus:
 
     def test_labels(self):
         assert TaskStatus.LABELS[0] == "等待执行"
-        assert TaskStatus.LABELS[1] == "执行�?
+        assert TaskStatus.LABELS[1] == "执行中"
         assert TaskStatus.LABELS[2] == "执行完成"
         assert TaskStatus.LABELS[3] == "执行失败"
-        assert TaskStatus.LABELS[4] == "已停�?
+        assert TaskStatus.LABELS[4] == "已停止"
 
     def test_labels_completeness(self):
         assert len(TaskStatus.LABELS) == 5

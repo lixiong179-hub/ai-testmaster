@@ -1,10 +1,10 @@
 """
-Celery任务数据库会话管理测�?
+Celery任务数据库会话管理测试
 
 覆盖范围:
 - execute_test_task 创建TaskService实例
 - stop_test_task 创建TaskService实例
-- TaskService内部自己管理数据库会�?
+- TaskService内部自己管理数据库会话
 - 异常处理
 
 要求: 使用真实MySQL数据库，不使用Mock
@@ -20,10 +20,10 @@ from app.tasks.test_task import execute_test_task, stop_test_task
 
 
 class TestCeleryTaskSessionManagement:
-    """Celery任务会话管理测试——核心修复验�?""
+    """Celery任务会话管理测试——核心修复验证"""
 
     def test_execute_test_task_creates_task_service(self):
-        """execute_test_task 创建TaskService——核心场�?""
+        """execute_test_task 创建TaskService——核心场景"""
         task_id = 1
         project_id = 1
         case_ids = [1, 2, 3]
@@ -42,7 +42,7 @@ class TestCeleryTaskSessionManagement:
             assert result["task_id"] == task_id
 
     def test_stop_test_task_creates_task_service(self):
-        """stop_test_task 创建TaskService——核心场�?""
+        """stop_test_task 创建TaskService——核心场景"""
         task_id = 1
 
         with patch('app.tasks.test_task.TaskService') as MockTaskService:
@@ -88,7 +88,7 @@ class TestCeleryTaskSessionManagement:
 
 
 class TestTaskServiceNoDbParameter:
-    """TaskService不接受db参数——验证修复正确�?""
+    """TaskService不接受db参数——验证修复正确性"""
 
     def test_task_service_constructor_no_db(self):
         """TaskService构造函数不接受db参数"""

@@ -62,7 +62,7 @@ def compute_posterior_quality(db: Session, project_id: int) -> Dict[str, Any]:
         )
         .filter(
             TestCase.project_id == project_id,
-            TestCase.is_deleted == False,
+            TestCase.is_deleted.is_(False),
             TestCase.review_status.in_(["approved", "rejected"]),
         )
         .first()
@@ -89,7 +89,7 @@ def compute_posterior_quality(db: Session, project_id: int) -> Dict[str, Any]:
         .join(TestCase, TestCaseExecution.test_case_id == TestCase.id)
         .filter(
             TestCase.project_id == project_id,
-            TestCase.is_deleted == False,
+            TestCase.is_deleted.is_(False),
             TestCaseExecution.status.in_(["passed", "failed"]),
         )
         .first()
@@ -111,7 +111,7 @@ def compute_posterior_quality(db: Session, project_id: int) -> Dict[str, Any]:
         )
         .filter(
             TestCase.project_id == project_id,
-            TestCase.is_deleted == False,
+            TestCase.is_deleted.is_(False),
         )
         .first()
     )
@@ -173,7 +173,7 @@ def compute_and_persist_posterior(db: Session, project_id: int) -> Dict[str, Any
         db.query(TestCase)
         .filter(
             TestCase.project_id == project_id,
-            TestCase.is_deleted == False,
+            TestCase.is_deleted.is_(False),
         )
         .update({TestCase.posterior_quality_score: posterior_score}, synchronize_session="fetch")
     )
@@ -271,7 +271,7 @@ def run_posterior_quality_batch(db: Session, project_ids: Optional[List[int]] = 
         rows = (
             db.query(TestCase.project_id)
             .filter(
-                TestCase.is_deleted == False,
+                TestCase.is_deleted.is_(False),
                 TestCase.review_status.in_(["approved", "rejected"]),
             )
             .group_by(TestCase.project_id)

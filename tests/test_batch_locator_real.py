@@ -1,15 +1,15 @@
 """
 批量元素定位服务真实单元测试
 
-测试要求�?
-- 严禁使用Mock，所有测试必须使用真实环�?
-- 必须使用真实MySQL数据�?
-- 覆盖�?=95%
+测试要求：
+- 严禁使用Mock，所有测试必须使用真实环境
+- 必须使用真实MySQL数据库
+- 覆盖率>=95%
 - 测试数据隔离，测试后清理数据
 """
 import pytest
 import asyncio
-from datetime import datetime
+from app.utils.db_time import utcnow
 from typing import Dict, Any, List
 
 from app.services.batch_locator_service import (
@@ -31,11 +31,11 @@ pytestmark = [pytest.mark.integration, pytest.mark.real_browser]
 
 
 # ============================================================================
-# 测试数据�?
+# 测试数据类
 # ============================================================================
 
 class TestBatchLocatorConfig:
-    """测试批量定位配置�?""
+    """测试批量定位配置类"""
 
     def test_default_config(self):
         """测试默认配置"""
@@ -44,7 +44,7 @@ class TestBatchLocatorConfig:
         assert config.max_retries == 3
 
     def test_custom_config(self):
-        """测试自定义配�?""
+        """测试自定义配置"""
         config = BatchLocatorConfig(step_delay=1.0, max_retries=5)
         assert config.step_delay == 1.0
         assert config.max_retries == 5
@@ -53,14 +53,14 @@ class TestBatchLocatorConfig:
         """测试部分覆盖配置"""
         config = BatchLocatorConfig(step_delay=2.0)
         assert config.step_delay == 2.0
-        assert config.max_retries == 3  # 默认�?
+        assert config.max_retries == 3  # 默认值
 
 
 class TestBatchRecordStatus:
-    """测试批量记录状态枚�?""
+    """测试批量记录状态枚举"""
 
     def test_status_values(self):
-        """测试状态�?""
+        """测试状态值"""
         assert BatchRecordStatus.PENDING == "pending"
         assert BatchRecordStatus.RUNNING == "running"
         assert BatchRecordStatus.COMPLETED == "completed"
@@ -68,13 +68,13 @@ class TestBatchRecordStatus:
         assert BatchRecordStatus.CANCELLED == "cancelled"
 
     def test_status_comparison(self):
-        """测试状态比�?""
+        """测试状态比较"""
         assert BatchRecordStatus.RUNNING == "running"
         assert BatchRecordStatus.COMPLETED != "running"
 
 
 class TestStepRecordResult:
-    """测试步骤记录结果�?""
+    """测试步骤记录结果类"""
 
     def test_step_result_creation(self):
         """测试创建步骤结果"""
@@ -100,7 +100,7 @@ class TestStepRecordResult:
         assert result.duration == 2.5
 
     def test_step_result_defaults(self):
-        """测试步骤结果默认�?""
+        """测试步骤结果默认值"""
         result = StepRecordResult(
             step_id=1,
             step_number=1,
@@ -128,7 +128,7 @@ class TestStepRecordResult:
 
 
 class TestBatchRecordReport:
-    """测试批量记录报告�?""
+    """测试批量记录报告类"""
 
     def test_report_creation(self):
         """测试创建报告"""
@@ -139,7 +139,7 @@ class TestBatchRecordReport:
             success_count=4,
             failed_count=1,
             skipped_count=0,
-            start_time=datetime.utcnow(),
+            start_time=utcnow(),
             status=BatchRecordStatus.COMPLETED
         )
         assert report.case_id == 1
@@ -159,7 +159,7 @@ class TestBatchRecordReport:
             success_count=0,
             failed_count=0,
             skipped_count=0,
-            start_time=datetime.utcnow(),
+            start_time=utcnow(),
             status=BatchRecordStatus.RUNNING
         )
 
@@ -180,8 +180,8 @@ class TestBatchRecordReport:
         assert report.step_results[1].success == False
 
     def test_report_to_dict(self):
-        """测试报告序列�?""
-        start_time = datetime.utcnow()
+        """测试报告序列化"""
+        start_time = utcnow()
         report = BatchRecordReport(
             case_id=1,
             case_title="测试",
@@ -215,7 +215,7 @@ class TestBatchRecordReport:
         assert report_dict["step_results"][0]["css_selector"] == "#test"
 
     def test_report_to_dict_empty_results(self):
-        """测试空结果的报告序列�?""
+        """测试空结果的报告序列化"""
         report = BatchRecordReport(
             case_id=1,
             case_title="测试",
@@ -223,7 +223,7 @@ class TestBatchRecordReport:
             success_count=0,
             failed_count=0,
             skipped_count=0,
-            start_time=datetime.utcnow(),
+            start_time=utcnow(),
             status=BatchRecordStatus.PENDING
         )
 
@@ -232,16 +232,16 @@ class TestBatchRecordReport:
 
 
 # ============================================================================
-# 测试任务管理�?
+# 测试任务管理器
 # ============================================================================
 
 class TestBatchTaskManager:
-    """测试批量任务管理�?""
+    """测试批量任务管理器"""
 
     def setup_method(self):
-        """每个测试方法前清理任�?""
+        """每个测试方法前清理任务"""
         manager = BatchTaskManager()
-        # 清理所有任�?
+        # 清理所有任务
         for case_id in list(manager.get_all_tasks().keys()):
             manager.unregister_task(case_id)
 
@@ -252,7 +252,7 @@ class TestBatchTaskManager:
         assert manager1 is manager2
 
     def test_register_and_get_task(self):
-        """测试注册和获取任�?""
+        """测试注册和获取任务"""
         manager = BatchTaskManager()
         service = BatchLocatorService()
 
@@ -272,7 +272,7 @@ class TestBatchTaskManager:
         assert manager.get_task(1) is None
 
     def test_get_all_tasks(self):
-        """测试获取所有任�?""
+        """测试获取所有任务"""
         manager = BatchTaskManager()
         service1 = BatchLocatorService()
         service2 = BatchLocatorService()
@@ -316,14 +316,14 @@ class TestBatchTaskManager:
 
 
 # ============================================================================
-# 测试服务�?
+# 测试服务类
 # ============================================================================
 
 class TestBatchLocatorService:
-    """测试批量定位服务�?""
+    """测试批量定位服务类"""
 
     def test_default_initialization(self):
-        """测试默认初始�?""
+        """测试默认初始化"""
         service = BatchLocatorService()
 
         assert service._cancelled == False
@@ -348,14 +348,14 @@ class TestBatchLocatorService:
         assert service._cancelled == True
 
     def test_get_report_no_report(self):
-        """测试获取报告（无报告�?""
+        """测试获取报告（无报告）"""
         service = BatchLocatorService()
         report = service.get_report()
 
         assert report is None
 
     def test_notify_progress_with_callback(self):
-        """测试进度通知（有回调�?""
+        """测试进度通知（有回调）"""
         received_data = []
 
         def callback(data: Dict[str, Any]):
@@ -369,9 +369,9 @@ class TestBatchLocatorService:
         assert received_data[0]["value"] == 100
 
     def test_notify_progress_without_callback(self):
-        """测试进度通知（无回调�?""
+        """测试进度通知（无回调）"""
         service = BatchLocatorService()
-        # 不应该抛出异�?
+        # 不应该抛出异常
         service._notify_progress({"type": "test"})
 
     def test_notify_progress_callback_exception(self):
@@ -392,13 +392,13 @@ class TestBatchRecordRequest:
     """测试批量记录请求模型"""
 
     def test_default_values(self):
-        """测试默认�?""
+        """测试默认值"""
         request = BatchRecordRequest()
         assert request.skip_existing == True
         assert request.execute_precondition == True
 
     def test_custom_values(self):
-        """测试自定义�?""
+        """测试自定义值"""
         request = BatchRecordRequest(
             skip_existing=False,
             execute_precondition=False
@@ -407,10 +407,10 @@ class TestBatchRecordRequest:
         assert request.execute_precondition == False
 
     def test_partial_custom_values(self):
-        """测试部分自定义�?""
+        """测试部分自定义值"""
         request = BatchRecordRequest(skip_existing=False)
         assert request.skip_existing == False
-        assert request.execute_precondition == True  # 默认�?
+        assert request.execute_precondition == True  # 默认值
 
 
 class TestBatchRecordResponse:
@@ -420,17 +420,17 @@ class TestBatchRecordResponse:
         """测试创建响应"""
         response = BatchRecordResponse(
             success=True,
-            message="任务已启�?,
+            message="任务已启动",
             case_id=1,
             task_id="batch_1"
         )
         assert response.success == True
-        assert response.message == "任务已启�?
+        assert response.message == "任务已启动"
         assert response.case_id == 1
         assert response.task_id == "batch_1"
 
     def test_response_without_task_id(self):
-        """测试无任务ID的响�?""
+        """测试无任务ID的响应"""
         response = BatchRecordResponse(
             success=False,
             message="启动失败",
@@ -440,10 +440,10 @@ class TestBatchRecordResponse:
 
 
 class TestBatchRecordStatusResponse:
-    """测试批量记录状态响应模�?""
+    """测试批量记录状态响应模型"""
 
     def test_status_response_creation(self):
-        """测试创建状态响�?""
+        """测试创建状态响应"""
         response = BatchRecordStatusResponse(
             case_id=1,
             status="running",
@@ -460,7 +460,7 @@ class TestBatchRecordStatusResponse:
         assert response.message == "正在执行"
 
     def test_status_response_without_optional(self):
-        """测试无可选字段的状态响�?""
+        """测试无可选字段的状态响应"""
         response = BatchRecordStatusResponse(
             case_id=1,
             status="completed",
@@ -518,7 +518,7 @@ class TestBatchLocatorServiceAsync:
         """测试服务生命周期（简化测试）"""
         service = BatchLocatorService()
 
-        # 测试初始状�?
+        # 测试初始状态
         assert service._cancelled == False
         assert service.get_report() is None
 
@@ -530,11 +530,11 @@ class TestBatchLocatorServiceAsync:
         """测试操作期间取消"""
         service = BatchLocatorService()
 
-        # 模拟操作前取�?
+        # 模拟操作前取消
         service.cancel()
         assert service._cancelled == True
 
-        # 验证状态保�?
+        # 验证状态保持
         assert service._cancelled == True
 
 
@@ -549,26 +549,26 @@ class TestBatchLocatorIntegration:
     集成测试（需要真实环境）
 
     这些测试需要：
-    - 真实MySQL数据�?
-    - 真实浏览�?
+    - 真实MySQL数据库
+    - 真实浏览器
     - AI视觉模型
     """
 
     @pytest.mark.skip(reason="需要真实数据库和浏览器环境")
     async def test_batch_record_with_real_db(self):
-        """测试真实数据库环境下的批量记�?""
+        """测试真实数据库环境下的批量记录"""
         # 此测试需要真实环境，默认跳过
         pass
 
     @pytest.mark.skip(reason="需要真实浏览器环境")
     async def test_batch_record_with_real_browser(self):
-        """测试真实浏览器环境下的批量记�?""
+        """测试真实浏览器环境下的批量记录"""
         # 此测试需要真实环境，默认跳过
         pass
 
 
 # ============================================================================
-# 测试覆盖率统�?
+# 测试覆盖率统计
 # ============================================================================
 
 if __name__ == "__main__":

@@ -102,7 +102,7 @@ class MockAIClient:
             content=content,
             parsed=parsed,
             usage=TokenUsage(prompt_tokens=0, completion_tokens=0, total_cost_usd=0.0),
-            model_version="mock-model",
+            model_version=self.model_name,
             latency_ms=latency_ms,
             raw_response=None,
             degraded=False,

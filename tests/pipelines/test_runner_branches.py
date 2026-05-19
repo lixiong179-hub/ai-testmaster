@@ -7,10 +7,10 @@
     - 缓存命中 + output_artifact_ids 关联产物
     - validate_output=False 输出校验失败触发重试
     - 重试耗尽 + fallback 降级
-    - 重试耗尽 + fallback 返回 None �?Pipeline 失败
+    - 重试耗尽 + fallback 返回 None → Pipeline 失败
     - _persist_artifact 正常路径
 
-使用自定�?StubStep 替代真实 Step，精确控制每个分支�?
+使用自定义 StubStep 替代真实 Step，精确控制每个分支。
 """
 import json
 import pytest
@@ -66,7 +66,7 @@ class PauseStep(PipelineStep):
             artifact_payload={"data": "pause"},
             artifact_kind="pause_output",
             pause_for_confirmation=True,
-            confirmation_reason="需要用户确�?,
+            confirmation_reason="需要用户确认",
         )
 
     def validate_output(self, payload: Dict[str, Any]) -> bool:

@@ -177,7 +177,7 @@ class ReportUtils:
             '{total}': str(statistics.get('total', 0)),
             '{passed}': str(statistics.get('passed', 0)),
             '{failed}': str(statistics.get('failed', 0)),
-            '{skipped}': str(statistics.get('skipped', 0)),
+            '{blocked}': str(statistics.get('blocked', 0)),
             '{pass_rate}': str(statistics.get('pass_rate', 0)),
             '{summary}': report_data.get('summary', ''),
             '{chart_base64}': chart_base64,

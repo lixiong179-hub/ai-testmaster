@@ -1,14 +1,15 @@
 """
 PromptBuilder 单元测试
 
-覆盖范围�?
-- build_graph_prompt: 空数据、仅主干、全类型混合、无效source、超长分�?
-- build_linear_prompt: 正常调用、参数传�?
+覆盖范围：
+- build_graph_prompt: 空数据、仅主干、全类型混合、无效source、超长分支
+- build_linear_prompt: 正常调用、参数传递
 - _safe_int: 安全转换
 - _find_main_step: 步骤查找
 """
 import pytest
-from app.services.prompt_builder import PromptBuilder, _safe_int, _find_main_step
+from app.services.prompt_builder import PromptBuilder
+from app.services.prompt_builder.helpers import _safe_int, _find_main_step
 
 
 class TestSafeInt:
@@ -39,9 +40,9 @@ class TestFindMainStep:
     @pytest.fixture
     def main_nodes(self):
         return [
-            {"screen_id": 1, "screen_order": 1, "screen_name": "登录�?},
+            {"screen_id": 1, "screen_order": 1, "screen_name": "登录页"},
             {"screen_id": 2, "screen_order": 2, "screen_name": "首页"},
-            {"screen_id": 3, "screen_order": 3, "screen_name": "详情�?}
+            {"screen_id": 3, "screen_order": 3, "screen_name": "详情页"}
         ]
 
     def test_find_existing_step(self, main_nodes):
@@ -62,7 +63,7 @@ class TestBuildGraphPrompt:
     @pytest.fixture
     def basic_nodes(self):
         return [
-            {"screen_id": 1, "screen_order": 1, "screen_name": "登录�?, "flow_type": "main", "ocr_text": "请输入账�?, "ui_spec_elements": [{"type": "input", "label": "用户�?}]},
+            {"screen_id": 1, "screen_order": 1, "screen_name": "登录页", "flow_type": "main", "ocr_text": "请输入账号", "ui_spec_elements": [{"type": "input", "label": "用户名"}]},
             {"screen_id": 2, "screen_order": 2, "screen_name": "首页", "flow_type": "main", "ocr_text": "欢迎回来", "ui_spec_elements": [{"type": "button", "label": "搜索"}]}
         ]
 
@@ -74,24 +75,24 @@ class TestBuildGraphPrompt:
 
     def test_prompt_contains_role_definition(self, basic_nodes, basic_edges):
         prompt = PromptBuilder.build_graph_prompt(basic_nodes, basic_edges)
-        assert "资深测试工程�? in prompt
+        assert "资深测试工程师" in prompt
 
     def test_prompt_contains_main_flow(self, basic_nodes, basic_edges):
         prompt = PromptBuilder.build_graph_prompt(basic_nodes, basic_edges)
         assert "主干流程" in prompt
-        assert "登录�? in prompt
+        assert "登录页" in prompt
         assert "首页" in prompt
 
     def test_prompt_contains_ui_elements(self, basic_nodes, basic_edges):
         prompt = PromptBuilder.build_graph_prompt(basic_nodes, basic_edges)
-        assert "input:用户�? in prompt
+        assert "input:用户名" in prompt
         assert "button:搜索" in prompt
 
     def test_prompt_contains_requirement(self, basic_nodes, basic_edges):
         prompt = PromptBuilder.build_graph_prompt(
-            basic_nodes, basic_edges, requirement_content="用户需要登录系�?
+            basic_nodes, basic_edges, requirement_content="用户需要登录系统"
         )
-        assert "用户需要登录系�? in prompt
+        assert "用户需要登录系统" in prompt
 
     def test_prompt_contains_test_point(self, basic_nodes, basic_edges):
         prompt = PromptBuilder.build_graph_prompt(
@@ -107,20 +108,20 @@ class TestBuildGraphPrompt:
 
     def test_prompt_with_branch_flow(self, basic_nodes):
         nodes = basic_nodes + [
-            {"screen_id": 3, "screen_order": 3, "screen_name": "注册�?, "flow_type": "branch", "ocr_text": "填写注册信息", "ui_spec_elements": [{"type": "input", "label": "手机�?}]}
+            {"screen_id": 3, "screen_order": 3, "screen_name": "注册页", "flow_type": "branch", "ocr_text": "填写注册信息", "ui_spec_elements": [{"type": "input", "label": "手机号"}]}
         ]
         edges = [
             {"source": "1", "target": "2", "edge_type": "normal", "condition": None, "label": "正常"},
-            {"source": "1", "target": "3", "edge_type": "branch", "condition": "点击注册", "label": "去注�?}
+            {"source": "1", "target": "3", "edge_type": "branch", "condition": "点击注册", "label": "去注册"}
         ]
         prompt = PromptBuilder.build_graph_prompt(nodes, edges)
         assert "分支流程" in prompt
         assert "点击注册" in prompt
-        assert "注册�? in prompt
+        assert "注册页" in prompt
 
     def test_prompt_with_exception_flow(self, basic_nodes):
         nodes = basic_nodes + [
-            {"screen_id": 4, "screen_order": 4, "screen_name": "错误�?, "flow_type": "exception", "ocr_text": "密码错误", "ui_spec_elements": []}
+            {"screen_id": 4, "screen_order": 4, "screen_name": "错误页", "flow_type": "exception", "ocr_text": "密码错误", "ui_spec_elements": []}
         ]
         edges = [
             {"source": "1", "target": "2", "edge_type": "normal", "condition": None, "label": "正常"},
@@ -129,7 +130,7 @@ class TestBuildGraphPrompt:
         prompt = PromptBuilder.build_graph_prompt(nodes, edges)
         assert "异常流程" in prompt
         assert "密码错误" in prompt
-        assert "错误�? in prompt
+        assert "错误页" in prompt
 
     def test_prompt_with_bypass_flow(self, basic_nodes):
         nodes = basic_nodes + [
@@ -153,13 +154,13 @@ class TestBuildGraphPrompt:
 
     def test_prompt_with_empty_data(self):
         prompt = PromptBuilder.build_graph_prompt([], [])
-        assert "资深测试工程�? in prompt
+        assert "资深测试工程师" in prompt
         assert "主干流程" in prompt
 
     def test_prompt_contains_generation_rules(self, basic_nodes, basic_edges):
         prompt = PromptBuilder.build_graph_prompt(basic_nodes, basic_edges)
         assert "生成要求" in prompt
-        assert "步骤不可颠�? in prompt
+        assert "步骤不可颠倒" in prompt
         assert "JSON格式" in prompt
 
     def test_prompt_branch_index_overflow(self, basic_nodes):
@@ -177,18 +178,18 @@ class TestBuildLinearPrompt:
 
     def test_calls_ai_prompt_mixin(self):
         prompt = PromptBuilder.build_linear_prompt(
-            requirement_content="测试需�?,
+            requirement_content="测试需求",
             ui_description="UI描述",
             module="测试模块",
             function="测试功能",
-            point="测试�?,
+            point="测试点",
             priority=2
         )
         assert isinstance(prompt, str)
         assert len(prompt) > 0
 
     def test_passes_ui_specs(self):
-        ui_specs = [{"screen_name": "测试�?, "ui_spec": {"elements": []}}]
+        ui_specs = [{"screen_name": "测试页", "ui_spec": {"elements": []}}]
         prompt = PromptBuilder.build_linear_prompt(
             requirement_content="",
             ui_description="",

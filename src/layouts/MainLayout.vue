@@ -1,6 +1,5 @@
 <template>
   <div class="main-layout">
-    <!-- 侧边栏 -->
     <div class="sidebar" :class="{ expanded: sidebarExpanded }">
       <div class="logo" @click="toggleSidebar">
         <h3>AI TestMaster</h3>
@@ -28,33 +27,23 @@
             <el-icon><Message /></el-icon>
             <span>资源管理</span>
           </template>
-          <el-menu-item index="/home/requirement">
-            <span>资源列表</span>
-          </el-menu-item>
+          <el-menu-item index="/home/requirement"><span>资源列表</span></el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="case">
           <template #title>
             <el-icon><Check /></el-icon>
             <span>测试用例管理</span>
           </template>
-          <el-menu-item index="/home/case">
-            <span>用例列表</span>
-          </el-menu-item>
-          <el-menu-item index="/home/case/test-point-management">
-            <span>测试点管理</span>
-          </el-menu-item>
-          <el-menu-item index="/home/case/ai-generate">
-            <span>AI生成用例</span>
-          </el-menu-item>
+          <el-menu-item index="/home/case"><span>用例列表</span></el-menu-item>
+          <el-menu-item index="/home/case/test-point-management"><span>测试点管理</span></el-menu-item>
+          <el-menu-item index="/home/case/ai-generate"><span>AI生成用例</span></el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="task">
           <template #title>
             <el-icon><Timer /></el-icon>
             <span>测试任务管理</span>
           </template>
-          <el-menu-item index="/home/task">
-            <span>任务列表</span>
-          </el-menu-item>
+          <el-menu-item index="/home/task"><span>任务列表</span></el-menu-item>
         </el-sub-menu>
         <el-menu-item index="/home/report">
           <el-icon><DataAnalysis /></el-icon>
@@ -65,19 +54,13 @@
             <el-icon><Setting /></el-icon>
             <span>系统管理</span>
           </template>
-          <el-menu-item index="/home/system/user">
-            <span>用户管理</span>
-          </el-menu-item>
-          <el-menu-item index="/home/system/role">
-            <span>角色管理</span>
-          </el-menu-item>
+          <el-menu-item index="/home/system/user"><span>用户管理</span></el-menu-item>
+          <el-menu-item index="/home/system/role"><span>角色管理</span></el-menu-item>
         </el-sub-menu>
       </el-menu>
     </div>
 
-    <!-- 主内容区 -->
     <div class="main-container">
-      <!-- 顶部导航 -->
       <div class="top-nav">
         <div class="nav-left">
           <el-button link @click="toggleSidebar" class="sidebar-toggle">
@@ -85,9 +68,7 @@
           </el-button>
           <el-breadcrumb separator="/" class="breadcrumb">
             <el-breadcrumb-item :to="{ path: '/home/project' }">工作台</el-breadcrumb-item>
-            <el-breadcrumb-item v-for="(item, index) in breadcrumbList" :key="index">
-              {{ item.name }}
-            </el-breadcrumb-item>
+            <el-breadcrumb-item v-for="(item, index) in breadcrumbList" :key="index">{{ item.name }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="nav-right">
@@ -99,21 +80,14 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="handleProfile">
-                  <el-icon><User /></el-icon>
-                  <span>个人中心</span>
-                </el-dropdown-item>
-                <el-dropdown-item @click="handleLogout">
-                  <el-icon><SwitchButton /></el-icon>
-                  <span>退出登录</span>
-                </el-dropdown-item>
+                <el-dropdown-item @click="handleProfile"><el-icon><User /></el-icon><span>个人中心</span></el-dropdown-item>
+                <el-dropdown-item @click="handleLogout"><el-icon><SwitchButton /></el-icon><span>退出登录</span></el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </div>
       </div>
 
-      <!-- 内容区域 -->
       <div class="main-content">
         <router-view />
       </div>
@@ -122,129 +96,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import {
-  HomeFilled,
-  DataAnalysis,
-  Setting,
-  Menu,
-  ArrowDown,
-  ArrowUp,
-  User,
-  SwitchButton,
-  Message,
-  Check,
-  Timer,
+  HomeFilled, DataAnalysis, Setting, Menu, ArrowDown, ArrowUp, User, SwitchButton, Message, Check, Timer,
 } from '@element-plus/icons-vue'
-import { useFlowSortStore } from '@/store/flowSort'
+import { useMainLayout } from './useMainLayout'
 
-// 路由实例
-const router = useRouter()
-const route = useRoute()
-
-// 移动端检测
-const isMobile = ref(false)
-const sidebarExpanded = ref(false)
-
-// 检测是否为移动端
-const checkMobile = () => {
-  isMobile.value = window.innerWidth <= 768
-}
-
-// 组件挂载
-onMounted(() => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-})
-
-// 用户信息
-const username = ref('测试管理员')
-const userAvatar = ref('')
-
-// 计算当前激活的菜单
-const activeMenu = computed(() => {
-  return route.path
-})
-
-// 面包屑列表
-const breadcrumbList = ref<{ path: string; name: string }[]>([])
-
-// 更新面包屑
-const updateBreadcrumb = (path: string) => {
-  const breadcrumbMap: Record<string, string> = {
-    '/home/dashboard': '仪表盘',
-    '/home/project': '项目列表',
-    '/home/project/detail': '项目详情',
-    '/home/requirement': '资源管理',
-    '/home/requirement/upload': '上传需求',
-    '/home/requirement/ui-prototype': 'UI原型图',
-    '/home/case': '测试用例管理',
-    '/home/case/test-point-management': '测试点管理',
-    '/home/case/ai-generate': 'AI生成用例',
-    '/home/task': '测试任务管理',
-    '/home/report': '测试报告',
-    '/home/system': '系统管理',
-    '/home/system/user': '用户管理',
-    '/home/system/role': '角色管理',
-  }
-
-  const pathParts = path.split('/').filter(Boolean)
-  const result: { path: string; name: string }[] = []
-  let currentPath = ''
-
-  for (let i = 0; i < pathParts.length; i++) {
-    currentPath += '/' + pathParts[i]
-    const name = breadcrumbMap[currentPath]
-    if (name) {
-      result.push({ path: currentPath, name })
-    }
-  }
-
-  breadcrumbList.value = result
-}
-
-// 监听路由变化，更新面包屑
-watch(
-  () => route.path,
-  (newPath) => {
-    updateBreadcrumb(newPath)
-  },
-  { immediate: true }
-)
-
-// 切换侧边栏
-const toggleSidebar = () => {
-  if (isMobile.value) {
-    sidebarExpanded.value = !sidebarExpanded.value
-  }
-}
-
-// 处理菜单选择
-const handleMenuSelect = () => {
-  if (isMobile.value) {
-    sidebarExpanded.value = false
-  }
-}
-
-// 处理个人中心
-const handleProfile = () => {
-  router.push('/home/system/profile')
-}
-
-// 退出登录
-const handleLogout = () => {
-  localStorage.removeItem('token')
-  const flowSortStore = useFlowSortStore()
-  flowSortStore.reset()
-  ElMessage.success('退出登录成功')
-  router.push('/login')
-}
+const {
+  isMobile, sidebarExpanded, username, userAvatar, activeMenu, breadcrumbList,
+  toggleSidebar, handleMenuSelect, handleProfile, handleLogout,
+} = useMainLayout()
 </script>
 
 <style scoped>
@@ -328,7 +188,6 @@ const handleLogout = () => {
   border-right: none !important;
 }
 
-/* 与 Element Plus 深色菜单配合：子菜单缩进区域背景 */
 .sidebar-menu :deep(.el-sub-menu .el-menu) {
   background-color: #151e2a !important;
 }
@@ -380,7 +239,6 @@ const handleLogout = () => {
   font-size: 14px;
 }
 
-/* 移动端适配 */
 @media (max-width: 768px) {
   .main-layout {
     flex-direction: column;

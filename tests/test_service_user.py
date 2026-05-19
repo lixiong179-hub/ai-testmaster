@@ -64,7 +64,7 @@ class TestUserServiceCreate:
         )
         with pytest.raises(BaseAPIException) as exc_info:
             UserService.create_user(db, userCreate2)
-        assert "邮箱已存�? in exc_info.value.msg
+        assert "邮箱已存在" in exc_info.value.msg
 
     def test_create_user_with_phone(self, db):
         userCreate = UserCreate(
@@ -197,7 +197,7 @@ class TestUserServiceUpdate:
         userUpdate = UserUpdate(email="no@exist.com")
         with pytest.raises(BaseAPIException) as exc_info:
             UserService.update_user(db, 99999, userUpdate)
-        assert "不存�? in exc_info.value.msg
+        assert "不存在" in exc_info.value.msg
 
     def test_update_user_partial_fields(self, db):
         userCreate = UserCreate(
@@ -229,7 +229,7 @@ class TestUserServiceDelete:
     def test_delete_user_nonexistent(self, db):
         with pytest.raises(BaseAPIException) as exc_info:
             UserService.delete_user(db, 99999)
-        assert "不存�? in exc_info.value.msg
+        assert "不存在" in exc_info.value.msg
 
     def test_delete_user_cleans_role_associations(self, db):
         userCreate = UserCreate(
@@ -297,7 +297,7 @@ class TestRoleService:
         roleCreate2 = RoleCreate(name=name, desc="second")
         with pytest.raises(BaseAPIException) as exc_info:
             RoleService.create_role(db, roleCreate2)
-        assert "已存�? in exc_info.value.msg
+        assert "已存在" in exc_info.value.msg
 
     def test_get_role_by_id(self, db):
         roleCreate = RoleCreate(
@@ -327,7 +327,7 @@ class TestRoleService:
         roleUpdate = RoleUpdate(desc="should not update")
         with pytest.raises(BaseAPIException) as exc_info:
             RoleService.update_role(db, 99999, roleUpdate)
-        assert "不存�? in exc_info.value.msg
+        assert "不存在" in exc_info.value.msg
 
     def test_update_role_permissions(self, db):
         roleCreate = RoleCreate(
@@ -354,7 +354,7 @@ class TestRoleService:
     def test_delete_role_nonexistent(self, db):
         with pytest.raises(BaseAPIException) as exc_info:
             RoleService.delete_role(db, 99999)
-        assert "不存�? in exc_info.value.msg
+        assert "不存在" in exc_info.value.msg
 
     def test_get_roles(self, db):
         roles = RoleService.get_roles(db, skip=0, limit=10)
@@ -389,7 +389,7 @@ class TestPermissionService:
         permCreate2 = PermissionCreate(name="perm2", code=code, type="api")
         with pytest.raises(BaseAPIException) as exc_info:
             PermissionService.create_permission(db, permCreate2)
-        assert "已存�? in exc_info.value.msg
+        assert "已存在" in exc_info.value.msg
 
     def test_get_permission_by_id(self, db):
         permCreate = PermissionCreate(
@@ -421,7 +421,7 @@ class TestPermissionService:
         permUpdate = PermissionUpdate(name="should not update")
         with pytest.raises(BaseAPIException) as exc_info:
             PermissionService.update_permission(db, 99999, permUpdate)
-        assert "不存�? in exc_info.value.msg
+        assert "不存在" in exc_info.value.msg
 
     def test_delete_permission_normal(self, db):
         permCreate = PermissionCreate(
@@ -438,7 +438,7 @@ class TestPermissionService:
     def test_delete_permission_nonexistent(self, db):
         with pytest.raises(BaseAPIException) as exc_info:
             PermissionService.delete_permission(db, 99999)
-        assert "不存�? in exc_info.value.msg
+        assert "不存在" in exc_info.value.msg
 
     def test_get_permissions(self, db):
         perms = PermissionService.get_permissions(db, skip=0, limit=10)
@@ -492,7 +492,7 @@ class TestUserRoleService:
         UserRoleService.assign_role(db, user.id, role.id)
         with pytest.raises(BaseAPIException) as exc_info:
             UserRoleService.assign_role(db, user.id, role.id)
-        assert "已分�? in exc_info.value.msg
+        assert "已分配" in exc_info.value.msg
 
     def test_assign_role_nonexistent_user(self, db):
         roleCreate = RoleCreate(
@@ -502,7 +502,7 @@ class TestUserRoleService:
         role = RoleService.create_role(db, roleCreate)
         with pytest.raises(BaseAPIException) as exc_info:
             UserRoleService.assign_role(db, 99999, role.id)
-        assert "用户不存�? in exc_info.value.msg
+        assert "用户不存在" in exc_info.value.msg
 
     def test_assign_role_nonexistent_role(self, db):
         userCreate = UserCreate(
@@ -513,7 +513,7 @@ class TestUserRoleService:
         user = UserService.create_user(db, userCreate)
         with pytest.raises(BaseAPIException) as exc_info:
             UserRoleService.assign_role(db, user.id, 99999)
-        assert "角色不存�? in exc_info.value.msg
+        assert "角色不存在" in exc_info.value.msg
 
     def test_remove_role_normal(self, db):
         userCreate = UserCreate(
@@ -534,7 +534,7 @@ class TestUserRoleService:
     def test_remove_role_nonexistent(self, db):
         with pytest.raises(BaseAPIException) as exc_info:
             UserRoleService.remove_role(db, 99999, 99999)
-        assert "不存�? in exc_info.value.msg
+        assert "不存在" in exc_info.value.msg
 
     def test_get_user_roles(self, db):
         userCreate = UserCreate(

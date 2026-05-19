@@ -28,7 +28,7 @@
     数据库中仅存储加密后的密文（test_object_password_encrypted 列）。
 """
 from app.utils.db_time import utcnow
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Index
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Index, and_
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 from app.utils.crypto import encrypt_password, decrypt_password
@@ -123,7 +123,8 @@ class Project(Base):
     # 关联关系 - 所有子表通过project_id隔离
     owner = relationship("User", back_populates="projects", foreign_keys=[user_id])                   # 项目所有者
     files = relationship("ProjectFile", back_populates="project", cascade="all, delete-orphan")       # 项目文件，级联删除
-    test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan")     # 测试用例，级联删除
+    test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan",
+                              primaryjoin="and_(Project.id == TestCase.project_id, TestCase.is_deleted == False)")     # 测试用例，级联删除，排除软删除
     test_points = relationship("TestPoint", back_populates="project", cascade="all, delete-orphan")   # 测试点，级联删除
     test_tasks = relationship("TestTask", back_populates="project", cascade="all, delete-orphan")     # 测试任务，级联删除
     test_reports = relationship("TestReport", back_populates="project", cascade="all, delete-orphan") # 测试报告，级联删除

@@ -163,34 +163,6 @@ export const testCaseViewApi = {
     )
   },
 
-  importFromExcel: async (
-    file: File,
-    projectId: number
-  ): Promise<{ case_id: number; message: string }> => {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('project_id', projectId.toString())
-
-    const response = await axios.post('/api/v1/testCase/import-excel', formData)
-    return response.data
-  },
-
-  importFromFunctionalExcel: async (
-    file: File,
-    projectId: number,
-    module?: string
-  ): Promise<{ case_id: number; message: string }> => {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('project_id', projectId.toString())
-    if (module) {
-      formData.append('module', module)
-    }
-
-    const response = await axios.post('/api/v1/testCase/import-functional-excel', formData)
-    return response.data
-  },
-
   exportToMarkdown: async (caseId: number): Promise<string> => {
     const response = await axios.get(`/api/v1/testCase/${caseId}/export-markdown`)
     return response.data

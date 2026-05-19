@@ -17,7 +17,7 @@ from app.models.user import User
 from app.api.v1.endpoints import auth
 
 
-# 创建测试客户�?
+# 创建测试客户端
 client = TestClient(app)
 
 # 模拟当前用户依赖
@@ -30,7 +30,7 @@ def mock_get_current_user():
 
 
 class TestTestDataAPI:
-    """测试数据API测试�?""
+    """测试数据API测试类"""
 
     @pytest.fixture
     def mock_current_user(self):
@@ -57,7 +57,7 @@ class TestTestDataAPI:
             "min_value": None,
             "max_value": None,
             "enum_values": None,
-            "description": "用户�?,
+            "description": "用户名",
             "is_required": True,
             "sort_order": 0
         }
@@ -98,7 +98,7 @@ class TestTestDataAPI:
         # 准备 - 缺少必填字段
         create_data = {
             "field_name": "email"
-            # 缺少 step_id �?field_type
+            # 缺少 step_id 和 field_type
         }
 
         # 执行
@@ -107,7 +107,7 @@ class TestTestDataAPI:
         app.dependency_overrides.clear()
 
         # 验证
-        assert response.status_code == 400  # 验证错误(全局异常处理器转�?
+        assert response.status_code == 400  # 验证错误(全局异常处理器转换)
 
     def test_get_test_data_success(self, mock_current_user, sample_test_data_dict):
         """测试获取单个测试数据成功"""
@@ -141,14 +141,14 @@ class TestTestDataAPI:
         
         app.dependency_overrides.clear()
 
-        # 验证 - API使用统一的错误响应格�?
+        # 验证 - API使用统一的错误响应格式
         assert response.status_code == 404
         result = response.json()
         assert "message" in result or "msg" in result
-        assert "不存�? in (result.get("message") or result.get("msg", ""))
+        assert "不存在" in (result.get("message") or result.get("msg", ""))
 
     def test_get_test_data_by_step_success(self, mock_current_user, sample_test_data_dict):
-        """测试获取步骤的所有测试数据成�?""
+        """测试获取步骤的所有测试数据成功"""
         # 执行
         app.dependency_overrides[auth.get_current_user] = lambda: mock_current_user
         with patch('app.api.v1.endpoints.test_data.TestDataService') as mock_service:
@@ -214,11 +214,11 @@ class TestTestDataAPI:
         
         app.dependency_overrides.clear()
 
-        # 验证 - API使用统一的错误响应格�?
+        # 验证 - API使用统一的错误响应格式
         assert response.status_code == 404
         result = response.json()
         assert "message" in result or "msg" in result
-        assert "不存�? in (result.get("message") or result.get("msg", ""))
+        assert "不存在" in (result.get("message") or result.get("msg", ""))
 
     def test_delete_test_data_success(self, mock_current_user):
         """测试删除测试数据成功"""
@@ -252,11 +252,11 @@ class TestTestDataAPI:
         
         app.dependency_overrides.clear()
 
-        # 验证 - API使用统一的错误响应格�?
+        # 验证 - API使用统一的错误响应格式
         assert response.status_code == 404
         result = response.json()
         assert "message" in result or "msg" in result
-        assert "不存�? in (result.get("message") or result.get("msg", ""))
+        assert "不存在" in (result.get("message") or result.get("msg", ""))
 
     def test_generate_step_data_success(self, mock_current_user):
         """测试生成步骤数据成功"""
@@ -294,7 +294,7 @@ class TestTestDataAPI:
         
         app.dependency_overrides.clear()
 
-        # 验证 - API使用统一的错误响应格�?
+        # 验证 - API使用统一的错误响应格式
         assert response.status_code == 500
         result = response.json()
         assert "message" in result or "msg" in result
@@ -327,7 +327,7 @@ class TestTestDataAPI:
         assert len(result["data_list"]) == 2
 
     def test_auto_generate_test_data_no_match(self, mock_current_user):
-        """测试自动推断生成 - 无匹配场�?""
+        """测试自动推断生成 - 无匹配场景"""
         # 执行
         app.dependency_overrides[auth.get_current_user] = lambda: mock_current_user
         with patch('app.api.v1.endpoints.test_data.TestDataService') as mock_service:
@@ -360,12 +360,12 @@ class TestTestDataAPI:
 
             response = client.post(
                 "/api/v1/test-data/step/100/auto-generate",
-                params={"action_description": "输入用户�?}
+                params={"action_description": "输入用户名"}
             )
         
         app.dependency_overrides.clear()
 
-        # 验证 - API使用统一的错误响应格�?
+        # 验证 - API使用统一的错误响应格式
         assert response.status_code == 500
         result = response.json()
         assert "message" in result or "msg" in result
@@ -373,10 +373,10 @@ class TestTestDataAPI:
 
 
 class TestTestDataAPIAuthentication:
-    """测试数据API认证测试�?""
+    """测试数据API认证测试类"""
 
     def test_create_test_data_without_auth(self):
-        """测试未认证创建测试数�?""
+        """测试未认证创建测试数据"""
         # 准备
         create_data = {
             "step_id": 100,
@@ -384,14 +384,14 @@ class TestTestDataAPIAuthentication:
             "field_type": "email"
         }
 
-        # 执行 - 不覆盖认证依�?
+        # 执行 - 不覆盖认证依赖
         response = client.post("/api/v1/test-data", json=create_data)
 
-        # 验证 - 应该返回401未认�?
+        # 验证 - 应该返回401未认证
         assert response.status_code == 401
 
     def test_get_test_data_without_auth(self):
-        """测试未认证获取测试数�?""
+        """测试未认证获取测试数据"""
         # 执行
         response = client.get("/api/v1/test-data/1")
 
@@ -399,7 +399,7 @@ class TestTestDataAPIAuthentication:
         assert response.status_code == 401
 
     def test_update_test_data_without_auth(self):
-        """测试未认证更新测试数�?""
+        """测试未认证更新测试数据"""
         # 执行
         response = client.put("/api/v1/test-data/1", json={"field_name": "new_name"})
 
@@ -407,7 +407,7 @@ class TestTestDataAPIAuthentication:
         assert response.status_code == 401
 
     def test_delete_test_data_without_auth(self):
-        """测试未认证删除测试数�?""
+        """测试未认证删除测试数据"""
         # 执行
         response = client.delete("/api/v1/test-data/1")
 
@@ -416,7 +416,7 @@ class TestTestDataAPIAuthentication:
 
 
 class TestTestDataAPIEdgeCases:
-    """测试数据API边界情况测试�?""
+    """测试数据API边界情况测试类"""
 
     @pytest.fixture
     def mock_current_user(self):
@@ -428,7 +428,7 @@ class TestTestDataAPIEdgeCases:
         return user
 
     def test_create_test_data_with_invalid_data_type(self, mock_current_user):
-        """测试创建测试数据 - 无效的数据类�?""
+        """测试创建测试数据 - 无效的数据类型"""
         # 准备
         create_data = {
             "step_id": 100,
@@ -446,7 +446,7 @@ class TestTestDataAPIEdgeCases:
         assert response.status_code == 400
 
     def test_create_test_data_with_invalid_generation_rule(self, mock_current_user):
-        """测试创建测试数据 - 无效的生成规�?""
+        """测试创建测试数据 - 无效的生成规则"""
         # 准备
         create_data = {
             "step_id": 100,
@@ -464,8 +464,8 @@ class TestTestDataAPIEdgeCases:
         assert response.status_code == 400
 
     def test_create_test_data_with_boundary_values(self, mock_current_user):
-        """测试创建测试数据 - 边界�?""
-        # 准备 - 完整的响应数�?
+        """测试创建测试数据 - 边界值"""
+        # 准备 - 完整的响应数据
         response_data = {
             "id": 1,
             "step_id": 100,
@@ -549,7 +549,7 @@ class TestTestDataAPIEdgeCases:
         
         app.dependency_overrides.clear()
 
-        # 验证 - 空请求体应该返回成功（不更新任何字段�?
+        # 验证 - 空请求体应该返回成功（不更新任何字段）
         assert response.status_code == 200
 
     def test_generate_step_data_with_invalid_step_id(self, mock_current_user):
@@ -563,7 +563,7 @@ class TestTestDataAPIEdgeCases:
         assert response.status_code == 400
 
     def test_auto_generate_with_empty_description(self, mock_current_user):
-        """测试自动推断生成 - 空描�?""
+        """测试自动推断生成 - 空描述"""
         # 执行
         app.dependency_overrides[auth.get_current_user] = lambda: mock_current_user
         response = client.post(
@@ -577,7 +577,7 @@ class TestTestDataAPIEdgeCases:
 
 
 class TestTestDataAPIResponseStructure:
-    """测试数据API响应结构测试�?""
+    """测试数据API响应结构测试类"""
 
     @pytest.fixture
     def mock_current_user(self):
@@ -623,7 +623,7 @@ class TestTestDataAPIResponseStructure:
         app.dependency_overrides.clear()
 
         result = response.json()
-        # 验证响应包含所有必要字�?
+        # 验证响应包含所有必要字段
         assert "id" in result
         assert "step_id" in result
         assert "field_name" in result

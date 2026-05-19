@@ -391,11 +391,11 @@ class TestUISpecSchemas:
         history = ExecutionHistoryItem(
             execution_id=1,
             execution_time=datetime.now(),
-            status="success",
+            status="passed",
             duration=10.5,
         )
         assert history.execution_id == 1
-        assert history.status == "success"
+        assert history.status == "passed"
         assert history.duration == 10.5
 
     def test_precondition_step_create_normal(self):

@@ -16,11 +16,13 @@
 设计说明:
     采用静态方法设计，服务不持有状态，数据库会话由调用方传入。
     报告生成流程为：查询结果 -> 统计计算 -> 内容构建 -> 持久化。
-    统计指标包括总数、通过数、失败数、跳过数和通过率。
+    统计指标包括总数、通过数、失败数、阻塞数和通过率。
 """
 from sqlalchemy.orm import Session
 from app.models.report import TestReport
 from app.models.test_result import TestResult
+from app.models.test_case import TestCase
+from app.models.enums import ExecStatus
 from app.schemas.test_report import TestReportCreate, TestCaseResult, TestReportDetail
 from datetime import datetime
 from typing import Dict, Any, List
@@ -31,7 +33,7 @@ class ReportService:
 
     职责:
         - 根据项目/任务维度生成测试报告
-        - 统计测试结果数据（通过/失败/跳过/通过率）
+        - 统计测试结果数据（通过/失败/阻塞/通过率）
         - 构建报告内容（用例明细+环境信息）
         - 生成报告摘要文本
         - 查询报告详情
@@ -53,7 +55,7 @@ class ReportService:
 
         生成流程:
             1. 按项目ID查询测试结果（可选按任务ID过滤）
-            2. 计算统计数据（通过/失败/跳过/通过率）
+            2. 计算统计数据（通过/失败/阻塞/通过率）
             3. 构建报告内容（用例明细+环境信息）
             4. 创建报告记录并填充统计数据
             5. 计算执行时间范围
@@ -70,7 +72,10 @@ class ReportService:
             生成完成的TestReport ORM实例。
         """
         # 构建查询条件，支持按任务ID过滤
-        query = db.query(TestResult).filter(TestResult.project_id == project_id)
+        query = db.query(TestResult).filter(
+            TestResult.project_id == project_id,
+            TestResult.test_case.has(TestCase.is_deleted.is_(False))
+        )
         if test_task_id:
             query = query.filter(TestResult.task_id == test_task_id)
 
@@ -80,10 +85,8 @@ class ReportService:
         # 统计数据计算
         statistics = ReportService._calculate_statistics(test_results)
 
-        # 生成报告内容（用例明细+统计+环境信息）
         report_content = ReportService._generate_report_content(test_results, statistics)
 
-        # 创建报告记录
         report_data = TestReportCreate(
             name=name or f"测试报告_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             description=description or "自动生成的测试报告",
@@ -91,15 +94,13 @@ class ReportService:
             test_task_id=test_task_id
         )
 
-        # 通过CRUD层创建报告记录
         from app.crud.test_report import create_test_report
         report = create_test_report(db, report_data, user_id=user_id or 1)
 
-        # 填充统计数据到报告记录
         report.total_cases = statistics['total']
         report.passed_cases = statistics['passed']
         report.failed_cases = statistics['failed']
-        report.skipped_cases = statistics['skipped']
+        report.blocked_cases = statistics['blocked']
         report.status = "completed"
         report.content = report_content
         report.summary = ReportService._generate_summary(statistics)
@@ -124,25 +125,25 @@ class ReportService:
             - total: 总用例数
             - passed: 通过数（exec_status=1）
             - failed: 失败数（exec_status=2）
-            - skipped: 跳过数（exec_status=3）
+            - blocked: 阻塞数（exec_status=3）
             - pass_rate: 通过率百分比，保留两位小数
 
         Args:
             test_results: 测试结果列表。
 
         Returns:
-            包含total/passed/failed/skipped/pass_rate的统计字典。
+            包含total/passed/failed/blocked/pass_rate的统计字典。
         """
         total = len(test_results)
-        passed = sum(1 for result in test_results if result.exec_status == 1)
-        failed = sum(1 for result in test_results if result.exec_status == 2)
-        skipped = sum(1 for result in test_results if result.exec_status == 3)
+        passed = sum(1 for result in test_results if result.exec_status == ExecStatus.PASSED)
+        failed = sum(1 for result in test_results if result.exec_status == ExecStatus.FAILED)
+        blocked = sum(1 for result in test_results if result.exec_status == ExecStatus.BLOCKED)
 
         return {
             'total': total,
             'passed': passed,
             'failed': failed,
-            'skipped': skipped,
+            'blocked': blocked,
             'pass_rate': round(passed / total * 100, 2) if total > 0 else 0
         }
 
@@ -167,7 +168,7 @@ class ReportService:
         test_cases = []
         for result in test_results:
             # exec_status数值到语义字符串的映射
-            status_map = {0: "pending", 1: "passed", 2: "failed", 3: "skipped"}
+            status_map = {0: "pending", 1: "passed", 2: "failed", 3: "blocked"}
             test_case = TestCaseResult(
                 case_id=result.case_id,
                 case_name=result.test_case.title if result.test_case else f"用例_{result.case_id}",
@@ -196,9 +197,9 @@ class ReportService:
             statistics: 统计数据字典。
 
         Returns:
-            摘要文本，格式如"共执行 10 个测试用例，通过 8 个，失败 1 个，跳过 1 个，通过率 80.0%。"
+            摘要文本，格式如"共执行 10 个测试用例，通过 8 个，失败 1 个，阻塞 1 个，通过率 80.0%。"
         """
-        return f"共执行 {statistics['total']} 个测试用例，通过 {statistics['passed']} 个，失败 {statistics['failed']} 个，跳过 {statistics['skipped']} 个，通过率 {statistics['pass_rate']}%。"
+        return f"共执行 {statistics['total']} 个测试用例，通过 {statistics['passed']} 个，失败 {statistics['failed']} 个，阻塞 {statistics['blocked']} 个，通过率 {statistics['pass_rate']}%。"
 
     @staticmethod
     def get_report_detail(db: Session, report_id: int, project_id: int) -> TestReportDetail:

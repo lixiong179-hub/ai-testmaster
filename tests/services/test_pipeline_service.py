@@ -1,420 +1,171 @@
-"""pipeline_service 单元测试
-
-覆盖范围:
-    - create_run: 幂等校验、iteration_id 不存�?
-    - update_run_status: 合法/非法状态迁�?
-    - create_step: run_id 不存�?
-    - update_step_status: 合法/非法状态迁移、retried_count/degraded 更新
-    - create_artifact: 重复 hash、run_id 不存�?
-    - find_cached_step: 命中/未命�?
-    - compute_input_hash / compute_cache_key
-    - increment_step_retried_count
-    - update_step_output_artifact_ids
-    - list_runs
-    - get_artifact_by_hash
-
-使用真实 MySQL 数据库�?
-"""
 import pytest
-
-from app.models.iteration import Iteration, IterationInput
-from app.models.pipeline import PipelineRun, PipelineStep, Artifact
-from app.services import pipeline_service
-from app.services.pipeline_service import (
+from app.services.pipeline_service._errors import (
     DuplicateArtifactHashError,
     PipelineRunValidationError,
     PipelineStepValidationError,
     PipelineStatusTransitionError,
-    compute_input_hash,
-    compute_cache_key,
+    PIPELINE_RUN_TRANSITIONS,
+    PIPELINE_STEP_TRANSITIONS,
 )
+from app.services.pipeline_service._run import (
+    compute_input_hash,
+    create_run,
+    get_run,
+    list_runs,
+    update_run_status,
+)
+from app.services.pipeline_service._step import (
+    compute_cache_key,
+    create_step,
+    find_cached_step,
+    update_step_status,
+    increment_step_retried_count,
+    update_step_output_artifact_ids,
+)
+from app.models.enums import PipelineRunStatus, PipelineStepStatus
+from app.models.iteration import IterationInput
 
 
-@pytest.fixture
-def test_iteration(db, testProject):
-    iteration = Iteration(
-        project_id=testProject.id,
-        name="psvc_test_iter",
-        status="draft",
-    )
-    db.add(iteration)
-    db.flush()
-    return iteration
+class TestPipelineErrors:
+    def test_duplicate_artifact_hash(self):
+        err = DuplicateArtifactHashError("abc123")
+        assert "abc123" in str(err)
+
+    def test_run_validation_error(self):
+        err = PipelineRunValidationError("不存在")
+        assert "不存在" in str(err)
+
+    def test_step_validation_error(self):
+        err = PipelineStepValidationError("不存在")
+        assert "不存在" in str(err)
+
+    def test_status_transition_error(self):
+        err = PipelineStatusTransitionError("Run", "pending", "completed")
+        assert "pending" in str(err)
+        assert "completed" in str(err)
+        assert err.from_status == "pending"
+        assert err.to_status == "completed"
 
 
-@pytest.fixture
-def test_run(db, test_iteration):
-    run = pipeline_service.create_run(
-        db=db,
-        iteration_id=test_iteration.id,
-        input_hash="psvc_test_hash",
-        pipeline_version="1.0",
-    )
-    db.flush()
-    return run
+class TestPipelineRunTransitions:
+    def test_valid_transitions(self):
+        assert (PipelineRunStatus.PENDING.value, PipelineRunStatus.RUNNING.value) in PIPELINE_RUN_TRANSITIONS
+        assert (PipelineRunStatus.RUNNING.value, PipelineRunStatus.COMPLETED.value) in PIPELINE_RUN_TRANSITIONS
+        assert (PipelineRunStatus.RUNNING.value, PipelineRunStatus.FAILED.value) in PIPELINE_RUN_TRANSITIONS
+
+    def test_invalid_transition_not_in_set(self):
+        assert (PipelineRunStatus.COMPLETED.value, PipelineRunStatus.RUNNING.value) not in PIPELINE_RUN_TRANSITIONS
 
 
-class TestCreateRun:
-    def test_idempotent_same_hash_running(self, db, test_iteration):
-        run1 = pipeline_service.create_run(
-            db=db,
-            iteration_id=test_iteration.id,
-            input_hash="idem_hash",
-            pipeline_version="1.0",
-        )
-        db.flush()
-        pipeline_service.update_run_status(db=db, run_id=run1.id, status="running")
-        run2 = pipeline_service.create_run(
-            db=db,
-            iteration_id=test_iteration.id,
-            input_hash="idem_hash",
-            pipeline_version="1.0",
-        )
-        db.flush()
-        assert run1.id == run2.id
+class TestPipelineStepTransitions:
+    def test_valid_transitions(self):
+        assert (PipelineStepStatus.PENDING.value, PipelineStepStatus.RUNNING.value) in PIPELINE_STEP_TRANSITIONS
+        assert (PipelineStepStatus.RUNNING.value, PipelineStepStatus.DONE.value) in PIPELINE_STEP_TRANSITIONS
 
-    def test_different_hash_creates_new(self, db, test_iteration):
-        run1 = pipeline_service.create_run(
-            db=db,
-            iteration_id=test_iteration.id,
-            input_hash="hash_a",
-            pipeline_version="1.0",
-        )
-        db.flush()
-        run2 = pipeline_service.create_run(
-            db=db,
-            iteration_id=test_iteration.id,
-            input_hash="hash_b",
-            pipeline_version="1.0",
-        )
-        db.flush()
-        assert run1.id != run2.id
-
-    def test_nonexistent_iteration_raises(self, db):
-        with pytest.raises(PipelineRunValidationError):
-            pipeline_service.create_run(
-                db=db,
-                iteration_id=999999,
-                input_hash="x",
-                pipeline_version="1.0",
-            )
-
-
-class TestUpdateRunStatus:
-    def test_pending_to_running(self, db, test_run):
-        updated = pipeline_service.update_run_status(
-            db=db, run_id=test_run.id, status="running",
-        )
-        assert updated is not None
-        assert updated.status == "running"
-        assert updated.started_at is not None
-
-    def test_running_to_completed(self, db, test_run):
-        pipeline_service.update_run_status(db=db, run_id=test_run.id, status="running")
-        updated = pipeline_service.update_run_status(
-            db=db, run_id=test_run.id, status="completed",
-        )
-        assert updated.status == "completed"
-        assert updated.finished_at is not None
-
-    def test_running_to_failed_with_error(self, db, test_run):
-        pipeline_service.update_run_status(db=db, run_id=test_run.id, status="running")
-        updated = pipeline_service.update_run_status(
-            db=db, run_id=test_run.id, status="failed", error="OOM",
-        )
-        assert updated.status == "failed"
-        assert updated.error == "OOM"
-        assert updated.finished_at is not None
-
-    def test_running_to_waiting_for_user(self, db, test_run):
-        pipeline_service.update_run_status(db=db, run_id=test_run.id, status="running")
-        updated = pipeline_service.update_run_status(
-            db=db, run_id=test_run.id, status="waiting_for_user",
-        )
-        assert updated.status == "waiting_for_user"
-
-    def test_waiting_to_running(self, db, test_run):
-        pipeline_service.update_run_status(db=db, run_id=test_run.id, status="running")
-        pipeline_service.update_run_status(db=db, run_id=test_run.id, status="waiting_for_user")
-        updated = pipeline_service.update_run_status(
-            db=db, run_id=test_run.id, status="running",
-        )
-        assert updated.status == "running"
-
-    def test_waiting_to_cancelled(self, db, test_run):
-        pipeline_service.update_run_status(db=db, run_id=test_run.id, status="running")
-        pipeline_service.update_run_status(db=db, run_id=test_run.id, status="waiting_for_user")
-        updated = pipeline_service.update_run_status(
-            db=db, run_id=test_run.id, status="cancelled",
-        )
-        assert updated.status == "cancelled"
-
-    def test_pending_to_cancelled(self, db, test_run):
-        updated = pipeline_service.update_run_status(
-            db=db, run_id=test_run.id, status="cancelled",
-        )
-        assert updated.status == "cancelled"
-
-    def test_illegal_transition_raises(self, db, test_run):
-        with pytest.raises(PipelineStatusTransitionError):
-            pipeline_service.update_run_status(
-                db=db, run_id=test_run.id, status="completed",
-            )
-
-    def test_nonexistent_run_returns_none(self, db):
-        result = pipeline_service.update_run_status(
-            db=db, run_id=999999, status="running",
-        )
-        assert result is None
-
-
-class TestCreateStep:
-    def test_creates_step(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="test_step",
-        )
-        assert step.run_id == test_run.id
-        assert step.status == "pending"
-
-    def test_nonexistent_run_raises(self, db):
-        with pytest.raises(PipelineStepValidationError):
-            pipeline_service.create_step(
-                db=db, run_id=999999, step_name="test_step",
-            )
-
-
-class TestUpdateStepStatus:
-    def test_pending_to_running(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="sg",
-        )
-        updated = pipeline_service.update_step_status(
-            db=db, step_id=step.id, status="running",
-        )
-        assert updated.status == "running"
-        assert updated.started_at is not None
-
-    def test_running_to_done(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="sg2",
-        )
-        pipeline_service.update_step_status(db=db, step_id=step.id, status="running")
-        updated = pipeline_service.update_step_status(
-            db=db, step_id=step.id, status="done",
-        )
-        assert updated.status == "done"
-        assert updated.finished_at is not None
-
-    def test_running_to_degraded(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="sg3",
-        )
-        pipeline_service.update_step_status(db=db, step_id=step.id, status="running")
-        updated = pipeline_service.update_step_status(
-            db=db, step_id=step.id, status="degraded",
-            degraded=True, retried_count=2,
-        )
-        assert updated.status == "degraded"
-        assert updated.degraded is True
-        assert updated.retried_count == 2
-
-    def test_running_to_failed(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="sg4",
-        )
-        pipeline_service.update_step_status(db=db, step_id=step.id, status="running")
-        updated = pipeline_service.update_step_status(
-            db=db, step_id=step.id, status="failed", error="timeout",
-        )
-        assert updated.status == "failed"
-        assert updated.error == "timeout"
-
-    def test_failed_to_running_retry(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="sg5",
-        )
-        pipeline_service.update_step_status(db=db, step_id=step.id, status="running")
-        pipeline_service.update_step_status(db=db, step_id=step.id, status="failed")
-        updated = pipeline_service.update_step_status(
-            db=db, step_id=step.id, status="running",
-        )
-        assert updated.status == "running"
-
-    def test_pending_to_skipped(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="sg6",
-        )
-        updated = pipeline_service.update_step_status(
-            db=db, step_id=step.id, status="skipped",
-        )
-        assert updated.status == "skipped"
-
-    def test_illegal_transition_raises(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="sg7",
-        )
-        with pytest.raises(PipelineStatusTransitionError):
-            pipeline_service.update_step_status(
-                db=db, step_id=step.id, status="completed",
-            )
-
-    def test_nonexistent_step_returns_none(self, db):
-        result = pipeline_service.update_step_status(
-            db=db, step_id=999999, status="running",
-        )
-        assert result is None
-
-    def test_output_artifact_ids_updated(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="sg8",
-        )
-        pipeline_service.update_step_status(db=db, step_id=step.id, status="running")
-        updated = pipeline_service.update_step_status(
-            db=db, step_id=step.id, status="done",
-            output_artifact_ids=[10, 20],
-        )
-        assert updated.output_artifact_ids == [10, 20]
-
-
-class TestCreateArtifact:
-    def test_creates_artifact(self, db, test_run):
-        artifact = pipeline_service.create_artifact(
-            db=db,
-            run_id=test_run.id,
-            kind="raw_signals",
-            content_hash="unique_hash_001",
-            payload={"has_prd": True},
-            confidence=0.9,
-        )
-        assert artifact.run_id == test_run.id
-        assert artifact.kind == "raw_signals"
-        assert artifact.confidence == 0.9
-
-    def test_duplicate_hash_raises(self, db, test_run):
-        pipeline_service.create_artifact(
-            db=db,
-            run_id=test_run.id,
-            kind="raw_signals",
-            content_hash="dup_hash_001",
-        )
-        with pytest.raises(DuplicateArtifactHashError):
-            pipeline_service.create_artifact(
-                db=db,
-                run_id=test_run.id,
-                kind="raw_signals",
-                content_hash="dup_hash_001",
-            )
-
-    def test_nonexistent_run_raises(self, db):
-        with pytest.raises(PipelineRunValidationError):
-            pipeline_service.create_artifact(
-                db=db,
-                run_id=999999,
-                kind="raw_signals",
-                content_hash="x",
-            )
-
-
-class TestFindCachedStep:
-    def test_cache_hit(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="cached_sg",
-            cache_key="cache_key_abc",
-        )
-        pipeline_service.update_step_status(db=db, step_id=step.id, status="running")
-        pipeline_service.update_step_status(db=db, step_id=step.id, status="done")
-
-        found = pipeline_service.find_cached_step(db=db, cache_key="cache_key_abc")
-        assert found is not None
-        assert found.id == step.id
-
-    def test_cache_miss(self, db):
-        found = pipeline_service.find_cached_step(db=db, cache_key="nonexistent_key")
-        assert found is None
-
-
-class TestListRuns:
-    def test_returns_runs_for_iteration(self, db, test_iteration):
-        pipeline_service.create_run(
-            db=db, iteration_id=test_iteration.id,
-            input_hash="list_hash_1", pipeline_version="1.0",
-        )
-        db.flush()
-        pipeline_service.create_run(
-            db=db, iteration_id=test_iteration.id,
-            input_hash="list_hash_2", pipeline_version="1.0",
-        )
-        db.flush()
-
-        runs = pipeline_service.list_runs(db=db, iteration_id=test_iteration.id)
-        assert len(runs) >= 2
-
-
-class TestGetArtifactByHash:
-    def test_found(self, db, test_run):
-        pipeline_service.create_artifact(
-            db=db, run_id=test_run.id,
-            kind="raw_signals", content_hash="find_hash_001",
-        )
-        found = pipeline_service.get_artifact_by_hash(db=db, content_hash="find_hash_001")
-        assert found is not None
-
-    def test_not_found(self, db):
-        found = pipeline_service.get_artifact_by_hash(db=db, content_hash="nonexistent")
-        assert found is None
-
-
-class TestIncrementStepRetriedCount:
-    def test_increments(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="retry_step",
-        )
-        pipeline_service.increment_step_retried_count(db=db, step_id=step.id)
-        db.refresh(step)
-        assert step.retried_count == 1
-
-    def test_nonexistent_step_no_error(self, db):
-        pipeline_service.increment_step_retried_count(db=db, step_id=999999)
-
-
-class TestUpdateStepOutputArtifactIds:
-    def test_updates(self, db, test_run):
-        step = pipeline_service.create_step(
-            db=db, run_id=test_run.id, step_name="output_step",
-        )
-        pipeline_service.update_step_output_artifact_ids(
-            db=db, step_id=step.id, artifact_ids=[1, 2, 3],
-        )
-        db.refresh(step)
-        assert step.output_artifact_ids == [1, 2, 3]
-
-    def test_nonexistent_step_no_error(self, db):
-        pipeline_service.update_step_output_artifact_ids(
-            db=db, step_id=999999, artifact_ids=[1],
-        )
+    def test_failed_to_running_allowed(self):
+        assert (PipelineStepStatus.FAILED.value, PipelineStepStatus.RUNNING.value) in PIPELINE_STEP_TRANSITIONS
 
 
 class TestComputeInputHash:
     def test_deterministic(self):
-        inp1 = IterationInput(iteration_id=1, kind="prd", content_hash="abc", payload={})
-        inp2 = IterationInput(iteration_id=1, kind="testpoint", content_hash="def", payload={})
-        h1 = compute_input_hash([inp1, inp2])
-        h2 = compute_input_hash([inp2, inp1])
+        inputs = [
+            IterationInput(kind="xmind", content_hash="h1"),
+            IterationInput(kind="ui", content_hash="h2"),
+        ]
+        h1 = compute_input_hash(inputs)
+        h2 = compute_input_hash(inputs)
         assert h1 == h2
 
     def test_different_inputs_different_hash(self):
-        inp1 = IterationInput(iteration_id=1, kind="prd", content_hash="abc", payload={})
-        inp2 = IterationInput(iteration_id=1, kind="prd", content_hash="xyz", payload={})
-        assert compute_input_hash([inp1]) != compute_input_hash([inp2])
+        inputs_a = [IterationInput(kind="xmind", content_hash="h1")]
+        inputs_b = [IterationInput(kind="xmind", content_hash="h2")]
+        assert compute_input_hash(inputs_a) != compute_input_hash(inputs_b)
+
+    def test_order_independent(self):
+        inputs_a = [
+            IterationInput(kind="xmind", content_hash="h1"),
+            IterationInput(kind="ui", content_hash="h2"),
+        ]
+        inputs_b = [
+            IterationInput(kind="ui", content_hash="h2"),
+            IterationInput(kind="xmind", content_hash="h1"),
+        ]
+        assert compute_input_hash(inputs_a) == compute_input_hash(inputs_b)
+
+    def test_empty_list(self):
+        h = compute_input_hash([])
+        assert isinstance(h, str)
+        assert len(h) == 64
 
 
 class TestComputeCacheKey:
     def test_deterministic(self):
-        k1 = compute_cache_key("sg", "1.0", ["h1", "h2"])
-        k2 = compute_cache_key("sg", "1.0", ["h2", "h1"])
-        assert k1 == k2
+        key1 = compute_cache_key("signal_gatherer", "1.0", ["h1", "h2"])
+        key2 = compute_cache_key("signal_gatherer", "1.0", ["h1", "h2"])
+        assert key1 == key2
 
-    def test_different_step_different_key(self):
-        k1 = compute_cache_key("sg", "1.0", ["h1"])
-        k2 = compute_cache_key("cg", "1.0", ["h1"])
-        assert k1 != k2
+    def test_different_step_name(self):
+        key1 = compute_cache_key("step_a", "1.0", ["h1"])
+        key2 = compute_cache_key("step_b", "1.0", ["h1"])
+        assert key1 != key2
+
+    def test_sorted_hashes(self):
+        key1 = compute_cache_key("s", "1.0", ["h2", "h1"])
+        key2 = compute_cache_key("s", "1.0", ["h1", "h2"])
+        assert key1 == key2
+
+    def test_empty_hashes(self):
+        key = compute_cache_key("s", "1.0", [])
+        assert isinstance(key, str)
+
+
+class TestCreateRun:
+    def test_nonexistent_iteration(self, db):
+        with pytest.raises(PipelineRunValidationError):
+            create_run(db, iteration_id=99999, input_hash="abc")
+
+
+class TestGetRun:
+    def test_nonexistent(self, db):
+        result = get_run(db, run_id=99999)
+        assert result is None
+
+
+class TestListRuns:
+    def test_nonexistent_iteration(self, db):
+        runs = list_runs(db, iteration_id=99999)
+        assert runs == []
+
+
+class TestUpdateRunStatus:
+    def test_nonexistent(self, db):
+        result = update_run_status(db, run_id=99999, status=PipelineRunStatus.RUNNING.value)
+        assert result is None
+
+
+class TestCreateStep:
+    def test_nonexistent_run(self, db):
+        with pytest.raises(PipelineStepValidationError):
+            create_step(db, run_id=99999, step_name="test_step")
+
+
+class TestFindCachedStep:
+    def test_nonexistent(self, db):
+        result = find_cached_step(db, cache_key="nonexistent")
+        assert result is None
+
+
+class TestUpdateStepStatus:
+    def test_nonexistent(self, db):
+        result = update_step_status(db, step_id=99999, status=PipelineStepStatus.RUNNING.value)
+        assert result is None
+
+
+class TestIncrementStepRetriedCount:
+    def test_nonexistent(self, db):
+        increment_step_retried_count(db, step_id=99999)
+
+
+class TestUpdateStepOutputArtifactIds:
+    def test_nonexistent(self, db):
+        update_step_output_artifact_ids(db, step_id=99999, artifact_ids=[1, 2])

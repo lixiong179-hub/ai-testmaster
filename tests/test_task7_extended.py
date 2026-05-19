@@ -1,5 +1,5 @@
 """
-Task 7 扩展单元测试 - 真实数据库交�?
+Task 7 扩展单元测试 - 真实数据库交互
 
 测试范围:
 - VideoService完整CRUD操作
@@ -22,7 +22,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 from app.db.database import Base
 
-# 导入所有模�?
+# 导入所有模型
 from app.models import (
     User, Project, TestTask, TestCase, TestPoint,
     TestStep, TestData, TestResult, TestReport, ElementLocator,
@@ -85,7 +85,7 @@ def test_project(db_session, test_user):
     project = Project(
         id=20000,
         name="Task7扩展测试项目",
-        description="用于Task7扩展测试的项�?,
+        description="用于Task7扩展测试的项目",
         user_id=test_user.id
     )
     db_session.add(project)
@@ -168,17 +168,17 @@ def visibility_service():
     yield service
 
 
-# ==================== VideoService 真实数据库测�?====================
+# ==================== VideoService 真实数据库测试 ====================
 
 class TestVideoServiceRealDB:
     """VideoService真实数据库测试类"""
     
     @pytest.mark.asyncio
     async def test_save_video_info_real(self, db_session, video_service, test_task, test_case):
-        """真实测试：保存视频信息到数据�?""
+        """真实测试：保存视频信息到数据库"""
         # 创建视频信息
         video_info = VideoInfo(
-            id=0,  # 数据库自�?
+            id=0,  # 数据库自增
             task_id=test_task.id,
             case_id=test_case.id,
             file_path=str(video_service._video_base_dir / "test_video.webm"),
@@ -204,8 +204,8 @@ class TestVideoServiceRealDB:
     
     @pytest.mark.asyncio
     async def test_get_video_info_real(self, db_session, video_service, test_task, test_case):
-        """真实测试：从数据库获取视频信�?""
-        # 先创建记�?
+        """真实测试：从数据库获取视频信息"""
+        # 先创建记录
         video = VideoRecord(
             id=20001,
             task_id=test_task.id,
@@ -239,13 +239,13 @@ class TestVideoServiceRealDB:
     
     @pytest.mark.asyncio
     async def test_get_video_info_not_found(self, db_session, video_service):
-        """真实测试：获取不存在的视�?""
+        """真实测试：获取不存在的视频"""
         video_info = await video_service.get_video_info(db_session, 99999)
         assert video_info is None
     
     @pytest.mark.asyncio
     async def test_get_videos_by_task_real(self, db_session, video_service, test_task, test_case):
-        """真实测试：获取任务的所有视�?""
+        """真实测试：获取任务的所有视频"""
         # 创建多个视频记录
         for i in range(3):
             video = VideoRecord(
@@ -276,7 +276,7 @@ class TestVideoServiceRealDB:
     
     @pytest.mark.asyncio
     async def test_get_videos_by_case_real(self, db_session, video_service, test_task, test_case):
-        """真实测试：获取用例的所有视�?""
+        """真实测试：获取用例的所有视频"""
         # 创建视频记录
         video = VideoRecord(
             id=20020,
@@ -302,12 +302,12 @@ class TestVideoServiceRealDB:
     
     @pytest.mark.asyncio
     async def test_delete_video_real(self, db_session, video_service, test_task, test_case):
-        """真实测试：删除视�?""
+        """真实测试：删除视频"""
         # 创建视频文件
         video_file = video_service._video_base_dir / "delete_test.webm"
         video_file.write_bytes(b"test video content")
         
-        # 创建数据库记�?
+        # 创建数据库记录
         video = VideoRecord(
             id=20030,
             task_id=test_task.id,
@@ -324,19 +324,19 @@ class TestVideoServiceRealDB:
         
         # 验证
         assert result is True
-        assert not video_file.exists()  # 文件已删�?
+        assert not video_file.exists()  # 文件已删除
         deleted_record = db_session.query(VideoRecord).filter(VideoRecord.id == 20030).first()
-        assert deleted_record is None  # 记录已删�?
+        assert deleted_record is None  # 记录已删除
     
     @pytest.mark.asyncio
     async def test_delete_video_not_found(self, db_session, video_service):
-        """真实测试：删除不存在的视�?""
+        """真实测试：删除不存在的视频"""
         result = await video_service.delete_video(db_session, 99999)
         assert result is False
     
     @pytest.mark.asyncio
     async def test_get_storage_stats_real(self, video_service):
-        """真实测试：获取存储统�?""
+        """真实测试：获取存储统计"""
         # 创建测试视频文件
         for i in range(3):
             video_file = video_service._video_base_dir / f"stats_test_{i}.webm"
@@ -348,7 +348,7 @@ class TestVideoServiceRealDB:
         # 验证
         assert stats["total_videos"] == 3
         assert stats["total_size_bytes"] == 3072
-        assert stats["total_size_gb"] >= 0  # 可能�?因为文件太小
+        assert stats["total_size_gb"] >= 0  # 可能为0因为文件太小
         assert "video_directory" in stats
         assert "retention_days" in stats
 
@@ -356,11 +356,11 @@ class TestVideoServiceRealDB:
 # ==================== VisibilityConfigService 多级配置测试 ====================
 
 class TestVisibilityConfigLevels:
-    """VisibilityConfigService多级配置测试�?""
+    """VisibilityConfigService多级配置测试类"""
     
     def test_set_and_get_global_config(self, visibility_service):
         """测试设置和获取全局配置"""
-        # 创建新配�?
+        # 创建新配置
         new_config = VisibilityConfig(
             headless=False,  # 可见模式
             record_video=True,
@@ -371,7 +371,7 @@ class TestVisibilityConfigLevels:
         # 设置全局配置
         visibility_service.set_global_config(new_config)
         
-        # 获取并验�?
+        # 获取并验证
         config = visibility_service.get_global_config()
         assert config.headless == False
         assert config.record_video == True
@@ -398,7 +398,7 @@ class TestVisibilityConfigLevels:
         assert config.video_fps == 60
     
     def test_config_speed_values(self, visibility_service):
-        """测试配置速度�?""
+        """测试配置速度值"""
         config = VisibilityConfig()
         
         # 测试速度配置
@@ -433,7 +433,7 @@ class TestVisibilityConfigLevels:
 # ==================== ExecutionReplayService 会话管理测试 ====================
 
 class TestExecutionReplaySessions:
-    """ExecutionReplayService会话管理测试�?""
+    """ExecutionReplayService会话管理测试类"""
     
     @pytest.fixture
     def event_loop(self):
@@ -447,7 +447,7 @@ class TestExecutionReplaySessions:
         """测试创建回放会话 - 使用正确的API"""
         service = ExecutionReplayService()
         
-        # 创建会话 - 使用execution_id作为第一个参�?
+        # 创建会话 - 使用execution_id作为第一个参数
         execution_id = f"task_{test_task.id}_case_{test_case.id}_20240101_120000"
         session_info = await service.create_replay_session(
             db=db_session,
@@ -464,7 +464,7 @@ class TestExecutionReplaySessions:
     
     @pytest.mark.asyncio
     async def test_get_replay_status(self, db_session, test_task, test_case, test_result):
-        """测试获取回放状�?""
+        """测试获取回放状态"""
         service = ExecutionReplayService()
         
         # 创建会话
@@ -474,7 +474,7 @@ class TestExecutionReplaySessions:
             execution_id=execution_id
         )
         
-        # 获取状�?- 使用await因为get_replay_status是async方法
+        # 获取状态 - 使用await因为get_replay_status是async方法
         status = await service.get_replay_status(execution_id)
         
         # 验证
@@ -497,11 +497,11 @@ class TestExecutionReplaySessions:
             execution_id=execution_id
         )
         
-        # 开始回�?
+        # 开始回放
         result = await service.start_replay(execution_id)
         assert result is True
         
-        # 验证状�?
+        # 验证状态
         status = await service.get_replay_status(execution_id)
         assert status["is_playing"] == True
         
@@ -509,7 +509,7 @@ class TestExecutionReplaySessions:
         result = await service.stop_replay(execution_id)
         assert result is True
         
-        # 验证状�?
+        # 验证状态
         status = await service.get_replay_status(execution_id)
         assert status["is_playing"] == False
         assert status["current_time"] == 0.0
@@ -519,10 +519,10 @@ class TestExecutionReplaySessions:
     
     @pytest.mark.asyncio
     async def test_pause_and_resume_replay(self, db_session, test_task, test_case, test_result):
-        """测试暂停和恢复回�?""
+        """测试暂停和恢复回放"""
         service = ExecutionReplayService()
         
-        # 创建会话并开始回�?
+        # 创建会话并开始回放
         execution_id = f"task_{test_task.id}_case_{test_case.id}_20240104_120000"
         await service.create_replay_session(
             db=db_session,
@@ -560,7 +560,7 @@ class TestExecutionReplaySessions:
             execution_id=execution_id
         )
         
-        # 跳转�?.5秒（在范围内�?
+        # 跳转到0.5秒（在范围内）
         result = await service.seek_to(execution_id, 0.5)
         assert result is True
         
@@ -612,7 +612,7 @@ class TestExecutionReplaySessions:
         result = await service.close_replay_session(execution_id)
         assert result is True
         
-        # 验证会话已关�?
+        # 验证会话已关闭
         status = await service.get_replay_status(execution_id)
         assert status is None
     
@@ -636,10 +636,10 @@ class TestExecutionReplaySessions:
         await service.close_replay_session(execution_id)
 
 
-# ==================== 端到端集成测�?====================
+# ==================== 端到端集成测试 ====================
 
 class TestEndToEndWorkflow:
-    """端到端工作流测试�?""
+    """端到端工作流测试类"""
     
     @pytest.mark.asyncio
     async def test_full_video_workflow(self, db_session, video_service, test_task, test_case):
@@ -682,12 +682,12 @@ class TestEndToEndWorkflow:
     
     @pytest.mark.asyncio
     async def test_visibility_config_workflow(self, visibility_service):
-        """可见模式配置工作流测�?""
+        """可见模式配置工作流测试"""
         # 1. 获取默认配置
         default_config = VisibilityConfigService.DEFAULT_GLOBAL_CONFIG
         assert default_config.headless == True
         
-        # 2. 设置自定义配�?
+        # 2. 设置自定义配置
         custom_config = VisibilityConfig(
             headless=False,
             record_video=True,
@@ -697,21 +697,21 @@ class TestEndToEndWorkflow:
         )
         visibility_service.set_global_config(custom_config)
         
-        # 3. 验证配置已更�?
+        # 3. 验证配置已更新
         current_config = visibility_service.get_global_config()
         assert current_config.headless == False
         assert current_config.record_video == True
         assert current_config.video_resolution == (2560, 1440)
         assert current_config.execution_speed == "slow"
         
-        # 4. 转换为字�?
+        # 4. 转换为字典
         config_dict = current_config.to_dict()
         assert config_dict["headless"] == False
         assert config_dict["record_video"] == True
     
     @pytest.mark.asyncio
     async def test_replay_session_workflow(self, db_session, test_task, test_case, test_result):
-        """回放会话工作流测�?""
+        """回放会话工作流测试"""
         service = ExecutionReplayService()
         execution_id = f"task_{test_task.id}_case_{test_case.id}_e2e_20240109_120000"
         
@@ -723,7 +723,7 @@ class TestEndToEndWorkflow:
             )
             assert session_info is not None
             
-            # 2. 开始回�?
+            # 2. 开始回放
             result = await service.start_replay(execution_id)
             assert result is True
             
@@ -746,10 +746,10 @@ class TestEndToEndWorkflow:
             result = await service.stop_replay(execution_id)
             assert result is True
             
-            # 8. 获取最终状�?
+            # 8. 获取最终状态
             status = await service.get_replay_status(execution_id)
             assert status is not None
-            assert status["current_time"] == 0.0  # stop会重置时�?
+            assert status["current_time"] == 0.0  # stop会重置时间
             
         finally:
             # 清理

@@ -15,7 +15,10 @@
     - app.schemas.test_case: FlowSortDataSchema数据校验
 """
 import json
+import logging
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 from app.services.prompt_builder.case_prompt import _build_graph_prompt
 from app.services.prompt_builder.builder import PromptBuilder as UnifiedPromptBuilder
@@ -45,7 +48,10 @@ class PromptBuilder:
         test_point_json: str = "",
         ui_specs_text: str = "",
         include_images: bool = False,
-        history_cases: Optional[List[Dict[str, Any]]] = None
+        history_cases: Optional[List[Dict[str, Any]]] = None,
+        test_username: str = "testuser",
+        test_password: str = "TestPass123",
+        case_type: Optional[str] = None
     ) -> str:
         """构建流程图模式的Prompt。
 
@@ -59,6 +65,10 @@ class PromptBuilder:
             test_point_json: 测试点JSON字符串。
             ui_specs_text: UI规格格式化文本。
             include_images: 是否在Prompt中包含图片URL。
+            history_cases: 历史用例列表。
+            test_username: 测试用户名。
+            test_password: 测试密码。
+            case_type: 用例类型，提供时增加对应约束。
 
         Returns:
             完整的Prompt字符串。
@@ -70,6 +80,9 @@ class PromptBuilder:
             ui_specs_text=ui_specs_text,
             include_images=include_images,
             history_cases=history_cases,
+            test_username=test_username,
+            test_password=test_password,
+            case_type=case_type,
         )
 
     @staticmethod
@@ -164,7 +177,7 @@ class PromptBuilder:
                 try:
                     steps_json = json.loads(steps_json)
                 except Exception:
-                    pass
+                    logger.debug("解析原用例steps_json失败", exc_info=True)
             sections.append(f"### 原步骤: {json.dumps(steps_json, ensure_ascii=False)}")
             sections.append(f"### 原预期结果: {original.get('expected_result', '')}")
             sections.append("")

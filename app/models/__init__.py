@@ -36,10 +36,12 @@ from app.models.ui_prototype import UIPrototypeScreen, UIScreenTestCaseLink, UIP
 from app.models.project_flow_data import ProjectFlowData
 from app.models.iteration import Iteration, IterationInput
 from app.models.pipeline import PipelineRun, PipelineStep, Artifact
+from app.models.pipeline_metric import PipelineMetric
 from app.models.project import Project, ProjectFile
-from app.models.user import User, Role, Permission
+from app.models.user import User, Role, Permission, UserRole
 from app.models.element_locator import ElementLocator
-from app.models.test_case import TestCase, TestStep, TestCaseExecution
+from app.models.test_case import TestCase, TestStep, TestCaseExecution, TestCasePreconditionStep
+from app.models.test_case_version import TestCaseVersion
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
 from app.models.test_point import TestPoint
@@ -50,6 +52,7 @@ from app.models.video_record import VideoRecord
 
 # 核心业务模型
 from app.models.requirement import Requirement
+from app.models.requirement_link import RequirementLink
 # from app.models.bug import Bug
 # from app.models.group import Group, user_group, group_role
 from app.models.code_review import CodeReview, ReviewItem, ReviewComment, ReviewMetric
@@ -73,16 +76,16 @@ __all__ = [
     # 迭代管理
     "Iteration", "IterationInput",
     # Pipeline 存储
-    "PipelineRun", "PipelineStep", "Artifact",
+    "PipelineRun", "PipelineStep", "Artifact", "PipelineMetric",
     # 项目管理
     "Project",
     "ProjectFile",
     # 用户与权限（RBAC）
-    "User", "Role", "Permission",
+    "User", "Role", "Permission", "UserRole",
     # 元素定位（UI自动化）
     "ElementLocator",
     # 测试用例体系
-    "TestCase", "TestStep", "TestCaseExecution",
+    "TestCase", "TestStep", "TestCaseExecution", "TestCaseVersion", "TestCasePreconditionStep",
     # 测试执行体系
     "TestTask", "TestResult",
     # 测试点
@@ -97,6 +100,7 @@ __all__ = [
     "VideoRecord",
     # 需求管理
     "Requirement",
+    "RequirementLink",
     # 代码评审
     "CodeReview", "ReviewItem", "ReviewComment", "ReviewMetric",
     # API成本日志

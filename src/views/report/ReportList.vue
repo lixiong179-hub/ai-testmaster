@@ -29,10 +29,11 @@
         <el-table-column prop="total_cases" label="总用例数" width="100" />
         <el-table-column prop="passed_cases" label="通过数" width="100" />
         <el-table-column prop="failed_cases" label="失败数" width="100" />
+        <el-table-column prop="blocked_cases" label="阻塞数" width="100" />
         <el-table-column prop="pass_rate" label="通过率" width="100">
           <template #default="scope"> {{ scope.row.pass_rate.toFixed(2) }}% </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="生成时间" width="180" />
+        <el-table-column prop="create_time" label="生成时间" width="180" />
         <el-table-column label="操作" width="250">
           <template #default="scope">
             <el-button type="primary" size="small" @click="handleView(scope.row)"> 查看 </el-button>

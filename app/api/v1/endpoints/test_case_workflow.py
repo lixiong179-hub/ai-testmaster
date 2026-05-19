@@ -1,5 +1,4 @@
 from typing import Optional
-from datetime import datetime
 import json
 """
 测试用例工作流端点模块
@@ -179,7 +178,7 @@ async def add_step_locator(
                 existing_locator.xpath = xpath
             if element_type:
                 existing_locator.element_type = element_type
-            existing_locator.updated_at = datetime.now()
+            existing_locator.updated_at = utcnow()
             db.commit()
             db.refresh(existing_locator)
             step.has_locator = 1
@@ -238,7 +237,7 @@ async def update_technical_view(
     current_user: User = Depends(require_technical_view)
 ):
     test_case = db.query(TestCase).filter(
-        TestCase.id == test_case_id, TestCase.is_deleted == False
+        TestCase.id == test_case_id, TestCase.is_deleted.is_(False)
     ).first()
     if not test_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")

@@ -26,6 +26,7 @@ from app.utils.db_time import utcnow
 from app.db.database import get_db
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
+from app.models.enums import ExecStatus
 from app.models.test_case import TestCase
 from app.models.project import Project
 from app.models.user import User
@@ -116,7 +117,8 @@ async def create_test_task(
         if test_case_ids:
             test_cases = db.query(TestCase).filter(
                 TestCase.id.in_(test_case_ids),
-                TestCase.project_id == project_id
+                TestCase.project_id == project_id,
+                TestCase.is_deleted.is_(False)
             ).all()
             # 创建ID到用例的映射
             case_map = {tc.id: tc for tc in test_cases}
@@ -131,7 +133,7 @@ async def create_test_task(
                         "project_id": project_id,
                         "case_id": case_id,
                         "case_no": test_case.case_no,
-                        "exec_status": 0
+                        "exec_status": ExecStatus.NOT_EXECUTED
                     })
 
             if task_results_to_insert:

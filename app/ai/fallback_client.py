@@ -10,11 +10,13 @@ Fallback AI Client 实现
     - app.ai.client : AIClient Protocol, AIResponse, TokenUsage
     - app.utils.ai_client_core : AIServiceError
 """
+from __future__ import annotations
+
 from typing import Any, Dict, Optional
 
 from loguru import logger
 
-from app.ai.client import AIResponse
+from app.ai.client import AIResponse, AIClient
 
 
 class FallbackAIClient:
@@ -32,8 +34,8 @@ class FallbackAIClient:
 
     def __init__(
         self,
-        primary: Any,
-        fallback: Any,
+        primary: AIClient,
+        fallback: AIClient,
         *,
         max_failures: int = 3,
     ) -> None:

@@ -44,7 +44,7 @@ class TestGetDb:
         engine = create_engine("sqlite:///:memory:")
         TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-        with patch("app.db.database.PrimarySessionLocal", TestSession):
+        with patch("app.db.database._session.PrimarySessionLocal", TestSession):
             gen = get_db()
             db = next(gen)
             assert db is not None
@@ -57,7 +57,7 @@ class TestGetDb:
     def test_get_db_exception_rollback(self):
         mock_session = MagicMock()
 
-        with patch("app.db.database.PrimarySessionLocal", return_value=mock_session):
+        with patch("app.db.database._session.PrimarySessionLocal", return_value=mock_session):
             gen = get_db()
             db = next(gen)
             assert db is not None
@@ -74,7 +74,7 @@ class TestGetReadDb:
         engine = create_engine("sqlite:///:memory:")
         TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-        with patch("app.db.database.SecondarySessionLocal", TestSession):
+        with patch("app.db.database._session.SecondarySessionLocal", TestSession):
             gen = get_read_db()
             db = next(gen)
             assert db is not None
@@ -87,7 +87,7 @@ class TestGetReadDb:
     def test_get_read_db_exception_rollback(self):
         mock_session = MagicMock()
 
-        with patch("app.db.database.SecondarySessionLocal", return_value=mock_session):
+        with patch("app.db.database._session.SecondarySessionLocal", return_value=mock_session):
             gen = get_read_db()
             db = next(gen)
             try:
@@ -102,7 +102,7 @@ class TestGetDbContext:
     def test_context_manager_success(self):
         mock_session = MagicMock()
 
-        with patch("app.db.database.PrimarySessionLocal", return_value=mock_session):
+        with patch("app.db.database._session.PrimarySessionLocal", return_value=mock_session):
             with get_db_context() as db:
                 assert db is not None
             mock_session.commit.assert_called_once()
@@ -111,7 +111,7 @@ class TestGetDbContext:
     def test_context_manager_exception(self):
         mock_session = MagicMock()
 
-        with patch("app.db.database.PrimarySessionLocal", return_value=mock_session):
+        with patch("app.db.database._session.PrimarySessionLocal", return_value=mock_session):
             with pytest.raises(RuntimeError):
                 with get_db_context() as db:
                     raise RuntimeError("context error")
@@ -123,7 +123,7 @@ class TestGetReadDbContext:
     def test_context_manager_success(self):
         mock_session = MagicMock()
 
-        with patch("app.db.database.SecondarySessionLocal", return_value=mock_session):
+        with patch("app.db.database._session.SecondarySessionLocal", return_value=mock_session):
             with get_read_db_context() as db:
                 assert db is not None
             mock_session.close.assert_called_once()
@@ -131,7 +131,7 @@ class TestGetReadDbContext:
     def test_context_manager_exception(self):
         mock_session = MagicMock()
 
-        with patch("app.db.database.SecondarySessionLocal", return_value=mock_session):
+        with patch("app.db.database._session.SecondarySessionLocal", return_value=mock_session):
             with pytest.raises(RuntimeError):
                 with get_read_db_context() as db:
                     raise RuntimeError("read context error")
@@ -139,40 +139,40 @@ class TestGetReadDbContext:
 
 
 class TestInitDb:
-    @patch("app.db.database.primary_engine")
-    @patch("app.db.database.Base")
+    @patch("app.db.database._init.primary_engine")
+    @patch("app.db.database._init.Base")
     def test_init_db_creates_tables(self, mock_base, mock_engine):
         init_db()
         mock_base.metadata.create_all.assert_called_once_with(bind=mock_engine)
 
-    @patch("app.db.database.primary_engine")
-    @patch("app.db.database.Base")
-    @patch("app.db.database.smart_sync_database", create=True)
+    @patch("app.db.database._init.primary_engine")
+    @patch("app.db.database._init.Base")
+    @patch("app.db.database._init.smart_sync_database", create=True)
     def test_init_db_smart_sync_success(self, mock_sync, mock_base, mock_engine):
         mock_sync.return_value = {"fixed": 0, "summary": "ok"}
         with patch.dict("sys.modules", {"app.db.smart_sync": MagicMock(smart_sync_database=mock_sync)}):
             init_db()
 
-    @patch("app.db.database.primary_engine")
-    @patch("app.db.database.Base")
-    @patch("app.db.database.smart_sync_database", create=True)
+    @patch("app.db.database._init.primary_engine")
+    @patch("app.db.database._init.Base")
+    @patch("app.db.database._init.smart_sync_database", create=True)
     def test_init_db_smart_sync_with_fixes(self, mock_sync, mock_base, mock_engine):
         mock_sync.return_value = {"fixed": 3, "summary": "3 columns added"}
         with patch.dict("sys.modules", {"app.db.smart_sync": MagicMock(smart_sync_database=mock_sync)}):
             init_db()
 
-    @patch("app.db.database.primary_engine")
-    @patch("app.db.database.Base")
+    @patch("app.db.database._init.primary_engine")
+    @patch("app.db.database._init.Base")
     def test_init_db_smart_sync_failure_non_fatal(self, mock_base, mock_engine):
-        with patch("app.db.database.smart_sync_database", create=True) as mock_sync:
+        with patch("app.db.database._init.smart_sync_database", create=True) as mock_sync:
             mock_sync.side_effect = ImportError("no module")
             with patch.dict("sys.modules", {"app.db.smart_sync": None}):
                 init_db()
 
 
 class TestDropDb:
-    @patch("app.db.database.primary_engine")
-    @patch("app.db.database.Base")
+    @patch("app.db.database._init.primary_engine")
+    @patch("app.db.database._init.Base")
     def test_drop_db(self, mock_base, mock_engine):
         drop_db()
         mock_base.metadata.drop_all.assert_called_once_with(bind=mock_engine)
@@ -181,14 +181,14 @@ class TestDropDb:
 class TestCheckDbConnection:
     def test_check_connection_success(self):
         engine = create_engine("sqlite:///:memory:")
-        with patch("app.db.database.primary_engine", engine):
+        with patch("app.db.database._init.primary_engine", engine):
             result = check_db_connection()
             assert result is True
 
     def test_check_connection_failure(self):
         mock_engine = MagicMock()
         mock_engine.connect.side_effect = Exception("connection failed")
-        with patch("app.db.database.primary_engine", mock_engine):
+        with patch("app.db.database._init.primary_engine", mock_engine):
             result = check_db_connection()
             assert result is False
 

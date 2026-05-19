@@ -1,0 +1,75 @@
+.user-management {
+  padding: 20px;
+}
+
+.page-card {
+  margin-bottom: 20px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #303133;
+}
+
+.search-filter {
+  margin-bottom: 20px;
+  padding: 20px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.pagination {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.dialog-footer {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .user-management {
+    padding: 10px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .search-filter {
+    padding: 10px;
+  }
+
+  .el-table {
+    font-size: 12px;
+  }
+
+  .el-table th,
+  .el-table td {
+    padding: 8px 4px;
+  }
+
+  .pagination {
+    margin-top: 10px;
+  }
+
+  :deep(.el-pagination) {
+    font-size: 12px;
+  }
+
+  :deep(.el-pagination__sizes .el-input__inner) {
+    width: 80px;
+  }
+}

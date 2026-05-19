@@ -18,7 +18,14 @@
     - TestPoint.status 字段引用
     - TestCase.lifecycle_status 字段引用
 """
-from enum import Enum
+from enum import Enum, IntEnum
+
+
+class ExecStatus(IntEnum):
+    NOT_EXECUTED = 0
+    PASSED = 1
+    FAILED = 2
+    BLOCKED = 3
 
 
 class LocatorStatus(str, Enum):
@@ -135,14 +142,14 @@ class IterationPipelineStatus(str, Enum):
 
 
 # IterationInputKind 的合法值
-ITERATION_INPUT_KIND_PATTERN = r"^(prd|prototype|xmind|testpoint|supplement_form)$"
+ITERATION_INPUT_KIND_PATTERN = r"^(prd|prototype|xmind|testpoint|supplement_form|change_notes)$"
 
 
 class IterationInputKind(str, Enum):
     """
     迭代输入类型枚举
 
-    定义流水线输入的五种类型，用于 IterationInput.kind 字段。
+    定义流水线输入的六种类型，用于 IterationInput.kind 字段。
 
     Attributes:
         PRD : 需求文档
@@ -150,12 +157,14 @@ class IterationInputKind(str, Enum):
         XMIND : XMind思维导图
         TESTPOINT : 测试点
         SUPPLEMENT_FORM : 补充表单（JSON payload）
+        CHANGE_NOTES : 变更说明
     """
     PRD = "prd"                         # 需求文档
     PROTOTYPE = "prototype"             # UI原型
     XMIND = "xmind"                     # XMind思维导图
     TESTPOINT = "testpoint"             # 测试点
     SUPPLEMENT_FORM = "supplement_form" # 补充表单
+    CHANGE_NOTES = "change_notes"       # 变更说明
 
 
 class PipelineRunStatus(str, Enum):

@@ -193,7 +193,7 @@ class AIPromptMixin:
     ],
     "expected_result": "总体预期结果",
     "case_type": "ui_automation",
-    "case_category": "ui_automation",
+    "case_category": "positive",
     "priority": 优先级
   }},
   {{
@@ -206,7 +206,7 @@ class AIPromptMixin:
     ],
     "expected_result": "总体预期结果",
     "case_type": "ui_automation",
-    "case_category": "ui_automation",
+    "case_category": "boundary",
     "priority": 优先级
   }},
   {{
@@ -218,7 +218,7 @@ class AIPromptMixin:
     ],
     "expected_result": "总体预期结果",
     "case_type": "manual",
-    "case_category": "manual",
+    "case_category": "exception",
     "priority": 优先级
   }},
   {{
@@ -230,7 +230,7 @@ class AIPromptMixin:
     ],
     "expected_result": "总体预期结果",
     "case_type": "api_automation",
-    "case_category": "api_automation",
+    "case_category": "exception",
     "priority": 优先级
   }}
 ]"""

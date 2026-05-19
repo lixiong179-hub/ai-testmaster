@@ -69,7 +69,7 @@ class TestCase(Base):
     steps_json = Column(JSON, nullable=False, comment="可执行步骤，格式：[{\"step\": \"步骤1\", \"action\": \"操作\", \"param\": \"参数\"}]")  # 步骤JSON，兼容旧版格式
     expected_result = Column(Text, nullable=False, comment="预期结果")                                 # 整体预期结果
     priority = Column(Integer, nullable=False, comment="优先级：1高/2中/3低")                          # 优先级，1=高优先级，2=中优先级，3=低优先级
-    case_type = Column(String(20), nullable=False, comment="用例类型：API/UI/接口")                    # 用例类型，决定执行方式
+    case_type = Column(String(20), nullable=False, comment="用例类型：ui_automation/manual/api_automation/performance/security")                    # 用例类型，决定执行方式
 
     # 用例分类标签（支持多标签）
     # 取值：ui_automation=UI自动化测试, manual=手工测试, api_automation=接口自动化测试
@@ -101,6 +101,10 @@ class TestCase(Base):
     summary_model_version = Column(String(64), nullable=True, comment="生成摘要的AI模型版本")  # 跟踪模型升级触发的批量重算
     parent_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="SET NULL"), nullable=True, comment="父用例ID，用于用例衍生/拆分")  # 血缘关系，SET NULL保留子用例
     ai_change_type = Column(String(20), nullable=True, comment="AI评审结果：added=查漏新增/modified=补缺修正/deprecated=去冗废弃")  # AI用例评审标注，手动创建的用例此字段为空
+    depends_on = Column(String(255), nullable=True, comment="依赖的主干用例标题，UI自动化执行时先执行主干用例到anchor_step后继续")
+    anchor_step = Column(Integer, nullable=True, comment="依赖主干用例的步骤号，从此步骤后继续执行本用例")
+    fallback_steps = Column(Text, nullable=True, comment="降级导航步骤JSON，当主干快照不可用时执行此步骤序列到达目标页面")
+    setup_api_calls = Column(Text, nullable=True, comment="API前置准备JSON，B端用例通过API直接创建数据状态，避免依赖UI快照")
     last_review_id = Column(Integer, ForeignKey("code_reviews.id", ondelete="SET NULL"), nullable=True, comment="最近一次评审ID")  # 关联评审记录
 
     __table_args__ = (
@@ -160,12 +164,12 @@ def _lifecycle_transition_allowed() -> bool:
     return _lifecycle_guard.get()
 
 
-def enable_lifecycle_transition():
+def enable_lifecycle_transition() -> None:
     """LifecycleService 调用前设置允许标记。"""
     _lifecycle_guard.set(True)
 
 
-def disable_lifecycle_transition():
+def disable_lifecycle_transition() -> None:
     """LifecycleService 调用后清除允许标记。"""
     _lifecycle_guard.set(False)
 
@@ -301,7 +305,7 @@ class TestCaseExecution(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                           # 执行记录主键ID
     test_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True)  # 所属用例ID，级联删除
     test_task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="SET NULL"), nullable=True)   # 所属任务ID，SET NULL保留执行记录
-    status = Column(String(20), default="pending", comment="执行状态：pending/running/passed/failed/skipped")  # pending=待执行，running=执行中，passed=通过，failed=失败，skipped=跳过
+    status = Column(String(20), default="pending", comment="执行状态：pending/running/passed/failed/blocked")
     actual_result = Column(Text, nullable=True, comment="实际执行结果")                                # 实际执行结果描述
     started_at = Column(DateTime, nullable=True, comment="开始执行时间")                               # 执行开始时间
     completed_at = Column(DateTime, nullable=True, comment="完成执行时间")                             # 执行完成时间

@@ -17,11 +17,11 @@ class ActionExecutorBasicMixin:
         if "导航" in action_text or "访问" in action_text or "打开" in action_text or "navigate" in action_lower:
             return {"type": ActionType.NAVIGATE, "text": action_text}
         elif "验证码" in action_text or "captcha" in action_lower:
-            return {"type": ActionType.CAPTCHA, "text": action_text}
+            return {"type": ActionType.VERIFY_CAPTCHA, "text": action_text}
         elif "刷新" in action_text or "refresh" in action_lower:
             return {"type": ActionType.REFRESH, "text": action_text}
         elif "按下" in action_text or "按键" in action_text or "key" in action_lower:
-            return {"type": ActionType.KEYPRESS, "text": action_text}
+            return {"type": ActionType.KEYBOARD, "text": action_text}
         elif "输入" in action_text or "填写" in action_text or "input" in action_lower:
             return {"type": ActionType.INPUT, "text": action_text}
         elif "点击" in action_text or "按下" in action_text or "click" in action_lower:

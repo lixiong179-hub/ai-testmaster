@@ -37,7 +37,7 @@ class MCPRecognizer(ElementRecognizer):
             self._mcp_llm = get_mcp_llm()
         return self._mcp_llm
 
-    async def recognize(self, page, operation_description: str, action_type: Optional[str] = None) -> RecognitionResult:
+    async def recognize(self, browser, operation_description: str, action_type: Optional[str] = None) -> RecognitionResult:
         mcp_client = await self._get_mcp_client()
         if not mcp_client or not mcp_client.is_available:
             logger.warning("MCP客户端不可用，降级到视觉模型")
@@ -98,7 +98,7 @@ class MCPRecognizer(ElementRecognizer):
             }
         )
 
-    async def batch_recognize(self, page, operations: List[str]) -> List[RecognitionResult]:
+    async def batch_recognize(self, browser, operations: List[str]) -> List[RecognitionResult]:
         mcp_client = await self._get_mcp_client()
         if not mcp_client or not mcp_client.is_available:
             return [

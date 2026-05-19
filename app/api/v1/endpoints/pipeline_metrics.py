@@ -21,7 +21,7 @@ from app.services import metrics_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/pipeline/metrics", tags=["Pipeline监控指标"])
+router = APIRouter(prefix="/metrics", tags=["Pipeline监控指标"])
 
 
 @router.get("/summary", response_model=dict)

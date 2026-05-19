@@ -1,20 +1,20 @@
 """
 AI自愈功能测试
 
-测试原则（强制执行）�?
+测试原则（强制执行）：
 1. 真实执行优先：所有测试必须使用真实环境，严禁使用Mock
-2. 覆盖率要求：核心功能代码覆盖率必�?>= 95%
-3. 测试准确性：测试通过率必�?100%
-4. 发现问题优先：测试的目的是发现代码问�?
+2. 覆盖率要求：核心功能代码覆盖率必须 >= 95%
+3. 测试准确性：测试通过率必须 100%
+4. 发现问题优先：测试的目的是发现代码问题
 
-测试范围�?
+测试范围：
 - _get_nl_description: 自然语言步骤描述获取
-- _update_locator_after_healing: 定位器回写与乐观�?
-- _build_healed_selector: CSS选择器构�?
-- _sanitize_css_identifier: CSS标识符清�?
+- _update_locator_after_healing: 定位器回写与乐观锁
+- _build_healed_selector: CSS选择器构建
+- _sanitize_css_identifier: CSS标识符清理
 - get_self_healing_summary: 自愈统计摘要
-- _execute_with_self_healing: 自愈包装器（集成测试�?
-- 配置开关控�?
+- _execute_with_self_healing: 自愈包装器（集成测试）
+- 配置开关控制
 """
 import time
 import pytest
@@ -45,7 +45,7 @@ def db_session(db):
 
 @pytest.fixture
 def engine_no_browser(db_session):
-    """无浏览器的引擎实例（用于纯逻辑测试�?""
+    """无浏览器的引擎实例（用于纯逻辑测试）"""
     return TestExecutionEngineV2(
         db=db_session,
         enable_ai_recognition=False,
@@ -96,7 +96,7 @@ def seed_test_step(db_session, seed_test_case):
         step_number=1,
         action="自愈测试点击操作",
         action_type="click",
-        expected_result="跳转到首�?,
+        expected_result="跳转到首页",
     )
     db_session.add(step)
     db_session.commit()
@@ -178,7 +178,7 @@ async def test_update_locator_after_healing_success(
 async def test_update_locator_after_healing_optimistic_lock(
     db_session, engine_no_browser, seed_locator
 ):
-    """测试乐观锁：使用过期版本更新时回写失�?""
+    """测试乐观锁：使用过期版本更新时回写失败"""
     new_selector_v1 = ".new-btn-v1"
     new_selector_v2 = ".new-btn-v2"
 
@@ -224,7 +224,7 @@ async def test_update_locator_after_healing_empty_selector(
 
 @pytest.mark.asyncio
 async def test_update_locator_after_healing_nonexistent_record(db_session, engine_no_browser):
-    """测试不存在的定位器记录回写失�?""
+    """测试不存在的定位器记录回写失败"""
     result = await engine_no_browser._update_locator_after_healing(
         9999999, ".some-selector", ".old"
     )
@@ -235,12 +235,12 @@ async def test_update_locator_after_healing_nonexistent_record(db_session, engin
 
 
 def test_sanitize_css_identifier_normal(engine_no_browser):
-    """测试正常CSS标识符不�?""
+    """测试正常CSS标识符不变"""
     assert engine_no_browser._sanitize_css_identifier("loginBtn") == "loginBtn"
 
 
 def test_sanitize_css_identifier_with_special_chars(engine_no_browser):
-    """测试特殊字符被清理（引号分号空格移除，连�?-变为单个-后可能被strip�?""
+    """测试特殊字符被清理（引号分号空格移除，连续--变为单个-后可能被strip）"""
     result = engine_no_browser._sanitize_css_identifier("btn'; DROP TABLE--")
     assert "'" not in result
     assert ";" not in result
@@ -248,12 +248,12 @@ def test_sanitize_css_identifier_with_special_chars(engine_no_browser):
 
 
 def test_sanitize_css_identifier_with_quotes(engine_no_browser):
-    """测试引号被清�?""
+    """测试引号被清理"""
     assert engine_no_browser._sanitize_css_identifier("name'or'1") == "nameor1"
 
 
 def test_sanitize_css_identifier_hyphen_underscore(engine_no_browser):
-    """测试连字符和下划线保�?""
+    """测试连字符和下划线保留"""
     assert engine_no_browser._sanitize_css_identifier("my-btn_v2") == "my-btn_v2"
 
 
@@ -266,21 +266,21 @@ def test_sanitize_css_identifier_empty(engine_no_browser):
 
 
 def test_build_healed_selector_by_id(engine_no_browser):
-    """测试优先使用id构建选择�?""
+    """测试优先使用id构建选择器"""
     attrs = {"id": "loginBtn", "name": "login", "class": "btn primary", "tag": "button"}
     selector = engine_no_browser._build_healed_selector(attrs)
     assert selector == "#loginBtn"
 
 
 def test_build_healed_selector_by_name(engine_no_browser):
-    """测试使用name属性构建选择�?""
+    """测试使用name属性构建选择器"""
     attrs = {"name": "username", "class": "input", "tag": "input"}
     selector = engine_no_browser._build_healed_selector(attrs)
     assert selector == "[name='username']"
 
 
 def test_build_healed_selector_by_placeholder(engine_no_browser):
-    """测试使用placeholder构建选择器（中文被sanitize后回退到tag+type�?""
+    """测试使用placeholder构建选择器（中文被sanitize后回退到tag+type）"""
     attrs = {"placeholder": "请输入用户名", "tag": "input", "type": "text"}
     selector = engine_no_browser._build_healed_selector(attrs)
     assert selector is not None
@@ -288,7 +288,7 @@ def test_build_healed_selector_by_placeholder(engine_no_browser):
 
 
 def test_build_healed_selector_by_class(engine_no_browser):
-    """测试使用class组合构建选择�?""
+    """测试使用class组合构建选择器"""
     attrs = {"class": "btn primary", "tag": "button"}
     selector = engine_no_browser._build_healed_selector(attrs)
     assert "btn" in selector
@@ -296,7 +296,7 @@ def test_build_healed_selector_by_class(engine_no_browser):
 
 
 def test_build_healed_selector_by_tag_and_type(engine_no_browser):
-    """测试使用tag+type构建选择�?""
+    """测试使用tag+type构建选择器"""
     attrs = {"tag": "input", "type": "password"}
     selector = engine_no_browser._build_healed_selector(attrs)
     assert selector == "input[type='password']"
@@ -309,7 +309,7 @@ def test_build_healed_selector_returns_none(engine_no_browser):
 
 
 def test_build_healed_selector_sanitizes_malicious_id(engine_no_browser):
-    """测试恶意id被清理（引号和特殊字符被移除�?""
+    """测试恶意id被清理（引号和特殊字符被移除）"""
     attrs = {"id": "'; alert(1)//", "tag": "button"}
     selector = engine_no_browser._build_healed_selector(attrs)
     assert "'" not in selector
@@ -329,7 +329,7 @@ def test_self_healing_summary_initial(engine_no_browser):
 
 
 def test_self_healing_summary_after_attempts(engine_no_browser):
-    """测试自愈尝试后摘要更�?""
+    """测试自愈尝试后摘要更新"""
     engine_no_browser._self_healing_attempts = 3
     engine_no_browser._self_healing_successes = 2
 
@@ -344,7 +344,7 @@ def test_self_healing_summary_after_attempts(engine_no_browser):
 
 @pytest.mark.asyncio
 async def test_get_stagehand_disabled(engine_no_browser, monkeypatch):
-    """测试自愈开关关闭时Stagehand不可�?""
+    """测试自愈开关关闭时Stagehand不可用"""
     monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", False)
     result = await engine_no_browser._get_stagehand()
     assert result is None
@@ -352,7 +352,7 @@ async def test_get_stagehand_disabled(engine_no_browser, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_get_stagehand_no_credentials(engine_no_browser, monkeypatch):
-    """测试Browserbase凭据未配置时Stagehand不可�?""
+    """测试Browserbase凭据未配置时Stagehand不可用"""
     monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
     monkeypatch.setattr(settings, "BROWSERBASE_API_KEY", "")
     monkeypatch.setattr(settings, "BROWSERBASE_PROJECT_ID", "")
@@ -386,7 +386,7 @@ async def test_execute_with_self_healing_no_browser(db_session, seed_test_case):
     db_session.add(step)
     db_session.commit()
 
-    with pytest.raises(StepExecutionError, match="浏览器未初始�?):
+    with pytest.raises(StepExecutionError, match="浏览器未初始化"):
         await engine._execute_with_self_healing(
             step=step,
             locator_record=None,
@@ -418,14 +418,14 @@ async def test_execute_with_self_healing_disabled_raises_original(
         )
 
 
-# ==================== 集成测试: 定位器回写验�?====================
+# ==================== 集成测试: 定位器回写验证 ====================
 
 
 @pytest.mark.asyncio
 async def test_healing_updates_locator_in_db(
     db_session, engine_no_browser, seed_test_step, seed_locator
 ):
-    """测试自愈成功后ElementLocator表中的选择器已被更�?""
+    """测试自愈成功后ElementLocator表中的选择器已被更新"""
     new_selector = ".healed-login-btn"
     old_selector = seed_locator.css_selector
 
@@ -447,7 +447,7 @@ async def test_healing_updates_locator_in_db(
 async def test_healed_selector_persists_on_next_read(
     db_session, engine_no_browser, seed_test_step, seed_locator
 ):
-    """测试自愈后的新选择器在下次读取时可�?""
+    """测试自愈后的新选择器在下次读取时可用"""
     new_selector = ".persistent-btn"
     await engine_no_browser._update_locator_after_healing(
         seed_locator.id, new_selector, seed_locator.css_selector
@@ -465,11 +465,11 @@ async def test_healed_selector_persists_on_next_read(
     assert best["value"] == new_selector
 
 
-# ==================== 配置开关测�?====================
+# ==================== 配置开关测试 ====================
 
 
 def test_self_healing_config_defaults():
-    """测试自愈配置默认�?""
+    """测试自愈配置默认值"""
     assert hasattr(settings, "AI_SELF_HEALING_ENABLED")
     assert isinstance(settings.AI_SELF_HEALING_ENABLED, bool)
     assert hasattr(settings, "AI_SELF_HEALING_MAX_RETRIES")
@@ -479,7 +479,7 @@ def test_self_healing_config_defaults():
 
 
 def test_self_healing_summary_reflects_config(engine_no_browser, monkeypatch):
-    """测试自愈摘要反映配置状�?""
+    """测试自愈摘要反映配置状态"""
     monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
     summary = engine_no_browser.get_self_healing_summary()
     assert summary["self_healing_enabled"] is True

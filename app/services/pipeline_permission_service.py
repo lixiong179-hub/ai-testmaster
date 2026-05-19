@@ -22,7 +22,7 @@ Pipeline 权限服务模块
     - app.services.audit_service : 审计日志
 """
 import logging
-from typing import Optional
+from typing import Optional, Callable, Any
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -153,7 +153,7 @@ def check_pipeline_permission(
     return False
 
 
-def require_permission(resource: str, action: str, scope: str = "project"):
+def require_permission(resource: str, action: str, scope: str = "project") -> Callable[..., Any]:
     """FastAPI Depends 工厂：校验 Pipeline 权限。
 
     用法：

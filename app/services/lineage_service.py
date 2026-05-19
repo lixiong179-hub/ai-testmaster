@@ -59,7 +59,7 @@ def get_lineage(db: Session, test_case_id: int) -> Optional[LineageResult]:
     Returns:
         LineageResult 或 None（用例不存在）。
     """
-    case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
     if case is None:
         return None
 
@@ -100,7 +100,7 @@ def _trace_ancestors(db: Session, case: TestCase) -> List[LineageNode]:
 
     all_ancestors = (
         db.query(TestCase)
-        .filter(TestCase.id != case.id)
+        .filter(TestCase.id != case.id, TestCase.is_deleted.is_(False))
         .all()
     )
     ancestor_map: Dict[int, TestCase] = {c.id: c for c in all_ancestors}
@@ -113,7 +113,7 @@ def _trace_ancestors(db: Session, case: TestCase) -> List[LineageNode]:
 
         parent = ancestor_map.get(current_id)
         if parent is None:
-            parent = db.query(TestCase).filter(TestCase.id == current_id).first()
+            parent = db.query(TestCase).filter(TestCase.id == current_id, TestCase.is_deleted.is_(False)).first()
             if parent is None:
                 break
             ancestor_map[parent.id] = parent
@@ -137,7 +137,7 @@ def _build_descendant_tree(db: Session, node: LineageNode) -> None:
     """
     all_descendants = (
         db.query(TestCase)
-        .filter(TestCase.parent_case_id.isnot(None))
+        .filter(TestCase.parent_case_id.isnot(None), TestCase.is_deleted.is_(False))
         .all()
     )
 

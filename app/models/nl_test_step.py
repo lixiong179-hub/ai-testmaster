@@ -42,7 +42,7 @@ class NLTestStep(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 步骤主键ID
 
     # 关联信息
-    task_id = Column(Integer, ForeignKey("test_tasks.id"), nullable=False, index=True, comment="关联任务ID")  # 所属任务ID
+    task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联任务ID")  # 所属任务ID
 
     # 步骤基本信息
     step_index = Column(Integer, nullable=False, comment="步骤序号")                                   # 步骤执行顺序
@@ -52,7 +52,7 @@ class NLTestStep(Base):
     expected = Column(Text, nullable=True, comment="预期结果")                                         # 步骤预期结果
 
     # 执行状态
-    status = Column(String(20), nullable=True, comment="执行状态: pending/success/failed/skipped")     # pending=待执行，success=成功，failed=失败，skipped=跳过
+    status = Column(String(20), nullable=True, comment="执行状态: pending/passed/failed/blocked")
     screenshot_path = Column(String(500), nullable=True, comment="截图路径")                           # 执行截图文件路径
     error_message = Column(Text, nullable=True, comment="错误信息")                                    # 执行失败时的错误信息
 

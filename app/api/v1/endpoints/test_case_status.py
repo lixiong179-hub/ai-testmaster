@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.test_case import TestCase
 from app.models.user import User
+from app.models.enums import TestCaseLifecycleStatus
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
 from loguru import logger
@@ -34,21 +35,23 @@ from loguru import logger
 router = APIRouter()
 
 WORKFLOW_TRANSITIONS = {
-    # 工作流状态转换规则：定义每个状态允许转换到的目标状态
-    'draft': ['review', 'deprecated'],
-    'review': ['approved', 'rejected', 'draft'],
-    'approved': ['deprecated', 'review'],
-    'rejected': ['draft', 'deprecated'],
-    'deprecated': ['draft']
+    'draft': ['pending_review', 'deprecated'],
+    'pending_review': ['active', 'needs_modify', 'deprecated'],
+    'active': ['needs_modify', 'locator_broken', 'deprecated'],
+    'needs_modify': ['pending_review'],
+    'locator_broken': ['active', 'deprecated'],
+    'deprecated': ['archived'],
+    'archived': [],
 }
 
 STATUS_LABELS = {
-    # 工作流状态中文标签映射
     'draft': '草稿',
-    'review': '评审中',
-    'approved': '已通过',
-    'rejected': '已驳回',
-    'deprecated': '已废弃'
+    'pending_review': '评审中',
+    'active': '已激活',
+    'needs_modify': '需修改',
+    'locator_broken': '定位器失效',
+    'deprecated': '已废弃',
+    'archived': '已归档',
 }
 
 
@@ -60,7 +63,7 @@ class WorkflowTransitionRequest(BaseModel):
     @field_validator('target_status')
     @classmethod
     def validate_target_status(cls, v: str) -> str:
-        valid_statuses = ['draft', 'review', 'approved', 'rejected', 'deprecated']
+        valid_statuses = [e.value for e in TestCaseLifecycleStatus]
         if v not in valid_statuses:
             raise ValueError(f'无效的目标状态: {v}，有效值为: {valid_statuses}')
         return v
@@ -86,14 +89,14 @@ async def get_test_case_workflow(
 
     权限要求: 需要Bearer令牌认证
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="测试用例不存在"
         )
 
-    current_status = getattr(test_case, 'workflow_status', 'draft') or 'draft'
+    current_status = getattr(test_case, 'lifecycle_status', 'draft') or 'draft'
     allowed_transitions = WORKFLOW_TRANSITIONS.get(current_status, [])
 
     return create_response(data={
@@ -134,14 +137,14 @@ async def transition_test_case_workflow(
         HTTPException 400: 不允许的状态转换
         HTTPException 404: 测试用例不存在
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="测试用例不存在"
         )
 
-    current_status = getattr(test_case, 'workflow_status', 'draft') or 'draft'
+    current_status = getattr(test_case, 'lifecycle_status', 'draft') or 'draft'
     allowed_transitions = WORKFLOW_TRANSITIONS.get(current_status, [])
 
     if request.target_status not in allowed_transitions:
@@ -152,7 +155,7 @@ async def transition_test_case_workflow(
 
     try:
         old_status = current_status
-        test_case.workflow_status = request.target_status
+        test_case.lifecycle_status = request.target_status
         db.commit()
 
         logger.info(
@@ -223,7 +226,7 @@ async def get_correction_status(
     Raises:
         HTTPException 404: 测试用例不存在
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
@@ -262,7 +265,7 @@ async def start_correction(
         HTTPException 400: 当前状态不允许开始纠正
         HTTPException 404: 测试用例不存在
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
@@ -311,7 +314,10 @@ async def submit_verification(
         HTTPException 400: 当前状态非"纠正中"
         HTTPException 404: 测试用例不存在
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id).first()
+    test_case = db.query(TestCase).filter(
+        TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False)
+    ).first()
     if not test_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 

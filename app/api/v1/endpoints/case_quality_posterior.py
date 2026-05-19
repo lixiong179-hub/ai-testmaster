@@ -100,7 +100,7 @@ async def get_posterior_result(
         )
         .filter(
             TestCase.project_id == project_id,
-            TestCase.is_deleted == False,
+            TestCase.is_deleted.is_(False),
         )
         .first()
     )
@@ -121,7 +121,7 @@ async def get_posterior_result(
             db.query(TestCase.posterior_quality_score)
             .filter(
                 TestCase.project_id == project_id,
-                TestCase.is_deleted == False,
+                TestCase.is_deleted.is_(False),
                 TestCase.posterior_quality_score.isnot(None),
             )
             .all()

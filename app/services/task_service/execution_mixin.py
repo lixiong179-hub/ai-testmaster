@@ -3,6 +3,7 @@ from typing import Dict, Any
 from sqlalchemy.orm import Session
 from app.crud.test_result import create_test_result
 from app.models.test_case import TestCase
+from app.models.enums import ExecStatus
 from app.core.websocket import manager
 from loguru import logger
 
@@ -31,7 +32,8 @@ class TaskExecutionMixin:
         # 获取用例信息
         test_case = db.query(TestCase).filter(
             TestCase.id == case_id,
-            TestCase.project_id == project_id
+            TestCase.project_id == project_id,
+            TestCase.is_deleted.is_(False)
         ).first()
 
         if not test_case:
@@ -43,7 +45,7 @@ class TaskExecutionMixin:
             }
 
         # 初始化执行结果
-        exec_status = 0  # 0: 未执行
+        exec_status = ExecStatus.NOT_EXECUTED
         exec_log = f"开始执行用例: {test_case.case_no}"
         error_msg = None
         screenshot_url = None
@@ -51,7 +53,7 @@ class TaskExecutionMixin:
         test_category = test_case.test_category or ""
         if test_category == "manual" or not test_category:
             logger.info(f"[跳过手工测试用例] 用例ID={test_case.id}, 用例编号={test_case.case_no}, 用例标题={test_case.title}")
-            exec_status = 0
+            exec_status = ExecStatus.NOT_EXECUTED
             exec_log += "\n手工测试，跳过执行"
             _ = create_test_result(
                 db=db,
@@ -72,7 +74,7 @@ class TaskExecutionMixin:
 
         if test_category == "api_automation":
             logger.info(f"[跳过接口测试用例] 用例ID={test_case.id}, 用例编号={test_case.case_no}, 用例标题={test_case.title}（当前仅支持UI自动化）")
-            exec_status = 0
+            exec_status = ExecStatus.NOT_EXECUTED
             exec_log += "\n接口测试，跳过执行（当前仅支持UI自动化）"
             _ = create_test_result(
                 db=db,
@@ -119,14 +121,14 @@ class TaskExecutionMixin:
 
             # 更新执行状态
             if result.status == ExecutionStatus.PASSED:
-                exec_status = 1  # 1: 执行成功
+                exec_status = ExecStatus.PASSED
                 exec_log += "\n执行结果: 成功"
             elif result.status == ExecutionStatus.FAILED:
-                exec_status = 2  # 2: 执行失败
+                exec_status = ExecStatus.FAILED
                 exec_log += "\n执行结果: 失败"
                 error_msg = result.error_message or "用例执行失败"
             else:
-                exec_status = 2  # 2: 执行失败
+                exec_status = ExecStatus.FAILED
                 exec_log += "\n执行结果: 失败"
                 error_msg = result.error_message or "用例执行异常"
 
@@ -142,7 +144,7 @@ class TaskExecutionMixin:
 
         except Exception as e:
             logger.error(f"用例执行异常: {e}")
-            exec_status = 2  # 2: 执行失败
+            exec_status = ExecStatus.FAILED
             exec_log += "\n执行结果: 异常"
             error_msg = str(e)
         finally:
@@ -151,7 +153,7 @@ class TaskExecutionMixin:
                 try:
                     await effective_precondition_service.cleanup()
                 except Exception:
-                    pass
+                    logger.debug("清理前置条件服务失败", exc_info=True)
 
         # 保存执行结果（函数内部已写入数据库，返回值无需使用）
         _ = create_test_result(

@@ -88,7 +88,7 @@ class UserUpdate(BaseModel):
     """
     email: Optional[EmailStr] = None  # 可选，更新邮箱
     phone: Optional[str] = None  # 可选，更新手机号
-    status: Optional[bool] = None  # 可选，更新激活状态，True=启用/False=禁用
+    is_active: Optional[bool] = None  # 可选，更新激活状态，True=启用/False=禁用
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -211,7 +211,7 @@ class PermissionBase(BaseModel):
     """
     name: str = Field(..., min_length=1, max_length=50, description="权限名称")  # 必填，如"用户管理"/"创建项目"
     code: str = Field(..., min_length=1, max_length=50, description="权限编码")  # 必填，唯一标识，如"user:manage"/"project:create"
-    type: str = Field(..., description="权限类型：menu/button/api")  # 必填，区分菜单权限/按钮权限/接口权限
+    type: str = Field(..., description="权限类型：api/menu/data")  # 必填，区分菜单权限/按钮权限/接口权限
     parent_id: Optional[int] = Field(None, description="父权限ID")  # 可选，支持树形权限结构，None表示顶级权限
 
 

@@ -16,7 +16,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, and_
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base
@@ -62,5 +62,6 @@ class TestResult(Base):
 
     # 关系
     project = relationship("Project", backref="test_results")                                         # 所属项目
-    test_case = relationship("TestCase", backref="test_results")                                      # 所属用例
+    test_case = relationship("TestCase", backref="test_results",
+                             primaryjoin="and_(TestResult.case_id == TestCase.id, TestCase.is_deleted == False)")                                      # 所属用例，排除软删除
     test_task = relationship("TestTask", back_populates="test_results")                               # 所属任务

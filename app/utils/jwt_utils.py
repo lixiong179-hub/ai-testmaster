@@ -38,21 +38,10 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 from app.core.exception import AuthenticationError
+from app.utils.db_time import utcnow
 
 # 密码加密上下文 — 使用bcrypt算法，自动处理版本迁移
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def _utcnow() -> datetime:
-    """获取当前UTC时间（naive datetime，无时区信息）
-
-    使用timezone-aware方式获取时间后移除时区信息，兼容MySQL等
-    不支持带时区datetime的数据库驱动。此方法替代Python 3.12+
-    中已弃用的datetime.utcnow()。
-
-    Returns:
-        datetime: 无时区信息的UTC时间
-    """
-    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _encode_token(*, data: dict, token_type: str, expires_delta: timedelta) -> str:
@@ -70,12 +59,12 @@ def _encode_token(*, data: dict, token_type: str, expires_delta: timedelta) -> s
         str: 编码后的JWT字符串
     """
     to_encode = data.copy()
-    expire = _utcnow() + expires_delta
+    expire = utcnow() + expires_delta
     to_encode.update(
         {
-            "exp": expire,      # 过期时间（标准声明）
-            "iat": _utcnow(),   # 签发时间（标准声明）
-            "type": token_type, # 令牌类型（自定义声明，用于区分access/refresh）
+            "exp": expire,
+            "iat": utcnow(),
+            "type": token_type,
         }
     )
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)

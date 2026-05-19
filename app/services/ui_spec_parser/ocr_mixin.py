@@ -33,7 +33,7 @@ class UISpecOcrMixin:
         if self._text_model is None:
             from app.utils.ai_client_core import get_ai_client
             text_api_key = getattr(settings, 'TEXT_MODEL_API_KEY', '') or settings.DEEPSEEK_API_KEY
-            text_base_url = getattr(settings, 'TEXT_MODEL_API_URL', '') or getattr(settings, 'DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+            text_base_url = getattr(settings, 'TEXT_MODEL_API_URL', '') or settings.AI_BASE_URL
             text_model_name = getattr(settings, 'TEXT_MODEL_NAME', '') or settings.DEEPSEEK_MODEL
             self._text_model = get_ai_client(
                 api_key=text_api_key,

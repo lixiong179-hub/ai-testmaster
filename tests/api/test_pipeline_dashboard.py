@@ -1,9 +1,9 @@
-"""M4-T06 Pipeline 仪表盘聚�?API 单元测试
+"""M4-T06 Pipeline 仪表盘聚合 API 单元测试
 
-覆盖�?    - get_dashboard_overview 总览指标
-    - get_token_usage 每日 Token 消�?    - get_run_duration 平均运行时长
-    - get_step_latency �?Step 耗时分布
-    - get_cache_hit_rate 缓存命中�?"""
+覆盖率    - get_dashboard_overview 总览指标
+    - get_token_usage 每日 Token 消耗    - get_run_duration 平均运行时长
+    - get_step_latency — Step 耗时分布
+    - get_cache_hit_rate 缓存命中率"""
 import pytest
 from datetime import timedelta
 

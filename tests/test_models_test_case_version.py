@@ -115,15 +115,15 @@ class TestTestCaseVersionModel:
             test_case_id=test_case.id,
             version_number=1,
             change_type="update",
-            change_description="修改了用例标�?,
-            changed_fields={"title": {"old": "旧标�?, "new": "新标�?}},
-            snapshot_data={"title": "新标�?}
+            change_description="修改了用例标题",
+            changed_fields={"title": {"old": "旧标题", "new": "新标题"}},
+            snapshot_data={"title": "新标题"}
         )
         db.add(version)
         db.commit()
         db.refresh(version)
-        assert version.change_description == "修改了用例标�?
-        assert version.changed_fields == {"title": {"old": "旧标�?, "new": "新标�?}}
+        assert version.change_description == "修改了用例标题"
+        assert version.changed_fields == {"title": {"old": "旧标题", "new": "新标题"}}
         db.delete(version)
         db.commit()
 
@@ -133,13 +133,13 @@ class TestTestCaseVersionModel:
             version_number=1,
             snapshot_data={},
             operator_id=1,
-            operator_name="管理�?
+            operator_name="管理员"
         )
         db.add(version)
         db.commit()
         db.refresh(version)
         assert version.operator_id == 1
-        assert version.operator_name == "管理�?
+        assert version.operator_name == "管理员"
         db.delete(version)
         db.commit()
 

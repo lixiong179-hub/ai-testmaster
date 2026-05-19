@@ -1,5 +1,5 @@
 """
-前置操作服务覆盖率测�?
+前置操作服务覆盖率测试
 提升 precondition_service.py 的测试覆盖率
 """
 import sys
@@ -25,13 +25,13 @@ class TestTestObjectType(unittest.TestCase):
     """测试测试对象类型枚举"""
     
     def test_object_types(self):
-        """测试所有对象类�?""
+        """测试所有对象类型"""
         self.assertEqual(TestObjectType.WEB.value, "web")
         self.assertEqual(TestObjectType.APP.value, "app")
 
 
 class TestPreconditionError(unittest.TestCase):
-    """测试前置操作错误�?""
+    """测试前置操作错误类"""
     
     def test_error_creation(self):
         """测试创建错误"""
@@ -40,7 +40,7 @@ class TestPreconditionError(unittest.TestCase):
 
 
 class TestPreconditionConfigError(unittest.TestCase):
-    """测试前置配置错误�?""
+    """测试前置配置错误类"""
     
     def test_config_error_creation(self):
         """测试创建配置错误"""
@@ -49,7 +49,7 @@ class TestPreconditionConfigError(unittest.TestCase):
 
 
 class TestLoginError(unittest.TestCase):
-    """测试登录错误�?""
+    """测试登录错误类"""
     
     def test_login_error_creation(self):
         """测试创建登录错误"""
@@ -58,7 +58,7 @@ class TestLoginError(unittest.TestCase):
 
 
 class TestTestObjectInfo(unittest.TestCase):
-    """测试被测对象信息�?""
+    """测试被测对象信息类"""
     
     def test_web_info_creation(self):
         """测试创建Web对象信息"""
@@ -91,7 +91,7 @@ class TestTestObjectInfo(unittest.TestCase):
             type=TestObjectType.WEB,
             url="https://example.com"
         )
-        # 应该不抛出异�?
+        # 应该不抛出异常
         info.validate_web()
     
     def test_validate_web_no_url(self):
@@ -118,7 +118,7 @@ class TestTestObjectInfo(unittest.TestCase):
             device_id="device123",
             app_package="com.example.app"
         )
-        # 应该不抛出异�?
+        # 应该不抛出异常
         info.validate_app()
     
     def test_validate_app_no_device(self):
@@ -133,7 +133,7 @@ class TestTestObjectInfo(unittest.TestCase):
 
 
 class TestLoginFormInfo(unittest.TestCase):
-    """测试登录表单信息�?""
+    """测试登录表单信息类"""
     
     def test_login_form_creation(self):
         """测试创建登录表单信息"""
@@ -153,7 +153,7 @@ class TestLoginFormInfo(unittest.TestCase):
         self.assertFalse(form.is_complete())
     
     def test_login_form_empty(self):
-        """测试空登录表�?""
+        """测试空登录表单"""
         form = LoginFormInfo()
         self.assertFalse(form.is_complete())
 

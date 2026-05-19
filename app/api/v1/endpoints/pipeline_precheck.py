@@ -33,7 +33,10 @@ async def precheck_scenario_4(
 
     history_cases_total = (
         db.query(TestCase)
-        .filter(TestCase.project_id == body.project_id)
+        .filter(
+            TestCase.project_id == body.project_id,
+            TestCase.is_deleted.is_(False),
+        )
         .count()
     )
     history_cases_included = (
@@ -41,7 +44,7 @@ async def precheck_scenario_4(
         .filter(
             TestCase.project_id == body.project_id,
             TestCase.lifecycle_status != "archived",
-            TestCase.is_deleted == False,
+            TestCase.is_deleted.is_(False),
         )
         .count()
     )
@@ -50,7 +53,7 @@ async def precheck_scenario_4(
         .filter(
             TestCase.project_id == body.project_id,
             TestCase.lifecycle_status == "active",
-            TestCase.is_deleted == False,
+            TestCase.is_deleted.is_(False),
         )
         .count()
     )
@@ -59,7 +62,7 @@ async def precheck_scenario_4(
         .filter(
             TestCase.project_id == body.project_id,
             TestCase.lifecycle_status == "draft",
-            TestCase.is_deleted == False,
+            TestCase.is_deleted.is_(False),
         )
         .count()
     )
@@ -68,7 +71,7 @@ async def precheck_scenario_4(
         .filter(
             TestCase.project_id == body.project_id,
             TestCase.lifecycle_status == "pending_review",
-            TestCase.is_deleted == False,
+            TestCase.is_deleted.is_(False),
         )
         .count()
     )
@@ -77,6 +80,7 @@ async def precheck_scenario_4(
         .filter(
             TestCase.project_id == body.project_id,
             TestCase.lifecycle_status == "archived",
+            TestCase.is_deleted.is_(False),
         )
         .count()
     )

@@ -88,6 +88,7 @@ async def export_markdown(
     from app.models.project import Project
     test_case = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).first()
     if not test_case:
@@ -125,6 +126,7 @@ async def export_html(
     from app.models.project import Project
     test_case = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).first()
     if not test_case:
@@ -162,6 +164,7 @@ async def export_python(
     from app.models.project import Project
     test_case = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).first()
     if not test_case:
@@ -199,6 +202,7 @@ async def export_json(
     from app.models.project import Project
     test_case = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).first()
     if not test_case:
@@ -237,6 +241,7 @@ async def export_excel(
 
     test_case = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).first()
     if not test_case:
@@ -298,6 +303,7 @@ async def export_functional_excel(
 
     owned_rows = db.query(TestCase.id).join(Project).filter(
         TestCase.id.in_(payload.case_ids),
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).all()
     owned_ids = {row[0] for row in owned_rows}

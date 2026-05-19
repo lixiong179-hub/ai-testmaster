@@ -63,7 +63,7 @@ export function useCellEdit(
         }))
         await testCaseApi.updateCase(caseId.value, { steps: stepsPayload })
       } else if (field === 'css_selector' || field === 'xpath') {
-        await testCaseApi.updateStepLocator(caseId.value, stepId, {
+        await testCaseApi.updateStepLocator(stepId, {
           [field]: editingValue.value,
         })
       }

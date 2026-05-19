@@ -38,7 +38,7 @@ class LegacySessionMixin:
                 logger.error(f"清理过期会话失败: {e}")
 
     async def _remove_expired_sessions(self):
-        now = datetime.now()
+        now = utcnow()
         expired_sessions = []
         for execution_id, session in self._active_replays.items():
             last_activity = session.get('last_activity', session['created_at'])
@@ -50,7 +50,7 @@ class LegacySessionMixin:
 
     def _update_activity(self, execution_id: str):
         if execution_id in self._active_replays:
-            self._active_replays[execution_id]['last_activity'] = datetime.now()
+            self._active_replays[execution_id]['last_activity'] = utcnow()
 
     async def create_replay_session(
         self,
@@ -68,8 +68,8 @@ class LegacySessionMixin:
             "current_time": 0.0,
             "is_playing": False,
             "speed": 1.0,
-            "created_at": datetime.now(),
-            "last_activity": datetime.now()
+            "created_at": utcnow(),
+            "last_activity": utcnow()
         }
         self._active_replays[execution_id] = session
         logger.info(f"回放会话已创建: {execution_id}")
@@ -90,7 +90,7 @@ class LegacySessionMixin:
                 task_id = int(parts[1])
                 case_id = int(parts[3])
                 task = db.query(TestTask).filter(TestTask.id == task_id).first()
-                case = db.query(TestCase).filter(TestCase.id == case_id).first()
+                case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
                 if not task or not case:
                     logger.warning(f"执行记录不存在: {execution_id}")
                     return None
@@ -100,7 +100,7 @@ class LegacySessionMixin:
                 ).order_by(TestResult.create_time.desc()).first()
                 timeline = ExecutionTimeline(
                     execution_id=execution_id,
-                    start_time=task.create_time if task else datetime.now(),
+                    start_time=task.create_time if task else utcnow(),
                     total_duration=0.0,
                     events=[]
                 )

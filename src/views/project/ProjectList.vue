@@ -101,7 +101,6 @@
       </div>
     </el-card>
 
-    <!-- 创建项目对话框 -->
     <el-dialog v-model="dialogVisible" title="创建项目" width="700px">
       <el-form :model="projectForm" :rules="projectRules" ref="projectFormRef" label-width="100px">
         <el-form-item label="项目名称" prop="name">
@@ -124,99 +123,52 @@
           />
         </el-form-item>
 
-        <!-- Web端环境配置 -->
         <template v-if="projectForm.project_type === 'web'">
           <el-divider content-position="left">Web端多环境配置（选填）</el-divider>
 
-          <!-- 测试环境 -->
           <el-form-item label="测试环境">
             <el-row :gutter="10">
               <el-col :span="10">
-                <el-input
-                  v-model="projectForm.web_env_configs.test.url"
-                  placeholder="测试环境URL"
-                  autocomplete="off"
-                />
+                <el-input v-model="projectForm.web_env_configs.test.url" placeholder="测试环境URL" autocomplete="off" />
               </el-col>
               <el-col :span="6">
-                <el-input
-                  v-model="projectForm.web_env_configs.test.username"
-                  placeholder="账号"
-                  autocomplete="off"
-                />
+                <el-input v-model="projectForm.web_env_configs.test.username" placeholder="账号" autocomplete="off" />
               </el-col>
               <el-col :span="6">
-                <el-input
-                  v-model="projectForm.web_env_configs.test.password"
-                  type="password"
-                  placeholder="密码"
-                  show-password
-                  autocomplete="new-password"
-                />
+                <el-input v-model="projectForm.web_env_configs.test.password" type="password" placeholder="密码" show-password autocomplete="new-password" />
               </el-col>
             </el-row>
           </el-form-item>
 
-          <!-- 灰度环境 -->
           <el-form-item label="灰度环境">
             <el-row :gutter="10">
               <el-col :span="10">
-                <el-input
-                  v-model="projectForm.web_env_configs.staging.url"
-                  placeholder="灰度环境URL"
-                  autocomplete="off"
-                />
+                <el-input v-model="projectForm.web_env_configs.staging.url" placeholder="灰度环境URL" autocomplete="off" />
               </el-col>
               <el-col :span="6">
-                <el-input
-                  v-model="projectForm.web_env_configs.staging.username"
-                  placeholder="账号"
-                  autocomplete="off"
-                />
+                <el-input v-model="projectForm.web_env_configs.staging.username" placeholder="账号" autocomplete="off" />
               </el-col>
               <el-col :span="6">
-                <el-input
-                  v-model="projectForm.web_env_configs.staging.password"
-                  type="password"
-                  placeholder="密码"
-                  show-password
-                  autocomplete="new-password"
-                />
+                <el-input v-model="projectForm.web_env_configs.staging.password" type="password" placeholder="密码" show-password autocomplete="new-password" />
               </el-col>
             </el-row>
           </el-form-item>
 
-          <!-- 正式环境 -->
           <el-form-item label="正式环境">
             <el-row :gutter="10">
               <el-col :span="10">
-                <el-input
-                  v-model="projectForm.web_env_configs.prod.url"
-                  placeholder="正式环境URL"
-                  autocomplete="off"
-                />
+                <el-input v-model="projectForm.web_env_configs.prod.url" placeholder="正式环境URL" autocomplete="off" />
               </el-col>
               <el-col :span="6">
-                <el-input
-                  v-model="projectForm.web_env_configs.prod.username"
-                  placeholder="账号"
-                  autocomplete="off"
-                />
+                <el-input v-model="projectForm.web_env_configs.prod.username" placeholder="账号" autocomplete="off" />
               </el-col>
               <el-col :span="6">
-                <el-input
-                  v-model="projectForm.web_env_configs.prod.password"
-                  type="password"
-                  placeholder="密码"
-                  show-password
-                  autocomplete="new-password"
-                />
+                <el-input v-model="projectForm.web_env_configs.prod.password" type="password" placeholder="密码" show-password autocomplete="new-password" />
               </el-col>
             </el-row>
           </el-form-item>
         </template>
 
-        <!-- C端设备配置 -->
         <template v-else>
           <el-divider content-position="left">C端设备配置（预留）</el-divider>
           <el-form-item>
@@ -237,232 +189,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
-import { useProjectStore } from '@/store/project'
+import { useProjectList } from './useProjectList'
 
-const router = useRouter()
-const projectStore = useProjectStore()
-
-const dialogVisible = ref(false)
-const projectFormRef = ref<any>(null)
-const searchKeyword = ref('')
-
-const projectForm = ref({
-  name: '',
-  description: '',
-  project_type: 'web' as 'web' | 'app',
-  web_env_configs: {
-    test: { url: '', username: '', password: '' },
-    staging: { url: '', username: '', password: '' },
-    prod: { url: '', username: '', password: '' },
-  },
-})
-
-const projectRules = {
-  name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
-  project_type: [{ required: true, message: '请选择项目类型', trigger: 'change' }],
-}
-
-// 过滤项目列表
-const filteredProjects = computed(() => {
-  if (!searchKeyword.value) {
-    return projectStore.projects
-  }
-  return projectStore.projects.filter((project) =>
-    project.name.toLowerCase().includes(searchKeyword.value.toLowerCase())
-  )
-})
-
-// 获取状态类型
-const getStatusType = (status: number) => {
-  const statusMap: Record<number, string> = {
-    0: 'info',
-    1: 'success',
-    2: 'warning',
-  }
-  return statusMap[status] || 'info'
-}
-
-// 获取状态文本
-const getStatusText = (status: number) => {
-  const statusMap: Record<number, string> = {
-    0: '未激活',
-    1: '正常',
-    2: '归档',
-  }
-  return statusMap[status] || '未知'
-}
-
-// 处理搜索
-const handleSearch = () => {
-  projectStore.fetchProjects()
-}
-
-// 处理页码变化
-const handleCurrentChange = (current: number) => {
-  projectStore.currentPage = current
-  projectStore.fetchProjects()
-}
-
-// 处理每页数量变化
-const handleSizeChange = (size: number) => {
-  projectStore.pageSize = size
-  projectStore.currentPage = 1
-  projectStore.fetchProjects()
-}
-
-// 打开创建项目对话框
-const openCreateDialog = () => {
-  projectForm.value = {
-    name: '',
-    description: '',
-    project_type: 'web' as 'web' | 'app',
-    web_env_configs: {
-      test: { url: '', username: '', password: '' },
-      staging: { url: '', username: '', password: '' },
-      prod: { url: '', username: '', password: '' },
-    },
-  }
-  dialogVisible.value = true
-}
-
-// 创建项目
-const createProject = async () => {
-  if (!projectFormRef.value) return
-  await projectFormRef.value.validate(async (valid: boolean) => {
-    if (valid) {
-      const projectId = await projectStore.createProject({
-        name: projectForm.value.name,
-        description: projectForm.value.description,
-        project_type: projectForm.value.project_type,
-        web_env_configs:
-          projectForm.value.project_type === 'web' ? projectForm.value.web_env_configs : undefined,
-      })
-      if (projectId) {
-        dialogVisible.value = false
-        goToDetail(projectId)
-      }
-    }
-  })
-}
-
-// 跳转到项目详情页
-const goToDetail = (projectId: number) => {
-  router.push(`/home/project/detail?id=${projectId}`)
-}
-
-const goToTaskList = (projectId: number) => {
-  router.push(`/home/task/list/${projectId}`)
-}
-
-const goToTestPointManagement = (projectId: number) => {
-  router.push({
-    path: '/home/case/test-point-management',
-    query: {
-      projectId: String(projectId),
-    },
-  })
-}
-
-// 确认删除项目
-const confirmDelete = (projectId: number) => {
-  ElMessageBox.confirm('确定要删除此项目吗？删除后将级联删除关联的文件、测试点和用例。', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  })
-    .then(async () => {
-      await projectStore.deleteProject(projectId)
-    })
-    .catch(() => {
-      // 取消删除
-    })
-}
-
-// 页面加载时获取项目列表
-onMounted(() => {
-  projectStore.fetchProjects()
-})
+const {
+  projectStore, dialogVisible, projectFormRef, searchKeyword, projectForm, projectRules,
+  filteredProjects, getStatusType, getStatusText, handleSearch, handleCurrentChange,
+  handleSizeChange, openCreateDialog, createProject, goToDetail, goToTaskList,
+  goToTestPointManagement, confirmDelete,
+} = useProjectList()
+void projectFormRef
 </script>
 
-<style scoped>
-.project-list {
-  padding: 20px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.card-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2d3d;
-}
-
-.card-subtitle {
-  margin-top: 6px;
-  color: #7a8594;
-  line-height: 1.6;
-}
-
-.search-bar {
-  margin-bottom: 20px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-}
-
-.search-input {
-  width: 300px;
-}
-
-.pagination {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.project-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 40px 16px;
-  text-align: center;
-}
-
-.project-empty-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2d3d;
-}
-
-.project-empty-text {
-  max-width: 420px;
-  color: #7a8594;
-  line-height: 1.6;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-}
-
-@media (max-width: 900px) {
-  .card-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .search-input {
-    width: 100%;
-  }
-}
+<style scoped lang="scss">
+@import './ProjectList.scss';
 </style>

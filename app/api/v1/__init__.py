@@ -31,6 +31,6 @@ from app.api.v1.endpoints import (
     auth, user, test_task, project, file, test_point, test_case,
     requirement_link, ui_prototype, iteration, execution,
     execution_visualization, batch_locator, test_data, case_quality,
-    report, visibility, audit_log, pipeline, review_inbox, pipeline_metrics,
-    test_case_lineage, pipeline_dashboard
+    report, visibility, audit_log, pipeline, review_inbox, test_capability,
+    websocket
 )

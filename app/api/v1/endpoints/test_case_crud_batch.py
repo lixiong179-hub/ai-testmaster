@@ -18,7 +18,7 @@
     - 删除为软删除（is_deleted标记），支持批量恢复
     - 批量创建在单个数据库事务中完成，全部成功或全部回滚
 """
-from datetime import datetime
+from app.utils.db_time import utcnow
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
@@ -267,8 +267,6 @@ async def batch_delete_test_cases(
         - not_found_ids: 未找到的用例ID列表
     权限要求: 需要Bearer令牌认证，只允许删除自己项目的用例
     """
-    from datetime import datetime as dt
-
     case_ids = request.caseIds
     success_count = 0
     fail_count = 0
@@ -277,7 +275,7 @@ async def batch_delete_test_cases(
     # 只删除属于当前用户项目的用例
     existing_cases = db.query(TestCase).join(Project).filter(
         TestCase.id.in_(case_ids),
-        TestCase.is_deleted == False,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).all()
 
@@ -288,7 +286,7 @@ async def batch_delete_test_cases(
     for test_case in existing_cases:
         try:
             test_case.is_deleted = True
-            test_case.deleted_at = dt.utcnow()
+            test_case.deleted_at = utcnow()
             success_count += 1
             deleted_case_ids.append(test_case.id)
         except Exception as e:

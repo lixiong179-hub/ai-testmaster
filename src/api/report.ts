@@ -6,11 +6,19 @@ export interface Report {
   project_id: number
   test_task_id: number
   name: string
+  status: string
   total_cases: number
   passed_cases: number
   failed_cases: number
+  blocked_cases: number
   pass_rate: number
-  created_at: string
+  description?: string
+  start_time?: string
+  end_time?: string
+  execution_time?: number
+  summary?: string
+  create_time: string
+  update_time?: string
   project_name?: string
   test_task_name?: string
   test_cases?: TestCaseResult[]
@@ -51,17 +59,25 @@ const reportApi = {
   },
 
   // 导出报告为PDF
+  // 后端：POST /api/v1/report/{report_id}/export
   exportReportPDF: (id: number, project_id: number) => {
-    return request.get(`/api/v1/report/${id}/export`, {
-      params: { project_id, format: 'pdf' },
+    return request.post(`/api/v1/report/${id}/export`, {
+      report_id: id,
+      format: 'pdf',
+      project_id,
+    }, {
       responseType: 'blob',
     })
   },
 
   // 导出报告为HTML
+  // 后端：POST /api/v1/report/{report_id}/export
   exportReportHTML: (id: number, project_id: number) => {
-    return request.get(`/api/v1/report/${id}/export`, {
-      params: { project_id, format: 'html' },
+    return request.post(`/api/v1/report/${id}/export`, {
+      report_id: id,
+      format: 'html',
+      project_id,
+    }, {
       responseType: 'blob',
     })
   },

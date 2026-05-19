@@ -801,7 +801,7 @@ class TestAIGenerateAPIEndpointBranches:
         })
         assert resp.status_code in (400, 422)
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_success_with_mock(self, mock_gen, auth_client, real_project):
         mock_gen.return_value = {
             "title": "\u9a8c\u8bc1\u767b\u5f55\u529f\u80fd\u6b63\u5e38\u5de5\u4f5c",
@@ -821,7 +821,7 @@ class TestAIGenerateAPIEndpointBranches:
         data = resp.json()
         assert data["data"]["title"] == "\u9a8c\u8bc1\u767b\u5f55\u529f\u80fd\u6b63\u5e38\u5de5\u4f5c"
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_auth_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AIAuthenticationError()
         resp = auth_client.post("/api/v1/testCase/ai-generate", json={
@@ -830,7 +830,7 @@ class TestAIGenerateAPIEndpointBranches:
         })
         assert resp.status_code == 503
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_rate_limit_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AIRateLimitError()
         resp = auth_client.post("/api/v1/testCase/ai-generate", json={
@@ -839,7 +839,7 @@ class TestAIGenerateAPIEndpointBranches:
         })
         assert resp.status_code == 429
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_timeout_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AITimeoutError()
         resp = auth_client.post("/api/v1/testCase/ai-generate", json={
@@ -848,7 +848,7 @@ class TestAIGenerateAPIEndpointBranches:
         })
         assert resp.status_code == 504
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_format_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AIResponseFormatError()
         resp = auth_client.post("/api/v1/testCase/ai-generate", json={
@@ -857,7 +857,7 @@ class TestAIGenerateAPIEndpointBranches:
         })
         assert resp.status_code == 502
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_service_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AIServiceError("\u670d\u52a1\u4e0d\u53ef\u7528")
         resp = auth_client.post("/api/v1/testCase/ai-generate", json={
@@ -866,7 +866,7 @@ class TestAIGenerateAPIEndpointBranches:
         })
         assert resp.status_code == 503
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_unknown_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = RuntimeError("\u672a\u77e5\u9519\u8bef")
         resp = auth_client.post("/api/v1/testCase/ai-generate", json={
@@ -878,7 +878,7 @@ class TestAIGenerateAPIEndpointBranches:
 
 class TestAIEnhancedGenerateBranches:
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case_enhanced")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case_enhanced")
     def test_enhanced_linear_mode(self, mock_gen, auth_client, real_project):
         mock_gen.return_value = {
             "title": "\u7ebf\u6027\u6a21\u5f0f\u6d4b\u8bd5\u7528\u4f8b",
@@ -902,7 +902,7 @@ class TestAIEnhancedGenerateBranches:
         data = resp.json()
         assert data["code"] in (0, 200)
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case_enhanced")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case_enhanced")
     def test_enhanced_graph_mode(self, mock_gen, auth_client, real_project):
         mock_gen.return_value = {
             "title": "\u6d41\u7a0b\u56fe\u6a21\u5f0f\u6d4b\u8bd5\u7528\u4f8b",
@@ -928,7 +928,7 @@ class TestAIEnhancedGenerateBranches:
         })
         assert resp.status_code == 200
 
-    @patch("app.api.v1.endpoints.test_case_ai_generate.generate_test_case")
+    @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_enhanced_basic_mode_fallback(self, mock_gen, auth_client, real_project):
         mock_gen.return_value = {
             "title": "\u57fa\u7840\u6a21\u5f0f\u7528\u4f8b",
@@ -942,6 +942,7 @@ class TestAIEnhancedGenerateBranches:
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u57fa\u7840\u6a21\u5f0f\u751f\u6210\u7528\u4f8b",
             "enhanced_mode": False,
+            "context": {"requirement_content": "\u7528\u6237\u53ef\u4ee5\u70b9\u51fb\u6309\u94ae\u63d0\u4ea4\u8868\u5355"},
         })
         assert resp.status_code == 200
 
@@ -1079,7 +1080,7 @@ class TestPreconditionAPIBranches:
         data = resp.json()
         assert data["code"] in (0, 200)
 
-    @patch("app.api.v1.endpoints.test_case_ai.parse_precondition_to_steps", new_callable=AsyncMock)
+    @patch("app.api.v1.endpoints.test_case_ai_generate._precondition.parse_precondition_to_steps", new_callable=AsyncMock)
     async def test_parse_precondition_with_steps(self, mock_parse, auth_client, db, real_project):
         tc = TestCase(
             project_id=real_project.id,
@@ -1219,8 +1220,9 @@ class TestGenerateTestCaseFunctionBranches:
 
 class TestGenerateTestCaseEnhancedBranches:
 
-    @patch("app.utils.ai_client_enhanced.get_ai_client")
-    def test_enhanced_with_graph_prompt(self, mock_get_client):
+    @patch("app.utils.ai_client_enhanced._enhanced.time.sleep")
+    @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
+    def test_enhanced_with_graph_prompt(self, mock_get_client, _mock_sleep):
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
@@ -1235,11 +1237,12 @@ class TestGenerateTestCaseEnhancedBranches:
         mock_client.model_name = "test-model"
         mock_get_client.return_value = mock_client
         result = generate_test_case_enhanced({"graph_prompt": "\u6d41\u7a0b\u56fePrompt\u5185\u5bb9"})
-        assert isinstance(result, dict)
-        assert result["title"] == "\u6d41\u7a0b\u56fe\u7528\u4f8b"
+        assert isinstance(result, list)
+        assert result[0]["title"] == "\u6d41\u7a0b\u56fe\u7528\u4f8b"
 
-    @patch("app.utils.ai_client_enhanced.get_ai_client")
-    def test_enhanced_with_markdown_code_block(self, mock_get_client):
+    @patch("app.utils.ai_client_enhanced._enhanced.time.sleep")
+    @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
+    def test_enhanced_with_markdown_code_block(self, mock_get_client, _mock_sleep):
         mock_client = MagicMock()
         raw_json = json.dumps({
             "title": "\u4ee3\u7801\u5757\u7528\u4f8b",
@@ -1254,10 +1257,11 @@ class TestGenerateTestCaseEnhancedBranches:
         mock_client.model_name = "test-model"
         mock_get_client.return_value = mock_client
         result = generate_test_case_enhanced({"requirement": "\u9700\u6c42\u5185\u5bb9"})
-        assert isinstance(result, dict)
+        assert isinstance(result, list)
 
-    @patch("app.utils.ai_client_enhanced.get_ai_client")
-    def test_enhanced_new_format_detection(self, mock_get_client):
+    @patch("app.utils.ai_client_enhanced._enhanced.time.sleep")
+    @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
+    def test_enhanced_new_format_detection(self, mock_get_client, _mock_sleep):
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
@@ -1272,10 +1276,11 @@ class TestGenerateTestCaseEnhancedBranches:
         mock_client.model_name = "test-model"
         mock_get_client.return_value = mock_client
         result = generate_test_case_enhanced({"requirement": "\u9700\u6c42"})
-        assert isinstance(result, dict)
+        assert isinstance(result, list)
 
-    @patch("app.utils.ai_client_enhanced.get_ai_client")
-    def test_enhanced_empty_response(self, mock_get_client):
+    @patch("app.utils.ai_client_enhanced._enhanced.time.sleep")
+    @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
+    def test_enhanced_empty_response(self, mock_get_client, _mock_sleep):
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
@@ -1286,8 +1291,9 @@ class TestGenerateTestCaseEnhancedBranches:
         with pytest.raises((AIResponseParseError, AIServiceError)):
             generate_test_case_enhanced({"requirement": "\u9700\u6c42"})
 
-    @patch("app.utils.ai_client_enhanced.get_ai_client")
-    def test_enhanced_unparseable_response(self, mock_get_client):
+    @patch("app.utils.ai_client_enhanced._enhanced.time.sleep")
+    @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
+    def test_enhanced_unparseable_response(self, mock_get_client, _mock_sleep):
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
