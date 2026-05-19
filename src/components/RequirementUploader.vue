@@ -278,26 +278,9 @@ defineExpose({ upload: handleUpload, clearFiles, fileCount, uploading })
 </script>
 
 <style scoped>
-.requirement-uploader {
-  width: 100%;
-}
+.requirement-uploader { width: 100%; }
 
-.resource-name-input {
-  display: flex;
-  align-items: center;
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: #f5f7fa;
-  border-radius: 4px;
-  gap: 8px;
-}
-
-.name-label {
-  font-size: 13px;
-  color: #606266;
-  white-space: nowrap;
-}
-
+.resource-name-input,
 .global-override {
   display: flex;
   align-items: center;
@@ -307,11 +290,19 @@ defineExpose({ upload: handleUpload, clearFiles, fileCount, uploading })
   border-radius: 4px;
 }
 
+.resource-name-input {
+  gap: 8px;
+}
+
+.name-label,
 .override-label {
   font-size: 13px;
   color: #606266;
-  margin-right: 8px;
   white-space: nowrap;
+}
+
+.override-label {
+  margin-right: 8px;
 }
 
 .file-preview {

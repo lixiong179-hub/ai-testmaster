@@ -1,14 +1,14 @@
 """
 M1-T09 Pipeline Runner 测试模块
 
-覆盖�?
+覆盖：
     - PipelineRunner 正常执行
     - 缓存命中跳过
     - 重试逻辑
     - fallback 降级
     - 预算超限暂停
     - should_run=False 跳过
-    - 产物持久�?
+    - 产物持久化
     - validate_output 失败
 """
 import pytest

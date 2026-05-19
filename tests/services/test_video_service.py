@@ -107,7 +107,7 @@ def sample_test_case(db, sample_project):
         project_id=sample_project.id,
         module="测试模块",
         title="Video Test Case",
-        precondition="�?,
+        precondition="无",
         steps_json=[{"step": "1", "action": "打开", "param": ""}],
         expected_result="成功",
         priority=2,
@@ -139,17 +139,17 @@ def sample_video_record(db, sample_task, sample_test_case):
 
 
 class TestVideoService:
-    """视频服务测试�?""
+    """视频服务测试类"""
 
     def test_service_initialization(self, video_service):
-        """测试服务初始�?""
+        """测试服务初始化"""
         assert video_service.db is not None
         assert isinstance(video_service._video_base_dir, str)
         assert video_service._video_base_dir == "./test_videos"
 
     @pytest.mark.asyncio
     async def test_save_video_info(self, video_service, sample_task, sample_test_case):
-        """测试保存视频元信�?""
+        """测试保存视频元信息"""
         video_info = await video_service.save_video_info(
             task_id=sample_task.id,
             test_case_id=sample_test_case.id,
@@ -211,10 +211,10 @@ class TestVideoService:
 
 
 class TestVideoModels:
-    """视频数据模型测试�?""
+    """视频数据模型测试类"""
 
     def test_video_info_creation(self):
-        """测试VideoInfo数据类创�?""
+        """测试VideoInfo数据类创建"""
         info = VideoInfo(
             id=1,
             task_id=100,
@@ -233,17 +233,17 @@ class TestVideoModels:
         assert info.status == VideoStatus.READY
 
     def test_video_status_enum(self):
-        """测试VideoStatus枚举�?""
+        """测试VideoStatus枚举值"""
         assert VideoStatus.READY.value == "ready"
         assert VideoStatus.PROCESSING.value == "processing"
         assert VideoStatus.FAILED.value == "failed"
 
 
 class TestPathUtils:
-    """路径工具测试�?""
+    """路径工具测试类"""
 
     def test_get_video_path_exists(self, video_service, sample_video_record):
-        """测试获取存在的视频路�?""
+        """测试获取存在的视频路径"""
         path = video_service.get_video_path(sample_video_record.id)
         assert path is None
 
@@ -260,14 +260,14 @@ class TestPathUtils:
 
 
 class TestFFmpegMixin:
-    """FFmpeg工具测试�?""
+    """FFmpeg工具测试类"""
 
     def test_check_ffmpeg_available(self, video_service):
-        """测试FFmpeg可用性检查（同步方法�?""
+        """测试FFmpeg可用性检查（同步方法）"""
         is_available = video_service._check_ffmpeg_available()
         assert isinstance(is_available, bool)
 
     def test_check_ffprobe_available(self, video_service):
-        """测试FFprobe可用性检查（同步方法�?""
+        """测试FFprobe可用性检查（同步方法）"""
         is_available = video_service._check_ffprobe_available()
         assert isinstance(is_available, bool)

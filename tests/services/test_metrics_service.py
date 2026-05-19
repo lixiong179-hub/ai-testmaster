@@ -1,10 +1,10 @@
 """M4-T05 FMEA 监控指标服务 单元测试
 
-覆盖�?    - record_metric 正常/异常/无效名称
+覆盖率 —    - record_metric 正常/异常/无效名称
     - record_metrics 批量
     - query_metrics 聚合查询
     - get_metric_timeseries 时序查询
-    - get_dashboard_summary 仪表盘摘�?    - VALID_METRIC_NAMES 校验
+    - get_dashboard_summary 仪表盘摘要 —    - VALID_METRIC_NAMES 校验
     - _date_trunc_day/_date_trunc_hour 跨数据库兼容
 """
 import pytest
@@ -228,7 +228,7 @@ class TestGetDashboardSummary:
     def test_summary_all_fmea_ids_present(self, db):
         result = metrics_service.get_dashboard_summary(db)
         fmea_ids = [m["fmea_id"] for m in result["metrics"]]
-        expected_ids = {"F1", "F2", "F3", "F5", "F9", "F11", "F12", "F13", "F14", "F15"}
+        expected_ids = {"F1", "F2", "F3", "F5", "F9", "F11", "F12", "F13", "F14", "F15", "F16", "F17"}
         assert set(fmea_ids) == expected_ids
 
 
@@ -243,7 +243,7 @@ class TestFMEAMetadata:
         assert VALID_METRIC_NAMES == set(FMEA_METRICS.keys())
 
     def test_ten_metric_types(self):
-        assert len(FMEA_METRICS) == 10
+        assert len(FMEA_METRICS) == 12
 
 
 class TestDateTruncCompat:

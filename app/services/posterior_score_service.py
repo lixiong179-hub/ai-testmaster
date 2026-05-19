@@ -267,6 +267,7 @@ def _batch_update_posterior_scores(
     for score, cids in score_groups.items():
         db.query(TestCase).filter(
             TestCase.id.in_(cids),
+            TestCase.is_deleted.is_(False),
         ).update(
             {TestCase.posterior_quality_score: score},
             synchronize_session="fetch",

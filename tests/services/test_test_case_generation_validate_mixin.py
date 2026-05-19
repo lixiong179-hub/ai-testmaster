@@ -29,7 +29,7 @@ async def test_save_test_case_binds_source_test_point(db, testProject, monkeypat
     service = _DummyValidateService(db)
     generated_case = {
         "module": "bind_module",
-        "title": "生成的测试用�?,
+        "title": "生成的测试用例",
         "precondition": "",
         "steps": [
             {

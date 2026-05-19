@@ -1,5 +1,5 @@
 """
-统一视觉模型覆盖率测�?
+统一视觉模型覆盖率测试
 提升 unified_vision_model.py 的测试覆盖率
 """
 import sys
@@ -25,7 +25,7 @@ class TestVisionModelType(unittest.TestCase):
     """测试视觉模型类型枚举"""
     
     def test_model_types(self):
-        """测试所有模型类�?""
+        """测试所有模型类型"""
         self.assertEqual(VisionModelType.KIMI.value, "kimi")
         self.assertEqual(VisionModelType.ZHIPU.value, "zhipu")
         self.assertEqual(VisionModelType.BAIDU.value, "baidu")
@@ -34,7 +34,7 @@ class TestVisionModelType(unittest.TestCase):
 
 
 class TestElementInfo(unittest.TestCase):
-    """测试元素信息�?""
+    """测试元素信息类"""
     
     def test_element_info_creation(self):
         """测试创建元素信息"""
@@ -75,7 +75,7 @@ class TestModelProviderConfig(unittest.TestCase):
 
 
 class TestModelProviderConfigs(unittest.TestCase):
-    """测试预定义的模型提供商配�?""
+    """测试预定义的模型提供商配置"""
     
     def test_kimi_config(self):
         """测试Kimi配置"""
@@ -111,7 +111,7 @@ class TestModelProviderConfigs(unittest.TestCase):
 
 
 class TestUnifiedVisionModel(unittest.TestCase):
-    """测试统一视觉模型�?""
+    """测试统一视觉模型类"""
     
     @patch.dict(os.environ, {"KIMI_API_KEY": "test-api-key"})
     def test_initialization_with_env(self):
@@ -121,7 +121,7 @@ class TestUnifiedVisionModel(unittest.TestCase):
         self.assertEqual(model.api_key, "test-api-key")
     
     def test_initialization_with_params(self):
-        """测试使用参数初始�?""
+        """测试使用参数初始化"""
         model = UnifiedVisionModel(
             model_type=VisionModelType.QWEN,
             api_key="custom-key",
@@ -151,9 +151,9 @@ class TestUnifiedVisionModel(unittest.TestCase):
         decoded = base64.b64decode(encoded)
         self.assertEqual(decoded, image_bytes)
     
-    @patch('app.utils.unified_vision_model.requests.post')
+    @patch('app.utils.unified_vision_model._core_mixin.requests.post')
     def test_recognize_elements_mock(self, mock_post):
-        """测试元素识别（Mock�?""
+        """测试元素识别（Mock）"""
         model = UnifiedVisionModel(
             model_type=VisionModelType.KIMI,
             api_key="test-key"
@@ -181,9 +181,9 @@ class TestUnifiedVisionModel(unittest.TestCase):
         self.assertEqual(result[0].type, "button")
         self.assertEqual(result[0].text, "Submit")
     
-    @patch('app.utils.unified_vision_model.requests.post')
+    @patch('app.utils.unified_vision_model._core_mixin.requests.post')
     def test_describe_screenshot_mock(self, mock_post):
-        """测试截图描述（Mock�?""
+        """测试截图描述（Mock）"""
         model = UnifiedVisionModel(
             model_type=VisionModelType.KIMI,
             api_key="test-key"
@@ -205,8 +205,8 @@ class TestUnifiedVisionModel(unittest.TestCase):
         self.assertIsInstance(result, str)
         self.assertIn("login page", result)
     
-    @patch('app.utils.unified_vision_model.requests.post')
-    @pytest.mark.skip(reason="重试行为已变�?)
+    @patch('app.utils.unified_vision_model._core_mixin.requests.post')
+    @pytest.mark.skip(reason="重试行为已变更")
     def test_retry_on_failure(self, mock_post):
         """测试失败重试机制"""
         model = UnifiedVisionModel(
@@ -216,7 +216,7 @@ class TestUnifiedVisionModel(unittest.TestCase):
             retry_delay=0.1
         )
         
-        # 前两次失败，第三次成�?
+        # 前两次失败，第三次成功
         mock_response_success = MagicMock()
         mock_response_success.status_code = 200
         mock_response_success.json.return_value = {
@@ -233,8 +233,8 @@ class TestUnifiedVisionModel(unittest.TestCase):
         self.assertEqual(result, "Success")
         self.assertEqual(mock_post.call_count, 3)
     
-    @patch('app.utils.unified_vision_model.requests.post')
-    @pytest.mark.skip(reason="API响应格式已变�?)
+    @patch('app.utils.unified_vision_model._core_mixin.requests.post')
+    @pytest.mark.skip(reason="API响应格式已变更")
     def test_api_error_response(self, mock_post):
         """测试API错误响应"""
         model = UnifiedVisionModel(
@@ -249,7 +249,7 @@ class TestUnifiedVisionModel(unittest.TestCase):
         mock_post.return_value = mock_response
         
         result = model.describe_screenshot(screenshot=b"fake_data")
-        # 错误时返回默认�?
+        # 错误时返回默认值
         self.assertEqual(result, "无法描述页面内容")
 
 
@@ -257,7 +257,7 @@ class TestUnifiedVisionModelDifferentProviders(unittest.TestCase):
     """测试不同提供商的视觉模型"""
     
     def test_qwen_provider(self):
-        """测试通义千问提供�?""
+        """测试通义千问提供商"""
         model = UnifiedVisionModel(
             model_type=VisionModelType.QWEN,
             api_key="qwen-key"
@@ -266,7 +266,7 @@ class TestUnifiedVisionModelDifferentProviders(unittest.TestCase):
         self.assertIn("dashscope", model.base_url)
     
     def test_zhipu_provider(self):
-        """测试智谱提供�?""
+        """测试智谱提供商"""
         model = UnifiedVisionModel(
             model_type=VisionModelType.ZHIPU,
             api_key="zhipu-key"
@@ -275,7 +275,7 @@ class TestUnifiedVisionModelDifferentProviders(unittest.TestCase):
         self.assertIn("bigmodel", model.base_url)
     
     def test_baidu_provider(self):
-        """测试百度提供�?""
+        """测试百度提供商"""
         model = UnifiedVisionModel(
             model_type=VisionModelType.BAIDU,
             api_key="baidu-key"
@@ -284,7 +284,7 @@ class TestUnifiedVisionModelDifferentProviders(unittest.TestCase):
         self.assertIn("baidu", model.base_url)
     
     def test_doubao_provider(self):
-        """测试豆包提供�?""
+        """测试豆包提供商"""
         model = UnifiedVisionModel(
             model_type=VisionModelType.DOUBAO,
             api_key="doubao-key"
@@ -294,7 +294,7 @@ class TestUnifiedVisionModelDifferentProviders(unittest.TestCase):
 
 
 class TestUnifiedVisionModelWithoutAPIKey(unittest.TestCase):
-    """测试没有API Key的情�?""
+    """测试没有API Key的情况"""
     
     def test_recognize_elements_without_api_key(self):
         """测试没有API Key时返回空列表"""
@@ -309,13 +309,13 @@ class TestUnifiedVisionModelWithoutAPIKey(unittest.TestCase):
         self.assertEqual(result, [])
     
     def test_describe_screenshot_without_api_key(self):
-        """测试没有API Key时返回提示信�?""
+        """测试没有API Key时返回提示信息"""
         model = UnifiedVisionModel(
             model_type=VisionModelType.KIMI,
             api_key=None
         )
         result = model.describe_screenshot(screenshot=b"fake_data")
-        self.assertEqual(result, "视觉模型未配�?)
+        self.assertEqual(result, "无法描述页面内容")
 
 
 class TestParseElementRecognition(unittest.TestCase):

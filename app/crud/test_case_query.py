@@ -52,7 +52,8 @@ def get_test_case_by_id(
     """
     return db.query(TestCase).filter(
         TestCase.id == test_case_id,
-        TestCase.project_id == project_id
+        TestCase.project_id == project_id,
+        TestCase.is_deleted.is_(False)
     ).first()
 
 
@@ -76,7 +77,10 @@ def get_test_case_by_case_no(
     Note:
         此函数未做用户权限过滤，调用方需自行校验访问权限。
     """
-    return db.query(TestCase).filter(TestCase.case_no == case_no).first()
+    return db.query(TestCase).filter(
+        TestCase.case_no == case_no,
+        TestCase.is_deleted.is_(False)
+    ).first()
 
 
 def get_test_cases_by_project(
@@ -101,7 +105,7 @@ def get_test_cases_by_project(
         project_id: 项目ID
         module: 模块名称（可选），精确匹配
         priority: 优先级（可选），精确匹配，1=高/2=中/3=低
-        case_type: 用例类型（可选），精确匹配，如functional/performance/security
+        case_type: 用例类型（可选），精确匹配，如ui_automation/api_automation/performance/security
         generate_status: 生成状态（可选），0=待生成/1=已生成/2=生成失败
         skip: 跳过记录数，用于分页偏移
         limit: 返回记录上限
@@ -115,7 +119,10 @@ def get_test_cases_by_project(
         - 此函数未做用户权限过滤，适用于内部调用；对外接口应使用
           get_test_cases_by_project_and_user
     """
-    query = db.query(TestCase).filter(TestCase.project_id == project_id)
+    query = db.query(TestCase).filter(
+        TestCase.project_id == project_id,
+        TestCase.is_deleted.is_(False)
+    )
     # 动态追加过滤条件：仅当参数非空时才加入WHERE子句
     if module:
         query = query.filter(TestCase.module == module)
@@ -170,7 +177,8 @@ def get_test_cases_by_project_and_user(
     # JOIN Project表：通过Project.user_id实现用户权限隔离
     query = db.query(TestCase).join(Project).filter(
         TestCase.project_id == project_id,
-        Project.user_id == user_id
+        Project.user_id == user_id,
+        TestCase.is_deleted.is_(False)
     )
     # 动态追加过滤条件
     if module:
@@ -219,7 +227,8 @@ def get_test_cases_count(
     """
     query = db.query(TestCase).join(Project).filter(
         TestCase.project_id == project_id,
-        Project.user_id == user_id
+        Project.user_id == user_id,
+        TestCase.is_deleted.is_(False)
     )
     if module:
         query = query.filter(TestCase.module == module)
@@ -261,5 +270,6 @@ def get_failed_test_cases(
     return db.query(TestCase).join(Project).filter(
         TestCase.project_id == project_id,
         Project.user_id == user_id,
-        TestCase.generate_status == 2  # 2=生成失败
+        TestCase.generate_status == 2,
+        TestCase.is_deleted.is_(False)
     ).all()

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from app.utils.db_time import utcnow
 """
 用例质量报告端点模块
 
@@ -26,6 +27,7 @@ from app.db.database import get_db
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.cost_statistics_service import CostStatisticsService
 from app.models.user import User
+from app.utils.db_time import utcnow
 from app.api.v1.endpoints.case_quality_check import (
     CaseReviewRequest,
     CaseReviewResponse,
@@ -45,7 +47,7 @@ async def review_case(
 ):
     from app.models.test_case import TestCase
 
-    test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
 
@@ -57,7 +59,7 @@ async def review_case(
         test_case.review_status = request.status
         test_case.review_comment = request.review_comment
         test_case.reviewed_by = current_user.username if current_user else None
-        test_case.reviewed_at = datetime.now()
+        test_case.reviewed_at = utcnow()
         if request.priority:
             test_case.priority = request.priority
 
@@ -88,7 +90,7 @@ async def get_case_review_status(
 ):
     from app.models.test_case import TestCase
 
-    test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
 
@@ -117,12 +119,14 @@ async def get_pending_reviews(
 
     total_count = db.query(TestCase).filter(
         TestCase.project_id == project_id,
-        TestCase.review_status.in_(["pending", "needs_optimization"])
+        TestCase.review_status.in_(["pending", "needs_optimization"]),
+        TestCase.is_deleted.is_(False)
     ).count()
 
     cases = db.query(TestCase).filter(
         TestCase.project_id == project_id,
-        TestCase.review_status.in_(["pending", "needs_optimization"])
+        TestCase.review_status.in_(["pending", "needs_optimization"]),
+        TestCase.is_deleted.is_(False)
     ).offset(offset).limit(page_size).all()
 
     total_pages = (total_count + page_size - 1) // page_size
@@ -155,7 +159,7 @@ async def edit_case(
 ):
     from app.models.test_case import TestCase
 
-    test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
 
@@ -171,7 +175,7 @@ async def edit_case(
         if request.priority:
             test_case.priority = request.priority
 
-        test_case.update_time = datetime.now()
+        test_case.update_time = utcnow()
         db.commit()
         db.refresh(test_case)
 
@@ -204,7 +208,7 @@ async def edit_case_step(
 ):
     from app.models.test_case import TestCase, TestStep
 
-    test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
 
@@ -268,7 +272,7 @@ async def get_project_cost_report(
     service = CostStatisticsService(db)
 
     try:
-        end_date = datetime.now()
+        end_date = utcnow()
         start_date = end_date - timedelta(days=days)
 
         report = service.generate_cost_report(project_id, start_date, end_date)

@@ -1,10 +1,10 @@
 """用户服务单元测试 - UserService
 
 测试设计原则:
-1. db fixture 自动�?commit 降级�?flush，无需手动 savepoint
+1. db fixture 自动将 commit 降级为 flush，无需手动 savepoint
 2. 断言精确值，不用 >= / <= 等弱断言
 3. 覆盖正常路径 + 边界 + 异常路径
-4. 验证业务约束（唯一性、禁用状态等�?
+4. 验证业务约束（唯一性、禁用状态等）
 """
 import pytest
 from app.models.user import User
@@ -14,7 +14,7 @@ from app.services.user_service.user_service import UserService, pwd_context
 
 
 class TestLazyImports:
-    """测试 user_service/__init__.py �?lazy import 机制"""
+    """测试 user_service/__init__.py 的 lazy import 机制"""
 
     def test_import_role_service(self):
         from app.services.user_service import RoleService
@@ -107,7 +107,7 @@ class TestCreateUser:
         with pytest.raises(BaseAPIException) as exc_info:
             _create_user(db, "dup_uname_user")
         assert exc_info.value.code == 400
-        assert "用户�? in exc_info.value.msg
+        assert "用户名" in exc_info.value.msg
 
     def test_create_duplicate_email_raises_400(self, db):
         _create_user(db, "email_dup1", email="dup@test.com")
@@ -220,7 +220,8 @@ class TestDeleteUser:
 class TestGetUsers:
     def test_get_users_returns_created_user(self, db):
         user = _create_user(db, "list_user_a")
-        users = UserService.get_users(db)
+        db.flush()
+        users = UserService.get_users(db, limit=1000)
         usernames = [u.username for u in users]
         assert "list_user_a" in usernames
 
@@ -228,7 +229,7 @@ class TestGetUsers:
         # 先创建用户确保有数据
         _create_user(db, "pagination_user")
         users = UserService.get_users(db, skip=0, limit=1)
-        assert len(users) <= 1  # limit=1 最多返�?�?
+        assert len(users) <= 1  # limit=1 最多返回1条
 
     def test_get_users_skip(self, db):
         all_users = UserService.get_users(db, skip=0, limit=1000)
@@ -238,15 +239,15 @@ class TestGetUsers:
 
 
 class TestConcurrencyIntegrityError:
-    """测试并发场景�?IntegrityError 兜底路径（line 119-122, 218-220�?""
+    """测试并发场景下 IntegrityError 兜底路径（line 119-122, 218-220）"""
 
     def test_create_user_integrity_error_fallback(self, db):
-        """模拟 db.commit() �?IntegrityError �?并发突破前置校验的兜�?""
+        """模拟 db.commit() 时 IntegrityError — 并发突破前置校验的兜底"""
         from unittest.mock import patch
         from sqlalchemy.exc import IntegrityError as SAIntegrityError
 
         user = _create_user(db, "concurrency_user")
-        # db.commit 已被 fixture 替换�?flush，patch flush 以模�?IntegrityError
+        # db.commit 已被 fixture 替换为 flush，patch flush 以模拟 IntegrityError
         with patch.object(db, 'commit', side_effect=SAIntegrityError("stmt", "params", None)):
             with pytest.raises(BaseAPIException) as exc_info:
                 UserService.create_user(db, UserCreate(
@@ -257,12 +258,12 @@ class TestConcurrencyIntegrityError:
             assert exc_info.value.code == 400
 
     def test_update_user_integrity_error_fallback(self, db):
-        """模拟 update commit �?IntegrityError"""
+        """模拟 update commit 时 IntegrityError"""
         from unittest.mock import patch
         from sqlalchemy.exc import IntegrityError as SAIntegrityError
 
         user = _create_user(db, "upd_concurrency_user")
-        # db.commit 已被 fixture 替换�?flush，patch commit (=flush) 以模�?IntegrityError
+        # db.commit 已被 fixture 替换为 flush，patch commit (=flush) 以模拟 IntegrityError
         with patch.object(db, 'commit', side_effect=SAIntegrityError("stmt", "params", None)):
             with pytest.raises(BaseAPIException) as exc_info:
                 UserService.update_user(db, user.id, {"email": "dup@test.com"})

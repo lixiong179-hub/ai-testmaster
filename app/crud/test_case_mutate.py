@@ -8,7 +8,7 @@
 核心函数概览：
     - create_test_case: 创建单个测试用例
     - update_test_case: 更新测试用例（按kwargs动态更新）
-    - delete_test_case: 删除测试用例（硬删除）
+    - delete_test_case: 软删除测试用例（设置is_deleted=True）
     - batch_create_test_cases: 批量创建测试用例（单次commit优化性能）
 
 与Model/Schema的对应关系：
@@ -24,14 +24,15 @@
       避免逐条commit导致的多次磁盘IO
     - commit后再逐条refresh获取数据库生成的字段（id、create_time等）
 
-软删除/硬删除：
-    - delete_test_case 为硬删除，物理移除数据库记录
-    - 如需软删除，应在TestCase模型中增加is_deleted字段
+软删除说明：
+    - delete_test_case 为软删除，设置 is_deleted=True 和 deleted_at 时间戳
+    - 已软删除的用例不会在查询结果中返回（test_case_query.py 默认过滤）
 """
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.models.test_case import TestCase, TestStep
 from app.models.enums import TestCaseLifecycleStatus
+from app.utils.db_time import utcnow
 from app.crud.test_case_query import get_test_case_by_id
 
 
@@ -93,7 +94,7 @@ def create_test_case(
         steps: 测试步骤，JSON格式存储，键为步骤序号，值为步骤描述
         expected_result: 预期结果
         priority: 优先级，1=高/2=中/3=低
-        case_type: 用例类型，如functional/performance/security
+        case_type: 用例类型，如ui_automation/api_automation/performance/security
         exec_script: 执行脚本（可选），自动化用例的脚本路径或内容
         generate_status: 生成状态，默认0=待生成，1=已生成，2=生成失败
 
@@ -115,7 +116,7 @@ def create_test_case(
         case_type=case_type,
         exec_script=exec_script,
         generate_status=generate_status,
-        lifecycle_status=lifecycle_status or TestCaseLifecycleStatus.ACTIVE.value,
+        lifecycle_status=lifecycle_status or TestCaseLifecycleStatus.DRAFT.value,
         test_point_id=test_point_id,
         summary=summary,
         summary_model_version=summary_model_version,
@@ -175,11 +176,10 @@ def delete_test_case(
     test_case_id: int,
     project_id: int
 ) -> bool:
-    """
-    删除测试用例（硬删除）
+    """软删除测试用例
 
-    物理删除测试用例记录，数据库中不再保留。删除前通过 get_test_case_by_id
-    校验用例存在性和项目归属。
+    将测试用例标记为已删除（is_deleted=True），而非物理删除。
+    删除前通过 get_test_case_by_id 校验用例存在性和项目归属。
 
     Args:
         db: 数据库会话
@@ -188,14 +188,12 @@ def delete_test_case(
 
     Returns:
         bool: 删除成功返回True，用例不存在返回False
-
-    Warning:
-        硬删除操作，关联的测试结果、用例-屏幕链接等数据需在调用方处理级联清理。
     """
     test_case = get_test_case_by_id(db, test_case_id, project_id)
     if not test_case:
         return False
-    db.delete(test_case)  # 硬删除：物理移除数据库记录
+    test_case.is_deleted = True
+    test_case.deleted_at = utcnow()
     db.commit()
     return True
 
@@ -251,7 +249,7 @@ def batch_create_test_cases(
             test_category=data.get('test_category'),
             exec_script=data.get('exec_script'),  # 可选字段，缺失时为None
             generate_status=data.get('generate_status', 0),  # 可选字段，默认0=待生成
-            lifecycle_status=data.get('lifecycle_status', TestCaseLifecycleStatus.ACTIVE.value),
+            lifecycle_status=data.get('lifecycle_status', TestCaseLifecycleStatus.DRAFT.value),
             summary=data.get('summary'),
             summary_model_version=data.get('summary_model_version'),
             parent_case_id=data.get('parent_case_id'),

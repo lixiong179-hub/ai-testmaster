@@ -84,7 +84,7 @@ class UISpecCoreMixin:
         try:
             return json.loads(content)
         except json.JSONDecodeError:
-            pass
+            logger.debug("直接JSON解析失败，尝试正则提取")
 
         json_patterns = [
             r'```json\s*([\s\S]*?)\s*```',

@@ -45,11 +45,11 @@ class TestReport(Base):
     test_task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="SET NULL"), nullable=True)   # 任务ID，SET NULL保留报告
     name = Column(String(255), nullable=False)                                                        # 报告名称
     description = Column(Text, nullable=True)                                                         # 报告描述
-    status = Column(String(20), default="completed")  # pending, running, completed, failed           # 报告状态：pending=生成中，running=执行中，completed=已完成，failed=生成失败
+    status = Column(String(20), default="pending", comment="报告状态：pending/running/completed/failed")
     total_cases = Column(Integer, default=0)                                                          # 总用例数
     passed_cases = Column(Integer, default=0)                                                         # 通过用例数
     failed_cases = Column(Integer, default=0)                                                         # 失败用例数
-    skipped_cases = Column(Integer, default=0)                                                        # 跳过用例数
+    blocked_cases = Column(Integer, default=0)                                                         # 阻塞用例数
     start_time = Column(DateTime, nullable=True)                                                      # 报告起始时间
     end_time = Column(DateTime, nullable=True)                                                        # 报告结束时间
     execution_time = Column(Integer, nullable=True)  # 执行时间（秒）                                  # 执行总耗时，单位秒
@@ -60,3 +60,9 @@ class TestReport(Base):
 
     # 关联关系 - 通过project_id隔离
     project = relationship("Project", back_populates="test_reports")                                  # 所属项目
+
+    @property
+    def pass_rate(self) -> float:
+        if self.total_cases and self.total_cases > 0:
+            return round((self.passed_cases / self.total_cases) * 100, 2)
+        return 0.0

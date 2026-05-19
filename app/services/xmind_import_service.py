@@ -19,6 +19,8 @@ from app.crud.test_point import batch_create_test_points
 from app.crud.test_case_mutate import batch_create_test_cases
 from loguru import logger
 
+from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE
+
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
@@ -244,8 +246,8 @@ def handle_case_style_import(
                 "steps": case.get("steps", []),
                 "expected_result": case.get("expected_result", ""),
                 "priority": case["priority"],
-                "case_type": case.get("case_type", "manual"),
-                "test_category": case.get("case_type", "manual"),
+                "case_type": case.get("case_type", DEFAULT_AI_FALLBACK_CASE_TYPE),
+                "test_category": case.get("case_type", DEFAULT_AI_FALLBACK_CASE_TYPE),
                 "generate_status": 1,
             }
         )

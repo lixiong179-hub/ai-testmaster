@@ -27,7 +27,7 @@ from app.core.config import settings
 from app.services.case_generation.core_mixin import (
     TEST_CATEGORY_MANUAL,
 )
-from app.core.constants import normalize_priority
+from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE, normalize_priority
 
 
 class StepsValidateMixin:
@@ -153,7 +153,7 @@ class StepsValidateMixin:
             steps_json=steps_json,
             expected_result=generated_case.get("expected_result", ""),
             priority=normalize_priority(generated_case.get("priority", test_point.get("priority", 2))),
-            case_type=generated_case.get("case_type") or generated_case.get("test_category") or "manual",
+            case_type=generated_case.get("case_type") or generated_case.get("test_category") or DEFAULT_AI_FALLBACK_CASE_TYPE,
             test_category=generated_case.get("test_category") or generated_case.get("case_type") or TEST_CATEGORY_MANUAL,
             parent_case_id=generated_case.get("parent_case_id"),
             ai_change_type=generated_case.get("change_type"),

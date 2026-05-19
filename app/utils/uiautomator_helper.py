@@ -1,8 +1,11 @@
 import asyncio
+import logging
 import re
 import xml.etree.ElementTree as ET
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 class UIAutomatorError(Exception):
@@ -94,7 +97,7 @@ class UIAutomatorHelper:
                     check=False, timeout=5
                 )
             except Exception:
-                pass
+                logger.debug("清理UIAutomator dump文件失败", exc_info=True)
             return self._parse_xml(xml_content)
         except asyncio.TimeoutError:
             raise UIAutomatorError("UIAutomator dump timed out")

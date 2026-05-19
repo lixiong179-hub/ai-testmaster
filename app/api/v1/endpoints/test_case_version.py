@@ -65,6 +65,7 @@ async def get_test_case_versions(
     from app.models.project import Project
     test_case = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).first()
     if not test_case:
@@ -127,6 +128,7 @@ async def get_test_case_version_detail(
     # 首先验证用例所属项目是否属于当前用户
     test_case = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).first()
     if not test_case:
@@ -182,6 +184,7 @@ async def restore_test_case_version(
 
     test_case = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).first()
     if not test_case:

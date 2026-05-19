@@ -41,7 +41,8 @@ class FlowTreeMixin:
         """
         filtered_edges = [e for e in edges if e.edge_type == edge_type]
         node_map = {node.screen_id: node for node in nodes}
-        step_map = {node.screen_id: idx + 1 for idx, node in enumerate(nodes)}
+        main_nodes = [n for n in nodes if getattr(n, 'flow_type', 'main') == 'main']
+        step_map = {node.screen_id: idx + 1 for idx, node in enumerate(main_nodes)}
         result = []
         for edge in filtered_edges:
             try:

@@ -82,48 +82,20 @@
         <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #default="scope">
             <el-space class="task-actions" wrap>
-              <el-button
-                v-if="scope.row.status === 0"
-                type="success"
-                size="small"
-                @click.stop="startTask(scope.row)"
-              >
-                启动
-              </el-button>
-              <el-button
-                v-if="scope.row.status === 1"
-                type="warning"
-                size="small"
-                @click.stop="stopTask(scope.row)"
-              >
-                停止
-              </el-button>
-              <el-button type="primary" size="small" @click.stop="viewTask(scope.row)">
-                详情
-              </el-button>
-              <el-button
-                type="danger"
-                size="small"
-                @click.stop="deleteTaskConfirm(scope.row)"
-                :disabled="scope.row.status === 1"
-              >
-                删除
-              </el-button>
+              <el-button v-if="scope.row.status === 0" type="success" size="small" @click.stop="startTask(scope.row)">启动</el-button>
+              <el-button v-if="scope.row.status === 1" type="warning" size="small" @click.stop="stopTask(scope.row)">停止</el-button>
+              <el-button type="primary" size="small" @click.stop="viewTask(scope.row)">详情</el-button>
+              <el-button type="danger" size="small" @click.stop="deleteTaskConfirm(scope.row)" :disabled="scope.row.status === 1">删除</el-button>
             </el-space>
           </template>
         </el-table-column>
         <template #empty>
           <div class="task-empty-state">
             <div class="task-empty-title">当前项目还没有测试任务</div>
-            <div class="task-empty-text">
-              可以先创建任务，随后在这里统一查看执行进度、结果和日志。
-            </div>
+            <div class="task-empty-text">可以先创建任务，随后在这里统一查看执行进度、结果和日志。</div>
             <div class="task-empty-actions">
               <el-button plain @click="goToTestPointManagement">先去测试点管理</el-button>
-              <el-button type="primary" @click="createTask">
-                <el-icon><Plus /></el-icon>
-                创建首个任务
-              </el-button>
+              <el-button type="primary" @click="createTask"><el-icon><Plus /></el-icon>创建首个任务</el-button>
             </div>
           </div>
         </template>
@@ -145,189 +117,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { SuccessFilled, CircleCloseFilled, Plus, Refresh } from '@element-plus/icons-vue'
-import { useTaskStore } from '../../store/task'
+import { useTaskList } from './useTaskList'
 
-const router = useRouter()
-const route = useRoute()
-const taskStore = useTaskStore()
-
-// 项目ID
-const projectId = computed(() => {
-  return Number(route.params.projectId) || 0
-})
-
-// 加载状态
-const loading = computed(() => taskStore.loading)
-
-// 筛选条件
-const filter = ref({
-  status: '' as string | number | undefined,
-})
-
-// 分页
-const page = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
-
-// 任务列表
-const taskList = computed(() => taskStore.taskList)
-
-// 任务状态文本
-const taskStatusText = (status: number): string => {
-  return taskStore.taskStatusText(status)
-}
-
-// 任务状态颜色
-const taskStatusColor = (status: number): string => {
-  return taskStore.taskStatusColor(status)
-}
-
-// 进度颜色
-const getProgressColor = (progress: number): string => {
-  if (progress < 30) return '#409EFF'
-  if (progress < 70) return '#E6A23C'
-  return '#67C23A'
-}
-
-// 进度状态
-const getProgressStatus = (task: any): string | undefined => {
-  if (task.status === 3) return 'exception'
-  if (task.status === 2 && task.fail_count === 0) return 'success'
-  return undefined
-}
-
-// 行点击
-const handleRowClick = (row: any) => {
-  viewTask(row)
-}
-
-// 处理分页大小变化
-const handleSizeChange = (size: number) => {
-  pageSize.value = size
-  fetchTaskList()
-}
-
-// 处理页码变化
-const handleCurrentChange = (current: number) => {
-  page.value = current
-  fetchTaskList()
-}
-
-// 获取任务列表
-const fetchTaskList = async () => {
-  try {
-    const params: any = {
-      page: page.value,
-      page_size: pageSize.value,
-    }
-
-    if (projectId.value) {
-      params.project_id = projectId.value
-    }
-
-    if (filter.value.status !== undefined && filter.value.status !== '') {
-      params.status = filter.value.status
-    }
-
-    const result = await taskStore.fetchTaskList(params)
-    const items = Array.isArray(result?.items) ? result.items : []
-    if (items.length !== taskStore.taskList.length) {
-      taskStore.taskList = items
-    }
-    total.value = result?.total || 0
-  } catch (error: any) {
-    ElMessage.error(error.message || '获取任务列表失败')
-  }
-}
-
-// 创建任务
-const createTask = () => {
-  router.push(`/home/task/create/${projectId.value}`)
-}
-
-const goToTestPointManagement = () => {
-  router.push({
-    path: '/home/case/test-point-management',
-    query: {
-      projectId: String(projectId.value),
-    },
-  })
-}
-
-// 查看任务详情
-const viewTask = (task: any) => {
-  router.push(`/home/task/detail/${task.id}?project_id=${projectId.value}`)
-}
-
-// 启动任务
-const startTask = async (task: any) => {
-  try {
-    await ElMessageBox.confirm('确定要启动此任务吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-
-    await taskStore.startTask(task.id, projectId.value)
-    ElMessage.success('任务已开始执行')
-    fetchTaskList()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '启动任务失败')
-    }
-  }
-}
-
-// 停止任务
-const stopTask = async (task: any) => {
-  try {
-    await ElMessageBox.confirm('确定要停止此任务吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-
-    await taskStore.stopTask(task.id, projectId.value)
-    ElMessage.success('任务已停止')
-    fetchTaskList()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '停止任务失败')
-    }
-  }
-}
-
-// 删除任务确认
-const deleteTaskConfirm = async (task: any) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除任务"${task.task_name}"吗？此操作不可恢复。`,
-      '删除确认',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-
-    await taskStore.deleteTask(task.id, projectId.value)
-    ElMessage.success('任务删除成功')
-    fetchTaskList()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除任务失败')
-    }
-  }
-}
-
-// 生命周期
-onMounted(() => {
-  fetchTaskList()
-})
+const {
+  loading, filter, page, pageSize, total, taskList,
+  taskStatusText, taskStatusColor, getProgressColor, getProgressStatus,
+  handleSizeChange, handleCurrentChange, fetchTaskList, createTask,
+  goToTestPointManagement, viewTask, handleRowClick, startTask, stopTask, deleteTaskConfirm,
+} = useTaskList()
 </script>
 
 <style scoped>

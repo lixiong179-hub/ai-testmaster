@@ -137,7 +137,7 @@ class ContextMixin(FlowTreeMixin):
         context = {
             "requirement_content": "", "ui_descriptions": [], "ui_specs": [],
             "test_points": [], "files_used": [], "warnings": [], "cache_info": {},
-            "flow_structure": None, "ocr_texts": {}
+            "ocr_texts": {}
         }
 
         requirement_content, req_files_used = await load_requirement_content(
@@ -167,11 +167,13 @@ class ContextMixin(FlowTreeMixin):
             exception_flow_nodes = [n for n in sorted_nodes if n.flow_type == 'exception']
             bypass_flow_nodes = [n for n in sorted_nodes if n.flow_type == 'bypass']
 
-            context["flow_structure"] = {
-                "main_flow": [n.model_dump() for n in main_flow_nodes],
-                "branch_flows": self._build_branch_tree(flow_sort_data.edges, sorted_nodes),
-                "exception_flows": self._build_exception_tree(flow_sort_data.edges, sorted_nodes),
-                "bypass_flows": self._build_bypass_tree(flow_sort_data.edges, sorted_nodes)
+            context["flow_node_stats"] = {
+                "total": len(sorted_nodes),
+                "main": len(main_flow_nodes),
+                "branch": len(branch_flow_nodes),
+                "exception": len(exception_flow_nodes),
+                "bypass": len(bypass_flow_nodes),
+                "edges": len(flow_sort_data.edges),
             }
 
             # ISSUE-006/007 FIX: 使用 ui_spec_elements 替代 ocr_text，并增加数据完整性校验
@@ -214,7 +216,6 @@ class ContextMixin(FlowTreeMixin):
                 f" 异常:{len(exception_flow_nodes)} 旁路:{len(bypass_flow_nodes)}），"
                 f"{len(flow_sort_data.edges)} 条连线"
             )
-            logger.debug(f"流程图数据结构: {context['flow_structure']}")
 
         return context
 

@@ -172,14 +172,13 @@ def _find_uncovered_flow_nodes(
     child_sources = {
         'branch': branch_by_source,
         'exception': exception_by_source,
-        'bypass': bypass_by_source,
     }
     for i, node in enumerate(main_nodes, 1):
         if f"main_{i}_-1" not in covered_keys:
             uncovered.append(f"步骤{i}[{node.get('screen_name', '')}] — 主干流程未覆盖")
 
         screen_id = node.get('screen_id')
-        for child_type, suffix in _CHILD_TYPE_CONFIG:
+        for child_type, suffix in [('branch', '分支'), ('exception', '异常')]:
             for cidx, edge in enumerate(child_sources[child_type].get(screen_id, [])):
                 key = f"{child_type}_{i}_{cidx}"
                 if key not in covered_keys:
@@ -190,6 +189,16 @@ def _find_uncovered_flow_nodes(
                         f"[{target_node.get('screen_name', '')}]"
                         f" — {suffix}流程未覆盖"
                     )
+
+        for cidx, edge in enumerate(bypass_by_source.get(screen_id, [])):
+            key = f"bypass_{i}_{cidx}"
+            if key not in covered_keys:
+                tid = _safe_int(edge.get('target'))
+                target_node = node_map.get(tid, {}) if tid is not None else {}
+                uncovered.append(
+                    f"步骤{i}[{node.get('screen_name', '')}]"
+                    f" — 旁路[{target_node.get('screen_name', '弹窗')}]未在主干用例中补充关闭操作"
+                )
 
     return uncovered
 
@@ -225,10 +234,14 @@ def _append_flow_aware_history_cases(
         "请基于上方的UI页面流程结构，以高级测试工程师视角逐条评审："
     )
     parts.append("")
-    parts.append("评审原则（按流程步骤逐一检查）：")
+    parts.append("评审原则（按流程场景逐一检查）：")
     parts.append(
-        "- 查漏：流程结构中的主干步骤/分支/异常/旁路未被任何旧用例覆盖 "
+        "- 查漏：流程场景中的主干/分支/异常未被任何旧用例覆盖 "
         "→ 生成新用例（change_type=added）"
+    )
+    parts.append(
+        "- 拆分：旧用例将多个场景混合在同一条用例中 "
+        "→ 拆分为独立场景用例（change_type=modified，parent_case_id=原用例ID）"
     )
     parts.append(
         "- 补缺：旧用例的步骤顺序与当前流程结构不一致，"

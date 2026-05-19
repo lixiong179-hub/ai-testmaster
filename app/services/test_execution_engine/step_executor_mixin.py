@@ -130,8 +130,8 @@ class StepExecutorMixin:
                 "navigate": ActionType.NAVIGATE, "verify": ActionType.VERIFY,
                 "wait": ActionType.WAIT, "scroll": ActionType.SCROLL,
                 "hover": ActionType.HOVER, "select": ActionType.SELECT,
-                "captcha": ActionType.CAPTCHA, "refresh": ActionType.REFRESH,
-                "keypress": ActionType.KEYPRESS,
+                "captcha": ActionType.VERIFY_CAPTCHA, "refresh": ActionType.REFRESH,
+                "keypress": ActionType.KEYBOARD, "keyboard": ActionType.KEYBOARD,
             }
             action_type = action_type_map.get(action_type_str, ActionType.CLICK)
             action_info = {"type": action_type, "text": action_with_data}

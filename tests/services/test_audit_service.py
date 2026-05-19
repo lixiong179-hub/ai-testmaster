@@ -1,16 +1,18 @@
 """
 M1-T16 Audit Service 测试模块
 
-覆盖�?
+覆盖：
     - log_action 正常写入
-    - log_action 非法 action �?ValueError
-    - query_logs 多维度过�?
+    - log_action 非法 action 抛 ValueError
+    - query_logs 多维度过滤
     - count_logs 统计
-    - AuditLog 不可变性（UPDATE/DELETE �?RuntimeError�?
+    - AuditLog 不可变性（UPDATE/DELETE 抛 RuntimeError）
     - _build_filters 共享逻辑
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from app.utils.db_time import utcnow
 
 from app.models.audit_log import AuditLog
 from app.services.audit_service import (
@@ -96,7 +98,7 @@ class TestQueryLogs:
         assert all(r.actor_id == testUser.id for r in results)
 
     def test_query_by_time_range(self, db, testUser):
-        now = datetime.utcnow()
+        now = utcnow()
         log_action(db, "config_change", testUser.id, "pipeline_config", 1)
         since = now - timedelta(hours=1)
         until = now + timedelta(hours=1)
@@ -149,7 +151,7 @@ class TestBuildFilters:
         assert filters == []
 
     def test_all_filters(self):
-        now = datetime.utcnow()
+        now = utcnow()
         filters = _build_filters(
             target_kind="test_case",
             target_id=1,

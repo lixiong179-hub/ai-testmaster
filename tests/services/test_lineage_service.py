@@ -1,8 +1,8 @@
-"""M4-T03 用例血缘服�?单元测试
+"""M4-T03 用例血缘服务单元测试
 
-覆盖�?    - get_lineage 正常查询（根节点/中间节点/叶子节点�?    - 祖先链追溯（多级/无祖�?循环引用�?    - 后代子树构建（单�?多层/无后代）
-    - 链长度警告（阈值触�?未触发）
-    - 用例不存在返�?None
+覆盖率 —    - get_lineage 正常查询（根节点/中间节点/叶子节点）    - 祖先链追溯（多级/无祖先、循环引用）    - 后代子树构建（单层/多层/无后代）
+    - 链长度警告（阈值触发/未触发）
+    - 用例不存在返回 None
 """
 import pytest
 from unittest.mock import patch
@@ -53,7 +53,7 @@ def _make_case(
 
 class TestGetLineage:
     def test_root_case_no_ancestors(self, db):
-        root = _make_case(db, "P1-C001", "根用�?)
+        root = _make_case(db, "P1-C001", "根用例")
         result = get_lineage(db, root.id)
         assert result is not None
         assert result.root.id == root.id
@@ -61,8 +61,8 @@ class TestGetLineage:
         assert result.chain_length == 1
 
     def test_case_with_parent(self, db):
-        parent = _make_case(db, "P1-C001", "父用�?)
-        child = _make_case(db, "P1-C001-v2", "子用�?, parent_case_id=parent.id)
+        parent = _make_case(db, "P1-C001", "父用例")
+        child = _make_case(db, "P1-C001-v2", "子用例", parent_case_id=parent.id)
         result = get_lineage(db, child.id)
         assert result is not None
         assert len(result.ancestors) == 1
@@ -70,7 +70,7 @@ class TestGetLineage:
         assert result.chain_length == 2
 
     def test_three_level_chain(self, db):
-        root = _make_case(db, "P1-C001", "根用�?)
+        root = _make_case(db, "P1-C001", "根用例")
         mid = _make_case(db, "P1-C001-v2", "中间用例", parent_case_id=root.id)
         leaf = _make_case(db, "P1-C001-v3", "叶子用例", parent_case_id=mid.id)
         result = get_lineage(db, leaf.id)
@@ -85,9 +85,9 @@ class TestGetLineage:
         assert result is None
 
     def test_descendants_in_root(self, db):
-        root = _make_case(db, "P1-C001", "根用�?)
-        child1 = _make_case(db, "P1-C001-v2", "�?", parent_case_id=root.id)
-        child2 = _make_case(db, "P1-C001-v3", "�?", parent_case_id=root.id)
+        root = _make_case(db, "P1-C001", "根用例")
+        child1 = _make_case(db, "P1-C001-v2", "子", parent_case_id=root.id)
+        child2 = _make_case(db, "P1-C001-v3", "子", parent_case_id=root.id)
         result = get_lineage(db, root.id)
         assert result is not None
         assert len(result.root.children) == 2
@@ -96,9 +96,9 @@ class TestGetLineage:
         assert child2.id in child_ids
 
     def test_multi_level_descendants(self, db):
-        root = _make_case(db, "P1-C001", "根用�?)
-        child = _make_case(db, "P1-C001-v2", "�?, parent_case_id=root.id)
-        grandchild = _make_case(db, "P1-C001-v3", "�?, parent_case_id=child.id)
+        root = _make_case(db, "P1-C001", "根用例")
+        child = _make_case(db, "P1-C001-v2", "子", parent_case_id=root.id)
+        grandchild = _make_case(db, "P1-C001-v3", "子", parent_case_id=child.id)
         result = get_lineage(db, root.id)
         assert len(result.root.children) == 1
         assert len(result.root.children[0].children) == 1
@@ -107,13 +107,13 @@ class TestGetLineage:
 
 class TestTraceAncestors:
     def test_no_parent(self, db):
-        case = _make_case(db, "P1-C001", "根用�?)
+        case = _make_case(db, "P1-C001", "根用例")
         ancestors = _trace_ancestors(db, case)
         assert ancestors == []
 
     def test_single_parent(self, db):
-        parent = _make_case(db, "P1-C001", "父用�?)
-        child = _make_case(db, "P1-C001-v2", "子用�?, parent_case_id=parent.id)
+        parent = _make_case(db, "P1-C001", "父用例")
+        child = _make_case(db, "P1-C001-v2", "子用例", parent_case_id=parent.id)
         ancestors = _trace_ancestors(db, child)
         assert len(ancestors) == 1
         assert ancestors[0].id == parent.id
@@ -135,9 +135,9 @@ class TestBuildDescendantTree:
         assert node.children == []
 
     def test_with_children(self, db):
-        root = _make_case(db, "P1-C001", "根用�?)
-        _make_case(db, "P1-C001-v2", "�?", parent_case_id=root.id)
-        _make_case(db, "P1-C001-v3", "�?", parent_case_id=root.id)
+        root = _make_case(db, "P1-C001", "根用例")
+        _make_case(db, "P1-C001-v2", "子", parent_case_id=root.id)
+        _make_case(db, "P1-C001-v3", "子", parent_case_id=root.id)
         node = _to_node(root)
         _build_descendant_tree(db, node)
         assert len(node.children) == 2
@@ -182,7 +182,7 @@ class TestLineageNode:
         assert node.children == []
 
     def test_lineage_result_serialization(self, db):
-        root = _make_case(db, "P1-C001", "根用�?)
+        root = _make_case(db, "P1-C001", "根用例")
         result = get_lineage(db, root.id)
         data = result.model_dump()
         assert "root" in data

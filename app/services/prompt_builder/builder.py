@@ -41,7 +41,9 @@ class PromptBuilder:
         point: str = "",
         priority: int = 2,
         ui_specs: Optional[List[Dict[str, Any]]] = None,
-        case_type: Optional[str] = None
+        case_type: Optional[str] = None,
+        test_username: str = "testuser",
+        test_password: str = "TestPass123"
     ) -> Dict[str, Any]:
         """构建测试用例生成 Prompt，支持 graph 和 linear 两种模式。
 
@@ -72,7 +74,9 @@ class PromptBuilder:
                 test_point_json=test_point_json,
                 ui_specs_text=ui_specs_text,
                 include_images=include_images,
-                case_type=case_type
+                case_type=case_type,
+                test_username=test_username,
+                test_password=test_password
             )
             return {'prompt': prompt, 'weight_hint': 'graph'}
 
@@ -119,7 +123,9 @@ class PromptBuilder:
         ui_specs_text: str = "",
         include_images: bool = False,
         history_cases: Optional[List[Dict[str, Any]]] = None,
-        case_type: Optional[str] = None
+        case_type: Optional[str] = None,
+        test_username: str = "testuser",
+        test_password: str = "TestPass123"
     ) -> str:
         """构建流程图模式 Prompt（向后兼容接口）。
 
@@ -144,7 +150,9 @@ class PromptBuilder:
             ui_specs_text=ui_specs_text,
             include_images=include_images,
             history_cases=history_cases,
-            case_type=case_type
+            case_type=case_type,
+            test_username=test_username,
+            test_password=test_password
         )
 
     @staticmethod

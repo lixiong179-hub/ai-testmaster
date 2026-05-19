@@ -5,6 +5,7 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.models.video_record import VideoRecord
+from app.utils.db_time import utcnow
 
 
 class LegacyCleanupMixin:
@@ -14,7 +15,7 @@ class LegacyCleanupMixin:
         self, db: Session, retention_days: Optional[int] = None
     ) -> int:
         retention_days = retention_days or self._retention_days
-        cutoff_date = datetime.now() - timedelta(days=retention_days)
+        cutoff_date = utcnow() - timedelta(days=retention_days)
         deleted_count = 0
         try:
             expired_records = db.query(VideoRecord).filter(

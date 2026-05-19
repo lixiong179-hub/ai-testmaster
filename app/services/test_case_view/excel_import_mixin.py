@@ -147,7 +147,7 @@ class ExcelImportMixin:
                 case_type = str(row.get('用例类型', 'UI自动化')).strip()
                 priority_str = str(row.get('优先级', row.get('用例等级', 'P2'))).strip()
 
-                priority_map = {'P0': 1, 'P1': 2, 'P2': 3, 'P3': 4}
+                priority_map = {'P0': 1, 'P1': 1, 'P2': 2, 'P3': 3}
                 priority = priority_map.get(priority_str.upper(), 2)
 
                 steps = self._parse_functional_steps(step_desc, expected)
@@ -196,7 +196,8 @@ class ExcelImportMixin:
             return f"TC{project_id}_{timestamp}"
 
         existing = self.db.query(TestCase).filter(
-            TestCase.case_no == original_case_no
+            TestCase.case_no == original_case_no,
+            TestCase.is_deleted.is_(False)
         ).first()
 
         if not existing:
@@ -206,7 +207,8 @@ class ExcelImportMixin:
         while True:
             new_case_no = f"{original_case_no}_{project_id}_{counter}"
             existing = self.db.query(TestCase).filter(
-                TestCase.case_no == new_case_no
+                TestCase.case_no == new_case_no,
+                TestCase.is_deleted.is_(False)
             ).first()
             if not existing:
                 logger.info(f"用例编号 '{original_case_no}' 已存在，自动重命名为 '{new_case_no}'")

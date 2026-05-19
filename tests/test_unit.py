@@ -28,10 +28,10 @@ class TestConfig:
 
         assert key1 is not None
         assert len(key1) > 20  # 至少20字符
-        assert key1 != key2  # 每次生成不同的密�?
+        assert key1 != key2  # 每次生成不同的密钥
 
     def test_settings_initialization(self):
-        """测试配置初始�?""
+        """测试配置初始化"""
         assert settings is not None
         assert settings.APP_NAME == "AI测试平台"
         assert settings.JWT_SECRET_KEY is not None
@@ -55,7 +55,7 @@ class TestCrypto:
         assert decrypted == original
 
     def test_encrypt_empty_password(self):
-        """测试空密码加�?""
+        """测试空密码加密"""
         result = encrypt_password("")
         assert result == ""
 
@@ -90,17 +90,17 @@ class TestException:
         assert response["data"] == {}
 
     def test_response_code_constants(self):
-        """测试响应码常�?""
+        """测试响应码常量"""
         assert RESPONSE_CODE["SUCCESS"] == 200
         assert RESPONSE_CODE["UNAUTHORIZED"] == 401
         assert RESPONSE_CODE["NOT_FOUND"] == 404
         assert RESPONSE_CODE["DATABASE_ERROR"] == 500
 
 
-# ==================== 数据库工具测�?====================
+# ==================== 数据库工具测试 ====================
 
 class TestDatabaseHelper:
-    """数据库工具测�?""
+    """数据库工具测试"""
 
     def test_build_filter_conditions(self):
         """测试过滤条件构建"""
@@ -117,7 +117,7 @@ class TestDatabaseHelper:
             MockModel,
             id=1,
             name="test",
-            status=None  # None值应被忽�?
+            status=None  # None值应被忽略
         )
 
         # 验证None值被过滤
@@ -145,7 +145,7 @@ class TestProjectModel:
     """项目模型测试"""
 
     def test_project_type_values(self):
-        """测试项目类型有效�?""
+        """测试项目类型有效值"""
         valid_types = ["web", "app"]
         assert "web" in valid_types
         assert "app" in valid_types
@@ -170,11 +170,11 @@ class TestSchemas:
         assert project.project_type == "web"
 
     def test_project_create_defaults(self):
-        """测试项目创建默认�?""
+        """测试项目创建默认值"""
         from app.schemas.project import ProjectCreate
 
         project = ProjectCreate(name="Test")
-        assert project.project_type == "web"  # 默认Web�?
+        assert project.project_type == "web"  # 默认Web端
 
     def test_web_env_config_schema(self):
         """测试Web环境配置Schema"""

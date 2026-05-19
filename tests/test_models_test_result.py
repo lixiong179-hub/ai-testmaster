@@ -140,14 +140,14 @@ class TestTestResultModel:
             case_id=test_case.id,
             case_no="TC-TR-ERR",
             exec_status=2,
-            error_msg="元素未找�?,
+            error_msg="元素未找到",
             screenshot_url="/screenshots/error.png"
         )
         db.add(result)
         db.commit()
         db.refresh(result)
         assert result.exec_status == 2
-        assert result.error_msg == "元素未找�?
+        assert result.error_msg == "元素未找到"
         assert result.screenshot_url == "/screenshots/error.png"
         db.delete(result)
         db.commit()

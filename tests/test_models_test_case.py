@@ -48,7 +48,7 @@ class TestTestCaseModel:
     def test_create_test_case(self, db, test_project):
         tc = TestCase(
             case_no="TC-MODEL-001", project_id=test_project.id, module="登录模块",
-            title="登录测试", precondition="用户已注�?,
+            title="登录测试", precondition="用户已注册",
             steps_json=[{"step": "1", "action": "操作"}], expected_result="登录成功",
             priority=1, case_type="UI"
         )
@@ -65,7 +65,7 @@ class TestTestCaseModel:
     def test_test_case_default_values(self, db, test_project):
         tc = TestCase(
             case_no="TC-MODEL-DEFAULT", project_id=test_project.id, module="模块",
-            title="默认值用�?, precondition="前置", steps_json=[],
+            title="默认值用例", precondition="前置", steps_json=[],
             expected_result="预期", priority=2, case_type="API"
         )
         db.add(tc)
@@ -129,7 +129,7 @@ class TestTestCaseModel:
     def test_test_case_soft_delete(self, db, test_project):
         tc = TestCase(
             case_no="TC-SOFT-DEL", project_id=test_project.id, module="模块",
-            title="软删�?, precondition="前置", steps_json=[],
+            title="软删除", precondition="前置", steps_json=[],
             expected_result="预期", priority=1, case_type="UI",
             is_deleted=True, deleted_at=datetime(2024, 6, 1)
         )
@@ -180,12 +180,12 @@ class TestTestCaseModel:
             case_no="TC-SUM-001", project_id=test_project.id, module="模块",
             title="摘要测试", precondition="前置", steps_json=[],
             expected_result="预期", priority=1, case_type="UI",
-            summary="AI生成的摘�?, summary_version=1, summary_model_version="gpt-4o"
+            summary="AI生成的摘要", summary_version=1, summary_model_version="gpt-4o"
         )
         db.add(tc)
         db.commit()
         db.refresh(tc)
-        assert tc.summary == "AI生成的摘�?
+        assert tc.summary == "AI生成的摘要"
         assert tc.summary_version == 1
         assert tc.summary_model_version == "gpt-4o"
         db.delete(tc)
@@ -211,7 +211,7 @@ class TestTestCaseModel:
     def test_test_case_parent_case_lineage(self, db, test_project):
         parent = TestCase(
             case_no="TC-PARENT-001", project_id=test_project.id, module="模块",
-            title="父用�?, precondition="前置", steps_json=[],
+            title="父用例", precondition="前置", steps_json=[],
             expected_result="预期", priority=1, case_type="UI"
         )
         db.add(parent)
@@ -220,7 +220,7 @@ class TestTestCaseModel:
 
         child = TestCase(
             case_no="TC-CHILD-001", project_id=test_project.id, module="模块",
-            title="子用�?, precondition="前置", steps_json=[],
+            title="子用例", precondition="前置", steps_json=[],
             expected_result="预期", priority=1, case_type="UI",
             parent_case_id=parent.id
         )
@@ -276,12 +276,12 @@ class TestTestStepModel:
         )
         db.add(tc)
         db.commit()
-        step = TestStep(test_case_id=tc.id, step_number=1, action="输入用户�?, expected_result="显示")
+        step = TestStep(test_case_id=tc.id, step_number=1, action="输入用户名", expected_result="显示")
         db.add(step)
         db.commit()
         db.refresh(step)
         assert step.id is not None
-        assert step.action == "输入用户�?
+        assert step.action == "输入用户名"
         db.delete(step)
         db.delete(tc)
         db.commit()
@@ -340,14 +340,14 @@ class TestTestCasePreconditionStepModel:
         db.add(tc)
         db.commit()
         step = TestCasePreconditionStep(
-            test_case_id=tc.id, step_number=1, action="打开登录�?,
+            test_case_id=tc.id, step_number=1, action="打开登录页",
             expected_result="页面加载完成"
         )
         db.add(step)
         db.commit()
         db.refresh(step)
         assert step.id is not None
-        assert step.action == "打开登录�?
+        assert step.action == "打开登录页"
         db.delete(step)
         db.delete(tc)
         db.commit()
@@ -414,12 +414,12 @@ class TestTestCaseExecutionModel:
     def test_execution_status_values(self, db, test_project):
         tc = TestCase(
             case_no="TC-EXEC-STA", project_id=test_project.id, module="模块",
-            title="执行状�?, precondition="前置", steps_json=[],
+            title="执行状态", precondition="前置", steps_json=[],
             expected_result="预期", priority=1, case_type="UI"
         )
         db.add(tc)
         db.commit()
-        for status in ["pending", "running", "passed", "failed", "skipped"]:
+        for status in ["pending", "running", "passed", "failed", "blocked"]:
             execution = TestCaseExecution(test_case_id=tc.id, status=status)
             db.add(execution)
             db.commit()

@@ -1,14 +1,14 @@
 """
 TestPointAlignment Step 专项测试
 
-覆盖 TestPointAlignment 类所有方�?+ 所有纯函数的分支路径�?目标：line�?5%, branch�?5%�?"""
+覆盖 TestPointAlignment 类所有方法 + 所有纯函数的分支路径。目标：line≥95%, branch≥95%。"""
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
 import pytest
 
-from app.pipelines.steps.testpoint_alignment import (
-    TestPointAlignment,
+from app.pipelines.steps.testpoint_alignment import TestPointAlignment
+from app.pipelines.steps.testpoint_alignment._helpers import (
     _align_from_inferred_only,
     _build_no_match_note,
     _compute_alignment_confidence,
@@ -59,7 +59,7 @@ def _make_ctx(
 
 class TestIsCJK:
     def test_chinese_char(self) -> None:
-        assert _is_cjk("�?) is True
+        assert _is_cjk("中") is True
 
     def test_ascii_char(self) -> None:
         assert _is_cjk("a") is False
@@ -74,7 +74,7 @@ class TestIsCJK:
         assert _is_cjk("\U00020000") is True
 
     def test_japanese_kana(self) -> None:
-        assert _is_cjk("�?) is False
+        assert _is_cjk("あ") is False
 
 
 # ==================== _is_significant_match ====================
@@ -164,7 +164,7 @@ class TestExtractInferredCapabilities:
         inferred = {
             "parsed": {
                 "change_summary": {
-                    "new_capabilities": [{"name": "新功�?, "key": "new_feat"}],
+                    "new_capabilities": [{"name": "新功能", "key": "new_feat"}],
                     "modified_capabilities": [{"name": "修改功能", "key": "mod_feat"}],
                 }
             }
@@ -176,7 +176,7 @@ class TestExtractInferredCapabilities:
         inferred = {
             "parsed": {
                 "change_summary": {
-                    "new_capabilities": [{"name": "新功�?, "key": "new_feat"}],
+                    "new_capabilities": [{"name": "新功能", "key": "new_feat"}],
                 }
             }
         }
@@ -279,7 +279,7 @@ class TestFindMatchingCapability:
     def test_best_match_selected(self) -> None:
         tp = {"module": "", "point": "登录", "function": ""}
         caps = [
-            {"name": "用户管理", "key": "user_mgmt", "description": "包含登录等功�?},
+            {"name": "用户管理", "key": "user_mgmt", "description": "包含登录等功能"},
             {"name": "登录", "key": "login", "description": "登录功能"},
         ]
         result = _find_matching_capability(tp, caps)
@@ -305,7 +305,7 @@ class TestFindMatchingCapability:
 
     def test_score_below_threshold(self) -> None:
         tp = {"module": "", "point": "一个很长的完全不匹配的查询", "function": ""}
-        caps = [{"name": "简�?, "key": "short", "description": "完全不相�?}]
+        caps = [{"name": "简短", "key": "short", "description": "完全不相关"}]
         result = _find_matching_capability(tp, caps)
         assert result is None
 
@@ -342,7 +342,7 @@ class TestFindMatchingScenario:
     def test_best_match_selected(self) -> None:
         tp = {"point": "登录", "function": ""}
         cands = [
-            {"id": 1, "title": "用户管理", "description": "含登�?},
+            {"id": 1, "title": "用户管理", "description": "含登录"},
             {"id": 2, "title": "登录页面", "description": ""},
         ]
         result = _find_matching_scenario(tp, cands)
@@ -355,8 +355,8 @@ class TestFindMatchingScenario:
         assert result is None
 
     def test_score_below_threshold(self) -> None:
-        tp = {"point": "完全不同的查询文�?, "function": ""}
-        cands = [{"id": 1, "title": "简�?, "description": "不相�?}]
+        tp = {"point": "完全不同的查询文本", "function": ""}
+        cands = [{"id": 1, "title": "简短", "description": "不相关"}]
         result = _find_matching_scenario(tp, cands)
         assert result is None
 
@@ -381,7 +381,7 @@ class TestBuildNoMatchNote:
         tp = {"point": "忘记密码"}
         note = _build_no_match_note(tp, ["scenario"])
         assert "忘记密码" in note
-        assert "场景候�? in note
+        assert "场景候选" in note
 
     def test_with_multiple_sources(self) -> None:
         tp = {"point": "多源"}
@@ -389,12 +389,12 @@ class TestBuildNoMatchNote:
         assert "/" in note
         assert "UI 控件" in note
         assert "AI 能力" in note
-        assert "场景候�? in note
+        assert "场景候选" in note
 
     def test_unknown_source_skipped(self) -> None:
         tp = {"point": "测试"}
         note = _build_no_match_note(tp, ["unknown_key"])
-        assert note == "测试�?'测试' 未在  中找到匹�?
+        assert note == "测试点 '测试' 未在  中找到匹配"
 
 
 # ==================== _align_from_inferred_only ====================
@@ -745,7 +745,7 @@ class TestExecute:
         ctx = _make_ctx(raw_signals={
             "project_id": 1,
             "test_points": [
-                {"id": 1, "module": "不存�?, "point": "不存�?, "function": "", "priority": 1},
+                {"id": 1, "module": "不存在", "point": "不存在", "function": "", "priority": 1},
             ],
             "ui_specs": [
                 {"screen_id": 1, "screen_name": "用户管理", "ui_spec": {}},
@@ -764,7 +764,7 @@ class TestExecute:
             "project_id": 1,
             "test_points": [
                 {"id": 1, "module": "登录功能", "point": "", "function": "", "priority": 1},
-                {"id": 2, "module": "不存在模�?, "point": "", "function": "", "priority": 1},
+                {"id": 2, "module": "不存在模块", "point": "", "function": "", "priority": 1},
             ],
             "ui_specs": [
                 {"screen_id": 1, "screen_name": "登录功能页面", "ui_spec": {}},

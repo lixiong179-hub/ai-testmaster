@@ -109,7 +109,7 @@ class IterationInput(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)                            # 输入主键ID
     iteration_id = Column(Integer, ForeignKey("iterations.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联迭代ID")  # 迭代ID，级联删除
-    kind = Column(String(30), nullable=False, comment="输入类型: prd/prototype/xmind/testpoint/supplement_form")  # 输入类型
+    kind = Column(String(30), nullable=False, comment="输入类型: prd/prototype/xmind/testpoint/supplement_form/change_notes")  # 输入类型
     file_id = Column(Integer, ForeignKey("project_files.id", ondelete="SET NULL"), nullable=True, comment="关联项目文件ID")  # 文件ID，SET NULL保留输入记录
     payload = Column(JSON, nullable=True, comment="非文件型输入的JSON载荷（如补充表单）")               # JSON payload
     content_hash = Column(String(64), nullable=False, comment="输入内容哈希，用于幂等校验")                 # SHA-256 哈希
@@ -121,7 +121,7 @@ class IterationInput(Base):
     __table_args__ = (
         Index('ix_iteration_input_iter_kind', 'iteration_id', 'kind'),                                # 按迭代+输入类型查询
         CheckConstraint(
-            "kind IN ('prd', 'prototype', 'xmind', 'testpoint', 'supplement_form')",
+            "kind IN ('prd', 'prototype', 'xmind', 'testpoint', 'supplement_form', 'change_notes')",
             name='ck_iteration_input_kind',
         ),
     )

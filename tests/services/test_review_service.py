@@ -3,16 +3,16 @@
 覆盖范围:
     - create_review / start_review / finalize_review / cancel_review
     - add_decision / set_human_verdict / rollback_decision
-    - undo_decision / undo_finalize（M2-T11�?
+    - undo_decision / undo_finalize（M2-T11）
     - acquire_lock / release_lock / cleanup_expired_locks
     - ReviewDecision 不可变（finalize 后禁止修改）
     - ReviewLock 独占（锁定期内不能同时锁定）
     - conflict_marker（AI 与人工判定不一致）
-    - accepted_low_confidence（AI 置信�?< 70�?
-    - ai_verdict / human_verdict 合法值校�?
+    - accepted_low_confidence（AI 置信度 < 70）
+    - ai_verdict / human_verdict 合法值校验
     - ai_confidence 范围校验
 
-使用真实 MySQL 数据库�?
+使用真实 MySQL 数据库。
 """
 import pytest
 from datetime import datetime, timedelta
@@ -231,7 +231,7 @@ class TestFinalizeReview:
         assert len(review.locks) == 0
 
     def test_non_in_progress_raises(self, db, test_review, reviewer_id):
-        with pytest.raises(ReviewError, match="not in_progress"):
+        with pytest.raises(ReviewError, match="not_in_progress"):
             review_service.finalize_review(db=db, review_id=test_review.id, finalized_by=reviewer_id)
 
     def test_nonexistent_returns_none(self, db, reviewer_id):

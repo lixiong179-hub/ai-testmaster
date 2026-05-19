@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.test_point_mutate import check_project_permission
+from app.api.v1.endpoints.test_point import check_project_permission
 from app.services.xmind_parser import XmindParser, XmindParseError
 from app.services.xmind_ai_parser import XmindAIParser
 from app.services.xmind_import_service import (

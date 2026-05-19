@@ -70,7 +70,7 @@ def test_step(db, test_case):
         test_case_id=test_case.id,
         step_number=1,
         action="点击按钮",
-        expected_result="按钮被点�?
+        expected_result="按钮被点击"
     )
     db.add(step)
     db.commit()

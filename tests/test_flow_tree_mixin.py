@@ -1,11 +1,11 @@
 """
 FlowTreeMixin 单元测试
 
-覆盖范围�?
-- _build_flow_tree: 通用流程树构�?
-- _build_branch_tree: 分支流程�?
-- _build_exception_tree: 异常流程�?
-- _build_bypass_tree: 旁路流程�?
+覆盖范围：
+- _build_flow_tree: 通用流程树构建
+- _build_branch_tree: 分支流程树
+- _build_exception_tree: 异常流程树
+- _build_bypass_tree: 旁路流程树
 - 边界场景：空数据、缺失节点、无效source/target
 """
 import pytest
@@ -40,9 +40,9 @@ class TestFlowTreeMixin:
     @pytest.fixture
     def main_nodes(self):
         return [
-            MockNode(1, 1, '登录�?),
+            MockNode(1, 1, '登录页'),
             MockNode(2, 2, '首页'),
-            MockNode(3, 3, '详情�?)
+            MockNode(3, 3, '详情页')
         ]
 
     @pytest.fixture
@@ -55,44 +55,44 @@ class TestFlowTreeMixin:
     @pytest.fixture
     def branch_nodes(self):
         return [
-            MockNode(1, 1, '登录�?, 'main'),
+            MockNode(1, 1, '登录页', 'main'),
             MockNode(2, 2, '首页', 'main'),
-            MockNode(4, 4, '注册�?, 'branch'),
-            MockNode(5, 5, '设置�?, 'branch')
+            MockNode(4, 4, '注册页', 'branch'),
+            MockNode(5, 5, '设置页', 'branch')
         ]
 
     def test_build_branch_tree_with_valid_data(self, mixin, branch_nodes, branch_edges):
-        """测试正常分支流程树构�?""
+        """测试正常分支流程树构建"""
         result = mixin._build_branch_tree(branch_edges, branch_nodes)
 
         assert len(result) == 2
         assert result[0]['source_step'] == 1
         assert result[0]['target_screen_id'] == 4
-        assert result[0]['target_name'] == '注册�?
+        assert result[0]['target_name'] == '注册页'
         assert result[0]['condition'] == '点击注册'
         assert result[1]['source_step'] == 2
-        assert result[1]['target_name'] == '设置�?
+        assert result[1]['target_name'] == '设置页'
 
     def test_build_exception_tree_with_valid_data(self, mixin, main_nodes):
-        """测试正常异常流程树构�?""
+        """测试正常异常流程树构建"""
         exception_edges = [
             MockEdge('1', '10', 'exception', '密码错误'),
             MockEdge('2', '11', 'exception', '网络超时')
         ]
         exception_nodes = main_nodes + [
-            MockNode(10, 10, '错误提示�?, 'exception'),
-            MockNode(11, 11, '网络错误�?, 'exception')
+            MockNode(10, 10, '错误提示页', 'exception'),
+            MockNode(11, 11, '网络错误页', 'exception')
         ]
 
         result = mixin._build_exception_tree(exception_edges, exception_nodes)
 
         assert len(result) == 2
         assert result[0]['condition'] == '密码错误'
-        assert result[0]['target_name'] == '错误提示�?
+        assert result[0]['target_name'] == '错误提示页'
         assert result[1]['condition'] == '网络超时'
 
     def test_build_bypass_tree_with_valid_data(self, mixin, main_nodes):
-        """测试正常旁路流程树构�?""
+        """测试正常旁路流程树构建"""
         bypass_edges = [
             MockEdge('1', '20', 'bypass', '自动弹出广告'),
         ]
@@ -108,7 +108,7 @@ class TestFlowTreeMixin:
         assert result[0]['source_step'] == 1
 
     def test_build_flow_tree_default_condition(self, mixin, main_nodes):
-        """测试默认条件�?""
+        """测试默认条件值"""
         bypass_edges = [MockEdge('1', '20', 'bypass')]
         bypass_nodes = main_nodes + [MockNode(20, 20, '弹窗', 'bypass')]
 
@@ -118,7 +118,7 @@ class TestFlowTreeMixin:
         assert result[0]['condition'] == '自动弹出'
 
     def test_build_branch_tree_missing_target_node(self, mixin, branch_nodes):
-        """测试目标节点不存在时的处�?""
+        """测试目标节点不存在时的处理"""
         edges = [MockEdge('1', '999', 'branch', '条件')]
 
         result = mixin._build_branch_tree(edges, branch_nodes)
@@ -156,19 +156,19 @@ class TestFlowTreeMixin:
         assert len(result) == 0
 
     def test_build_branch_tree_empty_nodes(self, mixin, branch_edges):
-        """测试空节点列�?""
+        """测试空节点列表"""
         result = mixin._build_branch_tree(branch_edges, [])
 
         assert len(result) == 0
 
     def test_build_branch_tree_none_condition(self, mixin, branch_nodes):
-        """测试condition为None时使用默认�?""
+        """测试condition为None时使用默认值"""
         edges = [MockEdge('1', '4', 'branch', None)]
 
         result = mixin._build_branch_tree(edges, branch_nodes)
 
         assert len(result) == 1
-        assert result[0]['condition'] == '未指�?
+        assert result[0]['condition'] == '未指定'
 
     def test_build_flow_tree_filters_by_edge_type(self, mixin, main_nodes):
         """测试通用方法按edge_type过滤"""
@@ -177,8 +177,8 @@ class TestFlowTreeMixin:
             MockEdge('1', '5', 'exception', '异常条件'),
         ]
         mixed_nodes = main_nodes + [
-            MockNode(4, 4, '分支�?, 'branch'),
-            MockNode(5, 5, '异常�?, 'exception')
+            MockNode(4, 4, '分支页', 'branch'),
+            MockNode(5, 5, '异常页', 'exception')
         ]
 
         branch_result = mixin._build_flow_tree(mixed_edges, mixed_nodes, 'branch', '默认')

@@ -28,12 +28,12 @@ def _backend_available():
 
 _BACKEND_OK = _backend_available()
 skip_if_no_backend = pytest.mark.skipif(
-    not _BACKEND_OK, reason=f"后端服务不可�?({BASE_URL})，请先启�?FastAPI 服务"
+    not _BACKEND_OK, reason=f"后端服务不可用 ({BASE_URL})，请先启动 FastAPI 服务"
 )
 
 
 class APIClient:
-    """API测试客户�?""
+    """API测试客户端"""
 
     def __init__(self, base_url: str = BASE_URL):
         self.base_url = base_url
@@ -95,7 +95,7 @@ def api_client():
 
 @pytest.fixture(scope="session")
 def auth_client(api_client):
-    """已认证的API客户�?""
+    """已认证的API客户端"""
     api_client.login("admin", "test1234")
     return api_client
 
@@ -145,7 +145,7 @@ class TestProject:
         timestamp = int(time.time())
         project_data = {
             "name": f"测试项目_{timestamp}",
-            "description": "单元测试创建的项�?,
+            "description": "单元测试创建的项目",
             "project_type": "web",
             "web_env_configs": {
                 "test": {
@@ -179,12 +179,12 @@ class TestTestTask:
         task_data = {
             "project_id": 1,
             "task_name": f"测试任务_{int(time.time())}",
-            "description": "单元测试创建的任�?,
+            "description": "单元测试创建的任务",
             "case_ids": []
         }
 
         response = auth_client.post("/test_task", json=task_data)
-        # 项目可能不存在或服务器错�?
+        # 项目可能不存在或服务器错误
         assert response.status_code in [200, 400, 403, 500]
 
     def test_get_task_list(self, auth_client):
@@ -205,14 +205,14 @@ class TestTestCase:
         assert response.status_code in [200, 400]
 
 
-# ==================== 测试点测�?====================
+# ==================== 测试点测试 ====================
 
 @skip_if_no_backend
 class TestTestPoint:
-    """测试点测�?""
+    """测试点测试"""
 
     def test_get_point_list(self, auth_client):
-        """测试获取测试点列�?""
+        """测试获取测试点列表"""
         response = auth_client.get("/test_point/list/1")
         assert response.status_code in [200, 400]
 

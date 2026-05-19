@@ -63,8 +63,8 @@ def other_user(db):
     return {"user": user, "project": project}
 
 
-def _make_request(flow_data: dict) -> FlowDataSaveRequest:
-    return FlowDataSaveRequest(flow_data=flow_data)
+def _make_request(project_id: int, flow_data: dict) -> FlowDataSaveRequest:
+    return FlowDataSaveRequest(project_id=project_id, flow_data=flow_data)
 
 
 # ==================== PUT /api/v1/ui-prototype/flow/{project_id} ====================
@@ -75,7 +75,7 @@ class TestPutFlowData:
 
     @pytest.mark.asyncio
     async def test_save_returns_200(self, db, api_project, testUser):
-        request = _make_request({
+        request = _make_request(api_project.id, {
             "nodes": [{"id": "1", "name": "登录"}],
             "edges": [{"from": "1", "to": "2"}],
         })
@@ -92,7 +92,7 @@ class TestPutFlowData:
 
     @pytest.mark.asyncio
     async def test_update_returns_200(self, db, api_project, testUser):
-        req1 = _make_request({"nodes": [{"id": "a"}], "edges": []})
+        req1 = _make_request(api_project.id, {"nodes": [{"id": "a"}], "edges": []})
         r1 = await save_flow_data(
             project_id=api_project.id,
             flow_request=req1,
@@ -101,7 +101,7 @@ class TestPutFlowData:
         )
         assert r1["code"] == 200
 
-        req2 = _make_request({
+        req2 = _make_request(api_project.id, {
             "nodes": [{"id": "b"}],
             "edges": [{"from": "b", "to": "c"}],
         })
@@ -116,7 +116,7 @@ class TestPutFlowData:
 
     @pytest.mark.asyncio
     async def test_wrong_user_returns_403(self, db, other_user, testUser):
-        request = _make_request({"nodes": [{"id": "1"}], "edges": []})
+        request = _make_request(other_user["project"].id, {"nodes": [{"id": "1"}], "edges": []})
         with pytest.raises(HTTPException) as exc:
             await save_flow_data(
                 project_id=other_user["project"].id,
@@ -136,7 +136,7 @@ class TestGetFlowData:
     @pytest.mark.asyncio
     async def test_returns_saved_data(self, db, api_project, testUser):
         # 先保存数据
-        request = _make_request({
+        request = _make_request(api_project.id, {
             "nodes": [{"id": "1", "name": "首页"}],
             "edges": [{"from": "1", "to": "2"}],
         })

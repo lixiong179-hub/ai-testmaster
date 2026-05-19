@@ -24,7 +24,7 @@ class TechnicalViewMixin:
             4. 查询前置条件步骤及其定位信息
             5. 计算定位覆盖率
         """
-        test_case = self.db.query(TestCase).filter(TestCase.id == test_case_id).first()
+        test_case = self.db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
         if not test_case:
             logger.warning(f"测试用例不存在: {test_case_id}")
             return None

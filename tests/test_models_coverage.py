@@ -1,5 +1,5 @@
 """
-数据模型覆盖率测�?
+数据模型覆盖率测试
 提升 models 模块的测试覆盖率
 """
 import sys
@@ -27,16 +27,16 @@ class TestProjectModel(unittest.TestCase):
         """测试创建项目"""
         project = Project(
             name="测试项目",
-            description="这是一个测试项�?,
+            description="这是一个测试项目",
             status=1,
             user_id=1
         )
         self.assertEqual(project.name, "测试项目")
-        self.assertEqual(project.description, "这是一个测试项�?)
+        self.assertEqual(project.description, "这是一个测试项目")
         self.assertEqual(project.status, 1)
 
     def test_project_to_dict(self):
-        """测试项目属性访�?""
+        """测试项目属性访问"""
         project = Project(
             id=1,
             name="测试项目",
@@ -59,7 +59,7 @@ class TestTestCaseModel(unittest.TestCase):
             case_no="TC001",
             title="登录测试",
             module="登录模块",
-            precondition="用户已注�?,
+            precondition="用户已注册",
             steps_json=[{"step": "步骤1", "action": "操作"}],
             expected_result="登录成功",
             priority=1,
@@ -71,7 +71,7 @@ class TestTestCaseModel(unittest.TestCase):
         self.assertEqual(test_case.priority, 1)
 
     def test_test_case_to_dict(self):
-        """测试用例属性访�?""
+        """测试用例属性访问"""
         test_case = TestCase(
             id=1,
             case_no="TC001",
@@ -96,19 +96,19 @@ class TestTestStepModel(unittest.TestCase):
         """测试创建测试步骤"""
         step = TestStep(
             step_number=1,
-            action="输入用户�?,
+            action="输入用户名",
             expected_result="输入框显示用户名",
             test_case_id=1
         )
         self.assertEqual(step.step_number, 1)
-        self.assertEqual(step.action, "输入用户�?)
+        self.assertEqual(step.action, "输入用户名")
 
     def test_test_step_with_locator(self):
         """测试带定位信息的测试步骤"""
         step = TestStep(
             step_number=1,
             action="点击登录按钮",
-            expected_result="跳转到首�?,
+            expected_result="跳转到首页",
             has_locator=1,
             locator_status="located",
             test_case_id=1
@@ -118,10 +118,10 @@ class TestTestStepModel(unittest.TestCase):
 
 
 class TestTestPointModel(unittest.TestCase):
-    """测试测试点模�?""
+    """测试测试点模型"""
 
     def test_test_point_creation(self):
-        """测试创建测试�?""
+        """测试创建测试点"""
         test_point = TestPoint(
             module="登录模块",
             point="验证用户登录功能",
@@ -132,16 +132,16 @@ class TestTestPointModel(unittest.TestCase):
         self.assertEqual(test_point.priority, 1)
 
     def test_test_point_to_dict(self):
-        """测试测试点属性访�?""
+        """测试测试点属性访问"""
         test_point = TestPoint(
             id=1,
             module="登录模块",
-            point="测试点描�?,
+            point="测试点描述",
             priority=1,
             project_id=1
         )
         self.assertEqual(test_point.id, 1)
-        self.assertEqual(test_point.point, "测试点描�?)
+        self.assertEqual(test_point.point, "测试点描述")
 
 
 class TestTestResultModel(unittest.TestCase):
@@ -159,17 +159,17 @@ class TestTestResultModel(unittest.TestCase):
         self.assertEqual(result.exec_status, 1)
 
     def test_test_result_failed(self):
-        """测试失败的测试结�?""
+        """测试失败的测试结果"""
         result = TestResult(
             task_id=1,
             project_id=1,
             case_id=1,
             case_no="TC002",
             exec_status=2,
-            error_msg="元素未找�?
+            error_msg="元素未找到"
         )
         self.assertEqual(result.exec_status, 2)
-        self.assertEqual(result.error_msg, "元素未找�?)
+        self.assertEqual(result.error_msg, "元素未找到")
 
 
 class TestTestTaskModel(unittest.TestCase):
@@ -204,7 +204,7 @@ class TestUserModel(unittest.TestCase):
         self.assertTrue(user.is_active)
 
     def test_user_to_dict(self):
-        """测试用户属性访�?""
+        """测试用户属性访问"""
         user = User(
             id=1,
             username="testuser",

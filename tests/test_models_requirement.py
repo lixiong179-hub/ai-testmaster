@@ -25,7 +25,7 @@ def test_user(db):
 
 @pytest.fixture
 def test_project(db, test_user):
-    project = Project(name="需求测试项�?, user_id=test_user.id)
+    project = Project(name="需求测试项目", user_id=test_user.id)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -37,7 +37,7 @@ class TestRequirementModel:
         req = Requirement(
             project_id=test_project.id,
             req_no="REQ-MODEL-001",
-            title="用户登录需�?,
+            title="用户登录需求",
             description="支持账号密码登录",
             priority=1
         )
@@ -47,7 +47,7 @@ class TestRequirementModel:
         assert req.id is not None
         assert req.project_id == test_project.id
         assert req.req_no == "REQ-MODEL-001"
-        assert req.title == "用户登录需�?
+        assert req.title == "用户登录需求"
         assert req.description == "支持账号密码登录"
         assert req.priority == 1
         assert req.status == "draft"
@@ -59,7 +59,7 @@ class TestRequirementModel:
         req = Requirement(
             project_id=test_project.id,
             req_no="REQ-DEF-001",
-            title="默认需�?,
+            title="默认需求",
             description="描述",
             priority=2
         )
@@ -120,7 +120,7 @@ class TestRequirementModel:
         from app.models.project import ProjectFile
         pf = ProjectFile(
             project_id=test_project.id,
-            file_name="需求文�?docx",
+            file_name="需求文档.docx",
             file_type="docx",
             file_url="/uploads/req.docx"
         )
@@ -130,7 +130,7 @@ class TestRequirementModel:
         req = Requirement(
             project_id=test_project.id,
             req_no="REQ-SRC-001",
-            title="来源需�?,
+            title="来源需求",
             description="描述",
             priority=1,
             source_file_id=pf.id
@@ -147,7 +147,7 @@ class TestRequirementModel:
         req = Requirement(
             project_id=test_project.id,
             req_no="REQ-REPR-001",
-            title="Repr需�?,
+            title="Repr需求",
             description="描述",
             priority=1
         )

@@ -27,7 +27,7 @@ from app.models.test_result import TestResult
 from app.db.database import Base
 
 
-# 使用真实MySQL数据库连�?
+# 使用真实MySQL数据库连接
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
     "mysql+pymysql://root:test1234@localhost:3306/ai_testmaster"
@@ -40,10 +40,10 @@ _TEST_PREFIX = "cost_stats_test_"
 @pytest.fixture(scope="function")
 def db_session():
     """
-    创建数据库会�?- 使用事务隔离模式
+    创建数据库会话 - 使用事务隔离模式
     
-    测试完成后自动回滚，不残留任何测试数据到真实数据库�?
-    这是安全的：不会影响任何已有业务数据�?
+    测试完成后自动回滚，不残留任何测试数据到真实数据库。
+    这是安全的：不会影响任何已有业务数据。
     """
     engine = create_engine(
         TEST_DATABASE_URL,
@@ -60,7 +60,7 @@ def db_session():
         yield session
     finally:
         session.close()
-        transaction.rollback()  # 回滚所有测试操作，不污染真实数�?
+        transaction.rollback()  # 回滚所有测试操作，不污染真实数据
         connection.close()
         engine.dispose()
 

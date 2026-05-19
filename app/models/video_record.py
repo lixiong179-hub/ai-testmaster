@@ -44,8 +44,8 @@ class VideoRecord(Base):
     id = Column(Integer, primary_key=True, index=True)                                                # 视频记录主键ID
     
     # 关联信息
-    task_id = Column(Integer, ForeignKey("test_tasks.id"), nullable=False, index=True)                # 任务ID，级联删除
-    case_id = Column(Integer, ForeignKey("test_cases.id"), nullable=False, index=True)                # 用例ID，级联删除
+    task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True)
     execution_id = Column(String(100), nullable=True, index=True, comment="执行ID")                    # 执行会话ID，关联具体的执行实例
     
     # 文件信息
@@ -64,7 +64,7 @@ class VideoRecord(Base):
     thumbnail_path = Column(String(500), nullable=True, comment="缩略图路径")                          # 视频缩略图文件路径
 
     # 状态
-    status = Column(String(20), nullable=False, default="completed", comment="状态: recording/completed/failed")  # recording=录制中，completed=已完成，failed=录制失败
+    status = Column(String(20), nullable=False, default="recording", comment="状态: recording/completed/failed")
     error_message = Column(Text, nullable=True, comment="错误信息")                                    # 录制失败时的错误信息
     
     # 时间信息

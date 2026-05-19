@@ -73,7 +73,7 @@ class TestCodeReviewModel:
 
     def test_code_review_default_values(self, db, test_user, second_user):
         cr = CodeReview(
-            title="默认值审�?,
+            title="默认值审查",
             repository="https://github.com/test/repo",
             branch="dev",
             reviewer_id=test_user.id,
@@ -177,7 +177,7 @@ class TestReviewItemModel:
             line_start=10,
             line_end=20,
             issue_type="bug",
-            description="空指针风�?
+            description="空指针风险"
         )
         db.add(item)
         db.commit()
@@ -188,7 +188,7 @@ class TestReviewItemModel:
         assert item.line_start == 10
         assert item.line_end == 20
         assert item.issue_type == "bug"
-        assert item.description == "空指针风�?
+        assert item.description == "空指针风险"
         assert item.status == "open"
         db.delete(item)
         db.delete(cr)
@@ -196,7 +196,7 @@ class TestReviewItemModel:
 
     def test_review_item_default_values(self, db, test_user, second_user):
         cr = CodeReview(
-            title="默认项审�?,
+            title="默认项审查",
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
@@ -225,7 +225,7 @@ class TestReviewItemModel:
 
     def test_review_item_severity_values(self, db, test_user, second_user):
         cr = CodeReview(
-            title="严重度审�?,
+            title="严重度审查",
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
@@ -255,7 +255,7 @@ class TestReviewItemModel:
 
     def test_review_item_status_values(self, db, test_user, second_user):
         cr = CodeReview(
-            title="状态审�?,
+            title="状态审查",
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
@@ -299,7 +299,7 @@ class TestReviewCommentModel:
         comment = ReviewComment(
             review_id=cr.id,
             user_id=test_user.id,
-            content="这段代码需要优�?
+            content="这段代码需要优化"
         )
         db.add(comment)
         db.commit()
@@ -307,7 +307,7 @@ class TestReviewCommentModel:
         assert comment.id is not None
         assert comment.review_id == cr.id
         assert comment.user_id == test_user.id
-        assert comment.content == "这段代码需要优�?
+        assert comment.content == "这段代码需要优化"
         assert comment.created_at is not None
         db.delete(comment)
         db.delete(cr)
@@ -315,7 +315,7 @@ class TestReviewCommentModel:
 
     def test_review_comment_nullable_item(self, db, test_user, second_user):
         cr = CodeReview(
-            title="评论项审�?,
+            title="评论项审查",
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
@@ -369,7 +369,7 @@ class TestReviewMetricModel:
 
     def test_review_metric_types(self, db, test_user, second_user):
         cr = CodeReview(
-            title="多指标审�?,
+            title="多指标审查",
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,

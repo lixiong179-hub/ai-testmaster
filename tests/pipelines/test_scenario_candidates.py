@@ -1,16 +1,16 @@
 """M2-T05 ScenarioCandidateExtractor Step 单元测试
 
-覆盖�?
+覆盖：
     - should_run / cache_key / validate_output / fallback
-    - execute 正常路径（有 PRD + UI + fingerprints�?
+    - execute 正常路径（有 PRD + UI + fingerprints）
     - execute 缺少 raw_signals / project_id
-    - AI 返回解析：正�?JSON / 嵌套 dict / 纯数�?/ 非法 JSON
-    - _validate_candidates：模块匹�?/ 模糊匹配 / 过滤空描�?/ priority 修正
+    - AI 返回解析：正常 JSON / 嵌套 dict / 纯数组 / 非法 JSON
+    - _validate_candidates：模块匹配 / 模糊匹配 / 过滤空描述 / priority 修正
     - _extract_prd / _extract_ui / _extract_existing_modules / _extract_existing_summaries
     - _estimate_ui_controls / _compute_confidence
-    - coverage_check 启发式校�?
+    - coverage_check 启发式校验
 
-使用真实 MySQL 数据�?+ MockAIClient�?
+使用真实 MySQL 数据库 + MockAIClient。
 """
 import json
 import pytest
@@ -39,15 +39,15 @@ def _make_raw_signals(project_id: int, **overrides) -> dict:
     payload = {
         "iteration_id": 1,
         "project_id": project_id,
-        "prd_content": "新增验证码功能，登录时需输入图形验证�?,
+        "prd_content": "新增验证码功能，登录时需输入图形验证码",
         "ui_specs": [
             {
                 "screen_id": 1,
-                "screen_name": "登录�?,
+                "screen_name": "登录页",
                 "ui_spec": {"components": [{"type": "input", "name": "captcha"}, {"type": "button", "name": "submit"}]},
             }
         ],
-        "test_points": [{"id": 1, "module": "用户管理", "point": "验证码校�?, "priority": 1}],
+        "test_points": [{"id": 1, "module": "用户管理", "point": "验证码校验", "priority": 1}],
         "has_ui": True,
         "has_prd": True,
         "has_testpoints": True,
@@ -185,8 +185,8 @@ class TestFallback:
 class TestExecute:
     def test_execute_with_valid_ai(self, db, make_ctx, mock_ai, test_iteration):
         ai_response = json.dumps([
-            {"description": "验证码输入校�?, "module": "用户管理", "priority": 1, "reason": "新增验证码功�?},
-            {"description": "验证码过期重�?, "module": "用户管理", "priority": 2, "reason": "验证码有效期场景"},
+            {"description": "验证码输入校验", "module": "用户管理", "priority": 1, "reason": "新增验证码功能"},
+            {"description": "验证码过期重发", "module": "用户管理", "priority": 2, "reason": "验证码有效期场景"},
         ])
         mock_ai.set_response("scenario_candidate_extractor", ai_response)
 
@@ -225,7 +225,7 @@ class TestExecute:
 
         class FailingAIClient(MockAIClient):
             def complete(self, prompt, **kwargs):
-                raise RuntimeError("AI 服务不可�?)
+                raise RuntimeError("AI 服务不可用")
 
         failing_ai = FailingAIClient()
         ctx = make_ctx(
@@ -239,7 +239,7 @@ class TestExecute:
 
     def test_execute_without_fingerprints(self, db, make_ctx, mock_ai, test_iteration):
         ai_response = json.dumps([
-            {"description": "无指纹场�?, "module": "新模�?, "priority": 1, "reason": "无历史指�?},
+            {"description": "无指纹场景", "module": "新模块", "priority": 1, "reason": "无历史指纹"},
         ])
         mock_ai.set_response("scenario_candidate_extractor", ai_response)
 
@@ -251,7 +251,7 @@ class TestExecute:
 
     def test_execute_coverage_check_fails(self, db, make_ctx, mock_ai, test_iteration):
         ai_response = json.dumps([
-            {"description": "只有1个场�?, "module": "用户管理", "priority": 1, "reason": "场景偏少"},
+            {"description": "只有1个场景", "module": "用户管理", "priority": 1, "reason": "场景偏少"},
         ])
         mock_ai.set_response("scenario_candidate_extractor", ai_response)
 
@@ -318,14 +318,14 @@ class TestParseCandidates:
 class TestValidateCandidates:
     def test_valid_candidates(self):
         candidates = [
-            {"description": "验证码校�?, "module": "用户管理", "priority": 1, "reason": "新增"},
+            {"description": "验证码校验", "module": "用户管理", "priority": 1, "reason": "新增"},
         ]
         result = _validate_candidates(candidates, ["用户管理"])
         assert len(result) == 1
 
     def test_empty_description_filtered(self):
         candidates = [
-            {"description": "", "module": "用户管理", "priority": 1, "reason": "空描�?},
+            {"description": "", "module": "用户管理", "priority": 1, "reason": "空描述"},
         ]
         result = _validate_candidates(candidates, ["用户管理"])
         assert len(result) == 0
@@ -340,14 +340,14 @@ class TestValidateCandidates:
     def test_non_dict_candidate_skipped(self):
         candidates = [
             "not_a_dict",
-            {"description": "验证码校�?, "module": "用户管理", "priority": 1, "reason": "新增"},
+            {"description": "验证码校验", "module": "用户管理", "priority": 1, "reason": "新增"},
         ]
         result = _validate_candidates(candidates, ["用户管理"])
         assert len(result) == 1
 
     def test_empty_module_filtered(self):
         candidates = [
-            {"description": "测试场景", "module": "", "priority": 1, "reason": "空模�?},
+            {"description": "测试场景", "module": "", "priority": 1, "reason": "空模块"},
         ]
         result = _validate_candidates(candidates, ["用户管理"])
         assert len(result) == 0
@@ -362,14 +362,14 @@ class TestValidateCandidates:
 
     def test_module_no_match_filtered(self):
         candidates = [
-            {"description": "测试场景", "module": "完全不相�?, "priority": 1, "reason": "无匹�?},
+            {"description": "测试场景", "module": "完全不相关", "priority": 1, "reason": "无匹配"},
         ]
         result = _validate_candidates(candidates, ["用户管理"])
         assert len(result) == 0
 
     def test_priority_correction(self):
         candidates = [
-            {"description": "测试场景", "module": "用户管理", "priority": 5, "reason": "优先级越�?},
+            {"description": "测试场景", "module": "用户管理", "priority": 5, "reason": "优先级越界"},
         ]
         result = _validate_candidates(candidates, ["用户管理"])
         assert len(result) == 1
@@ -385,7 +385,7 @@ class TestValidateCandidates:
 
     def test_no_existing_modules_allows_any(self):
         candidates = [
-            {"description": "新模块场�?, "module": "新模�?, "priority": 1, "reason": "新增模块"},
+            {"description": "新模块场景", "module": "新模块", "priority": 1, "reason": "新增模块"},
         ]
         result = _validate_candidates(candidates, [])
         assert len(result) == 1
@@ -426,10 +426,10 @@ class TestFindClosestModule:
 
 class TestExtractPrd:
     def test_with_prd(self):
-        assert "验证�? in _extract_prd({"prd_content": "验证码功�?})
+        assert "验证码" in _extract_prd({"prd_content": "验证码功能"})
 
     def test_without_prd(self):
-        assert "�?PRD" in _extract_prd({})
+        assert "无 PRD" in _extract_prd({})
 
     def test_long_prd_truncated(self):
         long_prd = "A" * 5000
@@ -439,20 +439,20 @@ class TestExtractPrd:
 
 class TestExtractUi:
     def test_with_ui_specs(self):
-        ui = [{"screen_name": "登录�?, "ui_spec": {"components": [{"type": "input"}]}}]
+        ui = [{"screen_name": "登录页", "ui_spec": {"components": [{"type": "input"}]}}]
         result = _extract_ui({"ui_specs": ui})
-        assert "登录�? in result
+        assert "登录页" in result
 
     def test_without_ui(self):
-        assert "�?UI" in _extract_ui({})
+        assert "无 UI" in _extract_ui({})
 
     def test_empty_ui_specs_list(self):
-        assert "�?UI" in _extract_ui({"ui_specs": []})
+        assert "无 UI" in _extract_ui({"ui_specs": []})
 
     def test_non_serializable_ui_spec(self):
-        ui = [{"screen_name": "异常�?, "ui_spec": {"data": bytes([1, 2, 3])}}]
+        ui = [{"screen_name": "异常页", "ui_spec": {"data": bytes([1, 2, 3])}}]
         result = _extract_ui({"ui_specs": ui})
-        assert "异常�? in result
+        assert "异常页" in result
 
     def test_many_ui_specs_truncated(self):
         ui = [{"screen_name": f"屏幕{i}", "ui_spec": {"components": []}} for i in range(10)]
@@ -467,11 +467,11 @@ class TestExtractUi:
 
     def test_empty_ui_spec_omitted(self):
         ui = [
-            {"screen_name": "空屏�?, "ui_spec": None},
+            {"screen_name": "空屏幕", "ui_spec": None},
             {"screen_name": "正常屏幕", "ui_spec": {"components": [{"type": "text"}]}},
         ]
         result = _extract_ui({"ui_specs": ui})
-        assert "空屏�? not in result
+        assert "空屏幕" not in result
         assert "正常屏幕" in result
 
 
@@ -498,11 +498,11 @@ class TestExtractExistingSummaries:
         assert "摘要" in result
 
     def test_without_fingerprints(self):
-        assert "无已�? in _extract_existing_summaries(None)
+        assert "无已有" in _extract_existing_summaries(None)
 
     def test_empty_fingerprints_list(self):
         fps = _make_fingerprints(1, modules=[])
-        assert "无已�? in _extract_existing_summaries(fps)
+        assert "无已有" in _extract_existing_summaries(fps)
 
     def test_many_fingerprints_truncated(self):
         mods = [f"模块{i}" for i in range(30)]
@@ -570,7 +570,7 @@ class TestComputeConfidence:
 
 class TestTryExtractJsonArray:
     def test_embedded_array(self):
-        text = '结果如下：\n[{"a": 1}]\n请查�?
+        text = '结果如下：\n[{"a": 1}]\n请查收'
         result = _try_extract_json_array(text)
         assert result is not None
         assert len(result) == 1

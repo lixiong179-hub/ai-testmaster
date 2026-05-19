@@ -8,6 +8,7 @@
 
 Mixin组合（MRO顺序）:
     - TaskBatchExecutorMixin: 任务批量执行
+    - DependencyResolutionMixin: 依赖解析与快照容错
     - PreconditionMixin: 前置条件执行
     - SelfHealingExecuteMixin: 自愈执行
     - SelfHealingStagehandMixin: Stagehand云服务自愈
@@ -20,9 +21,15 @@ Mixin组合（MRO顺序）:
 
 执行流程:
     execute_test_task -> TaskBatchExecutorMixin.execute_test_task
+    -> DependencyResolutionMixin: 依赖解析 + 拓扑排序 + 快照管理
     execute_test_case -> TaskExecutorMixin.execute_test_case
     -> [循环] _execute_step -> ActionExecutorMixin.execute_action
     -> 按action_type分发到具体Mixin -> AI识别/AI自愈/动作执行
+
+容错策略:
+    主干用例失败 -> _mark_dependents_blocked 标记下游 BLOCKED
+    依赖用例执行前 -> _navigate_to_dependency_anchor 三级降级导航
+    Level1: 快照恢复(storage_state+URL) -> Level2: fallback_steps -> Level3: 直接URL
 """
 from typing import Optional
 
@@ -35,10 +42,13 @@ from app.services.test_execution_engine.models import (
     VerificationError,
     StepExecutionResult,
     TestExecutionResult,
+    FailureCategory,
     handle_execution_errors,
 )
 from app.services.test_execution_engine.action_executor_mixin import ActionExecutorMixin
 from app.services.test_execution_engine.ai_recognition_mixin import AIRecognitionMixin
+from app.services.test_execution_engine.api_setup_mixin import ApiSetupMixin
+from app.services.test_execution_engine.dependency_resolution_mixin import DependencyResolutionMixin
 from app.services.test_execution_engine.precondition_mixin import PreconditionMixin
 from app.services.test_execution_engine.self_healing_execute_mixin import SelfHealingExecuteMixin
 from app.services.test_execution_engine.self_healing_stagehand_mixin import SelfHealingStagehandMixin
@@ -59,6 +69,8 @@ from app.utils.unified_vision_model import UnifiedVisionModel
 
 class TestExecutionEngineV2(
     TaskBatchExecutorMixin,
+    DependencyResolutionMixin,
+    ApiSetupMixin,
     PreconditionMixin,
     SelfHealingExecuteMixin,
     SelfHealingStagehandMixin,
@@ -147,8 +159,11 @@ __all__ = [
     'VerificationError',
     'StepExecutionResult',
     'TestExecutionResult',
+    'FailureCategory',
     'handle_execution_errors',
     'PreconditionMixin',
+    'DependencyResolutionMixin',
+    'ApiSetupMixin',
     'ActionExecutorMixin',
     'AIRecognitionMixin',
     'SelfHealingExecuteMixin',

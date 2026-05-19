@@ -22,14 +22,14 @@ class TestGroupModel:
     def test_create_group(self, db):
         group = Group(
             name="test_group_model",
-            desc="测试用户�?
+            desc="测试用户组"
         )
         db.add(group)
         db.commit()
         db.refresh(group)
         assert group.id is not None
         assert group.name == "test_group_model"
-        assert group.desc == "测试用户�?
+        assert group.desc == "测试用户组"
         assert group.create_time is not None
         db.delete(group)
         db.commit()
@@ -71,7 +71,7 @@ class TestGroupModel:
         assert hasattr(Group, 'roles')
 
     def test_group_with_users(self, db, test_user):
-        group = Group(name="user_group_model", desc="带用户的�?)
+        group = Group(name="user_group_model", desc="带用户的组")
         db.add(group)
         db.commit()
         db.refresh(group)
@@ -86,11 +86,11 @@ class TestGroupModel:
         db.commit()
 
     def test_group_with_roles(self, db):
-        role = Role(name="group_test_role", desc="组测试角�?)
+        role = Role(name="group_test_role", desc="组测试角色")
         db.add(role)
         db.commit()
         db.refresh(role)
-        group = Group(name="role_group_model", desc="带角色的�?)
+        group = Group(name="role_group_model", desc="带角色的组")
         db.add(group)
         db.commit()
         db.refresh(group)

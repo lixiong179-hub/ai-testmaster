@@ -140,7 +140,7 @@ async def get_case_config(
     from app.models.test_case import TestCase
     from app.models.test_task import TestTask
     service = get_visibility_config_service()
-    case = db.query(TestCase).filter(TestCase.id == case_id).first()
+    case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
     if not case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

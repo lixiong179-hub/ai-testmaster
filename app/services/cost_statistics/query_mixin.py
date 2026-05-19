@@ -17,7 +17,7 @@ class CostStatisticsQueryMixin:
 
     def get_case_cost_statistics(self, case_id: int) -> CostStatistics:
         test_case = self.db.query(TestCase).filter(
-            TestCase.id == case_id
+            TestCase.id == case_id, TestCase.is_deleted.is_(False)
         ).options(
             joinedload(TestCase.test_steps).joinedload(TestStep.element_locator)
         ).first()
@@ -76,7 +76,7 @@ class CostStatisticsQueryMixin:
         )
 
     def get_project_cost_statistics(self, project_id: int) -> CostStatistics:
-        cases = self.db.query(TestCase).filter(TestCase.project_id == project_id).all()
+        cases = self.db.query(TestCase).filter(TestCase.project_id == project_id, TestCase.is_deleted.is_(False)).all()
         if not cases:
             return CostStatistics(
                 total_steps=0, ai_vision_calls=0, cache_hits=0,
@@ -142,7 +142,7 @@ class CostStatisticsQueryMixin:
         }
 
     def _get_case_cost_details(self, project_id: int) -> List[Dict[str, Any]]:
-        cases = self.db.query(TestCase).filter(TestCase.project_id == project_id).all()
+        cases = self.db.query(TestCase).filter(TestCase.project_id == project_id, TestCase.is_deleted.is_(False)).all()
         case_stats = []
         for case in cases:
             try:
@@ -166,7 +166,7 @@ class CostStatisticsQueryMixin:
     def _get_daily_cost_statistics(
         self, project_id: int, start_date: datetime, end_date: datetime
     ) -> List[Dict[str, Any]]:
-        cases = self.db.query(TestCase).filter(TestCase.project_id == project_id).all()
+        cases = self.db.query(TestCase).filter(TestCase.project_id == project_id, TestCase.is_deleted.is_(False)).all()
         case_ids = [case.id for case in cases]
         if not case_ids:
             return []
@@ -192,7 +192,7 @@ class CostStatisticsQueryMixin:
     def _get_cost_trend(
         self, project_id: int, start_date: datetime, end_date: datetime
     ) -> List[Dict[str, Any]]:
-        cases = self.db.query(TestCase).filter(TestCase.project_id == project_id).all()
+        cases = self.db.query(TestCase).filter(TestCase.project_id == project_id, TestCase.is_deleted.is_(False)).all()
         case_ids = [case.id for case in cases]
         if not case_ids:
             return []

@@ -9,7 +9,7 @@ from loguru import logger
 from app.models.test_case import TestCase, TestStep
 from app.models.project import Project
 from app.core.config import settings
-from app.core.constants import normalize_priority
+from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE, normalize_priority
 from app.services.test_case_generation.quality_validator import compute_quality_score
 
 
@@ -56,7 +56,7 @@ class TestCaseGenerationValidateMixin:
                 step_entry["test_data"] = case_test_data
             steps_json.append(step_entry)
 
-        case_type = generated_case.get("case_type") or generated_case.get("test_category") or "manual"
+        case_type = generated_case.get("case_type") or generated_case.get("test_category") or DEFAULT_AI_FALLBACK_CASE_TYPE
         case_category = generated_case.get("case_category", "")
         test_category_value = generated_case.get("test_category") or case_type
         if case_category and case_category not in str(test_category_value):

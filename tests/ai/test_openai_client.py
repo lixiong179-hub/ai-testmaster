@@ -1,6 +1,6 @@
 """OpenAIClient 真实 API 测试
 
-使用真实 DeepSeek API 调用，禁�?Mock�?测试范围：构造函数、complate 调用、系统提示、异常路径�?"""
+使用真实 DeepSeek API 调用，禁歿Mock〿测试范围：构造函数、complate 调用、系统提示、异常路径〿"""
 import os
 import pytest
 from app.ai.client import AIResponse, TokenUsage
@@ -9,7 +9,7 @@ from app.core.config import settings
 
 _SKIP_REASON = None
 if not settings.DEEPSEEK_API_KEY or settings.DEEPSEEK_API_KEY.startswith("your"):
-    _SKIP_REASON = "未配�?DeepSeek API Key"
+    _SKIP_REASON = "未配罿DeepSeek API Key"
 elif os.environ.get("CI") == "true" and not os.environ.get("RUN_REAL_AI_TESTS"):
     _SKIP_REASON = "CI 环境跳过真实 AI 调用"
 

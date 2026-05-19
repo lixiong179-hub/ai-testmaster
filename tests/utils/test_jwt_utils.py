@@ -4,12 +4,16 @@ from datetime import timedelta
 from app.utils.jwt_utils import (
     create_access_token, create_refresh_token, decode_token,
     verify_access_token, verify_refresh_token, refresh_access_token,
-    verify_password, get_password_hash, _utcnow,
+    verify_password, get_password_hash,
 )
 from app.core.exception import AuthenticationError
 from datetime import datetime
 
 
+from app.utils.db_time import utcnow
+
+
+@pytest.mark.skip(reason="_utcnow已被移除")
 class TestUtcnow:
     def test_returns_naive_datetime(self):
         result = _utcnow()
@@ -18,7 +22,7 @@ class TestUtcnow:
 
     def test_returns_recent_time(self):
         result = _utcnow()
-        diff = abs((datetime.utcnow() - result).total_seconds())
+        diff = abs((utcnow() - result).total_seconds())
         assert diff < 2
 
 

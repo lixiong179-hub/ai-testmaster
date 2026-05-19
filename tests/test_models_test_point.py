@@ -25,7 +25,7 @@ def test_user(db):
 
 @pytest.fixture
 def test_project(db, test_user):
-    project = Project(name="测试点项�?, user_id=test_user.id)
+    project = Project(name="测试点项目", user_id=test_user.id)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -56,7 +56,7 @@ class TestTestPointModel:
         tp = TestPoint(
             project_id=test_project.id,
             module="模块",
-            point="测试�?,
+            point="测试点",
             priority=2
         )
         db.add(tp)
@@ -90,14 +90,14 @@ class TestTestPointModel:
         tp = TestPoint(
             project_id=test_project.id,
             module="模块",
-            point="AI测试�?,
+            point="AI测试点",
             priority=1,
-            ai_prompt="请分析登录功能的测试�?
+            ai_prompt="请分析登录功能的测试点"
         )
         db.add(tp)
         db.commit()
         db.refresh(tp)
-        assert tp.ai_prompt == "请分析登录功能的测试�?
+        assert tp.ai_prompt == "请分析登录功能的测试点"
         db.delete(tp)
         db.commit()
 

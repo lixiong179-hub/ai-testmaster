@@ -12,11 +12,9 @@ export enum TaskStatus {
 // 执行状态枚举
 export enum ExecutionStatus {
   PENDING = 0, // 未执行
-  RUNNING = 1, // 执行中
-  PASSED = 2, // 通过
-  FAILED = 3, // 失败
-  SKIPPED = 4, // 跳过
-  ERROR = 5, // 错误
+  PASSED = 1, // 执行成功
+  FAILED = 2, // 执行失败
+  BLOCKED = 3, // 阻塞
 }
 
 // 测试任务相关API
@@ -37,9 +35,10 @@ const testTaskApi = {
   },
 
   // 获取任务列表
+  // 后端查询参数使用 task_status 而非 status
   getTaskList: (params: {
     project_id?: number
-    status?: number | string
+    task_status?: number | string
     page?: number
     page_size?: number
   }) => {
@@ -73,15 +72,17 @@ const testTaskApi = {
   },
 
   // 停止执行任务
+  // 后端：POST /api/v1/execution/{task_id}/stop
   stopTask: (taskId: number, projectId?: number) => {
-    return request.post(`/api/v1/test_task/${taskId}/stop`, null, {
+    return request.post(`/api/v1/execution/${taskId}/stop`, null, {
       params: projectId ? { project_id: projectId } : {},
     })
   },
 
-  // 获取任务执行结果
+  // 获取任务执行结果（通过摘要接口获取）
+  // 后端：GET /api/v1/test_task/{task_id}/summary
   getTaskResults: (taskId: number, projectId?: number) => {
-    return request.get(`/api/v1/test_task/${taskId}/results`, {
+    return request.get(`/api/v1/test_task/${taskId}/summary`, {
       params: projectId ? { project_id: projectId } : {},
     })
   },

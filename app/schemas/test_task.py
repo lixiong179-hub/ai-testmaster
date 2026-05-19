@@ -16,7 +16,7 @@
 - status -> TestTask.status (整数枚举：0等待/1执行中/2完成/3失败/4停止)
 """
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 
@@ -70,6 +70,7 @@ class TestTaskResponse(BaseModel):
     fail_count: int  # 失败用例数，与TestTask.fail_count对应
     total_count: int  # 总用例数，与TestTask.total_count对应
     progress: int  # 执行进度0-100，与TestTask.progress对应
+    visibility_config: Optional[Dict[str, Any]] = None  # 可见模式配置，与TestTask.visibility_config(JSON)对应
     create_time: datetime  # 创建时间，与TestTask.create_time对应
     update_time: datetime  # 更新时间，与TestTask.update_time对应
 

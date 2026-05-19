@@ -19,11 +19,11 @@ class RecognitionResult:
 class ElementRecognizer(ABC):
 
     @abstractmethod
-    async def recognize(self, page, operation_description: str, action_type: Optional[str] = None) -> RecognitionResult:
+    async def recognize(self, browser, operation_description: str, action_type: Optional[str] = None) -> RecognitionResult:
         pass
 
     @abstractmethod
-    async def batch_recognize(self, page, operations: List[str]) -> List[RecognitionResult]:
+    async def batch_recognize(self, browser, operations: List[str]) -> List[RecognitionResult]:
         pass
 
     @property

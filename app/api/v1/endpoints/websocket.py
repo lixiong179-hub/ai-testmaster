@@ -27,6 +27,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.core.websocket import manager
 from app.utils.jwt_utils import decode_token
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -123,9 +126,9 @@ async def execution_websocket(
                     break  # 发送失败，退出循环
                 
     except WebSocketDisconnect:
-        pass
+        logger.debug("WebSocket连接断开")
     except Exception:
-        pass
+        logger.debug("WebSocket连接异常", exc_info=True)
     finally:
         manager.disconnect(websocket, execution_id)
 

@@ -1,7 +1,7 @@
-"""后验质量�?�?纯计算逻辑单元测试
+"""后验质量分 — 纯计算逻辑单元测试
 
 覆盖 compute_posterior_score 的正常路径、边界场景、异常路径，
-不依赖数据库�?"""
+不依赖数据库"""
 import pytest
 
 from app.services.posterior_score_service import (
@@ -15,7 +15,7 @@ from app.pipelines.steps.reconciliation import MergedAction
 
 
 class TestVerdictSetsFromEnum:
-    """验证 KEEP_VERDICTS / MODIFY_VERDICTS 从枚举派�?""
+    """验证 KEEP_VERDICTS / MODIFY_VERDICTS 从枚举派生"""
 
     def test_keep_verdicts_matches_enum(self):
         assert MergedAction.KEEP.value in KEEP_VERDICTS
@@ -86,7 +86,7 @@ class TestComputePosteriorScoreSkip:
 
 
 class TestComputePosteriorScoreNoReview:
-    """无评审数据时默认值测�?""
+    """无评审数据时默认值测试"""
 
     def test_no_reviews_defaults_to_neutral(self):
         inp = PosteriorInput(
@@ -170,7 +170,7 @@ class TestComputePosteriorScoreEdgeCases:
         assert result.score == 100.0
 
     def test_empty_case_ids_list_returns_early(self):
-        """�?case_ids 列表应在 fetch 层返回空，此处验�?compute 不受影响"""
+        """空 case_ids 列表应在 fetch 层返回空，此处验证 compute 不受影响"""
         inp = PosteriorInput(
             case_id=999, review_total=1, review_keep_count=1,
             review_modify_count=0, execution_total=3, execution_passed_count=3,

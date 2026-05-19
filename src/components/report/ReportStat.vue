@@ -10,7 +10,7 @@
       <div class="stats-container">
         <!-- 统计卡片 -->
         <el-row :gutter="20" class="mb-4">
-          <el-col :span="6">
+          <el-col :span="4">
             <el-card shadow="hover">
               <div class="stat-item">
                 <div class="stat-label">总用例数</div>
@@ -18,7 +18,7 @@
               </div>
             </el-card>
           </el-col>
-          <el-col :span="6">
+          <el-col :span="4">
             <el-card shadow="hover">
               <div class="stat-item">
                 <div class="stat-label">通过用例</div>
@@ -26,7 +26,7 @@
               </div>
             </el-card>
           </el-col>
-          <el-col :span="6">
+          <el-col :span="4">
             <el-card shadow="hover">
               <div class="stat-item">
                 <div class="stat-label">失败用例</div>
@@ -34,11 +34,19 @@
               </div>
             </el-card>
           </el-col>
-          <el-col :span="6">
+          <el-col :span="4">
+            <el-card shadow="hover">
+              <div class="stat-item">
+                <div class="stat-label">阻塞用例</div>
+                <div class="stat-value warning">{{ report?.blocked_cases || 0 }}</div>
+              </div>
+            </el-card>
+          </el-col>
+          <el-col :span="4">
             <el-card shadow="hover">
               <div class="stat-item">
                 <div class="stat-label">通过率</div>
-                <div class="stat-value warning">{{ (report?.pass_rate || 0).toFixed(2) }}%</div>
+                <div class="stat-value info">{{ (report?.pass_rate || 0).toFixed(2) }}%</div>
               </div>
             </el-card>
           </el-col>
@@ -107,8 +115,9 @@ const updatePieChart = () => {
         data: [
           { value: props.report.passed_cases, name: '通过', itemStyle: { color: '#67c23a' } },
           { value: props.report.failed_cases, name: '失败', itemStyle: { color: '#f56c6c' } },
+          { value: props.report.blocked_cases, name: '阻塞', itemStyle: { color: '#e6a23c' } },
           {
-            value: props.report.total_cases - props.report.passed_cases - props.report.failed_cases,
+            value: props.report.total_cases - props.report.passed_cases - props.report.failed_cases - props.report.blocked_cases,
             name: '其他',
             itemStyle: { color: '#909399' },
           },
@@ -267,6 +276,10 @@ onUnmounted(() => {
 
 .stat-value.warning {
   color: #e6a23c;
+}
+
+.stat-value.info {
+  color: #409eff;
 }
 
 .chart-container {

@@ -94,7 +94,7 @@ class TestOperationLogModel:
             action="修改用例",
             ip_address="192.168.1.100",
             user_agent="Mozilla/5.0",
-            details='{"field": "title", "old": "旧标�?, "new": "新标�?}'
+            details='{"field": "title", "old": "旧标题", "new": "新标题"}'
         )
         db.add(log)
         db.commit()
@@ -102,7 +102,7 @@ class TestOperationLogModel:
         assert log.resource_id == 42
         assert log.ip_address == "192.168.1.100"
         assert log.user_agent == "Mozilla/5.0"
-        assert log.details == '{"field": "title", "old": "旧标�?, "new": "新标�?}'
+        assert log.details == '{"field": "title", "old": "旧标题", "new": "新标题"}'
         db.delete(log)
         db.commit()
 

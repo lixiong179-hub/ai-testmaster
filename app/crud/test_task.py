@@ -34,8 +34,8 @@
 """
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
 from app.models.test_task import TestTask
+from app.utils.db_time import utcnow
 
 
 def create_test_task(
@@ -195,9 +195,9 @@ def update_test_task_status(
     test_task.status = status
 
     if status == 1:  # 开始执行
-        test_task.start_time = datetime.now()
+        test_task.start_time = utcnow()
     elif status in [2, 3, 4]:  # 执行完成/失败/停止
-        test_task.end_time = datetime.now()
+        test_task.end_time = utcnow()
 
     db.commit()
     db.refresh(test_task)

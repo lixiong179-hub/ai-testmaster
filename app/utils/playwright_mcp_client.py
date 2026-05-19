@@ -245,6 +245,6 @@ def _cleanup_mcp_client():
         try:
             _mcp_client._process.terminate()
         except Exception:
-            pass
+            logger.debug("atexit清理MCP进程失败", exc_info=True)
 
 atexit.register(_cleanup_mcp_client)

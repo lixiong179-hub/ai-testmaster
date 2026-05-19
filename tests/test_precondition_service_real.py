@@ -1,11 +1,11 @@
 """
 前置操作服务真实测试
 
-测试原则（强制执行）�?
+测试原则（强制执行）：
 1. 真实执行优先：所有涉及外部依赖（浏览器、API）的测试必须使用真实环境，禁止使用Mock
-2. 覆盖率要求：单元测试覆盖率必�?>= 95%
-3. 测试准确性：测试通过率必�?100%，不允许为了通过而修改测�?
-4. 发现问题优先：测试的目的是发现代码问�?
+2. 覆盖率要求：单元测试覆盖率必须 >= 95%
+3. 测试准确性：测试通过率必须 100%，不允许为了通过而修改测试
+4. 发现问题优先：测试的目的是发现代码问题
 
 注意：这些测试使用真实浏览器，需要安装Playwright
 """
@@ -24,7 +24,7 @@ from app.services.precondition_service import (
 from app.utils.unified_vision_model import VisionModelType
 
 
-# ==================== 真实浏览器测�?====================
+# ==================== 真实浏览器测试 ====================
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
@@ -43,7 +43,7 @@ async def test_execute_web_precondition_real():
         project.name = "真实测试项目"
         project.test_object_type = "web"
         project.test_object_url = "https://www.baidu.com"
-        project.test_object_username = None  # 不测试登�?
+        project.test_object_username = None  # 不测试登录
         project.test_object_password = None
         project.test_object_device_info = None
         project.test_object_app_package = None
@@ -64,7 +64,7 @@ async def test_execute_web_precondition_real():
         assert browser is not None
         assert browser.is_initialized is True
         
-        # 验证页面已导�?
+        # 验证页面已导航
         page_info = await browser.get_page_info()
         assert "baidu.com" in page_info["url"]
         
@@ -78,7 +78,7 @@ async def test_click_and_type_real():
     """
     真实测试：点击并输入文本
     
-    使用真实浏览器在百度搜索框输入文�?
+    使用真实浏览器在百度搜索框输入文本
     """
     from app.utils.browser_controller import create_browser_controller
     
@@ -95,7 +95,7 @@ async def test_click_and_type_real():
     service.browser_controller = browser
     
     try:
-        # 导航到百�?
+        # 导航到百度
         await browser.navigate("https://www.baidu.com")
         
         # 获取页面信息
@@ -109,7 +109,7 @@ async def test_click_and_type_real():
         )
         
         if search_input:
-            # 使用JavaScript设置�?
+            # 使用JavaScript设置值
             await browser.execute_javascript(
                 "document.querySelector('#kw').value = 'Playwright测试'"
             )
@@ -136,7 +136,7 @@ async def test_recognize_login_form_real():
     真实测试：AI识别登录表单
     
     注意：此测试需要配置有效的AI API Key才能运行
-    如果没有配置API Key，测试会被跳�?
+    如果没有配置API Key，测试会被跳过
     """
     from app.core.config import settings
     
@@ -148,7 +148,7 @@ async def test_recognize_login_form_real():
     service = await create_precondition_service()
     
     try:
-        # 创建真实浏览器并导航到登录页�?
+        # 创建真实浏览器并导航到登录页面
         from app.utils.browser_controller import create_browser_controller
         browser = await create_browser_controller(
             browser_type="chromium",
@@ -166,13 +166,13 @@ async def test_recognize_login_form_real():
         # 使用真实AI识别表单
         login_form = await service._recognize_login_form(screenshot)
         
-        # 验证返回了表单信息（可能不是登录表单，但应该能识别到一些输入框�?
-        # 注意：由于页面不是登录页面，可能无法识别完整的登录表�?
+        # 验证返回了表单信息（可能不是登录表单，但应该能识别到一些输入框）
+        # 注意：由于页面不是登录页面，可能无法识别完整的登录表单
         # 这个测试主要验证AI调用流程是否正常
         
     except Exception as e:
-        # 如果AI调用失败，记录错误但测试通过（因为可能是API限制�?
-        print(f"AI识别测试遇到错误（可能是API限制�? {e}")
+        # 如果AI调用失败，记录错误但测试通过（因为可能是API限制）
+        print(f"AI识别测试遇到错误（可能是API限制）: {e}")
     finally:
         await service.cleanup()
 
@@ -181,7 +181,7 @@ async def test_recognize_login_form_real():
 @pytest.mark.real_browser
 async def test_perform_login_real():
     """
-    真实测试：执行完整登录流�?
+    真实测试：执行完整登录流程
     
     使用真实浏览器和测试网站验证登录功能
     注意：此测试需要一个可用的测试登录页面
@@ -191,12 +191,12 @@ async def test_perform_login_real():
     # 检查是否有API Key配置
     api_key = getattr(settings, 'QWEN_API_KEY', None) or getattr(settings, 'KIMI_API_KEY', None)
     if not api_key:
-        pytest.skip("未配置AI API Key，跳过真实登录测�?)
+        pytest.skip("未配置AI API Key，跳过真实登录测试")
     
     service = await create_precondition_service()
     
     try:
-        # 创建真实浏览�?
+        # 创建真实浏览器
         from app.utils.browser_controller import create_browser_controller
         browser = await create_browser_controller(
             browser_type="chromium",
@@ -204,22 +204,22 @@ async def test_perform_login_real():
         )
         service.browser_controller = browser
         
-        # 导航到测试登录页�?
-        # 使用一个公开的测试登录页面（如GitHub登录页，但不实际登录�?
+        # 导航到测试登录页面
+        # 使用一个公开的测试登录页面（如GitHub登录页，但不实际登录）
         await browser.navigate("https://github.com/login")
         
-        # 尝试执行登录（使用测试账号，实际不会提交�?
+        # 尝试执行登录（使用测试账号，实际不会提交）
         # 注意：这里只是测试流程，不会真的登录
         try:
             await service._perform_login("testuser", "testpassword")
             
-            # 如果登录成功，验证页面跳�?
+            # 如果登录成功，验证页面跳转
             page_info = await browser.get_page_info()
             # 登录后应该不在登录页面了
             # 但由于是测试账号，实际上会登录失败，所以这里不做断言
             
         except LoginError as e:
-            # 登录失败是预期的（因为使用了测试账号�?
+            # 登录失败是预期的（因为使用了测试账号）
             # 但应该是因为表单识别或登录逻辑问题，而不是浏览器问题
             print(f"登录失败（预期）: {e}")
         
@@ -233,7 +233,7 @@ async def test_perform_login_real():
 @pytest.mark.real_browser
 async def test_cleanup_real():
     """
-    真实测试：资源清�?
+    真实测试：资源清理
     
     验证浏览器资源被正确清理
     """
@@ -242,14 +242,14 @@ async def test_cleanup_real():
     service = PreconditionService()
     await service.initialize()
     
-    # 创建真实浏览�?
+    # 创建真实浏览器
     browser = await create_browser_controller(
         browser_type="chromium",
         headless=True
     )
     service.browser_controller = browser
     
-    # 验证浏览器已初始�?
+    # 验证浏览器已初始化
     assert service.is_browser_ready is True
     
     # 执行清理
@@ -264,14 +264,14 @@ async def test_cleanup_real():
 @pytest.mark.real_browser
 async def test_read_test_object_info_real_project():
     """
-    真实测试：读取真实项目配�?
+    真实测试：读取真实项目配置
     
-    创建一个模拟的真实项目对象，验证信息读取功�?
+    创建一个模拟的真实项目对象，验证信息读取功能
     """
     service = PreconditionService()
     await service.initialize()
     
-    # 创建模拟项目（模拟真实数据库项目�?
+    # 创建模拟项目（模拟真实数据库项目）
     project = Mock()
     project.name = "真实Web项目"
     project.test_object_type = "web"
@@ -298,17 +298,17 @@ async def test_read_test_object_info_real_project():
 @pytest.mark.real_browser
 async def test_execute_web_precondition_with_login_real():
     """
-    真实测试：执行Web前置操作并自动登�?
+    真实测试：执行Web前置操作并自动登录
     
     使用真实浏览器访问需要登录的页面
-    注意：此测试需要配置有效的AI API Key和测试网�?
+    注意：此测试需要配置有效的AI API Key和测试网站
     """
     from app.core.config import settings
     
     # 检查是否有API Key配置
     api_key = getattr(settings, 'QWEN_API_KEY', None) or getattr(settings, 'KIMI_API_KEY', None)
     if not api_key:
-        pytest.skip("未配置AI API Key，跳过真实自动登录测�?)
+        pytest.skip("未配置AI API Key，跳过真实自动登录测试")
     
     service = await create_precondition_service()
     
@@ -337,13 +337,13 @@ async def test_execute_web_precondition_with_login_real():
         # 验证浏览器已启动
         assert service.is_browser_ready is True
         
-        # 验证页面已导�?
+        # 验证页面已导航
         page_info = await browser.get_page_info()
         assert "github.com" in page_info["url"]
         
     except LoginError:
-        # 登录失败是预期的（因为使用了测试账号�?
-        print("自动登录失败（预期）: 使用了测试账�?)
+        # 登录失败是预期的（因为使用了测试账号）
+        print("自动登录失败（预期）: 使用了测试账号")
     except Exception as e:
         print(f"真实自动登录测试遇到错误: {e}")
     finally:
@@ -356,11 +356,11 @@ async def test_execute_web_precondition_with_login_real():
 @pytest.mark.real_browser
 async def test_read_test_object_info_no_url_error():
     """
-    真实测试：读取项目信�?- 缺少URL错误
+    真实测试：读取项目信息 - 缺少URL错误
     """
     service = await create_precondition_service()
     
-    # 创建缺少URL的项�?
+    # 创建缺少URL的项目
     project = Mock()
     project.name = "无URL项目"
     project.test_object_type = "web"
@@ -382,11 +382,11 @@ async def test_read_test_object_info_no_url_error():
 @pytest.mark.real_browser
 async def test_read_test_object_info_invalid_url_error():
     """
-    真实测试：读取项目信�?- 无效URL错误
+    真实测试：读取项目信息 - 无效URL错误
     """
     service = await create_precondition_service()
     
-    # 创建无效URL的项�?
+    # 创建无效URL的项目
     project = Mock()
     project.name = "无效URL项目"
     project.test_object_type = "web"
@@ -408,17 +408,17 @@ async def test_read_test_object_info_invalid_url_error():
 @pytest.mark.real_browser
 async def test_read_test_object_info_no_type_error():
     """
-    真实测试：读取项目信�?- 缺少类型错误
+    真实测试：读取项目信息 - 缺少类型错误
     """
     service = await create_precondition_service()
     
-    # 创建缺少类型的项�?
+    # 创建缺少类型的项目
     project = Mock()
-    project.name = "无类型项�?
+    project.name = "无类型项目"
     project.test_object_type = None
     
     # 应该抛出配置错误
-    with pytest.raises(PreconditionConfigError, match="未配置被测对象类�?):
+    with pytest.raises(PreconditionConfigError, match="未配置被测对象类型"):
         await service.read_test_object_info(project)
     
     await service.cleanup()
@@ -434,7 +434,7 @@ async def test_read_test_object_info_app_no_device_error():
     
     # 创建缺少设备ID的App项目
     project = Mock()
-    project.name = "无设备项�?
+    project.name = "无设备项目"
     project.test_object_type = "app"
     project.test_object_url = None
     project.test_object_username = None
@@ -460,7 +460,7 @@ async def test_read_test_object_info_app_no_package_error():
     
     # 创建缺少包名的App项目
     project = Mock()
-    project.name = "无包名项�?
+    project.name = "无包名项目"
     project.test_object_type = "app"
     project.test_object_url = None
     project.test_object_username = None
@@ -480,12 +480,12 @@ async def test_read_test_object_info_app_no_package_error():
 @pytest.mark.real_browser
 async def test_execute_web_precondition_no_info_error():
     """
-    真实测试：执行Web前置操作 - 未读取项目信息错�?
+    真实测试：执行Web前置操作 - 未读取项目信息错误
     """
     service = await create_precondition_service()
     
     # 未读取项目信息就执行前置操作
-    with pytest.raises(PreconditionConfigError, match="未读取被测对象信�?):
+    with pytest.raises(PreconditionConfigError, match="未读取被测对象信息"):
         await service.execute_web_precondition()
     
     await service.cleanup()
@@ -524,12 +524,12 @@ async def test_execute_web_precondition_wrong_type_error():
 @pytest.mark.real_browser
 async def test_execute_app_precondition_no_info_error():
     """
-    真实测试：执行C端前置操�?- 未读取被测对象信息错�?
+    真实测试：执行C端前置操作 - 未读取被测对象信息错误
     """
     service = await create_precondition_service()
 
-    # 未读取被测对象信息就执行C端前置操�?
-    with pytest.raises(PreconditionError, match="未读取被测对象信�?):
+    # 未读取被测对象信息就执行C端前置操作
+    with pytest.raises(PreconditionError, match="未读取被测对象信息"):
         await service.execute_app_precondition()
 
     await service.cleanup()
@@ -539,7 +539,7 @@ async def test_execute_app_precondition_no_info_error():
 @pytest.mark.real_browser
 async def test_perform_login_no_browser_error():
     """
-    真实测试：执行登�?- 浏览器未初始化错�?
+    真实测试：执行登录 - 浏览器未初始化错误
     """
     service = await create_precondition_service()
     
@@ -554,12 +554,12 @@ async def test_perform_login_no_browser_error():
 @pytest.mark.real_browser
 async def test_click_and_type_no_browser_error():
     """
-    真实测试：点击并输入 - 浏览器未初始化错�?
+    真实测试：点击并输入 - 浏览器未初始化错误
     """
     service = await create_precondition_service()
     
     # 未初始化浏览器就执行点击输入
-    with pytest.raises(PreconditionError, match="浏览器未初始�?):
+    with pytest.raises(PreconditionError, match="浏览器未初始化"):
         await service._click_and_type(100, 200, "test")
     
     await service.cleanup()
@@ -569,12 +569,12 @@ async def test_click_and_type_no_browser_error():
 @pytest.mark.real_browser
 async def test_recognize_login_form_no_vision_model_error():
     """
-    真实测试：识别登录表�?- 视觉模型未初始化错误
+    真实测试：识别登录表单 - 视觉模型未初始化错误
     """
     service = PreconditionService()
     # 不初始化视觉模型
     
-    # 未初始化视觉模型就识别表�?
+    # 未初始化视觉模型就识别表单
     with pytest.raises(PreconditionError, match="视觉模型未初始化"):
         await service._recognize_login_form(b"fake_screenshot")
 
@@ -587,14 +587,14 @@ async def test_initialize_with_config_real():
     """
     service = PreconditionService()
     
-    # 使用配置初始�?
+    # 使用配置初始化
     result = await service.initialize(
         model_type=VisionModelType.QWEN,
         api_key="test_key",
         model_name="qwen-vl-plus"
     )
     
-    # 验证初始化成�?
+    # 验证初始化成功
     assert result is service
     assert service.vision_model is not None
     assert service.vision_model.model_type == VisionModelType.QWEN
@@ -606,7 +606,7 @@ async def test_initialize_with_config_real():
 @pytest.mark.real_browser
 async def test_create_precondition_service_with_config_real():
     """
-    真实测试：使用配置创建前置操作服�?
+    真实测试：使用配置创建前置操作服务
     """
     service = await create_precondition_service(
         model_type=VisionModelType.QWEN,
@@ -626,7 +626,7 @@ async def test_create_precondition_service_with_config_real():
 @pytest.mark.real_browser
 async def test_login_form_info_is_complete_true_real():
     """
-    真实测试：登录表单完整性检�?- 完整
+    真实测试：登录表单完整性检查 - 完整
     """
     from app.services.precondition_service import LoginFormInfo
     
@@ -643,7 +643,7 @@ async def test_login_form_info_is_complete_true_real():
 @pytest.mark.real_browser
 async def test_login_form_info_is_complete_false_real():
     """
-    真实测试：登录表单完整性检�?- 不完�?
+    真实测试：登录表单完整性检查 - 不完整
     """
     from app.services.precondition_service import LoginFormInfo
     
@@ -660,17 +660,17 @@ async def test_login_form_info_is_complete_false_real():
 @pytest.mark.real_browser
 async def test_is_browser_ready_property_real():
     """
-    真实测试：浏览器就绪状态属�?
+    真实测试：浏览器就绪状态属性
     """
     from app.utils.browser_controller import create_browser_controller
     
     service = PreconditionService()
     await service.initialize()
     
-    # 初始状�?- 未就�?
+    # 初始状态 - 未就绪
     assert service.is_browser_ready is False
     
-    # 创建真实浏览�?
+    # 创建真实浏览器
     browser = await create_browser_controller(
         browser_type="chromium",
         headless=True
@@ -680,7 +680,7 @@ async def test_is_browser_ready_property_real():
     # 浏览器已就绪
     assert service.is_browser_ready is True
     
-    # 清理�?- 未就�?
+    # 清理后 - 未就绪
     await service.cleanup()
     assert service.is_browser_ready is False
 
@@ -689,11 +689,11 @@ async def test_is_browser_ready_property_real():
 @pytest.mark.real_browser
 async def test_test_object_info_property_real():
     """
-    真实测试：被测对象信息属�?
+    真实测试：被测对象信息属性
     """
     service = await create_precondition_service()
     
-    # 初始状�?- 无信�?
+    # 初始状态 - 无信息
     assert service.test_object_info is None
     
     # 创建项目
@@ -710,7 +710,7 @@ async def test_test_object_info_property_real():
     # 读取项目信息
     info = await service.read_test_object_info(project)
     
-    # 验证属性返回正确信�?
+    # 验证属性返回正确信息
     assert service.test_object_info is not None
     assert service.test_object_info.type == TestObjectType.WEB
     assert service.test_object_info.url == "https://www.example.com"
@@ -822,11 +822,11 @@ async def test_test_object_info_validate_app_no_package_real():
 @pytest.mark.real_browser
 async def test_read_test_object_info_invalid_type_error():
     """
-    真实测试：读取项目信�?- 无效类型错误
+    真实测试：读取项目信息 - 无效类型错误
     """
     service = await create_precondition_service()
     
-    # 创建无效类型的项�?
+    # 创建无效类型的项目
     project = Mock()
     project.name = "无效类型项目"
     project.test_object_type = "invalid_type"
@@ -838,7 +838,7 @@ async def test_read_test_object_info_invalid_type_error():
     project.test_object_app_activity = None
     
     # 应该抛出配置错误
-    with pytest.raises(PreconditionConfigError, match="无效的被测对象类�?):
+    with pytest.raises(PreconditionConfigError, match="无效的被测对象类型"):
         await service.read_test_object_info(project)
     
     await service.cleanup()
@@ -848,7 +848,7 @@ async def test_read_test_object_info_invalid_type_error():
 @pytest.mark.real_browser
 async def test_read_test_object_info_json_decode_error():
     """
-    真实测试：读取项目信�?- JSON解析错误
+    真实测试：读取项目信息 - JSON解析错误
     """
     service = await create_precondition_service()
     
@@ -863,14 +863,14 @@ async def test_read_test_object_info_json_decode_error():
     project.test_object_app_package = "com.example.app"
     project.test_object_app_activity = None
     
-    # JSON解析错误但缺少device_id，应该抛出配置错�?
+    # JSON解析错误但缺少device_id，应该抛出配置错误
     with pytest.raises(PreconditionConfigError, match="必须配置设备ID"):
         await service.read_test_object_info(project)
     
     await service.cleanup()
 
 
-# ==================== 浏览器错误处理测�?====================
+# ==================== 浏览器错误处理测试 ====================
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
@@ -878,17 +878,17 @@ async def test_browser_error_handling_real():
     """
     真实测试：浏览器错误处理
 
-    测试当浏览器操作失败时，错误被正确包�?
+    测试当浏览器操作失败时，错误被正确包装
     """
     from app.utils.browser_controller_v2 import BrowserError
     from app.services.precondition_service import handle_precondition_errors
 
     @handle_precondition_errors
     async def raise_browser_error():
-        raise BrowserError("浏览器启动失�?)
+        raise BrowserError("浏览器启动失败")
 
     # 浏览器错误应该被包装为PreconditionError
-    with pytest.raises(PreconditionError, match="浏览器操作失�?):
+    with pytest.raises(PreconditionError, match="浏览器操作失败"):
         await raise_browser_error()
 
 
@@ -898,7 +898,7 @@ async def test_generic_error_handling_real():
     """
     真实测试：通用错误处理
     
-    测试当发生通用错误时，错误被正确包�?
+    测试当发生通用错误时，错误被正确包装
     """
     from app.services.precondition_service import handle_precondition_errors
     
@@ -917,7 +917,7 @@ async def test_precondition_error_pass_through_real():
     """
     真实测试：PreconditionError直接抛出
     
-    测试PreconditionError不会被包�?
+    测试PreconditionError不会被包装
     """
     from app.services.precondition_service import handle_precondition_errors
     
@@ -936,7 +936,7 @@ async def test_precondition_error_pass_through_real():
 @pytest.mark.real_browser
 async def test_perform_login_incomplete_form_real():
     """
-    真实测试：执行登�?- 表单不完�?
+    真实测试：执行登录 - 表单不完整
     
     使用真实浏览器但模拟不完整的表单识别结果
     """
@@ -944,7 +944,7 @@ async def test_perform_login_incomplete_form_real():
     
     service = await create_precondition_service()
     
-    # 创建真实浏览�?
+    # 创建真实浏览器
     browser = await create_browser_controller(
         browser_type="chromium",
         headless=True
@@ -952,11 +952,11 @@ async def test_perform_login_incomplete_form_real():
     service.browser_controller = browser
     
     try:
-        # 导航到非登录页面（这样AI无法识别完整登录表单�?
+        # 导航到非登录页面（这样AI无法识别完整登录表单）
         await browser.navigate("https://www.baidu.com")
         
-        # 尝试执行登录，应该因为表单不完整而失�?
-        with pytest.raises(LoginError, match="未能识别完整的登录表�?):
+        # 尝试执行登录，应该因为表单不完整而失败
+        with pytest.raises(LoginError, match="未能识别完整的登录表单"):
             await service._perform_login("user", "pass")
         
     finally:
@@ -969,13 +969,13 @@ async def test_click_and_type_with_special_chars_real():
     """
     真实测试：点击并输入 - 特殊字符
     
-    测试输入包含特殊字符的文�?
+    测试输入包含特殊字符的文本
     """
     from app.utils.browser_controller import create_browser_controller
     
     service = await create_precondition_service()
     
-    # 创建真实浏览�?
+    # 创建真实浏览器
     browser = await create_browser_controller(
         browser_type="chromium",
         headless=True
@@ -983,17 +983,17 @@ async def test_click_and_type_with_special_chars_real():
     service.browser_controller = browser
     
     try:
-        # 导航到百�?
+        # 导航到百度
         await browser.navigate("https://www.baidu.com")
         
         # 在搜索框输入特殊字符
-        # 先找到搜索框元素并点�?
+        # 先找到搜索框元素并点击
         search_input = await browser.execute_javascript(
             "document.querySelector('#kw')"
         )
         
         if search_input:
-            # 获取搜索框位�?
+            # 获取搜索框位置
             rect = await browser.execute_javascript(
                 "document.querySelector('#kw').getBoundingClientRect()"
             )
@@ -1019,9 +1019,9 @@ async def test_click_and_type_with_special_chars_real():
 @pytest.mark.real_browser
 async def test_recognize_login_form_empty_response_real():
     """
-    真实测试：识别登录表�?- 空响�?
+    真实测试：识别登录表单 - 空响应
     
-    测试当AI返回空响应时的处�?
+    测试当AI返回空响应时的处理
     """
     service = await create_precondition_service()
     
@@ -1045,13 +1045,13 @@ async def test_recognize_login_form_empty_response_real():
 @pytest.mark.real_browser
 async def test_recognize_login_form_no_json_response_real():
     """
-    真实测试：识别登录表�?- 无JSON响应
+    真实测试：识别登录表单 - 无JSON响应
     
-    测试当AI返回不包含JSON的响应时的处�?
+    测试当AI返回不包含JSON的响应时的处理
     """
     service = await create_precondition_service()
     
-    # 模拟视觉模型返回不包含JSON的文�?
+    # 模拟视觉模型返回不包含JSON的文本
     original_analyze = service.vision_model.analyze_image
     service.vision_model.analyze_image = lambda image, prompt, system_prompt=None: "这是一个普通的文本响应，不包含JSON数据"
     
@@ -1068,7 +1068,7 @@ async def test_recognize_login_form_no_json_response_real():
 @pytest.mark.real_browser
 async def test_recognize_login_form_partial_response_real():
     """
-    真实测试：识别登录表�?- 部分响应
+    真实测试：识别登录表单 - 部分响应
     
     测试当AI返回部分表单信息时的处理
     """
@@ -1086,7 +1086,7 @@ async def test_recognize_login_form_partial_response_real():
     
     try:
         form_info = await service._recognize_login_form(b"fake_screenshot")
-        # 表单不完整（缺少submit_button�?
+        # 表单不完整（缺少submit_button）
         assert form_info.is_complete() is False
         assert form_info.username_input is not None
         assert form_info.password_input is not None
@@ -1100,7 +1100,7 @@ async def test_recognize_login_form_partial_response_real():
 @pytest.mark.real_browser
 async def test_recognize_login_form_with_captcha_real():
     """
-    真实测试：识别登录表�?- 包含验证�?
+    真实测试：识别登录表单 - 包含验证码
     
     测试当AI返回包含验证码的表单信息时的处理
     """
@@ -1132,9 +1132,9 @@ async def test_recognize_login_form_with_captcha_real():
 @pytest.mark.real_browser
 async def test_recognize_login_form_exception_handling_real():
     """
-    真实测试：识别登录表�?- 异常处理
+    真实测试：识别登录表单 - 异常处理
     
-    测试当AI分析过程中抛出异常时的处�?
+    测试当AI分析过程中抛出异常时的处理
     """
     service = await create_precondition_service()
     

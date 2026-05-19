@@ -110,7 +110,7 @@ def build_test_case_response(test_case) -> Dict[str, Any]:
         "test_category": getattr(test_case, 'test_category', None),
         "exec_script": getattr(test_case, 'exec_script', ''),
         "generate_status": getattr(test_case, 'generate_status', 0),
-        "lifecycle_status": getattr(test_case, 'lifecycle_status', 'active'),
+        "lifecycle_status": getattr(test_case, 'lifecycle_status', 'draft'),
         "test_point_id": getattr(test_case, 'test_point_id', None),
         "summary": getattr(test_case, 'summary', None),
         "summary_version": getattr(test_case, 'summary_version', 0),
@@ -118,6 +118,10 @@ def build_test_case_response(test_case) -> Dict[str, Any]:
         "parent_case_id": getattr(test_case, 'parent_case_id', None),
         "ai_change_type": getattr(test_case, 'ai_change_type', None),
         "last_review_id": getattr(test_case, 'last_review_id', None),
+        "depends_on": getattr(test_case, 'depends_on', None),
+        "anchor_step": getattr(test_case, 'anchor_step', None),
+        "fallback_steps": getattr(test_case, 'fallback_steps', None),
+        "setup_api_calls": getattr(test_case, 'setup_api_calls', None),
         "create_time": create_time
     }
 

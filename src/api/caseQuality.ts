@@ -27,10 +27,11 @@ export const getCaseQualityTrend = (caseId: number, days: number = 30) => {
 }
 
 /**
- * 预估用例成本
+ * 获取用例成本统计
+ * 后端：GET /api/v1/quality/cases/{case_id}/cost-statistics
  */
 export const estimateCaseCost = (caseId: number) => {
-  return request.get(`/api/v1/quality/cases/${caseId}/cost-estimate`)
+  return request.get(`/api/v1/quality/cases/${caseId}/cost-statistics`)
 }
 
 /**
@@ -41,10 +42,11 @@ export const optimizeCaseLocators = (caseId: number) => {
 }
 
 /**
- * 获取项目成本汇总
+ * 获取项目成本统计
+ * 后端：GET /api/v1/quality/projects/{project_id}/cost-statistics
  */
 export const getProjectCostSummary = (projectId: number) => {
-  return request.get(`/api/v1/quality/projects/${projectId}/cost-summary`)
+  return request.get(`/api/v1/quality/projects/${projectId}/cost-statistics`)
 }
 
 /**

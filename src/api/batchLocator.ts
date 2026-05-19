@@ -1,9 +1,13 @@
 /**
  * 批量元素定位API
+ *
+ * 后端路由挂载在 /api/v1/batch-locator 前缀下
  */
 import request from '@/utils/request'
 
 export interface BatchRecordRequest {
+  project_id: number
+  case_ids: number[]
   skip_existing?: boolean
   execute_precondition?: boolean
   use_mcp?: boolean
@@ -67,42 +71,46 @@ export interface BatchTask {
 
 /**
  * 启动批量元素定位记录
+ * 后端：POST /api/v1/batch-locator/batch-record
  */
 export const startBatchRecord = (
-  caseId: number,
-  data: BatchRecordRequest = {}
+  data: BatchRecordRequest
 ): Promise<BatchRecordResponse> => {
-  return request.post(`/batch-locator/cases/${caseId}/batch-record`, data)
+  return request.post('/api/v1/batch-locator/batch-record', data)
 }
 
 /**
  * 获取批量记录任务状态
+ * 后端：GET /api/v1/batch-locator/batch-record-status/{task_id}
  */
-export const getBatchRecordStatus = (caseId: number): Promise<BatchRecordStatus> => {
-  return request.get(`/batch-locator/cases/${caseId}/batch-record-status`)
+export const getBatchRecordStatus = (taskId: string): Promise<BatchRecordStatus> => {
+  return request.get(`/api/v1/batch-locator/batch-record-status/${taskId}`)
 }
 
 /**
  * 获取批量记录完整报告
+ * 后端：GET /api/v1/batch-locator/batch-record-report/{task_id}
  */
-export const getBatchRecordReport = (caseId: number): Promise<BatchRecordReport> => {
-  return request.get(`/batch-locator/cases/${caseId}/batch-record-report`)
+export const getBatchRecordReport = (taskId: string): Promise<BatchRecordReport> => {
+  return request.get(`/api/v1/batch-locator/batch-record-report/${taskId}`)
 }
 
 /**
  * 取消批量记录任务
+ * 后端：POST /api/v1/batch-locator/batch-record-cancel/{task_id}
  */
 export const cancelBatchRecord = (
-  caseId: number
+  taskId: string
 ): Promise<{ success: boolean; message: string }> => {
-  return request.post(`/batch-locator/cases/${caseId}/batch-record-cancel`)
+  return request.post(`/api/v1/batch-locator/batch-record-cancel/${taskId}`)
 }
 
 /**
  * 获取所有批量任务列表
+ * 后端：GET /api/v1/batch-locator/batch-tasks
  */
 export const listBatchTasks = (): Promise<BatchTask[]> => {
-  return request.get('/batch-locator/batch-tasks')
+  return request.get('/api/v1/batch-locator/batch-tasks')
 }
 
 /**

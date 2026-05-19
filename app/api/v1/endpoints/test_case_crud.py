@@ -22,7 +22,7 @@
     - 用例编号自动生成，格式: CASE{project_id}-{时间戳}
 """
 from typing import Optional
-from datetime import datetime
+from app.utils.db_time import utcnow
 import json
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
@@ -226,6 +226,7 @@ async def get_test_case(
     # 先验证用例所属项目是否属于当前用户
     test_case = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
     ).first()
     
@@ -321,9 +322,8 @@ async def delete_test_case(
             detail="测试用例不存在"
         )
 
-    from datetime import datetime as dt
     test_case.is_deleted = True
-    test_case.deleted_at = dt.utcnow()
+    test_case.deleted_at = utcnow()
     db.commit()
 
     logger.info(f"[删除用例] 用户ID={current_user.id}, 用户名={current_user.username}, 用例ID={test_case_id}")

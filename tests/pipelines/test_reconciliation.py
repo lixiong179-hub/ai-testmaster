@@ -1,14 +1,14 @@
 """M2-T07 Reconciliation Step 单元测试
 
-覆盖�?
+覆盖：
     - Reconciliation Step: should_run / cache_key / execute / validate_output / fallback
-    - merge() 纯函数：plan §6 矩阵所�?15 个格�?+ NEW/无反向匹�?
-    - _lookup_matrix: 有效输入/无效输入/冲突检�?
-    - MergedAction 枚举所有�?
-    - 边界：空输入、缺�?case_id、前向后向互�?
+    - merge() 纯函数：plan §6 矩阵所有 15 个格子 + NEW/无反向匹配
+    - _lookup_matrix: 有效输入/无效输入/冲突检测
+    - MergedAction 枚举所有值
+    - 边界：空输入、缺失 case_id、前向后向互斥
     - _verdict_to_dict / _compute_reconciliation_stats / _compute_avg_confidence
 
-使用真实 MySQL 数据库，�?AI 调用�?
+使用真实 MySQL 数据库，零 AI 调用。
 """
 import json
 
@@ -23,11 +23,13 @@ from app.pipelines.steps.reconciliation import (
     MergedAction,
     MergedVerdict,
     Reconciliation,
-    _compute_avg_confidence,
-    _compute_reconciliation_stats,
+    merge,
+)
+from app.pipelines.steps.reconciliation._merge import (
     _lookup_matrix,
     _verdict_to_dict,
-    merge,
+    _compute_reconciliation_stats,
+    _compute_avg_confidence,
 )
 from app.services import pipeline_service
 
@@ -225,7 +227,7 @@ class TestReconciliationExecute:
 
 
 class TestMergeMatrixCells:
-    """覆盖 plan §6 矩阵所�?15 个格子�?""
+    """覆盖 plan §6 矩阵所有 15 个格子。"""
 
     def test_valid_existing(self):
         result = merge([_bw_v(100, "VALID")], [_fw_v(0, "EXISTING", matched_case_id=100)])
@@ -309,7 +311,7 @@ class TestMergeForwardOnly:
     def test_forward_existing_no_backward_match(self):
         result = merge([], [_fw_v(0, "EXISTING", matched_case_id=999)])
         assert result[0].action == MergedAction.ADD_NEW
-        assert "未找到反向裁�? in result[0].reason
+        assert "未找到反向裁决" in result[0].reason
 
 
 class TestMergeBackwardOnly:

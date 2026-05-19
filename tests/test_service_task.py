@@ -15,7 +15,7 @@ class TestTaskServiceStartTask:
             service.start_task(99999, db)
         )
         assert result["success"] is False
-        assert "不存�? in result["error"]
+        assert "不存在" in result["error"]
 
     @pytest.mark.skip(reason="TaskService构造函数已重构为无参数")
     def test_start_task_with_running_status(self, db, testUser, testProject):
@@ -35,7 +35,7 @@ class TestTaskServiceStartTask:
         try:
             result = loop.run_until_complete(service.start_task(task.id, db))
             assert result["success"] is False
-            assert "执行�? in result["error"]
+            assert "执行中" in result["error"]
         finally:
             loop.close()
 
@@ -57,7 +57,7 @@ class TestTaskServiceStartTask:
         try:
             result = loop.run_until_complete(service.start_task(task.id, db))
             assert result["success"] is True
-            assert "已启�? in result["message"]
+            assert "已启动" in result["message"]
         except Exception:
             pass
         finally:
@@ -73,7 +73,7 @@ class TestTaskServiceStopTask:
             service.stop_task(99999, db)
         )
         assert result["success"] is False
-        assert "不存�? in result["error"]
+        assert "不存在" in result["error"]
 
     @pytest.mark.skip(reason="TaskService构造函数已重构为无参数")
     def test_stop_task_not_running(self, db, testUser, testProject):
@@ -93,7 +93,7 @@ class TestTaskServiceStopTask:
             service.stop_task(task.id, db)
         )
         assert result["success"] is False
-        assert "未在执行�? in result["error"]
+        assert "未在执行中" in result["error"]
 
     @pytest.mark.skip(reason="TaskService构造函数已重构为无参数")
     def test_stop_task_running(self, db, testUser, testProject):
@@ -139,7 +139,7 @@ class TestTaskServiceStopTask:
             service.stop_task(task.id, db)
         )
         assert result["success"] is False
-        assert "未在执行�? in result["error"]
+        assert "未在执行中" in result["error"]
 
 
 class TestTaskServiceInit:

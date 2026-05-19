@@ -74,7 +74,7 @@ class BatchExecutorMixin:
                         await asyncio.sleep(0.3)
                         return
                     except Exception:
-                        pass
+                        logger.debug("CSS选择器fill操作失败，降级为坐标输入", exc_info=True)
                 coord = locator.ai_coordinate if isinstance(locator.ai_coordinate, dict) else {}
                 if coord:
                     x = coord.get("x", 0) + coord.get("width", 0) // 2
@@ -108,7 +108,7 @@ class BatchExecutorMixin:
                         await asyncio.sleep(0.5)
                         return
                     except Exception:
-                        pass
+                        logger.debug("CSS选择器hover操作失败，降级为坐标触发", exc_info=True)
                 coord = locator.ai_coordinate if isinstance(locator.ai_coordinate, dict) else {}
                 if coord:
                     x = coord.get("x", 0) + coord.get("width", 0) // 2
@@ -141,7 +141,7 @@ class BatchExecutorMixin:
                             """, input_value)
                         return
                     except Exception:
-                        pass
+                        logger.debug("CSS选择器select操作失败，降级为坐标点击", exc_info=True)
                 coord = locator.ai_coordinate if isinstance(locator.ai_coordinate, dict) else {}
                 if coord:
                     x = coord.get("x", 0) + coord.get("width", 0) // 2

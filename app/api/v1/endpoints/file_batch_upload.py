@@ -172,7 +172,7 @@ async def batch_upload_files(
                                 continue
                             logger.warning(mime_error)
                     except Exception:
-                        pass
+                        logger.debug("文件MIME校验异常", exc_info=True)
 
                 file_resource_type = resource_type
                 if resource_type == "other":
@@ -210,7 +210,7 @@ async def batch_upload_files(
                     try:
                         os.remove(zip_path)
                     except Exception:
-                        pass
+                        logger.debug("删除临时zip文件失败", exc_info=True)
 
                     continue
 

@@ -298,7 +298,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
           total_cases: 1,
           passed_cases: 1,
           failed_cases: 0,
-          skipped_cases: 0,
+          blocked_cases: 0,
           total_duration_ms: 120,
           pass_rate: 100,
         },

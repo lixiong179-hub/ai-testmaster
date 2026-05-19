@@ -188,7 +188,7 @@ async def get_case_quality_trend(
     current_user: User = Depends(get_current_user)
 ):
     from app.models.test_case import TestCase
-    test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
 
@@ -216,7 +216,7 @@ async def optimize_case_locators(
     from app.models.test_case import TestCase, TestStep
     from app.models.element_locator import ElementLocator
 
-    test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
+    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
 

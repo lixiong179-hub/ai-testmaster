@@ -23,7 +23,7 @@ from app.utils.ai_client import (
 
 
 class TestCleanJsonString:
-    """JSON字符串清理方法测�?""
+    """JSON字符串清理方法测试"""
 
     def test_valid_json_passes_through(self):
         valid = '{"key": "value", "num": 123}'
@@ -80,10 +80,10 @@ class TestExtractJsonObjectsFallback:
 
 
 class TestAnalyzeRequirementsReturnPaths:
-    """fix_common_json_issues 返回路径测试——核心修复验�?""
+    """fix_common_json_issues 返回路径测试——核心修复验证"""
 
     def test_returns_list_when_json_valid(self):
-        """JSON有效时返回修复后的字符串——核心场�?""
+        """JSON有效时返回修复后的字符串——核心场景"""
         valid_json = '[{"description": "test", "priority": 1}]'
         result = fix_common_json_issues(valid_json)
         assert result is not None

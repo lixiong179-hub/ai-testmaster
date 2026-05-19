@@ -1,0 +1,72 @@
+.review-inbox {
+  padding: 16px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-left h2 {
+  margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-container,
+.error-container {
+  padding: 24px 0;
+}
+
+.inbox-content {
+  padding: 8px 0;
+}
+
+.decisions-table {
+  margin-top: 12px;
+}
+
+.target-id {
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.text-muted {
+  color: #909399;
+  font-size: 13px;
+}
+
+.hint-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hint-text {
+  font-size: 12px;
+  color: #909399;
+}
+
+.decision-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.human-decision {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

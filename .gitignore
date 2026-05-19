@@ -39,11 +39,14 @@ venv_backup/
 .coverage
 htmlcov/
 *.cover
+cov*.json
+coverage_output.txt
 
 # Environment
 .env
 .env.local
 .env.*.local
+.secret_keys
 
 # Logs
 *.log
@@ -99,5 +102,12 @@ cypress/videos/
 /*.png
 /*.txt
 check_result*.txt
+
+# Root-level temp artifacts
+api_test_results.json
+bug_report.json
+test_report.json
+_categorize_failures.py
+fix_encoding.py
 
 # Misc

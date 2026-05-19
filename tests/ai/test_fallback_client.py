@@ -1,6 +1,6 @@
 """FallbackAIClient 主备切换测试
 
-使用真实客户端验证主备切换逻辑：坏 key 主模�?�?真实 key 备用模型�?禁止 Mock，通过构造失效主客户端实现真实故障场景�?"""
+使用真实客户端验证主备切换逻辑：坏 key 主模垿↿真实 key 备用模型〿禁止 Mock，通过构造失效主客户端实现真实故障场景〿"""
 import os
 import pytest
 from app.ai.client import AIResponse
@@ -10,7 +10,7 @@ from app.core.config import settings
 
 _SKIP_REASON = None
 if not settings.DEEPSEEK_API_KEY or settings.DEEPSEEK_API_KEY.startswith("your"):
-    _SKIP_REASON = "未配�?DeepSeek API Key"
+    _SKIP_REASON = "未配罿DeepSeek API Key"
 elif os.environ.get("CI") == "true" and not os.environ.get("RUN_REAL_AI_TESTS"):
     _SKIP_REASON = "CI 环境跳过真实 AI 调用"
 

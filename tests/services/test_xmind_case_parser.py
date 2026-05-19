@@ -1,111 +1,254 @@
-"""XMind 场景树解析器单元测试�?""
-import zipfile
-
-from app.services.xmind_case_parser import XmindCaseParser
-
-
-NS = "urn:xmind:xmap:xmlns:content:2.0"
-
-
-def _create_xmind_file(path: str, content_xml: str) -> str:
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("content.xml", content_xml)
-        zf.writestr("meta.xml", '<?xml version="1.0" encoding="UTF-8"?>')
-    return path
+import pytest
+from app.services.xmind_case_parser._classify import (
+    TopicNode,
+    _ClassifyMixin,
+)
+from app.services.xmind_case_parser._parse import _ParseMixin
+from app.services.xmind_case_parser._util import _UtilMixin
 
 
-def _build_content_xml(topics_xml: str) -> str:
-    return f"""<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<xmap-content xmlns="{NS}" version="2.0">
-<sheet id="test-sheet">
-<topic id="root" structure-class="org.xmind.ui.logic.right">
-<title>听写任务</title>
-<children><topics type="attached">
-{topics_xml}
-</topics></children>
-</topic>
-</sheet>
-</xmap-content>"""
+class _ConcreteParser(_ClassifyMixin, _ParseMixin, _UtilMixin):
+    MODULE_MAX_LEN = 100
+    TITLE_MAX_LEN = 255
+    POINT_MAX_LEN = 500
 
 
-def _build_topic(title: str, topic_id: str, children_xml: str = "") -> str:
-    children_part = (
-        f"<children><topics type='attached'>{children_xml}</topics></children>"
-        if children_xml
-        else ""
-    )
-    return f"""<topic id="{topic_id}">
-<title>{title}</title>
-{children_part}
-</topic>"""
+parser = _ConcreteParser()
 
 
-def test_parse_scenario_tree_to_case(tmp_path) -> None:
-    leaf = _build_topic("界面显示最近的听写记录", "leaf")
-    has_record = _build_topic("有记�?, "has-record", children_xml=leaf)
-    click_record = _build_topic("点击听写记录", "click-record", children_xml=has_record)
-    has_content = _build_topic("有教材内�?, "has-content", children_xml=click_record)
-    module = _build_topic("字词听写", "module", children_xml=has_content)
-    xmind_file = _create_xmind_file(
-        str(tmp_path / "scenario.xmind"),
-        _build_content_xml(module),
-    )
+class TestTopicNode:
+    def test_defaults(self):
+        node = TopicNode(title="根")
+        assert node.title == "根"
+        assert node.priority is None
+        assert node.notes == ""
+        assert node.children == []
 
-    parser = XmindCaseParser()
-    result = parser.parse(xmind_file)
-
-    assert len(result) == 1
-    assert result[0]["module"] == "字词听写"
-    # function 是AI中间产物，不存库，仅作提示词上下�?
-    assert "function" in result[0]  # 瞬态字段，从XMind二级节点推断
-    assert result[0]["title"] == "点击听写记录，界面显示最近的听写记录"
-    assert "有教材内�? in result[0]["precondition"]
-    assert "有记�? in result[0]["precondition"]
-    assert result[0]["steps"][0]["action"] == "点击听写记录"
-    assert result[0]["expected_result"] == "界面显示最近的听写记录"
-    assert result[0]["point"] == result[0]["title"]
-    assert result[0]["source_depth"] == 4
+    def test_with_children(self):
+        child = TopicNode(title="子")
+        node = TopicNode(title="根", children=[child])
+        assert len(node.children) == 1
+        assert node.children[0].title == "子"
 
 
-def test_parse_multiple_actions_to_multi_step_case(tmp_path) -> None:
-    leaf = _build_topic("跳转到结果页", "leaf")
-    submit = _build_topic("点击提交", "submit", children_xml=leaf)
-    write = _build_topic("开始屏幕听�?, "write", children_xml=submit)
-    selected = _build_topic("已选汉�?, "selected", children_xml=write)
-    module = _build_topic("字词听写", "module", children_xml=selected)
-    xmind_file = _create_xmind_file(
-        str(tmp_path / "multi_step.xmind"),
-        _build_content_xml(module),
-    )
+class TestClassifyText:
+    def test_action_click(self):
+        assert parser._classify_text("点击登录按钮") == "action"
 
-    parser = XmindCaseParser()
-    result = parser.parse(xmind_file)
+    def test_action_input(self):
+        assert parser._classify_text("输入用户名") == "action"
 
-    assert len(result) == 1
-    assert [step["action"] for step in result[0]["steps"]] == ["开始屏幕听�?, "点击提交"]
-    assert result[0]["steps"][-1]["expected_result"] == "跳转到结果页"
+    def test_action_numbered(self):
+        assert parser._classify_text("1. 打开页面") == "action"
+
+    def test_expected_display(self):
+        assert parser._classify_text("界面显示登录成功") == "expected"
+
+    def test_expected_toast(self):
+        assert parser._classify_text("toast提示保存成功") == "expected"
+
+    def test_condition(self):
+        assert parser._classify_text("已登录用户") == "condition"
+
+    def test_condition_exists(self):
+        assert parser._classify_text("存在订单记录") == "condition"
+
+    def test_ignore_ui_ref(self):
+        assert parser._classify_text("界面详见UI设计稿") == "ignore"
+
+    def test_other(self):
+        assert parser._classify_text("普通文本描述") == "other"
+
+    def test_empty(self):
+        assert parser._classify_text("") == "ignore"
+
+    def test_whitespace(self):
+        assert parser._classify_text("   ") == "ignore"
 
 
-def test_do_not_dedupe_cases_with_different_steps(tmp_path) -> None:
-    leaf1 = _build_topic("跳转到结果页", "leaf1")
-    action1 = _build_topic("点击提交", "action1", children_xml=leaf1)
-    scene1 = _build_topic("已选汉�?, "scene1", children_xml=action1)
+class TestInferCaseTitle:
+    def test_with_actions_and_expected(self):
+        title = parser._infer_case_title(
+            ["文本"], ["点击登录"], "界面显示首页", "模块",
+        )
+        assert "点击登录" in title
+        assert "界面显示首页" in title
 
-    leaf2 = _build_topic("跳转到结果页", "leaf2")
-    action2_leaf = _build_topic("点击提交", "action2-leaf", children_xml=leaf2)
-    action2 = _build_topic("开始屏幕听�?, "action2", children_xml=action2_leaf)
-    scene2 = _build_topic("已选汉�?, "scene2", children_xml=action2)
+    def test_actions_only(self):
+        title = parser._infer_case_title(["文本"], ["点击按钮"], "", "模块")
+        assert "点击按钮" in title
 
-    module = _build_topic("字词听写", "module", children_xml=scene1 + scene2)
-    xmind_file = _create_xmind_file(
-        str(tmp_path / "dedupe_case.xmind"),
-        _build_content_xml(module),
-    )
+    def test_expected_only(self):
+        title = parser._infer_case_title(["文本"], [], "显示成功", "模块")
+        assert "显示成功" in title
 
-    parser = XmindCaseParser()
-    result = parser.parse(xmind_file)
+    def test_fallback_to_texts(self):
+        title = parser._infer_case_title(["回退标题"], [], "", "模块")
+        assert "回退标题" in title
 
-    assert len(result) == 2
-    action_signatures = {tuple(step["action"] for step in item["steps"]) for item in result}
-    assert ("点击提交",) in action_signatures
-    assert ("开始屏幕听�?, "点击提交") in action_signatures
+    def test_fallback_to_module(self):
+        title = parser._infer_case_title([], [], "", "模块名")
+        assert "模块名" in title
+
+
+class TestInferFunctionName:
+    def test_with_enough_texts(self):
+        result = parser._infer_function_name(["模块", "功能名"], "模块")
+        assert result == "功能名"
+
+    def test_insufficient_texts(self):
+        result = parser._infer_function_name(["仅一个"], "模块")
+        assert result == ""
+
+
+class TestBuildSteps:
+    def test_single_action(self):
+        steps = parser._build_steps(["点击登录"], "登录成功")
+        assert len(steps) == 1
+        assert steps[0]["step"] == 1
+        assert steps[0]["action"] == "点击登录"
+        assert steps[0]["expected_result"] == "登录成功"
+
+    def test_multiple_actions(self):
+        steps = parser._build_steps(["步骤1", "步骤2"], "最终结果")
+        assert len(steps) == 2
+        assert steps[0]["expected_result"] == ""
+        assert steps[1]["expected_result"] == "最终结果"
+
+    def test_empty_actions(self):
+        steps = parser._build_steps([], "")
+        assert steps == []
+
+
+class TestInferPriority:
+    def test_with_priority(self):
+        segments = [TopicNode(title="A"), TopicNode(title="B", priority=1)]
+        assert parser._infer_priority(segments) == 1
+
+    def test_no_priority(self):
+        segments = [TopicNode(title="A"), TopicNode(title="B")]
+        assert parser._infer_priority(segments) == 2
+
+    def test_empty_segments(self):
+        assert parser._infer_priority([]) == 2
+
+    def test_last_priority_wins(self):
+        segments = [
+            TopicNode(title="A", priority=3),
+            TopicNode(title="B", priority=1),
+        ]
+        assert parser._infer_priority(segments) == 1
+
+
+class TestDedupeCases:
+    def test_deduplication(self):
+        cases = [
+            {
+                "module": "M", "title": "T", "precondition": "P",
+                "expected_result": "E",
+                "steps": [{"action": "A", "expected_result": "E"}],
+            },
+            {
+                "module": "M", "title": "T", "precondition": "P",
+                "expected_result": "E",
+                "steps": [{"action": "A", "expected_result": "E"}],
+            },
+        ]
+        result = parser._dedupe_cases(cases)
+        assert len(result) == 1
+
+    def test_different_cases_kept(self):
+        cases = [
+            {
+                "module": "M1", "title": "T1", "precondition": "P",
+                "expected_result": "E",
+                "steps": [{"action": "A1", "expected_result": "E"}],
+            },
+            {
+                "module": "M2", "title": "T2", "precondition": "P",
+                "expected_result": "E",
+                "steps": [{"action": "A2", "expected_result": "E"}],
+            },
+        ]
+        result = parser._dedupe_cases(cases)
+        assert len(result) == 2
+
+    def test_empty_list(self):
+        result = parser._dedupe_cases([])
+        assert result == []
+
+
+class TestCollectLeafPaths:
+    def test_single_node(self):
+        node = TopicNode(title="根")
+        result = parser._collect_leaf_paths(node)
+        assert len(result) == 1
+        assert len(result[0]) == 1
+
+    def test_with_children(self):
+        node = TopicNode(
+            title="根",
+            children=[TopicNode(title="子1"), TopicNode(title="子2")],
+        )
+        result = parser._collect_leaf_paths(node)
+        assert len(result) == 2
+
+    def test_deep_tree(self):
+        node = TopicNode(
+            title="L1",
+            children=[TopicNode(title="L2", children=[TopicNode(title="L3")])],
+        )
+        result = parser._collect_leaf_paths(node)
+        assert len(result) == 1
+        assert len(result[0]) == 3
+
+
+class TestBuildCaseFromPath:
+    def test_short_path_returns_none(self):
+        result = parser._build_case_from_path("模块", [TopicNode(title="仅一个")])
+        assert result is None
+
+    def test_empty_titles(self):
+        result = parser._build_case_from_path(
+            "模块",
+            [TopicNode(title=""), TopicNode(title="  ")],
+        )
+        assert result is None
+
+    def test_normal_path(self):
+        result = parser._build_case_from_path(
+            "登录模块",
+            [TopicNode(title="登录"), TopicNode(title="点击登录"), TopicNode(title="界面显示成功")],
+        )
+        assert result is not None
+        assert result["module"] == "登录模块"
+        assert "steps" in result
+        assert result["priority"] in (1, 2, 3)
+
+
+class TestUtilMixin:
+    def test_truncate_short(self):
+        result = parser._truncate_field("短文本", 100)
+        assert result == "短文本"
+
+    def test_truncate_over(self):
+        result = parser._truncate_field("a" * 200, 100)
+        assert len(result) == 100
+
+    def test_extract_topic_text_no_title(self):
+        import xml.etree.ElementTree as ET
+        topic = ET.Element("topic")
+        result = parser._extract_topic_text(topic)
+        assert result == ""
+
+    def test_get_child_topics_no_children(self):
+        import xml.etree.ElementTree as ET
+        topic = ET.Element("topic")
+        result = parser._get_child_topics(topic)
+        assert result == []
+
+    def test_extract_priority_no_marker(self):
+        import xml.etree.ElementTree as ET
+        topic = ET.Element("topic")
+        result = parser._extract_priority_marker(topic)
+        assert result is None

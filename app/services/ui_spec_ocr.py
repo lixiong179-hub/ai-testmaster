@@ -185,7 +185,7 @@ class UISpecOCR:
         try:
             return json.loads(content)
         except json.JSONDecodeError:
-            pass
+            logger.debug("直接JSON解析失败，尝试正则提取")
 
         # 按优先级尝试多种JSON提取模式
         json_patterns = [

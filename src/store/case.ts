@@ -96,7 +96,7 @@ export const useCaseStore = defineStore('case', {
       }
     },
 
-    // 重试生成失败的测试用例
+    // 重试生成失败的测试用例（使用 batch-generate/stream 接口）
     async retryFailedCases(projectId: number, caseIds?: number[]) {
       this.currentProjectId = projectId
       this.generateStatus = 'generating'
@@ -104,7 +104,8 @@ export const useCaseStore = defineStore('case', {
       this.generateMessage = '开始重试生成...'
 
       try {
-        const generator = await testCaseApi.retry(projectId, {
+        const generator = await testCaseApi.generate({
+          project_id: projectId,
           case_ids: caseIds,
         })
 
