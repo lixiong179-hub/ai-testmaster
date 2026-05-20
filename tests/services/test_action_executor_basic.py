@@ -32,11 +32,11 @@ class TestParseStepAction:
 
     def test_captcha_chinese(self):
         result = self.executor._parse_step_action("验证码识别")
-        assert result["type"] == ActionType.VERIFY_CAPTCHA
+        assert result["type"] == ActionType.CAPTCHA
 
     def test_captcha_english(self):
         result = self.executor._parse_step_action("solve captcha")
-        assert result["type"] == ActionType.VERIFY_CAPTCHA
+        assert result["type"] == ActionType.CAPTCHA
 
     def test_refresh_chinese(self):
         result = self.executor._parse_step_action("刷新页面")
@@ -48,11 +48,11 @@ class TestParseStepAction:
 
     def test_keypress_chinese(self):
         result = self.executor._parse_step_action("按下回车键")
-        assert result["type"] == ActionType.KEYBOARD
+        assert result["type"] == ActionType.KEYPRESS
 
     def test_keypress_english(self):
         result = self.executor._parse_step_action("press key Enter")
-        assert result["type"] == ActionType.KEYBOARD
+        assert result["type"] == ActionType.KEYPRESS
 
     def test_input_chinese(self):
         result = self.executor._parse_step_action("输入用户名")

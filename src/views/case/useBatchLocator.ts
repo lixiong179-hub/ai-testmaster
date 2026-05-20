@@ -2,6 +2,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
     batchLocatorApi,
+    type BatchRecordReport,
 } from '@/api/batchLocator'
 
 interface BatchLocatorResult {
@@ -12,7 +13,7 @@ interface BatchLocatorResult {
     error_message?: string
 }
 
-export function useBatchLocator() {
+export function useBatchLocator(projectId: number) {
     const visible = ref(false)
     const loading = ref(false)
     const currentView = ref<'config' | 'progress' | 'report'>('config')
@@ -69,12 +70,11 @@ export function useBatchLocator() {
     }
 
     async function processBatchLocate(): Promise<void> {
-        const total = selectedCaseIds.value.length
         loading.value = true
         progressMessage.value = '正在启动批量定位...'
         try {
             const res = await batchLocatorApi.startBatchRecord({
-                project_id: 0,
+                project_id: projectId,
                 case_ids: selectedCaseIds.value,
                 skip_existing: true,
                 execute_precondition: aiAssist.value,

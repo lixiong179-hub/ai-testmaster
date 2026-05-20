@@ -80,7 +80,6 @@ const {
   tokenChartRef, durationChartRef, stepLatencyChartRef, cacheChartRef,
   goBack, refreshAll,
 } = usePipelineDashboard()
-void tokenChartRef; void durationChartRef; void stepLatencyChartRef; void cacheChartRef
 </script>
 
 <style scoped>

@@ -197,7 +197,6 @@ const {
   handleSizeChange, openCreateDialog, createProject, goToDetail, goToTaskList,
   goToTestPointManagement, confirmDelete,
 } = useProjectList()
-void projectFormRef
 </script>
 
 <style scoped lang="scss">

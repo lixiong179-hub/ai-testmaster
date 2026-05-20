@@ -274,7 +274,7 @@ function createCaseDetailContext() {
     addLocatorLoading.value = true
     try {
       const stepId = step.step_id || step.step_number
-      await testCaseApi.updateStepLocator(stepId, { css_selector, xpath, ai_coordinate })
+      await testCaseApi.updateStepLocator(caseId.value, stepId, { css_selector, xpath, ai_coordinate })
       if (!step.locator) step.locator = {} as any
       if (css_selector) (step.locator as any).css_selector = css_selector
       if (xpath) (step.locator as any).xpath = xpath

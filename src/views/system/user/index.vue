@@ -149,7 +149,6 @@ const {
   handleSearch, resetFilter, handleSizeChange, handleCurrentChange,
   openAddDialog, openEditDialog, saveUser, toggleStatus, assignRole, saveRoles,
 } = useUserManagement()
-void userFormRef
 </script>
 
 <style scoped lang="scss">

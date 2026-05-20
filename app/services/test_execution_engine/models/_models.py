@@ -9,6 +9,7 @@ from app.services.test_execution_engine.models._enums import (
     ExecutionStatus,
     FailureCategory,
     ActionType,
+    ExecutionMode,
 )
 
 
@@ -41,14 +42,12 @@ class StepExecutionResult:
     healed_selector: Optional[str] = None
     failure_category: Optional[FailureCategory] = None
 
-    def to_dict(self, hidden_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+    def to_dict(self, hidden_fields: Optional[list] = None) -> Dict[str, Any]:
         result = {
             "step_number": self.step_number,
             "action_type": self.action_type.value,
             "status": self.status.value,
             "description": self.description,
-            "start_time": self.start_time.isoformat() if self.start_time else None,
-            "end_time": self.end_time.isoformat() if self.end_time else None,
             "duration_ms": self.duration_ms,
             "error_message": self.error_message,
             "screenshot_path": self.screenshot_path,
@@ -78,14 +77,11 @@ class TestExecutionResult:
     healing_count: int = 0
     failure_category: Optional[FailureCategory] = None
     navigation_level: Optional[str] = None
-    actual_result: Optional[str] = None
 
-    def to_dict(self, hidden_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+    def to_dict(self, hidden_fields: Optional[list] = None) -> Dict[str, Any]:
         result = {
             "case_id": self.case_id,
             "status": self.status.value,
-            "start_time": self.start_time.isoformat() if self.start_time else None,
-            "end_time": self.end_time.isoformat() if self.end_time else None,
             "duration_ms": self.duration_ms,
             "error_message": self.error_message,
             "total_steps": self.total_steps,
@@ -94,7 +90,6 @@ class TestExecutionResult:
             "healing_count": self.healing_count,
             "failure_category": self.failure_category.value if self.failure_category else None,
             "navigation_level": self.navigation_level,
-            "actual_result": self.actual_result,
             "steps": [s.to_dict(hidden_fields=hidden_fields) for s in self.steps],
         }
         if hidden_fields:

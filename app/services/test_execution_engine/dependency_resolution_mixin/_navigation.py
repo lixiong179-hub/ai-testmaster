@@ -1,5 +1,4 @@
 import json
-import re
 from typing import Any, Dict, List, Optional
 from loguru import logger
 
@@ -249,6 +248,7 @@ class _NavigationMixin:
             return False
 
     def _extract_url_from_text(self, text: str) -> Optional[str]:
+        import re
         match = re.search(r'(https?://[^\s\'"<>]+)', text)
         if match:
             return match.group(1)

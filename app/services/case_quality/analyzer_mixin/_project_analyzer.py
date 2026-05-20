@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Set
-from datetime import datetime, timedelta
+from datetime import timedelta
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep, TestCasePreconditionStep

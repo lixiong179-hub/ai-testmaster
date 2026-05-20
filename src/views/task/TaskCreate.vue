@@ -82,12 +82,11 @@ import { ArrowLeft, Search, Check, RefreshLeft } from '@element-plus/icons-vue'
 import { useTaskCreate } from './useTaskCreate'
 
 const {
-  formRef, tableRef, loading, submitting, form, filter,
+  formRef, tableRef, loading, submitting, form, filter, cases,
   page, pageSize, total, modules, filteredCases, selectAll, rules,
   priorityText, priorityType, handleSelectionChange, handleSelectAll,
   clearSelection, handleSearch, handlePageChange, submitForm, resetForm,
 } = useTaskCreate()
-void formRef; void tableRef
 </script>
 
 <style scoped>

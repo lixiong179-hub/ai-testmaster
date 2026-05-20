@@ -69,7 +69,7 @@ class TestCase(Base):
     steps_json = Column(JSON, nullable=False, comment="可执行步骤，格式：[{\"step\": \"步骤1\", \"action\": \"操作\", \"param\": \"参数\"}]")  # 步骤JSON，兼容旧版格式
     expected_result = Column(Text, nullable=False, comment="预期结果")                                 # 整体预期结果
     priority = Column(Integer, nullable=False, comment="优先级：1高/2中/3低")                          # 优先级，1=高优先级，2=中优先级，3=低优先级
-    case_type = Column(String(20), nullable=False, comment="用例类型：ui_automation/manual/api_automation/performance/security")                    # 用例类型，决定执行方式
+    case_type = Column(String(20), nullable=False, comment="用例类型：API/UI/接口")                    # 用例类型，决定执行方式
 
     # 用例分类标签（支持多标签）
     # 取值：ui_automation=UI自动化测试, manual=手工测试, api_automation=接口自动化测试

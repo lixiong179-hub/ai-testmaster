@@ -6,6 +6,7 @@ import type {
   TestCaseAIEnhancedRequest,
   AIEnhancedGenerateResponse,
   TestCaseGenerateRequest,
+  TestCaseRetryRequest,
   LineageResponse,
 } from './types'
 import { extractResponseData } from './types'
@@ -52,7 +53,7 @@ export const aiApi = {
   generate: async (
     data: TestCaseGenerateRequest
   ): Promise<AsyncGenerator<{ progress: number; message?: string }>> => {
-    const response = await request.post('/api/v1/testCase/batch-generate/stream', data, {
+    const response = await request.post('/api/v1/testCase/generate', data, {
       responseType: 'stream',
     })
     return new Promise((resolve) => {
@@ -60,14 +61,11 @@ export const aiApi = {
     })
   },
 
-  /**
-   * AI增强生成（流式）
-   * 后端：POST /api/v1/testCase/ai-enhanced-generate/stream
-   */
-  generateEnhancedStream: async (
-    data: TestCaseAIEnhancedRequest
+  retry: async (
+    projectId: number,
+    data: TestCaseRetryRequest
   ): Promise<AsyncGenerator<{ progress: number; message?: string }>> => {
-    const response = await request.post('/api/v1/testCase/ai-enhanced-generate/stream', data, {
+    const response = await request.post(`/api/v1/testCase/retry/${projectId}`, data, {
       responseType: 'stream',
     })
     return new Promise((resolve) => {

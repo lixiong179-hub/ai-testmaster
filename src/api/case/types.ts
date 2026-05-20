@@ -33,6 +33,12 @@ export interface TestCaseCreate {
   ai_change_type?: 'added' | 'modified' | 'deprecated'
 }
 
+export interface TestCaseExecute {
+  case_id: number
+  project_id?: number
+  environment?: string
+}
+
 export interface TestPointData {
   id: number
   module: string
@@ -162,8 +168,6 @@ export interface TestCaseListParams {
   created_by?: string
   sort_by?: 'create_time' | 'priority' | 'title' | 'update_time'
   sort_order?: 'asc' | 'desc'
-  page?: number
-  page_size?: number
 }
 
 export interface SupplementResponse {
@@ -173,22 +177,6 @@ export interface SupplementResponse {
   change_summary: Array<{ field: string; old_value: string; new_value: string }>
 }
 
-export interface QualityDimension {
-  name: string
-  label?: string
-  score: number
-  summary: string
-  detail?: string
-  suggestions?: string[]
-}
-
-export interface QualityOptimizationItem {
-  type: string
-  target: string
-  action: string
-  impact: string
-}
-
 export interface QualityAnalysisResult {
   project_id: number
   total_cases: number
@@ -196,10 +184,6 @@ export interface QualityAnalysisResult {
   overall_score: number
   project_requirement_coverage: number
   project_requirement_details: Record<string, unknown> | null
-  dimensions: QualityDimension[]
-  optimization?: {
-    items: QualityOptimizationItem[]
-  }
   reports: Array<{
     case_id: number
     case_name: string
@@ -208,6 +192,10 @@ export interface QualityAnalysisResult {
     suggestions: string[]
     analyzed_at: string
   }>
+}
+
+export interface TestCaseRetryRequest {
+  case_ids?: number[]
 }
 
 export interface ImportResult {
@@ -258,6 +246,12 @@ export interface CaseVersionDetail {
   change_summary: string
   snapshot: TestCase
   create_time: string
+}
+
+export interface CaseVersionCompareResult {
+  from_version: CaseVersionDetail
+  to_version: CaseVersionDetail
+  diff: Record<string, unknown>
 }
 
 export interface CaseVersionPageResponse {
