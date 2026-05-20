@@ -1,4 +1,4 @@
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { caseApi, type QualityAnalysisResult } from '@/api/case'
 import projectApi, { type Project } from '@/api/project'

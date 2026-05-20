@@ -70,7 +70,7 @@ const {
   visible, loading, currentView, selectedCaseIds, locatorType, aiAssist,
   progress, progressMessage, results, error, successCount, failCount,
   totalProcessed, hasResults, open, close, startLocate, retryFailed, applyResults,
-} = useBatchLocator()
+} = useBatchLocator(props.projectId)
 
 defineExpose({ open })
 </script>

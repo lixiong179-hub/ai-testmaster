@@ -28,7 +28,7 @@
           </el-option>
         </el-select>
         <el-button type="primary" :loading="extracting" :disabled="!selectedFileId" @click="handleExtract">提取测试点</el-button>
-        <el-button type="success" :loading="saving" :disabled="extractedPoints.length === 0" @click="handleSave">保存到管理列表</el-button>
+        <el-button type="success" :loading="saving" :disabled="extractedPoints.length === 0" @click="onSave">保存到管理列表</el-button>
       </div>
 
       <div v-if="extracting" class="progress-panel">
@@ -85,6 +85,7 @@ const {
   handleExtract, handleSave, resetState, priorityText, priorityTagType, formatExtractStatus,
 } = useTestPointExtract(props, visible)
 
+const onSave = async () => { await handleSave(); emit('saved'); visible.value = false }
 </script>
 
 <style scoped>

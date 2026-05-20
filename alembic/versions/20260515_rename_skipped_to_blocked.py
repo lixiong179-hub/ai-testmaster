@@ -5,7 +5,7 @@ exec_status=3 的语义从"跳过"统一为"阻塞"，
 数据库列名同步更新。
 
 Revision ID: rename_skipped_to_blocked
-Revises: add_enable_posterior_scoring
+Revises: 20260514_add_visibility_config_to_test_tasks
 Create Date: 2026-05-15 00:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = 'rename_skipped_to_blocked'
-down_revision = 'add_enable_posterior_scoring'
+down_revision = '20260514_add_visibility_config_to_test_tasks'
 branch_labels = None
 depends_on = None
 

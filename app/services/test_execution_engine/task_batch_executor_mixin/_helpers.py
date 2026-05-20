@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 from loguru import logger
 
 from app.models.test_case import TestCase
@@ -11,7 +11,7 @@ class _HelpersMixin:
     def _resolve_execution_order(self, cases: List[TestCase]) -> List[TestCase]:
         has_dependency = any(getattr(c, 'depends_on', None) for c in cases)
         if not has_dependency:
-            return cases[:]
+            return cases
 
         graph = self._build_dependency_graph(cases)
         sorted_cases = self._topological_sort_cases(cases, graph)
@@ -33,8 +33,8 @@ class _HelpersMixin:
                 steps.append(anchor)
         return steps
 
-    def _build_anchor_step_index(self, cases: List[TestCase]) -> Dict[Tuple[str, int], bool]:
-        index: Dict[Tuple[str, int], bool] = {}
+    def _build_anchor_step_index(self, cases: List[TestCase]) -> Dict[tuple, bool]:
+        index: Dict[tuple, bool] = {}
         for case in cases:
             depends_on = getattr(case, 'depends_on', None)
             anchor = getattr(case, 'anchor_step', None)
@@ -43,7 +43,6 @@ class _HelpersMixin:
         return index
 
     def _get_task_summary(self, task_id: int) -> Dict[str, Any]:
-        # 延迟导入避免与 app.models 循环依赖
         from app.models.test_task import TestTask
         from app.models.test_result import TestResult
 

@@ -8,6 +8,7 @@ import {
   type XmindPreviewResponse,
   type XmindImportProgressEvent,
 } from '@/api/testPoint'
+import { XMIND_IMPORT_CONFIG } from '@/constants/resource'
 
 interface ImportResultData {
   success: boolean

@@ -1,7 +1,7 @@
 """add posterior_quality_score to test_cases
 
 Revision ID: 20260501_add_posterior_quality_score
-Revises:
+Revises: merge_review_heads
 Create Date: 2026-05-01
 """
 from alembic import op

@@ -81,7 +81,6 @@ const {
   handleSearch, handleSizeChange, handleCurrentChange, openAddDialog,
   openEditDialog, saveRole, deleteRole, assignPermission, savePermissions,
 } = useRoleManagement()
-void roleFormRef
 </script>
 
 <style scoped>

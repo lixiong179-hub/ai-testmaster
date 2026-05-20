@@ -1,13 +1,6 @@
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { caseApi, type TestCase } from '@/api/case'
-
-export interface SupplementResponse {
-  test_case?: TestCase
-  inferred_capabilities?: { name: string; description: string }[]
-  questions?: { question: string }[]
-  change_summary?: { field: string; old_value: string; new_value: string }[]
-}
+import { caseApi, type TestCase, type SupplementResponse } from '@/api/case'
 
 export function useSupplementForm(caseId: number, projectId: number) {
   const loading = ref(false)
@@ -30,11 +23,14 @@ export function useSupplementForm(caseId: number, projectId: number) {
   async function fetchSupplementData(): Promise<void> {
     loading.value = true
     try {
-      // 后端暂无 supplement 端点，使用用例详情作为基础数据
-      const response = await caseApi.getCaseDetail(caseId)
-      originalCase.value = response as unknown as TestCase
-      inferredCapabilities.value = []
-      questions.value = []
+      const response = await caseApi.getSupplementData(caseId)
+      originalCase.value = response.test_case
+      inferredCapabilities.value = (response.inferred_capabilities || []).map((c: { name: string; description: string }) => ({
+        name: c.name, description: c.description, selected: false,
+      }))
+      questions.value = (response.questions || []).map((q: { question: string }) => ({
+        question: q.question, answer: '',
+      }))
     } catch (error) {
       ElMessage.error(error instanceof Error ? error.message : '加载补充数据失败')
     } finally {
@@ -67,8 +63,9 @@ export function useSupplementForm(caseId: number, projectId: number) {
     saving.value = true
     try {
       const payload = buildPayload()
-      // 后端暂无 supplement 端点，使用用例更新接口
-      await caseApi.updateCase(caseId, payload as any)
+      const response = await caseApi.supplementCase(caseId, payload)
+      supplementResult.value = response
+      changeSummary.value = response.change_summary || []
       showResult.value = true
       ElMessage.success('补充完成')
     } catch (error) {

@@ -15,6 +15,7 @@ from app.services.test_execution_engine.models import (
     FailureCategory,
 )
 from app.services.test_execution_engine.task_executor_mixin._helpers import _HelpersMixin
+from app.utils.db_time import utcnow
 
 
 class _ExecutorMixin(_HelpersMixin):
@@ -122,7 +123,6 @@ class _ExecutorMixin(_HelpersMixin):
         step_result: StepExecutionResult,
         execution_mode: str = "smart",
     ) -> StepExecutionResult:
-        from app.utils.db_time import utcnow
         step_result.start_time = utcnow()
 
         action = step_data.get("action", "")

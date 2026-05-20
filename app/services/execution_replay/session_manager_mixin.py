@@ -2,7 +2,6 @@
 """
 import asyncio
 import uuid
-from datetime import datetime
 from loguru import logger
 
 from app.services.execution_replay.models import ReplaySession

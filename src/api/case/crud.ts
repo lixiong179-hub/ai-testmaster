@@ -7,10 +7,12 @@ import type {
   StepLocatorUpdateData,
   CaseQueryParams,
   CasePageResponse,
+  TestCaseExecute,
   CorrectionResponse,
   VerificationResponse,
   TestCaseListResponse,
   TestCaseListParams,
+  SupplementResponse,
   QualityAnalysisResult,
 } from './types'
 import { extractResponseData } from './types'
@@ -42,10 +44,11 @@ export const crudApi = {
   },
 
   updateStepLocator: async (
+    caseId: number,
     stepId: number,
     data: StepLocatorUpdateData
   ): Promise<Record<string, unknown>> => {
-    const response = await request.post(`/api/v1/testCase/steps/${stepId}/locator`, data)
+    const response = await request.put(`/api/v1/testCase/${caseId}/steps/${stepId}/locator`, data)
     return extractResponseData<Record<string, unknown>>(
       response as unknown as ApiResponse<Record<string, unknown>> | Record<string, unknown>
     )
@@ -53,6 +56,11 @@ export const crudApi = {
 
   deleteCase: async (id: number): Promise<void> => {
     await request.delete(`/api/v1/testCase/${id}`)
+  },
+
+  executeCase: async (data: TestCaseExecute): Promise<TestCase> => {
+    const response = await request.post('/api/v1/testCase/execute', data)
+    return extractResponseData<TestCase>(response as unknown as ApiResponse<TestCase> | TestCase)
   },
 
   startCorrection: async (caseId: number): Promise<CorrectionResponse> => {
@@ -80,6 +88,20 @@ export const crudApi = {
 
   delete: async (id: number, projectId: number): Promise<void> => {
     await request.delete(`/api/v1/testCase/${id}`, { params: { project_id: projectId } })
+  },
+
+  getSupplementData: async (caseId: number): Promise<SupplementResponse> => {
+    const response = await request.get(`/api/v1/testCase/${caseId}/supplement`)
+    return extractResponseData<SupplementResponse>(
+      response as unknown as ApiResponse<SupplementResponse> | SupplementResponse
+    )
+  },
+
+  supplementCase: async (caseId: number, payload: Record<string, unknown>): Promise<SupplementResponse> => {
+    const response = await request.post(`/api/v1/testCase/${caseId}/supplement`, payload)
+    return extractResponseData<SupplementResponse>(
+      response as unknown as ApiResponse<SupplementResponse> | SupplementResponse
+    )
   },
 
   getQualityAnalysis: async (projectId: number): Promise<QualityAnalysisResult> => {

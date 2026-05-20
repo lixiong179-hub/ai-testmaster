@@ -1,7 +1,7 @@
 import type { Edge } from '@vue-flow/core'
 import type { FlowEditorNode } from '@/composables/useFlowEditor'
 import { getNodeData, getMainNodesInOrder } from '@/composables/useFlowEditor'
-import { DEFAULT_LAYOUT_OPTIONS, COMPACT_OPTIONS, type LayoutOptions, type LayoutMode } from './flow/flowLayoutTypes'
+import { DEFAULT_LAYOUT_OPTIONS, COMPACT_OPTIONS, type LayoutOptions, type LayoutMode, LAYOUT_MODE_LABELS } from './flow/flowLayoutTypes'
 
 export type { LayoutOptions, LayoutMode } from './flow/flowLayoutTypes'
 export { DEFAULT_LAYOUT_OPTIONS, COMPACT_OPTIONS, LAYOUT_MODE_LABELS } from './flow/flowLayoutTypes'

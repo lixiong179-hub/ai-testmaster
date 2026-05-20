@@ -9,6 +9,7 @@ export type {
   TestCaseAIGenerate,
   TestCaseApiStep,
   TestCaseCreate,
+  TestCaseExecute,
   TestPointData,
   FlowMetaData,
   FlowNodeSubmitData,
@@ -20,12 +21,14 @@ export type {
   TestCaseGenerateRequest,
   TestCaseListResponse,
   TestCaseListParams,
+  TestCaseRetryRequest,
   ImportResult,
   StepUpdateData,
   TestCaseUpdateData,
   StepLocatorUpdateData,
   CaseVersionItem,
   CaseVersionDetail,
+  CaseVersionCompareResult,
   CaseVersionPageResponse,
   CorrectionResponse,
   VerificationResponse,
@@ -36,8 +39,6 @@ export type {
   LineageResponse,
   SupplementResponse,
   QualityAnalysisResult,
-  QualityDimension,
-  QualityOptimizationItem,
 } from './types'
 
 export const testCaseApi = {

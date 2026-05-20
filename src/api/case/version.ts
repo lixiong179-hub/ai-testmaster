@@ -4,6 +4,7 @@ import type { TestCase } from '@/types/testCase'
 import type {
   CaseVersionPageResponse,
   CaseVersionDetail,
+  CaseVersionCompareResult,
 } from './types'
 import { extractResponseData } from './types'
 
@@ -25,6 +26,19 @@ export const versionApi = {
     const response = await request.get(`/api/v1/testCase/${caseId}/versions/${versionId}`)
     return extractResponseData<CaseVersionDetail>(
       response as unknown as ApiResponse<CaseVersionDetail> | CaseVersionDetail
+    )
+  },
+
+  compareCaseVersions: async (
+    caseId: number,
+    fromVersion: number,
+    toVersion: number
+  ): Promise<CaseVersionCompareResult> => {
+    const response = await request.get(`/api/v1/testCase/${caseId}/versions/compare`, {
+      params: { from: fromVersion, to: toVersion },
+    })
+    return extractResponseData<CaseVersionCompareResult>(
+      response as unknown as ApiResponse<CaseVersionCompareResult> | CaseVersionCompareResult
     )
   },
 

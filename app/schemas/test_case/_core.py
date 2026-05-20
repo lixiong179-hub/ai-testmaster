@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 from app.models.enums import TEST_CASE_LIFECYCLE_STATUS_PATTERN
@@ -71,7 +71,7 @@ class TestCaseResponse(TestCaseBase):
     last_review_id: Optional[int] = None
     review_status: Optional[str] = None
     review_comment: Optional[str] = None
-    reviewed_by: Optional[str] = None  # 审核人用户名
+    reviewed_by: Optional[str] = None
     reviewed_at: Optional[datetime] = None
     correction_status: Optional[str] = None
     prior_quality_score: Optional[float] = None
@@ -85,19 +85,6 @@ class TestCaseResponse(TestCaseBase):
     deleted_at: Optional[datetime] = None
     update_time: Optional[datetime] = None
     create_time: datetime
-    requirement_file_id: Optional[int] = None  # 关联需求文件ID
-
-    @model_validator(mode='before')
-    @classmethod
-    def map_steps_json_to_steps(cls, data: Any) -> Any:
-        """将ORM模型的steps_json字段映射为Schema的steps字段"""
-        if hasattr(data, 'steps_json'):
-            raw = getattr(data, 'steps_json', None)
-            if raw is not None and not hasattr(data, 'steps'):
-                object.__setattr__(data, 'steps', raw)
-        elif isinstance(data, dict) and 'steps_json' in data and 'steps' not in data:
-            data['steps'] = data.pop('steps_json')
-        return data
 
     class Config:
         from_attributes = True

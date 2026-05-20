@@ -17,32 +17,31 @@ class _OrchestrationMixin:
         has_api_setup = bool(getattr(case, 'setup_api_calls', None))
         is_mobile = getattr(self, '_mobile_device_id', None) is not None
 
-        # Level0: API前置准备（B端/C端通用）
         if has_api_setup:
             api_ok, api_desc = await self._execute_setup_api_calls(case)
             if api_ok:
                 target_url = self._extract_target_url_from_case(case)
-                nav_ok = False
                 if target_url and self.browser and getattr(self.browser, '_page', None):
                     try:
                         await self.browser._page.goto(target_url, wait_until="networkidle")
-                        nav_ok = True
-                    except Exception as e:
-                        logger.warning(f"API前置准备后页面导航失败: {e}")
-                level_desc = api_desc if nav_ok else f"{api_desc}(导航未验证)"
-                return True, level_desc
+                    except Exception:
+                        pass
+                return True, api_desc
 
-        # Level1: 快照恢复（B端/C端通用，优先于降级导航）
-        success = await self._restore_anchor_snapshot(case)
-        if success:
-            return True, "Level1-快照恢复"
+        if not is_mobile:
+            success = await self._restore_anchor_snapshot(case)
+            if success:
+                return True, "Level1-快照恢复"
 
-        # Level2: 降级导航
         success = await self._execute_fallback_navigation(case)
         if success:
             return True, "Level2-降级导航"
 
-        # Level3: 直接URL/Activity
+        if is_mobile:
+            success = await self._restore_anchor_snapshot(case)
+            if success:
+                return True, "Level1-快照恢复"
+
         success = await self._try_direct_url_navigation(case)
         if success:
             return True, "Level3-直接URL"
@@ -74,20 +73,6 @@ class _OrchestrationMixin:
         cases: List[TestCase],
         case_results: Dict[int, TestExecutionResult],
     ) -> List[int]:
-        """将依赖失败用例的所有下游用例标记为 BLOCKED（传递闭包）。
-
-        当主干用例失败时，所有 depends_on 指向该用例的
-        分支/异常用例都应标记为 BLOCKED。
-        同时递归标记依赖这些被阻塞用例的下游用例（链式依赖）。
-
-        Args:
-            failed_case: 失败的主干用例。
-            cases: 全部用例列表。
-            case_results: 已有用例执行结果映射。
-
-        Returns:
-            被标记为 BLOCKED 的用例ID列表。
-        """
         blocked_ids: Set[int] = set()
         failed_title = failed_case.title
         self._failed_main_titles.add(failed_title)

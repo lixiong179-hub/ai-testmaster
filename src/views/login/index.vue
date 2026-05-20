@@ -55,7 +55,6 @@ const {
   captchaCanvas, loginFormRef, phoneFormRef, loginForm, phoneForm, loginRules,
   phoneRules, refreshCaptcha, getPhoneCode, handleLogin, handlePhoneLogin,
 } = useLogin()
-void captchaCanvas; void loginFormRef; void phoneFormRef
 </script>
 
 <style scoped>

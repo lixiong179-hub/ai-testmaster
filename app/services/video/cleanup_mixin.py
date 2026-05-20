@@ -3,7 +3,7 @@
 from pathlib import Path
 import os
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import timedelta
 from loguru import logger
 
 from app.models.video_record import VideoRecord

@@ -13,7 +13,7 @@ def _build_full_prompt(
     task_context: Optional[Dict[str, Any]] = None,
     history_cases: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
-    from app.services.prompt_builder import PromptBuilder
+    from app.services.case_generation_prompt_builder import PromptBuilder
 
     filtered_prd = _filter_prd_by_testpoint(prd_content, tp)
     filtered_ui_specs = _filter_ui_specs_by_testpoint(ui_specs, tp)
