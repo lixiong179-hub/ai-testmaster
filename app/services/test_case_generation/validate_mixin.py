@@ -2,6 +2,7 @@
 Test Case Generation Service - 验证与保存Mixin
 包含测试用例保存到数据库、前置条件解析等逻辑
 """
+import re
 from datetime import datetime
 from typing import Dict, Any, Optional
 from loguru import logger
@@ -15,6 +16,59 @@ from app.services.test_case_generation.quality_validator import compute_quality_
 
 class TestCaseGenerationValidateMixin:
     """测试用例生成服务 - 验证与保存Mixin"""
+
+    _CLICK_KEYWORDS = frozenset({"点击", "勾选", "切换", "按下", "长按"})
+    _INPUT_KEYWORDS = frozenset({"输入", "填写", "键入", "录入"})
+    _ASSERT_KEYWORDS = frozenset({"查看", "检查", "验证", "确认", "核对", "观察", "获取"})
+    _NAVIGATE_KEYWORDS = frozenset({"等待", "静置", "等待加载"})
+    _ASSERT_CLICK_PATTERNS = re.compile(
+        r'(检查.*(?:点击|可点击|是否可)|查看.*(?:点击|可点击|是否可)|'
+        r'验证.*(?:点击|可点击|是否可)|确认.*(?:点击|可点击|是否可))'
+    )
+
+    @staticmethod
+    def _correct_action_type(action: str, action_type: str) -> str:
+        if not action:
+            return action_type
+        cls = TestCaseGenerationValidateMixin
+        has_assert = any(kw in action for kw in cls._ASSERT_KEYWORDS)
+        has_click = any(kw in action for kw in cls._CLICK_KEYWORDS)
+        if has_assert and has_click:
+            if cls._ASSERT_CLICK_PATTERNS.search(action):
+                return "verify"
+            return "click"
+        if has_click:
+            return "click"
+        if any(kw in action for kw in cls._INPUT_KEYWORDS):
+            return "input"
+        if has_assert:
+            return "verify"
+        if any(kw in action for kw in cls._NAVIGATE_KEYWORDS):
+            return "navigate"
+        return action_type
+
+    @staticmethod
+    def _clean_precondition(precondition: str) -> str:
+        if not precondition:
+            return precondition
+        patterns = [
+            r'[、，,]?\s*通过(?:Mock|cy\.intercept|ADB|devtools)[^、，,]*',
+            r'[、，,]?\s*Mock[^、，,]*',
+            r'[、，,]?\s*cy\.intercept\([^)]*\)[^、，,]*',
+            r'[、，,]?\s*ADB[^、，,]*',
+            r'[、，,]?\s*devtools[^、，,]*',
+            r'[、，,]?\s*（?清除(?:token|cookie|session|缓存|localStorage|sessionStorage)[^）、，,]*）?',
+            r'[、，,]?\s*清除(?:token|cookie|session|缓存|localStorage|sessionStorage)[^、，,]*',
+            r'[、，,]?\s*（?(?:token|cookie|session)[^）、，,]*）?',
+        ]
+        cleaned = precondition
+        for pattern in patterns:
+            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r'[、，,]\s*$', '', cleaned.strip())
+        cleaned = re.sub(r'^[、，,]\s*', '', cleaned)
+        cleaned = re.sub(r'（\s*）', '', cleaned)
+        cleaned = re.sub(r'\(\s*\)', '', cleaned)
+        return cleaned
 
     async def _save_test_case(
         self,
@@ -41,13 +95,17 @@ class TestCaseGenerationValidateMixin:
         case_test_data = generated_case.get("test_data")
         steps_json = []
         for i, step in enumerate(steps):
+            raw_action_type = step.get("action_type", "")
+            corrected_action_type = self._correct_action_type(
+                step.get("action", ""), raw_action_type
+            )
             step_entry = {
                 "step": step.get("step", str(i + 1)),
                 "description": step.get("description", ""),
                 "action": step.get("action", "执行"),
                 "expected_result": step.get("expected_result", ""),
                 "param": step.get("param", ""),
-                "action_type": step.get("action_type", ""),
+                "action_type": corrected_action_type,
                 "input_value": step.get("input_value", ""),
                 "target_element": step.get("target_element", ""),
                 "test_data": step.get("test_data", []),
@@ -63,6 +121,9 @@ class TestCaseGenerationValidateMixin:
             test_category_value = f"{case_category},{test_category_value}"
         quality_score = compute_quality_score([generated_case]) if case_category else None
 
+        raw_precondition = generated_case.get("precondition", "")
+        cleaned_precondition = self._clean_precondition(raw_precondition)
+
         test_case = TestCase(
             project_id=project_id,
             requirement_file_id=requirement_file_id,
@@ -70,7 +131,7 @@ class TestCaseGenerationValidateMixin:
             case_no=case_no,
             module=generated_case.get("module", test_point.get("module", "AI生成")),
             title=generated_case.get("title") or test_point.get("point") or "(无标题)",
-            precondition=generated_case.get("precondition", ""),
+            precondition=cleaned_precondition,
             steps_json=steps_json,
             expected_result=generated_case.get("expected_result", ""),
             priority=normalize_priority(generated_case.get("priority", test_point.get("priority", 2))),
@@ -86,12 +147,17 @@ class TestCaseGenerationValidateMixin:
         self.db.flush()
 
         for i, step in enumerate(steps):
+            raw_action_type = step.get("action_type", "")
+            corrected_action_type = self._correct_action_type(
+                step.get("action", step.get("description", step.get("step", "执行"))),
+                raw_action_type
+            )
             test_step = TestStep(
                 test_case_id=test_case.id,
                 step_number=i + 1,
                 action=step.get("action", step.get("description", step.get("step", "执行"))),
                 expected_result=step.get("expected_result", step.get("param", "预期结果正常")),
-                action_type=step.get("action_type", ""),
+                action_type=corrected_action_type,
                 input_value=step.get("input_value", ""),
                 target_element=step.get("target_element", ""),
                 is_business_view=1,
@@ -107,14 +173,8 @@ class TestCaseGenerationValidateMixin:
                 from app.utils.ai_client import parse_precondition_to_steps
                 from app.models.test_case import TestCasePreconditionStep
 
-                project = self.db.query(Project).filter(Project.id == project_id).first()
-                project_url = ""
-                if project:
-                    project_url = getattr(project, 'test_object_url', '') or ''
-
-                parsed_steps = await parse_precondition_to_steps(
-                    precondition_text=test_case.precondition,
-                    project_url=project_url
+                parsed_steps = parse_precondition_to_steps(
+                    precondition=test_case.precondition
                 )
 
                 if parsed_steps:

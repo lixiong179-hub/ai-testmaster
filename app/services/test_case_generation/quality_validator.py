@@ -106,6 +106,8 @@ def validate_steps(steps: List[Dict[str, Any]], case_type: str = "") -> Tuple[bo
     """
     if not steps or len(steps) == 0:
         return False, "步骤列表为空"
+    if len(steps) < 2:
+        return False, f"步骤数不足（仅{len(steps)}步），每条用例至少需要2步（导航+核心操作），前置条件中的状态必须通过步骤到达"
     for i, step in enumerate(steps):
         action = step.get("action", "") or step.get("description", "")
         if not action or not action.strip():
@@ -117,6 +119,32 @@ def validate_steps(steps: List[Dict[str, Any]], case_type: str = "") -> Tuple[bo
             return False, f"第{i + 1}步操作不确定（含\"或\"字措辞），应拆分为独立用例: {action[:50]}"
         if case_type == "ui_automation" and _MANUAL_JUDGMENT_PATTERN.search(action):
             return False, f"第{i + 1}步含人工判断描述，与ui_automation类型矛盾: {action[:50]}"
+    return True, ""
+
+
+def validate_test_data_quality(steps: List[Dict[str, Any]]) -> Tuple[bool, str]:
+    """校验测试数据质量，确保 input/select 步骤有具体输入值。
+
+    Args:
+        steps: 步骤列表
+
+    Returns:
+        (是否通过, 问题描述)
+    """
+    if not steps:
+        return True, ""
+    _INPUT_VALUE_PLACEHOLDERS = frozenset({
+        "待输入", "测试数据", "xxx", "XXX", "test", "Test",
+        "示例", "占位", "placeholder",
+    })
+    for i, step in enumerate(steps):
+        action_type = step.get("action_type", "")
+        if action_type not in ("input", "select"):
+            continue
+        input_value = (step.get("input_value") or "").strip()
+        if not input_value or input_value in _INPUT_VALUE_PLACEHOLDERS:
+            action_desc = step.get("action", "")[:40]
+            return False, f"第{i + 1}步action_type为{action_type}但input_value为空或占位符，应填写具体输入值 (action={action_desc})"
     return True, ""
 
 
@@ -175,6 +203,7 @@ def validate_single_case(case: Dict[str, Any]) -> List[str]:
         ("标题", validate_title(case.get("title", ""))),
         ("前置条件", validate_precondition(case.get("precondition", ""))),
         ("步骤", validate_steps(case.get("steps", []), case_type=case_type)),
+        ("测试数据", validate_test_data_quality(case.get("steps", []))),
         ("预期结果", validate_expected_result(case.get("expected_result", ""))),
         ("case_category", validate_case_category(case.get("case_category", ""))),
     ]
