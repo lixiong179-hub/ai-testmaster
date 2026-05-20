@@ -22,7 +22,7 @@ _COMPARISON_EXAMPLES_ZH = """## 正反用例对比（学习优秀写法，避免
 【对比3-异常场景】
 ❌差劲：无相机权限测试拍照 | 前置：相机权限禁止 | 步骤：点击进入拍照功能 | 预期：无法打开相机弹出提示
 问题：未区分临时/永久拒绝场景覆盖不足；预期过于简单未校验弹窗按钮跳转
-✅优秀：相机权限永久拒绝，校验权限拦截与引导弹窗 | 前置：账号已登录、系统关闭APP相机权限 | 步骤：1.点击中文作文批改拍照入口 | 预期：1.无法唤起相机预览自动弹出权限引导弹窗 2.弹窗包含提示文案、取消、前往设置按钮功能可用
+✅优秀：相机权限永久拒绝，校验权限拦截与引导弹窗 | 前置：账号已登录、系统关闭APP相机权限 | 步骤：1.点击中文作文批改拍照入口 2.查看权限引导弹窗内容 | 预期：1.无法唤起相机预览自动弹出权限引导弹窗 2.弹窗包含提示文案、取消、前往设置按钮功能可用
 优点：精准锁定异常场景；全量校验弹窗文案+按钮+跳转逻辑；预期具体可落地
 
 【对比4-网络异常】
@@ -80,7 +80,7 @@ Strengths: Precise boundary value coverage; Quantifiable steps with high reprodu
 [Comparison 3 - Exception Scenario]
 ❌ BAD: Test photo without camera permission | Precondition: Camera permission denied | Steps: Click to enter photo function | Expected: Cannot open camera, shows prompt
 Issues: No distinction between temporary/permanent denial; Expected too simple, missing popup button and navigation checks
-✅ GOOD: Camera permission permanently denied, verify permission block and guidance popup | Precondition: Logged in, system camera permission disabled for app | Steps: 1. Click essay grading photo entry | Expected: 1. Camera preview cannot launch, permission guidance popup appears automatically 2. Popup contains guidance text, Cancel button, and Go to Settings button, all functional
+✅ GOOD: Camera permission permanently denied, verify permission block and guidance popup | Precondition: Logged in, system camera permission disabled for app | Steps: 1. Click essay grading photo entry 2. Check permission guidance popup content | Expected: 1. Camera preview cannot launch, permission guidance popup appears automatically 2. Popup contains guidance text, Cancel button, and Go to Settings button, all functional
 Strengths: Precisely targets exception scenario; Full validation of popup text + buttons + navigation logic; Concrete and actionable expected results
 
 [Comparison 4 - Network Error]
@@ -173,13 +173,16 @@ def get_precondition_spec_rules(compact: bool = False) -> str:
             "确保用例任意环境可独立执行；如需特定数据才能测试（如编辑/删除场景），"
             "应在步骤中先创建数据，而非在前置中假设数据已存在；"
             "前置条件不能包含操作步骤或页面导航状态（如\"已进入详情页\"\"在列表页面\"），"
-            "导航到达目标页面必须作为步骤体现，确保用例可独立自动化执行"
+            "导航到达目标页面必须作为步骤体现，确保用例可独立自动化执行；"
+            "前置条件禁止包含Mock、cy.intercept、ADB、devtools、token、cookie、session等技术实现细节，只描述业务状态和环境权限"
         )
     return """## 前置条件规范
 - 必须包含"账号已登录"和网络环境（Web端写"浏览器网络正常"，App端写"设备网络正常"），有权限相关场景必须补充权限状态（如"相机权限已开启"）
 - 禁止仅写"账号已登录"或"APP运行正常"等不完整前置
 - 前置条件只约束环境与权限，禁止依赖特定业务数据（如"列表有数据""数据较多"），确保用例任意环境可独立执行；如需特定数据才能测试（如编辑/删除场景），应在步骤中先创建数据，而非在前置中假设数据已存在
-- 前置条件不能包含操作步骤或页面导航状态（如"已进入详情页""在列表页面"），导航到达目标页面必须作为步骤体现，确保用例可独立自动化执行"""
+- 前置条件不能包含操作步骤或页面导航状态（如"已进入详情页""在列表页面"），导航到达目标页面必须作为步骤体现，确保用例可独立自动化执行
+- 前置条件禁止包含Mock、cy.intercept、ADB、devtools、token、cookie、session、localStorage等技术实现细节，只描述业务状态和环境权限；未登录状态用"用户未登录"描述，禁止写"清除token"或"清除cookie"
+"""
 
 
 def get_automation_friendly_rules(compact: bool = False) -> str:

@@ -96,6 +96,19 @@ class TestCaseGenerationBatchMixin:
                 )
                 created_cases.append(case)
 
+                extra_cases = generated_case.get("_extra_cases", [])
+                for extra_case in extra_cases:
+                    try:
+                        extra_saved = await self._save_test_case(
+                            project_id=project_id,
+                            generated_case=extra_case,
+                            test_point=test_point,
+                            requirement_file_id=primary_requirement_file_id
+                        )
+                        created_cases.append(extra_saved)
+                    except Exception as extra_e:
+                        logger.warning(f"保存额外用例失败: {extra_e}")
+
                 progress = int(10 + (i + 1) / total * 85)
                 yield {
                     "progress": progress,

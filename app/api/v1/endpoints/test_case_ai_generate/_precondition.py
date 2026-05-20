@@ -85,14 +85,9 @@ async def parse_precondition(
         raise HTTPException(status_code=404, detail="测试用例不存在")
     if not test_case.precondition:
         return create_response(data=[], msg="前置条件为空，无需解析")
-    project_url = ""
-    if test_case.project_id:
-        proj = db.query(Project).filter(Project.id == test_case.project_id).first()
-        if proj:
-            project_url = getattr(proj, "test_object_url", "") or ""
     try:
-        steps = await parse_precondition_to_steps(
-            precondition_text=test_case.precondition, project_url=project_url,
+        steps = parse_precondition_to_steps(
+            precondition=test_case.precondition,
         )
         if steps:
             db.query(TestCasePreconditionStep).filter(

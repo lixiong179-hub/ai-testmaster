@@ -186,16 +186,8 @@ class StepsValidateMixin:
                 from app.utils.ai_client import parse_precondition_to_steps
                 from app.models.test_case import TestCasePreconditionStep
 
-                # 获取项目URL用于前置条件解析
-                project = self.db.query(Project).filter(Project.id == project_id).first()
-                project_url = ""
-                if project:
-                    project_url = getattr(project, 'test_object_url', '') or ''
-
-                # 调用AI解析前置条件为可执行步骤
-                parsed_steps = await parse_precondition_to_steps(
-                    precondition_text=test_case.precondition,
-                    project_url=project_url
+                parsed_steps = parse_precondition_to_steps(
+                    precondition=test_case.precondition
                 )
                 if parsed_steps:
                     for idx, step_data in enumerate(parsed_steps):

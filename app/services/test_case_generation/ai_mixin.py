@@ -103,7 +103,18 @@ class TestCaseGenerationAiMixin:
                     if not content:
                         raise ValueError("AI响应内容为空")
 
-                    return parse_ai_response(content)
+                    logger.debug(f"AI原始响应长度: {len(content)} 字符")
+                    parsed = parse_ai_response(content)
+
+                    if "cases" in parsed and isinstance(parsed["cases"], list):
+                        cases_list = parsed["cases"]
+                        if not cases_list:
+                            raise ValueError("AI返回的用例数组为空")
+                        primary_case = cases_list[0]
+                        primary_case["_extra_cases"] = cases_list[1:]
+                        return primary_case
+
+                    return parsed
 
             except httpx.TimeoutException:
                 last_error = f"AI API请求超时 (尝试 {attempt + 1}/{max_retries})"
