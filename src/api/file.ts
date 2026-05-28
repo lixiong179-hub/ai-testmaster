@@ -107,6 +107,16 @@ export const fileApi = {
     return request.get('/api/v1/file/list', { params })
   },
 
+  getPreviewScreen: async (screenId: number) => {
+    return request.get(`/api/v1/file/preview-screen/${screenId}`, { responseType: 'blob' })
+  },
+  getFileListByProject: async (projectId: number) => {
+    return request.get(`/api/v1/file/list/${projectId}`)
+  },
+  extractContent: async (data: { file_ids: number[]; project_id: number }) => {
+    return request.post('/api/v1/file/extract-content', data)
+  },
+
   // 获取文件列表（支持后端分页和迭代筛选）
   getFileList: async (
     projectId: number,

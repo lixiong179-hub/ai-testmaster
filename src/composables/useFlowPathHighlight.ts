@@ -34,7 +34,10 @@ export interface UseFlowPathHighlightReturn {
   currentEdgeStyles: Ref<Record<string, EdgeStyleConfig>>
   applyAllEdgeStyles: (edges: FlowGraphEdge[]) => FlowGraphEdge[]
   getEdgeStyle: (type: string) => EdgeStyleConfig
-  defaultEdgeOptions: ComputedRef<{ markerEnd: ReturnType<typeof createEdgeMarker>; style: EdgeStyleConfig }>
+  defaultEdgeOptions: ComputedRef<{
+    markerEnd: ReturnType<typeof createEdgeMarker>
+    style: EdgeStyleConfig
+  }>
   handleNodeClick: (event: { node: Node }) => void
   handlePaneClick: () => void
 }

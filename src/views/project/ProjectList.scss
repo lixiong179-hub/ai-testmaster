@@ -1,5 +1,10 @@
 .project-list {
-  padding: 20px;
+  padding: 0;
+}
+
+.project-card {
+  border: none;
+  border-radius: 8px;
 }
 
 .card-header {
@@ -30,7 +35,15 @@
 }
 
 .search-input {
-  width: 300px;
+  width: min(360px, 100%);
+}
+
+.project-table {
+  width: 100%;
+}
+
+.project-table :deep(.el-table__cell) {
+  vertical-align: top;
 }
 
 .pagination {
@@ -71,7 +84,16 @@
     align-items: stretch;
   }
 
+  .search-bar {
+    align-items: stretch;
+  }
+
   .search-input {
     width: 100%;
+  }
+
+  .pagination {
+    justify-content: flex-start;
+    overflow-x: auto;
   }
 }

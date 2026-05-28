@@ -45,11 +45,6 @@ export interface TestCase {
   setup_api_calls?: string | null
 }
 
-export interface TestCaseGenerateRequest {
-  project_id: number
-  point_ids?: number[]
-}
-
 export interface TestCaseListResponse {
   items: TestCase[]
   total: number

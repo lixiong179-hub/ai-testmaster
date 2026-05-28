@@ -17,7 +17,7 @@ export function useIterationForm() {
     name: '',
     version: 'v1.0',
     description: '',
-    status: 'planning' as string,
+    status: 'draft' as string,
     start_date: '',
     end_date: '',
   })
@@ -34,13 +34,16 @@ export function useIterationForm() {
     iterationFormData.name = ''
     iterationFormData.version = 'v1.0'
     iterationFormData.description = ''
-    iterationFormData.status = 'planning'
+    iterationFormData.status = 'draft'
     iterationFormData.start_date = ''
     iterationFormData.end_date = ''
   }
 
   const handleAddIteration = (projectId: number) => {
-    if (!projectId) { ElMessage.warning('请先选择项目'); return }
+    if (!projectId) {
+      ElMessage.warning('请先选择项目')
+      return
+    }
     resetIterationForm()
     iterationDialogMode.value = 'add'
     iterationFormData.project_id = projectId
@@ -67,9 +70,12 @@ export function useIterationForm() {
     const errorObj = error as { response?: { data?: { detail?: string } } }
     const detail = errorObj?.response?.data?.detail
     if (typeof detail === 'string') {
-      if (detail.includes('UniqueConstraint') || detail.includes('已存在')) userMsg = `${operation}失败：数据已存在，请检查是否重复`
-      else if (detail.includes('403') || detail.includes('权限')) userMsg = `${operation}失败：您没有权限执行此操作`
-      else if (detail.includes('404') || detail.includes('不存在')) userMsg = `${operation}失败：请求的资源不存在`
+      if (detail.includes('UniqueConstraint') || detail.includes('已存在'))
+        userMsg = `${operation}失败：数据已存在，请检查是否重复`
+      else if (detail.includes('403') || detail.includes('权限'))
+        userMsg = `${operation}失败：您没有权限执行此操作`
+      else if (detail.includes('404') || detail.includes('不存在'))
+        userMsg = `${operation}失败：请求的资源不存在`
       else userMsg = `${operation}失败，请稍后重试或联系管理员`
     }
     ElMessage.error(userMsg)
@@ -77,24 +83,40 @@ export function useIterationForm() {
 
   const handleIterationSubmit = async (externalFormRef?: FormInstance): Promise<boolean> => {
     const formRefToUse = externalFormRef || iterationFormRef.value
-    if (!formRefToUse) { ElMessage.error('表单初始化失败，请刷新页面重试'); return false }
-    if (!externalFormRef) { try { await formRefToUse.validate() } catch { return false } }
+    if (!formRefToUse) {
+      ElMessage.error('表单初始化失败，请刷新页面重试')
+      return false
+    }
+    if (!externalFormRef) {
+      try {
+        await formRefToUse.validate()
+      } catch {
+        return false
+      }
+    }
     submitting.value = true
     try {
       if (iterationDialogMode.value === 'edit' && iterationFormData.id) {
         const updateData: IterationUpdateRequest = {
-          name: iterationFormData.name, version: iterationFormData.version,
-          description: iterationFormData.description || undefined, status: iterationFormData.status,
-          start_date: iterationFormData.start_date || undefined, end_date: iterationFormData.end_date || undefined,
+          name: iterationFormData.name,
+          version: iterationFormData.version,
+          description: iterationFormData.description || undefined,
+          start_date: iterationFormData.start_date || undefined,
+          end_date: iterationFormData.end_date || undefined,
         }
         await iterationApi.updateIteration(iterationFormData.id, updateData)
         ElMessage.success(`迭代 "${iterationFormData.name}" 更新成功`)
       } else {
-        if (!iterationFormData.project_id) { ElMessage.error('项目ID缺失，请刷新页面重试'); return false }
+        if (!iterationFormData.project_id) {
+          ElMessage.error('项目ID缺失，请刷新页面重试')
+          return false
+        }
         const createData = {
-          project_id: iterationFormData.project_id, name: iterationFormData.name,
-          version: iterationFormData.version, description: iterationFormData.description || undefined,
-          status: iterationFormData.status, start_date: iterationFormData.start_date || undefined,
+          project_id: iterationFormData.project_id,
+          name: iterationFormData.name,
+          version: iterationFormData.version,
+          description: iterationFormData.description || undefined,
+          start_date: iterationFormData.start_date || undefined,
           end_date: iterationFormData.end_date || undefined,
         }
         await iterationApi.createIteration(createData)
@@ -105,12 +127,22 @@ export function useIterationForm() {
     } catch (error: unknown) {
       showError(iterationDialogMode.value === 'edit' ? '更新迭代' : '创建迭代', error)
       return false
-    } finally { submitting.value = false }
+    } finally {
+      submitting.value = false
+    }
   }
 
   return {
-    iterationDialogVisible, iterationDialogMode, iterationFormRef, submitting,
-    iterationFormData, iterationFormRules,
-    handleAddIteration, handleEditIteration, handleIterationSubmit, resetIterationForm, showError,
+    iterationDialogVisible,
+    iterationDialogMode,
+    iterationFormRef,
+    submitting,
+    iterationFormData,
+    iterationFormRules,
+    handleAddIteration,
+    handleEditIteration,
+    handleIterationSubmit,
+    resetIterationForm,
+    showError,
   }
 }

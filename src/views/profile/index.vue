@@ -113,7 +113,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
-import axios from '@/utils/request'
+import { userApi } from '@/api/user'
 import type { User, Pagination } from '@/types/user'
 
 // 状态管理
@@ -174,7 +174,7 @@ const logsPagination = reactive<Pagination>({
 // 加载用户信息
 const loadUserInfo = async () => {
   try {
-    const response = await axios.get('/api/v1/user/me')
+    const response = await userApi.getCurrentUser()
     Object.assign(userInfo, response.data)
   } catch (error) {
     ElMessage.error('获取用户信息失败')
@@ -185,16 +185,13 @@ const loadUserInfo = async () => {
 const loadLoginLogs = async () => {
   logsLoading.value = true
   try {
-    const response = await axios.get('/api/v1/user/login-logs', {
-      params: {
-        skip: (logsPagination.page - 1) * logsPagination.size,
-        limit: logsPagination.size,
-        start_date: logDateRange.value?.[0]?.toISOString(),
-        end_date: logDateRange.value?.[1]?.toISOString(),
-      },
+    const response = await userApi.getLoginLogs({
+      skip: (logsPagination.page - 1) * logsPagination.size,
+      limit: logsPagination.size,
+      start_date: logDateRange.value?.[0]?.toISOString(),
+      end_date: logDateRange.value?.[1]?.toISOString(),
     })
     loginLogs.value = response.data
-    // 假设返回的数据包含total字段
     logsPagination.total = response.headers['x-total-count'] || loginLogs.value.length
   } catch (error) {
     ElMessage.error('获取登录日志失败')
@@ -211,7 +208,7 @@ const changePassword = async () => {
     if (valid) {
       loading.value = true
       try {
-        await axios.post('/api/v1/user/change-password', {
+        await userApi.changePassword({
           old_password: passwordForm.oldPassword,
           new_password: passwordForm.newPassword,
         })

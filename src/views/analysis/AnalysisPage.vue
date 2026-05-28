@@ -67,7 +67,7 @@
             <el-table
               :data="modulePoints"
               style="width: 100%"
-              @selection-change="handleSelectionChange"
+              @selection-change="handleSelectionChange(String(module), $event)"
             >
               <el-table-column type="selection" width="55" />
               <el-table-column prop="point" label="测试点" show-overflow-tooltip />
@@ -160,10 +160,26 @@ const filter = ref({
 })
 
 // 选中的测试点
-const selectedPoints = ref<number[]>([])
+const selectedPointsByModule = ref<Record<string, number[]>>({})
 
-const handleSelectionChange = (selection: any[]) => {
-  selectedPoints.value = selection.map((item) => item.id)
+const selectedPoints = computed(() =>
+  Object.values(selectedPointsByModule.value).reduce<number[]>((all, ids) => {
+    ids.forEach((id) => {
+      if (!all.includes(id)) {
+        all.push(id)
+      }
+    })
+    return all
+  }, [])
+)
+
+const handleSelectionChange = (module: string, selection: TestPoint[]) => {
+  const ids = selection.map((item) => item.id).filter((id) => Number.isFinite(id))
+  if (ids.length > 0) {
+    selectedPointsByModule.value[module] = ids
+  } else {
+    delete selectedPointsByModule.value[module]
+  }
 }
 
 // 模块列表
@@ -197,6 +213,17 @@ const filteredTestPoints = computed(() => {
   return grouped
 })
 
+const filteredTestPointIds = computed(() =>
+  Object.values(filteredTestPoints.value).reduce<number[]>((all, points) => {
+    points.forEach((point) => {
+      if (!all.includes(point.id)) {
+        all.push(point.id)
+      }
+    })
+    return all
+  }, [])
+)
+
 // 优先级文本
 const priorityText = (priority: number): string => {
   const map: Record<number, string> = {
@@ -229,10 +256,15 @@ const startAnalysis = async () => {
 
 // 生成所有测试用例
 const generateAllCases = async () => {
-  await caseStore.generateCases(projectId.value)
+  if (filteredTestPointIds.value.length === 0) {
+    ElMessage.warning('当前没有可生成的测试点')
+    return
+  }
+
+  await caseStore.generateCases(projectId.value, filteredTestPointIds.value)
   if (caseStore.generateStatus === 'success') {
     ElMessage.success('测试用例生成成功')
-    router.push(`/case/list/${projectId.value}`)
+    router.push({ path: '/home/case', query: { projectId: String(projectId.value) } })
   }
 }
 
@@ -246,7 +278,7 @@ const generateSelectedCases = async () => {
   await caseStore.generateCases(projectId.value, selectedPoints.value)
   if (caseStore.generateStatus === 'success') {
     ElMessage.success('测试用例生成成功')
-    router.push(`/case/list/${projectId.value}`)
+    router.push({ path: '/home/case', query: { projectId: String(projectId.value) } })
   }
 }
 

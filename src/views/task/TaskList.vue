@@ -4,9 +4,13 @@
       <template #header>
         <div class="card-header">
           <div>
-            <div class="card-title">测试任务列表</div>
+            <div class="card-title">{{ isOverview ? '执行中心' : '测试任务列表' }}</div>
             <div class="card-subtitle">
-              查看任务进度、执行结果和关键状态，适合作为项目任务总览入口。
+              {{
+                isOverview
+                  ? '查看所有项目的任务进度、执行结果和关键状态，可通过项目筛选聚焦关注范围。'
+                  : '查看任务进度、执行结果和关键状态，适合作为项目任务总览入口。'
+              }}
             </div>
           </div>
           <div class="header-actions">
@@ -20,6 +24,16 @@
       </template>
 
       <div class="filter-bar">
+        <el-select
+          v-if="isOverview"
+          v-model="filter.projectId"
+          placeholder="按项目筛选"
+          clearable
+          class="project-filter"
+          @change="fetchTaskList"
+        >
+          <el-option v-for="p in projectList" :key="p.id" :label="p.name" :value="p.id" />
+        </el-select>
         <el-select v-model="filter.status" placeholder="按状态筛选" clearable class="status-filter">
           <el-option label="全部" value="" />
           <el-option label="等待执行" :value="0" />
@@ -82,20 +96,44 @@
         <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #default="scope">
             <el-space class="task-actions" wrap>
-              <el-button v-if="scope.row.status === 0" type="success" size="small" @click.stop="startTask(scope.row)">启动</el-button>
-              <el-button v-if="scope.row.status === 1" type="warning" size="small" @click.stop="stopTask(scope.row)">停止</el-button>
-              <el-button type="primary" size="small" @click.stop="viewTask(scope.row)">详情</el-button>
-              <el-button type="danger" size="small" @click.stop="deleteTaskConfirm(scope.row)" :disabled="scope.row.status === 1">删除</el-button>
+              <el-button
+                v-if="scope.row.status === 0"
+                type="success"
+                size="small"
+                @click.stop="startTask(scope.row)"
+                >启动</el-button
+              >
+              <el-button
+                v-if="scope.row.status === 1"
+                type="warning"
+                size="small"
+                @click.stop="stopTask(scope.row)"
+                >停止</el-button
+              >
+              <el-button type="primary" size="small" @click.stop="viewTask(scope.row)"
+                >详情</el-button
+              >
+              <el-button
+                type="danger"
+                size="small"
+                @click.stop="deleteTaskConfirm(scope.row)"
+                :disabled="scope.row.status === 1"
+                >删除</el-button
+              >
             </el-space>
           </template>
         </el-table-column>
         <template #empty>
           <div class="task-empty-state">
             <div class="task-empty-title">当前项目还没有测试任务</div>
-            <div class="task-empty-text">可以先创建任务，随后在这里统一查看执行进度、结果和日志。</div>
+            <div class="task-empty-text">
+              可以先创建任务，随后在这里统一查看执行进度、结果和日志。
+            </div>
             <div class="task-empty-actions">
               <el-button plain @click="goToTestPointManagement">先去测试点管理</el-button>
-              <el-button type="primary" @click="createTask"><el-icon><Plus /></el-icon>创建首个任务</el-button>
+              <el-button type="primary" @click="createTask"
+                ><el-icon><Plus /></el-icon>创建首个任务</el-button
+              >
             </div>
           </div>
         </template>
@@ -121,10 +159,28 @@ import { SuccessFilled, CircleCloseFilled, Plus, Refresh } from '@element-plus/i
 import { useTaskList } from './useTaskList'
 
 const {
-  loading, filter, page, pageSize, total, taskList,
-  taskStatusText, taskStatusColor, getProgressColor, getProgressStatus,
-  handleSizeChange, handleCurrentChange, fetchTaskList, createTask,
-  goToTestPointManagement, viewTask, handleRowClick, startTask, stopTask, deleteTaskConfirm,
+  loading,
+  filter,
+  page,
+  pageSize,
+  total,
+  taskList,
+  projectList,
+  isOverview,
+  taskStatusText,
+  taskStatusColor,
+  getProgressColor,
+  getProgressStatus,
+  handleSizeChange,
+  handleCurrentChange,
+  fetchTaskList,
+  createTask,
+  goToTestPointManagement,
+  viewTask,
+  handleRowClick,
+  startTask,
+  stopTask,
+  deleteTaskConfirm,
 } = useTaskList()
 </script>
 
@@ -168,6 +224,10 @@ const {
 
 .status-filter {
   width: 170px;
+}
+
+.project-filter {
+  width: 200px;
 }
 
 .result-summary {

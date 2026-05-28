@@ -3,6 +3,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useTaskStore } from '@/store/task'
 import testTaskApi from '@/api/testTask'
+import type { TagType } from '@/types/element-plus'
 
 export function useTaskCreate() {
   const router = useRouter()
@@ -22,7 +23,13 @@ export function useTaskCreate() {
     case_ids: [] as number[],
   })
 
-  watch(projectId, (newVal) => { form.value.project_id = newVal }, { immediate: true })
+  watch(
+    projectId,
+    (newVal) => {
+      form.value.project_id = newVal
+    },
+    { immediate: true }
+  )
 
   const filter = ref({ module: '', priority: '' as number | '', keyword: '' })
   const cases = ref<any[]>([])
@@ -32,7 +39,9 @@ export function useTaskCreate() {
 
   const modules = computed(() => {
     const moduleSet = new Set<string>()
-    cases.value.forEach((item) => { if (item.module) moduleSet.add(item.module) })
+    cases.value.forEach((item) => {
+      if (item.module) moduleSet.add(item.module)
+    })
     return Array.from(moduleSet)
   })
 
@@ -43,7 +52,10 @@ export function useTaskCreate() {
       if (filter.value.priority !== '') match = match && item.priority === filter.value.priority
       if (filter.value.keyword) {
         const keyword = filter.value.keyword.toLowerCase()
-        match = match && ((item.title && item.title.toLowerCase().includes(keyword)) || (item.case_no && item.case_no.toLowerCase().includes(keyword)))
+        match =
+          match &&
+          ((item.title && item.title.toLowerCase().includes(keyword)) ||
+            (item.case_no && item.case_no.toLowerCase().includes(keyword)))
       }
       return match
     })
@@ -66,8 +78,19 @@ export function useTaskCreate() {
   })
 
   const rules = {
-    task_name: [{ required: true, message: '请输入任务名称', trigger: 'blur' }, { min: 2, max: 100, message: '长度在 2 到 100 个字符', trigger: 'blur' }],
-    case_ids: [{ required: true, validator: (_rule: any, value: any, callback: any) => { value.length === 0 ? callback(new Error('请至少选择一条用例')) : callback() }, trigger: 'change' }],
+    task_name: [
+      { required: true, message: '请输入任务名称', trigger: 'blur' },
+      { min: 2, max: 100, message: '长度在 2 到 100 个字符', trigger: 'blur' },
+    ],
+    case_ids: [
+      {
+        required: true,
+        validator: (_rule: any, value: any, callback: any) => {
+          value.length === 0 ? callback(new Error('请至少选择一条用例')) : callback()
+        },
+        trigger: 'change',
+      },
+    ],
   }
 
   const priorityText = (priority: number | undefined): string => {
@@ -75,16 +98,27 @@ export function useTaskCreate() {
     return priority ? map[priority] || '未知' : '-'
   }
 
-  const priorityType = (priority: number | undefined): string => {
-    const map: Record<number, string> = { 1: 'danger', 2: 'warning', 3: 'success' }
+  const priorityType = (priority: number | undefined): TagType => {
+    const map: Record<number, TagType> = { 1: 'danger', 2: 'warning', 3: 'success' }
     return priority ? map[priority] || 'info' : 'info'
   }
 
-  const handleSelectionChange = (selection: any[]) => { form.value.case_ids = selection.map((item) => item.id) }
-  const handleSelectAll = (value: boolean) => { value ? tableRef.value?.toggleAllSelection() : tableRef.value?.clearSelection() }
-  const clearSelection = () => { tableRef.value?.clearSelection(); form.value.case_ids = [] }
-  const handleSearch = () => { page.value = 1 }
-  const handlePageChange = (newPage: number) => { page.value = newPage }
+  const handleSelectionChange = (selection: any[]) => {
+    form.value.case_ids = selection.map((item) => item.id)
+  }
+  const handleSelectAll = (value: boolean) => {
+    value ? tableRef.value?.toggleAllSelection() : tableRef.value?.clearSelection()
+  }
+  const clearSelection = () => {
+    tableRef.value?.clearSelection()
+    form.value.case_ids = []
+  }
+  const handleSearch = () => {
+    page.value = 1
+  }
+  const handlePageChange = (newPage: number) => {
+    page.value = newPage
+  }
 
   const submitForm = async () => {
     if (!formRef.value) return
@@ -124,7 +158,10 @@ export function useTaskCreate() {
     let currentPage = 1
     let totalPages = 1
     while (currentPage <= totalPages) {
-      const response = (await testTaskApi.getProjectCases(targetProjectId, { page: currentPage, page_size: pageSize })) as any
+      const response = (await testTaskApi.getProjectCases(targetProjectId, {
+        page: currentPage,
+        page_size: pageSize,
+      })) as any
       const payload = response?.data || response || {}
       const pageData = payload.items ? payload : payload.data || {}
       const items = Array.isArray(pageData.items) ? pageData.items : []
@@ -135,7 +172,9 @@ export function useTaskCreate() {
       currentPage += 1
     }
     const uniqueCases = new Map<number, any>()
-    allCases.forEach((item) => { if (item?.id) uniqueCases.set(item.id, item) })
+    allCases.forEach((item) => {
+      if (item?.id) uniqueCases.set(item.id, item)
+    })
     return Array.from(uniqueCases.values())
   }
 
@@ -152,12 +191,34 @@ export function useTaskCreate() {
     }
   }
 
-  onMounted(() => { fetchProjectCases() })
+  onMounted(() => {
+    fetchProjectCases()
+  })
 
   return {
-    formRef, tableRef, loading, submitting, projectId, form, filter, cases,
-    page, pageSize, total, modules, filteredCases, selectAll, rules,
-    priorityText, priorityType, handleSelectionChange, handleSelectAll,
-    clearSelection, handleSearch, handlePageChange, submitForm, resetForm,
+    formRef,
+    tableRef,
+    loading,
+    submitting,
+    projectId,
+    form,
+    filter,
+    cases,
+    page,
+    pageSize,
+    total,
+    modules,
+    filteredCases,
+    selectAll,
+    rules,
+    priorityText,
+    priorityType,
+    handleSelectionChange,
+    handleSelectAll,
+    clearSelection,
+    handleSearch,
+    handlePageChange,
+    submitForm,
+    resetForm,
   }
 }

@@ -77,7 +77,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import request from '@/utils/request'
+import ProjectAPI from '@/api/project'
 import { iterationApi } from '@/api/iteration'
 import type { Iteration } from '@/api/iteration'
 import RequirementUploader from '@/components/RequirementUploader.vue'
@@ -106,7 +106,7 @@ const normalizedIterationId = computed<number | null>(() =>
 // 获取项目列表
 const getProjects = async () => {
   try {
-    const response = await request.get('/api/v1/project/list')
+    const response = await ProjectAPI.getProjects({})
     projects.value = response.data.items
   } catch (error) {
     console.error('获取项目列表失败:', error)

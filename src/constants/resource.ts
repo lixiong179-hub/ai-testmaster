@@ -2,6 +2,7 @@
  * 资源管理模块常量配置
  * 集中管理硬编码值，便于维护和修改
  */
+import type { TagType } from '@/types/element-plus'
 
 export const RESOURCE_CONFIG = {
   /** 默认每页显示条数 */
@@ -34,9 +35,10 @@ export const RESOURCE_TYPE_OPTIONS = [
 
 /** 迭代状态选项 */
 export const ITERATION_STATUS_OPTIONS = [
-  { label: '规划中', value: 'planning' },
-  { label: '进行中', value: 'active' },
-  { label: '已完成', value: 'completed' },
+  { label: '草稿', value: 'draft' },
+  { label: '流水线运行中', value: 'in_pipeline' },
+  { label: '待评审', value: 'in_review' },
+  { label: '已定稿', value: 'finalized' },
   { label: '已归档', value: 'archived' },
 ] as const
 
@@ -102,8 +104,8 @@ export function detectResourceType(filename: string): string {
 }
 
 /** 资源类型对应的 Element Plus Tag 类型 */
-export const RESOURCE_TYPE_TAG_MAP: Record<string, string> = {
-  requirement: '',
+export const RESOURCE_TYPE_TAG_MAP: Record<string, TagType> = {
+  requirement: 'primary',
   ui_mockup: 'success',
   api_doc: 'warning',
   test_data: 'info',

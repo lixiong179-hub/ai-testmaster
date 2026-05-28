@@ -1,18 +1,32 @@
 import { describe, it, expect } from 'vitest'
+import { mount } from '@vue/test-utils'
+import AIParseLoading from '../AIParseLoading.vue'
 
-// 由于缺少 @vue/test-utils 依赖，我们简化测试
-// 实际项目中应安装：npm install -D @vue/test-utils happy-dom
-
-describe('AIParseLoading.vue - 占位测试', () => {
-  it('应该可以正常导入组件', () => {
-    expect(true).toBe(true)
+describe('AIParseLoading.vue', () => {
+  it('visible 为 false 时不渲染', () => {
+    const wrapper = mount(AIParseLoading, { props: { visible: false } })
+    expect(wrapper.find('.ai-parse-loading').exists()).toBe(false)
   })
 
-  it('应该有基本的测试结构', () => {
-    expect(1 + 1).toBe(2)
+  it('visible 为 true 时渲染加载卡片', () => {
+    const wrapper = mount(AIParseLoading, { props: { visible: true } })
+    expect(wrapper.find('.ai-parse-loading').exists()).toBe(true)
+    expect(wrapper.find('.loading-card').exists()).toBe(true)
+  })
+
+  it('默认 parseMode 为 text', () => {
+    const wrapper = mount(AIParseLoading, { props: { visible: true } })
+    expect(wrapper.find('.detail-value').text()).toBe('文本模型')
+  })
+
+  it('parseMode 为 vision 时显示 AI视觉', () => {
+    const wrapper = mount(AIParseLoading, { props: { visible: true, parseMode: 'vision' } })
+    expect(wrapper.find('.detail-value').text()).toBe('AI视觉')
+  })
+
+  it('点击取消按钮触发 cancel 事件', async () => {
+    const wrapper = mount(AIParseLoading, { props: { visible: true, showCancelButton: true } })
+    await wrapper.find('.loading-actions .el-button').trigger('click')
+    expect(wrapper.emitted('cancel')).toBeTruthy()
   })
 })
-
-// TODO: 安装依赖后补充完整测试
-// 需要安装：
-// npm install -D @vue/test-utils happy-dom

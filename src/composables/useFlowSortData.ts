@@ -9,7 +9,11 @@ import type {
   FlowEdgeInput,
   FlowValidationResult,
 } from '@/composables/useFlowEditor'
-import { validateFlowData, normalizeMainNodeOrders, getOrderedNodesForSubmit } from '@/composables/useFlowEditor'
+import {
+  validateFlowData,
+  normalizeMainNodeOrders,
+  getOrderedNodesForSubmit,
+} from '@/composables/useFlowEditor'
 
 /** emit('update:sort-data') 的数据类型 */
 export type EmitSortDataPayload = { mode: string; nodes: FlowNodeData[]; edges: FlowEdgeData[] }

@@ -44,22 +44,23 @@
 import { computed } from 'vue'
 import { Grid, Pointer, Edit, Star, Link, Document, Box } from '@element-plus/icons-vue'
 import type { UIElement } from '@/api/uiPrototype'
+import type { TagType } from '@/types/element-plus'
 
 const props = defineProps<{
   elements: UIElement[]
 }>()
 
-const getElementTypeColor = (type: string) => {
-  const colorMap: Record<string, string> = {
+const getElementTypeColor = (type: string): TagType => {
+  const colorMap: Record<string, TagType> = {
     button: 'primary',
     input: 'warning',
     text: 'info',
-    icon: '',
-    link: '',
+    icon: 'primary',
+    link: 'primary',
     image: 'success',
     container: 'info',
-    navigation: '',
-    list_item: '',
+    navigation: 'primary',
+    list_item: 'primary',
     checkbox: 'success',
     radio: 'success',
     switch: 'success',

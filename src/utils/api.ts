@@ -1,5 +1,7 @@
 /** API 响应解包工具，兼容双层嵌套响应 */
-export function unwrapApiResponse<T = unknown>(response: unknown): {
+export function unwrapApiResponse<T = unknown>(
+  response: unknown
+): {
   code?: number
   data?: T
   message?: string

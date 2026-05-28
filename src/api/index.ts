@@ -3,6 +3,13 @@
  * 提供统一的 API 访问接口
  */
 
+// 认证 API
+export { authApi } from './auth'
+export type { CaptchaResponse, LoginResponse, UserInfo } from './auth'
+
+// 用户管理 API
+export { userApi } from './user'
+
 // 测试用例 API
 export { testCaseApi, default as caseApi } from './case'
 export type {
@@ -12,7 +19,6 @@ export type {
   TestCaseAIEnhancedRequest,
   CaseQueryParams,
   CasePageResponse,
-  TestCaseGenerateRequest,
   TestCaseListResponse,
   ImportResult,
 } from './case'
@@ -41,19 +47,6 @@ export type {
 // 报告 API
 export { default as reportApi, default as reportApiDefault } from './report'
 export type { Report, TestCaseResult, ReportListResponse } from './report'
-
-// 需求链接 API (模块暂未实现，注释导出)
-// export { RequirementLinkAPI, default as requirementLinkApi } from './requirementLink'
-// export type {
-//   RequirementLink,
-//   CreateRequirementLinkRequest,
-//   UpdateRequirementLinkRequest,
-//   FetchContentResponse,
-//   TestCaseContext,
-//   ValidateLinkResponse,
-//   LinkType,
-//   AuthType
-// } from './requirementLink'
 
 // 测试执行 API
 export {
@@ -102,7 +95,6 @@ export type {
 // 用例质量 API
 export {
   analyzeCaseQuality,
-  analyzeProjectQuality,
   getCaseQualityTrend,
   estimateCaseCost,
   optimizeCaseLocators,
@@ -180,3 +172,16 @@ export type {
   FileUpdateRequest,
   FileUpdateResponse,
 } from './file'
+
+// 测试能力 API
+export { testCapabilityApi } from './testCapability'
+export type {
+  TestCapabilityResponse,
+  TestCapabilityCreateRequest,
+  TestCapabilityUpdateRequest,
+  TestCapabilityListParams,
+} from './testCapability'
+
+// 审计日志 API
+export { default as auditLogApi } from './auditLog'
+export type { AuditLogItem, AuditLogListResponse, AuditLogQueryParams } from './auditLog'

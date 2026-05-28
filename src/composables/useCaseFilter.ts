@@ -150,7 +150,13 @@ export function useCaseFilter(options: UseCaseFilterOptions) {
   /** 点击统计卡片快速筛选 */
   const applyStatsCardFilter = (caseType: string | null): void => {
     if (caseType === null) {
-      filter.value = { module: '', priority: null, case_type: '', keyword: '', lifecycle_status: [] }
+      filter.value = {
+        module: '',
+        priority: null,
+        case_type: '',
+        keyword: '',
+        lifecycle_status: [],
+      }
     } else {
       filter.value = { ...filter.value, case_type: caseType }
     }

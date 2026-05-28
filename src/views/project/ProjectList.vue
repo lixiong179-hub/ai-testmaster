@@ -102,7 +102,12 @@
     </el-card>
 
     <el-dialog v-model="dialogVisible" title="创建项目" width="700px">
-      <el-form :model="projectForm" :rules="projectRules" ref="projectFormRef" label-width="100px">
+      <el-form
+        :model="projectForm"
+        :rules="projectRules"
+        :ref="setProjectFormRef"
+        label-width="100px"
+      >
         <el-form-item label="项目名称" prop="name">
           <el-input v-model="projectForm.name" placeholder="请输入项目名称" />
         </el-form-item>
@@ -129,13 +134,27 @@
           <el-form-item label="测试环境">
             <el-row :gutter="10">
               <el-col :span="10">
-                <el-input v-model="projectForm.web_env_configs.test.url" placeholder="测试环境URL" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.test.url"
+                  placeholder="测试环境URL"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.test.username" placeholder="账号" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.test.username"
+                  placeholder="账号"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.test.password" type="password" placeholder="密码" show-password autocomplete="new-password" />
+                <el-input
+                  v-model="projectForm.web_env_configs.test.password"
+                  type="password"
+                  placeholder="密码"
+                  show-password
+                  autocomplete="new-password"
+                />
               </el-col>
             </el-row>
           </el-form-item>
@@ -143,13 +162,27 @@
           <el-form-item label="灰度环境">
             <el-row :gutter="10">
               <el-col :span="10">
-                <el-input v-model="projectForm.web_env_configs.staging.url" placeholder="灰度环境URL" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.staging.url"
+                  placeholder="灰度环境URL"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.staging.username" placeholder="账号" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.staging.username"
+                  placeholder="账号"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.staging.password" type="password" placeholder="密码" show-password autocomplete="new-password" />
+                <el-input
+                  v-model="projectForm.web_env_configs.staging.password"
+                  type="password"
+                  placeholder="密码"
+                  show-password
+                  autocomplete="new-password"
+                />
               </el-col>
             </el-row>
           </el-form-item>
@@ -157,13 +190,27 @@
           <el-form-item label="正式环境">
             <el-row :gutter="10">
               <el-col :span="10">
-                <el-input v-model="projectForm.web_env_configs.prod.url" placeholder="正式环境URL" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.prod.url"
+                  placeholder="正式环境URL"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.prod.username" placeholder="账号" autocomplete="off" />
+                <el-input
+                  v-model="projectForm.web_env_configs.prod.username"
+                  placeholder="账号"
+                  autocomplete="off"
+                />
               </el-col>
               <el-col :span="6">
-                <el-input v-model="projectForm.web_env_configs.prod.password" type="password" placeholder="密码" show-password autocomplete="new-password" />
+                <el-input
+                  v-model="projectForm.web_env_configs.prod.password"
+                  type="password"
+                  placeholder="密码"
+                  show-password
+                  autocomplete="new-password"
+                />
               </el-col>
             </el-row>
           </el-form-item>
@@ -192,13 +239,31 @@
 import { useProjectList } from './useProjectList'
 
 const {
-  projectStore, dialogVisible, projectFormRef, searchKeyword, projectForm, projectRules,
-  filteredProjects, getStatusType, getStatusText, handleSearch, handleCurrentChange,
-  handleSizeChange, openCreateDialog, createProject, goToDetail, goToTaskList,
-  goToTestPointManagement, confirmDelete,
+  projectStore,
+  dialogVisible,
+  projectFormRef,
+  searchKeyword,
+  projectForm,
+  projectRules,
+  filteredProjects,
+  getStatusType,
+  getStatusText,
+  handleSearch,
+  handleCurrentChange,
+  handleSizeChange,
+  openCreateDialog,
+  createProject,
+  goToDetail,
+  goToTaskList,
+  goToTestPointManagement,
+  confirmDelete,
 } = useProjectList()
+
+const setProjectFormRef = (el: unknown) => {
+  projectFormRef.value = el
+}
 </script>
 
 <style scoped lang="scss">
-@import './ProjectList.scss';
+@use './ProjectList.scss';
 </style>

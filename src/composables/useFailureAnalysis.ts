@@ -6,6 +6,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { analyzeFailure, type FailureAnalysisResult } from '@/api/testExecution'
+import type { TagType } from '@/types/element-plus'
 
 /** 问题类型标签映射 */
 export const ISSUE_TYPE_LABELS: Record<string, string> = {
@@ -15,7 +16,7 @@ export const ISSUE_TYPE_LABELS: Record<string, string> = {
 }
 
 /** 问题类型颜色映射 */
-export const ISSUE_TYPE_COLORS: Record<string, string> = {
+export const ISSUE_TYPE_COLORS: Record<string, TagType> = {
   case_issue: 'warning',
   product_bug: 'danger',
   needs_review: 'info',
@@ -58,7 +59,8 @@ export function useFailureAnalysis(options: UseFailureAnalysisOptions) {
       const res = await analyzeFailure(resultId)
       const resAny = res as unknown as Record<string, unknown>
       const resData = resAny.data as Record<string, unknown> | undefined
-      const data = (resData?.data as FailureAnalysisResult | undefined) ??
+      const data =
+        (resData?.data as FailureAnalysisResult | undefined) ??
         (resData as unknown as FailureAnalysisResult | undefined)
       if (data) {
         failureAnalysisMap.value[index] = data

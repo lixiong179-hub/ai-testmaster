@@ -1,7 +1,4 @@
-/**
- * 定位类型辅助函数
- * 提供定位类型的标签显示和标签样式映射
- */
+import type { TagType } from '@/types/element-plus'
 
 /**
  * 获取定位类型的中文标签
@@ -25,14 +22,14 @@ export const getLocatorTypeLabel = (type: string): string => {
  * @param type 定位类型标识
  * @returns Tag 组件的 type 属性值
  */
-export const getLocatorTypeTagType = (type: string): string => {
-  const types: Record<string, string> = {
+export const getLocatorTypeTagType = (type: string): TagType => {
+  const types: Record<string, TagType> = {
     vision: 'warning',
     role: 'success',
     text: 'success',
-    css: '',
+    css: 'primary',
     ref: 'info',
-    xpath: '',
+    xpath: 'primary',
   }
   return types[type] || 'info'
 }

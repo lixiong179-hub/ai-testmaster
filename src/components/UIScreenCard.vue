@@ -64,6 +64,7 @@ import { computed } from 'vue'
 import { Picture } from '@element-plus/icons-vue'
 import type { UIScreen } from '@/api/uiPrototype'
 import { getUIScreenStatusMeta } from '@/composables/uiScreenStatus'
+import type { TagType } from '@/types/element-plus'
 
 /**
  * `UIScreenCard` 负责渲染统一的 UI 屏幕卡片骨架。
@@ -84,7 +85,7 @@ interface UIScreenCardProps {
   /** 自定义状态文案，不传则走统一状态映射。 */
   statusText?: string
   /** 自定义状态标签类型，不传则走统一状态映射。 */
-  statusType?: string
+  statusType?: TagType
   /** 图片 hover 时显示的提示文案。 */
   overlayText?: string
   /** 决定点击预览是触发整张卡片还是仅缩略图区。 */

@@ -91,7 +91,9 @@ describe('flowSortStore', () => {
 
     it('localStorage 满时不抛异常', () => {
       const spy = vi.spyOn(Storage.prototype, 'setItem')
-      spy.mockImplementationOnce(() => { throw new Error('quota exceeded') })
+      spy.mockImplementationOnce(() => {
+        throw new Error('quota exceeded')
+      })
       expect(() => store.updateNodes([makeNode('n1')])).not.toThrow()
       spy.mockRestore()
     })
@@ -168,7 +170,13 @@ describe('flowSortStore', () => {
   describe('performSave', () => {
     const successRes: FlowDataSaveResponse = {
       code: 200,
-      data: { id: 1, project_id: 1, flow_data: { nodes: [], edges: [] }, create_time: '', update_time: '' },
+      data: {
+        id: 1,
+        project_id: 1,
+        flow_data: { nodes: [], edges: [] },
+        create_time: '',
+        update_time: '',
+      },
       msg: 'ok',
     }
 
@@ -240,7 +248,17 @@ describe('flowSortStore', () => {
 
     it('超时错误(status=null)自动重试一次后成功', async () => {
       const mock = vi.mocked(uiPrototypeApi.saveProjectFlowData)
-      const successRes = { code: 0, data: { id: 1, project_id: 1, flow_data: { nodes: [], edges: [] }, create_time: '', update_time: '' }, msg: 'ok' }
+      const successRes = {
+        code: 0,
+        data: {
+          id: 1,
+          project_id: 1,
+          flow_data: { nodes: [], edges: [] },
+          create_time: '',
+          update_time: '',
+        },
+        msg: 'ok',
+      }
       const err = new Error('timeout of 30000ms exceeded')
       mock.mockRejectedValueOnce(err).mockResolvedValueOnce(successRes)
       store.setProjectId(1)
@@ -290,16 +308,24 @@ describe('flowSortStore', () => {
 
     it('后端有数据时恢复并同步 localStorage', async () => {
       const serverNodes = [makeNode('n_server', { position: { x: 50, y: 50 } })]
-      const serverEdges = [{
-        id: 'e_s',
-        source: 'n_server',
-        target: 'n2',
-        edge_type: 'normal' as const,
-        label: '下一步',
-      }]
+      const serverEdges = [
+        {
+          id: 'e_s',
+          source: 'n_server',
+          target: 'n2',
+          edge_type: 'normal' as const,
+          label: '下一步',
+        },
+      ]
       vi.mocked(uiPrototypeApi.getProjectFlowData).mockResolvedValue({
         code: 200,
-        data: { id: 1, project_id: 1, flow_data: { nodes: serverNodes, edges: serverEdges }, create_time: '', update_time: '' },
+        data: {
+          id: 1,
+          project_id: 1,
+          flow_data: { nodes: serverNodes, edges: serverEdges },
+          create_time: '',
+          update_time: '',
+        },
         msg: '',
       })
       store.setProjectId(1)
@@ -314,11 +340,14 @@ describe('flowSortStore', () => {
     })
 
     it('后端无数据 + localStorage 有数据时恢复（store创建前写localStorage）', async () => {
-      localStorage.setItem('flow-sort-data', JSON.stringify({
-        mode: 'graph',
-        nodes: [makeNode('n_local', { flow_type: 'branch' })],
-        edges: [],
-      }))
+      localStorage.setItem(
+        'flow-sort-data',
+        JSON.stringify({
+          mode: 'graph',
+          nodes: [makeNode('n_local', { flow_type: 'branch' })],
+          edges: [],
+        })
+      )
       createStore()
       vi.mocked(uiPrototypeApi.getProjectFlowData).mockResolvedValue({
         code: 200,
@@ -333,18 +362,27 @@ describe('flowSortStore', () => {
     })
 
     it('网络错误 + localStorage 有数据时降级恢复', async () => {
-      localStorage.setItem('flow-sort-data', JSON.stringify({
-        mode: 'graph',
-        nodes: [makeNode('n_fallback')],
-        edges: [],
-      }))
-      createStore()
-      vi.mocked(uiPrototypeApi.getProjectFlowData).mockRejectedValue(new Error('network error'))
-      store.setProjectId(1)
-      await store.loadFromBackend()
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      try {
+        localStorage.setItem(
+          'flow-sort-data',
+          JSON.stringify({
+            mode: 'graph',
+            nodes: [makeNode('n_fallback')],
+            edges: [],
+          })
+        )
+        createStore()
+        vi.mocked(uiPrototypeApi.getProjectFlowData).mockRejectedValue(new Error('network error'))
+        store.setProjectId(1)
+        await store.loadFromBackend()
 
-      expect(store.nodes).toHaveLength(1)
-      expect(store.nodes[0].id).toBe('n_fallback')
+        expect(errorSpy).toHaveBeenCalled()
+        expect(store.nodes).toHaveLength(1)
+        expect(store.nodes[0].id).toBe('n_fallback')
+      } finally {
+        errorSpy.mockRestore()
+      }
     })
   })
 
@@ -390,6 +428,74 @@ describe('flowSortStore', () => {
 
       const flowData = vi.mocked(uiPrototypeApi.saveProjectFlowData).mock.calls[0][1]
       expect(flowData.nodes[0].image_url).toBe('https://e.g/img.png')
+    })
+  })
+
+  describe('quickMode', () => {
+    it('默认为 true（快速模式）', () => {
+      expect(store.quickMode).toBe(true)
+    })
+
+    it('localStorage 有记录时从 localStorage 恢复', () => {
+      localStorage.setItem('flow-editor-quick-mode', 'false')
+      createStore()
+      expect(store.quickMode).toBe(false)
+    })
+
+    it('localStorage 值为 "true" 时恢复为 true', () => {
+      localStorage.setItem('flow-editor-quick-mode', 'true')
+      createStore()
+      expect(store.quickMode).toBe(true)
+    })
+
+    it('localStorage 值非法时回退为 true', () => {
+      localStorage.setItem('flow-editor-quick-mode', 'maybe')
+      createStore()
+      expect(store.quickMode).toBe(true)
+    })
+
+    it('setQuickMode 更新值并持久化到 localStorage', () => {
+      store.setQuickMode(false)
+      expect(store.quickMode).toBe(false)
+      expect(localStorage.getItem('flow-editor-quick-mode')).toBe('false')
+
+      store.setQuickMode(true)
+      expect(store.quickMode).toBe(true)
+      expect(localStorage.getItem('flow-editor-quick-mode')).toBe('true')
+    })
+
+    it('localStorage 不可用时 setQuickMode 不抛异常', () => {
+      const spy = vi.spyOn(Storage.prototype, 'setItem')
+      spy.mockImplementationOnce(() => {
+        throw new Error('unavailable')
+      })
+      expect(() => store.setQuickMode(false)).not.toThrow()
+      expect(store.quickMode).toBe(false)
+      spy.mockRestore()
+    })
+
+    it('localStorage getItem 异常时回退为 true', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem')
+      spy.mockImplementationOnce(() => {
+        throw new Error('unavailable')
+      })
+      createStore()
+      expect(store.quickMode).toBe(true)
+      spy.mockRestore()
+    })
+
+    it('reset 不重置 quickMode', () => {
+      store.setQuickMode(false)
+      store.reset()
+      expect(store.quickMode).toBe(false)
+    })
+
+    it('quickMode 跨项目保持（切换 projectId 后不变）', () => {
+      store.setQuickMode(false)
+      store.setProjectId(1)
+      expect(store.quickMode).toBe(false)
+      store.setProjectId(2)
+      expect(store.quickMode).toBe(false)
     })
   })
 })

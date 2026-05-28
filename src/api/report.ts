@@ -61,25 +61,33 @@ const reportApi = {
   // 导出报告为PDF
   // 后端：POST /api/v1/report/{report_id}/export
   exportReportPDF: (id: number, project_id: number) => {
-    return request.post(`/api/v1/report/${id}/export`, {
-      report_id: id,
-      format: 'pdf',
-      project_id,
-    }, {
-      responseType: 'blob',
-    })
+    return request.post(
+      `/api/v1/report/${id}/export`,
+      {
+        report_id: id,
+        format: 'pdf',
+        project_id,
+      },
+      {
+        responseType: 'blob',
+      }
+    )
   },
 
   // 导出报告为HTML
   // 后端：POST /api/v1/report/{report_id}/export
   exportReportHTML: (id: number, project_id: number) => {
-    return request.post(`/api/v1/report/${id}/export`, {
-      report_id: id,
-      format: 'html',
-      project_id,
-    }, {
-      responseType: 'blob',
-    })
+    return request.post(
+      `/api/v1/report/${id}/export`,
+      {
+        report_id: id,
+        format: 'html',
+        project_id,
+      },
+      {
+        responseType: 'blob',
+      }
+    )
   },
 }
 

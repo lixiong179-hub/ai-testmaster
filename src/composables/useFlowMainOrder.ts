@@ -72,7 +72,7 @@ export function useFlowMainOrder(options: UseFlowMainOrderOptions) {
     )
     vueFlowNodes.value = normalizeMainNodeOrders(
       vueFlowNodes.value.filter((n) => !deletedSet.has(n.id)),
-      vueFlowEdges.value as any,
+      vueFlowEdges.value as any
     )
     collapsedParentNodeIds.value = collapsedParentNodeIds.value.filter((id) => !deletedSet.has(id))
     if (focusedNodeId.value && deletedSet.has(focusedNodeId.value)) {

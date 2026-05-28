@@ -267,6 +267,7 @@ export const uiPrototypeApi = {
     flowData: ProjectFlowData
   ): Promise<FlowDataSaveResponse> => {
     return request.put(`/api/v1/ui-prototype/flow/${projectId}`, {
+      project_id: projectId,
       flow_data: flowData,
     })
   },
