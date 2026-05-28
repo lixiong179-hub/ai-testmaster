@@ -14,8 +14,6 @@ M3-T05 场景 3 流水线端到端测试（仅 UI 输入的新项目）
 import json
 import pytest
 
-pytestmark = pytest.mark.skip(reason="AI_API_KEY缺失/Pipeline运行失败")
-
 from app.pipelines.context import PipelineContext
 from app.pipelines.runner import PipelineRunner
 from app.pipelines.steps.signal_gatherer import SignalGatherer
@@ -141,6 +139,10 @@ def mock_ai():
     client.set_response("reverse_infer", _make_default_infer_response())
     client.set_response("scenario_candidate_extractor", _make_default_candidates_response())
     client.set_response("case_generation", _make_default_cases_response())
+    client.set_response("case_generation_create", _make_default_cases_response())
+    client.set_response("case_generation_modify", _make_default_cases_response())
+    client.set_response("case_generation_locator", _make_default_cases_response())
+    client.set_response("case_generation_supplement", _make_default_cases_response())
     return client
 
 
@@ -308,7 +310,6 @@ class TestDependencyChain:
         assert Persist.produces == ["persisted_case_ids"]
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致ReverseInfer执行失败")
 class TestReverseInferNewProject:
     def test_execute_infers_capabilities(self, db, make_ctx):
         ctx = make_ctx()
@@ -451,7 +452,6 @@ class TestScenarioCandidateNoHistory:
         assert result.degraded is True
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致TestPointAlignment执行失败")
 class TestTestPointAlignmentWithInferred:
     def test_execute_with_inferred_capabilities(self, db, make_ctx):
         ctx = make_ctx()
@@ -485,7 +485,6 @@ class TestTestPointAlignmentWithInferred:
         assert step.should_run(ctx) is True
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Scenario3 E2E Pipeline失败")
 class TestScenario3E2E:
     def test_full_pipeline_run(self, db, make_ctx):
         ctx = make_ctx()

@@ -20,6 +20,7 @@ Pipeline Runner 执行引擎
     - app.services.pipeline_service : CRUD + 工具函数
     - app.services.audit_service : 审计日志
 """
+import asyncio
 import hashlib
 import json
 import logging
@@ -35,6 +36,44 @@ from app.utils.db_time import utcnow
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 2
+
+
+def _push_pipeline_progress(
+    run_id: int,
+    step_name: str,
+    status: str,
+    progress: float,
+    pipeline_status: str,
+) -> None:
+    """通过 WebSocket 推送 Pipeline 进度（fire-and-forget）。
+
+    在 Step 状态变更时调用，将进度信息推送到前端 WebSocket 客户端。
+    推送失败不影响业务流程，仅记录警告日志。
+
+    Args:
+        run_id: Pipeline 运行 ID。
+        step_name: 步骤名称，Pipeline 级别事件传空字符串。
+        status: 当前步骤或 Pipeline 的状态。
+        progress: 进度百分比（0-100）。
+        pipeline_status: Pipeline 整体状态。
+    """
+    try:
+        from app.services.push_service import get_push_service
+        push_service = get_push_service()
+        data = {
+            "type": "pipeline_progress",
+            "run_id": run_id,
+            "step_name": step_name,
+            "status": status,
+            "progress": progress,
+            "pipeline_status": pipeline_status,
+        }
+        loop = asyncio.get_running_loop()
+        asyncio.ensure_future(push_service.push(f"pipeline:{run_id}", data))
+    except RuntimeError:
+        logger.debug("No running event loop, skipping pipeline progress push")
+    except Exception as e:
+        logger.warning("Pipeline progress push failed: %s", e)
 
 
 class PipelineRunner:
@@ -89,11 +128,13 @@ class PipelineRunner:
         pipeline_service.update_run_status(
             db=ctx.db, run_id=ctx.run.id, status=status,
         )
+        _push_pipeline_progress(ctx.run.id, "", status, 0.0, status)
 
         skip_mode = resume_from_step is not None
         reached_resume = False
 
-        for step_cls in self.steps:
+        total_steps = max(len(self.steps), 1)
+        for step_idx, step_cls in enumerate(self.steps):
             step = step_cls()
 
             if skip_mode and not reached_resume:
@@ -102,6 +143,25 @@ class PipelineRunner:
                 else:
                     logger.info("Step '%s' skipped (resuming after pause)", step.name)
                     continue
+
+            # 协作式取消检查：API 端点写入 cancelled 状态，Runner 在 Step 间检测
+            # 先 commit 当前事务，确保在 REPEATABLE READ 隔离级别下能看到其他事务的更新
+            ctx.db.commit()
+            fresh_run = (
+                ctx.db.query(PipelineRun)
+                .filter(PipelineRun.id == ctx.run.id)
+                .first()
+            )
+            if fresh_run and fresh_run.status == "cancelled":
+                logger.info(
+                    "Pipeline '%s' cancelled at step '%s': run_id=%d",
+                    self.pipeline_name, step.name, ctx.run.id,
+                )
+                _push_pipeline_progress(
+                    ctx.run.id, step.name, "cancelled",
+                    round((step_idx / total_steps) * 100, 1), "cancelled",
+                )
+                return
 
             if not step.should_run(ctx):
                 logger.info("Step '%s' skipped (should_run=False)", step.name)
@@ -121,12 +181,24 @@ class PipelineRunner:
                     db=ctx.db, run_id=ctx.run.id, status="waiting_for_user",
                     error=f"Token budget exceeded at step '{step.name}'",
                 )
+                _push_pipeline_progress(
+                    ctx.run.id, step.name, "waiting_for_user",
+                    round((step_idx / total_steps) * 100, 1), "waiting_for_user",
+                )
                 ctx.db.commit()
                 return
 
+            _push_pipeline_progress(
+                ctx.run.id, step.name, "running",
+                round((step_idx / total_steps) * 100, 1), "running",
+            )
             result = self._execute_step_with_retry(ctx, step)
 
             if result is None:
+                _push_pipeline_progress(
+                    ctx.run.id, step.name, "done",
+                    round(((step_idx + 1) / total_steps) * 100, 1), "running",
+                )
                 continue
 
             if result.pause_for_confirmation:
@@ -157,6 +229,10 @@ class PipelineRunner:
                 if current_run_obj:
                     current_run_obj.pause_payload = pause_info
                 ctx.db.commit()
+                _push_pipeline_progress(
+                    ctx.run.id, step.name, "waiting_for_user",
+                    round((step_idx / total_steps) * 100, 1), "waiting_for_user",
+                )
                 return
 
             if not result.success:
@@ -168,15 +244,26 @@ class PipelineRunner:
                     db=ctx.db, run_id=ctx.run.id, status="failed",
                     error=f"Step '{step.name}' failed: {result.error}",
                 )
+                _push_pipeline_progress(
+                    ctx.run.id, step.name, "failed",
+                    round(((step_idx + 1) / total_steps) * 100, 1), "failed",
+                )
                 ctx.db.commit()
                 return
 
             if result.artifact_payload is not None:
                 self._persist_artifact(ctx, step, result)
 
+            _push_pipeline_progress(
+                ctx.run.id, step.name,
+                "degraded" if result.degraded else "done",
+                round(((step_idx + 1) / total_steps) * 100, 1), "running",
+            )
+
         pipeline_service.update_run_status(
             db=ctx.db, run_id=ctx.run.id, status="completed",
         )
+        _push_pipeline_progress(ctx.run.id, "", "completed", 100.0, "completed")
         ctx.db.commit()
 
         logger.info(
@@ -202,12 +289,31 @@ class PipelineRunner:
             logger.info(
                 "Step '%s' cache hit: step_id=%d", step.name, cached.id,
             )
+            step_record = pipeline_service.create_step(
+                db=ctx.db,
+                run_id=ctx.run.id,
+                step_name=step.name,
+                step_version=step.version,
+                cache_key=cache_key,
+                input_artifact_ids=cached.input_artifact_ids,
+            )
+            pipeline_service.update_step_status(
+                db=ctx.db,
+                step_id=step_record.id,
+                status="running",
+            )
+            pipeline_service.update_step_status(
+                db=ctx.db,
+                step_id=step_record.id,
+                status="done",
+                output_artifact_ids=list(cached.output_artifact_ids or []),
+            )
             if cached.output_artifact_ids:
                 for art_id in cached.output_artifact_ids:
                     artifact = ctx.db.get(Artifact, art_id)
                     if artifact:
                         ctx.set_artifact(artifact.kind, artifact)
-            ctx.register_step_record(step.name, cached)
+            ctx.register_step_record(step.name, step_record)
             return None
 
         step_record = pipeline_service.create_step(

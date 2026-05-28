@@ -49,9 +49,19 @@ class CaseGeneration(PipelineStep):
 
     def should_run(self, ctx: PipelineContext) -> bool:
         tasks_artifact = ctx.get_artifact("generation_tasks")
-        if tasks_artifact:
+        if tasks_artifact is not None:
             tasks = tasks_artifact.get("generation_tasks", [])
-            return len(tasks) > 0
+            actionable = [
+                t for t in tasks
+                if t.get("task_type") in ("create", "modify", "locator_fix")
+            ]
+            if len(actionable) > 0:
+                return True
+            if ctx.config.get("scenario") in (4, 5):
+                return True
+            return False
+        if ctx.config.get("scenario") in (4, 5):
+            return True
         aligned = ctx.get_artifact("aligned_testpoints")
         if aligned:
             return aligned.get("total_testpoints", 0) > 0
@@ -66,7 +76,7 @@ class CaseGeneration(PipelineStep):
         signals = ctx.get_artifact("raw_signals")
 
         task_ids = []
-        if tasks:
+        if tasks is not None:
             task_ids = sorted(
                 t.get("task_id", "") for t in tasks.get("generation_tasks", [])
             )
@@ -105,7 +115,7 @@ class CaseGeneration(PipelineStep):
                 if d.get("description") or d.get("summary")
             )
 
-        if tasks_artifact:
+        if tasks_artifact is not None:
             generation_tasks = tasks_artifact.get("generation_tasks", [])
             deprecation_suggestions = tasks_artifact.get("deprecation_suggestions", [])
             actionable_tasks = [
@@ -134,7 +144,40 @@ class CaseGeneration(PipelineStep):
                 ctx, actionable_tasks, prd_content, ui_description,
                 ui_specs, has_ui, history_cases,
             )
+        elif tasks_artifact is not None:
+            return StepResult(
+                success=False,
+                error="generation_tasks 中没有可执行的 create/modify/locator_fix 任务",
+                artifact_payload={
+                    "iteration_id": ctx.iteration_id,
+                    "project_id": signals.get("project_id") if signals else None,
+                    "generated_cases": [],
+                    "total": 0,
+                    "success_count": 0,
+                    "failed_count": 0,
+                    "has_ui": has_ui,
+                    "deprecation_suggestions": deprecation_suggestions,
+                },
+                artifact_kind="generated_cases",
+                artifact_confidence=0.0,
+            )
         else:
+            if ctx.config.get("scenario") in (4, 5):
+                return StepResult(
+                    success=True,
+                    artifact_payload={
+                        "iteration_id": ctx.iteration_id,
+                        "project_id": signals.get("project_id") if signals else None,
+                        "generated_cases": [],
+                        "total": 0,
+                        "success_count": 0,
+                        "failed_count": 0,
+                        "has_ui": has_ui,
+                        "deprecation_suggestions": [],
+                    },
+                    artifact_kind="generated_cases",
+                    artifact_confidence=0.0,
+                )
             if not aligned and not signals:
                 return StepResult(
                     success=False,

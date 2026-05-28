@@ -30,3 +30,9 @@ class Scenario4PrecheckRequest(BaseModel):
     screen_ids: Optional[list[int]] = Field(None, description="UI屏幕ID列表")
     iteration_id: Optional[int] = Field(None, description="已有迭代ID（可选）")
     test_point_ids: Optional[list[int]] = Field(None, description="测试点ID列表（可选）")
+    requirement_file_ids: Optional[list[int]] = Field(None, description="需求文件ID列表（可选）")
+    change_source: Optional[str] = Field(
+        None,
+        pattern="^(ui_flow|requirement|mixed)$",
+        description="变化来源：ui_flow/requirement/mixed",
+    )

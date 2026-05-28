@@ -126,6 +126,11 @@ def _score_steps(steps: Any, case_type: str = "") -> float:
     else:
         score = round(15.0 + 10.0 * completeness_ratio, 1)
 
+    if count > 7:
+        excess = count - 7
+        step_count_deduction = min(excess * 1.5, 6.0)
+        score = max(0.0, score - step_count_deduction)
+
     if step_numbers and len(step_numbers) >= 2:
         sorted_nums = sorted(set(step_numbers))
         max_num = sorted_nums[-1]

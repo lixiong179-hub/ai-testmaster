@@ -36,14 +36,18 @@ class BackwardScan(PipelineStep):
         fingerprints = ctx.get_artifact("history_fingerprints")
         raw_signals = ctx.get_artifact("raw_signals")
         fp_count = 0
+        fp_hash = ""
         if fingerprints:
             fp_count = fingerprints.get("total_count", 0)
+            fp_hash = hashlib.sha256(
+                json.dumps(fingerprints.get("fingerprints", []), sort_keys=True, ensure_ascii=False).encode()
+            ).hexdigest()[:16]
         sig_hash = ""
         if raw_signals:
             sig_hash = hashlib.sha256(
                 json.dumps(raw_signals, sort_keys=True, ensure_ascii=False).encode()
             ).hexdigest()[:16]
-        raw = f"{self.name}:{self.version}:fp={fp_count}:sig={sig_hash}"
+        raw = f"{self.name}:{self.version}:fp={fp_count}:{fp_hash}:sig={sig_hash}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def execute(self, ctx: PipelineContext) -> StepResult:

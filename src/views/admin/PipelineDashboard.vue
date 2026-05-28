@@ -11,14 +11,18 @@
         <el-option label="近14天" :value="14" />
         <el-option label="近30天" :value="30" />
       </el-select>
-      <el-button type="primary" :icon="Refresh" @click="refreshAll" style="margin-left: 12px">刷新</el-button>
+      <el-button type="primary" :icon="Refresh" @click="refreshAll" style="margin-left: 12px"
+        >刷新</el-button
+      >
     </div>
 
     <el-row :gutter="16" class="overview-cards">
       <el-col :span="4" v-for="card in overviewCards" :key="card.key">
         <el-card shadow="hover" class="metric-card" :class="card.color">
           <div class="metric-title">{{ card.title }}</div>
-          <div class="metric-value">{{ card.value }}<span class="metric-suffix">{{ card.suffix }}</span></div>
+          <div class="metric-value">
+            {{ card.value }}<span class="metric-suffix">{{ card.suffix }}</span>
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -27,13 +31,13 @@
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header><span>每日 Token 消耗</span></template>
-          <div ref="tokenChartRef" class="chart-container" />
+          <div :ref="setTokenChartRef" class="chart-container" />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header><span>平均运行时长 (秒)</span></template>
-          <div ref="durationChartRef" class="chart-container" />
+          <div :ref="setDurationChartRef" class="chart-container" />
         </el-card>
       </el-col>
     </el-row>
@@ -42,13 +46,13 @@
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header><span>各 Step 耗时分布</span></template>
-          <div ref="stepLatencyChartRef" class="chart-container" />
+          <div :ref="setStepLatencyChartRef" class="chart-container" />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header><span>缓存命中率 (%)</span></template>
-          <div ref="cacheChartRef" class="chart-container" />
+          <div :ref="setCacheChartRef" class="chart-container" />
         </el-card>
       </el-col>
     </el-row>
@@ -63,7 +67,9 @@
         <el-table-column prop="total" label="总值" width="100" />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.count > 0 ? 'danger' : 'success'" size="small">{{ row.count > 0 ? '告警' : '正常' }}</el-tag>
+            <el-tag :type="row.count > 0 ? 'danger' : 'success'" size="small">{{
+              row.count > 0 ? '告警' : '正常'
+            }}</el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -76,10 +82,33 @@ import { Refresh } from '@element-plus/icons-vue'
 import { usePipelineDashboard } from './usePipelineDashboard'
 
 const {
-  projectId, days, projects, overviewCards, fmeaMetrics,
-  tokenChartRef, durationChartRef, stepLatencyChartRef, cacheChartRef,
-  goBack, refreshAll,
+  projectId,
+  days,
+  projects,
+  overviewCards,
+  fmeaMetrics,
+  tokenChartRef,
+  durationChartRef,
+  stepLatencyChartRef,
+  cacheChartRef,
+  goBack,
+  refreshAll,
 } = usePipelineDashboard()
+
+const asHtmlElement = (el: unknown): HTMLElement | undefined =>
+  el instanceof HTMLElement ? el : undefined
+const setTokenChartRef = (el: unknown) => {
+  tokenChartRef.value = asHtmlElement(el)
+}
+const setDurationChartRef = (el: unknown) => {
+  durationChartRef.value = asHtmlElement(el)
+}
+const setStepLatencyChartRef = (el: unknown) => {
+  stepLatencyChartRef.value = asHtmlElement(el)
+}
+const setCacheChartRef = (el: unknown) => {
+  cacheChartRef.value = asHtmlElement(el)
+}
 </script>
 
 <style scoped>
@@ -112,12 +141,24 @@ const {
   font-weight: 400;
   color: #909399;
 }
-.card-blue .metric-value { color: #409eff; }
-.card-green .metric-value { color: #67c23a; }
-.card-purple .metric-value { color: #9b59b6; }
-.card-orange .metric-value { color: #e6a23c; }
-.card-cyan .metric-value { color: #00bcd4; }
-.card-teal .metric-value { color: #009688; }
+.card-blue .metric-value {
+  color: #409eff;
+}
+.card-green .metric-value {
+  color: #67c23a;
+}
+.card-purple .metric-value {
+  color: #9b59b6;
+}
+.card-orange .metric-value {
+  color: #e6a23c;
+}
+.card-cyan .metric-value {
+  color: #00bcd4;
+}
+.card-teal .metric-value {
+  color: #009688;
+}
 .chart-container {
   width: 100%;
   height: 300px;

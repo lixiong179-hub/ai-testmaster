@@ -17,6 +17,7 @@ from typing import Any, ClassVar, Dict, List, Optional
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
+from app.pipelines.steps.reverse_infer._helpers import _CONFIDENCE_THRESHOLD
 
 
 _SYSTEM_PROMPT = (
@@ -29,9 +30,13 @@ _SYSTEM_PROMPT = (
     "- reason: 为什么需要新增此场景（不超过50字）\n\n"
     "提取规则：\n"
     "1. 只提取【新增】或【变更】的场景，不要重复已有用例覆盖的场景\n"
-    "2. 模块名称必须从已有模块列表中选择\n"
+    "2. 如果已有模块列表非空，模块名称优先从已有模块列表中选择；"
+    "如果已有模块列表为空，请根据需求自行归纳合理的模块名称，"
+    "归纳的模块名标注[推断]前缀\n"
     "3. 每个场景应独立可测试，不与其他场景耦合\n"
-    "4. 优先覆盖核心业务流程和边界条件\n\n"
+    "4. 优先覆盖核心业务流程和边界条件\n"
+    "5. 标注⚠️的业务能力为低置信度推断，优先覆盖高置信度能力，"
+    "低置信度能力仅作为补充参考\n\n"
     "请以 JSON 数组格式返回。"
 )
 
@@ -49,7 +54,7 @@ class ScenarioCandidateExtractor(PipelineStep):
 
     name: ClassVar[str] = "scenario_candidate_extractor"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = ["raw_signals", "history_fingerprints"]
+    requires: ClassVar[List[str]] = ["raw_signals"]
     produces: ClassVar[List[str]] = ["scenario_candidates"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
@@ -63,10 +68,18 @@ class ScenarioCandidateExtractor(PipelineStep):
         if raw_signals is None:
             return ""
         project_id = raw_signals.get("project_id", 0)
+        fingerprints = ctx.get_artifact("history_fingerprints")
+        inferred = ctx.get_artifact("inferred_business_summary")
         sig_hash = hashlib.sha256(
             json.dumps(raw_signals, sort_keys=True, ensure_ascii=False).encode()
         ).hexdigest()[:16]
-        raw = f"{self.name}:{self.version}:project={project_id}:sig={sig_hash}"
+        fp_hash = hashlib.sha256(
+            json.dumps(fingerprints or {}, sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()[:16]
+        inferred_hash = hashlib.sha256(
+            json.dumps(inferred or {}, sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()[:16]
+        raw = f"{self.name}:{self.version}:project={project_id}:sig={sig_hash}:fp={fp_hash}:inf={inferred_hash}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def execute(self, ctx: PipelineContext) -> StepResult:
@@ -82,10 +95,11 @@ class ScenarioCandidateExtractor(PipelineStep):
 
         prd_text = _extract_prd(raw_signals)
         ui_text = _extract_ui(raw_signals)
+        inferred_text = _extract_inferred(ctx.get_artifact("inferred_business_summary"), raw_signals)
         modules = _extract_existing_modules(fingerprints)
         existing_text = _extract_existing_summaries(fingerprints)
 
-        modules_text = ", ".join(modules) if modules else "（无已有模块，请根据需求自行归纳）"
+        modules_text = ", ".join(modules) if modules else "（无已有模块，请根据需求归纳，归纳的模块名标注[推断]前缀）"
 
         prompt = _USER_TEMPLATE.format(
             prd_text=prd_text,
@@ -93,6 +107,8 @@ class ScenarioCandidateExtractor(PipelineStep):
             modules_text=modules_text,
             existing_text=existing_text,
         )
+        if inferred_text:
+            prompt = f"{prompt}\n\n## 反推业务摘要/变更线索\n\n{inferred_text}"
 
         try:
             response = ctx.ai_client.complete(
@@ -210,6 +226,48 @@ def _extract_ui(raw_signals: Dict[str, Any]) -> str:
     return "\n\n".join(parts) if parts else "（无 UI 规格）"
 
 
+def _extract_inferred(inferred: Any, raw_signals: Optional[Dict[str, Any]] = None) -> str:
+    parts = []
+    raw_signals = raw_signals or {}
+
+    change_notes = raw_signals.get("change_notes", "")
+    if change_notes:
+        parts.append(f"变更说明: {str(change_notes)[:1000]}")
+
+    if inferred and isinstance(inferred, dict):
+        parsed = inferred.get("parsed") or {}
+        if isinstance(parsed, dict):
+            summary = parsed.get("analysis_summary") or parsed.get("summary")
+            if summary:
+                parts.append(f"反推摘要: {str(summary)[:1000]}")
+
+            change_summary = parsed.get("change_summary")
+            if change_summary:
+                try:
+                    text = json.dumps(change_summary, ensure_ascii=False, indent=2)
+                except (TypeError, ValueError):
+                    text = str(change_summary)
+                parts.append(f"变更摘要: {text[:1500]}")
+
+            capabilities = parsed.get("inferred_capabilities") or parsed.get("capabilities") or []
+            if capabilities:
+                cap_lines = []
+                for cap in capabilities[:10]:
+                    if not isinstance(cap, dict):
+                        continue
+                    name = cap.get("name") or cap.get("key") or "未知能力"
+                    conf = cap.get("confidence")
+                    if isinstance(conf, (int, float)) and conf < _CONFIDENCE_THRESHOLD:
+                        cap_lines.append(f"- ⚠️{name}(置信度{conf:.1f},待确认)")
+                    else:
+                        conf_str = f"(置信度{conf:.1f})" if isinstance(conf, (int, float)) else ""
+                        cap_lines.append(f"- {name}{conf_str}")
+                if cap_lines:
+                    parts.append("反推能力:\n" + "\n".join(cap_lines))
+
+    return "\n\n".join(parts) if parts else "（无反推摘要/变更线索）"
+
+
 def _extract_existing_modules(fingerprints: Any) -> List[str]:
     if fingerprints is None:
         return []
@@ -280,7 +338,7 @@ def _validate_candidates(
                 c["module_original"] = module
                 c["module"] = closest
             else:
-                continue
+                c["module_original"] = module
         priority = c.get("priority", 3)
         if not isinstance(priority, int) or priority not in (1, 2, 3):
             priority = 3

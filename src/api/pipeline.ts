@@ -162,6 +162,20 @@ export interface Scenario4PrecheckResponse {
   warnings: string[]
 }
 
+export interface ArtifactDetail {
+  artifact_id: number
+  run_id: number
+  kind: string
+  schema_version: string
+  payload: Record<string, unknown> | unknown[] | null
+  confidence: number | null
+  provenance: Record<string, unknown> | null
+  content_hash: string
+  created_at: string | null
+  truncated: boolean
+  truncated_reason: string | null
+}
+
 export interface PipelineSummary {
   run_id: number
   status: PipelineRunStatus
@@ -224,6 +238,32 @@ export const pipelineApi = {
     data: SupplementSignalsRequest
   ): Promise<{ code: number; message: string; data: SupplementSignalsResponse }> => {
     return request.put(`/api/v1/pipeline/${runId}/supplement-signals`, data)
+  },
+
+  getArtifactDetail: async (
+    runId: number,
+    artifactId: number
+  ): Promise<{ code: number; message: string; data: ArtifactDetail }> => {
+    return request.get(`/api/v1/pipeline/${runId}/artifacts/${artifactId}`)
+  },
+
+  getDashboardOverview: async (params: Record<string, any>) => {
+    return request.get('/api/v1/pipeline/dashboard/overview', { params })
+  },
+  getDashboardTokenUsage: async (params: Record<string, any>) => {
+    return request.get('/api/v1/pipeline/dashboard/token-usage', { params })
+  },
+  getDashboardRunDuration: async (params: Record<string, any>) => {
+    return request.get('/api/v1/pipeline/dashboard/run-duration', { params })
+  },
+  getDashboardStepLatency: async (params: Record<string, any>) => {
+    return request.get('/api/v1/pipeline/dashboard/step-latency', { params })
+  },
+  getDashboardCacheHitRate: async (params: Record<string, any>) => {
+    return request.get('/api/v1/pipeline/dashboard/cache-hit-rate', { params })
+  },
+  getMetricsSummary: async (params: Record<string, any>) => {
+    return request.get('/api/v1/pipeline/metrics/summary', { params })
   },
 }
 

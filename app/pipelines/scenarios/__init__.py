@@ -9,6 +9,7 @@ from app.pipelines.scenarios.scenario_2 import SCENARIO_2_STEPS, SCENARIO_2_NAME
 from app.pipelines.scenarios.scenario_3 import SCENARIO_3_STEPS, SCENARIO_3_NAME, SCENARIO_3_VERSION
 from app.pipelines.scenarios.scenario_4 import SCENARIO_4_STEPS, SCENARIO_4_NAME, SCENARIO_4_VERSION
 from app.pipelines.scenarios.scenario_5 import SCENARIO_5_STEPS, SCENARIO_5_NAME, SCENARIO_5_VERSION
+from app.pipelines.scenarios.validation import inspect_iteration_signals, validate_scenario_inputs
 
 _SCENARIO_REGISTRY: Dict[int, Dict[str, Any]] = {
     1: {"name": SCENARIO_1_NAME, "version": SCENARIO_1_VERSION, "steps": SCENARIO_1_STEPS},
@@ -35,3 +36,12 @@ def get_scenario_by_version(pipeline_version: str) -> Optional[Dict[str, Any]]:
 def list_scenarios() -> Dict[int, Dict[str, Any]]:
     """列出所有已注册场景。"""
     return dict(_SCENARIO_REGISTRY)
+
+
+__all__ = [
+    "get_scenario",
+    "get_scenario_by_version",
+    "list_scenarios",
+    "inspect_iteration_signals",
+    "validate_scenario_inputs",
+]

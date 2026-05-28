@@ -360,12 +360,14 @@ class TestValidateCandidates:
         assert len(result) == 1
         assert result[0]["module"] == "用户管理"
 
-    def test_module_no_match_filtered(self):
+    def test_module_no_match_kept_with_original(self):
         candidates = [
             {"description": "测试场景", "module": "完全不相关", "priority": 1, "reason": "无匹配"},
         ]
         result = _validate_candidates(candidates, ["用户管理"])
-        assert len(result) == 0
+        assert len(result) == 1
+        assert result[0]["module"] == "完全不相关"
+        assert result[0]["module_original"] == "完全不相关"
 
     def test_priority_correction(self):
         candidates = [

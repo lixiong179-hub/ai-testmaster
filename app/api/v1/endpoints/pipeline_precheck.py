@@ -24,6 +24,7 @@ async def precheck_scenario_4(
     """场景4运行前预检，验证历史用例、测试点、UI页面等前置条件是否满足。"""
     verify_project_access(db, body.project_id, current_user)
 
+    from app.models.project import ProjectFile
     from app.models.test_case import TestCase
     from app.models.test_point import TestPoint
     from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen
@@ -112,6 +113,24 @@ async def precheck_scenario_4(
             )
         test_points_selected = owned_count
 
+    requirement_files_selected = 0
+    if body.requirement_file_ids:
+        owned_requirement_count = (
+            db.query(ProjectFile)
+            .filter(
+                ProjectFile.id.in_(body.requirement_file_ids),
+                ProjectFile.project_id == body.project_id,
+                ProjectFile.is_active.is_(True),
+            )
+            .count()
+        )
+        if owned_requirement_count != len(body.requirement_file_ids):
+            raise HTTPException(
+                status_code=403,
+                detail="部分需求文件不属于当前项目",
+            )
+        requirement_files_selected = owned_requirement_count
+
     screen_ids_to_check = body.screen_ids
     if body.ui_project_id and not body.screen_ids:
         if body.ui_project_id:
@@ -182,8 +201,13 @@ async def precheck_scenario_4(
 
     if history_cases_included == 0:
         blocking_reasons.append("项目下没有可扫描的历史用例（已排除 archived 和已删除用例）")
-    if parsed_screen_count == 0:
+    change_source = body.change_source or ("requirement" if requirement_files_selected > 0 else "ui_flow")
+    recommended_pipeline_scenario = 4 if requirement_files_selected > 0 else 5
+
+    if change_source in ("ui_flow", "mixed") and parsed_screen_count == 0:
         blocking_reasons.append("没有已解析的 UI 页面")
+    if change_source in ("requirement", "mixed") and requirement_files_selected == 0:
+        blocking_reasons.append("没有已选择的迭代需求文档")
     if unparsed_screen_count > 0:
         warnings.append(f"{unparsed_screen_count} 个页面未解析，已排除")
     if parse_failed_count > 0:
@@ -208,6 +232,9 @@ async def precheck_scenario_4(
             "total": test_points_total,
             "selected": test_points_selected,
         },
+        "requirements": {
+            "selected": requirement_files_selected,
+        },
         "ui": {
             "selected_screen_count": selected_screen_count,
             "parsed_screen_count": parsed_screen_count,
@@ -216,6 +243,14 @@ async def precheck_scenario_4(
             "usable_screen_ids": usable_screen_ids,
         },
         "can_run": can_run,
+        "change_source": change_source,
+        "recommended_pipeline_scenario": recommended_pipeline_scenario,
+        "context_quality": {
+            "has_history_cases": history_cases_included > 0,
+            "has_requirement": requirement_files_selected > 0,
+            "has_test_points": test_points_selected > 0 or test_points_total > 0,
+            "has_ui_flow": parsed_screen_count >= 2,
+        },
         "blocking_reasons": blocking_reasons,
         "warnings": warnings,
     })

@@ -2,7 +2,7 @@
   <div class="regression-generate-container">
     <div class="page-header">
       <el-button @click="goBack" :icon="ArrowLeft" circle size="small" />
-      <h2>旧项目变更分析</h2>
+      <h2>回归变更分析</h2>
       <el-tag v-if="precheckData" :type="precheckData.can_run ? 'success' : 'danger'" size="large">
         {{ precheckData.can_run ? '满足运行条件' : '暂不满足条件' }}
       </el-tag>
@@ -79,10 +79,23 @@
       <template #header>
         <div class="card-header">
           <span>配置与启动</span>
+          <el-tag type="primary">{{ changeSourceText }}</el-tag>
         </div>
       </template>
 
       <el-form label-width="120px">
+        <el-form-item label="变化来源">
+          <el-segmented
+            v-model="changeSource"
+            :options="[
+              { label: 'UI/流程变化', value: 'ui_flow' },
+              { label: '需求/测试点变化', value: 'requirement' },
+              { label: '混合变化', value: 'mixed' },
+            ]"
+            @change="loadPrecheck"
+          />
+          <span class="start-hint">系统将据此推荐合适的回归分析链路</span>
+        </el-form-item>
         <el-form-item label="迭代">
           <div class="iteration-select-row">
             <el-select
@@ -101,6 +114,17 @@
             </el-select>
             <el-button type="primary" plain @click="showCreateIteration = true">
               创建新迭代
+            </el-button>
+            <el-button plain @click="handleEditIteration" :disabled="!selectedIterationId">
+              编辑
+            </el-button>
+            <el-button
+              type="danger"
+              plain
+              @click="handleDeleteIteration"
+              :disabled="!selectedIterationId"
+            >
+              删除
             </el-button>
           </div>
         </el-form-item>
@@ -154,7 +178,7 @@
       />
 
       <el-alert
-        title="历史用例会自动扫描，不需要手动逐条选择旧用例。场景 4 会自动扫描当前项目下非 archived、未删除的历史用例。"
+        :title="`历史用例会自动扫描，不需要手动逐条选择旧用例。当前推荐链路：Pipeline ${recommendedScenario}。`"
         type="info"
         :closable="false"
         show-icon
@@ -169,12 +193,14 @@
           :loading="starting"
           @click="handleStart"
         >
-          开始旧项目变更分析
+          开始回归变更分析
         </el-button>
         <span v-if="!selectedIterationId" class="start-hint">请先选择或创建一个迭代</span>
         <span v-else-if="!precheckData.can_run" class="start-hint">不满足运行条件</span>
         <span v-else class="start-hint">
-          将调用场景 4 Pipeline，分析 {{ precheckData.history_cases.included }} 个历史用例
+          将分析
+          {{ precheckData.history_cases.included }}
+          个历史用例，并按可复用、需修改、新增、废弃输出结果
         </span>
       </div>
     </el-card>
@@ -208,6 +234,36 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="showEditIteration"
+      title="编辑迭代"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="editIterationForm" label-width="100px">
+        <el-form-item label="名称" required>
+          <el-input v-model="editIterationForm.name" placeholder="迭代名称" />
+        </el-form-item>
+        <el-form-item label="版本">
+          <el-input v-model="editIterationForm.version" placeholder="版本号" />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input
+            v-model="editIterationForm.description"
+            type="textarea"
+            :rows="2"
+            placeholder="迭代描述（可选）"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showEditIteration = false">取消</el-button>
+        <el-button type="primary" :loading="editingIteration" @click="handleSaveEditIteration">
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -216,13 +272,36 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import { useRegressionGenerate } from './useRegressionGenerate'
 
 const {
-  projectId, prototypeName, precheckLoading, precheckData,
-  iterations, selectedIterationId, showCreateIteration, creatingIteration, newIterationForm,
-  testPoints, selectedTestPointIds, changeNotes, starting, canStart,
-  goBack, handleCreateIteration, handleStart,
+  projectId,
+  prototypeName,
+  changeSource,
+  changeSourceText,
+  recommendedScenario,
+  precheckLoading,
+  precheckData,
+  iterations,
+  selectedIterationId,
+  showCreateIteration,
+  creatingIteration,
+  newIterationForm,
+  showEditIteration,
+  editingIteration,
+  editIterationForm,
+  testPoints,
+  selectedTestPointIds,
+  changeNotes,
+  starting,
+  canStart,
+  goBack,
+  handleCreateIteration,
+  handleEditIteration,
+  handleSaveEditIteration,
+  handleDeleteIteration,
+  handleStart,
+  loadPrecheck,
 } = useRegressionGenerate()
 </script>
 
 <style scoped lang="scss">
-@import './RegressionGenerate.scss';
+@use './RegressionGenerate.scss';
 </style>

@@ -1,3 +1,4 @@
+import hashlib
 from typing import Optional, List
 
 from sqlalchemy.orm import Session
@@ -27,7 +28,21 @@ def create_artifact(
 
     existing = db.query(Artifact).filter(Artifact.content_hash == content_hash).first()
     if existing:
-        raise DuplicateArtifactHashError(content_hash)
+        duplicate_hash = hashlib.sha256(
+            f"{content_hash}:{run_id}:{kind}".encode()
+        ).hexdigest()
+        artifact = Artifact(
+            run_id=run_id,
+            kind=kind,
+            schema_version=schema_version,
+            payload=payload,
+            confidence=confidence,
+            provenance={**(provenance or {}), "reused_content_hash": content_hash},
+            content_hash=duplicate_hash,
+        )
+        db.add(artifact)
+        db.flush()
+        return artifact
 
     artifact = Artifact(
         run_id=run_id,
