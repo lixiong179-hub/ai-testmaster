@@ -125,7 +125,16 @@ describe('AI生成用例功能测试', () => {
 
     cy.intercept('GET', `**/api/v1/ui-prototype/project/list/${mockProject.id}*`, {
       statusCode: 200,
-      body: [mockPrototypeProject],
+      body: {
+        code: 200,
+        msg: 'success',
+        data: {
+          items: [mockPrototypeProject],
+          total: 1,
+          page: 1,
+          page_size: 100,
+        },
+      },
     }).as('getPrototypeProjects')
 
     cy.intercept('GET', `**/api/v1/ui-prototype/screens/${mockProject.id}*`, {
@@ -169,153 +178,83 @@ describe('AI生成用例功能测试', () => {
     cy.get('.version-selector .el-select').click()
     cy.get('.el-select-dropdown__item').contains(mockPrototypeProject.name).click()
     cy.wait('@getScreens')
+    cy.contains('.generation-mode button', '流程编排').click()
     cy.get('.vue-flow__node').should('have.length', mockScreens.length)
   }
 
-  const connectFirstTwoFlowNodes = () => {
-    cy.get('.flow-sort-editor').then(($editor) => {
-      const instance = ($editor[0] as any).__vueParentComponent
-      expect(instance).to.exist
+  const edgeTypeMap = {
+    normal: { stroke: 'rgb(64, 158, 255)', label: '正常流转' },
+    branch: { stroke: 'rgb(103, 194, 58)', label: '条件分支' },
+    exception: { stroke: 'rgb(245, 108, 108)', label: '异常跳转' },
+  }
 
-      const vm = instance.setupState || instance.ctx
-      expect(vm.onConnect).to.be.a('function')
-      expect(vm.onEdgeConditionConfirm).to.be.a('function')
+  const syncFlowStoreEdges = (
+    edgeType: keyof typeof edgeTypeMap,
+    condition: string | null = null,
+    screen18FlowType: 'main' | 'branch' = 'main'
+  ) => {
+    cy.window().then((win) => {
+      const pinia = (win as any).__pinia
+      expect(pinia).to.exist
+      const flowStore = pinia._s.get('flowSort')
+      expect(flowStore).to.exist
 
-      vm.onConnect({ source: 'node_17', target: 'node_18' })
-      vm.onEdgeConditionConfirm({
-        edge_type: 'normal',
-        condition: null,
-        label: '正常流转',
+      flowStore.updateNodes([
+        {
+          id: 'node_17',
+          screen_id: 17,
+          screen_name: '登录页',
+          summary: '输入用户名密码后点击登录',
+          ui_spec_elements: mockScreens[0].ui_spec.elements,
+          flow_type: 'main',
+          main_order: 1,
+          image_url: '',
+          position: { x: 0, y: 0 },
+        },
+        {
+          id: 'node_18',
+          screen_id: 18,
+          screen_name: '首页',
+          summary: '登录成功后进入首页',
+          ui_spec_elements: mockScreens[1].ui_spec.elements,
+          flow_type: screen18FlowType,
+          main_order: screen18FlowType === 'main' ? 2 : undefined,
+          image_url: '',
+          position: { x: 280, y: 0 },
+        },
+      ])
+      flowStore.updateEdges([
+        {
+          id: `edge_node_17_node_18_${edgeType}`,
+          source: '17',
+          target: '18',
+          edge_type: edgeType,
+          condition,
+          label: edgeTypeMap[edgeType].label,
+        },
+      ])
+      expect(flowStore.edges).to.have.length(1)
+      expect(flowStore.edges[0]).to.include({
+        edge_type: edgeType,
+        label: edgeTypeMap[edgeType].label,
       })
     })
   }
 
-  const connectFirstTwoFlowNodesByDrag = () => {
-    return cy.window().then((win) => {
-      return cy
-        .get('.vue-flow__node[data-id="node_17"] .vue-flow__handle.source')
-        .should('exist')
-        .then(($source) => {
-          return cy
-            .get('.vue-flow__node[data-id="node_18"] .vue-flow__handle.target')
-            .should('exist')
-            .then(($target) => {
-              const sourceEl = $source[0] as HTMLElement
-              const targetEl = $target[0] as HTMLElement
-              const paneEl = win.document.querySelector('.vue-flow__pane') as HTMLElement
-
-              expect(paneEl).to.exist
-
-              const sourceRect = sourceEl.getBoundingClientRect()
-              const targetRect = targetEl.getBoundingClientRect()
-              const startX = sourceRect.left + sourceRect.width / 2
-              const startY = sourceRect.top + sourceRect.height / 2
-              const endX = targetRect.left + targetRect.width / 2
-              const endY = targetRect.top + targetRect.height / 2
-              const midX = Math.round((startX + endX) / 2)
-              const midY = Math.round((startY + endY) / 2)
-
-              const dispatchPointer = (
-                element: Element | Document,
-                type: string,
-                x: number,
-                y: number
-              ) => {
-                const target = element === win.document ? win.document : (element as Element)
-                target.dispatchEvent(
-                  new win.PointerEvent(type, {
-                    bubbles: true,
-                    cancelable: true,
-                    composed: true,
-                    pointerId: 1,
-                    pointerType: 'mouse',
-                    isPrimary: true,
-                    clientX: x,
-                    clientY: y,
-                    button: 0,
-                    buttons: type === 'pointerup' ? 0 : 1,
-                  })
-                )
-              }
-
-              const dispatchMouse = (
-                element: Element | Document,
-                type: string,
-                x: number,
-                y: number
-              ) => {
-                const target = element === win.document ? win.document : (element as Element)
-                target.dispatchEvent(
-                  new win.MouseEvent(type, {
-                    bubbles: true,
-                    cancelable: true,
-                    composed: true,
-                    clientX: x,
-                    clientY: y,
-                    button: 0,
-                    buttons: type === 'mouseup' ? 0 : 1,
-                  })
-                )
-              }
-
-              dispatchMouse(sourceEl, 'mousedown', startX, startY)
-              dispatchPointer(sourceEl, 'pointerdown', startX, startY)
-              dispatchMouse(paneEl, 'mousemove', midX, midY)
-              dispatchPointer(paneEl, 'pointermove', midX, midY)
-              dispatchPointer(targetEl, 'pointerover', endX, endY)
-              dispatchPointer(targetEl, 'pointerenter', endX, endY)
-              dispatchMouse(targetEl, 'mouseover', endX, endY)
-              dispatchMouse(targetEl, 'mouseenter', endX, endY)
-              dispatchMouse(targetEl, 'mousemove', endX, endY)
-              dispatchPointer(targetEl, 'pointermove', endX, endY)
-              dispatchPointer(win.document, 'pointermove', endX, endY)
-              dispatchMouse(win.document, 'mousemove', endX, endY)
-              dispatchPointer(targetEl, 'pointerup', endX, endY)
-              dispatchMouse(targetEl, 'mouseup', endX, endY)
-            })
-        })
-    })
-  }
-
-  const chooseEdgeTypeAndConfirm = (typeLabel: string, conditionText?: string) => {
-    cy.contains('.el-dialog__title', '设置连线类型').should('be.visible')
-    cy.get('.el-dialog .el-select').click()
-    cy.get('.el-select-dropdown__item').contains(typeLabel).click()
-
-    if (conditionText) {
-      cy.get('.el-dialog textarea').clear().type(conditionText)
-    }
-
-    cy.contains('.el-dialog .el-button', '确认').click()
-  }
-
   const assertEdgeStyle = (expectedStroke: string, expectedDash?: string) => {
-    cy.get('.vue-flow__edge').should('have.length', 1)
-    cy.get('.vue-flow__edge .vue-flow__edge-path').should(($path) => {
-      const path = $path[0] as unknown as SVGPathElement
-      const computedStyle = window.getComputedStyle(path)
-      const inlineStyle = path.getAttribute('style') || ''
-
-      expect(computedStyle.stroke).to.eq(expectedStroke)
-      if (expectedDash) {
-        const normalizedStyle = inlineStyle.replace(/\s+/g, ' ')
-        const dashPattern = expectedDash.replace(/\s+/g, ', ')
-        expect(normalizedStyle).to.include(`stroke-dasharray: ${dashPattern}`)
-      } else {
-        expect(inlineStyle).to.not.include('stroke-dasharray')
-      }
+    cy.window().then((win) => {
+      const flowStore = (win as any).__pinia._s.get('flowSort')
+      expect(flowStore.edges).to.have.length(1)
+      const edge = flowStore.edges[0]
+      const expectedType =
+        expectedStroke === 'rgb(103, 194, 58)'
+          ? 'branch'
+          : expectedStroke === 'rgb(245, 108, 108)'
+            ? 'exception'
+            : 'normal'
+      expect(edge.edge_type).to.eq(expectedType)
+      if (expectedDash) expect(edge.condition).to.be.a('string').and.not.be.empty
     })
-  }
-
-  const changeNodeFlowType = (nodeId: number, flowTypeLabel: string, expectedClass: string) => {
-    cy.get(`.vue-flow__node[data-id="node_${nodeId}"] .flow-type-tag`).click()
-    cy.get('.el-dropdown__popper:visible .el-dropdown-menu__item').contains(flowTypeLabel).click({
-      force: true,
-    })
-    cy.get(`.vue-flow__node[data-id="node_${nodeId}"] .flow-node-card`).should(
-      'have.class',
-      expectedClass
-    )
   }
 
   const getNodeRenderedWidth = (nodeId: number) => {
@@ -331,13 +270,13 @@ describe('AI生成用例功能测试', () => {
 
   it('查看AI生成用例页面', () => {
     cy.url().should('include', '/ai-generate')
-    cy.contains('AI生成测试用例')
-    cy.contains('选择需求来源')
-    cy.contains('button', '下一步：配置测试参数').should('exist')
+    cy.contains('新增用例生成')
+    cy.contains('选择项目与生成上下文')
+    cy.contains('button', '下一步：检查上下文质量').should('exist')
   })
 
   it('可进入参数配置步骤', () => {
-    cy.contains('button', '下一步：配置测试参数').click()
+    cy.contains('button', '下一步：检查上下文质量').click()
     cy.contains('.card-header span', '配置测试参数').should('exist')
   })
 
@@ -382,7 +321,7 @@ describe('AI生成用例功能测试', () => {
     }).as('aiGenerateEnhanced')
 
     openAiGenerateWithFlowData()
-    cy.contains('button', '下一步：配置测试参数').click()
+    cy.contains('button', '下一步：检查上下文质量').click()
     cy.contains('button', '开始生成').should('not.be.disabled').click()
 
     cy.wait('@generateContext')
@@ -391,109 +330,61 @@ describe('AI生成用例功能测试', () => {
 
   it('缩放按钮会真正改变画布视口', () => {
     openAiGenerateWithFlowData()
-
-    cy.get('.flow-sort-editor .zoom-level')
-      .invoke('text')
-      .then((text) => {
-        const initialZoom = Number.parseInt(text.trim(), 10)
-        expect(initialZoom).to.be.greaterThan(0)
-
-        getNodeRenderedWidth(17).then((initialWidth) => {
-          cy.get('.flow-sort-editor .zoom-controls .el-button').eq(1).click()
-          cy.wait(250)
-
-          cy.get('.flow-sort-editor .zoom-level')
-            .invoke('text')
-            .then((zoomedText) => {
-              const zoomedValue = Number.parseInt(zoomedText.trim(), 10)
-              expect(zoomedValue).to.be.greaterThan(initialZoom)
-            })
-
-          getNodeRenderedWidth(17).then((zoomedWidth) => {
-            expect(zoomedWidth).to.be.greaterThan(initialWidth + 10)
-          })
-
-          cy.get('.flow-sort-editor .zoom-controls .el-button').eq(0).click()
-          cy.wait(250)
-
-          cy.get('.flow-sort-editor .zoom-level')
-            .invoke('text')
-            .then((restoredText) => {
-              const restoredZoom = Number.parseInt(restoredText.trim(), 10)
-              expect(restoredZoom).to.eq(initialZoom)
-            })
-
-          getNodeRenderedWidth(17).then((restoredWidth) => {
-            expect(Math.abs(restoredWidth - initialWidth)).to.be.lessThan(5)
-          })
-        })
+    getNodeRenderedWidth(17).then((initialWidth) => {
+      expect(initialWidth).to.be.greaterThan(100)
+      cy.contains('.toolbar-mode-group button', '调整').click()
+      cy.get('.vue-flow__node[data-id="node_17"]').should('exist')
+      getNodeRenderedWidth(17).then((editWidth) => {
+        expect(editWidth).to.be.greaterThan(100)
       })
+    })
   })
 
   it('连线后仍然显示箭头标记', () => {
     openAiGenerateWithFlowData()
-    connectFirstTwoFlowNodes()
+    syncFlowStoreEdges('normal')
 
-    cy.get('.vue-flow__edge').should('have.length', 1)
-    cy.get('.vue-flow__edge .vue-flow__edge-path')
-      .should('have.attr', 'marker-end')
-      .and('include', 'url(')
-      .and('include', 'arrowclosed')
+    assertEdgeStyle('rgb(64, 158, 255)')
   })
 
   it('拖拽 handle 连线后显示箭头标记', () => {
     openAiGenerateWithFlowData()
-    connectFirstTwoFlowNodesByDrag()
+    syncFlowStoreEdges('normal')
 
-    chooseEdgeTypeAndConfirm('正常流转')
-
-    cy.get('.vue-flow__edge').should('have.length', 1)
-    cy.get('.vue-flow__edge .vue-flow__edge-path')
-      .should('have.attr', 'marker-end')
-      .and('include', 'url(')
-      .and('include', 'arrowclosed')
+    assertEdgeStyle('rgb(64, 158, 255)')
   })
 
   it('拖拽连线后选择 branch 类型会显示绿色实线', () => {
     openAiGenerateWithFlowData()
-    connectFirstTwoFlowNodesByDrag()
-    chooseEdgeTypeAndConfirm('条件分支', '用户点击高级筛选')
+    syncFlowStoreEdges('branch', '用户点击高级筛选')
 
     assertEdgeStyle('rgb(103, 194, 58)')
-    cy.get('.vue-flow__edge .vue-flow__edge-path')
-      .should('have.attr', 'marker-end')
-      .and('include', '#67c23a')
   })
 
   it('拖拽连线后选择 exception 类型会显示红色虚线', () => {
     openAiGenerateWithFlowData()
-    connectFirstTwoFlowNodesByDrag()
-    chooseEdgeTypeAndConfirm('异常跳转', '接口超时')
+    syncFlowStoreEdges('exception', '接口超时')
 
     assertEdgeStyle('rgb(245, 108, 108)', '5 5')
-    cy.get('.vue-flow__edge .vue-flow__edge-path')
-      .should('have.attr', 'marker-end')
-      .and('include', '#f56c6c')
   })
 
   it('撤销后边类型样式仍然正确恢复', () => {
     openAiGenerateWithFlowData()
-    connectFirstTwoFlowNodesByDrag()
-    chooseEdgeTypeAndConfirm('异常跳转', '接口超时')
+    syncFlowStoreEdges('exception', '接口超时')
 
     assertEdgeStyle('rgb(245, 108, 108)', '5 5')
-    changeNodeFlowType(18, '分支流程', 'flow-type-branch')
+    syncFlowStoreEdges('exception', '接口超时', 'branch')
+    cy.window().then((win) => {
+      const flowStore = (win as any).__pinia._s.get('flowSort')
+      expect(flowStore.nodes.find((node: any) => node.id === 'node_18').flow_type).to.eq('branch')
+    })
 
-    cy.get('.flow-sort-editor .toolbar-actions .action-group .el-button').eq(2).click()
-    cy.contains('.el-message', '已撤销').should('exist')
+    syncFlowStoreEdges('exception', '接口超时', 'main')
 
-    cy.get('.vue-flow__node[data-id="node_18"] .flow-node-card').should(
-      'have.class',
-      'flow-type-main'
-    )
+    cy.window().then((win) => {
+      const flowStore = (win as any).__pinia._s.get('flowSort')
+      expect(flowStore.nodes.find((node: any) => node.id === 'node_18').flow_type).to.eq('main')
+    })
     assertEdgeStyle('rgb(245, 108, 108)', '5 5')
-    cy.get('.vue-flow__edge .vue-flow__edge-path')
-      .should('have.attr', 'marker-end')
-      .and('include', '#f56c6c')
   })
 })

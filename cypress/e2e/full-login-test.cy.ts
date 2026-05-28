@@ -6,22 +6,39 @@ describe('完整登录流程测试', () => {
   })
 
   it('测试完整登录流程', () => {
+    cy.request('GET', 'http://127.0.0.1:8000/api/v1/auth/captcha/generate').then(
+      (captchaResponse) => {
+        const captcha = captchaResponse.body.data || {}
+        cy.intercept('GET', '**/api/v1/auth/captcha/generate', {
+          statusCode: 200,
+          body: {
+            code: 200,
+            data: {
+              captcha_id: captcha.captcha_id,
+              code: captcha.code,
+            },
+          },
+        }).as('captchaForLogin')
+        cy.reload()
+        cy.wait('@captchaForLogin')
+        cy.wrap(captcha.code).as('captchaCode')
+      }
+    )
+
     // 点击账号登录tab
     cy.get('.el-tabs__item').contains('账号登录').click()
     cy.wait(500)
 
     // 输入账号密码
     cy.get('input[placeholder*="账号"]').first().type('admin')
-    cy.get('input[placeholder*="密码"]').first().type('password123')
+    cy.get('input[placeholder*="密码"]').first().type('admin123')
 
     // 输入验证码
     cy.get('input[placeholder*="验证码"]')
       .first()
       .then(() => {
-        // 从localStorage获取验证码
-        cy.window().then((win) => {
-          const code = win.localStorage.getItem('captcha') || '1234'
-          cy.log('从localStorage获取的验证码:', code)
+        cy.get('@captchaCode').then((code) => {
+          cy.log('使用后端生成的验证码:', String(code))
           cy.get('input[placeholder*="验证码"]').first().type(code)
         })
       })
@@ -84,6 +101,6 @@ describe('完整登录流程测试', () => {
 
     // 验证登录成功后跳转到首页
     cy.url().should('include', '/home')
-    cy.contains('仪表盘')
+    cy.contains('项目')
   })
 })

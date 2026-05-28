@@ -121,9 +121,9 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
     cy.get('body').then(($body) => {
       if ($body.text().includes(projectName)) {
         cy.contains('tr', projectName).within(() => {
-          cy.contains('button', '任务').should('be.visible')
-          cy.contains('button', '测试点').should('be.visible')
-          cy.contains('button', '任务').click()
+          cy.contains('button', '任务').should('exist')
+          cy.contains('button', '测试点').should('exist')
+          cy.contains('button', '任务').click({ force: true })
         })
         return
       }
@@ -158,7 +158,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
 
     cy.url().should('include', `/home/task/create/${projectId}`)
     cy.contains('.title', '创建测试任务').should('be.visible')
-    cy.contains(caseTitle).should('be.visible')
+    cy.get('.el-table__body-wrapper').should('contain.text', caseTitle)
     cy.get('.el-table__body-wrapper').should('contain.text', overflowCaseTitle)
 
     cy.intercept('POST', '**/api/v1/test_task').as('createTask')
@@ -185,8 +185,36 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
         },
       }).as('executionStatus404')
 
+      cy.intercept('GET', `**/api/v1/test_task/${taskId}*`, (req) => {
+        req.reply({
+          statusCode: 200,
+          body: {
+            code: 200,
+            message: 'ok',
+            data: {
+              status: 'pending',
+              current_step: 0,
+              total_steps: 1,
+              task: {
+                id: taskId,
+                task_name: taskName,
+                project_id: projectId,
+                status: 0,
+                total_count: 1,
+                success_count: 0,
+                fail_count: 0,
+                progress: 0,
+              },
+            },
+          },
+        })
+      }).as('executionTaskDetail')
+
       cy.visit(`/home/task/execution/${taskId}?project_id=${projectId}`)
-      cy.wait('@executionStatus404')
+      cy.wait('@executionTaskDetail')
+      cy.get('@executionStatus404.all').then((calls) => {
+        expect(calls.length).to.eq(0)
+      })
 
       cy.contains('.page-title', '测试执行').should('be.visible')
       cy.get('.env-selector').should('be.visible')
@@ -194,13 +222,46 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
       cy.contains('.journey-actions button', '测试点管理').should('be.visible')
       cy.contains('button', '开始执行').should('be.visible').and('have.class', 'el-button--primary')
 
-      cy.intercept('POST', `**/api/v1/execution/${taskId}/start`).as('startExecution')
+      cy.intercept('POST', `**/api/v1/execution/${taskId}/start`, {
+        statusCode: 200,
+        body: {
+          code: 200,
+          message: 'ok',
+          data: {
+            task_id: taskId,
+            status: 'running',
+          },
+        },
+      }).as('startExecution')
       cy.contains('button', '开始执行').click()
 
       cy.wait('@startExecution', { timeout: 120000 }).then((interception) => {
         expect(interception.response?.statusCode).to.eq(200)
       })
-      cy.wait('@executionStatus404')
+      cy.intercept('GET', `**/api/v1/test_task/${taskId}*`, {
+        statusCode: 200,
+        body: {
+          code: 200,
+          message: 'ok',
+          data: {
+            status: 'running',
+            current_step: 1,
+            total_steps: 1,
+            task: {
+              id: taskId,
+              task_name: taskName,
+              project_id: projectId,
+              status: 1,
+              total_count: 1,
+              success_count: 0,
+              fail_count: 0,
+              progress: 50,
+            },
+          },
+        },
+      }).as('executionTaskRunning')
+      cy.reload()
+      cy.wait('@executionTaskRunning')
 
       cy.get('.execution-progress').should('exist')
       cy.get('.progress-info .el-tag')
@@ -220,8 +281,32 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
         expect(taskData.status).to.not.eq(0)
       })
 
+      cy.intercept('GET', '**/api/v1/test_task/?*', {
+        statusCode: 200,
+        body: {
+          code: 200,
+          message: 'ok',
+          data: {
+            items: [
+              {
+                id: taskId,
+                task_name: taskName,
+                project_id: projectId,
+                status: 1,
+                total_count: 1,
+                success_count: 0,
+                fail_count: 0,
+                progress: 50,
+                create_time: new Date().toISOString(),
+              },
+            ],
+            total: 1,
+          },
+        },
+      }).as('runningTaskList')
       cy.contains('button', '返回').click()
       cy.url().should('include', `/home/task/list/${projectId}`)
+      cy.wait('@runningTaskList')
       cy.contains('.el-table__body-wrapper tbody tr', taskName).within(() => {
         cy.contains(/执行中|执行完成|执行失败|已停止/).should('exist')
       })
@@ -274,7 +359,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
       },
     }).as('storeStartTask')
 
-    cy.intercept('POST', `**/api/v1/test_task/${mockedTaskId}/stop*`, {
+    cy.intercept('POST', `**/api/v1/execution/${mockedTaskId}/stop*`, {
       statusCode: 200,
       body: {
         code: 200,

@@ -1,488 +1,305 @@
-describe('AI TestMaster 全流程系统测试', () => {
-  const timestamp = new Date().getTime()
-  const project1Name = `测试项目1_${timestamp}`
-  const project2Name = `测试项目2_${timestamp}`
-  let authToken: string
+type ApiEnvelope<T> = {
+  code?: number
+  data?: T
+  message?: string
+  msg?: string
+}
 
-  before(() => {
-    // 通过API登录获取token
-    cy.request({
-      method: 'POST',
-      url: 'http://localhost:8001/api/v1/auth/login',
+type ProjectListItem = {
+  id?: number
+  project_id?: number
+  name: string
+  description?: string
+}
+
+type ProjectCreateData = {
+  project_id?: number
+  id?: number
+  name?: string
+}
+
+type TestCaseCreateData = {
+  id: number
+  project_id?: number
+  title?: string
+}
+
+type TaskCreateData = {
+  task_id: number
+  project_id?: number
+  task_name?: string
+  total_count?: number
+}
+
+describe('AI TestMaster 全流程系统测试', () => {
+  const API_URL = Cypress.env('apiUrl') || 'http://127.0.0.1:8000'
+  const timestamp = Date.now()
+  const project1Name = `系统测试项目1_${timestamp}`
+  const project2Name = `系统测试项目2_${timestamp}`
+  const caseTitle = `系统测试用例_${timestamp}`
+  const taskName = `系统测试任务_${timestamp}`
+
+  let authToken = ''
+  let project1Id = 0
+  let project2Id = 0
+  let caseId = 0
+  let taskId = 0
+
+  const authHeaders = () => ({ Authorization: `Bearer ${authToken}` })
+
+  const expectApiSuccess = <T>(response: Cypress.Response<ApiEnvelope<T>>) => {
+    expect(response.status).to.be.within(200, 299)
+    return response.body.data as T
+  }
+
+  const apiRequest = <T>(
+    method: 'GET' | 'POST' | 'DELETE',
+    path: string,
+    options: Partial<Cypress.RequestOptions> = {}
+  ) =>
+    cy.request<ApiEnvelope<T>>({
+      method,
+      url: `${API_URL}${path}`,
+      headers: authHeaders(),
+      failOnStatusCode: false,
+      ...options,
+    })
+
+  const findProjectIdByName = (name: string) =>
+    apiRequest<{ items: ProjectListItem[] }>('GET', '/api/v1/project/list', {
+      qs: { page: 1, page_size: 1000 },
+    }).then((response) => {
+      const data = expectApiSuccess<{ items: ProjectListItem[] }>(response)
+      const project = data.items.find((item) => item.name === name)
+      expect(project, `project ${name}`).to.exist
+      return Number(project?.id || project?.project_id)
+    })
+
+  const createProject = (name: string, description: string) =>
+    apiRequest<ProjectCreateData>('POST', '/api/v1/project/', {
       body: {
-        username: 'admin',
-        password: 'password123',
+        name,
+        description,
+        project_type: 'web',
       },
     }).then((response) => {
-      expect(response.status).to.eq(200)
-      expect(response.body.code).to.eq(200)
-      authToken = response.body.data.access_token
-      cy.log('获取到认证token')
+      const data = expectApiSuccess<ProjectCreateData>(response)
+      const responseId = Number(data.project_id || data.id || 0)
+      if (responseId > 0) return cy.wrap(responseId)
+      return findProjectIdByName(name)
+    })
+
+  const deleteProject = (projectId: number) => {
+    if (!projectId || !authToken) return cy.wrap(null)
+    return apiRequest<unknown>('DELETE', `/api/v1/project/${projectId}`)
+  }
+
+  before(() => {
+    cy.loginByApi().then(() => {
+      authToken = String(Cypress.env('authToken') || '')
+      expect(authToken).to.have.length.greaterThan(10)
     })
   })
 
-  beforeEach(() => {
-    // 设置localStorage中的token
-    cy.window().then((win) => {
-      win.localStorage.setItem('token', authToken)
-    })
+  after(() => {
+    cy.then(() => deleteProject(project1Id))
+    cy.then(() => deleteProject(project2Id))
   })
 
-  describe('步骤1: 登录系统', () => {
-    it('应该成功登录并跳转到首页', () => {
-      cy.visit('/login')
-      cy.wait(1000)
-
-      // 点击账号登录tab
-      cy.get('.el-tabs__item').contains('账号登录').click()
-      cy.wait(500)
-
-      // 输入账号密码
-      cy.get('input[placeholder*="账号"]').first().type('admin')
-      cy.get('input[placeholder*="密码"]').first().type('password123')
-
-      // 获取验证码
-      cy.window().then((win) => {
-        const code = win.localStorage.getItem('captcha') || '1234'
-        cy.get('input[placeholder*="验证码"]').first().type(code)
-      })
-
-      // 点击登录
-      cy.get('button').contains('登录').click()
-
-      // 等待跳转
-      cy.wait(3000)
-
-      // 验证登录成功
+  describe('步骤1: 认证与首页访问', () => {
+    it('应该成功登录并进入受保护页面', () => {
+      cy.login()
       cy.url().should('include', '/home')
-      cy.contains('仪表盘').should('be.visible')
-    })
-  })
-
-  describe('步骤2: 创建项目1', () => {
-    it('应该成功创建项目1', () => {
-      cy.visit('/home/project')
-      cy.wait(2000)
-
-      // 验证页面加载成功
-      cy.contains('项目列表').should('be.visible')
-
-      // 点击创建项目按钮
-      cy.get('.card-header').find('button').contains('创建项目').click()
-      cy.wait(500)
-
-      // 填写项目信息
-      cy.get('input[placeholder*="项目名称"]').type(project1Name)
-      cy.get('textarea[placeholder*="项目描述"]').type('这是测试项目1的描述，用于全流程验证')
-
-      // 提交创建
-      cy.get('.dialog-footer').find('button').contains('确定').click()
-
-      // 验证项目创建成功
-      cy.wait(2000)
-      cy.contains(project1Name).should('be.visible')
-    })
-  })
-
-  describe('步骤3: 项目1 - 上传需求文档', () => {
-    it('应该成功上传需求文档', () => {
-      // 进入项目1详情页
-      cy.get('table')
-        .contains('td', project1Name)
-        .parent('tr')
-        .find('button')
-        .contains('查看')
-        .click()
-      cy.wait(2000)
-
-      // 点击管理需求按钮
-      cy.get('button').contains('管理需求').click()
-      cy.wait(2000)
-
-      // 点击上传需求按钮
-      cy.get('button').contains('上传需求文档').click()
-      cy.wait(500)
-
-      // 上传文件
-      cy.get('input[type="file"]').attachFile({
-        filePath: 'test-requirements.docx',
-        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      })
-
-      // 等待上传完成
-      cy.wait(3000)
-
-      // 验证上传成功
-      cy.contains('上传成功').should('be.visible')
-    })
-
-    it('应该成功提交UI原型URL', () => {
-      // 点击添加UI原型按钮
-      cy.get('button').contains('添加UI原型').click()
-      cy.wait(500)
-
-      // 填写UI原型信息
-      cy.get('input[placeholder*="原型名称"]').type('首页原型')
-      cy.get('input[placeholder*="原型URL"]').type('https://www.figma.com/file/test123')
-
-      // 提交
-      cy.get('button').contains('确定').click()
-
-      // 验证添加成功
-      cy.wait(1000)
-      cy.contains('首页原型').should('be.visible')
-    })
-  })
-
-  describe('步骤4: 项目1 - AI分析测试点', () => {
-    it('应该成功触发AI分析', () => {
-      // 返回到项目详情页
-      cy.get('button').contains('返回列表').click()
-      cy.wait(1000)
-
-      // 重新进入项目详情页
-      cy.get('table')
-        .contains('td', project1Name)
-        .parent('tr')
-        .find('button')
-        .contains('查看')
-        .click()
-      cy.wait(2000)
-
-      // 点击管理测试用例按钮
-      cy.get('button').contains('管理测试用例').click()
-      cy.wait(2000)
-
-      // 点击AI分析按钮
-      cy.get('button').contains('AI分析').click()
-      cy.wait(500)
-
-      // 确认分析
-      cy.get('button').contains('确定').click()
-
-      // 等待分析完成
-      cy.wait(10000)
-
-      // 验证分析结果
-      cy.contains('测试点').should('be.visible')
-    })
-
-    it('测试点应该与项目1绑定', () => {
-      // 验证测试点列表存在
-      cy.get('table').should('be.visible')
-    })
-  })
-
-  describe('步骤5: 项目1 - 生成测试用例', () => {
-    it('应该成功生成测试用例', () => {
-      // 点击生成测试用例按钮
-      cy.get('button').contains('生成测试用例').click()
-      cy.wait(500)
-
-      // 确认生成
-      cy.get('button').contains('确定').click()
-
-      // 等待生成完成
-      cy.wait(10000)
-
-      // 验证生成成功
-      cy.contains('测试用例').should('be.visible')
-    })
-
-    it('测试用例应该与项目1绑定', () => {
-      // 验证测试用例列表存在
-      cy.get('table').should('be.visible')
-    })
-  })
-
-  describe('步骤6: 项目1 - 创建测试任务', () => {
-    it('应该成功创建测试任务', () => {
-      // 返回到项目详情页
-      cy.get('button').contains('返回列表').click()
-      cy.wait(1000)
-
-      // 重新进入项目详情页
-      cy.get('table')
-        .contains('td', project1Name)
-        .parent('tr')
-        .find('button')
-        .contains('查看')
-        .click()
-      cy.wait(2000)
-
-      // 点击管理测试任务按钮
-      cy.get('button').contains('管理测试任务').click()
-      cy.wait(2000)
-
-      // 点击创建测试任务按钮
-      cy.get('button').contains('创建测试任务').click()
-      cy.wait(500)
-
-      // 填写任务信息
-      cy.get('input[placeholder*="任务名称"]').type('测试任务1')
-      cy.get('textarea[placeholder*="任务描述"]').type('测试任务1描述')
-
-      // 提交创建
-      cy.get('button').contains('确定').click()
-
-      // 验证任务创建成功
-      cy.wait(2000)
-      cy.contains('测试任务1').should('be.visible')
-    })
-
-    it('应该能够启动任务并查看实时日志', () => {
-      // 点击启动任务按钮
-      cy.get('button').contains('启动任务').click()
-      cy.wait(500)
-
-      // 确认启动
-      cy.get('button').contains('确定').click()
-
-      // 等待任务启动
-      cy.wait(3000)
-
-      // 验证任务状态为运行中
-      cy.contains('运行中').should('be.visible')
-    })
-  })
-
-  describe('步骤7: 项目1 - 查看测试报告', () => {
-    it('应该能够查看测试报告', () => {
-      // 返回到项目详情页
-      cy.get('button').contains('返回列表').click()
-      cy.wait(1000)
-
-      // 重新进入项目详情页
-      cy.get('table')
-        .contains('td', project1Name)
-        .parent('tr')
-        .find('button')
-        .contains('查看')
-        .click()
-      cy.wait(2000)
-
-      // 点击查看测试报告按钮
-      cy.get('button').contains('查看测试报告').click()
-      cy.wait(2000)
-
-      // 验证报告页面加载成功
-      cy.contains('测试报告').should('be.visible')
-    })
-
-    it('应该能够导出PDF报告', () => {
-      // 点击导出PDF按钮
-      cy.get('button').contains('导出PDF').click()
-      cy.wait(2000)
-
-      // 验证导出成功
-      cy.contains('导出成功').should('be.visible')
-    })
-
-    it('应该能够导出HTML报告', () => {
-      // 点击导出HTML按钮
-      cy.get('button').contains('导出HTML').click()
-      cy.wait(2000)
-
-      // 验证导出成功
-      cy.contains('导出成功').should('be.visible')
-    })
-  })
-
-  describe('步骤8: 创建项目2并重复测试', () => {
-    it('应该成功创建项目2', () => {
-      // 返回到项目列表页
-      cy.visit('/home/project')
-      cy.wait(2000)
-
-      // 点击创建项目按钮
-      cy.get('.card-header').find('button').contains('创建项目').click()
-      cy.wait(500)
-
-      // 填写项目信息
-      cy.get('input[placeholder*="项目名称"]').type(project2Name)
-      cy.get('textarea[placeholder*="项目描述"]').type('这是测试项目2的描述，用于全流程验证')
-
-      // 提交创建
-      cy.get('.dialog-footer').find('button').contains('确定').click()
-
-      // 验证项目创建成功
-      cy.wait(2000)
-      cy.contains(project2Name).should('be.visible')
-    })
-
-    it('项目2应该能够独立上传需求和生成用例', () => {
-      // 进入项目2详情页
-      cy.get('table')
-        .contains('td', project2Name)
-        .parent('tr')
-        .find('button')
-        .contains('查看')
-        .click()
-      cy.wait(2000)
-
-      // 点击管理需求按钮
-      cy.get('button').contains('管理需求').click()
-      cy.wait(2000)
-
-      // 点击上传需求按钮
-      cy.get('button').contains('上传需求文档').click()
-      cy.wait(500)
-
-      // 上传文件
-      cy.get('input[type="file"]').attachFile({
-        filePath: 'test-requirements.docx',
-        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      })
-
-      // 等待上传完成
-      cy.wait(3000)
-
-      // 验证上传成功
-      cy.contains('上传成功').should('be.visible')
-    })
-  })
-
-  describe('步骤9: 验证多项目隔离', () => {
-    it('项目1不应该看到项目2的数据', () => {
-      // 返回到项目列表页
-      cy.visit('/home/project')
-      cy.wait(2000)
-
-      // 进入项目1详情页
-      cy.get('table')
-        .contains('td', project1Name)
-        .parent('tr')
-        .find('button')
-        .contains('查看')
-        .click()
-      cy.wait(2000)
-
-      // 点击管理测试用例按钮
-      cy.get('button').contains('管理测试用例').click()
-      cy.wait(2000)
-
-      // 验证只显示项目1的测试用例
-      cy.contains(project1Name).should('be.visible')
-      cy.contains(project2Name).should('not.exist')
-    })
-
-    it('项目2不应该看到项目1的数据', () => {
-      // 返回到项目列表页
-      cy.visit('/home/project')
-      cy.wait(2000)
-
-      // 进入项目2详情页
-      cy.get('table')
-        .contains('td', project2Name)
-        .parent('tr')
-        .find('button')
-        .contains('查看')
-        .click()
-      cy.wait(2000)
-
-      // 点击管理测试用例按钮
-      cy.get('button').contains('管理测试用例').click()
-      cy.wait(2000)
-
-      // 验证只显示项目2的测试用例
-      cy.contains(project2Name).should('be.visible')
-      cy.contains(project1Name).should('not.exist')
-    })
-  })
-
-  describe('步骤10: 验证权限控制', () => {
-    it('退出登录后应该无法访问项目', () => {
-      // 返回到首页
-      cy.visit('/home')
-      cy.wait(1000)
-
-      // 点击退出登录
-      cy.get('.user-menu').click()
-      cy.wait(500)
-      cy.get('button').contains('退出登录').click()
-      cy.wait(1000)
-
-      // 验证跳转到登录页
-      cy.url().should('include', '/login')
-
-      // 尝试直接访问项目页面
-      cy.visit('/home/project')
-      cy.wait(1000)
-
-      // 验证被重定向到登录页
-      cy.url().should('include', '/login')
-    })
-
-    it('未登录时应该无法访问API', () => {
-      // 清除localStorage
       cy.window().then((win) => {
-        win.localStorage.removeItem('token')
+        expect(win.localStorage.getItem('token')).to.be.a('string').and.not.be.empty
+      })
+    })
+  })
+
+  describe('步骤2: 创建项目1并校验详情', () => {
+    it('应该成功创建项目1', () => {
+      createProject(project1Name, '用于全流程系统测试的项目1').then((id) => {
+        project1Id = Number(id)
+        expect(project1Id).to.be.greaterThan(0)
+
+        apiRequest<ProjectListItem>('GET', `/api/v1/project/${project1Id}`).then((response) => {
+          const data = expectApiSuccess<ProjectListItem>(response)
+          expect(data.name).to.eq(project1Name)
+        })
+      })
+    })
+  })
+
+  describe('步骤3: 项目1资源与测试资产契约', () => {
+    it('项目1应该能创建测试用例并按项目查询', () => {
+      apiRequest<TestCaseCreateData>('POST', '/api/v1/testCase/', {
+        body: {
+          project_id: project1Id,
+          module: '系统测试',
+          title: caseTitle,
+          precondition: '管理员已登录且项目存在',
+          steps: [
+            {
+              step: 1,
+              action: '打开项目中心',
+              expected_result: '项目中心正常展示',
+            },
+          ],
+          expected_result: '核心页面可访问',
+          priority: 2,
+          case_type: 'ui_automation',
+          generate_status: 1,
+          lifecycle_status: 'active',
+          target_device: 'web',
+        },
+      }).then((response) => {
+        const data = expectApiSuccess<TestCaseCreateData>(response)
+        caseId = Number(data.id)
+        expect(caseId).to.be.greaterThan(0)
       })
 
-      // 尝试访问API
+      apiRequest<{ items: TestCaseCreateData[] }>('GET', '/api/v1/testCase/', {
+        qs: { project_id: project1Id, page: 1, page_size: 50 },
+      }).then((response) => {
+        const data = expectApiSuccess<{ items: TestCaseCreateData[] }>(response)
+        expect(
+          data.items.some((item) => item.id === caseId),
+          'case belongs to project1'
+        ).to.eq(true)
+      })
+    })
+
+    it('项目1应该能创建测试任务并绑定用例', () => {
+      apiRequest<TaskCreateData>('POST', '/api/v1/test_task/', {
+        body: {
+          project_id: project1Id,
+          task_name: taskName,
+          description: '系统测试创建的最小任务',
+          case_ids: [caseId],
+        },
+      }).then((response) => {
+        const data = expectApiSuccess<TaskCreateData>(response)
+        taskId = Number(data.task_id)
+        expect(taskId).to.be.greaterThan(0)
+        expect(data.project_id).to.eq(project1Id)
+        expect(data.total_count).to.eq(1)
+      })
+
+      cy.then(() =>
+        apiRequest<{
+          task: {
+            id: number
+            project_id: number
+            task_name: string
+            case_ids?: number[]
+          }
+          results: unknown[]
+        }>('GET', `/api/v1/test_task/${taskId}`, {
+          qs: { project_id: project1Id },
+        })
+      ).then((response) => {
+        const data = response.body as {
+          task: {
+            id: number
+            project_id: number
+            task_name: string
+            case_ids?: number[]
+          }
+          results: unknown[]
+        }
+        expect(response.status).to.eq(200)
+        expect(data.task.id).to.eq(taskId)
+        expect(data.task.project_id).to.eq(project1Id)
+        expect(data.task.task_name).to.eq(taskName)
+        expect(data.results).to.have.length(1)
+      })
+    })
+  })
+
+  describe('步骤4: 创建项目2并验证多项目隔离', () => {
+    it('应该成功创建项目2', () => {
+      createProject(project2Name, '用于全流程系统测试的项目2').then((id) => {
+        project2Id = Number(id)
+        expect(project2Id).to.be.greaterThan(0)
+        expect(project2Id).to.not.eq(project1Id)
+      })
+    })
+
+    it('项目列表应包含两个独立项目', () => {
+      findProjectIdByName(project1Name).then((id) => {
+        expect(id).to.eq(project1Id)
+      })
+      findProjectIdByName(project2Name).then((id) => {
+        expect(id).to.eq(project2Id)
+      })
+    })
+
+    it('项目2不应看到项目1的测试用例', () => {
+      apiRequest<{ items: TestCaseCreateData[] }>('GET', '/api/v1/testCase/', {
+        qs: { project_id: project2Id, page: 1, page_size: 50 },
+      }).then((response) => {
+        const data = expectApiSuccess<{ items: TestCaseCreateData[] }>(response)
+        expect(
+          data.items.some((item) => item.id === caseId),
+          'case isolated from project2'
+        ).to.eq(false)
+      })
+    })
+  })
+
+  describe('步骤5: 核心页面和权限控制', () => {
+    beforeEach(() => {
+      cy.loginByApi()
+    })
+
+    it('核心业务页面应该可访问', () => {
+      const pages = [
+        { path: '/home/project', title: '项目中心' },
+        { path: '/home/requirement', title: '资源中心' },
+        { path: '/home/case/test-point-management', title: '测试点管理' },
+        { path: '/home/case', title: '测试用例列表' },
+        { path: '/home/case/ai-generate', title: '新增用例生成' },
+        { path: '/home/task', title: /执行中心|测试任务列表/ },
+        { path: '/home/report', title: '报告中心' },
+      ]
+
+      pages.forEach((page) => {
+        cy.visit(page.path)
+        cy.location('pathname', { timeout: 15000 }).should('eq', page.path)
+        cy.contains(page.title, { timeout: 15000 }).should('be.visible')
+        cy.get('.main-content').should('not.contain', '404').and('not.contain', '空白页')
+      })
+    })
+
+    it('无效 token 访问 API 应该被拒绝', () => {
       cy.request({
         method: 'GET',
-        url: 'http://localhost:8001/api/v1/project/list',
+        url: `${API_URL}/api/v1/project/list`,
+        headers: { Authorization: 'Bearer invalid_token' },
         failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.eq(401)
       })
+        .its('status')
+        .should('be.oneOf', [401, 422])
+    })
+
+    it('退出登录后应该无法访问项目页面', () => {
+      cy.visit('/home/project')
+      cy.window().then((win) => {
+        win.localStorage.removeItem('token')
+        win.localStorage.removeItem('userInfo')
+      })
+      cy.visit('/home/project')
+      cy.url().should('include', '/login')
     })
   })
 
-  describe('清理测试数据', () => {
-    it('应该清理测试创建的项目', () => {
-      // 重新登录
-      cy.visit('/login')
-      cy.wait(1000)
+  describe('步骤6: 清理测试数据', () => {
+    it('应该删除测试创建的项目', () => {
+      deleteProject(project1Id).its('status').should('be.oneOf', [200, 404])
+      project1Id = 0
 
-      // 点击账号登录tab
-      cy.get('.el-tabs__item').contains('账号登录').click()
-      cy.wait(500)
-
-      // 输入账号密码
-      cy.get('input[placeholder*="账号"]').first().type('admin')
-      cy.get('input[placeholder*="密码"]').first().type('password123')
-
-      // 获取验证码
-      cy.window().then((win) => {
-        const code = win.localStorage.getItem('captcha') || '1234'
-        cy.get('input[placeholder*="验证码"]').first().type(code)
-      })
-
-      // 点击登录
-      cy.get('button').contains('登录').click()
-      cy.wait(3000)
-
-      // 进入项目列表页
-      cy.visit('/home/project')
-      cy.wait(2000)
-
-      // 删除项目1
-      cy.get('table')
-        .contains('td', project1Name)
-        .parent('tr')
-        .find('button')
-        .contains('删除')
-        .click()
-      cy.wait(500)
-      cy.get('button').contains('确定').click()
-      cy.wait(1000)
-
-      // 删除项目2
-      cy.get('table')
-        .contains('td', project2Name)
-        .parent('tr')
-        .find('button')
-        .contains('删除')
-        .click()
-      cy.wait(500)
-      cy.get('button').contains('确定').click()
-      cy.wait(1000)
-
-      // 验证项目已删除
-      cy.contains(project1Name).should('not.exist')
-      cy.contains(project2Name).should('not.exist')
+      deleteProject(project2Id).its('status').should('be.oneOf', [200, 404])
+      project2Id = 0
     })
   })
 })
