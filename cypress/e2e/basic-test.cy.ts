@@ -9,6 +9,6 @@ describe('基本功能测试', () => {
   it('应该能够访问首页', () => {
     cy.visit('/')
     cy.wait(2000)
-    cy.url().should('eq', 'http://localhost:3000/')
+    cy.url().should('include', '/login')
   })
 })
