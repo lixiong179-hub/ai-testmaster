@@ -254,16 +254,28 @@ async def get_current_user_info(
         - username: 用户名
         - email: 邮箱
         - is_active: 是否激活
+        - is_superuser: 是否超级管理员
+        - permissions: 权限code列表
         - create_time: 创建时间
 
     权限要求: 需要Bearer令牌认证
     """
+    permission_set: set[str] = set()
+    if current_user.is_superuser:
+        permission_set.add("*")
+    for role in current_user.roles:
+        if isinstance(role.permissions, list):
+            for p in role.permissions:
+                if isinstance(p, str):
+                    permission_set.add(p)
     return create_response(
         data={
             "id": current_user.id,
             "username": current_user.username,
             "email": current_user.email,
             "is_active": current_user.is_active,
+            "is_superuser": current_user.is_superuser,
+            "permissions": list(permission_set),
             "create_time": current_user.create_time
         }
     )
