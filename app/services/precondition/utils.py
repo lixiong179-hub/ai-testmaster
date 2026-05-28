@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 from app.services.precondition.models import PreconditionError, LoginFormInfo
+from app.utils.ai_client_parser import parse_ai_json_object
 
 if TYPE_CHECKING:
     pass
@@ -36,6 +37,7 @@ def solve_captcha_math(response: str) -> str:
                     result = num1 // num2
                 else:
                     logger.warning(f"除数为零: {num1} / {num2}")
+                    return str(num1)
             if result is not None:
                 logger.info(f"数学表达式计算: {num1} {operator} {num2} = {result}")
                 return str(result)
@@ -88,17 +90,14 @@ def recognize_login_form(vision_model, screenshot: bytes) -> LoginFormInfo:
         response = vision_model.analyze_image(screenshot, prompt)
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if json_match:
-            result = json.loads(json_match.group())
-            form_info = LoginFormInfo()
-            for key in ["username_input", "password_input", "submit_button", "captcha_input", "captcha_image"]:
-                if key in result and result[key]:
-                    setattr(form_info, key, result[key])
-            return form_info
-        else:
-            logger.warning("AI响应中未找到JSON格式数据")
-            return LoginFormInfo()
-    except json.JSONDecodeError as e:
-        logger.error(f"AI响应JSON解析失败: {e}")
+            result = parse_ai_json_object(json_match.group())
+            if result is not None:
+                form_info = LoginFormInfo()
+                for key in ["username_input", "password_input", "submit_button", "captcha_input", "captcha_image"]:
+                    if key in result and result[key]:
+                        setattr(form_info, key, result[key])
+                return form_info
+        logger.warning("AI响应中未找到JSON格式数据")
         return LoginFormInfo()
     except Exception as e:
         logger.error(f"识别登录表单失败: {e}")

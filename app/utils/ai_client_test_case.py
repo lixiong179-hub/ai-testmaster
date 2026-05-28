@@ -15,6 +15,7 @@ from app.utils.ai_client_formatter import (
     normalize_new_format,
     normalize_old_format,
 )
+from app.utils.ai_client_parser import fix_common_json_issues, clean_json_string, parse_ai_json_response
 
 
 class AITestCaseMixin:
@@ -81,10 +82,20 @@ class AITestCaseMixin:
                 except json.JSONDecodeError:
                     json_match = re.search(r'\[\s*\{[\s\S]*\}\s*\]', resp_content)
                     if json_match:
-                        try:
-                            test_points = json.loads(json_match.group(0))
-                        except json.JSONDecodeError:
-                            pass
+                        raw = json_match.group(0)
+                        for fix_fn in (fix_common_json_issues, clean_json_string):
+                            fixed = fix_fn(raw)
+                            if fixed:
+                                try:
+                                    test_points = json.loads(fixed)
+                                    break
+                                except json.JSONDecodeError:
+                                    continue
+                        if test_points is None:
+                            try:
+                                test_points = json.loads(raw)
+                            except json.JSONDecodeError:
+                                pass
                 if test_points is not None:
                     logger.info("AI分析需求成功")
                     self._set_to_cache(cache_key, test_points)
@@ -260,20 +271,14 @@ class AITestCaseMixin:
                 raise AIServiceError(f"AI生成测试用例失败: {str(e)}")
 
     def _parse_generate_response(self, content: str) -> Optional[Dict[str, Any]]:
-        try:
-            generated_case = json.loads(content)
-            if isinstance(generated_case, dict):
-                return self._validate_and_normalize_case(generated_case)
-        except json.JSONDecodeError:
-            pass
+        generated_case = parse_ai_json_response(content)
+        if generated_case is not None:
+            return self._validate_and_normalize_case(generated_case)
         json_match = re.search(r'\{[\s\S]*\}', content)
         if json_match:
-            try:
-                generated_case = json.loads(json_match.group(0))
+            generated_case = parse_ai_json_response(json_match.group(0))
+            if generated_case is not None:
                 return self._validate_and_normalize_case(generated_case)
-            except (json.JSONDecodeError, Exception):
-                logger.warning("提取的JSON格式错误")
-                raise AIResponseParseError()
         logger.warning("AI返回的内容不是有效的JSON格式")
         raise AIResponseParseError()
 

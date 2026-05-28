@@ -23,6 +23,7 @@ from typing import Optional, Dict, Any
 from loguru import logger
 
 from app.utils.unified_vision.model_types import ElementInfo, VisionModelType
+from app.utils.ai_client_parser import parse_ai_json_object
 
 
 class ResponseParserMixin:
@@ -100,7 +101,9 @@ class ResponseParserMixin:
             json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
             if not json_match:
                 return None
-            data = json.loads(json_match.group())
+            data = parse_ai_json_object(json_match.group())
+            if data is None:
+                return None
             return ElementInfo(
                 x=int(data.get("x", 0)),
                 y=int(data.get("y", 0)),
@@ -111,7 +114,7 @@ class ResponseParserMixin:
                 confidence=float(data.get("confidence", 0)),
                 reasoning=data.get("reasoning", ""),
             )
-        except (json.JSONDecodeError, ValueError, TypeError, KeyError) as e:
+        except (ValueError, TypeError, KeyError) as e:
             logger.warning(f"解析元素识别结果失败: {e}")
             return None
 
@@ -133,8 +136,10 @@ class ResponseParserMixin:
         try:
             json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group())
+                result = parse_ai_json_object(json_match.group())
+                if result is not None:
+                    return result
             return {"success": False, "reason": "无法解析验证结果"}
-        except (json.JSONDecodeError, ValueError, TypeError) as e:
+        except (ValueError, TypeError) as e:
             logger.warning(f"解析验证结果失败: {e}")
             return {"success": False, "reason": str(e)}

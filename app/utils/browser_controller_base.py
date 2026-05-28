@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from loguru import logger
 import asyncio
+import gc
 
 
 class BrowserType(str, Enum):
@@ -116,6 +117,7 @@ class BrowserControllerV2:
         self._browser: Optional[Any] = None
         self._context: Optional[Any] = None
         self._page: Optional[Any] = None
+        self._current_frame: Optional[Any] = None
         self._is_initialized: bool = False
         self._window_size_fixed: bool = False
         self._last_screenshot_time: float = 0
@@ -244,20 +246,41 @@ class BrowserControllerV2:
             logger.warning(f"窗口最大化失败: {e}")
 
     async def _cleanup_resources(self):
-        resources = [
-            (self._page, "close"),
-            (self._context, "close"),
-            (self._browser, "close"),
-            (self._playwright, "stop")
-        ]
-        for resource, method in resources:
+        resources = (
+            ("_page", "close"),
+            ("_context", "close"),
+            ("_browser", "close"),
+        )
+        for attr, method in resources:
+            resource = getattr(self, attr)
             if resource:
                 try:
                     await getattr(resource, method)()
                 except Exception as e:
                     logger.warning(f"清理资源时出错: {method}, {e}")
+                finally:
+                    setattr(self, attr, None)
+        self._current_frame = None
+        if self._playwright:
+            try:
+                await self._playwright.stop()
+            except Exception as e:
+                logger.warning(f"清理资源时出错: stop, {e}")
+            finally:
+                self._playwright = None
+            gc.collect()
+            await asyncio.sleep(0.15)
+            gc.collect()
 
     async def close(self) -> Optional[str]:
+        if (
+            not self._is_initialized
+            and self._page is None
+            and self._context is None
+            and self._browser is None
+            and self._playwright is None
+        ):
+            return None
         logger.info("正在关闭浏览器...")
         video_path = None
         if self.config.record_video and self._page:
@@ -269,12 +292,10 @@ class BrowserControllerV2:
             except Exception as e:
                 logger.warning(f"获取视频路径失败: {e}")
         await self._cleanup_resources()
-        self._page = None
-        self._context = None
-        self._browser = None
-        self._playwright = None
         self._is_initialized = False
         self._window_size_fixed = False
+        gc.collect()
+        await asyncio.sleep(0.1)
         logger.info("浏览器已关闭")
         return video_path
 
@@ -287,3 +308,13 @@ class BrowserControllerV2:
         if self._page:
             return self._page.url
         return ""
+
+    @property
+    def active_page(self) -> Optional[Any]:
+        return self._current_frame or self._page
+
+    def switch_to_frame(self, frame: Any) -> None:
+        self._current_frame = frame
+
+    def switch_to_main(self) -> None:
+        self._current_frame = None

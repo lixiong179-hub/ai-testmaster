@@ -10,6 +10,7 @@ from app.utils.ai_client_core import (
     AIServiceError,
     _detect_ai_error,
 )
+from app.utils.ai_client_parser import parse_ai_json_response
 
 
 class _GenerateStreamMixin:
@@ -97,19 +98,15 @@ class _GenerateStreamMixin:
                         yield {"progress": 100, "message": "生成完成", "data": generated_case}
                         return
                 except json.JSONDecodeError:
-                    json_match = re.search(r'\{\s*"title"[\s\S]*\}', full_content)
-                    if json_match:
-                        try:
-                            generated_case = json.loads(json_match.group(0))
-                            required_fields = ['title', 'precondition', 'steps', 'expected_result', 'case_type']
-                            missing_fields = [f for f in required_fields if f not in generated_case]
-                            if missing_fields:
-                                yield {"progress": 100, "message": f"AI响应缺少必要字段: {', '.join(missing_fields)}", "status": "error", "error": True}
-                                return
-                            yield {"progress": 100, "message": "生成完成", "data": generated_case}
+                    generated_case = parse_ai_json_response(full_content)
+                    if generated_case is not None:
+                        required_fields = ['title', 'precondition', 'steps', 'expected_result', 'case_type']
+                        missing_fields = [f for f in required_fields if f not in generated_case]
+                        if missing_fields:
+                            yield {"progress": 100, "message": f"AI响应缺少必要字段: {', '.join(missing_fields)}", "status": "error", "error": True}
                             return
-                        except json.JSONDecodeError:
-                            pass
+                        yield {"progress": 100, "message": "生成完成", "data": generated_case}
+                        return
                 yield {"progress": 100, "message": "AI响应格式错误，无法解析", "status": "error", "error": True}
                 return
             except requests.RequestException as e:

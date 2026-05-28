@@ -19,16 +19,41 @@
       </div>
 
       <div class="extract-toolbar">
-        <el-select v-model="selectedFileId" filterable placeholder="请选择需求文档" class="file-select" :loading="loadingFiles">
-          <el-option v-for="file in requirementFiles" :key="file.id" :label="file.file_name" :value="file.id">
+        <el-select
+          v-model="selectedFileId"
+          filterable
+          placeholder="请选择需求文档"
+          class="file-select"
+          :loading="loadingFiles"
+        >
+          <el-option
+            v-for="file in requirementFiles"
+            :key="file.id"
+            :label="file.file_name"
+            :value="file.id"
+          >
             <div class="file-option">
               <span>{{ file.file_name }}</span>
-              <el-tag size="small" type="info">{{ formatExtractStatus(file.extract_status) }}</el-tag>
+              <el-tag size="small" type="info">{{
+                formatExtractStatus(file.extract_status)
+              }}</el-tag>
             </div>
           </el-option>
         </el-select>
-        <el-button type="primary" :loading="extracting" :disabled="!selectedFileId" @click="handleExtract">提取测试点</el-button>
-        <el-button type="success" :loading="saving" :disabled="extractedPoints.length === 0" @click="onSave">保存到管理列表</el-button>
+        <el-button
+          type="primary"
+          :loading="extracting"
+          :disabled="!selectedFileId"
+          @click="handleExtract"
+          >提取测试点</el-button
+        >
+        <el-button
+          type="success"
+          :loading="saving"
+          :disabled="extractedPoints.length === 0"
+          @click="onSave"
+          >保存到管理列表</el-button
+        >
       </div>
 
       <div v-if="extracting" class="progress-panel">
@@ -36,7 +61,10 @@
         <p class="progress-text">{{ progressText }}</p>
       </div>
 
-      <el-empty v-else-if="requirementFiles.length === 0 && !loadingFiles" description="当前项目暂无需求文档，请先在资源管理中上传 requirement 类型文件">
+      <el-empty
+        v-else-if="requirementFiles.length === 0 && !loadingFiles"
+        description="当前项目暂无需求文档，请先在资源管理中上传 requirement 类型文件"
+      >
         <template #image><div class="empty-illustration">TP</div></template>
       </el-empty>
 
@@ -48,12 +76,23 @@
           <el-tag type="success">低优先级 {{ lowPriorityCount }}</el-tag>
         </div>
 
-        <el-table class="extract-table" :data="extractedPoints" border stripe height="420" empty-text="请选择需求文档并提取测试点">
+        <el-table
+          class="extract-table"
+          :data="extractedPoints"
+          border
+          stripe
+          height="420"
+          empty-text="请选择需求文档并提取测试点"
+        >
           <el-table-column type="index" label="#" width="60" />
           <el-table-column prop="module" label="模块" min-width="140" show-overflow-tooltip />
           <el-table-column prop="point" label="测试点" min-width="320" show-overflow-tooltip />
           <el-table-column prop="priority" label="优先级" width="100">
-            <template #default="{ row }"><el-tag :type="priorityTagType(row.priority)">{{ priorityText(row.priority) }}</el-tag></template>
+            <template #default="{ row }"
+              ><el-tag :type="priorityTagType(row.priority)">{{
+                priorityText(row.priority)
+              }}</el-tag></template
+            >
           </el-table-column>
         </el-table>
       </template>
@@ -80,12 +119,30 @@ const emit = defineEmits<{
 const visible = defineModel<boolean>('visible', { default: false })
 
 const {
-  loadingFiles, extracting, saving, progress, progressText, selectedFileId,
-  requirementFiles, extractedPoints, highPriorityCount, mediumPriorityCount, lowPriorityCount,
-  handleExtract, handleSave, resetState, priorityText, priorityTagType, formatExtractStatus,
+  loadingFiles,
+  extracting,
+  saving,
+  progress,
+  progressText,
+  selectedFileId,
+  requirementFiles,
+  extractedPoints,
+  highPriorityCount,
+  mediumPriorityCount,
+  lowPriorityCount,
+  handleExtract,
+  handleSave,
+  resetState,
+  priorityText,
+  priorityTagType,
+  formatExtractStatus,
 } = useTestPointExtract(props, visible)
 
-const onSave = async () => { await handleSave(); emit('saved'); visible.value = false }
+const onSave = async () => {
+  await handleSave()
+  emit('saved')
+  visible.value = false
+}
 </script>
 
 <style scoped>

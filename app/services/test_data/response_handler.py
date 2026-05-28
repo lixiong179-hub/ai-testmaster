@@ -4,37 +4,46 @@ import json
 import re
 from typing import List, Dict, Any
 
+from app.utils.ai_client_parser import fix_common_json_issues, clean_json_string
+
 
 def parse_ai_response(content: str) -> Any:
-    """解析AI响应内容为JSON数据。
-
-    解析策略:
-        1. 直接JSON解析（理想情况）
-        2. 正则提取JSON对象（AI可能在JSON前后添加说明文字）
-        3. 解析失败抛出ValueError
-
-    Args:
-        content: AI返回的原始文本内容。
-
-    Returns:
-        解析后的数据（列表或字典）。
-
-    Raises:
-        ValueError: 无法解析AI响应内容。
-    """
     try:
         return json.loads(content)
     except json.JSONDecodeError:
+        for fix_fn in (fix_common_json_issues, clean_json_string):
+            fixed = fix_fn(content)
+            if fixed:
+                try:
+                    return json.loads(fixed)
+                except json.JSONDecodeError:
+                    continue
         json_match = re.search(r'\[[\s\S]*\]', content)
         if json_match:
+            raw = json_match.group(0)
+            for fix_fn in (fix_common_json_issues, clean_json_string):
+                fixed = fix_fn(raw)
+                if fixed:
+                    try:
+                        return json.loads(fixed)
+                    except json.JSONDecodeError:
+                        continue
             try:
-                return json.loads(json_match.group(0))
+                return json.loads(raw)
             except json.JSONDecodeError:
                 pass
         json_match = re.search(r'\{[\s\S]*\}', content)
         if json_match:
+            raw = json_match.group(0)
+            for fix_fn in (fix_common_json_issues, clean_json_string):
+                fixed = fix_fn(raw)
+                if fixed:
+                    try:
+                        return json.loads(fixed)
+                    except json.JSONDecodeError:
+                        continue
             try:
-                return json.loads(json_match.group(0))
+                return json.loads(raw)
             except json.JSONDecodeError:
                 pass
     raise ValueError("无法解析AI响应内容")

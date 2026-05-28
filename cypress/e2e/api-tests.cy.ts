@@ -5,10 +5,10 @@ describe('AI TestMaster API 接口测试', () => {
     // 登录获取token
     cy.request({
       method: 'POST',
-      url: 'http://localhost:8001/api/v1/auth/login',
+      url: 'http://127.0.0.1:8000/api/v1/auth/login',
       body: {
         username: 'admin',
-        password: 'password123',
+        password: 'admin123',
       },
     }).then((response) => {
       expect(response.status).to.eq(200)
@@ -21,10 +21,10 @@ describe('AI TestMaster API 接口测试', () => {
     it('登录接口应该返回200', () => {
       cy.request({
         method: 'POST',
-        url: 'http://localhost:8001/api/v1/auth/login',
+        url: 'http://127.0.0.1:8000/api/v1/auth/login',
         body: {
           username: 'admin',
-          password: 'password123',
+          password: 'admin123',
         },
       }).then((response) => {
         expect(response.status).to.eq(200)
@@ -36,7 +36,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('登录失败应该返回401', () => {
       cy.request({
         method: 'POST',
-        url: 'http://localhost:8001/api/v1/auth/login',
+        url: 'http://127.0.0.1:8000/api/v1/auth/login',
         body: {
           username: 'admin',
           password: 'wrong_password',
@@ -55,7 +55,7 @@ describe('AI TestMaster API 接口测试', () => {
       const timestamp = new Date().getTime()
       cy.request({
         method: 'POST',
-        url: 'http://localhost:8001/api/v1/project/create',
+        url: 'http://127.0.0.1:8000/api/v1/project/create',
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -75,7 +75,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('获取项目列表接口应该返回200', () => {
       cy.request({
         method: 'GET',
-        url: 'http://localhost:8001/api/v1/project/list',
+        url: 'http://127.0.0.1:8000/api/v1/project/list',
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -94,7 +94,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('获取项目详情接口应该返回200', () => {
       cy.request({
         method: 'GET',
-        url: `http://localhost:8001/api/v1/project/${projectId}`,
+        url: `http://127.0.0.1:8000/api/v1/project/${projectId}`,
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -108,7 +108,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('删除项目接口应该返回200', () => {
       cy.request({
         method: 'DELETE',
-        url: `http://localhost:8001/api/v1/project/${projectId}`,
+        url: `http://127.0.0.1:8000/api/v1/project/${projectId}`,
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -121,14 +121,13 @@ describe('AI TestMaster API 接口测试', () => {
 
   describe('需求接口测试', () => {
     let projectId: number
-    let requirementId: number
 
     before(() => {
       // 创建测试项目
       const timestamp = new Date().getTime()
       cy.request({
         method: 'POST',
-        url: 'http://localhost:8001/api/v1/project/create',
+        url: 'http://127.0.0.1:8000/api/v1/project/create',
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -142,10 +141,10 @@ describe('AI TestMaster API 接口测试', () => {
       })
     })
 
-    it('提交URL接口应该返回200', () => {
+    it('提交URL接口应该返回410(已弃用)', () => {
       cy.request({
         method: 'POST',
-        url: 'http://localhost:8001/api/v1/file/submit-url',
+        url: 'http://127.0.0.1:8000/api/v1/file/submit-url',
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -157,8 +156,7 @@ describe('AI TestMaster API 接口测试', () => {
         },
         failOnStatusCode: false,
       }).then((response) => {
-        // URL验证可能会失败，但我们只检查接口是否正常工作
-        expect(response.status).to.be.oneOf([200, 400])
+        expect(response.status).to.eq(410)
       })
     })
 
@@ -166,7 +164,7 @@ describe('AI TestMaster API 接口测试', () => {
       // 清理测试项目
       cy.request({
         method: 'DELETE',
-        url: `http://localhost:8001/api/v1/project/${projectId}`,
+        url: `http://127.0.0.1:8000/api/v1/project/${projectId}`,
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -182,7 +180,7 @@ describe('AI TestMaster API 接口测试', () => {
       const timestamp = new Date().getTime()
       cy.request({
         method: 'POST',
-        url: 'http://localhost:8001/api/v1/project/create',
+        url: 'http://127.0.0.1:8000/api/v1/project/create',
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -199,7 +197,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('获取测试用例列表接口应该返回200', () => {
       cy.request({
         method: 'GET',
-        url: 'http://localhost:8001/api/v1/test_cases/',
+        url: 'http://127.0.0.1:8000/api/v1/testCase/',
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -216,7 +214,7 @@ describe('AI TestMaster API 接口测试', () => {
       // 清理测试项目
       cy.request({
         method: 'DELETE',
-        url: `http://localhost:8001/api/v1/project/${projectId}`,
+        url: `http://127.0.0.1:8000/api/v1/project/${projectId}`,
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -232,7 +230,7 @@ describe('AI TestMaster API 接口测试', () => {
       const timestamp = new Date().getTime()
       cy.request({
         method: 'POST',
-        url: 'http://localhost:8001/api/v1/project/create',
+        url: 'http://127.0.0.1:8000/api/v1/project/create',
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -249,24 +247,26 @@ describe('AI TestMaster API 接口测试', () => {
     it('创建测试任务接口应该返回200', () => {
       cy.request({
         method: 'POST',
-        url: 'http://localhost:8001/api/v1/test-task',
+        url: 'http://127.0.0.1:8000/api/v1/test_task/',
         headers: {
           Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
         },
-        qs: {
+        body: {
           project_id: projectId,
           task_name: '测试任务',
         },
       }).then((response) => {
         expect(response.status).to.eq(200)
-        expect(response.body).to.have.property('id')
+        expect(response.body.code).to.eq(200)
+        expect(response.body.data).to.have.property('task_id')
       })
     })
 
     it('获取测试任务列表接口应该返回200', () => {
       cy.request({
         method: 'GET',
-        url: 'http://localhost:8001/api/v1/test-task',
+        url: 'http://127.0.0.1:8000/api/v1/test_task/',
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -282,7 +282,7 @@ describe('AI TestMaster API 接口测试', () => {
       // 清理测试项目
       cy.request({
         method: 'DELETE',
-        url: `http://localhost:8001/api/v1/project/${projectId}`,
+        url: `http://127.0.0.1:8000/api/v1/project/${projectId}`,
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -294,7 +294,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('获取测试报告列表接口应该返回200', () => {
       cy.request({
         method: 'GET',
-        url: 'http://localhost:8001/api/v1/report',
+        url: 'http://127.0.0.1:8000/api/v1/report',
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -316,7 +316,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('未授权访问应该返回401', () => {
       cy.request({
         method: 'GET',
-        url: 'http://localhost:8001/api/v1/project/list',
+        url: 'http://127.0.0.1:8000/api/v1/project/list',
         headers: {
           Authorization: 'Bearer invalid_token',
         },
@@ -329,7 +329,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('无token访问应该返回401', () => {
       cy.request({
         method: 'GET',
-        url: 'http://localhost:8001/api/v1/project/list',
+        url: 'http://127.0.0.1:8000/api/v1/project/list',
         failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.eq(401)

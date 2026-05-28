@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 from loguru import logger
 
 from app.utils.unified_vision_model._types import ElementInfo
+from app.utils.ai_client_parser import fix_common_json_issues, clean_json_string, parse_ai_json_object
 
 
 class _VisionApiMixin:
@@ -155,16 +156,27 @@ class _VisionApiMixin:
 只返回JSON对象，不要其他解释文字。"""
 
     def _parse_element_recognition(self, content: str, min_confidence: float) -> List[ElementInfo]:
+        elements_data = None
         try:
             elements_data = json.loads(content)
         except json.JSONDecodeError:
             json_match = re.search(r'\[\s*\{[\s\S]*\}\s*\]', content)
             if json_match:
-                try:
-                    elements_data = json.loads(json_match.group(0))
-                except json.JSONDecodeError:
-                    logger.error("元素识别失败：无法解析JSON响应")
-                    return []
+                raw = json_match.group(0)
+                for fix_fn in (fix_common_json_issues, clean_json_string):
+                    fixed = fix_fn(raw)
+                    if fixed:
+                        try:
+                            elements_data = json.loads(fixed)
+                            break
+                        except json.JSONDecodeError:
+                            continue
+                if elements_data is None:
+                    try:
+                        elements_data = json.loads(raw)
+                    except json.JSONDecodeError:
+                        logger.error("元素识别失败：无法解析JSON响应")
+                        return []
             else:
                 logger.error("元素识别失败：响应中未找到JSON")
                 return []
@@ -196,17 +208,13 @@ class _VisionApiMixin:
         if not content:
             return (False, "无法验证操作结果")
 
-        try:
-            result = json.loads(content)
-        except json.JSONDecodeError:
+        result = parse_ai_json_object(content)
+        if result is None:
             json_match = re.search(r'\{\s*"success"[\s\S]*\}', content)
             if json_match:
-                try:
-                    result = json.loads(json_match.group(0))
-                except json.JSONDecodeError:
-                    return (False, "无法解析验证结果")
-            else:
-                return (False, "响应中未找到JSON")
+                result = parse_ai_json_object(json_match.group(0))
+        if result is None:
+            return (False, "无法解析验证结果")
 
         success = result.get('success', False)
         reason = result.get('reason', '无说明')
