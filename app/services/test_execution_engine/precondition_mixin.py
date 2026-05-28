@@ -1,23 +1,25 @@
-"""前置条件执行Mixin - 在测试执行前自动完成环境准备。
-"""
-import json
+"""Precondition execution mixin for web and mobile test runs."""
+
 import asyncio
-from typing import Optional, Dict, Any
+import json
+from typing import Any, Dict, Optional
+
 from loguru import logger
 
-from app.models.test_case import TestStep
 from app.models.element_locator import ElementLocator
 from app.models.enums import LocatorStatus
-from app.utils.db_time import utcnow
-
+from app.models.test_case import TestStep
 from app.services.test_execution_engine.models import (
-    ExecutionStatus, ActionType, ExecutionMode, StepExecutionError,
+    ActionType,
+    ExecutionMode,
+    ExecutionStatus,
+    StepExecutionError,
     StepExecutionResult,
 )
+from app.utils.db_time import utcnow
 
 
 class PreconditionMixin:
-
     async def _check_precondition_status(self) -> bool:
         if not self.precondition_service:
             return True
@@ -25,98 +27,133 @@ class PreconditionMixin:
             return False
         try:
             login_valid = await self.precondition_service.check_login_status()
-            if login_valid:
-                logger.info("登录状态检测: 有效")
-            else:
-                logger.info("登录状态检测: 无效，需要重新登录")
+            logger.info("Login state is valid" if login_valid else "Login state is invalid")
             return login_valid
         except Exception as e:
-            logger.warning(f"登录状态检测异常: {e}")
+            logger.warning(f"Login state check failed: {e}")
             return False
 
     async def _execute_precondition(
         self,
         project_id: int,
         target_env: str = "test",
-        skip_init: bool = False
+        skip_init: bool = False,
     ) -> None:
         if not self.precondition_service:
-            logger.warning("前置条件服务未初始化，跳过前置条件执行")
+            logger.warning("Precondition service is not initialized; skipping precondition")
             return
 
-        logger.info(f"执行前置条件 (环境={target_env}, 跳过初始化={skip_init})")
+        logger.info(f"Executing precondition target_env={target_env}, skip_init={skip_init}")
 
-        if not self.precondition_service.is_browser_ready:
-            from app.models.project import Project
-            project = self.db.query(Project).filter(Project.id == project_id).first()
-            if project:
-                env_config = {}
-                raw_web_cfg = getattr(project, 'web_env_configs', None)
-                resolved_web_cfg = None
-                if raw_web_cfg:
-                    if isinstance(raw_web_cfg, dict):
-                        resolved_web_cfg = raw_web_cfg
-                    elif isinstance(raw_web_cfg, str):
-                        try:
-                            parsed = json.loads(raw_web_cfg)
-                            if isinstance(parsed, dict):
-                                resolved_web_cfg = parsed
-                            elif isinstance(parsed, str):
-                                inner = json.loads(parsed)
-                                if isinstance(inner, dict):
-                                    resolved_web_cfg = inner
-                        except (json.JSONDecodeError, ValueError, TypeError):
-                            pass
+        if self.precondition_service.is_browser_ready:
+            login_valid = await self._check_precondition_status()
+            if login_valid:
+                info = getattr(self.precondition_service, "test_object_info", None)
+                browser = getattr(self.precondition_service, "browser_controller", None)
+                if info and getattr(info, "url", None) and browser:
+                    try:
+                        await browser.navigate(info.url)
+                        self.browser = browser
+                        if self.locator_service:
+                            self.locator_service.browser = browser
+                    except Exception as e:
+                        logger.warning(f"Failed to reset page before case; rebuilding precondition: {e}")
+                    else:
+                        logger.info("Reused logged-in browser session for case")
+                        return
 
-                if resolved_web_cfg:
-                    env_config = resolved_web_cfg.get(target_env, {})
-                    if not env_config:
-                        available_envs = list(resolved_web_cfg.keys())
-                        if available_envs:
-                            fallback_env = available_envs[0]
-                            env_config = resolved_web_cfg.get(fallback_env, {})
-                            logger.warning(f"目标环境 '{target_env}' 不存在，回退到 '{fallback_env}'")
-                        else:
-                            logger.warning("项目无可用环境配置，使用项目默认配置")
+            logger.info("Browser exists but login state is invalid; rebuilding web precondition")
+            await self.precondition_service.cleanup()
 
-                await self.precondition_service.read_test_object_info(
-                    project,
-                    env_config=env_config if env_config else None
-                )
+        from app.models.project import Project
 
-                browser = await self.precondition_service.execute_web_precondition(
-                    headless=False,
-                    auto_login=(not skip_init)
-                )
-                if browser and hasattr(browser, '_page'):
-                    self.browser = browser
+        project = self.db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            logger.warning(f"Project not found for precondition: {project_id}")
+            return
 
-                if self.locator_service:
-                    self.locator_service.browser = browser
+        env_config = self._resolve_web_env_config(project, target_env)
 
-        logger.info("前置条件执行完成")
+        await self.precondition_service.read_test_object_info(
+            project,
+            env_config=env_config if env_config else None,
+        )
+
+        browser = await self.precondition_service.execute_web_precondition(
+            headless=False,
+            auto_login=(not skip_init),
+        )
+        if browser and hasattr(browser, "_page"):
+            self.browser = browser
+
+        if self.locator_service:
+            self.locator_service.browser = browser
+
+        logger.info("Precondition execution completed")
+
+    def _resolve_web_env_config(self, project, target_env: str) -> Dict[str, Any]:
+        raw_web_cfg = getattr(project, "web_env_configs", None)
+        resolved_web_cfg = None
+
+        if raw_web_cfg:
+            if isinstance(raw_web_cfg, dict):
+                resolved_web_cfg = raw_web_cfg
+            elif isinstance(raw_web_cfg, str):
+                try:
+                    parsed = json.loads(raw_web_cfg)
+                    if isinstance(parsed, dict):
+                        resolved_web_cfg = parsed
+                    elif isinstance(parsed, str):
+                        inner = json.loads(parsed)
+                        if isinstance(inner, dict):
+                            resolved_web_cfg = inner
+                except (json.JSONDecodeError, ValueError, TypeError):
+                    pass
+
+        if not resolved_web_cfg:
+            return {}
+
+        env_config = resolved_web_cfg.get(target_env, {})
+        if env_config:
+            return env_config
+
+        available_envs = list(resolved_web_cfg.keys())
+        if available_envs:
+            fallback_env = available_envs[0]
+            logger.warning(f"Target env '{target_env}' not found; fallback to '{fallback_env}'")
+            return resolved_web_cfg.get(fallback_env, {})
+
+        logger.warning("No usable web env config found; falling back to project default config")
+        return {}
 
     async def _execute_precondition_step(self, step) -> StepExecutionResult:
-        logger.info(f"执行前置条件步骤 {step.step_number}: {step.action[:50]}...")
+        logger.info(f"Executing precondition step {step.step_number}: {step.action[:50]}...")
 
         start_time = utcnow()
         result = StepExecutionResult(
             step_number=step.step_number,
             action=step.action,
             status=ExecutionStatus.RUNNING,
-            start_time=start_time
+            start_time=start_time,
         )
 
         try:
-            if hasattr(step, 'action_type') and step.action_type:
+            if hasattr(step, "action_type") and step.action_type:
                 action_type_str = step.action_type.lower()
                 action_type_map = {
-                    "click": ActionType.CLICK, "input": ActionType.INPUT,
-                    "navigate": ActionType.NAVIGATE, "verify": ActionType.VERIFY,
-                    "wait": ActionType.WAIT, "scroll": ActionType.SCROLL,
-                    "hover": ActionType.HOVER, "select": ActionType.SELECT,
-                    "captcha": ActionType.CAPTCHA, "refresh": ActionType.REFRESH,
+                    "click": ActionType.CLICK,
+                    "input": ActionType.INPUT,
+                    "navigate": ActionType.NAVIGATE,
+                    "verify": ActionType.VERIFY,
+                    "wait": ActionType.WAIT,
+                    "scroll": ActionType.SCROLL,
+                    "hover": ActionType.HOVER,
+                    "select": ActionType.SELECT,
+                    "captcha": ActionType.CAPTCHA,
+                    "verify_captcha": ActionType.VERIFY_CAPTCHA,
+                    "refresh": ActionType.REFRESH,
                     "keypress": ActionType.KEYPRESS,
+                    "keyboard": ActionType.KEYBOARD,
                 }
                 action_type = action_type_map.get(action_type_str, ActionType.CLICK)
                 action_info = {"type": action_type, "text": step.action}
@@ -124,7 +161,7 @@ class PreconditionMixin:
                 action_info = self._parse_step_action(step.action)
                 action_type = action_info.get("type", ActionType.CLICK)
 
-            if action_type == ActionType.INPUT and hasattr(step, 'input_value') and step.input_value:
+            if action_type == ActionType.INPUT and hasattr(step, "input_value") and step.input_value:
                 action_info["input_value"] = step.input_value
 
             locator_record = None
@@ -142,23 +179,25 @@ class PreconditionMixin:
                     element_info = await self.smart_locate_with_ai_fallback(step.action)
                     if element_info:
                         temp_locator = ElementLocator(
-                            css_selector=element_info.get('css_selector'),
-                            ai_coordinate=element_info
+                            css_selector=element_info.get("css_selector"),
+                            ai_coordinate=element_info,
                         )
                         await self._execute_action_directly(action_type, action_info, temp_locator)
                     else:
-                        raise StepExecutionError(f"前置条件步骤 {step.step_number}: 无法定位元素 - {step.action}")
+                        raise StepExecutionError(
+                            f"Precondition step {step.step_number}: unable to locate element - {step.action}"
+                        )
             elif action_type == ActionType.VERIFY:
                 await self._execute_verify(action_info, step.id)
             elif action_type == ActionType.WAIT:
                 await self._execute_wait(action_info)
             elif action_type == ActionType.SCROLL:
                 await self._execute_scroll(action_info)
-            elif action_type == ActionType.CAPTCHA:
+            elif action_type in (ActionType.CAPTCHA, ActionType.VERIFY_CAPTCHA):
                 await self._execute_captcha(action_info, step.id)
             elif action_type == ActionType.REFRESH:
                 await self._execute_refresh(action_info)
-            elif action_type == ActionType.KEYPRESS:
+            elif action_type in (ActionType.KEYPRESS, ActionType.KEYBOARD):
                 await self._execute_keypress(action_info)
             else:
                 await self._execute_click(action_info, step.id)
@@ -174,9 +213,9 @@ class PreconditionMixin:
             result.status = ExecutionStatus.PASSED
             result.end_time = end_time
             result.duration_ms = duration
-            result.ai_analysis = f"前置条件步骤执行动作: {step.action}"
+            result.ai_analysis = f"Precondition step action: {step.action}"
 
-            logger.info(f"前置条件步骤 {step.step_number} 执行成功")
+            logger.info(f"Precondition step {step.step_number} passed")
 
         except Exception as e:
             end_time = utcnow()
@@ -190,10 +229,12 @@ class PreconditionMixin:
             if self.browser:
                 try:
                     result.screenshot = await self.browser.take_screenshot()
-                except Exception as e:
-                    logger.debug(f"前置条件步骤失败截图捕获异常(不影响结果): {e}")
+                except Exception as screenshot_error:
+                    logger.debug(
+                        f"Failed to capture failed precondition step screenshot: {screenshot_error}"
+                    )
 
-            logger.error(f"前置条件步骤 {step.step_number} 执行失败: {str(e)}")
+            logger.error(f"Precondition step {step.step_number} failed: {e}")
 
         return result
 
@@ -203,7 +244,9 @@ class PreconditionMixin:
         try:
             confidence = element_info.get("confidence", 0)
             if confidence < 0.8:
-                logger.info(f"步骤 {step.step_number}: 实时识别置信度 {confidence} < 0.8，跳过缓存")
+                logger.info(
+                    f"Step {step.step_number}: realtime locator confidence {confidence} < 0.8; skip cache"
+                )
                 return None
             element_attrs = await self.locator_service._get_element_attributes(element_info)
             if not element_attrs:
@@ -223,7 +266,7 @@ class PreconditionMixin:
                 element_text=element_attrs.get("text"),
                 ai_coordinate=coordinate,
                 ai_confidence=confidence,
-                source="ai_realtime"
+                source="ai_realtime",
             )
             self.db.add(locator)
             self.db.commit()
@@ -233,10 +276,10 @@ class PreconditionMixin:
                 step_record.has_locator = 1
                 step_record.locator_status = LocatorStatus.RECORDED.value
                 self.db.commit()
-            logger.info(f"步骤 {step.step_number}: 实时定位信息已缓存，ID={locator.id}")
+            logger.info(f"Step {step.step_number}: realtime locator cached, id={locator.id}")
             return locator
         except Exception as e:
-            logger.warning(f"保存实时定位信息失败: {e}")
+            logger.warning(f"Failed to save realtime locator: {e}")
             return None
 
     async def _get_current_page_title(self) -> Optional[str]:
@@ -245,32 +288,35 @@ class PreconditionMixin:
                 title = await self.browser.execute_javascript("document.title")
                 return title if isinstance(title, str) else None
         except Exception as e:
-            logger.debug(f"获取页面标题失败: {e}")
+            logger.debug(f"Failed to get current page title: {e}")
         return None
 
     async def _execute_mobile_step(self, step: TestStep, action_with_data: str, execution_mode: str, result: StepExecutionResult) -> None:
         mobile_executor = self._get_mobile_executor()
         if not mobile_executor:
-            raise StepExecutionError("移动端执行器未初始化，请检查ADB连接")
+            raise StepExecutionError("Mobile executor is not initialized; check ADB connection")
         use_cache = execution_mode == ExecutionMode.MOBILE_SMART.value
         action_result = await mobile_executor.execute_action(
-            description=action_with_data, step_id=step.id, use_cache=use_cache,
+            description=action_with_data,
+            step_id=step.id,
+            use_cache=use_cache,
         )
         if action_result.coordinates:
             result.element_locator = action_result.coordinates
-        result.ai_analysis = f"移动端AI执行: {action_with_data}"
+        result.ai_analysis = f"Mobile AI execution: {action_with_data}"
         if action_result.used_cache:
-            result.ai_analysis += " (缓存命中)"
+            result.ai_analysis += " (cache hit)"
         if not action_result.success:
-            raise StepExecutionError(action_result.error_message or "移动端执行失败")
+            raise StepExecutionError(action_result.error_message or "Mobile execution failed")
 
     def _get_mobile_executor(self) -> Any:
         if self._mobile_executor is None:
             try:
                 from app.services.mobile_ai_executor import MobileAIExecutor
                 from app.utils.adb_controller import AdbController
+
                 adb = AdbController(udid=self._mobile_device_id)
                 self._mobile_executor = MobileAIExecutor(db=self.db, adb=adb)
             except Exception as e:
-                logger.warning(f"初始化MobileAIExecutor失败: {e}")
+                logger.warning(f"Failed to initialize MobileAIExecutor: {e}")
         return self._mobile_executor

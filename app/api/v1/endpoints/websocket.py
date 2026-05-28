@@ -14,12 +14,14 @@ WebSocket端点模块
 
 端点概览:
     - WS /execution/{execution_id} - 测试执行实时进度推送
+    - WS /pipeline/{run_id} - Pipeline运行进度实时推送
     - WS /logs - 实时日志推送
 
 权限要求: WebSocket连接需通过查询参数传递token进行认证
 
 业务说明:
     - 执行进度推送包含步骤状态变更、截图更新等事件
+    - Pipeline进度推送包含Step状态变更和整体进度
     - 连接断开后自动重连
     - 心跳检测间隔30秒
 """
@@ -131,6 +133,87 @@ async def execution_websocket(
         logger.debug("WebSocket连接异常", exc_info=True)
     finally:
         manager.disconnect(websocket, execution_id)
+
+
+@router.websocket("/ws/pipeline/{run_id}")
+async def pipeline_progress_websocket(
+    websocket: WebSocket,
+    run_id: int,
+    token: str = Query(..., description="JWT Token用于身份验证"),
+):
+    """WebSocket连接端点 - 用于实时接收Pipeline运行进度。
+
+    连接URL: ws://host/api/v1/ws/pipeline/{run_id}?token=xxx
+
+    消息格式:
+    - 进度消息: {"type": "pipeline_progress", "run_id": 1,
+        "step_name": "signal_gatherer", "status": "done",
+        "progress": 20.0, "pipeline_status": "running"}
+    - 连接成功: {"type": "connected", "run_id": 1,
+        "message": "Pipeline进度WebSocket连接成功"}
+
+    Args:
+        websocket: WebSocket对象
+        run_id: Pipeline运行ID
+        token: JWT Token
+    """
+    try:
+        payload = decode_token(token)
+        if not payload:
+            await websocket.close(code=1008, reason="Invalid token")
+            return
+    except Exception:
+        await websocket.close(code=1008, reason="Token validation failed")
+        return
+
+    channel_id = f"pipeline:{run_id}"
+
+    connected = await manager.connect(websocket, channel_id)
+    if not connected:
+        return
+
+    try:
+        success = await manager.send_message(websocket, {
+            "type": "connected",
+            "run_id": run_id,
+            "message": "Pipeline进度WebSocket连接成功",
+        })
+        if not success:
+            manager.disconnect(websocket, channel_id)
+            return
+
+        while True:
+            try:
+                data = await asyncio.wait_for(
+                    websocket.receive_text(), timeout=30.0,
+                )
+                try:
+                    message = json.loads(data)
+                except json.JSONDecodeError:
+                    await manager.send_message(websocket, {
+                        "type": "error",
+                        "message": "Invalid JSON format",
+                    })
+                    continue
+
+                if message.get("type") == "ping":
+                    success = await manager.send_message(websocket, {"type": "pong"})
+                    if not success:
+                        break
+                elif message.get("type") == "close":
+                    break
+
+            except asyncio.TimeoutError:
+                success = await manager.send_message(websocket, {"type": "ping"})
+                if not success:
+                    break
+
+    except WebSocketDisconnect:
+        logger.debug("Pipeline进度WebSocket连接断开")
+    except Exception:
+        logger.debug("Pipeline进度WebSocket连接异常", exc_info=True)
+    finally:
+        manager.disconnect(websocket, channel_id)
 
 
 @router.get("/ws/stats")

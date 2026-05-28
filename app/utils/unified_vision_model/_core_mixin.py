@@ -25,6 +25,7 @@ class _VisionCoreMixin:
         retry_delay: int = 2,
         timeout: int = 300,
         temperature: float = 0.3,
+        max_tokens: int = 4096,
     ):
         self.model_type = model_type
         self.provider_config = MODEL_PROVIDER_CONFIGS[model_type]
@@ -45,6 +46,7 @@ class _VisionCoreMixin:
         self.retry_delay = retry_delay
         self.timeout = timeout
         self.temperature = temperature
+        self.max_tokens = max_tokens
 
         if not self.api_key:
             logger.warning(f"{model_type.value} API Key 未配置，视觉识别功能将不可用")
@@ -93,7 +95,7 @@ class _VisionCoreMixin:
                 {"role": "user", "content": content}
             ],
             "temperature": temperature or self.temperature,
-            "max_tokens": 2000
+            "max_tokens": self.max_tokens
         }
 
     def _build_baidu_payload(
@@ -116,7 +118,7 @@ class _VisionCoreMixin:
         return {
             "messages": messages,
             "temperature": temperature or self.temperature,
-            "max_output_tokens": 2000
+            "max_output_tokens": self.max_tokens
         }
 
     def _parse_response(self, response: Dict[str, Any]) -> Optional[str]:

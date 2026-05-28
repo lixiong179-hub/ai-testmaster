@@ -55,7 +55,7 @@ class Settings(BaseSettings):
 
     JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     ENCRYPTION_KEY: str = ""
@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     AI_TEMPERATURE: float = 0.3
     AI_MAX_TOKENS: int = 2048
     AI_MAX_RETRIES: int = 3
+    AI_CASE_GENERATION_CONCURRENCY: int = 3
+    AI_CASE_GENERATION_MAX_TOKENS: int = 4096
+    AI_CASE_GENERATION_MAX_TOKENS_FULL: int = 8192
+    UI_PARSE_CONCURRENCY: int = 3
     PIPELINE_PAUSE_TIMEOUT_DAYS: int = 7
 
     LIFECYCLE_DEPRECATE_COOLDOWN_HOURS: int = 24
@@ -118,6 +122,7 @@ class Settings(BaseSettings):
         return v
 
     VISION_MODEL_DEFAULT: str = "mimo"
+    VISION_MAX_TOKENS: int = 4096
     UI_PARSER_MODE: str = "text"
 
     KIMI_API_KEY: str = ""

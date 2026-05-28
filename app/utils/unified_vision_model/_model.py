@@ -17,6 +17,7 @@ class UnifiedVisionModel(_VisionCoreMixin, _VisionApiMixin):
         retry_delay: int = 2,
         timeout: int = 300,
         temperature: float = 0.3,
+        max_tokens: int = 4096,
     ):
         self._init_core(
             model_type=model_type,
@@ -27,6 +28,7 @@ class UnifiedVisionModel(_VisionCoreMixin, _VisionApiMixin):
             retry_delay=retry_delay,
             timeout=timeout,
             temperature=temperature,
+            max_tokens=max_tokens,
         )
 
 
@@ -50,4 +52,5 @@ def get_default_vision_model() -> UnifiedVisionModel:
     from app.core.config import settings
 
     default_model = getattr(settings, 'VISION_MODEL_DEFAULT', 'mimo')
-    return create_vision_model(default_model)
+    max_tokens = getattr(settings, 'VISION_MAX_TOKENS', 4096)
+    return create_vision_model(default_model, max_tokens=max_tokens)

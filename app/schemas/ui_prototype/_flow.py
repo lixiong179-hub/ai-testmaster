@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 
 class FlowDataSaveRequest(BaseModel):
-    project_id: int
+    project_id: Optional[int] = None
     flow_data: Dict
     screen_positions: Optional[Dict] = None
 

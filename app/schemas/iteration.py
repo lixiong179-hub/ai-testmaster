@@ -67,6 +67,7 @@ class IterationCreate(BaseModel):
     base_iteration_id: Optional[int] = Field(None, description="基线迭代ID，必须属于同project且status=finalized")
     start_date: Optional[date] = Field(None, description="开始日期")
     end_date: Optional[date] = Field(None, description="结束日期")
+    target_device: Optional[str] = Field(None, max_length=20, description="迭代目标设备：tablet/phone/desktop/web")
 
 
 class IterationUpdate(BaseModel):
@@ -80,6 +81,7 @@ class IterationUpdate(BaseModel):
     description: Optional[str] = Field(None, description="迭代描述")
     start_date: Optional[date] = Field(None, description="开始日期")
     end_date: Optional[date] = Field(None, description="结束日期")
+    target_device: Optional[str] = Field(None, max_length=20, description="迭代目标设备")
 
 
 class IterationInputCreate(BaseModel):
@@ -123,6 +125,7 @@ class IterationResponse(BaseModel):
     start_date: Optional[date]
     end_date: Optional[date]
     base_iteration_id: Optional[int]
+    target_device: Optional[str] = None
     created_by: Optional[int]
     finalized_at: Optional[datetime]
     create_time: datetime

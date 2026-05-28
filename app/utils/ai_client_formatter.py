@@ -91,7 +91,7 @@ def normalize_old_format(case: Dict[str, Any]) -> Dict[str, Any]:
     from app.core.constants import normalize_priority
     raw_priority = case.get('priority', 2)
     priority_val = normalize_priority(raw_priority)
-    priority_map = {1: 'P0/P1', 2: 'P2', 3: 'P3'}
+    priority_map = {1: 'P0', 2: 'P2', 3: 'P3'}
     priority_str = priority_map.get(priority_val, 'P2')
     raw_steps = case.get('steps', [])
     normalized_steps = []

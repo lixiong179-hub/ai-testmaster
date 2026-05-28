@@ -10,12 +10,14 @@
 6. 与测试用例关联
 """
 import os
+import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 import base64
 
 from sqlalchemy.orm import Session
 
 from app.crud import ui_prototype as ui_prototype_crud
+from app.db.database import get_db_context
 from app.services.ui_spec_parser import UISpecParser
 from app.services.ui_spec_parser.pipeline_upload_mixin import PipelineUploadMixin
 from app.core.config import settings
@@ -134,19 +136,49 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
         success_count = 0
         failed_count = 0
         results = []
+        concurrency = max(1, int(getattr(settings, "UI_PARSE_CONCURRENCY", 3)))
+        semaphore = asyncio.Semaphore(concurrency)
 
-        for i, screen_id in enumerate(screen_ids):
+        async def _parse_one(index: int, screen_id: int) -> Dict[str, Any]:
+            async with semaphore:
+                with get_db_context() as task_db:
+                    task_pipeline = UISpecParsePipelineMixin(
+                        task_db,
+                        self.project_id,
+                        self.user_id,
+                        self.upload_dir,
+                        self.parse_mode,
+                    )
+                    success, msg = await task_pipeline.parse_screen(screen_id)
+                    return {
+                        "index": index,
+                        "screen_id": screen_id,
+                        "success": success,
+                        "message": msg,
+                    }
+
+        logger.info(
+            f"批量解析UI屏幕启动: total={len(screen_ids)}, concurrency={concurrency}, parse_mode={self.parse_mode}"
+        )
+        tasks = [
+            asyncio.create_task(_parse_one(i, screen_id))
+            for i, screen_id in enumerate(screen_ids)
+        ]
+
+        for completed, task in enumerate(asyncio.as_completed(tasks), 1):
             if progress_callback:
-                progress = int((i / len(screen_ids)) * 100)
-                progress_callback(progress, f"正在解析第{i+1}/{len(screen_ids)}张...")
+                progress = int(((completed - 1) / len(screen_ids)) * 100)
+                progress_callback(progress, f"正在解析第{completed}/{len(screen_ids)}张...")
 
-            success, msg = await self.parse_screen(screen_id)
+            item = await task
+            success = item["success"]
+            msg = item["message"]
             if success:
                 success_count += 1
             else:
                 failed_count += 1
 
-            results.append({'screen_id': screen_id, 'success': success, 'message': msg})
+            results.append({'screen_id': item["screen_id"], 'success': success, 'message': msg})
 
         if progress_callback:
             progress_callback(100, "解析完成")
@@ -225,7 +257,7 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
                     'elements': screen.ui_spec.get('elements', []) if screen.ui_spec else []
                 })
 
-        merged_flow = self.parser.parse_multiple_screen_flows(screens_data)
+        merged_flow = await self.parser.parse_multiple_screen_flows(screens_data)
 
         if merged_flow:
             ui_prototype_crud.update_prototype_project_merged_flow(

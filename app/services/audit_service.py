@@ -22,6 +22,9 @@ from app.models.audit_log import AuditLog
 
 VALID_ACTIONS = {
     "lifecycle_transition",
+    "capability_archive",
+    "capability_deprecate",
+    "capability_status_change",
     "review_decide",
     "review_rollback",
     "review_undo",
@@ -31,6 +34,7 @@ VALID_ACTIONS = {
     "pipeline_pause",
     "pipeline_resume",
     "pipeline_cancel",
+    "pipeline_cancel_timeout",
     "permission_change",
     "config_change",
     "case_version_create",

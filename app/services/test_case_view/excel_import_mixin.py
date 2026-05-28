@@ -15,7 +15,7 @@ from app.services.test_case_view.models import BusinessStepView
 class ExcelImportMixin:
     """Excel导入：标准双Sheet格式、第三方功能用例格式。"""
 
-    def import_from_excel(self, file_path: str, project_id: int, user_id: int = 1) -> Optional[int]:
+    def import_from_excel(self, file_path: str, project_id: int, user_id: int = 1, target_device: Optional[str] = None, iteration_id: Optional[int] = None) -> Optional[int]:
         try:
             import pandas as pd
 
@@ -44,6 +44,7 @@ class ExcelImportMixin:
                 expected_result=str(case_info.get('预期结果', '')),
                 priority=int(case_info.get('优先级', 2)),
                 case_type="ui_automation",
+                target_device=target_device,
                 generate_status=1,
                 steps_json=[]
             )
@@ -89,7 +90,7 @@ class ExcelImportMixin:
             logger.error(f"从Excel导入失败: {e}")
             return None
 
-    def import_functional_excel(self, file_path: str, project_id: int, module: str = "默认模块") -> List[int]:
+    def import_functional_excel(self, file_path: str, project_id: int, module: str = "默认模块", target_device: Optional[str] = None, iteration_id: Optional[int] = None) -> List[int]:
         try:
             import pandas as pd
 
@@ -161,6 +162,7 @@ class ExcelImportMixin:
                     expected_result=expected.replace('\\n', '\n'),
                     priority=priority,
                     case_type="ui_automation" if case_type in ('UI自动化', '功能测试', 'UI', '功能') else "api_automation",
+                    target_device=target_device,
                     generate_status=1,
                     steps_json=[s.to_dict() for s in steps]
                 )

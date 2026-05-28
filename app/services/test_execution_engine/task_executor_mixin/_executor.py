@@ -33,6 +33,15 @@ class _ExecutorMixin(_HelpersMixin):
 
         logger.info(f"开始执行测试用例: {test_case.case_no} - {test_case.title}")
 
+        if not skip_precondition and execution_mode not in ("mobile_realtime", "mobile_smart"):
+            try:
+                await self._execute_precondition(project_id=project_id)
+            except Exception as e:
+                result.status = ExecutionStatus.FAILED
+                result.error_message = f"Precondition failed: {e}"
+                result.failure_category = FailureCategory.PRECONDITION_FAILURE
+                return result
+
         steps_json = test_case.steps_json
         if isinstance(steps_json, str):
             import json
@@ -131,6 +140,27 @@ class _ExecutorMixin(_HelpersMixin):
         target_element = step_data.get("target_element", "")
 
         try:
+            if action_type.value == "navigate":
+                await self._execute_navigate({"type": action_type, "text": action})
+                step_result.status = ExecutionStatus.PASSED
+                return step_result
+            if action_type.value == "wait":
+                await self._execute_wait({"type": action_type, "text": action})
+                step_result.status = ExecutionStatus.PASSED
+                return step_result
+            if action_type.value == "scroll":
+                await self._execute_scroll({"type": action_type, "text": action})
+                step_result.status = ExecutionStatus.PASSED
+                return step_result
+            if action_type.value == "verify":
+                await self._execute_verify({"type": action_type, "text": action, "expected_result": expected_result})
+                step_result.status = ExecutionStatus.PASSED
+                return step_result
+            if action_type.value == "refresh":
+                await self._execute_refresh({"type": action_type, "text": action})
+                step_result.status = ExecutionStatus.PASSED
+                return step_result
+
             if self.locator_service:
                 element_info = await self.locator_service.locate_element(
                     description=action,

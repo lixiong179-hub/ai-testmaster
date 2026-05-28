@@ -28,7 +28,8 @@ class VerificationError(ExecutionError):
 @dataclass
 class StepExecutionResult:
     step_number: int
-    action_type: ActionType
+    action_type: ActionType = ActionType.CLICK
+    action: str = ""
     status: ExecutionStatus = ExecutionStatus.PENDING
     description: str = ""
     start_time: Optional[datetime] = None
@@ -41,6 +42,11 @@ class StepExecutionResult:
     original_selector: Optional[str] = None
     healed_selector: Optional[str] = None
     failure_category: Optional[FailureCategory] = None
+    retry_count: int = 0
+    execution_detail: Optional[str] = None
+    screenshot: Optional[Any] = None
+    ai_analysis: Optional[str] = None
+    element_locator: Optional[str] = None
 
     def to_dict(self, hidden_fields: Optional[list] = None) -> Dict[str, Any]:
         result = {
@@ -55,6 +61,7 @@ class StepExecutionResult:
             "original_selector": self.original_selector,
             "healed_selector": self.healed_selector,
             "failure_category": self.failure_category.value if self.failure_category else None,
+            "retry_count": self.retry_count,
         }
         if hidden_fields:
             for f in hidden_fields:
@@ -64,6 +71,8 @@ class StepExecutionResult:
 
 @dataclass
 class TestExecutionResult:
+    __test__ = False
+
     case_id: int
     status: ExecutionStatus = ExecutionStatus.PENDING
     start_time: Optional[datetime] = None

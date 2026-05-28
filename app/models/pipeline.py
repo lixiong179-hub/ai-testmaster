@@ -64,9 +64,14 @@ class PipelineRun(Base):
         comment="状态: pending/running/waiting_for_user/completed/failed/cancelled",
     )
     started_at = Column(DateTime, nullable=True, comment="开始执行时间")
+    paused_at = Column(DateTime, nullable=True, comment="暂停等待用户确认的时间")
     finished_at = Column(DateTime, nullable=True, comment="执行完成时间")
     error = Column(Text, nullable=True, comment="错误信息")
     pause_payload = Column(JSON, nullable=True, comment="暂停信息：{reason, step_name, schema, paused_at}")
+    triggered_by = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True, comment="触发运行的用户ID",
+    )
 
     iteration = relationship("Iteration", back_populates="pipeline_runs")
     steps = relationship(

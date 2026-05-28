@@ -98,14 +98,26 @@ class ActionMixin:
             raise ValueError("JavaScript代码不能为空")
         assert self._page is not None
         if args:
-            return await self._page.evaluate(script, *args)
+            if "arguments[" in script:
+                payload = {
+                    "source": script.replace("arguments[", "__args["),
+                    "args": list(args),
+                }
+                return await self._page.evaluate("""
+                    ({ source, args }) => {
+                        const __args = args;
+                        return eval(source);
+                    }
+                """, payload)
+            payload: Any = args[0] if len(args) == 1 else list(args)
+            return await self._page.evaluate(script, payload)
         return await self._page.evaluate(script)
 
     @require_initialized
     @handle_browser_errors
     async def scroll_to(self, x: int, y: int) -> None:
         assert self._page is not None
-        await self._page.evaluate("window.scrollTo(arguments[0], arguments[1])", x, y)
+        await self._page.evaluate("([scrollX, scrollY]) => window.scrollTo(scrollX, scrollY)", [x, y])
 
     @require_initialized
     @handle_browser_errors
@@ -150,8 +162,8 @@ class ActionMixin:
         try:
             assert self._page is not None
             await self._page.evaluate("""
-                (() => {
-                    const element = document.querySelector(arguments[0]);
+                ([selector, duration]) => {
+                    const element = document.querySelector(selector);
                     if (element) {
                         const originalOutline = element.style.outline;
                         const originalBackground = element.style.backgroundColor;
@@ -160,10 +172,10 @@ class ActionMixin:
                         setTimeout(() => {
                             element.style.outline = originalOutline;
                             element.style.backgroundColor = originalBackground;
-                        }, arguments[1]);
+                        }, duration);
                     }
-                })()
-            """, selector, duration)
+                }
+            """, [selector, duration])
             logger.info(f"高亮元素: {selector}")
         except Exception as e:
             logger.warning(f"高亮元素失败: {e}")
@@ -173,11 +185,11 @@ class ActionMixin:
     async def find_elements_by_text(self, text: str, tag: str = "*") -> List[Dict[str, Any]]:
         assert self._page is not None
         return await self._page.evaluate("""
-            () => {
-                const elements = document.querySelectorAll(arguments[0]);
+            ([tag, text]) => {
+                const elements = document.querySelectorAll(tag);
                 const results = [];
                 elements.forEach((el, index) => {
-                    if (el.textContent && el.textContent.includes(arguments[1])) {
+                    if (el.textContent && el.textContent.includes(text)) {
                         const rect = el.getBoundingClientRect();
                         results.push({
                             index: index, tag: el.tagName.toLowerCase(),
@@ -188,7 +200,7 @@ class ActionMixin:
                 });
                 return results;
             }
-        """, tag, text)
+        """, [tag, text])
 
     @require_initialized
     @handle_browser_errors

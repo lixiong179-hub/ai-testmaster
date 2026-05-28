@@ -20,6 +20,7 @@
     - 删除为物理删除，会永久移除项目数据
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.project import (
@@ -37,7 +38,12 @@ import json
 router = APIRouter()
 
 
+class SelfTestScheduleRequest(BaseModel):
+    schedule: str | None = None
+
+
 @router.post("/", response_model=dict)
+@router.post("/create", response_model=dict)
 async def create_project(
     project: ProjectCreate,
     db: Session = Depends(get_db),
@@ -234,6 +240,21 @@ async def get_project(
         raise HTTPException(status_code=500, detail="获取项目详情失败")
 
 
+def _delete_project_core_assets(db: Session, project_id: int) -> None:
+    """删除项目核心资产，避免数据库未启用级联时项目物理删除失败。"""
+    from app.models.test_case import TestCase
+    from app.models.test_result import TestResult
+    from app.models.test_task import TestTask
+
+    db.query(TestResult).filter(TestResult.project_id == project_id).delete(synchronize_session=False)
+
+    for task in db.query(TestTask).filter(TestTask.project_id == project_id).all():
+        db.delete(task)
+
+    for test_case in db.query(TestCase).filter(TestCase.project_id == project_id).all():
+        db.delete(test_case)
+
+
 @router.delete("/{project_id}", response_model=dict)
 async def delete_project(
     project_id: int,
@@ -260,6 +281,9 @@ async def delete_project(
         ).first()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
+        if getattr(project, "is_self_test", False):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="自测项目不可删除")
+        _delete_project_core_assets(db, project_id)
         db.delete(project)
         db.commit()
         return create_response(data={}, msg="删除成功")
@@ -269,3 +293,35 @@ async def delete_project(
         db.rollback()
         logger.error(f"删除项目失败: {e}")
         raise HTTPException(status_code=500, detail="删除项目失败")
+
+
+@router.put("/{project_id}/self-test-schedule", response_model=dict)
+async def update_self_test_schedule(
+    project_id: int,
+    body: SelfTestScheduleRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.user_id == current_user.id,
+    ).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
+    if not project.is_self_test:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="仅自测项目可配置定时计划")
+
+    if body.schedule:
+        from app.tasks.self_test_scheduler import validate_cron_expression
+
+        if not validate_cron_expression(body.schedule):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效的cron表达式")
+
+    project.self_test_schedule = body.schedule
+    db.commit()
+    db.refresh(project)
+
+    return create_response(
+        data={"project_id": project.id, "self_test_schedule": project.self_test_schedule},
+        msg="更新成功",
+    )

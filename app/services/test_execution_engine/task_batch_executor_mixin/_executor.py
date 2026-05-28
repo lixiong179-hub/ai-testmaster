@@ -55,7 +55,18 @@ class _ExecutorMixin:
         task.start_time = utcnow()
         self.db.commit()
 
+        owns_precondition_service = False
+
         try:
+            if (
+                not self.precondition_service
+                and execution_mode not in ("mobile_realtime", "mobile_smart")
+            ):
+                from app.services.precondition_service import PreconditionService
+                self.precondition_service = PreconditionService()
+                await self.precondition_service.initialize()
+                owns_precondition_service = True
+
             if self.precondition_service:
                 env_config = {}
                 raw_web_cfg = getattr(project, 'web_env_configs', None)
@@ -125,8 +136,8 @@ class _ExecutorMixin:
                 cases = self.db.query(TestCase).filter(TestCase.id.in_(case_ids), TestCase.is_deleted.is_(False)).all()
                 case_map = {c.id: c for c in cases}
 
-            sorted_cases = self._resolve_execution_order(list(case_map.values()))
             self._init_dependency_state()
+            sorted_cases = self._resolve_execution_order(list(case_map.values()))
             self._init_api_setup_state()
             self._pending_cases = sorted_cases
             self._anchor_step_index = self._build_anchor_step_index(sorted_cases)
@@ -214,7 +225,7 @@ class _ExecutorMixin:
             raise ExecutionError("任务执行失败") from e
 
         finally:
-            if self.precondition_service:
+            if self.precondition_service and owns_precondition_service:
                 await self.precondition_service.cleanup()
 
         return self._get_task_summary(task_id)

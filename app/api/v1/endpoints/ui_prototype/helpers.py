@@ -12,10 +12,11 @@ UI原型辅助工具模块
     - UPLOAD_DIR: 原型文件上传目录路径，从配置中读取
 """
 import os
+from typing import Any
+
 import cv2
 import numpy as np
 from app.core.config import settings
-from app.schemas.ui_prototype import UIScreenResponse
 
 UPLOAD_DIR = settings.UI_PROTOTYPE_UPLOAD_DIR
 
@@ -67,7 +68,15 @@ def _validate_image_file(filepath: str) -> tuple[bool, str]:
         return False, f"图片验证异常: {str(e)}"
 
 
-def _build_screen_response(screen) -> UIScreenResponse:
+def _isoformat_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _build_screen_response(screen) -> dict[str, Any]:
     """
     构建页面响应数据
 
@@ -77,7 +86,7 @@ def _build_screen_response(screen) -> UIScreenResponse:
         screen: 页面ORM对象
 
     Returns:
-        UIScreenResponse: 页面响应Schema对象
+        dict: 页面响应数据，字段与当前 UIPrototypeScreen 模型和前端 UIScreen 类型对齐。
     """
     # 解析状态中文映射
     parse_status_map = {
@@ -86,30 +95,32 @@ def _build_screen_response(screen) -> UIScreenResponse:
         "completed": "已完成",
         "failed": "解析失败",
     }
-    return UIScreenResponse(
-        id=screen.id,
-        project_id=screen.project_id,
-        prototype_project_id=screen.prototype_project_id,
-        prototype_name=screen.prototype_name,
-        screen_name=screen.screen_name,
-        screen_order=screen.screen_order,
-        original_file_path=screen.original_file_path,
-        original_file_name=screen.original_file_name,
-        file_type=screen.file_type,
-        file_size=screen.file_size,
-        parse_status=screen.parse_status,
-        parse_status_text=parse_status_map.get(
-            screen.parse_status, screen.parse_status
-        ),
-        parse_model=screen.parse_model,
-        parse_error=screen.parse_error,
-        summary=screen.summary,
-        element_count=screen.element_count,
-        button_count=screen.button_count,
-        input_count=screen.input_count,
-        is_entry_point=screen.is_entry_point,
-        is_end_point=screen.is_end_point,
-        review_status=screen.review_status,
-        create_time=screen.create_time,
-        update_time=screen.update_time,
-    )
+    parse_status = screen.parse_status or "pending"
+    return {
+        "id": screen.id,
+        "project_id": screen.project_id,
+        "prototype_project_id": screen.prototype_project_id,
+        "prototype_name": screen.prototype_name,
+        "screen_name": screen.screen_name,
+        "screen_order": screen.screen_order or 0,
+        "original_file_path": screen.original_file_path,
+        "original_file_name": screen.original_file_name,
+        "file_type": screen.file_type,
+        "file_size": screen.file_size,
+        "parse_status": parse_status,
+        "parse_status_text": parse_status_map.get(parse_status, parse_status),
+        "parse_model": screen.parse_model,
+        "parse_error": screen.parse_error,
+        "summary": screen.summary,
+        "element_count": screen.element_count or 0,
+        "button_count": screen.button_count or 0,
+        "input_count": screen.input_count or 0,
+        "is_entry_point": bool(screen.is_entry_point),
+        "is_end_point": bool(screen.is_end_point),
+        "review_status": screen.review_status or "pending",
+        "ui_spec": screen.ui_spec,
+        "layout_checks": screen.layout_checks or [],
+        "navigation_flow": screen.navigation_flow,
+        "create_time": _isoformat_or_none(screen.create_time),
+        "update_time": _isoformat_or_none(screen.update_time),
+    }

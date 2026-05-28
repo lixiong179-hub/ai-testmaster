@@ -162,8 +162,8 @@ async def create_test_task(
 
 @router.get("/", response_model=dict)
 async def get_test_tasks(
-    project_id: int = Query(None, description="项目ID"),
-    task_status: str = Query(None, description="任务状态"),
+    project_id: Optional[int] = Query(None, description="项目ID"),
+    task_status: Optional[int] = Query(None, description="任务状态"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
@@ -171,17 +171,23 @@ async def get_test_tasks(
 ):
     """获取测试任务列表"""
     # 构建查询
-    query = db.query(TestTask)
-    if project_id:
-        query = query.filter(TestTask.project_id == project_id)
-    if task_status:
+    if project_id is not None:
+        _verify_project_access(db, project_id, current_user)
+        query = db.query(TestTask).filter(TestTask.project_id == project_id)
+    else:
+        query = db.query(TestTask).join(
+            Project,
+            Project.id == TestTask.project_id
+        ).filter(Project.user_id == current_user.id)
+
+    if task_status is not None:
         query = query.filter(TestTask.status == task_status)
 
     # 计算偏移量
     offset = (page - 1) * page_size
 
-    # 查询测试任务列表
-    test_tasks = query.offset(offset).limit(page_size).all()
+    # 查询测试任务列表（按创建时间降序，最新优先）
+    test_tasks = query.order_by(TestTask.id.desc()).offset(offset).limit(page_size).all()
     total = query.count()
 
     # 转换为字典

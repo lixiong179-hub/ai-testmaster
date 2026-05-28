@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from loguru import logger
 from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
@@ -41,13 +42,11 @@ async def create_iteration(
     except iteration_service.BaseIterationValidationError as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
-    except iteration_service.IterationInputValidationError as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
         db.rollback()
+        logger.error(f"创建迭代失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="创建迭代失败")
 
 
@@ -68,7 +67,8 @@ async def get_iterations(
         return create_response(data={"items": items, "total": total, "page": page, "page_size": page_size}, msg="获取成功")
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        logger.error(f"获取迭代列表失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取迭代列表失败")
 
 
@@ -86,7 +86,8 @@ async def get_iteration(
         return create_response(data=_iteration_to_dict(iteration), msg="获取成功")
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        logger.error(f"获取迭代详情失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="获取迭代详情失败")
 
 
@@ -117,8 +118,9 @@ async def update_iteration(
         raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
         db.rollback()
+        logger.error(f"更新迭代失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="更新迭代失败")
 
 
@@ -141,6 +143,7 @@ async def delete_iteration(
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"删除迭代失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="删除迭代失败")
 
 
@@ -166,8 +169,9 @@ async def finalize_iteration(
         raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
         db.rollback()
+        logger.error(f"定稿迭代失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="定稿迭代失败")
 
 
@@ -206,6 +210,7 @@ async def add_iteration_input(
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"添加迭代输入失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="添加迭代输入失败")
 
 

@@ -83,8 +83,11 @@ class _UtilMixin:
     def extract_paths(self, file_path: str) -> List[List[str]]:
         content_xml = self._extract_content_xml(file_path)
         root = self._parse_xml(content_xml)
-        root_topic = self._get_root_topic(root)
-        return self._collect_paths(root_topic)
+        root_topics = self._get_all_root_topics(root)
+        paths: List[List[str]] = []
+        for root_topic in root_topics:
+            paths.extend(self._collect_paths(root_topic))
+        return paths
 
     def _collect_paths(self, root_topic: ET.Element) -> List[List[str]]:
         paths: List[List[str]] = []

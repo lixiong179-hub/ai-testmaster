@@ -49,12 +49,15 @@ def _parse_web_env_configs(project: Project) -> dict | None:
     if not project.web_env_configs:
         return None
     try:
-        configs = json.loads(project.web_env_configs)
+        if isinstance(project.web_env_configs, dict):
+            configs = dict(project.web_env_configs)
+        else:
+            configs = json.loads(project.web_env_configs)
         for env_name in ['test', 'staging', 'prod']:
             if env_name in configs and configs[env_name].get('password'):
                 configs[env_name]['password'] = mask_password(configs[env_name]['password'])
         return configs
-    except json.JSONDecodeError:
+    except (TypeError, json.JSONDecodeError):
         return None
 
 
@@ -71,8 +74,10 @@ def _parse_device_config(project: Project) -> dict | None:
     if not project.device_config:
         return None
     try:
+        if isinstance(project.device_config, dict):
+            return dict(project.device_config)
         return json.loads(project.device_config)
-    except json.JSONDecodeError:
+    except (TypeError, json.JSONDecodeError):
         return None
 
 
@@ -235,7 +240,10 @@ async def get_test_object(
         web_env = None
         if project.web_env_configs:
             try:
-                configs = json.loads(project.web_env_configs)
+                if isinstance(project.web_env_configs, dict):
+                    configs = project.web_env_configs
+                else:
+                    configs = json.loads(project.web_env_configs)
                 test_cfg = configs.get('test', {})
                 if test_cfg:
                     web_env = {
@@ -243,7 +251,7 @@ async def get_test_object(
                         "username": test_cfg.get('username'),
                         "password": mask_password(test_cfg['password']) if test_cfg.get('password') else None
                     }
-            except (json.JSONDecodeError, KeyError):
+            except (TypeError, json.JSONDecodeError, KeyError):
                 pass
         return create_response(
             data={
@@ -251,7 +259,7 @@ async def get_test_object(
                 "url": web_env.get('url') if web_env else None,
                 "username": web_env.get('username') if web_env else None,
                 "password": web_env.get('password') if web_env else None,
-                "device_info": json.loads(project.device_config) if project.device_config else None
+                "device_info": _parse_device_config(project)
             },
             msg="获取成功"
         )
@@ -302,8 +310,11 @@ async def update_test_object(
         existing_configs = {}
         if project.web_env_configs:
             try:
-                existing_configs = json.loads(project.web_env_configs)
-            except json.JSONDecodeError:
+                if isinstance(project.web_env_configs, dict):
+                    existing_configs = dict(project.web_env_configs)
+                else:
+                    existing_configs = json.loads(project.web_env_configs)
+            except (TypeError, json.JSONDecodeError):
                 pass
         # 更新测试环境连接信息
         if obj_data.url or obj_data.username or obj_data.password:
@@ -325,12 +336,12 @@ async def update_test_object(
             project.device_config = json.dumps(obj_data.device_info)
         # 更新App包名（合并到设备配置中）
         if obj_data.app_package:
-            dev_cfg = json.loads(project.device_config) if project.device_config else {}
+            dev_cfg = _parse_device_config(project) or {}
             dev_cfg['app_package'] = obj_data.app_package
             project.device_config = json.dumps(dev_cfg)
         # 更新App Activity（合并到设备配置中）
         if obj_data.app_activity:
-            dev_cfg = json.loads(project.device_config) if project.device_config else {}
+            dev_cfg = _parse_device_config(project) or {}
             dev_cfg['app_activity'] = obj_data.app_activity
             project.device_config = json.dumps(dev_cfg)
         db.commit()

@@ -47,16 +47,24 @@ class TestObjectInfoMixin:
                     pass
             return None
 
+        def _get_non_empty_string(obj: Any, attr: str) -> Optional[str]:
+            value = getattr(obj, attr, None)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+            return None
+
         resolved_env_configs = _parse_web_env_configs(getattr(project, 'web_env_configs', None))
 
         raw_obj_type = None
-        if hasattr(project, 'test_object_type') and getattr(project, 'test_object_type', None):
-            raw_obj_type = project.test_object_type
+        test_object_type = _get_non_empty_string(project, 'test_object_type')
+        project_type = _get_non_empty_string(project, 'project_type')
+        if test_object_type:
+            raw_obj_type = test_object_type
         elif resolved_env_configs:
             raw_obj_type = "web"
             logger.info("从 web_env_configs 推断被测对象类型为 Web")
-        elif hasattr(project, 'project_type') and getattr(project, 'project_type', None):
-            raw_obj_type = project.project_type
+        elif project_type:
+            raw_obj_type = project_type
             logger.info(f"从 project_type 推断被测对象类型为 {raw_obj_type}")
 
         if not raw_obj_type:
