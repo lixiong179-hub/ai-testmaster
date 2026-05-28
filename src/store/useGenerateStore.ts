@@ -10,7 +10,13 @@ import { createSaveActions } from './generate/saveActions'
 import { createEditActions } from './generate/editActions'
 import type { StoreActions } from './generate/types'
 
-export type { GeneratedStep, GeneratedCase, EditingCase, ContextPreview, GenerateFormData } from './generate/types'
+export type {
+  GeneratedStep,
+  GeneratedCase,
+  EditingCase,
+  ContextPreview,
+  GenerateFormData,
+} from './generate/types'
 
 export const useGenerateStore = defineStore('generate', () => {
   const state = createGenerateState()
@@ -30,6 +36,7 @@ export const useGenerateStore = defineStore('generate', () => {
   combinedActions = {
     nextCaseId: state.nextCaseId,
     handleSourceFileChange: testPointActs.handleSourceFileChange,
+    loadTestPoints: testPointActs.loadTestPoints,
     loadProjectFiles: projectActs.loadProjectFiles,
     loadUIPrototypeProjects: uiPrototypeActs.loadUIPrototypeProjects,
     loadProjectCases: projectActs.loadProjectCases,
@@ -89,6 +96,7 @@ export const useGenerateStore = defineStore('generate', () => {
     screenPreviewStatusText: comp.screenPreviewStatusText,
     viewingCase: comp.viewingCase,
     selectedTestPointsForDisplay: comp.selectedTestPointsForDisplay,
+    contextQuality: comp.contextQuality,
     canGenerate: comp.canGenerate,
     generateButtonLabel: comp.generateButtonLabel,
     progressStatus: comp.progressStatus,

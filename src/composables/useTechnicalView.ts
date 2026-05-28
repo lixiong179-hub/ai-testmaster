@@ -4,6 +4,7 @@
  */
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { TagType } from '@/types/element-plus'
 import { testCaseViewApi } from '@/api/testCaseView'
 import type { TechnicalView } from '@/api/testCaseView'
 
@@ -16,7 +17,7 @@ export const VIEW_TYPES = {
 export type ViewType = (typeof VIEW_TYPES)[keyof typeof VIEW_TYPES]
 
 /** 定位状态映射表 */
-const LOCATOR_STATUS_MAP: Record<string, { label: string; type: string }> = {
+const LOCATOR_STATUS_MAP: Record<string, { label: string; type: TagType }> = {
   recorded: { label: '已定位', type: 'success' },
   pending: { label: '待定位', type: 'warning' },
   failed: { label: '定位失败', type: 'danger' },
@@ -53,7 +54,7 @@ export function useTechnicalView(caseId: { value: number }) {
   }
 
   /** 获取定位状态对应的 Tag 类型 */
-  const getLocatorStatusType = (status: string): string => {
+  const getLocatorStatusType = (status: string): TagType => {
     return LOCATOR_STATUS_MAP[status]?.type || 'info'
   }
 

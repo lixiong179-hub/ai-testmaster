@@ -79,10 +79,10 @@ const testTaskApi = {
     })
   },
 
-  // 获取任务执行结果（通过摘要接口获取）
-  // 后端：GET /api/v1/test_task/{task_id}/summary
+  // 获取任务执行结果
+  // 后端：GET /api/v1/test_task/{task_id}
   getTaskResults: (taskId: number, projectId?: number) => {
-    return request.get(`/api/v1/test_task/${taskId}/summary`, {
+    return request.get(`/api/v1/test_task/${taskId}`, {
       params: projectId ? { project_id: projectId } : {},
     })
   },

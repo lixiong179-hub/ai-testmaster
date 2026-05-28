@@ -29,7 +29,6 @@ export interface IterationCreateRequest {
   name: string
   version?: string
   description?: string
-  status?: string
   start_date?: string
   end_date?: string
 }
@@ -38,7 +37,6 @@ export interface IterationUpdateRequest {
   name?: string
   version?: string
   description?: string
-  status?: string
   start_date?: string
   end_date?: string
 }

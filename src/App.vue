@@ -3,15 +3,21 @@
 </template>
 
 <script setup lang="ts">
-// 根组件
+// Root shell.
 </script>
 
-<style scoped>
-/* 全局样式 */
+<style>
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
 }
 
 body {
@@ -21,5 +27,11 @@ body {
   font-size: 14px;
   color: #333;
   background-color: #f5f7fa;
+  overflow: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 }
 </style>

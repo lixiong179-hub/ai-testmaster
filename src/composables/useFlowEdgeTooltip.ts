@@ -32,9 +32,7 @@ export interface UseFlowEdgeTooltipReturn {
  * 从 FlowSortEditor 抽取的边 tooltip 交互逻辑。
  * 管理鼠标悬停边时显示/隐藏 tooltip，以及 tooltip 自身的悬停保持。
  */
-export function useFlowEdgeTooltip(
-  _options: UseFlowEdgeTooltipOptions
-): UseFlowEdgeTooltipReturn {
+export function useFlowEdgeTooltip(_options: UseFlowEdgeTooltipOptions): UseFlowEdgeTooltipReturn {
   const edgeTooltipVisible = ref(false)
   const edgeTooltipData = ref<EdgeTooltipData | null>(null)
   const edgeTooltipPosition = ref({ x: 0, y: 0 })

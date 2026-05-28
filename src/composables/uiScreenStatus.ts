@@ -13,7 +13,9 @@ type UIScreenStatusLike = {
   parse_status_text?: string | null
 }
 
-const UI_SCREEN_STATUS_TYPE_MAP: Record<string, string> = {
+import type { TagType } from '@/types/element-plus'
+
+const UI_SCREEN_STATUS_TYPE_MAP: Record<string, TagType> = {
   pending: 'info',
   running: 'warning',
   completed: 'success',
@@ -43,7 +45,7 @@ function normalizeStatusInput(input: UIScreenStatusLike | string | null | undefi
 
 export interface UIScreenStatusMeta {
   status: string
-  type: string
+  type: TagType
   text: string
   isPending: boolean
   isRunning: boolean
@@ -54,7 +56,7 @@ export interface UIScreenStatusMeta {
 
 export function getUIScreenStatusType(
   input: UIScreenStatusLike | string | null | undefined
-): string {
+): TagType {
   const { status } = normalizeStatusInput(input)
   return UI_SCREEN_STATUS_TYPE_MAP[status] || 'info'
 }

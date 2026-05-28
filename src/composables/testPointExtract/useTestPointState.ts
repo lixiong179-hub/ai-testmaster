@@ -1,9 +1,10 @@
 import { computed } from 'vue'
-import request from '@/utils/request'
-import type { ExtractSharedState, TestPointListResponse, TestPointItem } from './types'
+import { testPointApi } from '@/api/testPoint'
+import type { TagType, ProgressStatus } from '@/types/element-plus'
+import type { ExtractSharedState, TestPointItem } from './types'
 
 export function useTestPointState(state: ExtractSharedState) {
-  const progressStatus = computed(() => {
+  const progressStatus = computed<ProgressStatus>(() => {
     if (state.progress.value === 100) return 'success'
     if (state.errorMessage.value) return 'exception'
     return ''
@@ -25,7 +26,7 @@ export function useTestPointState(state: ExtractSharedState) {
     return state.savedFromDb.value ? state.dbTotal.value : state.testPoints.value.length
   })
 
-  function getPriorityTagType(priority: number | string): string {
+  function getPriorityTagType(priority: number | string): TagType {
     const p = Number(priority)
     if (p === 1) return 'danger'
     if (p === 2) return 'warning'
@@ -55,15 +56,13 @@ export function useTestPointState(state: ExtractSharedState) {
   async function loadSavedTestPoints(projectId: number, page = 1): Promise<void> {
     state.loadingTestPoints.value = true
     try {
-      const response: TestPointListResponse = await request.get(
-        `/api/v1/test-point/list/${projectId}`,
-        {
-          params: { page, page_size: state.pageSize.value },
-        }
-      )
-      if (response?.code === 200 && response.data) {
-        state.testPoints.value = (response.data.items || []) as TestPointItem[]
-        state.dbTotal.value = response.data.total || 0
+      const response = await testPointApi.getList(projectId, {
+        page,
+        page_size: state.pageSize.value,
+      })
+      if (response) {
+        state.testPoints.value = (response.items || []) as TestPointItem[]
+        state.dbTotal.value = response.total || 0
         state.savedFromDb.value = true
         state.currentPage.value = page
       }

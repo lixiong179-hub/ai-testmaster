@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { TestCase } from '@/api/case'
 import { testCaseApi } from '@/api/case'
+import { testPointApi } from '@/api/testPoint'
 import type { CasePageResponse } from '@/api/case'
 
 export const useCaseStore = defineStore('case', {
@@ -75,14 +76,35 @@ export const useCaseStore = defineStore('case', {
       this.generateMessage = '开始生成测试用例...'
 
       try {
-        const generator = await testCaseApi.generate({
+        const targetPointIds = (pointIds || []).filter((id) => Number.isFinite(id))
+        if (targetPointIds.length === 0) {
+          this.generateMessage = '未指定测试点，后端将自动加载项目测试点...'
+        }
+        const generator = await testPointApi.batchGenerateStream({
           project_id: projectId,
-          point_ids: pointIds,
+          test_point_ids: targetPointIds,
         })
 
+        let hitNoPointWarning = false
         for await (const progress of generator) {
           this.generateProgress = progress.progress
           this.generateMessage = progress.message || '生成中...'
+          if (progress.status === 'error') {
+            hitNoPointWarning = true
+          }
+          if (
+            progress.status === 'warning' &&
+            typeof progress.message === 'string' &&
+            progress.message.includes('没有找到测试点')
+          ) {
+            hitNoPointWarning = true
+          }
+        }
+
+        if (hitNoPointWarning) {
+          this.generateStatus = 'failed'
+          this.generateMessage = this.generateMessage || '没有找到可生成的测试点'
+          return
         }
 
         this.generateStatus = 'success'
@@ -92,37 +114,18 @@ export const useCaseStore = defineStore('case', {
       } catch (error) {
         console.error('生成测试用例失败:', error)
         this.generateStatus = 'failed'
-        this.generateMessage = '生成失败，请检查DeepSeek配置'
+        this.generateMessage = '生成失败，请检查 DeepSeek 配置'
       }
     },
 
-    // 重试生成失败的测试用例（使用 batch-generate/stream 接口）
+    // 重试生成失败的测试用例
     async retryFailedCases(projectId: number, caseIds?: number[]) {
       this.currentProjectId = projectId
-      this.generateStatus = 'generating'
-      this.generateProgress = 0
-      this.generateMessage = '开始重试生成...'
-
-      try {
-        const generator = await testCaseApi.generate({
-          project_id: projectId,
-          case_ids: caseIds,
-        })
-
-        for await (const progress of generator) {
-          this.generateProgress = progress.progress
-          this.generateMessage = progress.message || '重试中...'
-        }
-
-        this.generateStatus = 'success'
-        this.generateMessage = '重试完成'
-        // 重新获取测试用例列表
-        await this.fetchTestCases(projectId)
-      } catch (error) {
-        console.error('重试生成失败:', error)
-        this.generateStatus = 'failed'
-        this.generateMessage = '重试失败，请检查DeepSeek配置'
-      }
+      this.generateProgress = 100
+      this.generateStatus = 'failed'
+      this.generateMessage = caseIds?.length
+        ? '当前后端未提供按失败用例重试生成接口'
+        : '当前后端未提供重试生成接口'
     },
 
     async fetchTestCases(
@@ -170,7 +173,7 @@ export const useCaseStore = defineStore('case', {
     // 删除测试用例
     async deleteTestCase(caseId: number) {
       try {
-        await testCaseApi.deleteCase(caseId)
+        await testCaseApi.deleteCase(caseId, this.currentProjectId || undefined)
         this.testCases = this.testCases.filter((caseItem) => caseItem.id !== caseId)
         return true
       } catch (error) {
@@ -182,7 +185,10 @@ export const useCaseStore = defineStore('case', {
     // 批量删除测试用例
     async batchDeleteTestCases(caseIds: number[]) {
       try {
-        const result = await testCaseApi.batchDeleteCases(caseIds)
+        const result = await testCaseApi.batchDeleteCases(
+          caseIds,
+          this.currentProjectId || undefined
+        )
         // 从本地列表中移除已删除的用例
         this.testCases = this.testCases.filter((caseItem) => !caseIds.includes(caseItem.id))
         return result
@@ -195,7 +201,10 @@ export const useCaseStore = defineStore('case', {
     // 批量恢复测试用例（撤销删除）
     async batchRestoreTestCases(caseIds: number[]) {
       try {
-        const result = await testCaseApi.batchRestoreCases(caseIds)
+        const result = await testCaseApi.batchRestoreCases(
+          caseIds,
+          this.currentProjectId || undefined
+        )
         // 恢复成功后重新获取用例列表
         await this.fetchTestCases(this.currentProjectId)
         return result
@@ -225,7 +234,13 @@ export const useCaseStore = defineStore('case', {
       try {
         const caseItem = this.testCases.find((c) => c.id === caseId)
         if (!caseItem) throw new Error('用例不存在')
-        const { id: _id, case_no: _case_no, create_time: _create_time, generate_status: _generate_status, ...copyData } = caseItem
+        const {
+          id: _id,
+          case_no: _case_no,
+          create_time: _create_time,
+          generate_status: _generate_status,
+          ...copyData
+        } = caseItem
         const { title, module, priority, case_type, precondition, steps, expected_result } =
           copyData
         await testCaseApi.createCase({

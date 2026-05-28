@@ -75,7 +75,12 @@ export const getExecutionLogs = (
  * 获取步骤截图
  * 后端：GET /api/v1/execution/{task_id}/screenshot/{case_id}/{step_number}/{type}
  */
-export const getStepScreenshot = (taskId: number, caseId: number, stepNumber: number, type: 'before' | 'after') => {
+export const getStepScreenshot = (
+  taskId: number,
+  caseId: number,
+  stepNumber: number,
+  type: 'before' | 'after'
+) => {
   return request.get(`/api/v1/execution/${taskId}/screenshot/${caseId}/${stepNumber}/${type}`, {
     responseType: 'blob',
   })

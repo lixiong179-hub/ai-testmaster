@@ -1,10 +1,6 @@
 import { ref, computed } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
-import type {
-  FlowEditorNode,
-  FlowGraphEdge,
-  EditorNodeData,
-} from '@/composables/useFlowEditor'
+import type { FlowEditorNode, FlowGraphEdge, EditorNodeData } from '@/composables/useFlowEditor'
 import { getMainNodesInOrder } from '@/composables/useFlowEditor'
 import type { Ref, ComputedRef } from 'vue'
 

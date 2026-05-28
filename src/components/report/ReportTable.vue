@@ -67,8 +67,11 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { TestCaseResult } from '@/api/report'
 import { ArrowDown } from '@element-plus/icons-vue'
+import { testCaseViewApi } from '@/api/testCaseView'
+import { downloadFromResponse, parseBlobError } from '@/utils/download'
+import type { TagType } from '@/types/element-plus'
 
-defineProps<{
+const props = defineProps<{
   testCases: TestCaseResult[]
   total: number
 }>()
@@ -82,8 +85,8 @@ const page = ref(1)
 const pageSize = ref(10)
 
 // 获取状态类型
-const getStatusType = (status: string) => {
-  const statusMap: Record<string, string> = {
+const getStatusType = (status: string): TagType => {
+  const statusMap: Record<string, TagType> = {
     passed: 'success',
     failed: 'danger',
     blocked: 'warning',
@@ -104,19 +107,28 @@ const handleCurrentChange = (current: number) => {
 
 // 查看用例详情
 const viewTestCase = (testCase: TestCaseResult) => {
-  router.push({ path: `/home/case/detail`, query: { id: testCase.test_case_id } })
+  router.push({ path: `/home/case/detail/${testCase.test_case_id}` })
 }
 
 // 导出Excel
-const exportExcel = () => {
-  ElMessage.success('导出Excel功能开发中')
-  // 实际实现时，需要调用后端接口或使用前端库生成Excel文件
+const exportExcel = async () => {
+  const ids = props.testCases.map((c) => c.test_case_id).filter(Boolean)
+  if (ids.length === 0) {
+    ElMessage.warning('暂无可导出的用例')
+    return
+  }
+  try {
+    const resp = await testCaseViewApi.exportToFunctionalExcel(ids)
+    downloadFromResponse(resp, `测试用例_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    ElMessage.success(`已导出 ${ids.length} 条用例`)
+  } catch (err) {
+    const msg = await parseBlobError(err, '导出失败，请稍后重试')
+    ElMessage.error(msg)
+  }
 }
 
-// 导出CSV
 const exportCSV = () => {
-  ElMessage.success('导出CSV功能开发中')
-  // 实际实现时，需要调用后端接口或使用前端库生成CSV文件
+  ElMessage.info('CSV 导出功能即将上线')
 }
 </script>
 

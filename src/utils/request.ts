@@ -9,11 +9,11 @@ import { useFlowSortStore } from '@/store/flowSort'
 
 // 接口类型超时配置（毫秒）
 const TIMEOUT_CONFIG = {
-  default: 30000,       // 普通接口 30秒
-  ai: 180000,           // AI接口 3分钟（含重试）
+  default: 30000, // 普通接口 30秒
+  ai: 180000, // AI接口 3分钟（含重试）
   aiXmindImport: 300000, // XMind AI增强导入 5分钟
-  upload: 60000,        // 文件上传 60秒
-  export: 60000,        // 数据导出 60秒
+  upload: 60000, // 文件上传 60秒
+  export: 60000, // 数据导出 60秒
 }
 
 // 根据URL判断接口类型并返回对应超时时间

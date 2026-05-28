@@ -221,13 +221,25 @@ const emit = defineEmits<{
 }>()
 
 const {
-  loading, generating, autoGenerating, testDataList, generatedData,
-  handleAdd, handleEdit, handleSave, handleCancel, handleDelete,
-  handleGenerateAll, handleAutoGenerate, handleCopy,
-  getDataTypeLabel, getDataTypeTagType, getGenerationRuleLabel,
+  loading,
+  generating,
+  autoGenerating,
+  testDataList,
+  generatedData,
+  handleAdd,
+  handleEdit,
+  handleSave,
+  handleCancel,
+  handleDelete,
+  handleGenerateAll,
+  handleAutoGenerate,
+  handleCopy,
+  getDataTypeLabel,
+  getDataTypeTagType,
+  getGenerationRuleLabel,
 } = useTestDataEditor(props, emit)
 </script>
 
 <style scoped lang="scss">
-@import './TestDataEditor.scss';
+@use './TestDataEditor.scss';
 </style>

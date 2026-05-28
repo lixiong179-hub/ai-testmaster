@@ -5,6 +5,7 @@
 import { ref, reactive } from 'vue'
 import { fileApi } from '@/api/file'
 import { uiPrototypeApi } from '@/api/uiPrototype'
+import type { TagType } from '@/types/element-plus'
 import type { IterationSelection } from './useIterationManager'
 
 // 资源类型定义
@@ -247,8 +248,8 @@ export function useResourceList(
   /**
    * 资源类型标签类型映射
    */
-  const getResourceTypeTagType = (type: string): string => {
-    const typeMap: Record<string, string> = {
+  const getResourceTypeTagType = (type: string): TagType => {
+    const typeMap: Record<string, TagType> = {
       requirement: 'primary',
       ui_mockup: 'warning',
       api_doc: 'success',

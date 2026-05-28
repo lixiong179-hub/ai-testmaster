@@ -73,9 +73,7 @@ export interface BatchTask {
  * 启动批量元素定位记录
  * 后端：POST /api/v1/batch-locator/batch-record
  */
-export const startBatchRecord = (
-  data: BatchRecordRequest
-): Promise<BatchRecordResponse> => {
+export const startBatchRecord = (data: BatchRecordRequest): Promise<BatchRecordResponse> => {
   return request.post('/api/v1/batch-locator/batch-record', data)
 }
 

@@ -1,5 +1,5 @@
 import type { UIScreen } from '@/api/uiPrototype'
-import request from '@/utils/request'
+import { fileApi } from '@/api/file'
 
 const imageCache = new Map<number, string>()
 
@@ -10,9 +10,7 @@ export function useScreenImageUrl() {
       return imageCache.get(screen.id) ?? ''
     }
     try {
-      const response = await request.get(`/api/v1/file/preview-screen/${screen.id}`, {
-        responseType: 'blob',
-      })
+      const response = await fileApi.getPreviewScreen(screen.id)
       // 响应拦截器已经返回了原始响应，我们需要从 response.data 中获取 blob
       const blob =
         response.data instanceof Blob

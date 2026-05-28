@@ -74,8 +74,21 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import * as echarts from 'echarts'
+import * as echarts from 'echarts/core'
+import { PieChart, LineChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent, TitleComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+import type { EChartsType } from 'echarts/core'
 import { Report } from '@/api/report'
+
+echarts.use([
+  PieChart,
+  LineChart,
+  TooltipComponent,
+  LegendComponent,
+  TitleComponent,
+  CanvasRenderer,
+])
 
 const props = defineProps<{
   report: Report | null
@@ -83,8 +96,8 @@ const props = defineProps<{
 
 const pieChart = ref<HTMLElement>()
 const lineChart = ref<HTMLElement>()
-let pieChartInstance: echarts.ECharts | null = null
-let lineChartInstance: echarts.ECharts | null = null
+let pieChartInstance: EChartsType | null = null
+let lineChartInstance: EChartsType | null = null
 
 // 初始化饼图
 const initPieChart = () => {
@@ -117,7 +130,11 @@ const updatePieChart = () => {
           { value: props.report.failed_cases, name: '失败', itemStyle: { color: '#f56c6c' } },
           { value: props.report.blocked_cases, name: '阻塞', itemStyle: { color: '#e6a23c' } },
           {
-            value: props.report.total_cases - props.report.passed_cases - props.report.failed_cases - props.report.blocked_cases,
+            value:
+              props.report.total_cases -
+              props.report.passed_cases -
+              props.report.failed_cases -
+              props.report.blocked_cases,
             name: '其他',
             itemStyle: { color: '#909399' },
           },

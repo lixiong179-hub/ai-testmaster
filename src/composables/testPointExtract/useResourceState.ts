@@ -1,5 +1,7 @@
 import { computed } from 'vue'
-import request from '@/utils/request'
+import { fileApi } from '@/api/file'
+import ProjectAPI from '@/api/project'
+import type { TagType } from '@/types/element-plus'
 import type { ExtractSharedState, ProjectItem, ResourceRow } from './types'
 
 export function useResourceState(state: ExtractSharedState) {
@@ -51,8 +53,8 @@ export function useResourceState(state: ExtractSharedState) {
     return labelMap[type] || type
   }
 
-  function getResourceTypeTagType(type: string): string {
-    const tagMap: Record<string, string> = {
+  function getResourceTypeTagType(type: string): TagType {
+    const tagMap: Record<string, TagType> = {
       requirement: 'primary',
       ui_mockup: 'warning',
       api_doc: 'success',
@@ -85,7 +87,7 @@ export function useResourceState(state: ExtractSharedState) {
 
   async function getProjects(): Promise<void> {
     try {
-      const response = await request.get('/api/v1/project/list')
+      const response = await ProjectAPI.getProjects({})
       if (response && response.data && response.data.items) {
         state.projects.value = response.data.items.filter(
           (project: ProjectItem) => project.name !== '默认项目'
@@ -101,7 +103,7 @@ export function useResourceState(state: ExtractSharedState) {
 
   async function loadResources(projectId: number): Promise<void> {
     try {
-      const fileRes = await request.get(`/api/v1/file/list/${projectId}`)
+      const fileRes = await fileApi.getFileListByProject(projectId)
       if (fileRes && fileRes.data && fileRes.data.items) {
         state.files.value = fileRes.data.items
       } else {

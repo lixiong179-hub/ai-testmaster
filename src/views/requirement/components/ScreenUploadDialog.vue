@@ -39,6 +39,7 @@
 import { ref, watch } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import type { UploadFile, UploadFiles } from 'element-plus'
 
 const props = defineProps<{
   visible: boolean
@@ -61,8 +62,10 @@ watch(
   }
 )
 
-const updateFileList = (_file: File, fileList: File[]) => {
-  appendFiles.value = fileList.map((f: File & { raw?: File }) => f.raw || f)
+const updateFileList = (_uploadFile: UploadFile, uploadFiles: UploadFiles) => {
+  appendFiles.value = uploadFiles
+    .map((f: UploadFile) => f.raw || (f as unknown as File))
+    .filter((f): f is File => f instanceof File)
 }
 
 const handleFileChange = updateFileList

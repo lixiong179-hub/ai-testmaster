@@ -108,6 +108,7 @@
 import { computed } from 'vue'
 import { Guide, Right, Setting, Brush, WarningFilled } from '@element-plus/icons-vue'
 import type { UILayoutConstraint, UIVisualStyle } from '@/api/uiPrototype'
+import type { TagType } from '@/types/element-plus'
 
 const props = defineProps<{
   flows?: Array<{ from: string; to: string; trigger?: string }>
@@ -121,8 +122,8 @@ const hasFlowData = computed(() => {
   return !!(props.flows?.length || props.navigation?.length)
 })
 
-const getPriorityColor = (priority: string) => {
-  const colorMap: Record<string, string> = {
+const getPriorityColor = (priority: string): TagType => {
+  const colorMap: Record<string, TagType> = {
     high: 'danger',
     medium: 'warning',
     low: 'info',

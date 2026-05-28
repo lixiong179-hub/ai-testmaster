@@ -112,7 +112,10 @@ export function useTestPointActions(
             ElMessage.success('测试点更新成功')
             state.dialogVisible.value = false
 
-            await deps.loadSavedTestPoints(Number(state.formData.project_id), state.currentPage.value)
+            await deps.loadSavedTestPoints(
+              Number(state.formData.project_id),
+              state.currentPage.value
+            )
           } else {
             throw new Error(result.message || '更新失败')
           }

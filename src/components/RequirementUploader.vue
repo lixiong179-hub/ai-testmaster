@@ -77,6 +77,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { UploadFile, UploadFiles } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { fileApi, type FileBatchUploadResponse } from '@/api/file'
 import { uiPrototypeApi } from '@/api/uiPrototype'
@@ -144,21 +145,21 @@ const formatFileSize = (bytes: number): string => {
 }
 
 /** 文件选择变化 */
-const handleFileChange = (
-  _file: unknown,
-  fileList: { raw: File; uid: number | string }[]
-): void => {
-  previewList.value = fileList.map((f) => {
-    const detected = detectResourceType(f.raw.name)
-    return {
-      uid: String(f.uid),
-      name: f.raw.name,
-      size: f.raw.size,
-      raw: f.raw,
-      detectedType: detected,
-      effectiveType: globalResourceType.value || detected,
-    }
-  })
+const handleFileChange = (_uploadFile: UploadFile, uploadFiles: UploadFiles): void => {
+  previewList.value = uploadFiles
+    .map((f) => {
+      if (!f.raw) return null
+      const detected = detectResourceType(f.raw.name)
+      return {
+        uid: String(f.uid),
+        name: f.raw.name,
+        size: f.raw.size,
+        raw: f.raw,
+        detectedType: detected,
+        effectiveType: globalResourceType.value || detected,
+      }
+    })
+    .filter(Boolean) as PreviewItem[]
 
   if (isAllImages.value && !prototypeName.value && previewList.value.length > 0) {
     prototypeName.value = previewList.value[0].name.replace(/\.[^.]+$/, '')
@@ -278,7 +279,9 @@ defineExpose({ upload: handleUpload, clearFiles, fileCount, uploading })
 </script>
 
 <style scoped>
-.requirement-uploader { width: 100%; }
+.requirement-uploader {
+  width: 100%;
+}
 
 .resource-name-input,
 .global-override {

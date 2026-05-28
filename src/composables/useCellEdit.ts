@@ -63,7 +63,7 @@ export function useCellEdit(
         }))
         await testCaseApi.updateCase(caseId.value, { steps: stepsPayload })
       } else if (field === 'css_selector' || field === 'xpath') {
-        await testCaseApi.updateStepLocator(stepId, {
+        await testCaseApi.updateStepLocator(caseId.value, stepId, {
           [field]: editingValue.value,
         })
       }
@@ -72,9 +72,9 @@ export function useCellEdit(
       if (field === 'action') {
         step.action = editingValue.value
         step.description = editingValue.value
-      }
-      else if (field === 'expected_result') step.expected_result = editingValue.value
-      else if (field === 'css_selector' && step.locator) step.locator.css_selector = editingValue.value
+      } else if (field === 'expected_result') step.expected_result = editingValue.value
+      else if (field === 'css_selector' && step.locator)
+        step.locator.css_selector = editingValue.value
       else if (field === 'xpath' && step.locator) step.locator.xpath = editingValue.value
 
       ElMessage.success('保存成功')

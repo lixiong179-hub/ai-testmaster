@@ -1,6 +1,7 @@
 import { type InjectionKey, inject, provide, ref, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import type { TagType } from '@/types/element-plus'
 import { testCaseApi } from '@/api/case'
 import { testCaseViewApi } from '@/api/testCaseView'
 import { downloadFromResponse, parseBlobError } from '@/utils/download'
@@ -11,7 +12,7 @@ import { useTechnicalView, VIEW_TYPES } from '@/composables/useTechnicalView'
 import { useCellEdit } from '@/composables/useCellEdit'
 import { getLocatorTypeLabel, getLocatorTypeTagType } from '@/utils/locatorType'
 
-const PRIORITY_MAP: Record<number, { label: string; type: string }> = {
+const PRIORITY_MAP: Record<number, { label: string; type: TagType }> = {
   1: { label: '高(P1)', type: 'danger' },
   2: { label: '中(P2)', type: 'warning' },
   3: { label: '低(P3)', type: 'success' },
@@ -45,7 +46,12 @@ function createCaseDetailContext() {
   const addLocatorLoading = ref(false)
   const addLocatorStepIndex = ref(-1)
   const batchLocatorVisible = ref(false)
-  const addLocatorForm = ref({ css_selector: '', xpath: '', ai_coordinate: '', locator_type: 'css' })
+  const addLocatorForm = ref({
+    css_selector: '',
+    xpath: '',
+    ai_coordinate: '',
+    locator_type: 'css',
+  })
   const parsePreconditionLoading = ref(false)
   const caseItem = ref<TestCase | null>(null)
   const exportingExcel = ref(false)
@@ -71,8 +77,14 @@ function createCaseDetailContext() {
   const { isEditing, saving, editForm, initEditForm, toggleEdit, cancelEdit, saveEdit } =
     useCaseEdit(caseItem, caseId, fetchCaseDetail)
   const {
-    currentView, viewLoading, technicalViewData, fetchTechnicalView, handleViewChange,
-    getLocatorStatusType, getLocatorStatusLabel, formatLocatorCoverage,
+    currentView,
+    viewLoading,
+    technicalViewData,
+    fetchTechnicalView,
+    handleViewChange,
+    getLocatorStatusType,
+    getLocatorStatusLabel,
+    formatLocatorCoverage,
   } = useTechnicalView(caseId)
   const { editingCell, editingValue, cellSaving, startCellEdit, cancelCellEdit, saveCellEdit } =
     useCellEdit(caseId, technicalViewData, issueType)
@@ -94,14 +106,21 @@ function createCaseDetailContext() {
     }
   }
 
-  const getPriorityType = (priority: number) => PRIORITY_MAP[priority]?.type || 'info'
+  const getPriorityType = (priority: number): TagType => PRIORITY_MAP[priority]?.type || 'info'
   const getPriorityLabel = (priority: number) => PRIORITY_MAP[priority]?.label || '中(P2)'
 
   const getCaseTypeLabel = (type?: string) => {
     const m: Record<string, string> = {
-      ui_automation: 'UI自动化', manual: '手工测试', api_automation: 'API自动化',
-      performance: '性能测试', security: '安全测试', UI: 'UI自动化', API: 'API自动化',
-      功能: '手工测试', 功能测试: '手工测试', functional: '手工测试',
+      ui_automation: 'UI自动化',
+      manual: '手工测试',
+      api_automation: 'API自动化',
+      performance: '性能测试',
+      security: '安全测试',
+      UI: 'UI自动化',
+      API: 'API自动化',
+      功能: '手工测试',
+      功能测试: '手工测试',
+      functional: '手工测试',
     }
     return m[type || ''] || type || '-'
   }
@@ -109,7 +128,11 @@ function createCaseDetailContext() {
 
   const formatTime = (time?: string) => {
     if (!time) return '-'
-    try { return new Date(time).toLocaleString('zh-CN') } catch { return time }
+    try {
+      return new Date(time).toLocaleString('zh-CN')
+    } catch {
+      return time
+    }
   }
 
   const addStep = () => {
@@ -133,13 +156,26 @@ function createCaseDetailContext() {
         ElMessage.success('用例已复制到剪贴板')
       } else {
         const ta = document.createElement('textarea')
-        ta.value = t; ta.style.position = 'fixed'; ta.style.left = '-999999px'; ta.style.top = '-999999px'
-        document.body.appendChild(ta); ta.focus(); ta.select()
+        ta.value = t
+        ta.style.position = 'fixed'
+        ta.style.left = '-999999px'
+        ta.style.top = '-999999px'
+        document.body.appendChild(ta)
+        ta.focus()
+        ta.select()
         try {
-          document.execCommand('copy') ? ElMessage.success('用例已复制到剪贴板') : ElMessage.error('复制失败，请手动复制')
-        } catch { ElMessage.error('复制失败，请手动复制') } finally { document.body.removeChild(ta) }
+          document.execCommand('copy')
+            ? ElMessage.success('用例已复制到剪贴板')
+            : ElMessage.error('复制失败，请手动复制')
+        } catch {
+          ElMessage.error('复制失败，请手动复制')
+        } finally {
+          document.body.removeChild(ta)
+        }
       }
-    } catch { ElMessage.error('复制失败，请手动复制') }
+    } catch {
+      ElMessage.error('复制失败，请手动复制')
+    }
   }
 
   const parsePrecondition = async () => {
@@ -153,22 +189,39 @@ function createCaseDetailContext() {
         if (steps.length > 0) {
           ElMessage.success(`AI解析成功，生成 ${steps.length} 个步骤`)
           if (technicalViewData.value) technicalViewData.value.precondition_steps = steps
-        } else { ElMessage.info('AI未解析出可执行步骤') }
+        } else {
+          ElMessage.info('AI未解析出可执行步骤')
+        }
       }
-    } catch (e: any) { ElMessage.error(e.response?.data?.detail || 'AI解析失败') }
-    finally { parsePreconditionLoading.value = false }
+    } catch (e: any) {
+      ElMessage.error(e.response?.data?.detail || 'AI解析失败')
+    } finally {
+      parsePreconditionLoading.value = false
+    }
   }
 
   const savePreconditionSteps = async (steps: any[]) => {
     if (!caseId.value) return
-    try { await testCaseViewApi.batchSavePreconditionSteps(caseId.value, { steps }) }
-    catch { ElMessage.error('保存前置条件步骤失败') }
+    try {
+      await testCaseViewApi.batchSavePreconditionSteps(caseId.value, { steps })
+    } catch {
+      ElMessage.error('保存前置条件步骤失败')
+    }
   }
 
   const addPreconditionStep = () => {
     if (!technicalViewData.value) return
     const steps = [...(technicalViewData.value.precondition_steps || [])]
-    steps.push({ step_number: steps.length + 1, action: '新步骤', expected_result: '', action_type: 'click', input_value: '', target_element: '', has_locator: false, locator_status: 'pending' })
+    steps.push({
+      step_number: steps.length + 1,
+      action: '新步骤',
+      expected_result: '',
+      action_type: 'click',
+      input_value: '',
+      target_element: '',
+      has_locator: false,
+      locator_status: 'pending',
+    })
     technicalViewData.value.precondition_steps = steps
     savePreconditionSteps(steps)
   }
@@ -177,13 +230,26 @@ function createCaseDetailContext() {
     if (!technicalViewData.value) return
     const steps = [...(technicalViewData.value.precondition_steps || [])]
     steps.splice(index, 1)
-    steps.forEach((s: any, i: number) => { s.step_number = i + 1 })
+    steps.forEach((s: any, i: number) => {
+      s.step_number = i + 1
+    })
     await savePreconditionSteps(steps)
     technicalViewData.value.precondition_steps = steps
   }
 
-  const getActionTypeTagType = (actionType: string) => {
-    const m: Record<string, string> = { click: 'primary', input: 'success', navigate: 'warning', verify: 'info', select: 'success', wait: 'info', hover: '', scroll: 'info', refresh: 'info', keypress: 'info' }
+  const getActionTypeTagType = (actionType: string): TagType => {
+    const m: Record<string, TagType> = {
+      click: 'primary',
+      input: 'success',
+      navigate: 'warning',
+      verify: 'info',
+      select: 'success',
+      wait: 'info',
+      hover: 'primary',
+      scroll: 'info',
+      refresh: 'info',
+      keypress: 'info',
+    }
     return m[actionType] || 'info'
   }
 
@@ -197,13 +263,19 @@ function createCaseDetailContext() {
     isCorrectionMode.value = true
     correctionStepIndex.value = Number(query.stepIndex) || -1
     issueType.value = (query.issueType as any) || 'case_issue'
-    failureReason.value = query.failureReason ? decodeURIComponent(query.failureReason as string) : ''
+    failureReason.value = query.failureReason
+      ? decodeURIComponent(query.failureReason as string)
+      : ''
     aiAnalysisText.value = query.aiAnalysis ? decodeURIComponent(query.aiAnalysis as string) : ''
     if (issueType.value === 'product_bug') isEditing.value = false
     currentView.value = VIEW_TYPES.TECHNICAL
     await fetchTechnicalView()
     if (issueType.value !== 'product_bug' && caseId.value) {
-      try { await testCaseApi.startCorrection(caseId.value) } catch (error: any) { console.error('设置纠正状态失败:', error) }
+      try {
+        await testCaseApi.startCorrection(caseId.value)
+      } catch (error: any) {
+        console.error('设置纠正状态失败:', error)
+      }
     }
     await nextTick()
     const highlightedRow = document.querySelector('.highlighted-step')
@@ -217,21 +289,30 @@ function createCaseDetailContext() {
   }
 
   const executeQuickVerify = async () => {
-    if (selectedVerifySteps.value.length === 0) { ElMessage.warning('请至少选择一个步骤'); return }
+    if (selectedVerifySteps.value.length === 0) {
+      ElMessage.warning('请至少选择一个步骤')
+      return
+    }
     quickVerifyLoading.value = true
     try {
       await createQuickVerify(caseId.value, selectedVerifySteps.value)
       await testCaseApi.submitVerification(caseId.value)
       ElMessage.success('快速验证任务已创建，即将跳转到执行页面')
       quickVerifyVisible.value = false
-      router.push('/home/execution/' + caseId.value)
+      router.push('/home/task/execution/' + caseId.value)
     } catch (error: any) {
       console.error('创建快速验证任务失败:', error)
       ElMessage.error(error.response?.data?.detail || '创建快速验证任务失败')
-    } finally { quickVerifyLoading.value = false }
+    } finally {
+      quickVerifyLoading.value = false
+    }
   }
 
-  const openVersionHistory = () => { versionHistoryVisible.value = true; versionPage.value = 1; fetchVersionHistory() }
+  const openVersionHistory = () => {
+    versionHistoryVisible.value = true
+    versionPage.value = 1
+    fetchVersionHistory()
+  }
   const fetchVersionHistory = async () => {
     if (!caseId.value) return
     versionLoading.value = true
@@ -242,7 +323,9 @@ function createCaseDetailContext() {
     } catch (error: any) {
       console.error('获取版本历史失败:', error)
       ElMessage.error(error.response?.data?.detail || '获取版本历史失败')
-    } finally { versionLoading.value = false }
+    } finally {
+      versionLoading.value = false
+    }
   }
 
   const handleRollback = async (version: any) => {
@@ -256,7 +339,9 @@ function createCaseDetailContext() {
     } catch (error: any) {
       console.error('回滚失败:', error)
       ElMessage.error(error.response?.data?.detail || '回滚失败')
-    } finally { rollbackLoading.value = false }
+    } finally {
+      rollbackLoading.value = false
+    }
   }
 
   const openAddLocator = (stepIndex: number, _row: any) => {
@@ -270,11 +355,18 @@ function createCaseDetailContext() {
     const step = technicalViewData.value.steps[addLocatorStepIndex.value]
     if (!step) return
     const { css_selector, xpath, ai_coordinate } = addLocatorForm.value
-    if (!css_selector && !xpath && !ai_coordinate) { ElMessage.warning('请至少填写一种定位信息'); return }
+    if (!css_selector && !xpath && !ai_coordinate) {
+      ElMessage.warning('请至少填写一种定位信息')
+      return
+    }
     addLocatorLoading.value = true
     try {
       const stepId = step.step_id || step.step_number
-      await testCaseApi.updateStepLocator(caseId.value, stepId, { css_selector, xpath, ai_coordinate })
+      await testCaseApi.updateStepLocator(caseId.value, stepId, {
+        css_selector,
+        xpath,
+        ai_coordinate,
+      })
       if (!step.locator) step.locator = {} as any
       if (css_selector) (step.locator as any).css_selector = css_selector
       if (xpath) (step.locator as any).xpath = xpath
@@ -284,30 +376,93 @@ function createCaseDetailContext() {
     } catch (error: any) {
       console.error('添加定位失败:', error)
       ElMessage.error(error.response?.data?.detail || '添加定位失败')
-    } finally { addLocatorLoading.value = false }
+    } finally {
+      addLocatorLoading.value = false
+    }
   }
 
   const init = async () => {
-    if (caseId.value) { await fetchCaseDetail(); await handleCorrectionParams() }
+    if (caseId.value) {
+      await fetchCaseDetail()
+      await handleCorrectionParams()
+    }
   }
 
   return {
-    loading, lineageExpanded, isCorrectionMode, correctionStepIndex, issueType,
-    failureReason, aiAnalysisText, showSuggestionPanel, quickVerifyVisible,
-    quickVerifyLoading, selectedVerifySteps, versionHistoryVisible, versionList,
-    versionLoading, versionTotal, versionPage, rollbackLoading, addLocatorVisible,
-    addLocatorLoading, addLocatorStepIndex, batchLocatorVisible, addLocatorForm,
-    parsePreconditionLoading, caseItem, exportingExcel, businessSteps, caseId,
-    isEditing, saving, editForm, toggleEdit, cancelEdit, saveEdit,
-    currentView, viewLoading, technicalViewData, fetchTechnicalView, handleViewChange,
-    getLocatorStatusType, getLocatorStatusLabel, formatLocatorCoverage,
-    editingCell, editingValue, cellSaving, startCellEdit, cancelCellEdit, saveCellEdit,
-    handleExportExcel, getPriorityType, getPriorityLabel, getCaseTypeLabel,
-    getTestCategoryLabel, formatTime, addStep, removeStep, copyCase,
-    parsePrecondition, addPreconditionStep, deletePreconditionStep, getActionTypeTagType,
-    goBack, getStepRowClass, handleCorrectionParams, openQuickVerify, executeQuickVerify,
-    openVersionHistory, fetchVersionHistory, handleRollback, openAddLocator, saveAddLocator,
-    init, VIEW_TYPES, getLocatorTypeLabel, getLocatorTypeTagType,
+    loading,
+    lineageExpanded,
+    isCorrectionMode,
+    correctionStepIndex,
+    issueType,
+    failureReason,
+    aiAnalysisText,
+    showSuggestionPanel,
+    quickVerifyVisible,
+    quickVerifyLoading,
+    selectedVerifySteps,
+    versionHistoryVisible,
+    versionList,
+    versionLoading,
+    versionTotal,
+    versionPage,
+    rollbackLoading,
+    addLocatorVisible,
+    addLocatorLoading,
+    addLocatorStepIndex,
+    batchLocatorVisible,
+    addLocatorForm,
+    parsePreconditionLoading,
+    caseItem,
+    exportingExcel,
+    businessSteps,
+    caseId,
+    isEditing,
+    saving,
+    editForm,
+    toggleEdit,
+    cancelEdit,
+    saveEdit,
+    currentView,
+    viewLoading,
+    technicalViewData,
+    fetchTechnicalView,
+    handleViewChange,
+    getLocatorStatusType,
+    getLocatorStatusLabel,
+    formatLocatorCoverage,
+    editingCell,
+    editingValue,
+    cellSaving,
+    startCellEdit,
+    cancelCellEdit,
+    saveCellEdit,
+    handleExportExcel,
+    getPriorityType,
+    getPriorityLabel,
+    getCaseTypeLabel,
+    getTestCategoryLabel,
+    formatTime,
+    addStep,
+    removeStep,
+    copyCase,
+    parsePrecondition,
+    addPreconditionStep,
+    deletePreconditionStep,
+    getActionTypeTagType,
+    goBack,
+    getStepRowClass,
+    handleCorrectionParams,
+    openQuickVerify,
+    executeQuickVerify,
+    openVersionHistory,
+    fetchVersionHistory,
+    handleRollback,
+    openAddLocator,
+    saveAddLocator,
+    init,
+    VIEW_TYPES,
+    getLocatorTypeLabel,
+    getLocatorTypeTagType,
   }
 }
 
