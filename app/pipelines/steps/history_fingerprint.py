@@ -37,7 +37,8 @@ class HistoryFingerprint(PipelineStep):
         if raw_signals is None:
             return ""
         project_id = raw_signals.get("project_id", 0)
-        raw = f"{self.name}:{self.version}:project={project_id}"
+        source_sig = _fingerprint_source_signature(ctx, project_id)
+        raw = f"{self.name}:{self.version}:project={project_id}:source={source_sig}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def execute(self, ctx: PipelineContext) -> StepResult:
@@ -164,6 +165,22 @@ def _load_fingerprints(
         fingerprints.append(fp)
 
     return fingerprints
+
+
+def _fingerprint_source_signature(ctx: PipelineContext, project_id: int) -> str:
+    from app.models.test_case import TestCase
+    from sqlalchemy import func
+
+    row = ctx.db.query(
+        func.count(TestCase.id),
+        func.max(TestCase.id),
+        func.max(TestCase.update_time),
+    ).filter(
+        TestCase.project_id == project_id,
+        TestCase.lifecycle_status != "archived",
+        TestCase.is_deleted.is_(False),
+    ).first()
+    return str(row)
 
 
 def _detect_stale_summaries(ctx: PipelineContext, project_id: int) -> int:

@@ -171,14 +171,37 @@ import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
 import { useReviewInbox } from './useReviewInbox'
 
 const {
-  decisions, loading, finalizing, errorMsg, reviewStatus, activeTab, expandedHints,
-  tabs, filteredDecisions, statusTagType, statusText, hasHighConfidenceUndecided,
-  undoWindowOpen, verdictLabel, verdictTagType, confidenceColor, isSelectable,
-  toggleHint, onSelectionChange, onTabChange, goBack, fetchDecisions, handleDecide,
-  handleResetDecision, handleUndoDecision, handleUndoFinalize, handleBatchAcceptHighConfidence, handleFinalize,
+  decisions,
+  loading,
+  finalizing,
+  errorMsg,
+  reviewStatus,
+  activeTab,
+  expandedHints,
+  tabs,
+  filteredDecisions,
+  statusTagType,
+  statusText,
+  hasHighConfidenceUndecided,
+  undoWindowOpen,
+  verdictLabel,
+  verdictTagType,
+  confidenceColor,
+  isSelectable,
+  toggleHint,
+  onSelectionChange,
+  onTabChange,
+  goBack,
+  fetchDecisions,
+  handleDecide,
+  handleResetDecision,
+  handleUndoDecision,
+  handleUndoFinalize,
+  handleBatchAcceptHighConfidence,
+  handleFinalize,
 } = useReviewInbox()
 </script>
 
 <style scoped lang="scss">
-@import './ReviewInbox.scss';
+@use './ReviewInbox.scss';
 </style>

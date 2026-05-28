@@ -160,6 +160,10 @@ def _generate_supplemental(
     parts.append(
         "8. 预期结果可量化判定，禁止\"页面正常\"\"功能正常\"等模糊描述"
     )
+    parts.append(
+        "9. 步骤数量约束：每条用例2-8步；正向用例通常3-8步，边界和异常用例通常2-5步；"
+        "超过8步说明混合了多个测试场景，必须拆分为多条独立用例"
+    )
     parts.append("")
 
     _append_supplement_examples(parts, missing_types)

@@ -26,6 +26,8 @@ class SignalGatherer(PipelineStep):
 
     def cache_key(self, ctx: PipelineContext) -> str:
         from app.models.iteration import Iteration
+        from app.models.test_case import TestCase
+        from sqlalchemy import func
 
         iteration = ctx.db.query(Iteration).filter_by(id=ctx.iteration_id).first()
         if not iteration:
@@ -33,7 +35,19 @@ class SignalGatherer(PipelineStep):
         input_hashes = []
         for inp in sorted(iteration.inputs, key=lambda i: i.id):
             input_hashes.append(inp.content_hash or "")
-        raw = f"{self.name}:{self.version}:{':'.join(input_hashes)}"
+        history_sig = ctx.db.query(
+            func.count(TestCase.id),
+            func.max(TestCase.id),
+            func.max(TestCase.update_time),
+        ).filter(
+            TestCase.project_id == iteration.project_id,
+            TestCase.lifecycle_status != "archived",
+            TestCase.is_deleted.is_(False),
+        ).first()
+        raw = (
+            f"{self.name}:{self.version}:iteration={iteration.id}:project={iteration.project_id}:"
+            f"history={history_sig}:{':'.join(input_hashes)}"
+        )
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def execute(self, ctx: PipelineContext) -> StepResult:
@@ -52,6 +66,7 @@ class SignalGatherer(PipelineStep):
         ui_descriptions: List[Dict[str, Any]] = []
         ui_specs: List[Dict[str, Any]] = []
         test_points: List[Dict[str, Any]] = []
+        change_notes_parts: List[str] = []
         file_ids_used: List[int] = []
 
         for inp in iteration.inputs:
@@ -73,6 +88,11 @@ class SignalGatherer(PipelineStep):
                     points = _load_test_points_from_input(ctx, inp, project_id)
                     test_points.extend(points)
 
+                elif inp.kind == "change_notes":
+                    notes = _load_change_notes_from_input(inp)
+                    if notes:
+                        change_notes_parts.append(notes)
+
                 elif inp.kind == "xmind":
                     content = _load_file_content(ctx, inp.file_id, project_id)
                     if content:
@@ -85,7 +105,10 @@ class SignalGatherer(PipelineStep):
             except Exception as e:
                 logger.error("信号采集失败 kind={} file_id={}: {}", inp.kind, inp.file_id, e)
 
-        if not prd_content and not ui_descriptions and not test_points:
+        change_notes = "\n\n".join(change_notes_parts).strip()
+        is_old_project = _check_is_old_project(ctx, project_id)
+
+        if not prd_content and not ui_descriptions and not test_points and not change_notes and not is_old_project:
             return StepResult(
                 success=False,
                 error="迭代无有效输入信号（PRD/UI/测试点均为空）",
@@ -98,14 +121,18 @@ class SignalGatherer(PipelineStep):
             "ui_descriptions": ui_descriptions,
             "ui_specs": ui_specs,
             "test_points": test_points,
+            "change_notes": change_notes,
             "file_ids_used": file_ids_used,
             "has_ui": len(ui_specs) > 0,
             "has_prd": bool(prd_content.strip()),
             "has_testpoints": len(test_points) > 0,
-            "is_old_project": _check_is_old_project(ctx, project_id),
+            "has_change_notes": bool(change_notes),
+            "is_old_project": is_old_project,
         }
 
         confidence = _compute_signal_confidence(payload)
+        if confidence == 0.0 and is_old_project:
+            confidence = 0.2
 
         return StepResult(
             success=True,
@@ -143,6 +170,15 @@ def _load_file_content(ctx: PipelineContext, file_id: Optional[int], project_id:
     return file_record.content or ""
 
 
+def _load_change_notes_from_input(inp: Any) -> str:
+    payload = inp.payload if getattr(inp, "payload", None) and isinstance(inp.payload, dict) else {}
+    for key in ("notes", "change_notes", "description", "summary", "content"):
+        value = payload.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return ""
+
+
 def _load_ui_from_input(
     ctx: PipelineContext, inp: Any, project_id: int
 ) -> tuple[List[Dict], List[Dict], List[int]]:
@@ -152,27 +188,45 @@ def _load_ui_from_input(
     ui_descriptions = []
     ui_specs = []
     file_ids = []
+    seen_screen_ids = set()
+
+    def append_screen(screen: Any) -> None:
+        if screen.id in seen_screen_ids:
+            return
+        seen_screen_ids.add(screen.id)
+        ui_descriptions.append({
+            "screen_id": screen.id,
+            "screen_name": screen.screen_name,
+            "description": screen.summary or "",
+        })
+        if screen.ui_spec:
+            ui_specs.append({
+                "screen_id": screen.id,
+                "screen_name": screen.screen_name,
+                "ui_spec": screen.ui_spec,
+            })
 
     if inp.payload and isinstance(inp.payload, dict):
-        screen_ids = inp.payload.get("screen_ids", [])
+        screen_ids = _collect_ui_screen_ids(inp.payload)
         if screen_ids:
-            for screen_id in screen_ids:
-                screen = ctx.db.query(UIPrototypeScreen).filter(
-                    UIPrototypeScreen.id == screen_id,
-                    UIPrototypeScreen.project_id == project_id,
-                ).first()
-                if screen:
-                    ui_descriptions.append({
-                        "screen_id": screen.id,
-                        "screen_name": screen.screen_name,
-                        "description": screen.summary or "",
-                    })
-                    if screen.ui_spec:
-                        ui_specs.append({
-                            "screen_id": screen.id,
-                            "screen_name": screen.screen_name,
-                            "ui_spec": screen.ui_spec,
-                        })
+            screens = ctx.db.query(UIPrototypeScreen).filter(
+                UIPrototypeScreen.id.in_(screen_ids),
+                UIPrototypeScreen.project_id == project_id,
+            ).order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.id).all()
+            for screen in screens:
+                append_screen(screen)
+            return ui_descriptions, ui_specs, file_ids
+
+        prototype_project_ids = _collect_prototype_project_ids(inp.payload)
+        if prototype_project_ids:
+            screens = ctx.db.query(UIPrototypeScreen).filter(
+                UIPrototypeScreen.project_id == project_id,
+                UIPrototypeScreen.prototype_project_id.in_(prototype_project_ids),
+                UIPrototypeScreen.parse_status == "completed",
+            ).order_by(UIPrototypeScreen.screen_order, UIPrototypeScreen.id).all()
+            for screen in screens:
+                append_screen(screen)
+            return ui_descriptions, ui_specs, file_ids
 
     if not ui_descriptions and inp.file_id:
         file_record = file_crud.get_file_by_id(ctx.db, inp.file_id, project_id)
@@ -184,17 +238,7 @@ def _load_ui_from_input(
                 UIPrototypeScreen.parse_status == "completed",
             ).all()
             for screen in screens:
-                ui_descriptions.append({
-                    "screen_id": screen.id,
-                    "screen_name": screen.screen_name,
-                    "description": screen.summary or "",
-                })
-                if screen.ui_spec:
-                    ui_specs.append({
-                        "screen_id": screen.id,
-                        "screen_name": screen.screen_name,
-                        "ui_spec": screen.ui_spec,
-                    })
+                append_screen(screen)
 
     if not ui_descriptions:
         screens = ctx.db.query(UIPrototypeScreen).filter(
@@ -203,18 +247,38 @@ def _load_ui_from_input(
             UIPrototypeScreen.ui_spec.isnot(None),
         ).order_by(UIPrototypeScreen.screen_order).all()
         for screen in screens:
-            ui_descriptions.append({
-                "screen_id": screen.id,
-                "screen_name": screen.screen_name,
-                "description": screen.summary or "",
-            })
-            ui_specs.append({
-                "screen_id": screen.id,
-                "screen_name": screen.screen_name,
-                "ui_spec": screen.ui_spec,
-            })
+            append_screen(screen)
 
     return ui_descriptions, ui_specs, file_ids
+
+
+def _collect_ui_screen_ids(payload: Dict[str, Any]) -> List[int]:
+    values: List[int] = []
+    for key in ("screen_ids", "screen_id", "ui_prototype_id"):
+        values.extend(_coerce_id_list(payload.get(key)))
+    return sorted(set(values))
+
+
+def _collect_prototype_project_ids(payload: Dict[str, Any]) -> List[int]:
+    values: List[int] = []
+    for key in ("prototype_project_id", "ui_project_id"):
+        values.extend(_coerce_id_list(payload.get(key)))
+    return sorted(set(values))
+
+
+def _coerce_id_list(value: Any) -> List[int]:
+    if value is None:
+        return []
+    raw_values = value if isinstance(value, (list, tuple, set)) else [value]
+    ids = []
+    for item in raw_values:
+        try:
+            num = int(item)
+        except (TypeError, ValueError):
+            continue
+        if num > 0:
+            ids.append(num)
+    return ids
 
 
 def _load_test_points_from_input(
@@ -241,7 +305,8 @@ def _check_is_old_project(ctx: PipelineContext, project_id: int) -> bool:
     from app.models.test_case import TestCase as TC
     count = ctx.db.query(TC).filter(
         TC.project_id == project_id,
-        TC.lifecycle_status == "active",
+        TC.lifecycle_status != "archived",
+        TC.is_deleted.is_(False),
     ).count()
     return count > 0
 
@@ -298,4 +363,6 @@ def _compute_signal_confidence(payload: Dict[str, Any]) -> float:
         score += 0.3
     if payload.get("has_testpoints"):
         score += 0.3
+    if payload.get("has_change_notes"):
+        score += 0.1
     return min(score, 1.0)

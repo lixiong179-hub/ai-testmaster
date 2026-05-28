@@ -29,29 +29,33 @@ def create_run(
     iteration_id: int,
     input_hash: str,
     pipeline_version: str = "1.0",
+    reuse_existing: bool = False,
+    triggered_by: Optional[int] = None,
 ) -> PipelineRun:
     iteration = db.query(Iteration).filter(Iteration.id == iteration_id).first()
     if iteration is None:
         raise PipelineRunValidationError(f"iteration_id={iteration_id} 不存在")
 
-    existing = db.query(PipelineRun).filter(
-        PipelineRun.iteration_id == iteration_id,
-        PipelineRun.input_hash == input_hash,
-        PipelineRun.pipeline_version == pipeline_version,
-        PipelineRun.status.in_([
-            PipelineRunStatus.COMPLETED.value,
-            PipelineRunStatus.RUNNING.value,
-            PipelineRunStatus.WAITING_FOR_USER.value,
-        ]),
-    ).first()
-    if existing:
-        return existing
+    if reuse_existing:
+        existing = db.query(PipelineRun).filter(
+            PipelineRun.iteration_id == iteration_id,
+            PipelineRun.input_hash == input_hash,
+            PipelineRun.pipeline_version == pipeline_version,
+            PipelineRun.status.in_([
+                PipelineRunStatus.COMPLETED.value,
+                PipelineRunStatus.RUNNING.value,
+                PipelineRunStatus.WAITING_FOR_USER.value,
+            ]),
+        ).first()
+        if existing:
+            return existing
 
     run = PipelineRun(
         iteration_id=iteration_id,
         input_hash=input_hash,
         pipeline_version=pipeline_version,
         status=PipelineRunStatus.PENDING.value,
+        triggered_by=triggered_by,
     )
     db.add(run)
     db.flush()
@@ -112,6 +116,8 @@ def update_run_status(
     now = utcnow()
     if status == PipelineRunStatus.RUNNING.value and run.started_at is None:
         run.started_at = now
+    if status == PipelineRunStatus.WAITING_FOR_USER.value and run.paused_at is None:
+        run.paused_at = now
     if status in (PipelineRunStatus.COMPLETED.value, PipelineRunStatus.FAILED.value,
                   PipelineRunStatus.CANCELLED.value):
         run.finished_at = now

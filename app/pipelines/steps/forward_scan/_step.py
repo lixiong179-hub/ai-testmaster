@@ -33,21 +33,16 @@ class ForwardScan(PipelineStep):
         cand_desc_hash = ""
         if candidates:
             cand_count = candidates.get("total_count", 0)
-            descs = [c.get("description", "") for c in candidates.get("candidates", [])]
             cand_desc_hash = hashlib.sha256(
-                json.dumps(sorted(descs), ensure_ascii=False).encode()
+                json.dumps(candidates.get("candidates", []), sort_keys=True, ensure_ascii=False).encode()
             ).hexdigest()[:16]
 
         fp_count = 0
         fp_id_hash = ""
         if fingerprints:
             fp_count = fingerprints.get("total_count", 0)
-            fp_ids = sorted([
-                fp.get("case_id", 0)
-                for fp in fingerprints.get("fingerprints", [])
-            ])
             fp_id_hash = hashlib.sha256(
-                json.dumps(fp_ids, ensure_ascii=False).encode()
+                json.dumps(fingerprints.get("fingerprints", []), sort_keys=True, ensure_ascii=False).encode()
             ).hexdigest()[:16]
 
         raw = f"{self.name}:{self.version}:c={cand_count}:{cand_desc_hash}:fp={fp_count}:{fp_id_hash}"

@@ -17,6 +17,7 @@ from app.pipelines.steps.testpoint_alignment._helpers import (
     _extract_scenario_candidates,
     _find_matching_capability,
     _find_matching_scenario,
+    _find_matching_screens,
     _is_cjk,
     _is_significant_match,
 )
@@ -31,6 +32,13 @@ class _FakeArtifact:
 
 class _FakeRun:
     id = 1
+
+
+class _Unserializable:
+    """__str__ 抛异常，使 json.dumps(..., default=str) 仍然失败。"""
+
+    def __str__(self) -> str:
+        raise RuntimeError("cannot serialize")
 
 
 def _make_ctx(
@@ -208,6 +216,16 @@ class TestExtractInferredCapabilities:
         assert len(result) == 1
         assert result[0]["name"] == "cap1"
 
+    def test_change_summary_not_dict_skips_fallback(self) -> None:
+        """分支 13->20: change_summary 非 dict 时跳过 fallback，直接返回空列表。"""
+        inferred = {
+            "parsed": {
+                "change_summary": "not_a_dict"
+            }
+        }
+        result = _extract_inferred_capabilities(inferred)
+        assert result == []
+
 
 # ==================== _extract_scenario_candidates ====================
 
@@ -241,6 +259,125 @@ class TestExtractScenarioCandidates:
             ]
         }
         result = _extract_scenario_candidates(candidates)
+        assert len(result) == 1
+
+
+# ==================== _find_matching_screens ====================
+
+
+class TestFindMatchingScreens:
+    def test_duplicate_screen_id_skipped(self) -> None:
+        """行 47: 重复 screen_id 应跳过。"""
+        tp = {"module": "用户", "point": "", "function": ""}
+        ui_specs = [
+            {"screen_id": 1, "screen_name": "用户管理", "ui_spec": {}},
+            {"screen_id": 1, "screen_name": "用户管理副本", "ui_spec": {}},
+        ]
+        result = _find_matching_screens(tp, ui_specs)
+        assert len(result) == 1
+        assert result[0]["screen_id"] == 1
+
+    def test_multi_word_module_match(self) -> None:
+        """行 53: 多词模块需全部出现在 screen_name 中。"""
+        tp = {"module": "用户 管理", "point": "", "function": ""}
+        ui_specs = [
+            {"screen_id": 1, "screen_name": "用户管理页面", "ui_spec": {}},
+        ]
+        result = _find_matching_screens(tp, ui_specs)
+        assert len(result) == 1
+
+    def test_element_text_matching(self) -> None:
+        """行 64-67: ui_spec.elements 中 text 字段匹配。"""
+        tp = {"module": "", "point": "登录按钮", "function": ""}
+        ui_specs = [
+            {
+                "screen_id": 1,
+                "screen_name": "首页",
+                "ui_spec": {
+                    "elements": [
+                        {"text": "登录按钮"},
+                        {"text": "注册按钮"},
+                    ]
+                },
+            },
+        ]
+        result = _find_matching_screens(tp, ui_specs)
+        assert len(result) == 1
+        assert result[0]["screen_id"] == 1
+
+    def test_element_matching_loop_back(self) -> None:
+        """分支 65->63: 首个元素不匹配，循环继续到下一个元素命中。"""
+        tp = {"module": "", "point": "注册按钮", "function": ""}
+        ui_specs = [
+            {
+                "screen_id": 1,
+                "screen_name": "首页",
+                "ui_spec": {
+                    "elements": [
+                        {"text": "登录按钮"},
+                        {"text": "注册按钮"},
+                    ]
+                },
+            },
+        ]
+        result = _find_matching_screens(tp, ui_specs)
+        assert len(result) == 1
+
+    def test_element_no_match_all_empty_text(self) -> None:
+        """元素 text 全为空时，不匹配任何元素。"""
+        tp = {"module": "", "point": "登录", "function": ""}
+        ui_specs = [
+            {
+                "screen_id": 1,
+                "screen_name": "首页",
+                "ui_spec": {
+                    "elements": [
+                        {"text": ""},
+                        {"text": ""},
+                    ]
+                },
+            },
+        ]
+        result = _find_matching_screens(tp, ui_specs)
+        assert result == []
+
+    def test_ui_spec_not_dict_skips_elements(self) -> None:
+        """分支 59->69: ui_spec 非 dict 时跳过元素匹配，仅靠模块名匹配。"""
+        tp = {"module": "用户", "point": "登录", "function": ""}
+        ui_specs = [
+            {"screen_id": 1, "screen_name": "用户管理", "ui_spec": "not_a_dict"},
+        ]
+        result = _find_matching_screens(tp, ui_specs)
+        assert len(result) == 1
+
+    def test_no_match_returns_empty(self) -> None:
+        tp = {"module": "不存在", "point": "不存在", "function": ""}
+        ui_specs = [
+            {"screen_id": 1, "screen_name": "用户管理", "ui_spec": {}},
+        ]
+        result = _find_matching_screens(tp, ui_specs)
+        assert result == []
+
+    def test_empty_ui_specs(self) -> None:
+        tp = {"module": "用户", "point": "", "function": ""}
+        result = _find_matching_screens(tp, [])
+        assert result == []
+
+    def test_function_used_as_search_text(self) -> None:
+        """point 为空时，function 作为元素搜索文本。"""
+        tp = {"module": "", "point": "", "function": "登录"}
+        ui_specs = [
+            {
+                "screen_id": 1,
+                "screen_name": "首页",
+                "ui_spec": {
+                    "elements": [
+                        {"text": "登录按钮"},
+                    ]
+                },
+            },
+        ]
+        result = _find_matching_screens(tp, ui_specs)
         assert len(result) == 1
 
 
@@ -582,6 +719,26 @@ class TestCacheKey:
         ctx = _make_ctx(
             raw_signals={"test_points": [{"id": 1}], "ui_specs": [], "has_ui": False},
             inferred={"parsed": {"inferred_capabilities": object()}},
+        )
+        step = TestPointAlignment()
+        key = step.cache_key(ctx)
+        assert len(key) == 64
+
+    def test_inferred_hash_exception_path(self) -> None:
+        """行 49-50: inferred json.dumps 抛异常时 fallback 为 'error'。"""
+        ctx = _make_ctx(
+            raw_signals={"test_points": [{"id": 1}], "ui_specs": [], "has_ui": False},
+            inferred={"parsed": {"inferred_capabilities": [_Unserializable()]}},
+        )
+        step = TestPointAlignment()
+        key = step.cache_key(ctx)
+        assert len(key) == 64
+
+    def test_candidate_hash_exception_path(self) -> None:
+        """行 60-61: candidates json.dumps 抛异常时 fallback 为 'error'。"""
+        ctx = _make_ctx(
+            raw_signals={"test_points": [{"id": 1}], "ui_specs": [], "has_ui": False},
+            scenario_candidates={"candidates": [_Unserializable()]},
         )
         step = TestPointAlignment()
         key = step.cache_key(ctx)
@@ -948,3 +1105,29 @@ class TestExecute:
         assert payload["conflict_count"] == 1
         conflict = payload["conflicts"][0]
         assert "AI 能力" in conflict["notes"]
+
+    def test_scenario_active_but_no_match(self) -> None:
+        """分支 117->121: scenario 源活跃但无匹配场景，进入 no_ui_match 分支。"""
+        ctx = _make_ctx(
+            raw_signals={
+                "project_id": 1,
+                "test_points": [
+                    {"id": 1, "module": "", "point": "完全无关的测试点", "function": "", "priority": 1},
+                ],
+                "ui_specs": [],
+                "has_ui": False,
+            },
+            scenario_candidates={
+                "candidates": [
+                    {"id": 1, "title": "登录流程", "description": "用户登录场景"},
+                ]
+            },
+        )
+        step = TestPointAlignment()
+        result = step.execute(ctx)
+        payload = result.artifact_payload
+        assert payload["sources"]["scenario"] is True
+        assert payload["conflict_count"] == 1
+        conflict = payload["conflicts"][0]
+        assert conflict["alignment_status"] == "no_ui_match"
+        assert "场景候选" in conflict["notes"]

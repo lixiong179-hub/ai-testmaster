@@ -14,9 +14,9 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
 from app.services.metrics_service import _date_trunc_day
 from app.utils.db_time import utcnow
-from app.api.v1.endpoints.pipeline_dashboard._overview import (
-    _duration_seconds,
-    _build_run_subquery,
+from app.api.v1.endpoints.pipeline_dashboard._utils import (
+    duration_seconds,
+    build_run_subquery,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def get_token_usage(
             .order_by("date")
         )
         if project_id is not None:
-            run_subq = _build_run_subquery(db, project_id)
+            run_subq = build_run_subquery(db, project_id)
             query = query.filter(AICallLog.run_id.in_(run_subq))
         rows = query.all()
         result = [
@@ -74,7 +74,7 @@ def get_run_duration(
     try:
         since = utcnow() - timedelta(days=days)
         date_expr = _date_trunc_day(PipelineRun.started_at, db)
-        duration_expr = _duration_seconds(PipelineRun.started_at, PipelineRun.finished_at, db)
+        duration_expr = duration_seconds(PipelineRun.started_at, PipelineRun.finished_at, db)
         query = (
             db.query(
                 date_expr.label("date"),
@@ -115,7 +115,7 @@ def get_step_latency(
 ):
     try:
         since = utcnow() - timedelta(days=days)
-        duration_expr = _duration_seconds(PipelineStep.started_at, PipelineStep.finished_at, db)
+        duration_expr = duration_seconds(PipelineStep.started_at, PipelineStep.finished_at, db)
         query = (
             db.query(
                 PipelineStep.step_name,
@@ -128,7 +128,7 @@ def get_step_latency(
             .group_by(PipelineStep.step_name).order_by(PipelineStep.step_name)
         )
         if project_id is not None:
-            run_subq = _build_run_subquery(db, project_id)
+            run_subq = build_run_subquery(db, project_id)
             query = query.filter(PipelineStep.run_id.in_(run_subq))
         rows = query.all()
         result = [
@@ -167,7 +167,7 @@ def get_cache_hit_rate(
             .group_by("date").order_by("date")
         )
         if project_id is not None:
-            run_subq = _build_run_subquery(db, project_id)
+            run_subq = build_run_subquery(db, project_id)
             query = query.filter(PipelineStep.run_id.in_(run_subq))
         rows = query.all()
         result = [

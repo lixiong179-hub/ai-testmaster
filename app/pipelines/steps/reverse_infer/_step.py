@@ -39,7 +39,13 @@ class ReverseInfer(PipelineStep):
             return False
         if raw_signals.get("has_ui", False):
             return True
-        return raw_signals.get("is_old_project", False)
+        if raw_signals.get("is_old_project", False):
+            fingerprints = ctx.get_artifact("history_fingerprints")
+            if fingerprints is not None and fingerprints.get("total_count", 0) > 0:
+                return True
+            if raw_signals.get("has_change_notes", False):
+                return True
+        return False
 
     def cache_key(self, ctx: PipelineContext) -> str:
         raw_signals = ctx.get_artifact("raw_signals")
@@ -78,6 +84,9 @@ class ReverseInfer(PipelineStep):
                 system_prompt = _SYSTEM_OLD_PROJECT_NO_UI
                 fp_text = _build_fingerprint_text(fingerprints)
                 user_prompt = _USER_OLD_PROJECT_NO_UI.format(fingerprint_text=fp_text)
+                change_notes = raw_signals.get("change_notes", "")
+                if change_notes:
+                    user_prompt = f"{user_prompt}\n\n## 变更说明\n\n{str(change_notes)[:2000]}"
                 ui_text = fp_text
             else:
                 return StepResult(success=False, error="无 UI 信息，无法反推")

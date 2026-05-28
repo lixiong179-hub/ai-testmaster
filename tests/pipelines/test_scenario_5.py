@@ -12,8 +12,6 @@ M3-T06 场景 5 流水线端到端测试（旧项目无新 PRD）
 import json
 import pytest
 
-pytestmark = pytest.mark.skip(reason="AI_API_KEY缺失/Pipeline运行失败")
-
 from app.pipelines.context import PipelineContext
 from app.pipelines.runner import PipelineRunner
 from app.pipelines.steps.signal_gatherer import SignalGatherer
@@ -122,6 +120,10 @@ def mock_ai():
     client = MockAIClient()
     client.set_response("reverse_infer", _make_old_project_infer_response())
     client.set_response("case_generation", _build_case_gen_mock())
+    client.set_response("case_generation_create", _build_case_gen_mock())
+    client.set_response("case_generation_modify", _build_case_gen_mock())
+    client.set_response("case_generation_locator", _build_case_gen_mock())
+    client.set_response("case_generation_supplement", _build_case_gen_mock())
     return client
 
 
@@ -330,7 +332,6 @@ class TestDependencyChain:
         assert Persist.produces == ["persisted_case_ids"]
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致ReverseInfer执行失败")
 class TestReverseInferOldProject:
     def test_execute_old_project_no_ui_mode(self, db, make_ctx, mock_ai):
         ctx = make_ctx()
@@ -357,6 +358,10 @@ class TestReverseInferOldProject:
         gatherer = SignalGatherer()
         g_result = gatherer.execute(ctx)
         ctx.set_artifact("raw_signals", _make_artifact("raw_signals", g_result.artifact_payload))
+
+        fingerprinter = HistoryFingerprint()
+        f_result = fingerprinter.execute(ctx)
+        ctx.set_artifact("history_fingerprints", _make_artifact("history_fingerprints", f_result.artifact_payload))
 
         step = ReverseInfer()
         assert step.should_run(ctx) is True
@@ -449,7 +454,6 @@ class TestHistoryFingerprint:
         assert result.degraded is True
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致BackwardScan执行失败")
 class TestBackwardScan:
     def test_execute(self, db, make_ctx, mock_ai):
         ctx = make_ctx()
@@ -547,7 +551,6 @@ class TestScenarioCandidateExtractor:
         assert result.degraded is True
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致ForwardScan执行失败")
 class TestForwardScan:
     def test_execute(self, db, make_ctx, mock_ai):
         ctx = make_ctx()
@@ -602,7 +605,6 @@ class TestForwardScan:
         assert result.degraded is True
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Reconciliation执行失败")
 class TestReconciliation:
     def test_execute(self, db, make_ctx, mock_ai):
         ctx = make_ctx()
@@ -665,7 +667,6 @@ class TestReconciliation:
         assert result.degraded is True
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Scenario5 E2E Pipeline失败")
 class TestScenario5E2E:
     @pytest.fixture(autouse=True)
     def _setup_mocks(self, mock_ai):

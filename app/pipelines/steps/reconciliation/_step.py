@@ -1,4 +1,5 @@
 import hashlib
+import json
 from typing import Any, ClassVar, Dict, List, Optional
 
 from app.pipelines.base import PipelineStep, StepResult
@@ -29,7 +30,13 @@ class Reconciliation(PipelineStep):
         forward = ctx.get_artifact("forward_verdicts")
         bw_count = backward.get("total_count", 0) if backward else 0
         fw_count = forward.get("total_count", 0) if forward else 0
-        raw = f"{self.name}:{self.version}:bw={bw_count}:fw={fw_count}"
+        bw_hash = hashlib.sha256(
+            json.dumps(backward.get("verdicts", []) if backward else [], sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()[:16]
+        fw_hash = hashlib.sha256(
+            json.dumps(forward.get("verdicts", []) if forward else [], sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()[:16]
+        raw = f"{self.name}:{self.version}:bw={bw_count}:{bw_hash}:fw={fw_count}:{fw_hash}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def execute(self, ctx: PipelineContext) -> StepResult:

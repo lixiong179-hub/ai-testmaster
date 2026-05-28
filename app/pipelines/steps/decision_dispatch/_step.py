@@ -1,4 +1,5 @@
 import hashlib
+import json
 from typing import Any, ClassVar, Dict, List, Optional
 
 from loguru import logger
@@ -51,13 +52,10 @@ class DecisionDispatch(PipelineStep):
         if merged is None:
             return hashlib.sha256(f"{self.name}:{self.version}:empty".encode()).hexdigest()
         verdicts = merged.get("verdicts", [])
-        case_ids = sorted(
-            v.get("case_id") or 0 for v in verdicts if isinstance(v, dict)
-        )
-        actions = sorted(
-            v.get("action", "") for v in verdicts if isinstance(v, dict)
-        )
-        raw = f"{self.name}:{self.version}:ids={case_ids}:acts={actions}"
+        verdict_hash = hashlib.sha256(
+            json.dumps(verdicts, sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()[:16]
+        raw = f"{self.name}:{self.version}:verdicts={verdict_hash}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def execute(self, ctx: PipelineContext) -> StepResult:

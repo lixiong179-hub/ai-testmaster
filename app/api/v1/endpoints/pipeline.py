@@ -6,7 +6,7 @@
     - pipeline_deps       - 权限校验
     - pipeline_precheck   - 场景4预检
     - pipeline_resume     - Pipeline恢复 + AI客户端工厂
-    - pipeline_artifacts  - 反推摘要与信号补充
+    - pipeline_artifacts  - 反推摘要、信号补充与取消运行
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -60,13 +60,15 @@ from app.api.v1.endpoints.pipeline_precheck import router as _precheck_router
 from app.api.v1.endpoints.pipeline_resume import router as _resume_router
 from app.api.v1.endpoints.pipeline_artifacts import router as _artifacts_router
 from app.api.v1.endpoints.pipeline_dashboard import router as _dashboard_router
+from app.api.v1.endpoints.pipeline_dashboard._trends import router as _dashboard_trends_router
 from app.api.v1.endpoints.pipeline_metrics import router as _metrics_router
 
 router.include_router(_precheck_router)
 router.include_router(_resume_router)
-router.include_router(_artifacts_router)
 router.include_router(_dashboard_router)
+router.include_router(_dashboard_trends_router)
 router.include_router(_metrics_router)
+router.include_router(_artifacts_router)
 
 
 @router.post("/iteration/{iteration_id}/run", response_model=dict)
@@ -86,10 +88,17 @@ async def run_pipeline(
                 detail=f"迭代状态 '{iteration.status}' 不允许启动 Pipeline",
             )
 
-        from app.pipelines.scenarios import get_scenario
+        from app.pipelines.scenarios import get_scenario, validate_scenario_inputs
         scenario_config = get_scenario(body.scenario)
         if not scenario_config:
             raise HTTPException(status_code=400, detail=f"场景 {body.scenario} 不存在")
+
+        validation_errors = validate_scenario_inputs(db, iteration, body.scenario)
+        if validation_errors:
+            raise HTTPException(
+                status_code=400,
+                detail="；".join(validation_errors),
+            )
 
         from app.services import pipeline_service
         from app.pipelines.runner import PipelineRunner
@@ -101,6 +110,7 @@ async def run_pipeline(
             iteration_id=iteration_id,
             input_hash=input_hash,
             pipeline_version=scenario_config["version"],
+            triggered_by=current_user.id,
         )
         db.flush()
 
@@ -144,7 +154,7 @@ async def run_pipeline(
             run=run,
             iteration_id=iteration_id,
             user_id=current_user.id,
-            config={"dry_run": body.dry_run},
+            config={"dry_run": body.dry_run, "scenario": body.scenario},
         )
 
         runner = PipelineRunner(scenario_config["name"], scenario_config["steps"])
@@ -225,6 +235,7 @@ async def get_pipeline_run(
                 "finished_at": run.finished_at,
                 "error": run.error,
                 "pause_payload": run.pause_payload,
+                "triggered_by": run.triggered_by,
                 "steps": steps_data,
                 "artifacts": artifacts_data,
             },

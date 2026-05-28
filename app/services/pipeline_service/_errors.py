@@ -31,6 +31,7 @@ PIPELINE_RUN_TRANSITIONS = {
     (PipelineRunStatus.RUNNING.value, PipelineRunStatus.WAITING_FOR_USER.value),
     (PipelineRunStatus.RUNNING.value, PipelineRunStatus.COMPLETED.value),
     (PipelineRunStatus.RUNNING.value, PipelineRunStatus.FAILED.value),
+    (PipelineRunStatus.RUNNING.value, PipelineRunStatus.CANCELLED.value),
     (PipelineRunStatus.WAITING_FOR_USER.value, PipelineRunStatus.RUNNING.value),
     (PipelineRunStatus.WAITING_FOR_USER.value, PipelineRunStatus.COMPLETED.value),
     (PipelineRunStatus.WAITING_FOR_USER.value, PipelineRunStatus.CANCELLED.value),

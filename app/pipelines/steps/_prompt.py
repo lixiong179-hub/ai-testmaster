@@ -12,9 +12,8 @@ def _build_full_prompt(
     task_type: Optional[str] = None,
     task_context: Optional[Dict[str, Any]] = None,
     history_cases: Optional[List[Dict[str, Any]]] = None,
+    is_self_test: bool = False,
 ) -> str:
-    from app.services.case_generation_prompt_builder import PromptBuilder
-
     filtered_prd = _filter_prd_by_testpoint(prd_content, tp)
     filtered_ui_specs = _filter_ui_specs_by_testpoint(ui_specs, tp)
 
@@ -25,6 +24,23 @@ def _build_full_prompt(
         extra_context["task_context"] = task_context
     if history_cases and task_type == "create":
         extra_context["history_cases"] = history_cases[:20]
+
+    if is_self_test:
+        from app.services.prompt_builder.self_test_prompt import build_self_test_prompt
+
+        return build_self_test_prompt(
+            requirement_content=filtered_prd,
+            ui_description=ui_description,
+            module=tp.get("module", "未知模块"),
+            function=tp.get("function", "未知功能"),
+            point=tp.get("point", ""),
+            priority=tp.get("priority", 3),
+            ui_specs=filtered_ui_specs,
+            history_cases=history_cases,
+            extra_context=extra_context,
+        )
+
+    from app.services.prompt_builder import PromptBuilder
 
     return PromptBuilder.build_linear_prompt(
         requirement_content=filtered_prd,
