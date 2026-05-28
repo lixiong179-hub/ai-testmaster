@@ -3,10 +3,10 @@ describe('简单登录测试', () => {
     // 直接调用登录API
     cy.request({
       method: 'POST',
-      url: 'http://localhost:8000/api/v1/auth/login',
+      url: 'http://127.0.0.1:8000/api/v1/auth/login',
       body: {
         username: 'admin',
-        password: 'password123',
+        password: 'admin123',
       },
       headers: {
         'Content-Type': 'application/json',
@@ -33,7 +33,7 @@ describe('简单登录测试', () => {
     // 直接调用登录API，使用错误的密码
     cy.request({
       method: 'POST',
-      url: 'http://localhost:8000/api/v1/auth/login',
+      url: 'http://127.0.0.1:8000/api/v1/auth/login',
       body: {
         username: 'admin',
         password: 'wrongpassword',
@@ -47,9 +47,7 @@ describe('简单登录测试', () => {
       cy.log('登录API响应数据:', response.body)
 
       // 验证登录失败
-      expect(response.status).to.eq(200)
-      expect(response.body).to.have.property('code')
-      expect(response.body.code).to.eq(401)
+      expect(response.status).to.be.oneOf([400, 401])
     })
   })
 })

@@ -20,6 +20,7 @@ from app.utils.ai_client import (
     clean_json_string,
     extract_json_objects_fallback,
 )
+from app.utils.ai_client_parser import parse_ai_json_response, parse_ai_json_object
 
 
 class TestCleanJsonString:
@@ -106,3 +107,37 @@ class TestAnalyzeRequirementsReturnPaths:
                 json.loads(result)
             except json.JSONDecodeError:
                 pytest.fail("Should have returned None for invalid JSON")
+
+
+class TestParseAiJsonResponse:
+    def test_parse_strict_object(self):
+        result = parse_ai_json_response('{"passed": true, "reason": "ok"}')
+        assert result == {"passed": True, "reason": "ok"}
+
+    def test_parse_strict_array(self):
+        result = parse_ai_json_response('[{"module": "M", "point": "P"}]')
+        assert isinstance(result, list)
+        assert result[0]["module"] == "M"
+
+    def test_parse_object_with_comment_and_trailing_comma(self):
+        result = parse_ai_json_response('{"passed": true, // note\n "reason": "ok",}')
+        assert result == {"passed": True, "reason": "ok"}
+
+    def test_parse_single_quoted_object(self):
+        result = parse_ai_json_response("{'passed': true, 'reason': 'ok'}")
+        assert result == {"passed": True, "reason": "ok"}
+
+    def test_parse_json_code_fence(self):
+        result = parse_ai_json_response('说明\n```json\n{"passed": true}\n```\n结束')
+        assert result == {"passed": True}
+
+    def test_parse_prefers_largest_complete_block(self):
+        raw = '示例 {"a": 1} 实际 {"passed": true, "reason": "ok", "extra": {"x": 1}}'
+        result = parse_ai_json_response(raw)
+        assert result == {"passed": True, "reason": "ok", "extra": {"x": 1}}
+
+    def test_parse_ai_json_object_rejects_array(self):
+        assert parse_ai_json_object('[{"module": "M"}]') is None
+
+    def test_unparseable_returns_none(self):
+        assert parse_ai_json_response("not json at all") is None

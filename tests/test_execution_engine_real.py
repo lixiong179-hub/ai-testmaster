@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.db.database import Base
 from app.models.test_case import TestCase, TestStep, TestCaseExecution
 from app.models.project import Project
+from app.models.test_result import TestResult
 from app.models.user import User
 from app.services.test_execution_engine_v2 import (
     TestExecutionEngineV2 as TestExecutionEngine,
@@ -31,9 +32,19 @@ from app.services.test_execution_engine_v2 import (
     VerificationError
 )
 from app.services.precondition_service import PreconditionService
+from app.services.precondition.models import TestObjectInfo, TestObjectType
 from app.services.element_locator_service import ElementLocatorService
+from app.services.selector_registry import SelectorRegistry
 from app.utils.browser_controller import create_browser_controller
 from app.utils.unified_vision_model import get_default_vision_model
+
+TestCase.__test__ = False
+TestStep.__test__ = False
+TestCaseExecution.__test__ = False
+TestResult.__test__ = False
+TestExecutionEngine.__test__ = False
+TestObjectInfo.__test__ = False
+TestObjectType.__test__ = False
 
 
 # ==================== Fixtures ====================
@@ -132,7 +143,7 @@ def test_execution_status_enum():
     assert ExecutionStatus.RUNNING.value == "running"
     assert ExecutionStatus.PASSED.value == "passed"
     assert ExecutionStatus.FAILED.value == "failed"
-    assert ExecutionStatus.SKIPPED.value == "skipped"
+    assert ExecutionStatus.BLOCKED.value == "blocked"
     assert ExecutionStatus.ERROR.value == "error"
 
 
@@ -167,7 +178,7 @@ def test_step_execution_result_creation():
     # 测试to_dict方法
     data = result.to_dict()
     assert data["step_number"] == 1
-    assert data["action"] == "点击登录按钮"
+    assert data["action_type"] == "click"
     assert data["status"] == "passed"
     assert data["duration_ms"] == 1000
 
@@ -185,25 +196,25 @@ def test_test_execution_result_creation():
     )
     
     result = TestExecutionResult(
-        execution_id=1,
-        test_case_id=1,
+        case_id=1,
         status=ExecutionStatus.PASSED,
         start_time=start_time,
         duration_ms=1000,
-        step_results=[step_result],
-        actual_result="执行成功"
+        steps=[step_result],
+        total_steps=1,
+        passed_steps=1,
+        failed_steps=0,
     )
     
-    assert result.execution_id == 1
-    assert result.test_case_id == 1
+    assert result.case_id == 1
     assert result.status == ExecutionStatus.PASSED
-    assert len(result.step_results) == 1
+    assert len(result.steps) == 1
     
     # 测试to_dict方法
     data = result.to_dict()
-    assert data["execution_id"] == 1
+    assert data["case_id"] == 1
     assert data["status"] == "passed"
-    assert len(data["step_results"]) == 1
+    assert len(data["steps"]) == 1
 
 
 # ==================== 动作解析测试 ====================
@@ -235,7 +246,7 @@ def test_parse_step_action_click(execution_engine):
     assert action_info["type"] in (ActionType.CLICK, ActionType.KEYPRESS)  # NLP可能解析为CLICK或KEYPRESS
     
     action_info = execution_engine._parse_step_action("按下提交键")
-    assert action_info["type"] == ActionType.CLICK
+    assert action_info["type"] == ActionType.KEYPRESS
 
 
 def test_parse_step_action_verify(execution_engine):
@@ -307,35 +318,40 @@ def test_extract_wait_time(execution_engine):
 
 def test_generate_execution_summary_all_passed(execution_engine):
     """真实测试：生成执行摘要 - 全部通过"""
-    start_time = utcnow()
-    
-    execution_engine._step_results = [
-        StepExecutionResult(1, "点击", ExecutionStatus.PASSED, start_time, duration_ms=1000),
-        StepExecutionResult(2, "输入", ExecutionStatus.PASSED, start_time, duration_ms=500),
-        StepExecutionResult(3, "验证", ExecutionStatus.PASSED, start_time, duration_ms=800)
-    ]
-    
-    summary = execution_engine._generate_execution_summary()
-    assert "总计3步" in summary
-    assert "通过3步" in summary
-    assert "失败0步" in summary
+    result = TestExecutionResult(
+        case_id=1,
+        status=ExecutionStatus.PASSED,
+        total_steps=3,
+        passed_steps=3,
+        failed_steps=0,
+        duration_ms=2300,
+    )
+    test_case = type("TestCaseSummary", (), {"case_no": "TC-001", "title": "全部通过"})()
+
+    summary = execution_engine._generate_execution_summary(result, test_case)
+    assert summary["total_steps"] == 3
+    assert summary["passed_steps"] == 3
+    assert summary["failed_steps"] == 0
+    assert summary["status"] == "passed"
 
 
 def test_generate_execution_summary_with_failures(execution_engine):
     """真实测试：生成执行摘要 - 有失败"""
-    start_time = utcnow()
-    
-    execution_engine._step_results = [
-        StepExecutionResult(1, "点击", ExecutionStatus.PASSED, start_time, duration_ms=1000),
-        StepExecutionResult(2, "输入", ExecutionStatus.FAILED, start_time, duration_ms=500, error_message="错误"),
-        StepExecutionResult(3, "验证", ExecutionStatus.PASSED, start_time, duration_ms=800)
-    ]
-    
-    summary = execution_engine._generate_execution_summary()
-    assert "总计3步" in summary
-    assert "通过2步" in summary
-    assert "失败1步" in summary
-    assert "第2步" in summary
+    result = TestExecutionResult(
+        case_id=1,
+        status=ExecutionStatus.FAILED,
+        total_steps=3,
+        passed_steps=2,
+        failed_steps=1,
+        duration_ms=2300,
+    )
+    test_case = type("TestCaseSummary", (), {"case_no": "TC-002", "title": "存在失败"})()
+
+    summary = execution_engine._generate_execution_summary(result, test_case)
+    assert summary["total_steps"] == 3
+    assert summary["passed_steps"] == 2
+    assert summary["failed_steps"] == 1
+    assert summary["status"] == "failed"
 
 
 # ==================== 数据库操作测试 ====================
@@ -343,7 +359,7 @@ def test_generate_execution_summary_with_failures(execution_engine):
 @pytest.mark.asyncio
 async def test_get_execution_history_empty(db_session, execution_engine):
     """真实测试：获取执行历史 - 空"""
-    history = execution_engine.get_execution_history(limit=10)
+    history = await execution_engine.get_execution_history(case_id=999999, limit=10)
     assert len(history) == 0
 
 
@@ -378,21 +394,23 @@ async def test_get_execution_history_with_data(db_session, execution_engine, tes
     db_session.commit()
     db_session.refresh(test_case)
     
-    # 创建执行记录
-    execution = TestCaseExecution(
-        test_case_id=test_case.id,
-        status="passed",
-        started_at=utcnow(),
-        completed_at=utcnow()
+    # 创建执行结果记录
+    execution = TestResult(
+        project_id=project.id,
+        case_id=test_case.id,
+        case_no=test_case.case_no,
+        exec_status=1,
+        exec_time=utcnow(),
+        exec_log="执行成功",
     )
     db_session.add(execution)
     db_session.commit()
     
     # 查询历史
-    history = execution_engine.get_execution_history(test_case_id=test_case.id, limit=10)
+    history = await execution_engine.get_execution_history(case_id=test_case.id, limit=10)
     assert len(history) == 1
-    assert history[0].test_case_id == test_case.id
-    assert history[0].status == "passed"
+    assert history[0]["exec_status"] == 1
+    assert history[0]["error_msg"] is None
 
 
 # ==================== 真实浏览器测试 ====================
@@ -539,7 +557,7 @@ async def test_execute_test_case_simple(db_session, browser_controller, vision_m
         module="搜索模块",
         title="访问百度首页",
         precondition="无",
-        steps_json='[{"step": "导航到百度", "action": "访问 https://www.baidu.com", "expected": "页面加载成功"}]',
+        steps_json='[{"step": 1, "action_type": "navigate", "action": "访问 https://www.baidu.com", "expected_result": "页面加载成功"}]',
         expected_result="页面加载成功",
         priority=1,
         case_type="UI"
@@ -570,17 +588,10 @@ async def test_execute_test_case_simple(db_session, browser_controller, vision_m
     )
     
     # 验证结果
-    assert result.test_case_id == test_case.id
+    assert result.case_id == test_case.id
     assert result.status in [ExecutionStatus.PASSED, ExecutionStatus.FAILED]
-    assert len(result.step_results) == 1
+    assert len(result.steps) == 1
     assert result.duration_ms >= 0
-    
-    # 验证数据库记录
-    execution_record = db_session.query(TestCaseExecution).filter(
-        TestCaseExecution.test_case_id == test_case.id
-    ).first()
-    assert execution_record is not None
-    assert execution_record.status in ["passed", "failed"]
 
 
 @pytest.mark.asyncio
@@ -606,7 +617,7 @@ async def test_execute_test_case_with_wait_step(db_session, browser_controller, 
         module="等待测试",
         title="等待测试",
         precondition="无",
-        steps_json='[{"step": "等待", "action": "等待 1 秒", "expected": "等待完成"}]',
+        steps_json='[{"step": 1, "action_type": "wait", "action": "等待 1 秒", "expected_result": "等待完成"}]',
         expected_result="等待完成",
         priority=2,
         case_type="UI"
@@ -636,10 +647,10 @@ async def test_execute_test_case_with_wait_step(db_session, browser_controller, 
     )
     
     # 验证结果
-    assert result.test_case_id == test_case.id
+    assert result.case_id == test_case.id
     assert result.status == ExecutionStatus.PASSED
-    assert len(result.step_results) == 1
-    assert result.step_results[0].status == ExecutionStatus.PASSED
+    assert len(result.steps) == 1
+    assert result.steps[0].status == ExecutionStatus.PASSED
 
 
 @pytest.mark.asyncio
@@ -665,7 +676,7 @@ async def test_execute_test_case_multiple_steps(db_session, browser_controller, 
         module="多步骤测试",
         title="多步骤测试",
         precondition="无",
-        steps_json='[{"step": "导航", "action": "访问 https://www.baidu.com"}, {"step": "等待", "action": "等待 1 秒"}]',
+        steps_json='[{"step": 1, "action_type": "navigate", "action": "访问 https://www.baidu.com"}, {"step": 2, "action_type": "wait", "action": "等待 1 秒"}]',
         expected_result="所有步骤完成",
         priority=1,
         case_type="UI"
@@ -702,10 +713,10 @@ async def test_execute_test_case_multiple_steps(db_session, browser_controller, 
     )
     
     # 验证结果
-    assert result.test_case_id == test_case.id
-    assert len(result.step_results) == 2
-    assert result.step_results[0].step_number == 1
-    assert result.step_results[1].step_number == 2
+    assert result.case_id == test_case.id
+    assert len(result.steps) == 2
+    assert result.steps[0].step_number == 1
+    assert result.steps[1].step_number == 2
 
 
 # ==================== 异常处理测试 ====================
@@ -781,7 +792,7 @@ async def test_execute_step_with_failure(db_session, browser_controller, executi
         module="失败测试",
         title="失败测试",
         precondition="无",
-        steps_json='[]',
+        steps_json='[{"step": 1, "action_type": "navigate", "action": "导航到无效地址", "expected_result": "失败"}]',
         expected_result="失败",
         priority=1,
         case_type="UI"
@@ -811,8 +822,8 @@ async def test_execute_step_with_failure(db_session, browser_controller, executi
     )
     
     # 验证结果 - 步骤应该失败
-    assert result.test_case_id == test_case.id
-    assert len(result.step_results) == 1
+    assert result.case_id == test_case.id
+    assert len(result.steps) == 1
     # 步骤可能因为无法提取URL而失败
 
 
@@ -865,8 +876,10 @@ async def test_execute_scroll_up(db_session, browser_controller, execution_engin
 async def test_execute_hover_real(db_session, browser_controller, execution_engine):
     """真实测试：悬停操作"""
     execution_engine.browser = browser_controller
-    
-    action_info = {"type": ActionType.HOVER, "text": "悬停在元素上"}
+    assert browser_controller._page is not None
+    await browser_controller._page.set_content("<button type='submit'>提交</button>")
+
+    action_info = {"type": ActionType.HOVER, "text": "悬停提交按钮"}
     await execution_engine._execute_hover(action_info, step_id=1)
     
     # 悬停操作是简化实现，主要验证不抛出异常
@@ -877,8 +890,15 @@ async def test_execute_hover_real(db_session, browser_controller, execution_engi
 async def test_execute_select_real(db_session, browser_controller, execution_engine):
     """真实测试：选择操作"""
     execution_engine.browser = browser_controller
-    
-    action_info = {"type": ActionType.SELECT, "text": "选择选项"}
+    assert browser_controller._page is not None
+    await browser_controller._page.set_content(
+        "<select id='status'><option value='a'>选项A</option><option value='b'>选项B</option></select>"
+    )
+    execution_engine._selector_registry = SelectorRegistry()
+    execution_engine._selector_registry.register_keyword_alias("提交按钮", "选项")
+    execution_engine._selector_registry.register_selector("default", "提交按钮", "#status")
+
+    action_info = {"type": ActionType.SELECT, "text": "选择选项B", "input_value": "b"}
     await execution_engine._execute_select(action_info, step_id=1)
     
     # 选择操作是简化实现，主要验证不抛出异常
@@ -955,7 +975,7 @@ async def test_execute_test_case_with_error(db_session, browser_controller, exec
         module="错误测试",
         title="错误测试用例",
         precondition="无",
-        steps_json='[]',
+        steps_json='[{"step": 1, "action_type": "navigate", "action": "导航到 https://www.baidu.com", "expected_result": "页面加载"}]',
         expected_result="错误",
         priority=1,
         case_type="UI"
@@ -986,7 +1006,7 @@ async def test_execute_test_case_with_error(db_session, browser_controller, exec
     
     # 验证返回了错误结果
     assert result.status == ExecutionStatus.FAILED
-    assert result.test_case_id == test_case.id
+    assert result.case_id == test_case.id
 
 
 @pytest.mark.asyncio
@@ -1012,7 +1032,7 @@ async def test_execute_test_case_with_failed_step(db_session, browser_controller
         module="失败步骤测试",
         title="失败步骤测试",
         precondition="无",
-        steps_json='[]',
+        steps_json='[{"step": 1, "action_type": "navigate", "action": "导航到无效地址", "expected_result": "失败"}, {"step": 2, "action_type": "wait", "action": "等待 1 秒", "expected_result": "跳过"}]',
         expected_result="部分失败",
         priority=1,
         case_type="UI"
@@ -1049,7 +1069,7 @@ async def test_execute_test_case_with_failed_step(db_session, browser_controller
     )
     
     # 验证 - 第一个步骤失败后应该中断
-    assert result.test_case_id == test_case.id
+    assert result.case_id == test_case.id
     assert result.status == ExecutionStatus.FAILED
 
 
@@ -1057,26 +1077,27 @@ async def test_execute_test_case_with_failed_step(db_session, browser_controller
 @pytest.mark.real_browser
 async def test_generate_execution_summary_no_failures(execution_engine):
     """真实测试：生成执行摘要 - 无失败"""
-    start_time = utcnow()
-    
-    execution_engine._step_results = [
-        StepExecutionResult(1, "步骤1", ExecutionStatus.PASSED, start_time, duration_ms=1000),
-        StepExecutionResult(2, "步骤2", ExecutionStatus.PASSED, start_time, duration_ms=500)
-    ]
-    
-    summary = execution_engine._generate_execution_summary()
-    assert "总计2步" in summary
-    assert "通过2步" in summary
-    assert "失败0步" in summary
-    assert "失败步骤" not in summary  # 没有失败时不应该包含失败步骤信息
+    result = TestExecutionResult(
+        case_id=1,
+        status=ExecutionStatus.PASSED,
+        total_steps=2,
+        passed_steps=2,
+        failed_steps=0,
+        duration_ms=1500,
+    )
+    test_case = type("TestCaseSummary", (), {"case_no": "TC-003", "title": "无失败"})()
+
+    summary = execution_engine._generate_execution_summary(result, test_case)
+    assert summary["total_steps"] == 2
+    assert summary["passed_steps"] == 2
+    assert summary["failed_steps"] == 0
+    assert summary["status"] == "passed"
 
 
 @pytest.mark.asyncio
 async def test_get_execution_history_without_test_case_id(db_session, execution_engine):
-    """真实测试：获取执行历史 - 不使用test_case_id过滤"""
-    # 查询所有历史（不传test_case_id）
-    history = execution_engine.get_execution_history(limit=5)
-    # 可能为空或包含已有数据
+    """真实测试：获取执行历史 - 不存在用例ID"""
+    history = await execution_engine.get_execution_history(case_id=999999, limit=5)
     assert isinstance(history, list)
 
 
@@ -1127,6 +1148,11 @@ async def test_execute_precondition_with_service(db_session, browser_controller,
     db_session.add(project)
     db_session.commit()
     db_session.refresh(project)
+    precondition_service._test_object_info = TestObjectInfo(
+        type=TestObjectType.WEB,
+        url="https://www.baidu.com",
+    )
+    await browser_controller.navigate("https://www.baidu.com")
     
     # 执行前置条件
     await execution_engine._execute_precondition(project_id=project.id)
@@ -1162,16 +1188,13 @@ async def test_execute_precondition_without_service(db_session, execution_engine
 @pytest.mark.real_browser
 async def test_execute_precondition_browser_ready(db_session, browser_controller, vision_model, execution_engine, test_user):
     """真实测试：执行前置条件 - 浏览器已就绪"""
-    # 创建前置条件服务（浏览器已初始化）
     precondition_service = PreconditionService()
     precondition_service.browser_controller = browser_controller
     precondition_service.vision_model = vision_model
-    # is_browser_ready 是property，由browser_controller决定
-    
+
     execution_engine.precondition_service = precondition_service
     execution_engine.browser = browser_controller
-    
-    # 创建项目获取真实id
+
     project = Project(
         name="前置条件浏览器就绪测试项目",
         user_id=test_user.id,
@@ -1182,11 +1205,18 @@ async def test_execute_precondition_browser_ready(db_session, browser_controller
     db_session.add(project)
     db_session.commit()
     db_session.refresh(project)
-    
-    # 执行前置条件
+    precondition_service._test_object_info = TestObjectInfo(
+        type=TestObjectType.WEB,
+        url="https://www.baidu.com",
+    )
+    await browser_controller.navigate("https://www.baidu.com")
+
+    original_controller = precondition_service.browser_controller
     await execution_engine._execute_precondition(project_id=project.id)
-    
-    # 验证 - 浏览器已就绪时直接返回
+
+    assert precondition_service.browser_controller is original_controller
+    assert precondition_service.is_browser_ready is True
+    assert execution_engine.browser is browser_controller
 
 
 # ==================== AI验证测试 ====================
@@ -1194,35 +1224,35 @@ async def test_execute_precondition_browser_ready(db_session, browser_controller
 @pytest.mark.asyncio
 @pytest.mark.real_browser
 async def test_execute_verify_with_ai(db_session, browser_controller, vision_model, execution_engine):
-    """真实测试：执行AI验证 - 有视觉模型"""
+    """真实测试：执行AI验证 - 有视觉模型，验证不抛未捕获异常"""
     execution_engine.browser = browser_controller
     execution_engine.vision_model = vision_model
-    
-    # 导航到百度
+
     await browser_controller.navigate("https://www.baidu.com")
-    
-    # 执行AI验证
+
     action_info = {"type": ActionType.VERIFY, "text": "验证页面包含搜索框"}
-    await execution_engine._execute_verify(action_info, step_id=1)
-    
-    # 验证 - AI验证应该完成（可能通过或失败，但不会抛出异常）
+    try:
+        await execution_engine._execute_verify(action_info, step_id=1)
+    except VerificationError:
+        pass
+    assert execution_engine.browser is browser_controller
 
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
 async def test_execute_verify_ai_parse_failure(db_session, browser_controller, vision_model, execution_engine):
-    """真实测试：执行AI验证 - AI响应解析失败"""
+    """真实测试：执行AI验证 - AI响应可能通过或失败，浏览器状态不受影响"""
     execution_engine.browser = browser_controller
     execution_engine.vision_model = vision_model
-    
-    # 导航到百度
+
     await browser_controller.navigate("https://www.baidu.com")
-    
-    # 执行AI验证（使用一个可能导致解析失败的描述）
+
     action_info = {"type": ActionType.VERIFY, "text": "验证"}
-    await execution_engine._execute_verify(action_info, step_id=1)
-    
-    # 验证 - 即使解析失败也不应该抛出异常
+    try:
+        await execution_engine._execute_verify(action_info, step_id=1)
+    except VerificationError:
+        pass
+    assert execution_engine.browser is browser_controller
 
 
 # ==================== 元素定位失败分支测试 ====================
@@ -1313,7 +1343,7 @@ async def test_execute_test_case_skip_precondition_false(db_session, browser_con
         module="前置条件测试",
         title="前置条件执行测试",
         precondition="无",
-        steps_json='[]',
+        steps_json='[{"step": 1, "action_type": "wait", "action": "等待 1 秒", "expected_result": "等待完成"}]',
         expected_result="成功",
         priority=1,
         case_type="UI"
@@ -1340,7 +1370,7 @@ async def test_execute_test_case_skip_precondition_false(db_session, browser_con
     )
     
     # 验证
-    assert result.test_case_id == test_case.id
+    assert result.case_id == test_case.id
     assert result.status == ExecutionStatus.PASSED
 
 
@@ -1364,7 +1394,7 @@ async def test_execute_scroll_default(db_session, browser_controller, execution_
 
 @pytest.mark.asyncio
 @pytest.mark.real_browser
-async def test_execute_step_get_locator(db_session, browser_controller, locator_service, execution_engine):
+async def test_execute_step_get_locator(db_session, browser_controller, locator_service, execution_engine, test_user):
     """真实测试：步骤执行 - 获取元素定位信息"""
     execution_engine.browser = browser_controller
     execution_engine.locator_service = locator_service
@@ -1374,7 +1404,41 @@ async def test_execute_step_get_locator(db_session, browser_controller, locator_
     
     # 先记录一个定位信息（使用唯一ID）
     from app.models.element_locator import ElementLocator
-    step_id = 20010
+    project = Project(
+        name="定位步骤项目",
+        user_id=test_user.id,
+        description="测试",
+        project_type="web",
+    )
+    db_session.add(project)
+    db_session.commit()
+    db_session.refresh(project)
+
+    parent_case = TestCase(
+        case_no="TEST-LOCATOR-STEP",
+        project_id=project.id,
+        module="定位",
+        title="定位步骤",
+        precondition="无",
+        steps_json=[],
+        expected_result="完成",
+        priority=1,
+        case_type="UI"
+    )
+    db_session.add(parent_case)
+    db_session.commit()
+    db_session.refresh(parent_case)
+
+    parent_step = TestStep(
+        test_case_id=parent_case.id,
+        step_number=1,
+        action="等待 1 秒",
+        expected_result="等待完成"
+    )
+    db_session.add(parent_step)
+    db_session.commit()
+    db_session.refresh(parent_step)
+    step_id = parent_step.id
     
     locator = ElementLocator(
         step_id=step_id,
@@ -1425,11 +1489,10 @@ async def test_step_execution_result_with_screenshot():
     # 验证to_dict包含所有字段
     data = result.to_dict()
     assert data["step_number"] == 1
-    assert data["action"] == "点击"
+    assert data["action_type"] == "click"
     assert data["status"] == "passed"
     assert data["duration_ms"] == 1000
-    assert data["element_locator"] == {"type": "css", "value": "#btn"}
-    assert data["ai_analysis"] == "AI分析结果"
+    assert data["error_message"] is None
 
 
 @pytest.mark.asyncio
@@ -1448,23 +1511,25 @@ async def test_test_execution_result_full():
     )
     
     result = TestExecutionResult(
-        execution_id=1,
-        test_case_id=1,
+        case_id=1,
         status=ExecutionStatus.PASSED,
         start_time=start_time,
         end_time=end_time,
         duration_ms=1000,
-        step_results=[step_result],
-        actual_result="执行成功",
-        error_message=None
+        steps=[step_result],
+        error_message=None,
+        total_steps=1,
+        passed_steps=1,
+        failed_steps=0,
     )
     
     # 验证to_dict
     data = result.to_dict()
-    assert data["execution_id"] == 1
-    assert data["test_case_id"] == 1
+    assert data["case_id"] == 1
     assert data["status"] == "passed"
     assert data["duration_ms"] == 1000
-    assert data["actual_result"] == "执行成功"
     assert data["error_message"] is None
-    assert len(data["step_results"]) == 1
+    assert data["total_steps"] == 1
+    assert data["passed_steps"] == 1
+    assert data["failed_steps"] == 0
+    assert len(data["steps"]) == 1

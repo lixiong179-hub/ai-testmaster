@@ -1,6 +1,8 @@
 from app.utils.ai_client_parser._json_fixer import (
     fix_common_json_issues,
     clean_json_string,
+    parse_ai_json_response,
+    parse_ai_json_object,
 )
 from app.utils.ai_client_parser._test_point_parser import (
     extract_json_objects_fallback,

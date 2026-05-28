@@ -3,10 +3,10 @@ describe('登录功能测试', () => {
     // 直接调用登录API
     cy.request({
       method: 'POST',
-      url: 'http://localhost:8000/api/v1/auth/login',
+      url: 'http://127.0.0.1:8000/api/v1/auth/login',
       body: {
         username: 'admin',
-        password: 'password123',
+        password: 'admin123',
       },
       headers: {
         'Content-Type': 'application/json',
@@ -30,7 +30,7 @@ describe('登录功能测试', () => {
     })
 
     // 访问首页
-    cy.visit('http://localhost:3000/home')
+    cy.visit('http://127.0.0.1:3000/home')
     cy.wait(2000)
 
     // 检查当前URL

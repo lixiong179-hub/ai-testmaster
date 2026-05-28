@@ -7,6 +7,7 @@ from loguru import logger
 
 from app.services.selector_registry import SelectorRegistry
 from app.services.test_execution_engine.models import StepExecutionError
+from app.utils.ai_client_parser import parse_ai_json_object
 
 
 class AIRecognitionMixin:
@@ -40,13 +41,14 @@ class AIRecognitionMixin:
             response = self.vision_model.analyze_image(screenshot, prompt)
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
-                element_info = json.loads(json_match.group())
-                confidence = element_info.get("confidence", 0)
-                if confidence < 0.9:
-                    logger.warning(f"元素识别置信度较低: {confidence}")
-                    return None
-                logger.info(f"AI识别元素成功: 置信度={confidence}")
-                return element_info
+                element_info = parse_ai_json_object(json_match.group())
+                if element_info is not None:
+                    confidence = element_info.get("confidence", 0)
+                    if confidence < 0.9:
+                        logger.warning(f"元素识别置信度较低: {confidence}")
+                        return None
+                    logger.info(f"AI识别元素成功: 置信度={confidence}")
+                    return element_info
             return None
         except Exception as e:
             logger.error(f"AI元素识别失败: {str(e)}")
@@ -80,15 +82,17 @@ class AIRecognitionMixin:
             response = self.vision_model.analyze_image(after_screenshot, prompt)
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
-                result = json.loads(json_match.group())
-                success = result.get("success", False)
-                reason = result.get("reason", "")
-                logger.info(f"AI验证结果: success={success}, reason={reason}")
-                return success
-            return True
+                result = parse_ai_json_object(json_match.group())
+                if result is not None:
+                    success = result.get("success", False)
+                    reason = result.get("reason", "")
+                    logger.info(f"AI验证结果: success={success}, reason={reason}")
+                    return success
+            logger.warning("AI验证响应无法解析，默认验证失败")
+            return False
         except Exception as e:
             logger.error(f"AI验证执行失败: {str(e)}")
-            return True
+            return False
 
     async def smart_locate_with_ai_fallback(
         self,
