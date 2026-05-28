@@ -1,6 +1,7 @@
-"""TestCapability 服务单元测试 - 覆盖创建、查询、列表、状态过滤、唯一约束"""
+"""TestCapability 服务单元测试 - 覆盖创建、查询、列表、状态过滤、唯一约束、软删除"""
 import pytest
 from app.models.test_capability import TestCapability
+from app.models.enums import CapabilityStatus
 from app.services.test_capability_service import (
     create_capability,
     get_capability_by_id,
@@ -95,9 +96,26 @@ class TestListCapabilities:
         depr_caps = get_capabilities_by_project(db, project_id=testProject.id, status="deprecated")
         assert all(c.status == "deprecated" for c in depr_caps)
 
+    def test_list_default_excludes_archived(self, db, testProject):
+        """默认查询不包含已归档能力"""
+        create_capability(db, project_id=testProject.id, key="active_cap", title="活跃", status="active")
+        create_capability(db, project_id=testProject.id, key="archived_cap", title="已归档", status="archived")
+        caps = get_capabilities_by_project(db, project_id=testProject.id)
+        keys = {c.key for c in caps}
+        assert "active_cap" in keys
+        assert "archived_cap" not in keys
+
+    def test_list_include_archived(self, db, testProject):
+        """include_archived=True 时包含已归档能力"""
+        create_capability(db, project_id=testProject.id, key="active_cap2", title="活跃", status="active")
+        create_capability(db, project_id=testProject.id, key="archived_cap2", title="已归档", status="archived")
+        caps = get_capabilities_by_project(db, project_id=testProject.id, include_archived=True)
+        keys = {c.key for c in caps}
+        assert "active_cap2" in keys
+        assert "archived_cap2" in keys
+
     def test_list_empty_for_new_project(self, db, testProject):
         caps = get_capabilities_by_project(db, project_id=testProject.id)
-        # 可能已有其他测试创建的，但不应包含非本项目数据
         for c in caps:
             assert c.project_id == testProject.id
 
@@ -122,12 +140,34 @@ class TestUpdateCapability:
 
 
 class TestDeleteCapability:
-    """删除能力"""
+    """软删除能力（status 置为 archived）"""
 
     def test_delete_success(self, db, testProject):
         cap = create_capability(db, project_id=testProject.id, key="del_test", title="待删除")
-        assert delete_capability(db, cap.id) is True
-        assert get_capability_by_id(db, cap.id) is None
+        result = delete_capability(db, cap.id)
+        assert result is not None
+        assert result.status == CapabilityStatus.ARCHIVED.value
+        # 记录仍存在，status 为 archived
+        found = get_capability_by_id(db, cap.id)
+        assert found is not None
+        assert found.status == CapabilityStatus.ARCHIVED.value
 
-    def test_delete_nonexistent_returns_false(self, db):
-        assert delete_capability(db, 99999) is False
+    def test_delete_with_actor_id(self, db, testProject, testUser):
+        cap = create_capability(db, project_id=testProject.id, key="del_actor", title="带操作人删除")
+        result = delete_capability(db, cap.id, actor_id=testUser.id)
+        assert result is not None
+        assert result.status == CapabilityStatus.ARCHIVED.value
+
+    def test_delete_nonexistent_returns_none(self, db):
+        result = delete_capability(db, 99999)
+        assert result is None
+
+    def test_delete_archived_capability_idempotent(self, db, testProject):
+        """已归档能力再次删除应幂等返回该能力，不抛异常"""
+        cap = create_capability(
+            db, project_id=testProject.id, key="del_archived", title="已归档",
+            status=CapabilityStatus.ARCHIVED.value,
+        )
+        result = delete_capability(db, cap.id)
+        assert result is not None
+        assert result.status == CapabilityStatus.ARCHIVED.value

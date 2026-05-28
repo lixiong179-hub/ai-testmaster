@@ -24,7 +24,9 @@
                 <el-icon><Search /></el-icon>
               </template>
               <template #append>
-                <el-button @click="handleSearch"><el-icon><Search /></el-icon></el-button>
+                <el-button @click="handleSearch"
+                  ><el-icon><Search /></el-icon
+                ></el-button>
               </template>
             </el-input>
           </el-col>
@@ -92,7 +94,7 @@
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px">
-      <el-form ref="userFormRef" :model="userForm" :rules="userRules" label-width="100px">
+      <el-form :ref="setUserFormRef" :model="userForm" :rules="userRules" label-width="100px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="userForm.username" placeholder="请输入用户名" />
         </el-form-item>
@@ -103,7 +105,12 @@
           <el-input v-model="userForm.phone" placeholder="请输入手机号" />
         </el-form-item>
         <el-form-item label="密码" prop="password" v-if="!editMode">
-          <el-input v-model="userForm.password" type="password" placeholder="请输入密码" show-password />
+          <el-input
+            v-model="userForm.password"
+            type="password"
+            placeholder="请输入密码"
+            show-password
+          />
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-switch v-model="userForm.status" />
@@ -143,14 +150,38 @@ import { Plus, Search } from '@element-plus/icons-vue'
 import { useUserManagement } from './useUserManagement'
 
 const {
-  loading, users, pagination, searchQuery, statusFilter,
-  dialogVisible, roleDialogVisible, dialogTitle, editMode,
-  userFormRef, userForm, userRules, roles, selectedRoles, currentUser,
-  handleSearch, resetFilter, handleSizeChange, handleCurrentChange,
-  openAddDialog, openEditDialog, saveUser, toggleStatus, assignRole, saveRoles,
+  loading,
+  users,
+  pagination,
+  searchQuery,
+  statusFilter,
+  dialogVisible,
+  roleDialogVisible,
+  dialogTitle,
+  editMode,
+  userFormRef,
+  userForm,
+  userRules,
+  roles,
+  selectedRoles,
+  currentUser,
+  handleSearch,
+  resetFilter,
+  handleSizeChange,
+  handleCurrentChange,
+  openAddDialog,
+  openEditDialog,
+  saveUser,
+  toggleStatus,
+  assignRole,
+  saveRoles,
 } = useUserManagement()
+
+const setUserFormRef = (el: unknown) => {
+  userFormRef.value = el
+}
 </script>
 
 <style scoped lang="scss">
-@import './UserManagement.scss';
+@use './UserManagement.scss';
 </style>

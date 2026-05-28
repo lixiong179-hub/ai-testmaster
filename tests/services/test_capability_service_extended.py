@@ -1,4 +1,5 @@
 import pytest
+from app.models.enums import CapabilityStatus
 from app.services.test_capability_service import (
     create_capability,
     get_capability_by_id,
@@ -22,10 +23,10 @@ class TestCreateCapability:
     def test_create_with_description(self, db, testProject):
         cap = create_capability(
             db, testProject.id, "REG", "注册功能",
-            description="用户注册流程", status="inactive",
+            description="用户注册流程", status="deprecated",
         )
         assert cap.description == "用户注册流程"
-        assert cap.status == "inactive"
+        assert cap.status == "deprecated"
 
     def test_duplicate_key_raises(self, db, testProject):
         create_capability(db, testProject.id, "DUP", "重复功能")
@@ -53,9 +54,27 @@ class TestGetCapabilitiesByProject:
 
     def test_filter_by_status(self, db, testProject):
         create_capability(db, testProject.id, "ACTIVE", "活跃功能", status="active")
-        create_capability(db, testProject.id, "INACTIVE", "非活跃功能", status="inactive")
+        create_capability(db, testProject.id, "DEPRECATED", "废弃功能", status="deprecated")
         result = get_capabilities_by_project(db, testProject.id, status="active")
         assert all(c.status == "active" for c in result)
+
+    def test_default_excludes_archived(self, db, testProject):
+        """默认不包含 archived"""
+        create_capability(db, testProject.id, "EXT_ACTIVE", "活跃", status="active")
+        create_capability(db, testProject.id, "EXT_ARCHIVED", "已归档", status="archived")
+        result = get_capabilities_by_project(db, testProject.id)
+        keys = {c.key for c in result}
+        assert "EXT_ACTIVE" in keys
+        assert "EXT_ARCHIVED" not in keys
+
+    def test_include_archived(self, db, testProject):
+        """include_archived=True 时包含 archived"""
+        create_capability(db, testProject.id, "EXT_ACTIVE2", "活跃", status="active")
+        create_capability(db, testProject.id, "EXT_ARCHIVED2", "已归档", status="archived")
+        result = get_capabilities_by_project(db, testProject.id, include_archived=True)
+        keys = {c.key for c in result}
+        assert "EXT_ACTIVE2" in keys
+        assert "EXT_ARCHIVED2" in keys
 
     def test_empty_project(self, db):
         result = get_capabilities_by_project(db, 99999)
@@ -88,9 +107,13 @@ class TestDeleteCapability:
     def test_delete_existing(self, db, testProject):
         cap = create_capability(db, testProject.id, "DEL", "删除功能")
         result = delete_capability(db, cap.id)
-        assert result is True
-        assert get_capability_by_id(db, cap.id) is None
+        assert result is not None
+        assert result.status == CapabilityStatus.ARCHIVED.value
+        # 记录仍存在
+        found = get_capability_by_id(db, cap.id)
+        assert found is not None
+        assert found.status == CapabilityStatus.ARCHIVED.value
 
     def test_delete_nonexistent(self, db):
         result = delete_capability(db, 99999)
-        assert result is False
+        assert result is None

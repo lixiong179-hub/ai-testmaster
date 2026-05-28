@@ -1,8 +1,9 @@
 <template>
   <div class="main-layout">
-    <div class="sidebar" :class="{ expanded: sidebarExpanded }">
+    <div class="sidebar" :class="{ expanded: sidebarExpanded, collapsed: sidebarCollapsed }">
       <div class="logo" @click="toggleSidebar">
-        <h3>AI TestMaster</h3>
+        <h3 v-show="!sidebarCollapsed || isMobile">AI TestMaster</h3>
+        <h3 v-show="sidebarCollapsed && !isMobile" class="logo-mark">AI</h3>
         <el-icon v-if="isMobile" class="mobile-toggle">
           <ArrowDown v-if="!sidebarExpanded" />
           <ArrowUp v-if="sidebarExpanded" />
@@ -13,50 +14,28 @@
         class="sidebar-menu"
         router
         unique-opened
+        :collapse="sidebarCollapsed && !isMobile"
+        :collapse-transition="false"
         background-color="#1f2d3d"
         text-color="#bfcbd9"
         active-text-color="#409eff"
         @select="handleMenuSelect"
       >
-        <el-menu-item index="/home/project">
-          <el-icon><HomeFilled /></el-icon>
-          <span>项目列表</span>
-        </el-menu-item>
-        <el-sub-menu index="requirement">
-          <template #title>
-            <el-icon><Message /></el-icon>
-            <span>资源管理</span>
-          </template>
-          <el-menu-item index="/home/requirement"><span>资源列表</span></el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="case">
-          <template #title>
-            <el-icon><Check /></el-icon>
-            <span>测试用例管理</span>
-          </template>
-          <el-menu-item index="/home/case"><span>用例列表</span></el-menu-item>
-          <el-menu-item index="/home/case/test-point-management"><span>测试点管理</span></el-menu-item>
-          <el-menu-item index="/home/case/ai-generate"><span>AI生成用例</span></el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="task">
-          <template #title>
-            <el-icon><Timer /></el-icon>
-            <span>测试任务管理</span>
-          </template>
-          <el-menu-item index="/home/task"><span>任务列表</span></el-menu-item>
-        </el-sub-menu>
-        <el-menu-item index="/home/report">
-          <el-icon><DataAnalysis /></el-icon>
-          <span>测试报告</span>
-        </el-menu-item>
-        <el-sub-menu index="system">
-          <template #title>
-            <el-icon><Setting /></el-icon>
-            <span>系统管理</span>
-          </template>
-          <el-menu-item index="/home/system/user"><span>用户管理</span></el-menu-item>
-          <el-menu-item index="/home/system/role"><span>角色管理</span></el-menu-item>
-        </el-sub-menu>
+        <template v-for="item in menuItems" :key="item.index">
+          <el-sub-menu v-if="item.children && item.children.length > 0" :index="item.index">
+            <template #title>
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.label }}</span>
+            </template>
+            <el-menu-item v-for="child in item.children" :key="child.index" :index="child.index">
+              <span>{{ child.label }}</span>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-menu-item v-else :index="item.index">
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span>{{ item.label }}</span>
+          </el-menu-item>
+        </template>
       </el-menu>
     </div>
 
@@ -68,7 +47,9 @@
           </el-button>
           <el-breadcrumb separator="/" class="breadcrumb">
             <el-breadcrumb-item :to="{ path: '/home/project' }">工作台</el-breadcrumb-item>
-            <el-breadcrumb-item v-for="(item, index) in breadcrumbList" :key="index">{{ item.name }}</el-breadcrumb-item>
+            <el-breadcrumb-item v-for="(item, index) in breadcrumbList" :key="index">{{
+              item.name
+            }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="nav-right">
@@ -80,8 +61,12 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="handleProfile"><el-icon><User /></el-icon><span>个人中心</span></el-dropdown-item>
-                <el-dropdown-item @click="handleLogout"><el-icon><SwitchButton /></el-icon><span>退出登录</span></el-dropdown-item>
+                <el-dropdown-item @click="handleProfile"
+                  ><el-icon><User /></el-icon><span>个人中心</span></el-dropdown-item
+                >
+                <el-dropdown-item @click="handleLogout"
+                  ><el-icon><SwitchButton /></el-icon><span>退出登录</span></el-dropdown-item
+                >
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -96,14 +81,22 @@
 </template>
 
 <script setup lang="ts">
-import {
-  HomeFilled, DataAnalysis, Setting, Menu, ArrowDown, ArrowUp, User, SwitchButton, Message, Check, Timer,
-} from '@element-plus/icons-vue'
+import { Menu, ArrowDown, ArrowUp, User, SwitchButton } from '@element-plus/icons-vue'
 import { useMainLayout } from './useMainLayout'
 
 const {
-  isMobile, sidebarExpanded, username, userAvatar, activeMenu, breadcrumbList,
-  toggleSidebar, handleMenuSelect, handleProfile, handleLogout,
+  isMobile,
+  sidebarExpanded,
+  sidebarCollapsed,
+  username,
+  userAvatar,
+  activeMenu,
+  breadcrumbList,
+  menuItems,
+  toggleSidebar,
+  handleMenuSelect,
+  handleProfile,
+  handleLogout,
 } = useMainLayout()
 </script>
 
@@ -124,7 +117,14 @@ const {
   width: 220px;
   height: 100%;
   flex-shrink: 0;
-  transition: all 0.3s;
+  transition:
+    width 0.2s ease,
+    max-height 0.2s ease;
+  box-shadow: 2px 0 10px rgba(18, 31, 46, 0.08);
+}
+
+.sidebar.collapsed {
+  width: 64px;
 }
 
 .main-container {
@@ -149,9 +149,9 @@ const {
 
 .main-content {
   flex: 1;
-  padding: 20px;
+  padding: 16px;
   background-color: #f5f7fa;
-  overflow-y: auto;
+  overflow: auto;
   min-height: 0;
   display: block;
 }
@@ -173,6 +173,11 @@ const {
   font-size: 17px;
   font-weight: 600;
   color: #fff;
+  white-space: nowrap;
+}
+
+.logo-mark {
+  letter-spacing: 0;
 }
 
 .mobile-toggle {
@@ -186,6 +191,14 @@ const {
   overflow-y: auto;
   overflow-x: hidden;
   border-right: none !important;
+}
+
+.sidebar-menu:not(.el-menu--collapse) {
+  width: 100%;
+}
+
+.sidebar-menu.el-menu--collapse {
+  width: 64px;
 }
 
 .sidebar-menu :deep(.el-sub-menu .el-menu) {
@@ -206,14 +219,17 @@ const {
 .nav-left {
   display: flex;
   align-items: center;
+  min-width: 0;
 }
 
 .sidebar-toggle {
   margin-right: 20px;
+  flex-shrink: 0;
 }
 
 .breadcrumb {
   font-size: 14px;
+  min-width: 0;
 }
 
 .nav-right {
@@ -254,6 +270,10 @@ const {
 
   .sidebar.expanded {
     max-height: 100vh;
+  }
+
+  .sidebar.collapsed {
+    width: 100%;
   }
 
   .logo {

@@ -28,10 +28,13 @@ router = APIRouter(prefix="/test-capability", tags=["测试能力管理"])
 def list_capabilities(
     project_id: int = Query(..., description="项目ID"),
     status: Optional[str] = Query(None, description="能力状态过滤"),
+    include_archived: bool = Query(False, description="是否包含已归档能力"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    capabilities = get_capabilities_by_project(db, project_id=project_id, status=status)
+    capabilities = get_capabilities_by_project(
+        db, project_id=project_id, status=status, include_archived=include_archived,
+    )
     return capabilities
 
 
@@ -99,16 +102,19 @@ def update_capability_endpoint(
     return capability
 
 
-@router.delete("/{capability_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{capability_id}", response_model=TestCapabilityResponse)
 def delete_capability_endpoint(
     capability_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    deleted = delete_capability(db, capability_id=capability_id)
-    if not deleted:
+    """软删除能力：将 status 置为 archived，返回更新后的能力对象。"""
+    capability = delete_capability(
+        db, capability_id=capability_id, actor_id=current_user.id,
+    )
+    if capability is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capability {capability_id} not found",
         )
-    return None
+    return capability

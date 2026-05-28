@@ -10,6 +10,14 @@ from app.services.lifecycle_service._rules import (
     CooldownNotElapsedError,
     MissingDeprecateReasonError,
 )
+from app.services.lifecycle_service._capability_service import (
+    can_transition_capability,
+    transition_capability,
+)
+from app.services.lifecycle_service._capability_rules import (
+    CAPABILITY_TRANSITION_RULES,
+    IllegalCapabilityTransition,
+)
 
 __all__ = [
     "can_transition",
@@ -19,4 +27,8 @@ __all__ = [
     "MissingReviewError",
     "CooldownNotElapsedError",
     "MissingDeprecateReasonError",
+    "can_transition_capability",
+    "transition_capability",
+    "CAPABILITY_TRANSITION_RULES",
+    "IllegalCapabilityTransition",
 ]

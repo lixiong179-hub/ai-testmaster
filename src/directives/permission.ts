@@ -11,7 +11,7 @@ interface HTMLElementWithPermission extends HTMLElement {
   __permissionPlaceholder?: Comment
 }
 
-function getPermissions(): string[] {
+export function getPermissions(): string[] {
   const userInfo = localStorage.getItem('userInfo')
   if (!userInfo) return []
   try {
@@ -42,10 +42,16 @@ export function signPermissions(permissions: string[]): Record<string, string | 
   return obj
 }
 
+export function hasPermission(permission?: string): boolean {
+  if (!permission) return true
+  const permissions = getPermissions()
+  return permissions.includes('*') || permissions.includes(permission)
+}
+
 const permissionDirective: Directive = {
   mounted(el: HTMLElement, binding: DirectiveBinding) {
     const permission = binding.value
-    if (permission && !getPermissions().includes(permission)) {
+    if (!hasPermission(permission)) {
       const comment = document.createComment('')
       el.parentNode?.replaceChild(comment, el)
       ;(el as HTMLElementWithPermission).__permissionPlaceholder = comment
@@ -53,14 +59,14 @@ const permissionDirective: Directive = {
   },
   updated(el: HTMLElement, binding: DirectiveBinding) {
     const permission = binding.value
-    const hasPermission = !permission || getPermissions().includes(permission)
+    const permitted = hasPermission(permission)
     const placeholder = (el as HTMLElementWithPermission).__permissionPlaceholder
 
-    if (!hasPermission && el.parentNode) {
+    if (!permitted && el.parentNode) {
       const comment = document.createComment('')
       el.parentNode.replaceChild(comment, el)
       ;(el as HTMLElementWithPermission).__permissionPlaceholder = comment
-    } else if (hasPermission && placeholder && placeholder.parentNode) {
+    } else if (permitted && placeholder && placeholder.parentNode) {
       placeholder.parentNode.replaceChild(el, placeholder)
       delete (el as HTMLElementWithPermission).__permissionPlaceholder
     }
