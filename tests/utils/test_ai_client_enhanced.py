@@ -110,6 +110,45 @@ class TestGenerateTestCaseEnhanced:
             assert len(result) >= 1
 
     @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
+    def test_new_context_fields_are_included_in_prompt(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = json.dumps([
+            {"title": "提交订单用例", "precondition": "P", "steps": [],
+             "case_type": "ui_automation", "priority": "P0",
+             "expected_result": "R", "test_data": {},
+             "change_type": "added", "parent_case_id": None, "case_category": "positive"}
+        ])
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.model_name = "test-model"
+        mock_get_client.return_value = mock_client
+
+        with patch("app.utils.ai_client_enhanced._enhanced.validate_cases_quality", return_value=(True, [])), \
+             patch("app.utils.ai_client_enhanced._enhanced.compute_quality_score", return_value=90.0):
+            context = {
+                "requirement_content": "订单提交需求内容",
+                "test_points": [{
+                    "id": 1, "module": "订单", "function": "提交订单",
+                    "point": "提交订单成功后展示结果页", "priority": 1,
+                }],
+                "current_test_point": {"id": 1},
+                "ui_descriptions": [{"screen_name": "订单页", "summary": "包含提交按钮"}],
+                "extra_requirements": "步骤必须可自动化断言",
+                "project_config": {},
+            }
+            result = generate_test_case_enhanced(context)
+
+        prompt = mock_client.chat.completions.create.call_args.kwargs["messages"][0]["content"]
+        assert len(result) >= 1
+        assert "订单提交需求内容" in prompt
+        assert "提交订单成功后展示结果页" in prompt
+        assert "订单页" in prompt
+        assert "步骤必须可自动化断言" in prompt
+        assert "缺少需求文档" not in prompt
+        assert "需求文档（60%" in prompt
+
+    @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
     def test_case_type_constraint(self, mock_get_client):
         mock_client = MagicMock()
         mock_response = MagicMock()

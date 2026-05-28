@@ -212,7 +212,7 @@ class TestFunctionalExcelReal(unittest.TestCase):
             title="导出测试用例",
             precondition="前置条件测试",
             expected_result="整体预期结果",
-            priority=2,  # P1
+            priority=2,  # P2
             case_type="UI",
             generate_status=1,
             steps_json=[]
@@ -257,7 +257,7 @@ class TestFunctionalExcelReal(unittest.TestCase):
         
         # 第3行是用例数据
         self.assertEqual(ws.cell(row=3, column=3).value, "导出测试用例")
-        self.assertEqual(ws.cell(row=3, column=2).value, "P1")
+        self.assertEqual(ws.cell(row=3, column=2).value, "P2")
         
         # 验证步骤格式
         step_desc = ws.cell(row=3, column=5).value

@@ -141,6 +141,77 @@ class TestGetTaskPermission:
         assertResponseNotFound(response)
 
 
+class TestListTaskPermission:
+    """GET /api/v1/test_task/ 的权限校验和筛选。"""
+
+    def test_list_other_project_returns_403(
+        self, client, myAuthHeaders, otherProject
+    ):
+        response = client.get(
+            f"/api/v1/test_task/?project_id={otherProject.id}",
+            headers=myAuthHeaders,
+        )
+        assertResponseForbidden(response)
+
+    def test_list_without_project_excludes_other_user_tasks(
+        self, client, myAuthHeaders, db: Session, testProject, testUser, taskInOtherProject
+    ):
+        from app.models.test_task import TestTask
+
+        own_task = TestTask(
+            project_id=testProject.id,
+            task_name=f"task_own_{uuid.uuid4().hex[:8]}",
+            case_ids=[],
+            executor_id=testUser.id,
+            status=0,
+            total_count=0,
+        )
+        db.add(own_task)
+        db.flush()
+
+        response = client.get("/api/v1/test_task/", headers=myAuthHeaders)
+        data = assertResponseSuccess(response)
+        task_ids = {item["id"] for item in data["items"]}
+
+        assert own_task.id in task_ids
+        assert taskInOtherProject.id not in task_ids
+
+    def test_list_filters_zero_status(
+        self, client, myAuthHeaders, db: Session, testProject, testUser
+    ):
+        from app.models.test_task import TestTask
+
+        waiting_task = TestTask(
+            project_id=testProject.id,
+            task_name=f"task_waiting_{uuid.uuid4().hex[:8]}",
+            case_ids=[],
+            executor_id=testUser.id,
+            status=0,
+            total_count=0,
+        )
+        running_task = TestTask(
+            project_id=testProject.id,
+            task_name=f"task_running_{uuid.uuid4().hex[:8]}",
+            case_ids=[],
+            executor_id=testUser.id,
+            status=1,
+            total_count=0,
+        )
+        db.add_all([waiting_task, running_task])
+        db.flush()
+
+        response = client.get(
+            f"/api/v1/test_task/?project_id={testProject.id}&task_status=0",
+            headers=myAuthHeaders,
+        )
+        data = assertResponseSuccess(response)
+        task_ids = {item["id"] for item in data["items"]}
+
+        assert waiting_task.id in task_ids
+        assert running_task.id not in task_ids
+        assert all(item["status"] == 0 for item in data["items"])
+
+
 class TestStartTaskPermission:
     """POST /api/v1/test_task/{task_id}/start 的权限校验。"""
 

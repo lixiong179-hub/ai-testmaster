@@ -23,6 +23,8 @@ from app.services.precondition_service import (
 )
 from app.utils.unified_vision_model import VisionModelType
 
+TestObjectType.__test__ = False
+
 
 # ==================== 真实浏览器测试 ====================
 

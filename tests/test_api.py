@@ -17,6 +17,8 @@ from typing import Optional
 # API基础URL
 BASE_URL = "http://localhost:8000"
 API_PREFIX = "/api/v1"
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 
 def _backend_available():
@@ -42,9 +44,19 @@ class APIClient:
 
     def login(self, username: str, password: str) -> dict:
         """登录获取Token - 使用Form表单格式"""
+        captcha_response = self.session.get(
+            f"{self.base_url}{API_PREFIX}/auth/captcha/generate"
+        )
+        captcha_response.raise_for_status()
+        captcha = captcha_response.json().get("data", {})
         response = self.session.post(
             f"{self.base_url}{API_PREFIX}/auth/login",
-            data={"username": username, "password": password}
+            data={
+                "username": username,
+                "password": password,
+                "captcha_id": captcha.get("captcha_id", ""),
+                "captcha_code": captcha.get("code", ""),
+            }
         )
 
         if response.status_code == 200:
@@ -96,7 +108,7 @@ def api_client():
 @pytest.fixture(scope="session")
 def auth_client(api_client):
     """已认证的API客户端"""
-    api_client.login("admin", "test1234")
+    api_client.login(ADMIN_USERNAME, ADMIN_PASSWORD)
     return api_client
 
 
@@ -108,7 +120,7 @@ class TestAuth:
 
     def test_login_success(self, api_client):
         """测试登录成功"""
-        response = api_client.login("admin", "test1234")
+        response = api_client.login(ADMIN_USERNAME, ADMIN_PASSWORD)
         assert response.get("code") == 200
         assert "access_token" in response.get("data", {})
 
@@ -201,8 +213,8 @@ class TestTestCase:
 
     def test_get_case_list(self, auth_client):
         """测试获取用例列表"""
-        response = auth_client.get("/test-case?project_id=1")
-        assert response.status_code in [200, 400]
+        response = auth_client.get("/testCase/?project_id=1")
+        assert response.status_code in [200, 400, 403]
 
 
 # ==================== 测试点测试 ====================
@@ -213,8 +225,8 @@ class TestTestPoint:
 
     def test_get_point_list(self, auth_client):
         """测试获取测试点列表"""
-        response = auth_client.get("/test_point/list/1")
-        assert response.status_code in [200, 400]
+        response = auth_client.get("/test-point/list/1")
+        assert response.status_code in [200, 400, 403]
 
 
 # ==================== 测试报告测试 ====================

@@ -4,10 +4,8 @@ from app.schemas.test_case import (
     TestCaseBase,
     TestCaseCreate,
     TestCaseUpdate,
-    TestCaseGenerateRequest,
     TestCaseListRequest,
     TestCaseListResponse,
-    TestCaseRetryRequest,
     TestCaseDeleteRequest,
 )
 from app.schemas.test_case._flow import (
@@ -118,17 +116,6 @@ class TestTestCaseUpdate:
         assert update.priority == 1
 
 
-class TestTestCaseGenerateRequest:
-    def test_normal(self):
-        req = TestCaseGenerateRequest(project_id=1)
-        assert req.project_id == 1
-        assert req.point_ids is None
-
-    def test_with_point_ids(self):
-        req = TestCaseGenerateRequest(project_id=1, point_ids=[1, 2, 3])
-        assert len(req.point_ids) == 3
-
-
 class TestTestCaseListRequest:
     def test_defaults(self):
         req = TestCaseListRequest(project_id=1)
@@ -140,12 +127,6 @@ class TestTestCaseListRequest:
             TestCaseListRequest(project_id=1, page=0)
         with pytest.raises(Exception):
             TestCaseListRequest(project_id=1, page_size=101)
-
-
-class TestTestCaseRetryRequest:
-    def test_normal(self):
-        req = TestCaseRetryRequest(project_id=1)
-        assert req.project_id == 1
 
 
 class TestTestCaseDeleteRequest:

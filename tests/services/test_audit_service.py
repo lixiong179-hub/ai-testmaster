@@ -166,10 +166,11 @@ class TestBuildFilters:
 class TestValidActions:
     def test_all_expected_actions_present(self):
         expected = {
-            "lifecycle_transition", "review_decide", "review_rollback",
-            "review_undo", "review_finalize", "pipeline_start",
-            "pipeline_step_complete", "pipeline_pause", "pipeline_resume",
-            "pipeline_cancel", "permission_change", "config_change",
-            "case_version_create", "locator_version_create", "force_cancel_review",
+            "lifecycle_transition", "capability_archive", "capability_deprecate",
+            "capability_status_change", "review_decide", "review_rollback", "review_undo", "review_finalize",
+            "pipeline_start", "pipeline_step_complete", "pipeline_pause",
+            "pipeline_resume", "pipeline_cancel", "pipeline_cancel_timeout",
+            "permission_change", "config_change", "case_version_create",
+            "locator_version_create", "force_cancel_review",
         }
         assert expected == VALID_ACTIONS

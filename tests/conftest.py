@@ -1,5 +1,6 @@
 import os
 import warnings
+import asyncio
 import pytest
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, Session
@@ -25,6 +26,22 @@ _TEST_DB_URL = os.getenv(
     if "/ai_testmaster" in settings.DATABASE_URL
     else settings.DATABASE_URL,
 )
+
+
+@pytest.fixture(autouse=True)
+def ensureEventLoop():
+    created_loop = None
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        created_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(created_loop)
+
+    yield
+
+    if created_loop is not None:
+        created_loop.close()
+        asyncio.set_event_loop(None)
 
 
 @pytest.fixture(scope="session")

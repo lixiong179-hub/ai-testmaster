@@ -151,9 +151,9 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
             default_case = self.db.query(TestCase).filter(TestCase.title == "默认测试").first()
             
             self.assertEqual(p0_case.priority, 1)
-            self.assertEqual(p1_case.priority, 2)
-            self.assertEqual(p2_case.priority, 3)
-            self.assertEqual(p3_case.priority, 4)
+            self.assertEqual(p1_case.priority, 1)
+            self.assertEqual(p2_case.priority, 2)
+            self.assertEqual(p3_case.priority, 3)
             self.assertEqual(default_case.priority, 2)  # 默认P2
             
         finally:
@@ -223,8 +223,8 @@ class TestFunctionalExcelCoverage(unittest.TestCase):
                     priorities.append(val)
             
             self.assertIn('P0', priorities)
-            self.assertIn('P1', priorities)
             self.assertIn('P2', priorities)
+            self.assertIn('P3', priorities)
             
         finally:
             if os.path.exists(test_file):

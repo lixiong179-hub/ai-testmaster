@@ -168,6 +168,15 @@ class TestBuildGraphPromptData:
         )
         assert "用户系统" in result['graph_prompt']
 
+    def test_includes_extra_requirements(self, flow_sort_data):
+        result = _build_graph_prompt_data(
+            flow_sort_data=flow_sort_data,
+            context={"extra_requirements": "必须覆盖异常分支"},
+            description="测试登录",
+            priority=2
+        )
+        assert "必须覆盖异常分支" in result['graph_prompt']
+
 
 class TestBuildLinearPromptData:
     """测试_build_linear_prompt_data共享函数"""
@@ -194,6 +203,31 @@ class TestBuildLinearPromptData:
         )
         assert 'ui_specs' in result
         assert result['ui_specs'] == ui_specs
+
+    def test_current_test_point_id_merges_with_test_points(self):
+        result = _build_linear_prompt_data(
+            context={
+                "requirement": "兼容旧字段需求",
+                "test_points": [{
+                    "id": 7,
+                    "module": "订单",
+                    "function": "提交",
+                    "point": "提交订单后进入结果页",
+                    "priority": 1,
+                }],
+                "current_test_point": {"id": 7},
+                "extra_requirements": "步骤必须可断言",
+            },
+            description="测试订单",
+            priority=2,
+            case_type=None,
+            exec_mode='all'
+        )
+        assert result["requirement_content"] == "兼容旧字段需求"
+        assert result["test_point"]["module"] == "订单"
+        assert result["test_point"]["point"] == "提交订单后进入结果页"
+        assert result["test_points"][0]["id"] == 7
+        assert result["extra_requirements"] == "步骤必须可断言"
 
 
 class TestFormatCaseResponse:

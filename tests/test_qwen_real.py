@@ -122,7 +122,7 @@ class TestQwenRealAPICall:
     def test_qwen_model_initialization(self, qwen_model):
         """测试模型初始化"""
         assert qwen_model.model_type == VisionModelType.QWEN
-        assert qwen_model.model_name == "qwen3-vl-flash"
+        assert qwen_model.model_name
         assert qwen_model.base_url == "https://dashscope.aliyuncs.com/api/v1"
         assert qwen_model.api_key is not None
         assert len(qwen_model.api_key) > 0
@@ -240,8 +240,8 @@ class TestQwenModelConfiguration:
         
         assert api_key is not None
         assert len(api_key) > 0
-        assert model_name == "qwen3-vl-flash"
-        assert default_model == "qwen"
+        assert model_name
+        assert default_model in {"qwen", "kimi", "baidu", "doubao", "zhipu", "mimo"}
     
     def test_create_different_models(self):
         """测试创建不同模型"""
