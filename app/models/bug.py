@@ -19,7 +19,7 @@ Bug缺陷管理模型模块
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
 from app.utils.db_time import utcnow
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, text as sa_text
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 
@@ -57,6 +57,7 @@ class Bug(Base):
 
     # 状态管理
     status = Column(String(20), nullable=False, default="open", comment="状态: open/in_progress/fixed/closed/rejected")  # open=待处理，in_progress=处理中，fixed=已修复，closed=已关闭，rejected=已拒绝
+    source = Column(String(20), nullable=False, default="manual", server_default="manual", comment="Bug来源: manual/self_test")
 
     # 人员分配
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="报告人ID")  # Bug报告人

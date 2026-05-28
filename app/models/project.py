@@ -28,7 +28,7 @@
     数据库中仅存储加密后的密文（test_object_password_encrypted 列）。
 """
 from app.utils.db_time import utcnow
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Index, and_
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Index, and_, text as sa_text
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 from app.utils.crypto import encrypt_password, decrypt_password
@@ -63,6 +63,8 @@ class Project(Base):
     description = Column(Text, nullable=True, comment="项目描述")                                     # 项目描述，可选
     status = Column(Integer, nullable=False, default=1, comment="状态: 0未激活/1正常/2归档")            # 项目状态，默认1正常
     config = Column(JSON, nullable=True, comment="项目个性化配置")                                    # 项目级个性化配置，JSON格式
+    is_self_test = Column(Boolean, nullable=False, default=False, server_default=sa_text("0"), comment="是否为平台自测项目")
+    self_test_schedule = Column(String(100), nullable=True, comment="自测项目定时执行 cron 表达式")
 
     # 项目类型: web=Web端, app=客户端(Android/iOS)
     project_type = Column(String(50), nullable=False, default="web", comment="项目类型: web=Web端, app=客户端")  # 默认Web端
