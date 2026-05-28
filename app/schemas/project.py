@@ -123,9 +123,11 @@ class ProjectUpdate(BaseModel):
     对应API：PUT/PATCH /api/v1/projects/{project_id}
     与Model映射：字段对应 Project Model 的 name/description/status
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=255, description="项目名称")  # 可选，更新项目名称
-    description: Optional[str] = Field(None, description="项目描述")  # 可选，更新项目描述
-    status: Optional[int] = Field(None, ge=0, le=2, description="状态: 0未激活/1正常/2归档")  # 可选，0=未激活/1=正常/2=归档
+    name: Optional[str] = Field(None, min_length=1, max_length=255, description="项目名称")
+    description: Optional[str] = Field(None, description="项目描述")
+    status: Optional[int] = Field(None, ge=0, le=2, description="状态: 0未激活/1正常/2归档")
+    is_self_test: Optional[bool] = Field(None, description="是否为平台自测项目")
+    self_test_schedule: Optional[str] = Field(None, max_length=100, description="自测项目定时执行 cron 表达式")
 
 
 class ProjectResponse(ProjectBase):
@@ -136,11 +138,13 @@ class ProjectResponse(ProjectBase):
     对应API：GET /api/v1/projects/{project_id}
     与Model映射：映射 Project Model 的 id/name/description/project_type/user_id/status/create_time/update_time
     """
-    id: int  # 项目主键ID，与Project.id对应
-    user_id: int  # 项目所有者ID，与Project.user_id对应
-    status: int  # 项目状态：0未激活/1正常/2归档，与Project.status对应
-    create_time: datetime  # 创建时间，与Project.create_time对应
-    update_time: datetime  # 更新时间，与Project.update_time对应
+    id: int
+    user_id: int
+    status: int
+    is_self_test: bool = False
+    self_test_schedule: Optional[str] = None
+    create_time: datetime
+    update_time: datetime
 
     class Config:
         # 启用ORM模式，支持从Project Model直接读取属性

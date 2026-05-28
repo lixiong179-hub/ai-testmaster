@@ -24,8 +24,8 @@ class TestResultResponse(BaseModel):
     对应API：GET /api/v1/test-results/{result_id}
     与Model映射：完整映射 TestResult Model 的所有业务字段
     """
-    id: int  # 结果主键ID，与TestResult.id对应
-    task_id: int  # 所属任务ID，与TestResult.task_id对应
+    id: int
+    task_id: Optional[int] = None
     project_id: int  # 所属项目ID，与TestResult.project_id对应
     case_id: int  # 关联用例ID，与TestResult.case_id对应
     case_no: str  # 用例编号，与TestResult.case_no对应
