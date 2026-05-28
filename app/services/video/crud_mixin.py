@@ -2,6 +2,7 @@
 """
 from pathlib import Path
 from typing import Optional, List
+from sqlalchemy.orm import Session
 from loguru import logger
 
 from app.models.video_record import VideoRecord
@@ -11,15 +12,7 @@ from app.services.video.models import VideoInfo, VideoStatus
 class CRUDMixin:
     """视频元信息CRUD操作，封装VideoRecord与VideoInfo之间的转换。"""
 
-    async def save_video_info(
-        self,
-        task_id: Optional[int],
-        test_case_id: Optional[int],
-        file_path: str,
-        file_name: str,
-        file_size: int,
-        duration: float = 0.0
-    ) -> VideoInfo:
+    async def save_video_info(self, *args, **kwargs):
         """保存视频元信息到数据库，返回VideoInfo结构。
 
         Args:
@@ -33,6 +26,34 @@ class CRUDMixin:
         Returns:
             VideoInfo数据类，包含完整视频元信息。
         """
+        if args and isinstance(args[0], Session):
+            db = args[0]
+            video_info = args[1]
+            file_path_obj = Path(video_info.file_path)
+            video_record = VideoRecord(
+                task_id=video_info.task_id,
+                case_id=video_info.test_case_id or 0,
+                file_path=video_info.file_path,
+                file_name=video_info.file_name or file_path_obj.name,
+                file_size=video_info.file_size,
+                file_format=video_info.file_format,
+                duration=video_info.duration,
+                resolution=video_info.resolution,
+                fps=video_info.fps,
+                status="completed",
+            )
+            db.add(video_record)
+            db.commit()
+            db.refresh(video_record)
+            return video_record
+
+        task_id = kwargs.get("task_id", args[0] if len(args) > 0 else None)
+        test_case_id = kwargs.get("test_case_id", args[1] if len(args) > 1 else None)
+        file_path = kwargs.get("file_path", args[2] if len(args) > 2 else "")
+        file_name = kwargs.get("file_name", args[3] if len(args) > 3 else Path(file_path).name)
+        file_size = kwargs.get("file_size", args[4] if len(args) > 4 else 0)
+        duration = kwargs.get("duration", args[5] if len(args) > 5 else 0.0)
+
         video_record = VideoRecord(
             task_id=task_id,
             case_id=test_case_id or 0,
@@ -59,7 +80,7 @@ class CRUDMixin:
             created_at=video_record.created_at,
         )
 
-    async def get_video_info(self, video_id: int) -> Optional[VideoInfo]:
+    async def get_video_info(self, *args) -> Optional[VideoInfo]:
         """根据ID查询视频元信息，不存在时返回None。
 
         Args:
@@ -68,7 +89,14 @@ class CRUDMixin:
         Returns:
             VideoInfo或None。
         """
-        video = self.db.query(VideoRecord).filter(VideoRecord.id == video_id).first()
+        if args and isinstance(args[0], Session):
+            db = args[0]
+            video_id = args[1]
+        else:
+            db = self.db
+            video_id = args[0]
+
+        video = db.query(VideoRecord).filter(VideoRecord.id == video_id).first()
         if not video:
             return None
         status = VideoStatus.READY
@@ -85,11 +113,14 @@ class CRUDMixin:
             file_size=video.file_size,
             duration=video.duration or 0.0,
             status=status,
+            resolution=video.resolution,
+            fps=video.fps,
+            file_format=video.file_format,
             thumbnail_path=video.thumbnail_path,
             created_at=video.created_at,
         )
 
-    async def get_videos_by_task(self, task_id: int) -> List[VideoInfo]:
+    async def get_videos_by_task(self, *args) -> List[VideoInfo]:
         """查询指定任务关联的所有视频。
 
         Args:
@@ -98,10 +129,16 @@ class CRUDMixin:
         Returns:
             VideoInfo列表。
         """
-        videos = self.db.query(VideoRecord).filter(VideoRecord.task_id == task_id).all()
+        if args and isinstance(args[0], Session):
+            db = args[0]
+            task_id = args[1]
+        else:
+            db = self.db
+            task_id = args[0]
+        videos = db.query(VideoRecord).filter(VideoRecord.task_id == task_id).all()
         return [self._to_video_info(v) for v in videos]
 
-    async def get_videos_by_case(self, test_case_id: int) -> List[VideoInfo]:
+    async def get_videos_by_case(self, *args) -> List[VideoInfo]:
         """查询指定用例关联的所有视频。
 
         Args:
@@ -110,10 +147,16 @@ class CRUDMixin:
         Returns:
             VideoInfo列表。
         """
-        videos = self.db.query(VideoRecord).filter(VideoRecord.case_id == test_case_id).all()
+        if args and isinstance(args[0], Session):
+            db = args[0]
+            test_case_id = args[1]
+        else:
+            db = self.db
+            test_case_id = args[0]
+        videos = db.query(VideoRecord).filter(VideoRecord.case_id == test_case_id).all()
         return [self._to_video_info(v) for v in videos]
 
-    async def delete_video(self, video_id: int) -> bool:
+    async def delete_video(self, *args) -> bool:
         """删除视频记录及关联的物理文件（视频和缩略图），不存在时返回False。
 
         Args:
@@ -122,7 +165,14 @@ class CRUDMixin:
         Returns:
             删除成功返回True，记录不存在返回False。
         """
-        video = self.db.query(VideoRecord).filter(VideoRecord.id == video_id).first()
+        if args and isinstance(args[0], Session):
+            db = args[0]
+            video_id = args[1]
+        else:
+            db = self.db
+            video_id = args[0]
+
+        video = db.query(VideoRecord).filter(VideoRecord.id == video_id).first()
         if not video:
             return False
 
@@ -136,8 +186,8 @@ class CRUDMixin:
                 except OSError as e:
                     logger.warning(f"删除文件失败: {file_path_str}, 错误: {e}")
 
-        self.db.delete(video)
-        self.db.commit()
+        db.delete(video)
+        db.commit()
         logger.info(f"视频已删除: ID={video_id}")
         return True
 
@@ -163,6 +213,9 @@ class CRUDMixin:
             file_name=video.file_name,
             file_size=video.file_size,
             duration=video.duration or 0.0,
+            resolution=video.resolution,
+            fps=video.fps,
+            file_format=video.file_format,
             status=status,
             thumbnail_path=video.thumbnail_path,
             created_at=video.created_at,

@@ -29,7 +29,8 @@ export function useVideoReplay(options: UseVideoReplayOptions) {
   const buildExecutionId = (): string => {
     const taskInfoVal = options.taskInfo.value
     const caseId = taskInfoVal
-      ? (taskInfoVal as Record<string, unknown>).case_id ?? (taskInfoVal as Record<string, unknown>)?.task
+      ? ((taskInfoVal as Record<string, unknown>).case_id ??
+        (taskInfoVal as Record<string, unknown>)?.task)
         ? ((taskInfoVal as Record<string, unknown>).task as Record<string, unknown>)?.case_id
         : undefined
       : undefined

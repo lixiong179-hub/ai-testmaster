@@ -19,6 +19,7 @@ Mixin组合:
     4. 定期清理 -> CleanupMixin.cleanup_expired_videos
 """
 from typing import Optional
+from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.services.video.models import VideoInfo, VideoStatus
@@ -48,7 +49,7 @@ class VideoService(
 
     def __init__(
         self,
-        db: Session,
+        db: Optional[Session] = None,
         video_base_dir: str = "/tmp/test_videos",
         retention_days: int = 30
     ):
@@ -60,7 +61,7 @@ class VideoService(
             retention_days: 视频保留天数，默认30天。
         """
         self.db = db
-        self._video_base_dir = video_base_dir
+        self._video_base_dir = Path(video_base_dir)
         self._retention_days = retention_days
         self._ensure_directory(video_base_dir)
 
