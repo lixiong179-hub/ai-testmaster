@@ -1,10 +1,16 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
-import request, { type ApiResponse } from '@/utils/request'
+import { type ApiResponse } from '@/utils/request'
+import { caseApi } from '@/api/case'
 import type { TestPoint } from '@/api/testPoint'
 import type { GenerateState } from './state'
 import type { GenerateComputed } from './computed'
 import type { StoreActions } from './types'
-import { generateForTestPoints, generateForFlowNodes, type FlowSortEditorRef } from './generateHelpers'
+import {
+  generateForTestPoints,
+  generateForFlowNodes,
+  type FlowSortEditorRef,
+} from './generateHelpers'
+import { useFlowSortStore } from '@/store/flowSort'
 
 export function createGenerateActions(
   state: GenerateState,
@@ -80,17 +86,20 @@ export function createGenerateActions(
     }
 
     if (state.selectedUiPrototypeProjectId.value && state.uiScreens.value.length > 0) {
-      const validation = flowSortEditorRef?.getFlowValidationIssues?.()
-      if (validation?.errors.length) {
-        const confirmed = await showValidationDialog(validation)
-        if (!confirmed) return
-      }
-      if (validation?.warnings.length) {
-        const confirmed = await showValidationDialog({
-          errors: [],
-          warnings: validation.warnings,
-        })
-        if (!confirmed) return
+      const flowSortStore = useFlowSortStore()
+      if (flowSortStore.quickMode === false) {
+        const validation = flowSortEditorRef?.getFlowValidationIssues?.()
+        if (validation?.errors.length) {
+          const confirmed = await showValidationDialog(validation)
+          if (!confirmed) return
+        }
+        if (validation?.warnings.length) {
+          const confirmed = await showValidationDialog({
+            errors: [],
+            warnings: validation.warnings,
+          })
+          if (!confirmed) return
+        }
       }
     }
 
@@ -147,14 +156,7 @@ export function createGenerateActions(
       state.progressText.value = '正在准备生成上下文...'
 
       if (state.formData.project_id) {
-        const contextResponse: ApiResponse<{
-          requirement_content?: string
-          ui_descriptions?: unknown[]
-          ui_specs?: unknown[]
-          test_points?: TestPoint[]
-          project_config?: unknown
-          history_cases?: unknown[]
-        }> = await request.post('/api/v1/testCase/generate-context', {
+        const contextResponse = (await caseApi.generateContext({
           project_id: Number(state.formData.project_id),
           requirement_file_ids:
             state.formData.requirement_file_ids.length > 0
@@ -172,15 +174,24 @@ export function createGenerateActions(
                   state._historyCaseUserCleared.value
                 ? []
                 : undefined,
-        })
+        })) as unknown as ApiResponse<{
+          requirement_content?: string
+          ui_descriptions?: unknown[]
+          ui_specs?: unknown[]
+          test_points?: TestPoint[]
+          project_config?: unknown
+          history_cases?: unknown[]
+        }>
 
         if (contextResponse?.data) {
           const data = contextResponse.data
+          const contextTestPoints = targetPoints.length > 0 ? data.test_points || [] : []
           context = {
             requirement_content: data.requirement_content || '',
+            ui_descriptions: data.ui_descriptions || [],
             ui_description: JSON.stringify(data.ui_descriptions || []),
             ui_specs: data.ui_specs || [],
-            test_points: data.test_points || [],
+            test_points: contextTestPoints,
             project_config: data.project_config || null,
             history_cases: data.history_cases || [],
           }
@@ -192,7 +203,14 @@ export function createGenerateActions(
       }
 
       if (targetPoints.length > 0) {
-        await generateForTestPoints(state, computed, getActions, context, targetPoints, flowSortEditorRef)
+        await generateForTestPoints(
+          state,
+          computed,
+          getActions,
+          context,
+          targetPoints,
+          flowSortEditorRef
+        )
       } else {
         await generateForFlowNodes(state, computed, getActions, context, flowSortEditorRef)
       }

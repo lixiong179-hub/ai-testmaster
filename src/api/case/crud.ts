@@ -17,9 +17,17 @@ import type {
 } from './types'
 import { extractResponseData } from './types'
 
+function cleanParams<T extends object>(params: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(params).filter(
+      ([, value]) => value !== undefined && value !== null && value !== ''
+    )
+  ) as Partial<T>
+}
+
 export const crudApi = {
   getCaseList: async (params: CaseQueryParams): Promise<CasePageResponse> => {
-    const response = await request.get('/api/v1/testCase/', { params })
+    const response = await request.get('/api/v1/testCase/', { params: cleanParams(params) })
     return response as unknown as CasePageResponse
   },
 
@@ -54,8 +62,10 @@ export const crudApi = {
     )
   },
 
-  deleteCase: async (id: number): Promise<void> => {
-    await request.delete(`/api/v1/testCase/${id}`)
+  deleteCase: async (id: number, projectId?: number): Promise<void> => {
+    await request.delete(`/api/v1/testCase/${id}`, {
+      params: projectId ? { project_id: projectId } : undefined,
+    })
   },
 
   executeCase: async (data: TestCaseExecute): Promise<TestCase> => {
@@ -79,7 +89,7 @@ export const crudApi = {
 
   getList: async (projectId: number, params: TestCaseListParams): Promise<TestCaseListResponse> => {
     const response = await request.get('/api/v1/testCase/', {
-      params: { project_id: projectId, ...params },
+      params: cleanParams({ project_id: projectId, ...params }),
     })
     return extractResponseData<TestCaseListResponse>(
       response as unknown as ApiResponse<TestCaseListResponse> | TestCaseListResponse
@@ -87,7 +97,7 @@ export const crudApi = {
   },
 
   delete: async (id: number, projectId: number): Promise<void> => {
-    await request.delete(`/api/v1/testCase/${id}`, { params: { project_id: projectId } })
+    await crudApi.deleteCase(id, projectId)
   },
 
   getSupplementData: async (caseId: number): Promise<SupplementResponse> => {
@@ -97,7 +107,10 @@ export const crudApi = {
     )
   },
 
-  supplementCase: async (caseId: number, payload: Record<string, unknown>): Promise<SupplementResponse> => {
+  supplementCase: async (
+    caseId: number,
+    payload: Record<string, unknown>
+  ): Promise<SupplementResponse> => {
     const response = await request.post(`/api/v1/testCase/${caseId}/supplement`, payload)
     return extractResponseData<SupplementResponse>(
       response as unknown as ApiResponse<SupplementResponse> | SupplementResponse

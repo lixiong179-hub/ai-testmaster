@@ -42,6 +42,7 @@ class AIGenerateEnhancedRequest(BaseModel):
     exec_mode: str = "all"
     priority: int = 2
     enhanced_mode: bool = True
+    extra_requirements: Optional[str] = None
     context: Optional[dict] = None
     ui_screen_ids: Optional[List[int]] = None
     mode: Literal["linear", "graph"] = Field(

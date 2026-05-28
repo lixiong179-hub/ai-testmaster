@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from app.models.test_point import TestPoint
+from app.models.test_case import TestCase
 from app.models.project import ProjectFile
 from app.models.ui_prototype import UIPrototypeScreen
 from app.crud import test_point as test_point_crud
@@ -117,12 +118,14 @@ class TestCaseGenerationBaseMixin:
                     context["files_used"].append(file_record.id)
 
         if ui_screen_ids:
+            found_screen_ids = set()
             for screen_id in ui_screen_ids:
                 screen = self.db.query(UIPrototypeScreen).filter(
                     UIPrototypeScreen.id == screen_id,
                     UIPrototypeScreen.project_id == project_id
                 ).first()
                 if screen:
+                    found_screen_ids.add(screen.id)
                     ui_desc = {
                         "screen_id": screen.id,
                         "screen_name": screen.screen_name,
@@ -134,6 +137,11 @@ class TestCaseGenerationBaseMixin:
                         "input_count": screen.input_count or 0,
                         "description": screen.summary or ""
                     }
+                    if not screen.summary and screen.parse_status != "completed":
+                        ui_desc["description"] = "该屏幕尚未完成AI解析，仅可基于页面名称和流程顺序生成基础用例"
+                        context["warnings"].append(
+                            f"屏幕「{screen.screen_name}」尚未完成解析，AI可用的UI元素信息有限"
+                        )
                     context["ui_descriptions"].append(ui_desc)
                     if screen.ui_spec:
                         context["ui_specs"].append({
@@ -141,6 +149,11 @@ class TestCaseGenerationBaseMixin:
                             "screen_name": screen.screen_name,
                             "ui_spec": screen.ui_spec
                         })
+                else:
+                    context["warnings"].append(f"未找到UI屏幕ID: {screen_id}")
+            missing_count = len(set(ui_screen_ids) - found_screen_ids)
+            if missing_count:
+                context["warnings"].append(f"{missing_count}个UI屏幕未被纳入上下文")
         elif ui_file_ids:
             for file_id in ui_file_ids:
                 file_record = file_crud.get_file_by_id(self.db, file_id, project_id)
@@ -216,18 +229,35 @@ class TestCaseGenerationBaseMixin:
                         "priority": point.priority
                     })
         else:
-            total_count = self.db.query(TestPoint).filter(
-                TestPoint.project_id == project_id
-            ).count()
-
             skip = (test_point_page - 1) * test_point_page_size
+            page_limit = min(test_point_page_size, MAX_TEST_POINT_PAGE_SIZE)
+            covered_test_point_ids = {
+                row[0]
+                for row in self.db.query(TestCase.test_point_id)
+                .filter(
+                    TestCase.project_id == project_id,
+                    TestCase.is_deleted == False,  # noqa: E712
+                    TestCase.generate_status == 1,
+                    TestCase.test_point_id.isnot(None),
+                )
+                .distinct()
+                .all()
+                if row[0] is not None
+            }
             all_points = self.db.query(TestPoint).filter(
                 TestPoint.project_id == project_id
-            ).order_by(TestPoint.priority.asc(), TestPoint.id.asc()).offset(skip).limit(
-                min(test_point_page_size, MAX_TEST_POINT_PAGE_SIZE)
             ).all()
+            total_count = len(all_points)
+            all_points.sort(
+                key=lambda point: (
+                    point.id in covered_test_point_ids,
+                    point.priority or 99,
+                    point.id,
+                )
+            )
+            page_points = all_points[skip: skip + page_limit]
 
-            for point in all_points:
+            for point in page_points:
                 context["test_points"].append({
                     "id": point.id,
                     "module": point.module,
@@ -238,9 +268,11 @@ class TestCaseGenerationBaseMixin:
 
             context["pagination"] = {
                 "page": test_point_page,
-                "page_size": len(all_points),
+                "page_size": len(page_points),
                 "total": total_count,
-                "has_more": (test_point_page * test_point_page_size) < total_count
+                "has_more": (skip + page_limit) < total_count,
+                "uncovered_first": True,
+                "covered_test_point_count": len(covered_test_point_ids)
             }
 
         return context

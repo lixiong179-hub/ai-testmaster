@@ -14,7 +14,7 @@
 """
 import asyncio
 import json
-from typing import Any
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -32,9 +32,38 @@ from app.api.v1.endpoints.test_case_ai import (
 from app.db.database import get_db
 from app.models.project import Project
 from app.models.user import User
+from app.services.test_case_generation.quality_validator import validate_single_case
 from app.utils.ai_client import generate_test_case, generate_test_case_enhanced
 
 router = APIRouter()
+
+
+def _filter_valid_cases(cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """过滤掉质量校验不通过的用例，记录问题日志。
+
+    流式端点无法像非流式端点那样做重试循环，
+    因此采用过滤策略：校验通过的用例正常返回，不通过的丢弃并记录。
+
+    Args:
+        cases: AI生成的用例列表
+
+    Returns:
+        通过质量校验的用例子集
+    """
+    valid_cases: List[Dict[str, Any]] = []
+    for i, case in enumerate(cases):
+        if not isinstance(case, dict):
+            logger.warning(f"流式端点：第{i + 1}条用例非dict类型，已丢弃")
+            continue
+        issues = validate_single_case(case)
+        if issues:
+            issue_text = "; ".join(issues[:3])
+            logger.warning(
+                f"流式端点：第{i + 1}条用例质量校验不通过，已丢弃: {issue_text}"
+            )
+        else:
+            valid_cases.append(case)
+    return valid_cases
 
 
 # ── AI增强模式流式生成端点 ────────────────────────────────
@@ -72,7 +101,9 @@ async def ai_enhanced_generate_stream(
         try:
             yield f"data: {json.dumps({'code': 0, 'message': '开始生成', 'data': {'status': 'started'}}, ensure_ascii=False)}\n\n"
 
-            context = request.context or {}
+            context = dict(request.context or {})
+            if request.extra_requirements:
+                context["extra_requirements"] = request.extra_requirements
 
             if request.mode == "graph" and request.flow_sort_data:
                 yield f"data: {json.dumps({'code': 0, 'message': '构建流程图Prompt...', 'data': {'status': 'building_prompt'}}, ensure_ascii=False)}\n\n"
@@ -80,6 +111,7 @@ async def ai_enhanced_generate_stream(
                     flow_sort_data=request.flow_sort_data,
                     context=context, description=description,
                     priority=request.priority,
+                    case_type=request.case_type,
                 )
             elif request.enhanced_mode:
                 yield f"data: {json.dumps({'code': 0, 'message': '构建增强Prompt...', 'data': {'status': 'building_prompt'}}, ensure_ascii=False)}\n\n"
@@ -103,11 +135,24 @@ async def ai_enhanced_generate_stream(
             yield f"data: {json.dumps({'code': 0, 'message': 'AI生成中...', 'data': {'status': 'generating'}}, ensure_ascii=False)}\n\n"
             generated_case = await asyncio.to_thread(generate_test_case_enhanced, prompt_data)
 
-            response_data = _format_case_response(
-                generated_case=generated_case, project_id=project_id,
-                description=description, priority=request.priority,
-                case_type=request.case_type,
-            )
+            cases_list = generated_case if isinstance(generated_case, list) else [generated_case]
+            cases_list = [c for c in cases_list if isinstance(c, dict) and c]
+            valid_cases = _filter_valid_cases(cases_list)
+            if not valid_cases:
+                fail_msg = json.dumps(
+                    {'code': 1, 'message': '生成的用例均未通过质量校验，请调整描述后重试', 'data': None},
+                    ensure_ascii=False,
+                )
+                yield f"data: {fail_msg}\n\n"
+                return
+            response_data = [
+                _format_case_response(
+                    generated_case=case_item, project_id=project_id,
+                    description=description, priority=request.priority,
+                    case_type=request.case_type,
+                )
+                for case_item in valid_cases
+            ]
 
             yield f"data: {json.dumps({'code': 0, 'message': '生成完成', 'data': response_data}, ensure_ascii=False, default=str)}\n\n"
         except Exception as e:
@@ -148,7 +193,7 @@ async def batch_generate_test_cases_stream(
             status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
         )
 
-    from app.services.test_case_generation_service import TestCaseGenerationService
+    from app.services.test_case_generation import TestCaseGenerationService
 
     async def generate_progress() -> Any:
         service = TestCaseGenerationService(db)

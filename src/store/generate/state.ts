@@ -5,12 +5,7 @@ import type { ProjectFile } from '@/api/file'
 import type { TestPoint } from '@/api/testPoint'
 import type { UIPrototypeProject, UIScreen } from '@/api/uiPrototype'
 import type { TestCase } from '@/api/case'
-import type {
-  GenerateFormData,
-  GeneratedCase,
-  EditingCase,
-  ContextPreview,
-} from './types'
+import type { GenerateFormData, GeneratedCase, EditingCase, ContextPreview } from './types'
 
 export interface GenerateState {
   caseIdSeq: Ref<number>

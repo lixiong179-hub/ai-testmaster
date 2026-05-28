@@ -18,6 +18,7 @@ export interface TestCaseApiStep {
 
 export interface TestCaseCreate {
   project_id: number
+  test_point_id?: number | null
   case_no?: string
   module?: string
   title: string
@@ -141,11 +142,6 @@ export interface CasePageResponse {
   }
 }
 
-export interface TestCaseGenerateRequest {
-  project_id: number
-  point_ids?: number[]
-}
-
 export interface TestCaseListResponse {
   items: TestCase[]
   total: number
@@ -160,12 +156,15 @@ export interface TestCaseListResponse {
 }
 
 export interface TestCaseListParams {
+  page?: number
+  page_size?: number
   keyword?: string
   module?: string
   priority?: number
   case_type?: string
   status?: string
   created_by?: string
+  target_device?: string
   sort_by?: 'create_time' | 'priority' | 'title' | 'update_time'
   sort_order?: 'asc' | 'desc'
 }
@@ -184,6 +183,22 @@ export interface QualityAnalysisResult {
   overall_score: number
   project_requirement_coverage: number
   project_requirement_details: Record<string, unknown> | null
+  dimensions?: Array<{
+    name: string
+    label?: string
+    score: number
+    summary?: string
+    detail?: string
+    suggestions?: string[]
+  }>
+  optimization?: {
+    items: Array<{
+      type: string
+      target: string
+      action: string
+      impact: string
+    }>
+  }
   reports: Array<{
     case_id: number
     case_name: string
@@ -192,10 +207,6 @@ export interface QualityAnalysisResult {
     suggestions: string[]
     analyzed_at: string
   }>
-}
-
-export interface TestCaseRetryRequest {
-  case_ids?: number[]
 }
 
 export interface ImportResult {
@@ -291,6 +302,19 @@ export interface AIEnhancedGenerateResponse {
   change_type?: 'added' | 'modified' | 'deprecated'
   parent_case_id?: number | null
   message: string
+}
+
+export interface AIEnhancedGenerateQuality {
+  passed: boolean
+  overall_grade: string
+  overall_score: number
+  d_grade_count: number
+  [key: string]: unknown
+}
+
+export interface AIEnhancedGenerateResult {
+  cases: AIEnhancedGenerateResponse[]
+  quality?: AIEnhancedGenerateQuality
 }
 
 export interface BatchCreateRequest {

@@ -54,7 +54,15 @@ import { TestPointMgmtKey } from '../useTestPointManagement'
 
 const mgmt = inject(TestPointMgmtKey)!
 
-const { statsTotal, highCount, mediumCount, lowCount, generatedCaseCount, filters, applyPriorityFilter } = mgmt
+const {
+  statsTotal,
+  highCount,
+  mediumCount,
+  lowCount,
+  generatedCaseCount,
+  filters,
+  applyPriorityFilter,
+} = mgmt
 </script>
 
 <style scoped>
@@ -73,29 +81,70 @@ const { statsTotal, highCount, mediumCount, lowCount, generatedCaseCount, filter
   border: 1px solid rgba(220, 230, 241, 0.95);
   border-radius: 18px;
   box-shadow: 0 8px 24px rgba(31, 45, 61, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
-button.stat-card { width: 100%; cursor: pointer; }
+button.stat-card {
+  width: 100%;
+  cursor: pointer;
+}
 button.stat-card:hover,
 .stat-card.is-active {
   transform: translateY(-2px);
   border-color: rgba(64, 158, 255, 0.4);
   box-shadow: 0 16px 30px rgba(64, 158, 255, 0.12);
 }
-.stat-card.high { background: linear-gradient(180deg, #fff7f7 0%, #fff0f0 100%); }
-.stat-card.medium { background: linear-gradient(180deg, #fffaf2 0%, #fdf4e5 100%); }
-.stat-card.low { background: linear-gradient(180deg, #f8f9fc 0%, #f2f4f8 100%); }
-.stat-card.generated { background: linear-gradient(180deg, #f4fff8 0%, #ebf8ef 100%); }
-.stat-card.non-clickable { cursor: default; }
+.stat-card.high {
+  background: linear-gradient(180deg, #fff7f7 0%, #fff0f0 100%);
+}
+.stat-card.medium {
+  background: linear-gradient(180deg, #fffaf2 0%, #fdf4e5 100%);
+}
+.stat-card.low {
+  background: linear-gradient(180deg, #f8f9fc 0%, #f2f4f8 100%);
+}
+.stat-card.generated {
+  background: linear-gradient(180deg, #f4fff8 0%, #ebf8ef 100%);
+}
+.stat-card.non-clickable {
+  cursor: default;
+}
 .stat-card.non-clickable:hover {
   transform: none;
   border-color: rgba(220, 230, 241, 0.95);
   box-shadow: 0 8px 24px rgba(31, 45, 61, 0.05);
 }
-.stat-caption { font-size: 13px; color: #7a8594; font-weight: 600; }
-.stat-value { font-size: 30px; line-height: 1.1; font-weight: 700; color: #1f2d3d; }
-.stat-label { color: #6b7684; font-size: 12px; line-height: 1.5; }
-@media (max-width: 1280px) { .stats-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 960px) { .stats-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .stats-cards { grid-template-columns: 1fr; } }
+.stat-caption {
+  font-size: 13px;
+  color: #7a8594;
+  font-weight: 600;
+}
+.stat-value {
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+.stat-label {
+  color: #6b7684;
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 1280px) {
+  .stats-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 960px) {
+  .stats-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .stats-cards {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

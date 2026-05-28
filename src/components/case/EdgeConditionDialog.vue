@@ -113,7 +113,13 @@ watch(
       if (props.edgeData) {
         formData.value = { ...props.edgeData }
       } else {
-        formData.value = { edge_type: 'normal', condition: '', trigger_action: '', pre_action: '', note: '' }
+        formData.value = {
+          edge_type: 'normal',
+          condition: '',
+          trigger_action: '',
+          pre_action: '',
+          note: '',
+        }
       }
     }
   },
@@ -121,7 +127,13 @@ watch(
 )
 
 const handleClose = () => {
-  formData.value = { edge_type: 'normal', condition: '', trigger_action: '', pre_action: '', note: '' }
+  formData.value = {
+    edge_type: 'normal',
+    condition: '',
+    trigger_action: '',
+    pre_action: '',
+    note: '',
+  }
 }
 
 const handleConfirm = () => {

@@ -65,7 +65,8 @@
               <li v-for="(step, index) in caseItem.steps" :key="index">
                 <span class="step-number">{{ step.step_number || step.step || index + 1 }}</span>
                 <span class="step-content"
-                  >{{ step.display_action || step.description || step.step || step.action }}{{ step.param ? ` (${step.param})` : '' }}</span
+                  >{{ step.display_action || step.description || step.step || step.action
+                  }}{{ step.param ? ` (${step.param})` : '' }}</span
                 >
                 <span v-if="(step as any).expected" class="step-expected"
                   >→ {{ (step as any).expected }}</span
@@ -114,7 +115,15 @@
 
 <script setup lang="ts">
 import {
-  Folder, Clock, Document, List, SuccessFilled, View, DocumentCopy, Refresh, Delete,
+  Folder,
+  Clock,
+  Document,
+  List,
+  SuccessFilled,
+  View,
+  DocumentCopy,
+  Refresh,
+  Delete,
 } from '@element-plus/icons-vue'
 import type { TestCase } from '@/types/testCase'
 import { useCaseItem } from './useCaseItem'
@@ -130,14 +139,30 @@ const emit = defineEmits<{
   (e: 'deleteCase', caseId: number): void
 }>()
 
-const { lifecycleTag, caseTypeLabel, caseTypeTagType, priorityText, statusText, statusClass, formatTime } = useCaseItem(props)
+const {
+  lifecycleTag,
+  caseTypeLabel,
+  caseTypeTagType,
+  priorityText,
+  statusText,
+  statusClass,
+  formatTime,
+} = useCaseItem(props)
 
-const viewDetail = () => { emit('viewDetail', props.caseItem.id) }
-const copyCase = () => { emit('copyCase', props.caseItem) }
-const retryGenerate = () => { emit('retryGenerate', props.caseItem.id) }
-const deleteCase = () => { emit('deleteCase', props.caseItem.id) }
+const viewDetail = () => {
+  emit('viewDetail', props.caseItem.id)
+}
+const copyCase = () => {
+  emit('copyCase', props.caseItem)
+}
+const retryGenerate = () => {
+  emit('retryGenerate', props.caseItem.id)
+}
+const deleteCase = () => {
+  emit('deleteCase', props.caseItem.id)
+}
 </script>
 
 <style lang="scss">
-@import './CaseItem.scss';
+@use './CaseItem.scss';
 </style>

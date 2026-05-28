@@ -16,6 +16,8 @@ import re
 from typing import List, Dict, Any, Tuple
 
 VALID_CASE_CATEGORIES = frozenset({"positive", "boundary", "exception"})
+CLICK_ACTION_KEYWORDS = frozenset({"点击", "选择", "勾选", "切换", "按下", "长按"})
+INPUT_ACTION_KEYWORDS = frozenset({"输入", "填写", "键入", "录入"})
 
 TITLE_VAGUE_WORDS = frozenset({
     "功能验证", "界面测试", "XX测试", "功能测试", "页面测试",
@@ -36,6 +38,24 @@ _STEP_UNCERTAINTY_PATTERN = re.compile(
 _MANUAL_JUDGMENT_PATTERN = re.compile(
     r'(手动判断|人工确认|目测|肉眼|人工检查|手动检查|手动验证|人工判断|目视确认|手动标记|'
     r'主观判断|凭感觉|大致判断|自行判断)'
+)
+
+_STEP_REFERENCE_PATTERN = re.compile(
+    r'(参见|参考|同上|重复.*步骤|重复.*用例|如上|按照.*步骤)'
+)
+
+_STEP_INFERENCE_ACTION_PATTERN = re.compile(
+    r'(应该\w{0,4}|可能\w{0,4}|预计\w{0,4}|大概是|也许是|或许是|'
+    r'根据常规|根据经验|通常应该|一般来说|按理说|'
+    r'任意值|任意数据|合理值|合适的数据|适当的数据|随机值|'
+    r'可能是.*按钮|可能是.*元素|大概是.*位置)'
+)
+
+_STEP_INFERENCE_EXPECTED_PATTERN = re.compile(
+    r'(大概是|也许是|或许是|'
+    r'根据常规|根据经验|一般来说|按理说|'
+    r'任意值|任意数据|合理值|合适的数据|适当的数据|随机值|'
+    r'可能是.*按钮|可能是.*元素|大概是.*位置)'
 )
 
 _TITLE_ATOMICITY_VIOLATION = re.compile(
@@ -87,8 +107,9 @@ def validate_precondition(precondition: str) -> Tuple[bool, str]:
     if not precondition or not precondition.strip():
         return False, "前置条件为空"
     precondition = precondition.strip()
-    if "账号已登录" not in precondition and "已登录" not in precondition:
-        return False, "前置条件缺少「账号已登录」"
+    login_markers = ("账号已登录", "已登录", "用户未登录", "未登录")
+    if not any(marker in precondition for marker in login_markers):
+        return False, "前置条件缺少登录状态"
     if len(precondition) < 15:
         return False, f"前置条件过于简单（{len(precondition)}字）: {precondition}"
     return True, ""
@@ -108,15 +129,28 @@ def validate_steps(steps: List[Dict[str, Any]], case_type: str = "") -> Tuple[bo
         return False, "步骤列表为空"
     if len(steps) < 2:
         return False, f"步骤数不足（仅{len(steps)}步），每条用例至少需要2步（导航+核心操作），前置条件中的状态必须通过步骤到达"
+    if len(steps) > 8:
+        return False, f"步骤数过多（{len(steps)}步），每条用例最多8步，超过说明混合了多个测试场景，必须拆分为多条独立用例"
     for i, step in enumerate(steps):
         action = step.get("action", "") or step.get("description", "")
+        description = step.get("description", "")
         if not action or not action.strip():
             return False, f"第{i + 1}步的 action 为空"
         expected = step.get("expected_result", "")
         if not expected or not expected.strip():
             return False, f"第{i + 1}步的 expected_result 为空"
+        if _STEP_REFERENCE_PATTERN.search(f"{action} {description}"):
+            return False, f"第{i + 1}步引用其他步骤或用例，应写成独立可执行步骤: {action[:50]}"
         if _STEP_UNCERTAINTY_PATTERN.search(action):
             return False, f"第{i + 1}步操作不确定（含\"或\"字措辞），应拆分为独立用例: {action[:50]}"
+        if _STEP_INFERENCE_ACTION_PATTERN.search(action):
+            return False, f"第{i + 1}步操作含推断性措辞，必须基于确定事实: {action[:50]}"
+        if _STEP_INFERENCE_EXPECTED_PATTERN.search(expected):
+            return False, f"第{i + 1}步预期结果含推断性措辞，必须可明确断言: {expected[:50]}"
+        has_click = any(keyword in action for keyword in CLICK_ACTION_KEYWORDS)
+        has_input = any(keyword in action for keyword in INPUT_ACTION_KEYWORDS)
+        if has_click and has_input:
+            return False, f"第{i + 1}步混合点击和输入操作，应拆分为多个原子步骤: {action[:50]}"
         if case_type == "ui_automation" and _MANUAL_JUDGMENT_PATTERN.search(action):
             return False, f"第{i + 1}步含人工判断描述，与ui_automation类型矛盾: {action[:50]}"
     return True, ""
@@ -136,6 +170,7 @@ def validate_test_data_quality(steps: List[Dict[str, Any]]) -> Tuple[bool, str]:
     _INPUT_VALUE_PLACEHOLDERS = frozenset({
         "待输入", "测试数据", "xxx", "XXX", "test", "Test",
         "示例", "占位", "placeholder",
+        "任意值", "合理值", "合适的数据", "适当的数据", "随机值", "任意数据",
     })
     for i, step in enumerate(steps):
         action_type = step.get("action_type", "")

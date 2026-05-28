@@ -5,35 +5,10 @@ import type { TestCaseAIGenerate } from '@/types/testCase'
 import type {
   TestCaseAIEnhancedRequest,
   AIEnhancedGenerateResponse,
-  TestCaseGenerateRequest,
-  TestCaseRetryRequest,
+  AIEnhancedGenerateResult,
   LineageResponse,
 } from './types'
 import { extractResponseData } from './types'
-
-function createStreamGenerator(
-  stream: ReadableStream
-): AsyncGenerator<{ progress: number; message?: string }> {
-  const reader = stream.getReader()
-  return (async function* () {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const chunk = new TextDecoder('utf-8').decode(value)
-      const lines = chunk.split('\n')
-      for (const line of lines) {
-        if (line.trim()) {
-          try {
-            const progress: { progress: number; message?: string } = JSON.parse(line)
-            yield progress
-          } catch (e: unknown) {
-            console.error('解析进度数据失败:', e instanceof Error ? e.message : String(e))
-          }
-        }
-      }
-    }
-  })()
-}
 
 export const aiApi = {
   aiGenerateCase: async (data: TestCaseAIGenerate): Promise<TestCase> => {
@@ -43,34 +18,15 @@ export const aiApi = {
 
   aiGenerateCaseEnhanced: async (
     data: TestCaseAIEnhancedRequest
-  ): Promise<AIEnhancedGenerateResponse[]> => {
+  ): Promise<AIEnhancedGenerateResult> => {
     const response = await request.post('/api/v1/testCase/ai-enhanced-generate', data)
-    return extractResponseData<AIEnhancedGenerateResponse[]>(
-      response as unknown as ApiResponse<AIEnhancedGenerateResponse[]> | AIEnhancedGenerateResponse[]
+    const dataResult = extractResponseData<AIEnhancedGenerateResponse[] | AIEnhancedGenerateResult>(
+      response as unknown as
+        | ApiResponse<AIEnhancedGenerateResponse[] | AIEnhancedGenerateResult>
+        | AIEnhancedGenerateResponse[]
+        | AIEnhancedGenerateResult
     )
-  },
-
-  generate: async (
-    data: TestCaseGenerateRequest
-  ): Promise<AsyncGenerator<{ progress: number; message?: string }>> => {
-    const response = await request.post('/api/v1/testCase/generate', data, {
-      responseType: 'stream',
-    })
-    return new Promise((resolve) => {
-      resolve(createStreamGenerator(response.data as ReadableStream))
-    })
-  },
-
-  retry: async (
-    projectId: number,
-    data: TestCaseRetryRequest
-  ): Promise<AsyncGenerator<{ progress: number; message?: string }>> => {
-    const response = await request.post(`/api/v1/testCase/retry/${projectId}`, data, {
-      responseType: 'stream',
-    })
-    return new Promise((resolve) => {
-      resolve(createStreamGenerator(response.data as ReadableStream))
-    })
+    return Array.isArray(dataResult) ? { cases: dataResult } : dataResult
   },
 
   getLineage: async (caseId: number): Promise<LineageResponse> => {
@@ -78,5 +34,13 @@ export const aiApi = {
     return extractResponseData<LineageResponse>(
       response as unknown as ApiResponse<LineageResponse> | LineageResponse
     )
+  },
+
+  generateContext: async (data: Record<string, unknown>) => {
+    return request.post('/api/v1/testCase/generate-context', data)
+  },
+
+  previewGraphPrompt: async (data: Record<string, unknown>) => {
+    return request.post('/api/v1/testCase/preview-graph-prompt', data)
   },
 }

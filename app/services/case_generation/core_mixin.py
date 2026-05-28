@@ -168,7 +168,7 @@ async def get_test_case_context(
     Returns:
         上下文字典，结构同ContextMixin.get_context_for_generation。
     """
-    from app.services.test_case_generation_service import TestCaseGenerationService
+    from app.services.test_case_generation import TestCaseGenerationService
     service = TestCaseGenerationService(db)
     return await service.get_context_for_generation(
         project_id=project_id, user_id=user_id,

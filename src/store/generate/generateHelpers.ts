@@ -8,8 +8,100 @@ import type { GenerateComputed } from './computed'
 import type { StoreActions } from './types'
 
 interface FlowSortEditorRef {
-  getFlowSortSubmitData?: () => { mode: 'graph'; flow_sort_data: Record<string, unknown> }
+  getFlowSortSubmitData?: () => { flow_sort_data: Record<string, unknown> }
   getFlowValidationIssues?: () => { errors: string[]; warnings: string[] }
+}
+
+interface ActiveUiFlowStore {
+  quickMode: boolean
+  nodes: { length: number }
+}
+
+function getFlowNodeKeys(node: { id?: string; screen_id?: unknown }): string[] {
+  const keys: string[] = []
+  if (node.screen_id !== undefined && node.screen_id !== null) {
+    keys.push(String(node.screen_id))
+  }
+  if (node.id) {
+    keys.push(String(node.id))
+  }
+  return keys
+}
+
+function getEdgeEndpoint(edge: Record<string, unknown>, key: 'source' | 'target'): string {
+  return String(edge[key] ?? '')
+}
+
+function edgeTouchesNode(
+  edge: Record<string, unknown>,
+  node: { id?: string; screen_id?: unknown }
+): boolean {
+  const nodeKeys = new Set(getFlowNodeKeys(node))
+  return (
+    nodeKeys.has(getEdgeEndpoint(edge, 'source')) || nodeKeys.has(getEdgeEndpoint(edge, 'target'))
+  )
+}
+
+function getScreenId(item: unknown): number | null {
+  if (!item || typeof item !== 'object') return null
+  const raw = (item as Record<string, unknown>).screen_id
+  const value = Number(raw)
+  return Number.isFinite(value) ? value : null
+}
+
+function parseUiDescriptionItems(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value
+  if (typeof value !== 'string' || !value.trim()) return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function filterItemsByScreenIds(items: unknown, screenIds: Set<number>): unknown[] {
+  if (!Array.isArray(items)) return []
+  return items.filter((item) => {
+    const screenId = getScreenId(item)
+    return screenId !== null && screenIds.has(screenId)
+  })
+}
+
+function filterContextForScreens(
+  context: Record<string, unknown>,
+  nodes: Array<{ screen_id?: unknown }>
+): Record<string, unknown> {
+  const screenIds = new Set(
+    nodes.map((node) => Number(node.screen_id)).filter((id) => Number.isFinite(id))
+  )
+  if (screenIds.size === 0) return context
+
+  const scopedContext: Record<string, unknown> = { ...context }
+  const filteredUiSpecs = filterItemsByScreenIds(context.ui_specs, screenIds)
+  if (Array.isArray(context.ui_specs)) {
+    scopedContext.ui_specs = filteredUiSpecs
+  }
+
+  const uiDescriptions = Array.isArray(context.ui_descriptions)
+    ? context.ui_descriptions
+    : parseUiDescriptionItems(context.ui_description)
+  if (uiDescriptions.length > 0) {
+    const filteredUiDescriptions = filterItemsByScreenIds(uiDescriptions, screenIds)
+    scopedContext.ui_descriptions = filteredUiDescriptions
+    scopedContext.ui_description = JSON.stringify(filteredUiDescriptions)
+  }
+
+  return scopedContext
+}
+
+export function hasActiveUiFlow(state: GenerateState, flowSortStore: ActiveUiFlowStore): boolean {
+  if (flowSortStore.quickMode === true) return false
+  return Boolean(
+    state.selectedUiPrototypeProjectId.value &&
+    state.formData.ui_screen_ids.length > 0 &&
+    (flowSortStore.nodes.length > 0 || state.uiScreens.value.length > 0)
+  )
 }
 
 async function callAiAndSaveResults(
@@ -19,10 +111,10 @@ async function callAiAndSaveResults(
   testPointId: number | null,
   label: string
 ): Promise<void> {
-  const casesArray = await caseApi.aiGenerateCaseEnhanced(
+  const generateResult = await caseApi.aiGenerateCaseEnhanced(
     apiData as unknown as TestCaseAIEnhancedRequest
   )
-  const casesData = Array.isArray(casesArray) ? casesArray : [casesArray]
+  const casesData = generateResult.cases
 
   for (let cIdx = 0; cIdx < casesData.length; cIdx++) {
     const caseData = casesData[cIdx]
@@ -85,7 +177,7 @@ function pushErrorCase(
   })
 }
 
-function buildFlowSortData(
+export function buildFlowSortData(
   state: GenerateState,
   computed: GenerateComputed,
   flowSortEditorRef: FlowSortEditorRef | null
@@ -143,6 +235,7 @@ export async function generateForTestPoints(
   let completed = 0
   const allTestPoints = (context.test_points || []) as TestPoint[]
   const flowSortStore = useFlowSortStore()
+  const useGraphMode = hasActiveUiFlow(state, flowSortStore)
 
   const progressInterval = setInterval(() => {
     const targetPct = Math.min(70, 25 + Math.round((completed / total) * 45))
@@ -174,8 +267,10 @@ export async function generateForTestPoints(
           test_point_ids: [tpId],
         },
       }
-      apiData.mode = flowSortStore.nodes.length > 0 ? 'graph' : 'linear'
-      apiData.flow_sort_data = buildFlowSortData(state, computed, flowSortEditorRef)
+      apiData.mode = useGraphMode ? 'graph' : 'linear'
+      if (useGraphMode) {
+        apiData.flow_sort_data = buildFlowSortData(state, computed, flowSortEditorRef)
+      }
 
       state.progress.value = 50
       state.progressText.value = 'AI正在生成测试用例...'
@@ -201,17 +296,20 @@ export async function generateForFlowNodes(
   flowSortEditorRef: FlowSortEditorRef | null
 ): Promise<void> {
   const flowSortStore = useFlowSortStore()
+  const useGraphMode = hasActiveUiFlow(state, flowSortStore)
   const flowNodes =
-    flowSortStore.nodes.length > 0
+    useGraphMode && flowSortStore.nodes.length > 0
       ? [...flowSortStore.nodes].sort((a, b) => (a.main_order ?? 999) - (b.main_order ?? 999))
-      : state.uiScreens.value.map((screen, index) => ({
-          screen_id: screen.id,
-          screen_order: index + 1,
-          flow_type: 'main' as const,
-          screen_name: screen.screen_name,
-          ui_spec_elements: screen.ui_spec?.elements || [],
-          summary: screen.summary || '',
-        }))
+      : useGraphMode
+        ? state.uiScreens.value.map((screen, index) => ({
+            screen_id: screen.id,
+            screen_order: index + 1,
+            flow_type: 'main' as const,
+            screen_name: screen.screen_name,
+            ui_spec_elements: screen.ui_spec?.elements || [],
+            summary: screen.summary || '',
+          }))
+        : []
 
   if (flowNodes.length <= 1) {
     await generateSingle(state, computed, getActions, context, flowSortEditorRef)
@@ -248,13 +346,27 @@ export async function generateForFlowNodes(
     const nodeLabel = node.screen_name || `页面#${node.screen_id}`
 
     try {
+      const nodeEdges = allEdges.filter((e) => edgeTouchesNode(e, node))
+      const connectedKeys = new Set<string>(getFlowNodeKeys(node))
+      nodeEdges.forEach((edge) => {
+        connectedKeys.add(getEdgeEndpoint(edge, 'source'))
+        connectedKeys.add(getEdgeEndpoint(edge, 'target'))
+      })
+      const scopedNodes = flowNodes.filter((candidate) =>
+        getFlowNodeKeys(candidate).some((key) => connectedKeys.has(key))
+      )
+      const validScopedKeys = new Set(
+        scopedNodes.flatMap((candidate) => getFlowNodeKeys(candidate))
+      )
+      const scopedEdges = nodeEdges.filter(
+        (edge) =>
+          validScopedKeys.has(getEdgeEndpoint(edge, 'source')) &&
+          validScopedKeys.has(getEdgeEndpoint(edge, 'target'))
+      )
+      const scopedContext = filterContextForScreens(context, scopedNodes)
       const nodeFlowData = {
-        nodes: [node],
-        edges: allEdges.filter(
-          (e) =>
-            String(e.source) === String(node.screen_id) ||
-            String(e.target) === String(node.screen_id)
-        ),
+        nodes: scopedNodes,
+        edges: scopedEdges,
         module_info: computed.flowSortModuleInfo.value,
       }
 
@@ -266,10 +378,10 @@ export async function generateForFlowNodes(
         priority: state.formData.priority,
         enhanced_mode: state.formData.enhanced_mode,
         extra_requirements: state.formData.extra_requirements,
-        mode: 'graph' as const,
+        mode: useGraphMode ? 'graph' : 'linear',
         flow_sort_data: nodeFlowData,
         context: {
-          ...context,
+          ...scopedContext,
           current_test_point: {
             module: nodeLabel,
             point: `${nodeLabel}页面测试`,
@@ -302,6 +414,7 @@ export async function generateSingle(
   flowSortEditorRef: FlowSortEditorRef | null
 ): Promise<void> {
   const flowSortStore = useFlowSortStore()
+  const useGraphMode = hasActiveUiFlow(state, flowSortStore)
 
   let completed = 0
   const totalSteps = 3
@@ -328,8 +441,10 @@ export async function generateSingle(
     extra_requirements: state.formData.extra_requirements,
     context: context,
   }
-  apiData.mode = flowSortStore.nodes.length > 0 ? 'graph' : 'linear'
-  apiData.flow_sort_data = buildFlowSortData(state, computed, flowSortEditorRef)
+  apiData.mode = useGraphMode ? 'graph' : 'linear'
+  if (useGraphMode) {
+    apiData.flow_sort_data = buildFlowSortData(state, computed, flowSortEditorRef)
+  }
 
   state.progress.value = 50
   state.progressText.value = 'AI正在生成测试用例...'

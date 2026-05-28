@@ -113,8 +113,9 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight } from '@element-plus/icons-vue'
 import { testCaseApi, type LineageResponse } from '@/api/case'
+import type { TagType } from '@/types/element-plus'
 
-const LIFECYCLE_MAP: Record<string, { label: string; tagType: string }> = {
+const LIFECYCLE_MAP: Record<string, { label: string; tagType: TagType }> = {
   draft: { label: '草稿', tagType: 'info' },
   active: { label: '活跃', tagType: 'success' },
   pending_review: { label: '待评审', tagType: 'warning' },
@@ -148,7 +149,7 @@ function getLifecycleLabel(status: string): string {
   return LIFECYCLE_MAP[status]?.label ?? status
 }
 
-function getLifecycleTagType(status: string): string {
+function getLifecycleTagType(status: string): TagType {
   return LIFECYCLE_MAP[status]?.tagType ?? 'info'
 }
 

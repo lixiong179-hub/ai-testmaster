@@ -143,8 +143,22 @@ const ElTagStub = defineComponent({
 
 describe('FlowTypeConfigDialog', () => {
   const mainNodeOptions = [
-    { id: 'node_1', screen_id: 1, screen_name: '首页', flow_type: 'main' as const, main_order: 1, depth: 0 },
-    { id: 'node_2', screen_id: 2, screen_name: '列表页', flow_type: 'main' as const, main_order: 2, depth: 0 },
+    {
+      id: 'node_1',
+      screen_id: 1,
+      screen_name: '首页',
+      flow_type: 'main' as const,
+      main_order: 1,
+      depth: 0,
+    },
+    {
+      id: 'node_2',
+      screen_id: 2,
+      screen_name: '列表页',
+      flow_type: 'main' as const,
+      main_order: 2,
+      depth: 0,
+    },
     { id: 'node_3', screen_id: 3, screen_name: '高级筛选', flow_type: 'branch' as const, depth: 1 },
   ]
 
@@ -268,7 +282,7 @@ describe('FlowTypeConfigDialog', () => {
   })
 
   it('should validate required fields before confirm', async () => {
-       const wrapper = mountDialog({ visible: true, flowType: 'branch' })
+    const wrapper = mountDialog({ visible: true, flowType: 'branch' })
 
     const confirmBtn = wrapper.findAll('button').find((btn) => btn.text() === '确认')
     expect(confirmBtn).toBeDefined()

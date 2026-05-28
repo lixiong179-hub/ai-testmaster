@@ -38,8 +38,8 @@ class SuggestionMixin:
         if not complexity.has_verification:
             suggestions.append("用例缺少验证步骤，建议添加断言以确认操作结果")
 
-        if complexity.step_count > 10:
-            suggestions.append("用例步骤过多，建议拆分为多个独立用例以提高可维护性")
+        if complexity.step_count > 6:
+            suggestions.append("用例步骤过多，步骤偏多（>6步），建议检查是否混合了多个测试场景，考虑拆分为独立用例")
 
         if complexity.level == "very_complex":
             suggestions.append("用例复杂度过高，建议简化操作流程或拆分子流程")

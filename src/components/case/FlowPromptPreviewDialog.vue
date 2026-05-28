@@ -74,7 +74,7 @@
 import { ref } from 'vue'
 import { Warning, WarningFilled, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import request from '@/utils/request'
+import { caseApi } from '@/api/case'
 
 interface PreviewResult {
   graph_prompt: string
@@ -117,13 +117,15 @@ type PreviewApiResponse = {
 const fetchPreview = async () => {
   loading.value = true
   try {
-    const response = (await request.post('/api/v1/testCase/preview-graph-prompt', {
+    const response = (await caseApi.previewGraphPrompt({
       flow_sort_data: props.flowSortData,
       context: props.context || {},
     })) as PreviewApiResponse
     previewData.value = response.data.data
   } catch (e: unknown) {
-    const axiosErr = e as { response?: { data?: { detail?: unknown } }; message?: string } | undefined
+    const axiosErr = e as
+      | { response?: { data?: { detail?: unknown } }; message?: string }
+      | undefined
     let msg = '预览失败'
     if (axiosErr?.response?.data?.detail) {
       const detail = axiosErr.response.data.detail

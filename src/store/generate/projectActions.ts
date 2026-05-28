@@ -1,27 +1,33 @@
 import { ElMessage } from 'element-plus'
 import { fileApi } from '@/api/file'
 import caseApi from '@/api/case'
-import request, { type ApiResponse } from '@/utils/request'
+import ProjectAPI, { type ProjectListResponse } from '@/api/project'
 import type { Project } from '@/api/project'
 import { useFlowSortStore } from '@/store/flowSort'
 import { extractListItems } from './types'
 import type { GenerateState } from './state'
 import type { StoreActions } from './types'
 
-export function createProjectActions(
-  state: GenerateState,
-  getActions: () => StoreActions
-) {
+const HISTORY_CASE_LIFECYCLE_STATUSES = [
+  'draft',
+  'active',
+  'pending_review',
+  'needs_modify',
+  'locator_broken',
+  'deprecated',
+].join(',')
+
+export function createProjectActions(state: GenerateState, getActions: () => StoreActions) {
   const getProjects = async (forceReload: boolean = false) => {
     if (state.projectsLoaded.value && !forceReload && state.projects.value.length > 0) {
       return
     }
     state.projectsLoading.value = true
     try {
-      const response: ApiResponse<{ items: Project[]; total: number }> = await request.get(
-        '/api/v1/project/list',
-        { params: { page: 1, page_size: 1000 } }
-      )
+      const response: ProjectListResponse = await ProjectAPI.getProjects({
+        page: 1,
+        page_size: 1000,
+      })
       if (response?.data?.items) {
         state.projects.value = response.data.items.filter((p: Project) => p.name !== '默认项目')
         state.projectsLoaded.value = true
@@ -53,7 +59,7 @@ export function createProjectActions(
     try {
       const response = await caseApi.getCaseList({
         project_id: state.formData.project_id as number,
-        lifecycle_status: 'active',
+        lifecycle_status: HISTORY_CASE_LIFECYCLE_STATUSES,
         page_size: 500,
       })
       state.projectCases.value = response?.data?.items || []
@@ -89,6 +95,7 @@ export function createProjectActions(
     getActions().loadProjectFiles()
     getActions().loadUIPrototypeProjects()
     getActions().loadProjectCases()
+    getActions().loadTestPoints(1)
   }
 
   const handleProjectFocus = () => {
@@ -107,14 +114,14 @@ export function createProjectActions(
     }
     const allFileIds = [...state.formData.requirement_file_ids, ...state.formData.ui_file_ids]
     try {
-      const response: ApiResponse = await request.post('/api/v1/file/extract-content', {
+      const response = await fileApi.extractContent({
         file_ids: allFileIds,
         project_id: Number(state.formData.project_id),
-        force_refresh: true,
       })
-      if (response?.code === 200) {
+      const resData = (response as any)?.data ?? response
+      if (resData?.code === 200) {
         await getActions().loadProjectFiles()
-        const data = response.data as { success?: number; failed?: number }
+        const data = resData.data as { success?: number; failed?: number }
         state.contextPreview.value = {
           title: `内容提取完成：成功 ${data?.success || 0} 个，失败 ${data?.failed || 0} 个`,
           type: (data?.failed || 0) > 0 ? 'warning' : 'success',
@@ -129,7 +136,7 @@ export function createProjectActions(
         }
         ElMessage.success('文件内容提取完成')
       } else {
-        ElMessage.error(response?.msg || response?.message || '提取内容失败')
+        ElMessage.error(resData?.msg || resData?.message || '提取内容失败')
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } }

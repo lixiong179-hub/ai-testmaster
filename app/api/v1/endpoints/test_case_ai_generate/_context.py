@@ -32,7 +32,7 @@ async def get_generation_context(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
         )
-    from app.services.test_case_generation_service import TestCaseGenerationService
+    from app.services.test_case_generation import TestCaseGenerationService
     service = TestCaseGenerationService(db)
     context = await service.get_context_for_generation(
         project_id=request.project_id, user_id=current_user.id,
@@ -53,14 +53,14 @@ async def get_generation_context(
         cases = db.query(TestCase).filter(
             TestCase.project_id == request.project_id,
             TestCase.is_deleted.is_(False),
-            TestCase.lifecycle_status == 'active',
+            TestCase.lifecycle_status != 'archived',
         ).order_by(TestCase.id).all()
     elif len(request.history_case_ids) > 0:
         cases = db.query(TestCase).filter(
             TestCase.id.in_(request.history_case_ids),
             TestCase.project_id == request.project_id,
             TestCase.is_deleted.is_(False),
-            TestCase.lifecycle_status == 'active',
+            TestCase.lifecycle_status != 'archived',
         ).all()
     else:
         cases = []
@@ -122,7 +122,7 @@ async def generate_single_test_case(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
         )
-    from app.services.test_case_generation_service import TestCaseGenerationService
+    from app.services.test_case_generation import TestCaseGenerationService
     service = TestCaseGenerationService(db)
     context = await service.get_context_for_generation(
         project_id=request.project_id, user_id=current_user.id,

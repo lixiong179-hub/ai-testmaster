@@ -27,11 +27,11 @@ class TestGenerateOptimizationSuggestions:
         assert any("验证步骤" in s for s in result)
 
     def test_too_many_steps_suggestion(self):
-        complexity = ComplexityScore(step_count=15)
+        complexity = ComplexityScore(step_count=7)
         redundancy = RedundancyScore()
         coverage = CoverageScore()
         result = self.mixin._generate_optimization_suggestions(complexity, redundancy, coverage)
-        assert any("步骤过多" in s for s in result)
+        assert any("步骤偏多" in s for s in result)
 
     def test_very_complex_suggestion(self):
         complexity = ComplexityScore(level="very_complex", score=9)

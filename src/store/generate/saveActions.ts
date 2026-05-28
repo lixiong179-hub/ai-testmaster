@@ -6,10 +6,7 @@ import type { GeneratedStep, SaveSingleCaseParam } from './types'
 import type { GenerateState } from './state'
 import type { GenerateComputed } from './computed'
 
-export function createSaveActions(
-  state: GenerateState,
-  computed: GenerateComputed
-) {
+export function createSaveActions(state: GenerateState, computed: GenerateComputed) {
   const buildStepsPayload = (steps: GeneratedStep[] | undefined): TestCaseApiStep[] => {
     return (steps || []).map((s: GeneratedStep, i: number) => ({
       step: String(s.step || i + 1),
@@ -36,11 +33,13 @@ export function createSaveActions(
     test_data?: Record<string, unknown>
     parent_case_id?: number | null
     ai_change_type?: 'added' | 'modified' | 'deprecated'
+    test_point_id?: number | null
   }) => {
     const stepsPayload = buildStepsPayload(c.steps)
     const priority = normalizePriority(c.priority ?? 2)
     return {
       project_id: Number(state.formData.project_id),
+      test_point_id: c.test_point_id ?? undefined,
       case_no: generateCaseNo(state.formData.project_id, c.id),
       title: c.title || '未命名测试用例',
       module: c.module || '默认模块',
@@ -77,7 +76,9 @@ export function createSaveActions(
   }
 
   const handleSaveCase = async () => {
-    const caseToSave = state.isEditingResult.value ? state.editingCase.value : computed.viewingCase.value
+    const caseToSave = state.isEditingResult.value
+      ? state.editingCase.value
+      : computed.viewingCase.value
     if (!caseToSave) {
       ElMessage.warning('没有可保存的用例')
       return
@@ -108,6 +109,7 @@ export function createSaveActions(
         test_data: caseToSave.test_data,
         parent_case_id: caseToSave.parent_case_id,
         ai_change_type: caseToSave.ai_change_type,
+        test_point_id: currentCase?.test_point_id,
       })
 
       if (dbId) {

@@ -18,6 +18,9 @@
     - 删除为软删除（is_deleted标记），支持批量恢复
     - 批量创建在单个数据库事务中完成，全部成功或全部回滚
 """
+from datetime import datetime
+from typing import Optional
+
 from app.utils.db_time import utcnow
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, field_validator
@@ -159,6 +162,7 @@ async def batch_create_test_cases(
 
 class BatchRestoreRequest(BaseModel):
     """批量恢复请求模型，限制单次最多恢复500个用例"""
+    project_id: Optional[int] = None
     caseIds: list[int]
 
     @field_validator('caseIds')
@@ -173,6 +177,7 @@ class BatchRestoreRequest(BaseModel):
 
 class BatchDeleteRequest(BaseModel):
     """批量删除请求模型，限制单次最多删除500个用例"""
+    project_id: Optional[int] = None
     caseIds: list[int]
 
     @field_validator('caseIds')
@@ -210,11 +215,15 @@ async def batch_restore_test_cases(
     not_found_ids = []
 
     # 只恢复属于当前用户项目的已删除用例
-    deleted_cases = db.query(TestCase).join(Project).filter(
+    deleted_cases_query = db.query(TestCase).join(Project).filter(
         TestCase.id.in_(case_ids),
         TestCase.is_deleted == True,
         Project.user_id == current_user.id
-    ).all()
+    )
+    if request.project_id:
+        deleted_cases_query = deleted_cases_query.filter(TestCase.project_id == request.project_id)
+
+    deleted_cases = deleted_cases_query.all()
 
     existing_ids = {case.id for case in deleted_cases}
     not_found_ids = [id for id in case_ids if id not in existing_ids]
@@ -273,11 +282,15 @@ async def batch_delete_test_cases(
     not_found_ids = []
 
     # 只删除属于当前用户项目的用例
-    existing_cases = db.query(TestCase).join(Project).filter(
+    existing_cases_query = db.query(TestCase).join(Project).filter(
         TestCase.id.in_(case_ids),
         TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
-    ).all()
+    )
+    if request.project_id:
+        existing_cases_query = existing_cases_query.filter(TestCase.project_id == request.project_id)
+
+    existing_cases = existing_cases_query.all()
 
     existing_ids = {case.id for case in existing_cases}
     not_found_ids = [id for id in case_ids if id not in existing_ids]

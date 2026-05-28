@@ -1,9 +1,9 @@
 """统一 Prompt 构建器包 - 合并所有 Prompt 构建逻辑为单一入口。
 
-本包将项目中分散的 3 处 Prompt 构建逻辑统一合并：
-1. case_generation_prompt_builder - 流程图/线性模式用例生成
-2. test_case_generation.ai_prompt_builder - 测试用例 AI 生成
-3. test_data.prompt_builder - 测试数据生成
+本包统一承载 Prompt 构建逻辑：
+1. 流程图/线性模式测试用例生成
+2. 自测用例生成
+3. 测试数据生成
 
 同时整合 UI Spec 格式化函数和 UI 解析 Prompt 常量。
 
