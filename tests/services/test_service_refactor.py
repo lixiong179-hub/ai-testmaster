@@ -89,10 +89,8 @@ class TestServiceImports:
 
     def test_video_service_imports(self):
         """video_service子包导入验证"""
-        from app.services.video_service import VideoService
-        from app.services.video.legacy_service import VideoService as LegacyVideoService
+        from app.services.video import VideoService
         assert VideoService is not None
-        assert LegacyVideoService is not None
 
     def test_cost_statistics_imports(self):
         """cost_statistics子包导入验证"""
@@ -126,7 +124,7 @@ class TestServiceImports:
 
     def test_execution_replay_imports(self):
         """execution_replay_service导入验证"""
-        from app.services.execution_replay_service import ExecutionReplayService
+        from app.services.execution_replay.legacy_service import ExecutionReplayService
         assert ExecutionReplayService is not None
 
 
@@ -138,9 +136,9 @@ class TestBackwardCompatibility:
         from app.services.test_case_generation_service import TestCaseGenerationService
         from app.services.ui_spec_parser import UISpecParser
         from app.services.element_locator_service import ElementLocatorService
-        from app.services.execution_replay_service import ExecutionReplayService
+        from app.services.execution_replay.legacy_service import ExecutionReplayService
         from app.services.case_quality_analyzer import CaseQualityAnalyzer
-        from app.services.video_service import VideoService
+        from app.services.video import VideoService
         from app.services.cost_statistics_service import CostStatisticsService
         from app.services.mobile_ai_executor import MobileAIExecutor
         from app.services.task_service import TaskService
@@ -206,7 +204,7 @@ class TestTypeAnnotations:
 
     def test_execution_replay_service_methods_have_return_types(self):
         """execution_replay_service关键方法有返回类型注解"""
-        from app.services.execution_replay_service import ExecutionReplayService
+        from app.services.execution_replay.legacy_service import ExecutionReplayService
         import inspect
         method = getattr(ExecutionReplayService, 'set_default_speed', None)
         if method:

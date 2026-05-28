@@ -70,10 +70,10 @@ class TestClassifyTextExtended:
         assert parser._classify_text("倒计时结束") == "expected"
 
     def test_condition_default(self):
-        assert parser._classify_text("默认配置") == "expected"
+        assert parser._classify_text("默认配置") == "condition"
 
     def test_condition_from(self):
-        assert parser._classify_text("从首页进入") == "expected"
+        assert parser._classify_text("从首页进入") == "condition"
 
     def test_condition_support(self):
         assert parser._classify_text("支持多语言") == "condition"
@@ -302,7 +302,7 @@ class TestBuildTopicTree:
         assert result.children[0].title == "子"
 
 
-class TestLoadRootTopic:
+class TestLoadAllRootTopics:
     def test_invalid_xml_content(self):
         fd, path = tempfile.mkstemp(suffix=".xmind")
         os.close(fd)
@@ -310,7 +310,7 @@ class TestLoadRootTopic:
             zf.writestr("content.xml", "not valid xml <><>")
         try:
             with pytest.raises(XmindParseError, match="无法解析"):
-                parser._load_root_topic(path)
+                parser._load_all_root_topics(path)
         finally:
             os.unlink(path)
 

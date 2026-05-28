@@ -12,8 +12,6 @@
 import json
 import pytest
 
-pytestmark = pytest.mark.skip(reason="Pipeline运行失败")
-
 from app.models.iteration import Iteration, IterationInput
 from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
 from app.ai.mock_client import MockAIClient
@@ -91,6 +89,10 @@ def mock_ai_s3():
         ],
     }))
     client.set_response("case_generation", json.dumps(SCENARIO_3_CASES))
+    client.set_response("case_generation_create", json.dumps(SCENARIO_3_CASES))
+    client.set_response("case_generation_modify", json.dumps(SCENARIO_3_CASES))
+    client.set_response("case_generation_locator", json.dumps(SCENARIO_3_CASES))
+    client.set_response("case_generation_supplement", json.dumps(SCENARIO_3_CASES))
     return client
 
 
@@ -131,6 +133,10 @@ def mock_ai_s5():
         ],
     }))
     client.set_response("case_generation", json.dumps(SCENARIO_5_CASES))
+    client.set_response("case_generation_create", json.dumps(SCENARIO_5_CASES))
+    client.set_response("case_generation_modify", json.dumps(SCENARIO_5_CASES))
+    client.set_response("case_generation_locator", json.dumps(SCENARIO_5_CASES))
+    client.set_response("case_generation_supplement", json.dumps(SCENARIO_5_CASES))
     return client
 
 
@@ -164,7 +170,7 @@ def s3_iteration(db, testProject):
     ui_input = IterationInput(
         iteration_id=iteration.id,
         kind="prototype",
-        payload={"ui_prototype_id": 1},
+        payload={"screen_ids": [screen.id]},
         content_hash="m3_e2e_s3_ui_hash",
     )
     db.add(ui_input)
@@ -226,7 +232,7 @@ def s5_iteration(db, testProject):
     ui_input = IterationInput(
         iteration_id=iteration.id,
         kind="prototype",
-        payload={"ui_prototype_id": 2},
+        payload={"screen_ids": [screen.id]},
         content_hash="m3_e2e_s5_ui_hash",
     )
     db.add(ui_input)
@@ -290,7 +296,6 @@ def _run_s5_pipeline(db, iteration, mock_ai):
     return run, ctx
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Pipeline失败")
 class TestScenario3E2E:
     def test_pipeline_completes(self, db, s3_iteration, mock_ai_s3):
         iteration = s3_iteration["iteration"]
@@ -356,7 +361,6 @@ class TestScenario3E2E:
         assert len(found.artifacts) >= 1
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Pipeline失败")
 class TestScenario5E2E:
     def test_pipeline_completes(self, db, s5_iteration, mock_ai_s5):
         iteration = s5_iteration["iteration"]

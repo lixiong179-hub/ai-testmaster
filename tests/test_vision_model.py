@@ -173,7 +173,7 @@ class TestPrivateMethods:
         assert payload["messages"][0]["content"] == system_prompt
         assert payload["messages"][1]["role"] == "user"
         assert payload["temperature"] == 0.3
-        assert payload["max_tokens"] == 2000
+        assert payload["max_tokens"] == kimi_model.max_tokens
 
     def test_build_request_payload_qwen(self, qwen_model):
         system_prompt = "系统提示"

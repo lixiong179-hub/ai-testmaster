@@ -74,7 +74,7 @@ class TestUnifiedVisionModelSupplement:
         
         assert payload["model"] == mock_model.model_name
         assert payload["temperature"] == mock_model.temperature
-        assert payload["max_tokens"] == 2000
+        assert payload["max_tokens"] == mock_model.max_tokens
         assert len(payload["messages"]) == 2
 
     def test_build_request_payload_qwen(self):

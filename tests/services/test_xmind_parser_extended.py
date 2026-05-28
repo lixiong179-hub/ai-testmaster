@@ -197,16 +197,16 @@ class TestParseXml:
             parser._parse_xml(b"<invalid><>")
 
 
-class TestGetRootTopic:
+class TestGetAllRootTopics:
     def test_no_sheet(self):
         root = ET.fromstring(b'<root xmlns="urn:xmind:xmap:xmlns:content:2.0"/>')
         with pytest.raises(XmindParseError, match="未找到 sheet"):
-            parser._get_root_topic(root)
+            parser._get_all_root_topics(root)
 
     def test_no_topic_in_sheet(self):
         root = ET.fromstring(f'<root xmlns="{XMAP_NS}"><sheet/></root>')
         with pytest.raises(XmindParseError, match="未找到根主题"):
-            parser._get_root_topic(root)
+            parser._get_all_root_topics(root)
 
 
 class TestFindElement:
@@ -306,42 +306,43 @@ class TestCollectLeafTestPoints:
     def test_leaf_node(self):
         xml = f'<topic xmlns="{XMAP_NS}"><title>叶子</title></topic>'
         topic = ET.fromstring(xml)
-        result = parser._collect_leaf_test_points(topic, "模块", None, [], 0)
+        result = parser._collect_leaf_test_points(topic, "模块", "功能", None, [], 0)
         assert len(result) == 1
         assert result[0]["point"] == "叶子"
+        assert result[0]["function"] == "功能"
 
     def test_empty_leaf(self):
         xml = f'<topic xmlns="{XMAP_NS}"/>'
         topic = ET.fromstring(xml)
-        result = parser._collect_leaf_test_points(topic, "模块", None, [], 0)
+        result = parser._collect_leaf_test_points(topic, "模块", "功能", None, [], 0)
         assert result == []
 
     def test_max_depth_exceeded(self):
         xml = f'<topic xmlns="{XMAP_NS}"><title>深层</title></topic>'
         topic = ET.fromstring(xml)
-        result = parser._collect_leaf_test_points(topic, "模块", None, [], parser.MAX_DEPTH)
+        result = parser._collect_leaf_test_points(topic, "模块", "功能", None, [], parser.MAX_DEPTH)
         assert result == []
 
     def test_with_inherited_priority(self):
         xml = f'<topic xmlns="{XMAP_NS}"><title>叶子</title></topic>'
         topic = ET.fromstring(xml)
-        result = parser._collect_leaf_test_points(topic, "模块", 1, [], 0)
+        result = parser._collect_leaf_test_points(topic, "模块", "功能", 1, [], 0)
         assert result[0]["priority"] == 1
 
     def test_default_priority(self):
         xml = f'<topic xmlns="{XMAP_NS}"><title>叶子</title></topic>'
         topic = ET.fromstring(xml)
-        result = parser._collect_leaf_test_points(topic, "模块", None, [], 0)
+        result = parser._collect_leaf_test_points(topic, "模块", "功能", None, [], 0)
         assert result[0]["priority"] == 2
 
 
 class TestBuildTestPoint:
     def test_build(self):
-        result = parser._build_test_point("模块", "测试点", 1)
+        result = parser._build_test_point("模块", "功能", "测试点", 1)
         assert result["module"] == "模块"
+        assert result["function"] == "功能"
         assert result["point"] == "测试点"
         assert result["priority"] == 1
-        assert result["function"] == ""
 
 
 class TestExtractPaths:

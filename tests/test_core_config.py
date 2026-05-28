@@ -357,7 +357,13 @@ class TestDevSettings:
 class TestTestSettings:
     def test_test_settings_defaults(self):
         with patch.dict(os.environ, {"ENVIRONMENT": "test"}):
-            s = TestSettings(DATABASE_URL="mysql+pymysql://root:pass@localhost/db", ENVIRONMENT="test", DEBUG=False)
+            os.environ.pop("LOG_LEVEL", None)
+            s = TestSettings(
+                DATABASE_URL="mysql+pymysql://root:pass@localhost/db",
+                ENVIRONMENT="test",
+                DEBUG=False,
+                _env_file=None,
+            )
             assert s.DEBUG is False
             assert s.ENVIRONMENT == "test"
             assert s.LOG_LEVEL == "INFO"

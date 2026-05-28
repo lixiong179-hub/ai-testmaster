@@ -30,12 +30,12 @@ from app.models import (
     VideoRecord
 )
 
-from app.services.video.legacy_service import VideoService
-from app.services.video.legacy_models import VideoInfo
+from app.services.video import VideoService
+from app.services.video.models import VideoInfo
 from app.services.visibility_config_service import (
     VisibilityConfigService, VisibilityConfig, VisibilityLevel
 )
-from app.services.execution_replay_service import (
+from app.services.execution_replay.legacy_service import (
     ExecutionReplayService, ReplayEvent, ExecutionTimeline
 )
 
@@ -308,7 +308,7 @@ class TestVideoService:
     def test_check_ffmpeg_available(self, video_service):
         """测试ffmpeg可用性检查 - 异步方法"""
         # 使用asyncio.run运行异步方法
-        result = asyncio.run(video_service._check_ffmpeg_available())
+        result = video_service._check_ffmpeg_available()
         assert isinstance(result, bool)
 
 

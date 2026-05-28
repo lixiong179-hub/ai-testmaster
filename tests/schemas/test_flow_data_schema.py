@@ -53,6 +53,16 @@ class TestFlowDataSaveRequest:
         )
         assert request.flow_data["edges"] == [{"from": "1", "to": "2"}]
 
+    def test_project_id_optional_for_path_based_endpoint(self):
+        request = FlowDataSaveRequest(
+            flow_data={
+                "nodes": [{"id": "1"}],
+                "edges": [],
+            }
+        )
+        assert request.project_id is None
+        assert request.flow_data["nodes"] == [{"id": "1"}]
+
     def test_flow_data_missing_raises_validation_error(self):
         with pytest.raises(ValidationError):
             FlowDataSaveRequest(project_id=1)

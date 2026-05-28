@@ -115,6 +115,35 @@ class TestPutFlowData:
         assert r2["data"]["project_id"] == api_project.id
 
     @pytest.mark.asyncio
+    async def test_body_project_id_is_optional(self, db, api_project, testUser):
+        request = FlowDataSaveRequest(
+            flow_data={
+                "nodes": [{"id": "1", "name": "登录"}],
+                "edges": [],
+            }
+        )
+        response = await save_flow_data(
+            project_id=api_project.id,
+            flow_request=request,
+            db=db,
+            current_user=testUser,
+        )
+        assert response["code"] == 200
+        assert response["data"]["project_id"] == api_project.id
+
+    @pytest.mark.asyncio
+    async def test_mismatched_body_project_id_returns_400(self, db, api_project, testUser):
+        request = _make_request(api_project.id + 1, {"nodes": [{"id": "1"}], "edges": []})
+        with pytest.raises(HTTPException) as exc:
+            await save_flow_data(
+                project_id=api_project.id,
+                flow_request=request,
+                db=db,
+                current_user=testUser,
+            )
+        assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
+
+    @pytest.mark.asyncio
     async def test_wrong_user_returns_403(self, db, other_user, testUser):
         request = _make_request(other_user["project"].id, {"nodes": [{"id": "1"}], "edges": []})
         with pytest.raises(HTTPException) as exc:
