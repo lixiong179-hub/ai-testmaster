@@ -2,7 +2,7 @@
   <div class="ai-generate-container">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h2>AI生成测试用例</h2>
+      <h2>新增用例生成</h2>
       <div class="header-actions">
         <el-button type="primary" plain @click="goToResourceManage">
           <el-icon><Upload /></el-icon>
@@ -17,9 +17,9 @@
 
     <!-- 步骤指示器 -->
     <el-steps :active="store.currentStep" finish-status="success" class="steps-indicator">
-      <el-step title="选择需求来源" description="关联需求文档和UI原型" />
-      <el-step title="配置测试参数" description="选择用例类型和测试点" />
-      <el-step title="生成并保存" description="AI生成详细测试用例" />
+      <el-step title="选择项目与目标" description="确定生成范围和上下文来源" />
+      <el-step title="配置生成上下文" description="检查需求、测试点、UI和页面流转质量" />
+      <el-step title="生成并保存" description="生成可评审的专项测试用例" />
     </el-steps>
 
     <!-- 步骤1: 选择需求来源 -->
@@ -138,9 +138,19 @@ onMounted(async () => {
   if (store.formData.project_id) {
     await store.loadProjectFiles()
     await store.loadUIPrototypeProjects()
-
-    if (store.formData.requirement_file_ids.length > 0) {
-      await store.loadTestPoints(1)
+    const uiProjectId = Number(route.query.ui_project_id || 0)
+    if (uiProjectId > 0) {
+      const exists = store.uiPrototypeProjects.some((project) => project.id === uiProjectId)
+      if (exists) {
+        await store.handleUIPrototypeProjectChange(uiProjectId)
+      }
+    }
+    await store.loadProjectCases()
+    await store.loadTestPoints(1)
+    if (store.formData.test_point_ids.length > 0) {
+      store.formData.test_points_data = store.testPoints.filter((tp) =>
+        store.formData.test_point_ids.includes(tp.id)
+      )
     }
   }
 })
@@ -154,9 +164,7 @@ watch(
 
     if ((reqChanged || uiChanged) && store.formData.project_id) {
       store.handleSourceFileChange()
-      if ((newReqIds && newReqIds.length > 0) || (newUiIds && newUiIds.length > 0)) {
-        await store.loadTestPoints(1)
-      }
+      await store.loadTestPoints(1)
     }
   },
   { deep: true }

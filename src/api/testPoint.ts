@@ -1,23 +1,46 @@
 import request from '@/utils/request'
 import type { TestPoint, TestPointDraft } from '@/types/testPoint'
 import {
-  type TestPointApiResponse, type TestPointListResponse, type DeleteTestData,
-  type BatchDeleteData, type XmindPreviewResponse, type XmindImportResponse,
-  type XmindImportSSECallbacks, type RelatedTestCaseListResponse,
-  type TestPointRequirementOptionListResponse, type BatchGenerateParams,
-  type TestPointExtractRequest, type TestPointExtractResponse,
-  type TestPointListParams, type TestPointFormData, type TestPointUpdateData,
-  type TestPointAnalyzeRequest, type AnalysisProgress,
-  unwrapApiPayload, createSseGenerator,
+  type TestPointApiResponse,
+  type TestPointListResponse,
+  type DeleteTestData,
+  type BatchDeleteData,
+  type XmindPreviewResponse,
+  type XmindImportResponse,
+  type XmindImportSSECallbacks,
+  type RelatedTestCaseListResponse,
+  type TestPointRequirementOptionListResponse,
+  type BatchGenerateParams,
+  type TestPointExtractRequest,
+  type TestPointExtractResponse,
+  type TestPointListParams,
+  type TestPointFormData,
+  type TestPointUpdateData,
+  type TestPointAnalyzeRequest,
+  type AnalysisProgress,
+  unwrapApiPayload,
+  createSseGenerator,
 } from './testPointTypes'
 
 export type {
-  TestPoint, TestPointAnalyzeRequest, TestPointDraft,
-  TestPointApiResponse, TestPointListResponse, DeleteTestData, BatchDeleteData,
-  XmindPreviewResponse, XmindImportResponse, XmindImportSSECallbacks,
-  XmindImportProgressEvent, XmindPreviewItem, XmindPreviewCaseStep,
-  XmindPreviewCaseItem, RelatedTestCaseListResponse, TestPointRequirementOptionListResponse,
-  BatchGenerateParams, AnalysisProgress,
+  TestPoint,
+  TestPointAnalyzeRequest,
+  TestPointDraft,
+  TestPointApiResponse,
+  TestPointListResponse,
+  DeleteTestData,
+  BatchDeleteData,
+  XmindPreviewResponse,
+  XmindImportResponse,
+  XmindImportSSECallbacks,
+  XmindImportProgressEvent,
+  XmindPreviewItem,
+  XmindPreviewCaseStep,
+  XmindPreviewCaseItem,
+  RelatedTestCaseListResponse,
+  TestPointRequirementOptionListResponse,
+  BatchGenerateParams,
+  AnalysisProgress,
 } from './testPointTypes'
 
 export const testPointApi = {
@@ -26,73 +49,141 @@ export const testPointApi = {
   },
 
   extract: async (data: TestPointExtractRequest): Promise<TestPointExtractResponse> => {
-    const response = (await request.post('/api/v1/test-point/extract', data)) as TestPointApiResponse<TestPointExtractResponse>
+    const response = (await request.post(
+      '/api/v1/test-point/extract',
+      data
+    )) as TestPointApiResponse<TestPointExtractResponse>
     return response.data
   },
 
-  getList: async (projectId: number, params?: TestPointListParams): Promise<TestPointListResponse> => {
-    const response = (await request.get(`/api/v1/test-point/list/${projectId}`, { params })) as TestPointApiResponse<TestPointListResponse>
+  getList: async (
+    projectId: number,
+    params?: TestPointListParams
+  ): Promise<TestPointListResponse> => {
+    const response = (await request.get(`/api/v1/test-point/list/${projectId}`, {
+      params,
+    })) as TestPointApiResponse<TestPointListResponse>
     return response.data
   },
 
   getDetail: async (testPointId: number, projectId: number): Promise<TestPoint> => {
-    return request.get(`/api/v1/test-point/detail/${testPointId}`, { params: { project_id: projectId } }) as unknown as Promise<TestPoint>
+    return request.get(`/api/v1/test-point/detail/${testPointId}`, {
+      params: { project_id: projectId },
+    }) as unknown as Promise<TestPoint>
   },
 
   create: async (data: TestPointFormData): Promise<TestPoint> => {
     return request.post('/api/v1/test-point/', data) as unknown as Promise<TestPoint>
   },
 
-  update: async (testPointId: number, data: TestPointUpdateData): Promise<TestPointApiResponse<TestPoint>> => {
-    return request.put(`/api/v1/test-point/${testPointId}`, data, { params: { project_id: data.project_id } }) as unknown as Promise<TestPointApiResponse<TestPoint>>
+  update: async (
+    testPointId: number,
+    data: TestPointUpdateData
+  ): Promise<TestPointApiResponse<TestPoint>> => {
+    return request.put(`/api/v1/test-point/${testPointId}`, data, {
+      params: { project_id: data.project_id },
+    }) as unknown as Promise<TestPointApiResponse<TestPoint>>
   },
 
-  delete: async (testPointId: number, projectId: number): Promise<TestPointApiResponse<DeleteTestData>> => {
-    return request.delete(`/api/v1/test-point/${testPointId}`, { params: { project_id: projectId } }) as unknown as Promise<TestPointApiResponse<DeleteTestData>>
+  delete: async (
+    testPointId: number,
+    projectId: number
+  ): Promise<TestPointApiResponse<DeleteTestData>> => {
+    return request.delete(`/api/v1/test-point/${testPointId}`, {
+      params: { project_id: projectId },
+    }) as unknown as Promise<TestPointApiResponse<DeleteTestData>>
   },
 
-  batchDelete: async (projectId: number, ids: number[]): Promise<TestPointApiResponse<BatchDeleteData>> => {
-    return request.delete('/api/v1/test-point/batch', { params: { project_id: projectId }, data: ids }) as unknown as Promise<TestPointApiResponse<BatchDeleteData>>
+  batchDelete: async (
+    projectId: number,
+    ids: number[]
+  ): Promise<TestPointApiResponse<BatchDeleteData>> => {
+    return request.delete('/api/v1/test-point/batch', {
+      params: { project_id: projectId },
+      data: ids,
+    }) as unknown as Promise<TestPointApiResponse<BatchDeleteData>>
   },
 
-  batchSave: async (projectId: number, items: TestPointDraft[]): Promise<TestPointApiResponse<any>> => {
-    return request.post('/api/v1/test-point/batch-save', items, { params: { project_id: projectId }, headers: { 'Content-Type': 'application/json' } }) as unknown as Promise<TestPointApiResponse<any>>
+  batchSave: async (
+    projectId: number,
+    items: TestPointDraft[]
+  ): Promise<TestPointApiResponse<any>> => {
+    return request.post('/api/v1/test-point/batch-save', items, {
+      params: { project_id: projectId },
+      headers: { 'Content-Type': 'application/json' },
+    }) as unknown as Promise<TestPointApiResponse<any>>
   },
 
-  getRelatedCases: async (testPointId: number, projectId: number, page: number = 1, pageSize: number = 10): Promise<RelatedTestCaseListResponse> => {
-    const response = (await request.get(`/api/v1/test-point/${testPointId}/test-cases`, { params: { project_id: projectId, page, page_size: pageSize } })) as TestPointApiResponse<RelatedTestCaseListResponse>
+  getRelatedCases: async (
+    testPointId: number,
+    projectId: number,
+    page: number = 1,
+    pageSize: number = 10
+  ): Promise<RelatedTestCaseListResponse> => {
+    const response = (await request.get(`/api/v1/test-point/${testPointId}/test-cases`, {
+      params: { project_id: projectId, page, page_size: pageSize },
+    })) as TestPointApiResponse<RelatedTestCaseListResponse>
     return response.data
   },
 
   getRequirementOptions: async (projectId: number): Promise<any[]> => {
-    const response = (await request.get(`/api/v1/test-point/requirements/${projectId}`)) as TestPointApiResponse<TestPointRequirementOptionListResponse>
+    const response = (await request.get(
+      `/api/v1/test-point/requirements/${projectId}`
+    )) as TestPointApiResponse<TestPointRequirementOptionListResponse>
     return response.data.items
   },
 
-  batchGenerateStream: async (payload: BatchGenerateParams): Promise<AsyncGenerator<AnalysisProgress>> => {
-    return createSseGenerator<AnalysisProgress>('/api/v1/test-point/batch-generate-cases/stream', payload)
+  batchGenerateStream: async (
+    payload: BatchGenerateParams
+  ): Promise<AsyncGenerator<AnalysisProgress>> => {
+    return createSseGenerator<AnalysisProgress>(
+      '/api/v1/test-point/batch-generate-cases/stream',
+      payload
+    )
   },
 
-  importXmind: async (file: File, projectId: number, preview: boolean = false, aiEnhance: boolean = false): Promise<XmindPreviewResponse | XmindImportResponse> => {
+  importXmind: async (
+    file: File,
+    projectId: number,
+    preview: boolean = false,
+    aiEnhance: boolean = false
+  ): Promise<XmindPreviewResponse | XmindImportResponse> => {
     const formData = new FormData()
-    formData.append('file', file); formData.append('project_id', String(projectId))
-    formData.append('preview', String(preview)); formData.append('ai_enhance', String(aiEnhance))
-    const response = (await request.post('/api/v1/test-point/import-xmind', formData))
+    formData.append('file', file)
+    formData.append('project_id', String(projectId))
+    formData.append('preview', String(preview))
+    formData.append('ai_enhance', String(aiEnhance))
+    const response = await request.post('/api/v1/test-point/import-xmind', formData)
     return unwrapApiPayload(response as any)
   },
 
-  importXmindStream: async (file: File, projectId: number, preview: boolean, callbacks: XmindImportSSECallbacks): Promise<void> => {
+  importXmindStream: async (
+    file: File,
+    projectId: number,
+    preview: boolean,
+    callbacks: XmindImportSSECallbacks
+  ): Promise<void> => {
     const baseUrl = import.meta.env?.VITE_API_BASE_URL || ''
     const token = localStorage.getItem('token')
     const formData = new FormData()
-    formData.append('file', file); formData.append('project_id', String(projectId)); formData.append('preview', String(preview))
+    formData.append('file', file)
+    formData.append('project_id', String(projectId))
+    formData.append('preview', String(preview))
     const response = await fetch(`${baseUrl}/api/v1/test-point/import-xmind-stream`, {
-      method: 'POST', headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: formData,
+      method: 'POST',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: formData,
     })
-    if (!response.ok || !response.body) { const errorText = await response.text(); callbacks.onError?.(errorText || '导入请求失败'); return }
+    if (!response.ok || !response.body) {
+      const errorText = await response.text()
+      callbacks.onError?.(errorText || '导入请求失败')
+      return
+    }
     const reader = response.body.getReader()
     const decoder = new TextDecoder('utf-8')
-    let buffer = ''; let currentEvent = ''; let currentDataParts: string[] = []
+    let buffer = ''
+    let currentEvent = ''
+    let currentDataParts: string[] = []
     const processEvent = () => {
       if (currentEvent && currentDataParts.length > 0) {
         const currentData = currentDataParts.join('\n')
@@ -100,16 +191,25 @@ export const testPointApi = {
           const parsed = JSON.parse(currentData)
           if (currentEvent === 'progress') callbacks.onProgress?.(parsed as any)
           else if (currentEvent === 'result') callbacks.onResult?.(parsed as any)
-          else if (currentEvent === 'error') callbacks.onError?.(parsed.detail || '导入失败', parsed.error_type)
-        } catch { /* ignore */ }
-        currentEvent = ''; currentDataParts = []
+          else if (currentEvent === 'error')
+            callbacks.onError?.(parsed.detail || '导入失败', parsed.error_type)
+        } catch {
+          /* ignore */
+        }
+        currentEvent = ''
+        currentDataParts = []
       }
     }
-    while (true) {
+    let reading = true
+    while (reading) {
       const { done, value } = await reader.read()
-      if (done) break
+      if (done) {
+        reading = false
+        break
+      }
       buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n'); buffer = lines.pop() || ''
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
       for (const line of lines) {
         if (line.startsWith('event: ')) currentEvent = line.slice(7).trim()
         else if (line.startsWith('data: ')) currentDataParts.push(line.slice(6))

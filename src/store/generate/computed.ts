@@ -1,26 +1,44 @@
 import { computed, watch } from 'vue'
 import type { ComputedRef } from 'vue'
+import type { TagType, ProgressStatus } from '@/types/element-plus'
 import type { UIPrototypeProject } from '@/api/uiPrototype'
 import type { TestPoint } from '@/api/testPoint'
 import type { GeneratedCase } from './types'
 import type { GenerateState } from './state'
+import {
+  getGenerationCapabilityQuality,
+  type GenerationContextQuality,
+} from '@/types/generationCapability'
 
 export interface GenerateComputed {
   selectedUiPrototypeProject: ComputedRef<UIPrototypeProject | null>
   flowSortModuleInfo: ComputedRef<{ name: string; description: string }>
-  screenPreviewStatusType: ComputedRef<string>
+  screenPreviewStatusType: ComputedRef<TagType>
   screenPreviewStatusText: ComputedRef<string>
   viewingCase: ComputedRef<GeneratedCase | null>
-  selectedTestPointsForDisplay: ComputedRef<Array<TestPoint | { id: number; module: string; function: string; point: string; priority: number }>>
+  selectedTestPointsForDisplay: ComputedRef<
+    Array<
+      TestPoint | { id: number; module: string; function: string; point: string; priority: number }
+    >
+  >
+  contextQuality: ComputedRef<GenerationContextQuality>
   canGenerate: ComputedRef<boolean>
   generateButtonLabel: ComputedRef<string>
-  progressStatus: ComputedRef<string>
+  progressStatus: ComputedRef<ProgressStatus>
   allSelected: ComputedRef<boolean>
   hasSelected: ComputedRef<boolean>
   selectedCount: ComputedRef<number>
 }
 
 export function createGenerateComputed(state: GenerateState): GenerateComputed {
+  const effectiveHistoryCaseCount = computed(() =>
+    state.selectedHistoryCaseIds.value.length > 0
+      ? state.selectedHistoryCaseIds.value.length
+      : state._historyCaseUserCleared.value
+        ? 0
+        : state.projectCases.value.length
+  )
+
   const selectedUiPrototypeProject = computed(() => {
     if (!state.selectedUiPrototypeProjectId.value) return null
     return (
@@ -38,7 +56,7 @@ export function createGenerateComputed(state: GenerateState): GenerateComputed {
     }
   })
 
-  const screenPreviewStatusType = computed(() => {
+  const screenPreviewStatusType = computed<TagType>(() => {
     const status = selectedUiPrototypeProject.value?.parse_status
     if (status === 'completed') return 'success'
     if (status === 'partial') return 'warning'
@@ -77,13 +95,25 @@ export function createGenerateComputed(state: GenerateState): GenerateComputed {
     })
   })
 
+  const contextQuality = computed(() =>
+    getGenerationCapabilityQuality({
+      requirementCount: state.formData.requirement_file_ids.length,
+      testPointCount: state.formData.test_point_ids.length,
+      uiScreenCount: state.formData.ui_screen_ids.length || state.formData.ui_file_ids.length,
+      hasPageFlow: Boolean(
+        (selectedUiPrototypeProject.value as { has_flow?: boolean } | null)?.has_flow
+      ),
+      historyCaseCount: effectiveHistoryCaseCount.value,
+    })
+  )
+
   const canGenerate = computed(() => {
     return (
       state.formData.test_point_ids.length > 0 ||
       state.formData.requirement_file_ids.length > 0 ||
       state.formData.ui_file_ids.length > 0 ||
       state.formData.ui_screen_ids.length > 0 ||
-      state.selectedHistoryCaseIds.value.length > 0
+      effectiveHistoryCaseCount.value > 0
     )
   })
 
@@ -96,14 +126,14 @@ export function createGenerateComputed(state: GenerateState): GenerateComputed {
     if (state.formData.ui_screen_ids.length > 0) {
       return `${state.formData.ui_screen_ids.length} 个屏幕`
     }
-    if (state.selectedHistoryCaseIds.value.length > 0) {
-      return `${state.selectedHistoryCaseIds.value.length} 条历史用例`
+    if (effectiveHistoryCaseCount.value > 0) {
+      return `${effectiveHistoryCaseCount.value} 条历史用例`
     }
     if (state.formData.case_type === 'api_automation') return '接口用例'
     return '开始'
   })
 
-  const progressStatus = computed(() => {
+  const progressStatus = computed<ProgressStatus>(() => {
     if (state.progress.value === 100) return 'success'
     if (state.errorMessage.value) return 'exception'
     return ''
@@ -130,6 +160,7 @@ export function createGenerateComputed(state: GenerateState): GenerateComputed {
     screenPreviewStatusText,
     viewingCase,
     selectedTestPointsForDisplay,
+    contextQuality,
     canGenerate,
     generateButtonLabel,
     progressStatus,

@@ -6,7 +6,10 @@ export const useFlowHistory = () => {
   const canUndo = computed(() => historyStack.value.length > 0)
 
   const saveToHistory = (nodes: FlowEditorNode[], edges: FlowGraphEdge[]) => {
-    historyStack.value.push({ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) })
+    historyStack.value.push({
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      edges: JSON.parse(JSON.stringify(edges)),
+    })
     if (historyStack.value.length > 50) historyStack.value.shift()
   }
 

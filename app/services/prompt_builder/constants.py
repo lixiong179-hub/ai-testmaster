@@ -198,25 +198,25 @@ MULTI_IMAGE_FLOW_PROMPT = """你是一个专业的业务流程分析师。请根
 {image_descriptions}
 
 请严格输出JSON格式：
-{
+{{
   "entry_screen": "入口页面名称",
   "end_screens": ["可能的结束页面列表"],
   "page_flows": [
-    {
+    {{
       "from_screen": "来源页面",
       "to_screen": "目标页面",
       "trigger_action": "触发动作",
       "condition": "触发条件（如有）"
-    }
+    }}
   ],
-  "navigation_map": {
-    "页面A": {"can_go_to": ["页面B", "页面C"], "back_to": ["页面D"]}
-  },
+  "navigation_map": {{
+    "页面A": {{"can_go_to": ["页面B", "页面C"], "back_to": ["页面D"]}}
+  }},
   "key_user_paths": [
-    {"path_name": "主要用户路径", "steps": ["页面1", "页面2", "页面3"]}
+    {{"path_name": "主要用户路径", "steps": ["页面1", "页面2", "页面3"]}}
   ],
   "warnings": ["任何不确定或缺失的流转信息"]
-}
+}}
 
 请开始分析："""
 

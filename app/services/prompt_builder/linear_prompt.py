@@ -17,7 +17,8 @@ def _build_linear_prompt(
     function: str,
     point: str,
     priority: int,
-    ui_specs: Optional[List[Dict[str, Any]]] = None
+    ui_specs: Optional[List[Dict[str, Any]]] = None,
+    case_type: Optional[str] = None,
 ) -> str:
     """构建线性模式的 Prompt。
 
@@ -46,6 +47,21 @@ def _build_linear_prompt(
         "module": module, "function": function, "point": point, "priority": priority
     }, ensure_ascii=False)
 
+    case_type_section = ""
+    if case_type:
+        type_guidance = {
+            "ui_automation": "步骤必须包含UI元素交互，预期结果必须可自动化断言。",
+            "manual": "允许包含人工判断步骤，但仍需写清可执行操作和明确预期。",
+            "api_automation": "用例必须聚焦接口请求、响应字段、状态码和数据一致性断言，不要依赖UI元素。",
+            "performance": "用例必须包含响应时间、并发、吞吐量或资源占用等可量化指标。",
+            "security": "用例必须聚焦权限、注入、敏感数据、越权或安全策略验证。",
+        }.get(case_type, "")
+        case_type_section = f"""
+## 用例类型约束：
+所有用例的 case_type 字段必须统一为 "{case_type}"，不允许生成其他类型的用例。
+{type_guidance}
+"""
+
     return f"""你是一名资深测试工程师，拥有10年以上的测试经验。请根据以下信息生成详细的、可执行的测试用例。
 
 ## 测试点信息（JSON格式）：
@@ -55,6 +71,8 @@ def _build_linear_prompt(
 {requirement_content if requirement_content else '[无需求文档内容]'}
 
 {ui_section}
+
+{case_type_section}
 
 ## 覆盖要求（核心）：
 你必须根据测试点的复杂度自行判断生成用例数量，最少3条，复杂测试点建议5-8条，且必须覆盖以下测试类型：
@@ -87,9 +105,12 @@ def _build_linear_prompt(
    - case_category: 用例测试类型（positive=正向场景, boundary=边界场景, exception=异常场景）
    - 原子性原则：一条用例只验证一个测试场景，禁止将主流程与分支/旁路逻辑混合在一条用例中
    - 步骤确定性原则：每个步骤的操作必须唯一确定，禁止使用"或""或者"等不确定措辞
+   - 步骤原子性原则：每个步骤只能包含一种action_type；例如"点击修改、输入内容、点击确认"必须拆成click、input、click三步
+   - 步骤独立性原则：禁止写"参见正向用例步骤""重复上一步""同上"等引用式步骤，每一步都必须写出完整可执行动作
    - 自动化可执行原则：case_type为ui_automation时，禁止步骤中出现"手动判断""人工确认""目测"等需要人工介入的描述
    - 自动化友好：步骤和预期必须支持自动化断言，预期需有可量化判定标准（如"无白屏""按钮置灰"），禁止"页面正常""功能正常"等无法断言的描述；步骤必须包含从登录后到达目标页面的完整导航操作，禁止将导航隐藏在前置条件中；弱网、异常条件等自动化无法实现的场景标注case_type为manual
    - 最少步骤原则：每条用例至少2步（导航到目标页面+核心操作/验证），前置条件中的状态必须通过步骤到达，禁止生成仅1步的用例
+   - 最多步骤原则：每条用例最多8步，超过8步说明用例混合了多个测试场景，必须拆分为多条独立用例
 
 {get_comparison_examples()}
 

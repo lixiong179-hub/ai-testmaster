@@ -13,7 +13,9 @@
         v-if="!ctx.isEditing.value"
         v-model="ctx.currentView.value"
         size="small"
-        @change="ctx.handleViewChange"
+        @change="
+          (val: string | number | boolean | undefined) => ctx.handleViewChange(val as ViewType)
+        "
       >
         <el-radio-button :value="VIEW_TYPES.BUSINESS">业务视图</el-radio-button>
         <el-radio-button :value="VIEW_TYPES.TECHNICAL">技术视图</el-radio-button>
@@ -26,8 +28,14 @@
       >
         复制用例
       </el-button>
-      <el-button @click="ctx.openVersionHistory" :disabled="!ctx.caseId.value"> 版本历史 </el-button>
-      <el-button :loading="ctx.exportingExcel.value" :disabled="!ctx.caseId.value" @click="ctx.handleExportExcel">
+      <el-button @click="ctx.openVersionHistory" :disabled="!ctx.caseId.value">
+        版本历史
+      </el-button>
+      <el-button
+        :loading="ctx.exportingExcel.value"
+        :disabled="!ctx.caseId.value"
+        @click="ctx.handleExportExcel"
+      >
         导出Excel
       </el-button>
       <el-button
@@ -45,6 +53,7 @@
 <script setup lang="ts">
 import { ArrowLeft, Edit, Close, DocumentCopy } from '@element-plus/icons-vue'
 import { useCaseDetail, VIEW_TYPES } from '@/composables/case/useCaseDetail'
+import type { ViewType } from '@/composables/useTechnicalView'
 
 const ctx = useCaseDetail()
 </script>

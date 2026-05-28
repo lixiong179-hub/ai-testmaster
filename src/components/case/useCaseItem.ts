@@ -1,24 +1,25 @@
 import { computed } from 'vue'
 import type { TestCase } from '@/types/testCase'
+import type { TagType } from '@/types/element-plus'
 
-const CASE_TYPE_MAP: Record<string, { label: string; tagType: string }> = {
+const CASE_TYPE_MAP: Record<string, { label: string; tagType: TagType }> = {
   ui_automation: { label: 'UI自动化', tagType: 'success' },
   manual: { label: '手工测试', tagType: 'info' },
-  api_automation: { label: 'API自动化', tagType: '' },
+  api_automation: { label: 'API自动化', tagType: 'primary' },
   performance: { label: '性能测试', tagType: 'warning' },
   security: { label: '安全测试', tagType: 'danger' },
   UI: { label: 'UI自动化', tagType: 'success' },
-  API: { label: 'API自动化', tagType: '' },
+  API: { label: 'API自动化', tagType: 'primary' },
   功能: { label: '手工测试', tagType: 'info' },
   功能测试: { label: '手工测试', tagType: 'info' },
   functional: { label: '手工测试', tagType: 'info' },
-  接口: { label: 'API自动化', tagType: '' },
+  接口: { label: 'API自动化', tagType: 'primary' },
 }
 
-const LIFECYCLE_STATUS_MAP: Record<string, { label: string; type: string }> = {
+const LIFECYCLE_STATUS_MAP: Record<string, { label: string; type: TagType }> = {
   draft: { label: '草稿', type: 'info' },
   active: { label: '可用', type: 'success' },
-  pending_review: { label: '评审中', type: '' },
+  pending_review: { label: '评审中', type: 'primary' },
   needs_modify: { label: '待修改', type: 'warning' },
   locator_broken: { label: '待重录', type: 'danger' },
   deprecated: { label: '已弃用', type: 'info' },
@@ -53,7 +54,11 @@ export function useCaseItem(props: { caseItem: TestCase }) {
   }
 
   const statusClass = (status: number | undefined): string => {
-    const map: Record<number, string> = { 0: 'status-processing', 1: 'status-success', 2: 'status-failed' }
+    const map: Record<number, string> = {
+      0: 'status-processing',
+      1: 'status-success',
+      2: 'status-failed',
+    }
     return map[status ?? 0] || ''
   }
 
@@ -62,5 +67,13 @@ export function useCaseItem(props: { caseItem: TestCase }) {
     return new Date(time).toLocaleString()
   }
 
-  return { lifecycleTag, caseTypeLabel, caseTypeTagType, priorityText, statusText, statusClass, formatTime }
+  return {
+    lifecycleTag,
+    caseTypeLabel,
+    caseTypeTagType,
+    priorityText,
+    statusText,
+    statusClass,
+    formatTime,
+  }
 }

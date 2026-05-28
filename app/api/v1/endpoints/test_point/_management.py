@@ -23,7 +23,7 @@ from app.schemas.test_point import (
     TestPointRequirementOptionResponse,
     TestPointResponse,
 )
-from app.services.test_case_generation_service import TestCaseGenerationService
+from app.services.test_case_generation import TestCaseGenerationService
 
 router = APIRouter()
 
@@ -121,7 +121,7 @@ async def batch_generate_test_cases_by_points(
         try:
             async for progress in service.generate_test_cases_batch(
                 project_id=request.project_id, user_id=current_user.id,
-                test_point_ids=request.test_point_ids, case_type=request.case_type,
+                test_point_ids=request.test_point_ids or None, case_type=request.case_type,
             ):
                 yield f"data: {json.dumps(progress)}\n\n"
         except Exception as exc:

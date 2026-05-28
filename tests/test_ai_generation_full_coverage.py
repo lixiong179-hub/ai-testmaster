@@ -1011,6 +1011,64 @@ class TestGenerateContextAPIBranches:
         data = resp.json()
         assert data["data"]["history_cases"] == []
 
+    def test_context_history_cases_include_non_archived_statuses(
+        self, auth_client, db, real_project, real_test_points
+    ):
+        history_cases = []
+        for status, title in [
+            ("draft", "draft history case"),
+            ("pending_review", "pending review history case"),
+            ("active", "active history case"),
+            ("archived", "archived history case"),
+        ]:
+            case = TestCase(
+                project_id=real_project.id,
+                case_no=f"HIST-{real_project.id}-{status}",
+                module="history",
+                title=title,
+                precondition="",
+                steps_json=[{"action": "open page", "expected_result": "page loaded"}],
+                expected_result="ok",
+                priority=2,
+                case_type="ui_automation",
+                lifecycle_status=status,
+            )
+            db.add(case)
+            history_cases.append(case)
+
+        deleted_case = TestCase(
+            project_id=real_project.id,
+            case_no=f"HIST-{real_project.id}-deleted",
+            module="history",
+            title="deleted history case",
+            precondition="",
+            steps_json=[],
+            expected_result="ok",
+            priority=2,
+            case_type="ui_automation",
+            lifecycle_status="active",
+            is_deleted=True,
+        )
+        db.add(deleted_case)
+        db.flush()
+
+        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+            "project_id": real_project.id,
+        })
+        assert resp.status_code == 200
+        titles = {case["title"] for case in resp.json()["data"]["history_cases"]}
+        assert {"draft history case", "pending review history case", "active history case"} <= titles
+        assert "archived history case" not in titles
+        assert "deleted history case" not in titles
+
+        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+            "project_id": real_project.id,
+            "history_case_ids": [history_cases[0].id, history_cases[3].id],
+        })
+        assert resp.status_code == 200
+        titles = {case["title"] for case in resp.json()["data"]["history_cases"]}
+        assert titles == {"draft history case"}
+
 
 class TestGenerateSingleAPIBranches:
 
@@ -1031,12 +1089,16 @@ class TestGenerateSingleAPIBranches:
     @patch("app.services.test_case_generation.ai_mixin.TestCaseGenerationAiMixin._generate_case_with_ai")
     def test_single_success(self, mock_gen, auth_client, real_project, real_test_points):
         mock_gen.return_value = {
-            "title": "\u5355\u70b9\u751f\u6210\u7528\u4f8b",
-            "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55",
-            "steps": [{"step": 1, "action": "\u70b9\u51fb", "expected_result": "\u6b63\u5e38"}],
-            "expected_result": "\u64cd\u4f5c\u6210\u529f",
+            "title": "\u5df2\u767b\u5f55\u7528\u6237\u5355\u70b9\u6253\u5f00\u5217\u8868\u5e76\u67e5\u770b\u72b6\u6001",
+            "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u7528\u6237\u5177\u5907\u5217\u8868\u9875\u8bbf\u95ee\u6743\u9650",
+            "steps": [
+                {"step": 1, "action": "\u5bfc\u822a\u5230\u5217\u8868\u9875", "expected_result": "\u5217\u8868\u9875\u6807\u9898\u548c\u7b5b\u9009\u533a\u57df\u53ef\u89c1", "action_type": "navigate"},
+                {"step": 2, "action": "\u67e5\u770b\u5217\u8868\u7b2c\u4e00\u884c\u72b6\u6001", "expected_result": "\u5217\u8868\u7b2c\u4e00\u884c\u663e\u793a\u540d\u79f0\u548c\u72b6\u6001\u5b57\u6bb5", "action_type": "verify"},
+            ],
+            "expected_result": "\u5217\u8868\u9875\u5c55\u793a\u5b8c\u6574\u7684\u6570\u636e\u884c\u4fe1\u606f\uff0c\u5e76\u4fdd\u6301\u53ef\u67e5\u770b\u72b6\u6001",
             "case_type": "ui_automation",
             "test_category": "ui_automation",
+            "case_category": "positive",
         }
         resp = auth_client.post("/api/v1/testCase/generate-single", json={
             "project_id": real_project.id,

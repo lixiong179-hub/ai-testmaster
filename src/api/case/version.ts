@@ -1,11 +1,7 @@
 import request from '@/utils/request'
 import type { ApiResponse } from '@/utils/request'
 import type { TestCase } from '@/types/testCase'
-import type {
-  CaseVersionPageResponse,
-  CaseVersionDetail,
-  CaseVersionCompareResult,
-} from './types'
+import type { CaseVersionPageResponse, CaseVersionDetail, CaseVersionCompareResult } from './types'
 import { extractResponseData } from './types'
 
 export const versionApi = {

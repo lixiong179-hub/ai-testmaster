@@ -35,8 +35,13 @@ export interface TestPointListResponse {
   stats: TestPointListStats
 }
 
-export interface DeleteTestData { id: number }
-export interface BatchDeleteData { deleted_count: number; requested_count: number }
+export interface DeleteTestData {
+  id: number
+}
+export interface BatchDeleteData {
+  deleted_count: number
+  requested_count: number
+}
 
 export interface XmindPreviewItem {
   module: string
@@ -99,24 +104,50 @@ export interface XmindImportSSECallbacks {
   onError?: (detail: string, errorType?: string) => void
 }
 
-export interface RelatedTestCaseListResponse { total: number; items: RelatedTestCase[] }
-export interface TestPointRequirementOptionListResponse { items: TestPointRequirementOption[] }
-export interface BatchGenerateParams { project_id: number; test_point_ids: number[]; case_type?: string }
+export interface RelatedTestCaseListResponse {
+  total: number
+  items: RelatedTestCase[]
+}
+export interface TestPointRequirementOptionListResponse {
+  items: TestPointRequirementOption[]
+}
+export interface BatchGenerateParams {
+  project_id: number
+  test_point_ids?: number[]
+  case_type?: string
+}
 
 export function unwrapApiPayload<T>(response: TestPointApiResponse<T> | T): T {
-  if (response && typeof response === 'object' && 'data' in response && (('code' in response && typeof response.code === 'number') || 'message' in response || 'msg' in response)) return response.data as T
+  if (
+    response &&
+    typeof response === 'object' &&
+    'data' in response &&
+    (('code' in response && typeof response.code === 'number') ||
+      'message' in response ||
+      'msg' in response)
+  )
+    return response.data as T
   return response as T
 }
 
-export async function createSseGenerator<T>(url: string, payload: unknown): Promise<AsyncGenerator<T>> {
+export async function createSseGenerator<T>(
+  url: string,
+  payload: unknown
+): Promise<AsyncGenerator<T>> {
   const baseUrl = import.meta.env?.VITE_API_BASE_URL || ''
   const token = localStorage.getItem('token')
   const response = await fetch(`${baseUrl}${url}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(payload),
   })
-  if (!response.ok || !response.body) { const errorText = await response.text(); throw new Error(errorText || '流式请求失败') }
+  if (!response.ok || !response.body) {
+    const errorText = await response.text()
+    throw new Error(errorText || '流式请求失败')
+  }
   const reader = response.body.getReader()
   const decoder = new TextDecoder('utf-8')
   return (async function* streamGenerator() {
@@ -132,7 +163,10 @@ export async function createSseGenerator<T>(url: string, payload: unknown): Prom
           const trimmedLine = line.trim()
           if (!trimmedLine.startsWith('data:')) continue
           const payloadText = trimmedLine.slice(5).trim()
-          if (!payloadText || payloadText === '[DONE]') { if (payloadText === '[DONE]') return; continue }
+          if (!payloadText || payloadText === '[DONE]') {
+            if (payloadText === '[DONE]') return
+            continue
+          }
           yield JSON.parse(payloadText) as T
         }
       }

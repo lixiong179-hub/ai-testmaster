@@ -25,10 +25,30 @@ def _prepare_test_point(
     context: Dict[str, Any], description: str, priority: int
 ) -> Dict[str, Any]:
     """从上下文中提取或构造测试点信息。"""
-    test_points = context.get("test_points", [])
-    test_point = context.get("test_point", {}) or context.get("current_test_point", {})
+    raw_test_points = context.get("test_points", [])
+    test_points = raw_test_points if isinstance(raw_test_points, list) else []
+    test_point = context.get("current_test_point", {}) or context.get("test_point", {})
+    if isinstance(test_point, list):
+        test_point = test_point[0] if test_point and isinstance(test_point[0], dict) else {}
+    if not isinstance(test_point, dict):
+        test_point = {}
+    if test_point.get("id") and test_points:
+        matched_point = next(
+            (
+                point for point in test_points
+                if isinstance(point, dict) and str(point.get("id")) == str(test_point.get("id"))
+            ),
+            None,
+        )
+        if matched_point:
+            merged_point = dict(matched_point)
+            for key, value in test_point.items():
+                if value not in (None, "", []):
+                    merged_point[key] = value
+            test_point = merged_point
     if not test_point and test_points:
-        test_point = test_points[0]
+        first_point = test_points[0]
+        test_point = first_point if isinstance(first_point, dict) else {}
     if not test_point:
         test_point = {
             "module": context.get("module", "未知模块"),
@@ -78,21 +98,28 @@ def _build_graph_prompt_data(
     ui_specs_text = _build_ui_specs_text(ui_specs)
     test_point_json = json.dumps(test_point, ensure_ascii=False)
     history_cases = context.get("history_cases")
+    requirement_content = context.get("requirement_content") or context.get("requirement") or ""
     graph_prompt = PromptBuilder.build_graph_prompt(
         nodes=nodes_list, edges=edges_list, module_info=module_info,
-        requirement_content=context.get("requirement_content", ""),
+        requirement_content=requirement_content,
         test_point_json=test_point_json, ui_specs_text=ui_specs_text,
         history_cases=history_cases, case_type=case_type,
     )
+    extra_requirements = (context.get("extra_requirements") or "").strip()
+    if extra_requirements:
+        graph_prompt = f"{graph_prompt}\n\n## 补充生成要求\n{extra_requirements}\n"
     logger.info(f"流程图模式：接收到 {len(nodes_list)} 个节点，{len(edges_list)} 条连线")
     return {
-        "requirement_content": context.get("requirement_content", ""),
+        "requirement": requirement_content,
+        "requirement_content": requirement_content,
         "ui_description": "",
         "ui_spec": ui_specs[0].get("ui_spec", {}) if ui_specs else {},
         "ui_specs": ui_specs, "test_point": test_point,
+        "test_points": [test_point] if test_point else [],
         "case_type": case_type or context.get("case_type"),
         "exec_mode": context.get("exec_mode", "all"),
         "project_config": context.get("project_config"),
+        "extra_requirements": extra_requirements,
         "graph_prompt": graph_prompt,
         "flow_validation": {"errors": errors, "warnings": warnings},
     }
@@ -104,15 +131,20 @@ def _build_linear_prompt_data(
 ) -> Dict[str, Any]:
     """构建线性模式所需的Prompt数据。"""
     test_point = _prepare_test_point(context, description, priority)
-    raw_ui_desc = context.get("ui_description", "")
+    raw_ui_desc = context.get("ui_description") or context.get("ui_descriptions") or ""
     ui_specs = context.get("ui_specs", [])
+    requirement_content = context.get("requirement_content") or context.get("requirement") or ""
+    extra_requirements = (context.get("extra_requirements") or "").strip()
     return {
-        "requirement_content": context.get("requirement_content", ""),
+        "requirement": requirement_content,
+        "requirement_content": requirement_content,
         "ui_description": raw_ui_desc,
         "ui_spec": ui_specs[0].get("ui_spec", {}) if ui_specs else {},
         "ui_specs": ui_specs, "test_point": test_point,
+        "test_points": [test_point] if test_point else [],
         "case_type": case_type, "exec_mode": exec_mode,
         "project_config": context.get("project_config"),
+        "extra_requirements": extra_requirements,
         "history_cases": context.get("history_cases"),
     }
 

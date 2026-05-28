@@ -114,13 +114,15 @@ class AIMixin(AIParseMixin):
                 ui_description=ui_description,
                 module=module, function=function,
                 point=point, priority=priority,
-                ui_specs=ui_specs
+                ui_specs=ui_specs,
+                case_type=context.get("case_type"),
             )
             prompt = result['prompt']
         except Exception:
             prompt = PromptBuilder.build_linear_prompt(
                 requirement_content=requirement_content, ui_description=ui_description,
-                module=module, function=function, point=point, priority=priority, ui_specs=ui_specs
+                module=module, function=function, point=point, priority=priority, ui_specs=ui_specs,
+                case_type=context.get("case_type"),
             )
 
         # 构建API请求头和载荷

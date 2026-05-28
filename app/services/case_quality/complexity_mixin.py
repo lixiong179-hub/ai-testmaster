@@ -22,12 +22,12 @@ class ComplexityMixin:
                 action_types.add("click")
             elif "输入" in action or "填写" in action or "input" in action:
                 action_types.add("input")
-            elif "验证" in action or "检查" in action or "verify" in action:
-                action_types.add("verify")
-                score.has_verification = True
             elif "验证码" in action or "captcha" in action:
                 action_types.add("captcha")
                 score.has_captcha = True
+            elif "验证" in action or "检查" in action or "verify" in action:
+                action_types.add("verify")
+                score.has_verification = True
             elif "导航" in action or "访问" in action or "navigate" in action:
                 action_types.add("navigate")
             elif "等待" in action or "wait" in action:
@@ -45,9 +45,9 @@ class ComplexityMixin:
 
         if score.step_count <= 3:
             complexity_points += 1
-        elif score.step_count <= 6:
+        elif score.step_count <= 5:
             complexity_points += 2
-        elif score.step_count <= 10:
+        elif score.step_count <= 7:
             complexity_points += 3
         else:
             complexity_points += 5

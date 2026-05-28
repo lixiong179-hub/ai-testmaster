@@ -32,7 +32,9 @@
         />
 
         <div
-          v-if="isCorrectionMode && issueType !== 'product_bug' && currentView === VIEW_TYPES.TECHNICAL"
+          v-if="
+            isCorrectionMode && issueType !== 'product_bug' && currentView === VIEW_TYPES.TECHNICAL
+          "
           class="quick-verify-bar"
         >
           <el-button type="success" @click="openQuickVerify" :icon="Check"> 快速验证 </el-button>
@@ -107,7 +109,12 @@
         <div class="section">
           <h3 class="section-title">前置条件</h3>
           <div v-if="isEditing" class="editable-content">
-            <el-input v-model="editForm.precondition" type="textarea" :rows="3" placeholder="请输入前置条件" />
+            <el-input
+              v-model="editForm.precondition"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入前置条件"
+            />
           </div>
           <div v-else class="static-content">
             {{ caseItem.precondition || '无' }}
@@ -117,23 +124,47 @@
         <div class="section">
           <div class="section-header">
             <h3 class="section-title">测试步骤</h3>
-            <el-button v-if="isEditing" type="primary" size="small" @click="addStep" :icon="Plus"> 添加步骤 </el-button>
+            <el-button v-if="isEditing" type="primary" size="small" @click="addStep" :icon="Plus">
+              添加步骤
+            </el-button>
           </div>
 
           <div v-if="isEditing" class="steps-editor">
-            <div v-for="(step, index) in editForm.steps" :key="step._uid || index" class="step-item">
+            <div
+              v-for="(step, index) in editForm.steps"
+              :key="step._uid || index"
+              class="step-item"
+            >
               <div class="step-header">
                 <span class="step-number">步骤 {{ index + 1 }}</span>
-                <el-button type="danger" size="small" :icon="Delete" @click="removeStep(index)" :disabled="editForm.steps.length <= 1"> 删除 </el-button>
+                <el-button
+                  type="danger"
+                  size="small"
+                  :icon="Delete"
+                  @click="removeStep(index)"
+                  :disabled="editForm.steps.length <= 1"
+                >
+                  删除
+                </el-button>
               </div>
               <div class="step-fields">
                 <div class="step-field">
                   <label>操作描述</label>
-                  <el-input v-model="step.action" type="textarea" :rows="2" placeholder="请输入操作描述" />
+                  <el-input
+                    v-model="step.action"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="请输入操作描述"
+                  />
                 </div>
                 <div class="step-field">
                   <label>预期结果</label>
-                  <el-input v-model="step.expected_result" type="textarea" :rows="2" placeholder="请输入预期结果" />
+                  <el-input
+                    v-model="step.expected_result"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="请输入预期结果"
+                  />
                 </div>
               </div>
             </div>
@@ -149,7 +180,9 @@
               </el-table-column>
               <el-table-column label="操作" min-width="300">
                 <template #default="{ row }">
-                  <div class="step-content">{{ row.description || row.step || row.action || '-' }}</div>
+                  <div class="step-content">
+                    {{ row.description || row.step || row.action || '-' }}
+                  </div>
                 </template>
               </el-table-column>
               <el-table-column label="预期结果" min-width="300">
@@ -167,7 +200,12 @@
         <div class="section">
           <h3 class="section-title">总体预期结果</h3>
           <div v-if="isEditing" class="editable-content">
-            <el-input v-model="editForm.expected_result" type="textarea" :rows="3" placeholder="请输入总体预期结果" />
+            <el-input
+              v-model="editForm.expected_result"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入总体预期结果"
+            />
           </div>
           <div v-else class="static-content">
             {{ caseItem.expected_result || '无' }}
@@ -175,7 +213,9 @@
         </div>
 
         <div v-if="isEditing" class="save-actions">
-          <el-button type="success" size="large" @click="saveEdit" :loading="saving" :icon="Check"> 保存 </el-button>
+          <el-button type="success" size="large" @click="saveEdit" :loading="saving" :icon="Check">
+            保存
+          </el-button>
           <el-button size="large" @click="cancelEdit" :icon="Close"> 取消 </el-button>
         </div>
       </div>
@@ -201,16 +241,35 @@ import CaseTechnicalView from './components/CaseTechnicalView.vue'
 import CaseDialogs from './components/CaseDialogs.vue'
 
 const {
-  loading, lineageExpanded, isCorrectionMode, issueType, failureReason, caseItem,
-  isEditing, editForm, saving, currentView, businessSteps, caseId,
-  getPriorityType, getPriorityLabel, getCaseTypeLabel, getTestCategoryLabel,
-  formatTime, addStep, removeStep, cancelEdit, saveEdit,
-  goBack, openQuickVerify, init,
+  loading,
+  lineageExpanded,
+  isCorrectionMode,
+  issueType,
+  failureReason,
+  caseItem,
+  isEditing,
+  editForm,
+  saving,
+  currentView,
+  businessSteps,
+  caseId,
+  getPriorityType,
+  getPriorityLabel,
+  getCaseTypeLabel,
+  getTestCategoryLabel,
+  formatTime,
+  addStep,
+  removeStep,
+  cancelEdit,
+  saveEdit,
+  goBack,
+  openQuickVerify,
+  init,
 } = provideCaseDetail()
 
 onMounted(init)
 </script>
 
 <style scoped lang="scss">
-@import './CaseDetail.scss';
+@use './CaseDetail.scss';
 </style>

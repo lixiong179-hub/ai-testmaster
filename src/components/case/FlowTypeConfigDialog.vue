@@ -227,7 +227,8 @@ const mainParentOptions = computed(() =>
 
 const branchParentOptions = computed(() =>
   props.mainNodeOptions.filter(
-    (o) => o.flow_type !== 'main' && o.id !== props.currentNodeId && !props.excludedNodeIds?.has(o.id)
+    (o) =>
+      o.flow_type !== 'main' && o.id !== props.currentNodeId && !props.excludedNodeIds?.has(o.id)
   )
 )
 

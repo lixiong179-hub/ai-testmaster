@@ -47,6 +47,8 @@ _AI_ERROR_MAP: dict[type[Exception], tuple[int, str]] = {
 
 
 def _raise_ai_error(e: Exception) -> None:
+    if isinstance(e, HTTPException):
+        raise e
     for exc_type, (http_code, detail) in _AI_ERROR_MAP.items():
         if isinstance(e, exc_type):
             raise HTTPException(status_code=http_code, detail=detail) from e
@@ -130,7 +132,9 @@ async def ai_enhanced_generate(
             detail="Graph模式下flow_sort_data不能为空"
         )
     try:
-        context = request.context or {}
+        context = dict(request.context or {})
+        if request.extra_requirements:
+            context["extra_requirements"] = request.extra_requirements
         logger.info(
             f"AI生成增强模式 - 接收到的context: "
             f"{json.dumps(context, ensure_ascii=False, default=str)[:500]}"
@@ -156,7 +160,7 @@ async def ai_enhanced_generate(
         elif request.enhanced_mode:
             prompt_data = _build_linear_prompt_data(
                 context=context, description=description,
-                priority=request.priority, case_type=request.case_type or DEFAULT_AI_FALLBACK_CASE_TYPE,
+                priority=request.priority, case_type=request.case_type or None,
                 exec_mode=request.exec_mode,
             )
             generated_case = await asyncio.to_thread(generate_test_case_enhanced, prompt_data)

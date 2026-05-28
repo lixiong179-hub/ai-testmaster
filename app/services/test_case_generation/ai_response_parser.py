@@ -93,23 +93,10 @@ def parse_ai_response(content: str) -> Dict[str, Any]:
     except (json.JSONDecodeError, ValueError):
         pass
 
-    json_match = re.search(r'\[[\s\S]*\]', cleaned)
-    if json_match:
-        try:
-            result = json.loads(json_match.group(0))
-            if isinstance(result, list):
-                return {"cases": result}
-        except json.JSONDecodeError:
-            try:
-                repaired = _repair_truncated_json(json_match.group(0))
-                result = json.loads(repaired)
-                if isinstance(result, list):
-                    return {"cases": result}
-            except (json.JSONDecodeError, ValueError):
-                pass
-
-    json_match = re.search(r'\{[\s\S]*\}', cleaned)
-    if json_match:
+    def _parse_embedded_object() -> Dict[str, Any] | None:
+        json_match = re.search(r'\{[\s\S]*\}', cleaned)
+        if not json_match:
+            return None
         try:
             result = json.loads(json_match.group(0))
             if isinstance(result, dict):
@@ -122,6 +109,40 @@ def parse_ai_response(content: str) -> Dict[str, Any]:
                     return result
             except (json.JSONDecodeError, ValueError):
                 pass
+        return None
+
+    def _parse_embedded_array() -> Dict[str, Any] | None:
+        json_match = re.search(r'\[[\s\S]*\]', cleaned)
+        if not json_match:
+            return None
+        try:
+            result = json.loads(json_match.group(0))
+            if isinstance(result, list):
+                return {"cases": result}
+        except json.JSONDecodeError:
+            try:
+                repaired = _repair_truncated_json(json_match.group(0))
+                result = json.loads(repaired)
+                if isinstance(result, list):
+                    return {"cases": result}
+            except (json.JSONDecodeError, ValueError):
+                pass
+        return None
+
+    first_object = cleaned.find('{')
+    first_array = cleaned.find('[')
+    prefer_object = first_object != -1 and (
+        first_array == -1 or first_object < first_array
+    )
+    parsers = (
+        (_parse_embedded_object, _parse_embedded_array)
+        if prefer_object
+        else (_parse_embedded_array, _parse_embedded_object)
+    )
+    for parser in parsers:
+        parsed = parser()
+        if parsed is not None:
+            return parsed
 
     try:
         repaired = _repair_truncated_json(cleaned)

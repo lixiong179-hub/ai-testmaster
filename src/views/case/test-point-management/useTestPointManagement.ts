@@ -74,11 +74,23 @@ export function useTestPointManagement() {
   })
 
   function createEmptyStats(): TestPointListStats {
-    return { total: 0, high_priority_count: 0, medium_priority_count: 0, low_priority_count: 0, generated_case_count: 0 }
+    return {
+      total: 0,
+      high_priority_count: 0,
+      medium_priority_count: 0,
+      low_priority_count: 0,
+      generated_case_count: 0,
+    }
   }
-  function priorityText(p: number): string { return p === 1 ? '高' : p === 2 ? '中' : '低' }
-  function priorityTagType(p: number): 'danger' | 'warning' | 'info' { return p === 1 ? 'danger' : p === 2 ? 'warning' : 'info' }
-  function isCancelError(e: unknown): boolean { return e === 'cancel' || e === 'close' }
+  function priorityText(p: number): string {
+    return p === 1 ? '高' : p === 2 ? '中' : '低'
+  }
+  function priorityTagType(p: number): 'danger' | 'warning' | 'info' {
+    return p === 1 ? 'danger' : p === 2 ? 'warning' : 'info'
+  }
+  function isCancelError(e: unknown): boolean {
+    return e === 'cancel' || e === 'close'
+  }
 
   async function loadProjects(): Promise<void> {
     try {
@@ -235,7 +247,10 @@ export function useTestPointManagement() {
     if (!projectId) return
     try {
       await ElMessageBox.confirm('确定删除选中的测试点吗？', '提示', { type: 'warning' })
-      await testPointApi.batchDelete(projectId, selectedRows.value.map((i) => i.id))
+      await testPointApi.batchDelete(
+        projectId,
+        selectedRows.value.map((i) => i.id)
+      )
       selectedRows.value = []
       ElMessage.success('批量删除成功')
       await fetchTestPoints()
@@ -287,23 +302,35 @@ export function useTestPointManagement() {
 
   async function handleGenerate(row: TestPoint): Promise<void> {
     try {
-      await ElMessageBox.confirm(`确定为"${row.point}"生成测试用例吗？`, '提示', { type: 'warning' })
+      await ElMessageBox.confirm(`确定为"${row.point}"生成测试用例吗？`, '提示', {
+        type: 'warning',
+      })
       await startGenerate([row.id])
     } catch (error) {
-      if (!isCancelError(error) && error instanceof Error && error.message) ElMessage.error(error.message)
+      if (!isCancelError(error) && error instanceof Error && error.message)
+        ElMessage.error(error.message)
     }
   }
 
   async function handleBatchGenerate(): Promise<void> {
     try {
-      await ElMessageBox.confirm('确定为选中的测试点批量生成测试用例吗？', '提示', { type: 'warning' })
+      await ElMessageBox.confirm('确定为选中的测试点批量生成测试用例吗？', '提示', {
+        type: 'warning',
+      })
       await startGenerate(selectedRows.value.map((i) => i.id))
     } catch (error) {
-      if (!isCancelError(error) && error instanceof Error && error.message) ElMessage.error(error.message)
+      if (!isCancelError(error) && error instanceof Error && error.message)
+        ElMessage.error(error.message)
     }
   }
 
-  function handleSortChange({ prop, order }: { prop: string; order: 'ascending' | 'descending' | null }): void {
+  function handleSortChange({
+    prop,
+    order,
+  }: {
+    prop: string
+    order: 'ascending' | 'descending' | null
+  }): void {
     filters.sort_by = (prop as TestPointListParams['sort_by']) || 'create_time'
     filters.sort_order = order === 'ascending' ? 'asc' : 'desc'
     void fetchTestPoints()
@@ -332,15 +359,57 @@ export function useTestPointManagement() {
   })
 
   return {
-    loading, generating, generateDialogVisible, generateProgress, generateMessage, generateStatus,
-    xmindImportDialogVisible, extractDialogVisible, initialExtractFileId, projects, testPoints,
-    requirementOptions, selectedRows, selectedProjectId, total, page, pageSize, dateRange,
-    formDialogVisible, casesDialogVisible, editingPoint, currentTestPoint, listStats, filters,
-    highCount, mediumCount, lowCount, statsTotal, generatedCaseCount, selectedProjectName,
-    progressStatus, priorityText, priorityTagType, handleProjectChange, handleSelectionChange,
-    openCreateDialog, openEditDialog, openCasesDialog, applyPriorityFilter, openXmindImportDialog,
-    openExtractDialog, openLegacyExtractGuide, openTaskList, handleIngestSaved, handleDelete,
-    handleBatchDelete, handleGenerate, handleBatchGenerate, handleSortChange, handlePageSizeChange,
-    resetFilters, fetchTestPoints,
+    loading,
+    generating,
+    generateDialogVisible,
+    generateProgress,
+    generateMessage,
+    generateStatus,
+    xmindImportDialogVisible,
+    extractDialogVisible,
+    initialExtractFileId,
+    projects,
+    testPoints,
+    requirementOptions,
+    selectedRows,
+    selectedProjectId,
+    total,
+    page,
+    pageSize,
+    dateRange,
+    formDialogVisible,
+    casesDialogVisible,
+    editingPoint,
+    currentTestPoint,
+    listStats,
+    filters,
+    highCount,
+    mediumCount,
+    lowCount,
+    statsTotal,
+    generatedCaseCount,
+    selectedProjectName,
+    progressStatus,
+    priorityText,
+    priorityTagType,
+    handleProjectChange,
+    handleSelectionChange,
+    openCreateDialog,
+    openEditDialog,
+    openCasesDialog,
+    applyPriorityFilter,
+    openXmindImportDialog,
+    openExtractDialog,
+    openLegacyExtractGuide,
+    openTaskList,
+    handleIngestSaved,
+    handleDelete,
+    handleBatchDelete,
+    handleGenerate,
+    handleBatchGenerate,
+    handleSortChange,
+    handlePageSizeChange,
+    resetFilters,
+    fetchTestPoints,
   }
 }

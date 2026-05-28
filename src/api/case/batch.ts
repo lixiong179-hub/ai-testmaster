@@ -29,15 +29,25 @@ export const batchApi = {
     )
   },
 
-  batchDeleteCases: async (caseIds: number[]): Promise<BatchDeleteResult> => {
-    const response = await request.post('/api/v1/testCase/batch-delete', { caseIds: caseIds })
+  batchDeleteCases: async (caseIds: number[], projectId?: number): Promise<BatchDeleteResult> => {
+    const response = await request.post('/api/v1/testCase/batch-delete', {
+      ...(projectId ? { project_id: projectId } : {}),
+      caseIds,
+    })
     return extractResponseData<BatchDeleteResult>(
       response as unknown as ApiResponse<BatchDeleteResult> | BatchDeleteResult
     )
   },
 
-  batchRestoreCases: async (caseIds: number[]): Promise<BatchRestoreResult> => {
-    const response = await request.post('/api/v1/testCase/batch-restore', { caseIds: caseIds })
+  batchDelete: async (projectId: number, caseIds: number[]): Promise<BatchDeleteResult> => {
+    return batchApi.batchDeleteCases(caseIds, projectId)
+  },
+
+  batchRestoreCases: async (caseIds: number[], projectId?: number): Promise<BatchRestoreResult> => {
+    const response = await request.post('/api/v1/testCase/batch-restore', {
+      ...(projectId ? { project_id: projectId } : {}),
+      caseIds,
+    })
     return extractResponseData<BatchRestoreResult>(
       response as unknown as ApiResponse<BatchRestoreResult> | BatchRestoreResult
     )

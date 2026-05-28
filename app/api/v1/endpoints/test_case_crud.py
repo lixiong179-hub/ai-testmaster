@@ -21,10 +21,12 @@
     - 删除为软删除（is_deleted标记），支持批量恢复
     - 用例编号自动生成，格式: CASE{project_id}-{时间戳}
 """
+from datetime import datetime
 from typing import Optional
 from app.utils.db_time import utcnow
 import json
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.test_case import (
@@ -156,6 +158,14 @@ async def get_test_cases(
     project_id: Optional[int] = Query(default=None, description="项目ID"),
     requirement_file_id: Optional[int] = Query(default=None, description="需求文件ID"),
     lifecycle_status: Optional[str] = Query(default=None, description="生命周期状态（逗号分隔多值）"),
+    keyword: Optional[str] = Query(default=None, description="关键词"),
+    module: Optional[str] = Query(default=None, description="模块"),
+    priority: Optional[int] = Query(default=None, ge=1, le=3, description="优先级"),
+    case_type: Optional[str] = Query(default=None, description="用例类型"),
+    target_device: Optional[str] = Query(default=None, description="按目标设备类型筛选"),
+    status_filter: Optional[str] = Query(default=None, alias="status", description="生命周期状态别名"),
+    sort_by: Optional[str] = Query(default="create_time", description="排序字段"),
+    sort_order: Optional[str] = Query(default="desc", pattern="^(asc|desc)$", description="排序方向"),
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=500, description="每页数量"),
     db: Session = Depends(get_db),
@@ -185,6 +195,22 @@ async def get_test_cases(
         query = query.filter(TestCase.project_id == project_id)
     if requirement_file_id:
         query = query.filter(TestCase.requirement_file_id == requirement_file_id)
+    if module:
+        query = query.filter(TestCase.module == module)
+    if priority is not None:
+        query = query.filter(TestCase.priority == priority)
+    if case_type:
+        query = query.filter(TestCase.case_type == case_type)
+    if target_device:
+        if target_device == "general":
+            query = query.filter(TestCase.target_device.is_(None))
+        else:
+            query = query.filter(TestCase.target_device == target_device)
+    if keyword:
+        keyword_like = f"%{keyword.strip()}%"
+        query = query.filter(or_(TestCase.title.like(keyword_like), TestCase.case_no.like(keyword_like), TestCase.module.like(keyword_like)))
+    if status_filter and not lifecycle_status:
+        lifecycle_status = status_filter
     if lifecycle_status:
         valid_statuses = {s.value for s in TestCaseLifecycleStatus}
         statuses = [s.strip() for s in lifecycle_status.split(",") if s.strip()]
@@ -201,8 +227,24 @@ async def get_test_cases(
 
     offset = (page - 1) * page_size
 
-    test_cases = query.offset(offset).limit(page_size).all()
     total = query.count()
+    automated = query.filter(TestCase.case_type.in_(["ui_automation", "api_automation"])).count()
+    manual = query.filter(TestCase.case_type == "manual").count()
+    high_priority = query.filter(TestCase.priority == 1).count()
+
+    sort_columns = {
+        "create_time": TestCase.create_time,
+        "update_time": TestCase.update_time,
+        "priority": TestCase.priority,
+        "title": TestCase.title,
+    }
+    sort_column = sort_columns.get(sort_by or "create_time", TestCase.create_time)
+    if sort_order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
+    test_cases = query.offset(offset).limit(page_size).all()
 
     items = [build_test_case_response(tc) for tc in test_cases]
 
@@ -211,7 +253,13 @@ async def get_test_cases(
             total=total,
             items=items,
             page=page,
-            page_size=page_size
+            page_size=page_size,
+            stats={
+                "total": total,
+                "automated": automated,
+                "manual": manual,
+                "high_priority": high_priority,
+            }
         )
     )
 
@@ -307,15 +355,20 @@ async def update_test_case(
 @router.delete("/{test_case_id}")
 async def delete_test_case(
     test_case_id: int,
+    project_id: Optional[int] = Query(default=None, description="项目ID"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """软删除测试用例（is_deleted标记，可批量恢复）"""
-    test_case = db.query(TestCase).join(Project).filter(
+    query = db.query(TestCase).join(Project).filter(
         TestCase.id == test_case_id,
         TestCase.is_deleted.is_(False),
         Project.user_id == current_user.id
-    ).first()
+    )
+    if project_id:
+        query = query.filter(TestCase.project_id == project_id)
+
+    test_case = query.first()
     if not test_case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

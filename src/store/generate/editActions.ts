@@ -1,5 +1,6 @@
 import { useFlowSortStore } from '@/store/flowSort'
 import type { FlowNodeData, FlowEdgeData } from '@/store/flowSort'
+import type { TagType } from '@/types/element-plus'
 import type { GenerateState } from './state'
 import type { GenerateComputed } from './computed'
 
@@ -40,9 +41,7 @@ export function createEditActions(state: GenerateState, computed: GenerateComput
     if (computed.allSelected.value) {
       state.selectedCaseIndices.value = new Set()
     } else {
-      state.selectedCaseIndices.value = new Set(
-        state.generatedCases.value.map((_, i) => i)
-      )
+      state.selectedCaseIndices.value = new Set(state.generatedCases.value.map((_, i) => i))
     }
   }
 
@@ -109,12 +108,12 @@ export function createEditActions(state: GenerateState, computed: GenerateComput
     state.currentStep.value = 0
   }
 
-  const getPriorityType = (priority: number): string => {
-    const types: Record<number, string> = { 1: 'danger', 2: 'warning', 3: 'info', 4: 'success' }
+  const getPriorityType = (priority: number): TagType => {
+    const types: Record<number, TagType> = { 1: 'danger', 2: 'warning', 3: 'info', 4: 'success' }
     return types[priority] || 'info'
   }
 
-  const getSelectedTagType = (id: number): string => {
+  const getSelectedTagType = (id: number): TagType => {
     const point = state.testPointCache.get(id) || state.testPoints.value.find((p) => p.id === id)
     if (point) {
       return getPriorityType(point.priority)
@@ -122,15 +121,15 @@ export function createEditActions(state: GenerateState, computed: GenerateComput
     return 'primary'
   }
 
-  const getTypeTagType = (type: string): string => {
-    const typeMap: Record<string, string> = {
+  const getTypeTagType = (type: string): TagType => {
+    const typeMap: Record<string, TagType> = {
       ui_automation: 'success',
       manual: 'info',
       api_automation: 'primary',
       performance: 'warning',
       security: 'danger',
       UI: 'success',
-      API: '',
+      API: 'primary',
       功能: 'info',
       功能测试: 'info',
       functional: 'info',
@@ -156,8 +155,8 @@ export function createEditActions(state: GenerateState, computed: GenerateComput
     return typeMap[type] || type
   }
 
-  const getPriorityTagType = (priority: unknown): string => {
-    const priorityMap: Record<string, string> = {
+  const getPriorityTagType = (priority: unknown): TagType => {
+    const priorityMap: Record<string, TagType> = {
       '1': 'danger',
       P0: 'danger',
       '2': 'warning',

@@ -1,4 +1,5 @@
 import type { EdgeStyleConfig } from './flowEditorTypes'
+import type { TagType } from '@/types/element-plus'
 
 export const EDGE_STYLES: Record<string, EdgeStyleConfig> = {
   normal: { stroke: '#409eff', strokeWidth: 2 },
@@ -14,7 +15,7 @@ export const OVERVIEW_EDGE_STYLES: Record<string, EdgeStyleConfig> = {
   bypass: { stroke: '#eebe77', strokeWidth: 1.2, strokeDasharray: '3 3' },
 }
 
-export const FLOW_TYPE_TAG_MAP: Record<string, string> = {
+export const FLOW_TYPE_TAG_MAP: Record<string, TagType> = {
   main: 'primary',
   branch: 'success',
   exception: 'danger',

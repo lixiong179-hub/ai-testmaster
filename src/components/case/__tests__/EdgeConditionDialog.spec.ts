@@ -236,7 +236,13 @@ describe('EdgeConditionDialog', () => {
     for (const testCase of testCases) {
       const wrapper = mountDialog({
         visible: true,
-        edgeData: { edge_type: testCase.type, condition: '', trigger_action: '', pre_action: '', note: '' },
+        edgeData: {
+          edge_type: testCase.type,
+          condition: '',
+          trigger_action: '',
+          pre_action: '',
+          note: '',
+        },
       })
       await nextTick()
 

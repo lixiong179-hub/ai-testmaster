@@ -72,21 +72,49 @@ const { filters, dateRange, requirementOptions, fetchTestPoints, resetFilters } 
 </script>
 
 <style scoped>
-.section-card { border: none; border-radius: 20px; box-shadow: 0 10px 28px rgba(31, 45, 61, 0.05); }
+.section-card {
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 10px 28px rgba(31, 45, 61, 0.05);
+}
 .section-header {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 16px; margin-bottom: 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
 }
-.section-title { font-size: 18px; font-weight: 700; color: #1f2d3d; }
-.section-subtitle { margin-top: 6px; color: #7a8594; line-height: 1.5; }
-.section-actions { display: flex; align-items: center; gap: 10px; }
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+.section-subtitle {
+  margin-top: 6px;
+  color: #7a8594;
+  line-height: 1.5;
+}
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .filter-form {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 2px 12px; margin-bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2px 12px;
+  margin-bottom: 0;
 }
-:deep(.filter-form .el-form-item) { margin-right: 0; margin-bottom: 16px; }
+:deep(.filter-form .el-form-item) {
+  margin-right: 0;
+  margin-bottom: 16px;
+}
 :deep(.filter-form .el-input),
 :deep(.filter-form .el-select),
-:deep(.filter-form .el-date-editor) { width: 100%; }
-.requirement-select { width: 100%; }
+:deep(.filter-form .el-date-editor) {
+  width: 100%;
+}
+.requirement-select {
+  width: 100%;
+}
 </style>

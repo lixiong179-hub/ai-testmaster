@@ -3,15 +3,19 @@ Test Case Generation Service - 验证与保存Mixin
 包含测试用例保存到数据库、前置条件解析等逻辑
 """
 import re
+import inspect
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep
 from app.models.project import Project
 from app.core.config import settings
 from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE, normalize_priority
-from app.services.test_case_generation.quality_validator import compute_quality_score
+from app.services.test_case_generation.quality_validator import (
+    compute_quality_score,
+    validate_cases_quality,
+)
 
 
 class TestCaseGenerationValidateMixin:
@@ -25,6 +29,38 @@ class TestCaseGenerationValidateMixin:
         r'(检查.*(?:点击|可点击|是否可)|查看.*(?:点击|可点击|是否可)|'
         r'验证.*(?:点击|可点击|是否可)|确认.*(?:点击|可点击|是否可))'
     )
+
+    _VALID_CASE_TYPES = frozenset({
+        "ui_automation",
+        "manual",
+        "api_automation",
+        "performance",
+        "security",
+    })
+    _MIN_PERSIST_QUALITY_SCORE = 80.0
+    _MIN_PRECONDITION_LENGTH = 15
+    _PRIORITY_ONE_KEYWORDS = frozenset({
+        "\u4e3b\u6d41\u7a0b",
+        "\u5168\u6d41\u7a0b",
+        "\u6838\u5fc3",
+        "\u63d0\u4ea4\u6279\u6539",
+        "\u6279\u6539",
+        "\u65ad\u7f51",
+        "\u65e0\u7f51\u7edc",
+        "\u7f51\u7edc\u5f02\u5e38",
+        "\u6570\u636e\u4e22\u5931",
+        "\u5d29\u6e83",
+        "\u767d\u5c4f",
+        "\u672a\u767b\u5f55",
+        "\u6743\u9650",
+        "\u8d8a\u6743",
+        "\u5b89\u5168",
+        "\u91cd\u590d\u63d0\u4ea4",
+        "\u8fde\u7eed\u5feb\u901f\u70b9\u51fb",
+        "\u6b63\u786e\u7387100%",
+        "\u542c\u5199\u7ed3\u679c",
+        "\u7ed3\u679c\u9875",
+    })
 
     @staticmethod
     def _correct_action_type(action: str, action_type: str) -> str:
@@ -70,6 +106,79 @@ class TestCaseGenerationValidateMixin:
         cleaned = re.sub(r'\(\s*\)', '', cleaned)
         return cleaned
 
+    @classmethod
+    def _normalize_case_type(cls, *values: Optional[str]) -> str:
+        for value in values:
+            if not value:
+                continue
+            for part in str(value).split(","):
+                normalized = part.strip()
+                if normalized in cls._VALID_CASE_TYPES:
+                    return normalized
+        return DEFAULT_AI_FALLBACK_CASE_TYPE
+
+    @classmethod
+    def _quality_gate_issues(
+        cls,
+        generated_case: Dict[str, Any],
+        quality_score: Optional[float],
+    ) -> List[str]:
+        issues: List[str] = []
+        passed, validation_issues = validate_cases_quality([generated_case])
+        if not passed:
+            issues.extend(validation_issues)
+        if quality_score is None:
+            issues.append("quality score is missing")
+        elif quality_score < cls._MIN_PERSIST_QUALITY_SCORE:
+            issues.append(
+                f"quality score {quality_score:.0f} is below "
+                f"{cls._MIN_PERSIST_QUALITY_SCORE:.0f}"
+            )
+        precondition = (generated_case.get("precondition") or "").strip()
+        if len(precondition) < cls._MIN_PRECONDITION_LENGTH:
+            issues.append(
+                f"precondition is too short ({len(precondition)} chars)"
+            )
+        return issues
+
+    @classmethod
+    def _resolve_generated_priority(
+        cls,
+        generated_case: Dict[str, Any],
+        test_point: Dict[str, Any],
+    ) -> int:
+        priority = normalize_priority(
+            generated_case.get("priority", test_point.get("priority", 2))
+        )
+        point_priority = normalize_priority(test_point.get("priority", priority))
+        if priority == 1 or point_priority == 1:
+            return 1
+
+        text = " ".join(
+            str(value or "")
+            for value in (
+                generated_case.get("title"),
+                generated_case.get("expected_result"),
+                generated_case.get("case_category"),
+                test_point.get("point"),
+                test_point.get("function"),
+            )
+        )
+        if any(keyword in text for keyword in cls._PRIORITY_ONE_KEYWORDS):
+            return 1
+        return priority
+
+    def _case_title_exists(self, project_id: int, title: str) -> bool:
+        if not title:
+            return False
+        existing = self.db.query(TestCase.id).filter(
+            TestCase.project_id == project_id,
+            TestCase.is_deleted == False,  # noqa: E712
+            TestCase.generate_status == 1,
+            TestCase.title == title,
+        ).first()
+        return existing is not None
+
     async def _save_test_case(
         self,
         project_id: int,
@@ -114,15 +223,41 @@ class TestCaseGenerationValidateMixin:
                 step_entry["test_data"] = case_test_data
             steps_json.append(step_entry)
 
-        case_type = generated_case.get("case_type") or generated_case.get("test_category") or DEFAULT_AI_FALLBACK_CASE_TYPE
-        case_category = generated_case.get("case_category", "")
-        test_category_value = generated_case.get("test_category") or case_type
-        if case_category and case_category not in str(test_category_value):
-            test_category_value = f"{case_category},{test_category_value}"
-        quality_score = compute_quality_score([generated_case]) if case_category else None
+        case_type = self._normalize_case_type(
+            generated_case.get("case_type"),
+            generated_case.get("test_category"),
+        )
+        case_category = (generated_case.get("case_category") or "").strip()
+        test_category_value = case_type
 
         raw_precondition = generated_case.get("precondition", "")
         cleaned_precondition = self._clean_precondition(raw_precondition)
+        title = (
+            generated_case.get("title")
+            or test_point.get("point")
+            or "(untitled)"
+        ).strip()
+
+        if self._case_title_exists(project_id, title):
+            raise ValueError(f"duplicate generated case title: {title}")
+
+        case_for_quality = dict(generated_case)
+        case_for_quality.update({
+            "title": title,
+            "precondition": cleaned_precondition,
+            "steps": steps_json,
+            "case_type": case_type,
+            "case_category": case_category,
+        })
+        quality_score = compute_quality_score([case_for_quality])
+        quality_issues = self._quality_gate_issues(
+            case_for_quality,
+            quality_score,
+        )
+        if quality_issues:
+            issue_text = "; ".join(quality_issues[:3])
+            raise ValueError(f"generated case failed quality gate: {issue_text}")
+        priority = self._resolve_generated_priority(case_for_quality, test_point)
 
         test_case = TestCase(
             project_id=project_id,
@@ -130,11 +265,11 @@ class TestCaseGenerationValidateMixin:
             test_point_id=test_point.get("id"),
             case_no=case_no,
             module=generated_case.get("module", test_point.get("module", "AI生成")),
-            title=generated_case.get("title") or test_point.get("point") or "(无标题)",
+            title=title,
             precondition=cleaned_precondition,
             steps_json=steps_json,
             expected_result=generated_case.get("expected_result", ""),
-            priority=normalize_priority(generated_case.get("priority", test_point.get("priority", 2))),
+            priority=priority,
             case_type=case_type,
             test_category=test_category_value,
             parent_case_id=generated_case.get("parent_case_id"),
@@ -176,6 +311,8 @@ class TestCaseGenerationValidateMixin:
                 parsed_steps = parse_precondition_to_steps(
                     precondition=test_case.precondition
                 )
+                if inspect.isawaitable(parsed_steps):
+                    parsed_steps = await parsed_steps
 
                 if parsed_steps:
                     for idx, step_data in enumerate(parsed_steps):

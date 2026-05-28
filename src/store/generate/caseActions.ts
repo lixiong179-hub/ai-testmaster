@@ -1,6 +1,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import caseApi from '@/api/case'
 import { useFlowSortStore } from '@/store/flowSort'
+import { buildFlowSortData } from './generateHelpers'
 import type { GeneratedStep } from './types'
 import type { GenerateState } from './state'
 import type { GenerateComputed } from './computed'
@@ -37,43 +38,24 @@ export function createCaseActions(
 
     try {
       const flowSortStore = useFlowSortStore()
+      const useGraphMode =
+        flowSortStore.quickMode === false &&
+        Boolean(
+          state.selectedUiPrototypeProjectId.value &&
+          state.formData.ui_screen_ids.length > 0 &&
+          flowSortStore.nodes.length > 0
+        )
       const apiData: Record<string, unknown> = {
         project_id: Number(state.formData.project_id),
         description: state.formData.scene || `重新生成用例"${c.title}"`,
         case_type: state.formData.case_type || c.case_type,
         exec_mode: state.formData.exec_mode || 'all',
         priority: state.formData.priority || c.priority || 2,
-        enhanced_mode: state.formData.enhanced_mode !== undefined ? state.formData.enhanced_mode : true,
+        enhanced_mode:
+          state.formData.enhanced_mode !== undefined ? state.formData.enhanced_mode : true,
         extra_requirements: state.formData.extra_requirements || '',
-        mode: flowSortStore.nodes.length > 0 ? ('graph' as const) : ('linear' as const),
-        flow_sort_data:
-          flowSortStore.nodes.length > 0
-            ? {
-                nodes: [...flowSortStore.nodes]
-                  .sort((a, b) => (a.main_order ?? 999) - (b.main_order ?? 999))
-                  .map((n, idx) => ({
-                    screen_id: n.screen_id,
-                    screen_order: idx + 1,
-                    flow_type: n.flow_type,
-                    main_order: n.main_order,
-                    screen_name: n.screen_name,
-                    ui_spec_elements: n.ui_spec_elements || [],
-                    summary: n.summary || '',
-                    flow_meta: n.flow_meta || undefined,
-                  })),
-                edges: flowSortStore.edges.map((e) => ({
-                  source: String(e.source),
-                  target: String(e.target),
-                  edge_type: e.edge_type,
-                  condition: e.condition || '',
-                  label: e.label || '',
-                  trigger_action: e.trigger_action || '',
-                  pre_action: e.pre_action || '',
-                  note: e.note || '',
-                })),
-                module_info: computed.flowSortModuleInfo.value,
-              }
-            : undefined,
+        mode: useGraphMode ? ('graph' as const) : ('linear' as const),
+        flow_sort_data: useGraphMode ? buildFlowSortData(state, computed, null) : undefined,
         context: {
           base_case: {
             title: c.title,
@@ -90,10 +72,10 @@ export function createCaseActions(
         },
       }
 
-      const casesArray = await caseApi.aiGenerateCaseEnhanced(
+      const generateResult = await caseApi.aiGenerateCaseEnhanced(
         apiData as unknown as import('@/api/case').TestCaseAIEnhancedRequest
       )
-      const casesData = Array.isArray(casesArray) ? casesArray : [casesArray]
+      const casesData = generateResult.cases
       const caseData = casesData[0]
       if (!caseData) {
         throw new Error('AI 未返回有效用例数据')
@@ -126,7 +108,7 @@ export function createCaseActions(
 
       if (oldDbId && saved) {
         try {
-          await caseApi.deleteCase(oldDbId)
+          await caseApi.deleteCase(oldDbId, Number(state.formData.project_id) || undefined)
         } catch {
           console.warn(`[handleRegenerateCase] 删除旧用例 #${oldDbId} 失败，可能产生冗余数据`)
         }
@@ -166,7 +148,7 @@ export function createCaseActions(
 
     if (c._dbId) {
       try {
-        await caseApi.deleteCase(c._dbId)
+        await caseApi.deleteCase(c._dbId, Number(state.formData.project_id) || undefined)
       } catch (e) {
         console.error(`[handleDeleteCase] 删除数据库用例 #${c._dbId} 失败:`, e)
         ElMessage.error('数据库删除失败，请稍后重试')
@@ -176,7 +158,9 @@ export function createCaseActions(
 
     state.generatedCases.value.splice(index, 1)
     state.selectedCaseIndices.value = new Set(
-      [...state.selectedCaseIndices.value].filter((i) => i !== index).map((i) => (i > index ? i - 1 : i))
+      [...state.selectedCaseIndices.value]
+        .filter((i) => i !== index)
+        .map((i) => (i > index ? i - 1 : i))
     )
 
     if (state.generatedCases.value.length === 0) {
@@ -239,7 +223,7 @@ export function createCaseActions(
 
     if (dbIds.length > 0) {
       try {
-        await caseApi.batchDeleteCases(dbIds)
+        await caseApi.batchDeleteCases(dbIds, Number(state.formData.project_id) || undefined)
       } catch (e) {
         console.error('[handleDeleteSelected] 批量删除数据库用例失败:', e)
         ElMessage.error('数据库批量删除失败，请稍后重试')

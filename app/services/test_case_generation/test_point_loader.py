@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 import json
 
 from app.models.test_point import TestPoint
+from app.models.test_case import TestCase
 from app.models.project import ProjectFile
 from app.crud import test_point as test_point_crud
 
@@ -50,16 +51,34 @@ def load_test_points(
                     "point": point.point, "priority": point.priority
                 })
     else:
-        total_count = db.query(TestPoint).filter(
-            TestPoint.project_id == project_id
-        ).count()
         skip = (page - 1) * page_size
+        page_limit = min(page_size, MAX_TEST_POINT_PAGE_SIZE)
+        covered_test_point_ids = {
+            row[0]
+            for row in db.query(TestCase.test_point_id)
+            .filter(
+                TestCase.project_id == project_id,
+                TestCase.is_deleted == False,  # noqa: E712
+                TestCase.generate_status == 1,
+                TestCase.test_point_id.isnot(None),
+            )
+            .distinct()
+            .all()
+            if row[0] is not None
+        }
         all_points = db.query(TestPoint).filter(
             TestPoint.project_id == project_id
-        ).order_by(TestPoint.priority.asc(), TestPoint.id.asc()).offset(skip).limit(
-            min(page_size, MAX_TEST_POINT_PAGE_SIZE)
         ).all()
-        for point in all_points:
+        total_count = len(all_points)
+        all_points.sort(
+            key=lambda point: (
+                point.id in covered_test_point_ids,
+                point.priority or 99,
+                point.id,
+            )
+        )
+        page_points = all_points[skip: skip + page_limit]
+        for point in page_points:
             function = _extract_function_from_ai_prompt(point.ai_prompt)
             test_points.append({
                 "id": point.id, "module": point.module,
@@ -67,8 +86,10 @@ def load_test_points(
                 "point": point.point, "priority": point.priority
             })
         pagination = {
-            "page": page, "page_size": len(all_points),
-            "total": total_count, "has_more": (page * page_size) < total_count
+            "page": page, "page_size": len(page_points),
+            "total": total_count, "has_more": (skip + page_limit) < total_count,
+            "uncovered_first": True,
+            "covered_test_point_count": len(covered_test_point_ids),
         }
 
     return test_points, pagination

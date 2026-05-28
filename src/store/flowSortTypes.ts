@@ -76,22 +76,36 @@ export function computeHash(data: FlowSortData): string {
     h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
     h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
     return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
-  } catch { return '' }
+  } catch {
+    return ''
+  }
 }
 
 export function mapNodesToFlowData(nodes: FlowNodeData[]): ProjectFlowData['nodes'] {
   return nodes.map((n) => ({
-    id: n.id, screen_id: n.screen_id, screen_name: n.screen_name, summary: n.summary,
+    id: n.id,
+    screen_id: n.screen_id,
+    screen_name: n.screen_name,
+    summary: n.summary,
     ui_spec_elements: n.ui_spec_elements as ProjectFlowData['nodes'][0]['ui_spec_elements'],
-    flow_type: n.flow_type, main_order: n.main_order, image_url: n.image_url,
-    position: n.position, flow_meta: n.flow_meta as ProjectFlowData['nodes'][0]['flow_meta'],
+    flow_type: n.flow_type,
+    main_order: n.main_order,
+    image_url: n.image_url,
+    position: n.position,
+    flow_meta: n.flow_meta as ProjectFlowData['nodes'][0]['flow_meta'],
   }))
 }
 
 export function mapEdgesToFlowData(edges: FlowEdgeData[]): ProjectFlowData['edges'] {
   return edges.map((e) => ({
-    id: e.id, source: e.source, target: e.target, edge_type: e.edge_type,
-    condition: e.condition, label: e.label, trigger_action: e.trigger_action,
-    pre_action: e.pre_action, note: e.note,
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    edge_type: e.edge_type,
+    condition: e.condition,
+    label: e.label,
+    trigger_action: e.trigger_action,
+    pre_action: e.pre_action,
+    note: e.note,
   }))
 }

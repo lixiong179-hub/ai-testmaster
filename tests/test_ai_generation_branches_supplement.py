@@ -531,14 +531,15 @@ class TestValidateMixinSaveTestCase:
         mixin = TestCaseGenerationValidateMixin()
         mixin.db = db
         generated_case = {
-            "title": "\u6d4b\u8bd5\u7528\u4f8b", "module": "\u6d4b\u8bd5\u6a21\u5757",
-            "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55",
+            "title": "\u5df2\u767b\u5f55\u7528\u6237\u5728\u8868\u5355\u9875\u586b\u5199\u6570\u636e\u5e76\u4fdd\u5b58", "module": "\u6d4b\u8bd5\u6a21\u5757",
+            "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u5df2\u6253\u5f00\u6570\u636e\u5f55\u5165\u9875\u9762",
             "steps": [
-                {"step": 1, "action": "\u70b9\u51fb\u6309\u94ae", "expected_result": "\u6210\u529f", "action_type": "click"},
-                {"step": 2, "action": "\u8f93\u5165\u6570\u636e", "expected_result": "\u5b8c\u6210", "action_type": "input", "input_value": "test"},
+                {"step": 1, "action": "\u70b9\u51fb\u65b0\u589e\u6570\u636e\u6309\u94ae", "expected_result": "\u6570\u636e\u5f55\u5165\u8868\u5355\u5c55\u5f00\u4e14\u540d\u79f0\u8f93\u5165\u6846\u53ef\u89c1", "action_type": "click"},
+                {"step": 2, "action": "\u8f93\u5165\u6570\u636e\u540d\u79f0", "expected_result": "\u540d\u79f0\u8f93\u5165\u6846\u663e\u793a\u7528\u6237\u5df2\u8f93\u5165\u7684\u6587\u672c", "action_type": "input", "input_value": "\u81ea\u52a8\u5316\u7528\u6237\u6570\u636e001"},
             ],
-            "expected_result": "\u64cd\u4f5c\u6210\u529f", "priority": "P1",
+            "expected_result": "\u9875\u9762\u4fdd\u7559\u7528\u6237\u8f93\u5165\u7684\u6570\u636e\u540d\u79f0\uff0c\u4e14\u8868\u5355\u4ecd\u5904\u4e8e\u53ef\u7f16\u8f91\u72b6\u6001", "priority": "P1",
             "case_type": "ui_automation", "test_category": "ui_automation",
+            "case_category": "positive",
             "test_data": [{"key": "value"}],
         }
         test_point = {"id": None, "module": "\u6d4b\u8bd5\u6a21\u5757", "point": "P"}
@@ -546,17 +547,22 @@ class TestValidateMixinSaveTestCase:
             mock_settings.AUTO_PARSE_PRECONDITION = False
             case = await mixin._save_test_case(real_project.id, generated_case, test_point)
         assert case.id is not None
-        assert case.title == "\u6d4b\u8bd5\u7528\u4f8b"
+        assert case.title == "\u5df2\u767b\u5f55\u7528\u6237\u5728\u8868\u5355\u9875\u586b\u5199\u6570\u636e\u5e76\u4fdd\u5b58"
 
     async def test_save_with_auto_parse_precondition(self, db, real_project):
         from app.services.test_case_generation.validate_mixin import TestCaseGenerationValidateMixin
         mixin = TestCaseGenerationValidateMixin()
         mixin.db = db
         generated_case = {
-            "title": "\u81ea\u52a8\u89e3\u6790\u524d\u7f6e", "module": "\u6d4b\u8bd5\u6a21\u5757",
-            "precondition": "1. \u6253\u5f00\u6d4f\u89c8\u5668 2. \u8f93\u5165\u7528\u6237\u540d",
-            "steps": [], "expected_result": "\u524d\u7f6e\u5b8c\u6210", "priority": "P2",
+            "title": "\u5df2\u767b\u5f55\u7528\u6237\u6253\u5f00\u524d\u7f6e\u914d\u7f6e\u9875\u5e76\u6821\u9a8c\u8868\u5355", "module": "\u6d4b\u8bd5\u6a21\u5757",
+            "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u7528\u6237\u5177\u5907\u524d\u7f6e\u914d\u7f6e\u9875\u8bbf\u95ee\u6743\u9650",
+            "steps": [
+                {"step": 1, "action": "\u5bfc\u822a\u5230\u524d\u7f6e\u914d\u7f6e\u9875", "expected_result": "\u524d\u7f6e\u914d\u7f6e\u9875\u6807\u9898\u548c\u4e3b\u8868\u5355\u533a\u57df\u53ef\u89c1", "action_type": "navigate"},
+                {"step": 2, "action": "\u67e5\u770b\u524d\u7f6e\u914d\u7f6e\u8868\u5355\u5185\u5bb9", "expected_result": "\u8868\u5355\u663e\u793a\u5df2\u52a0\u8f7d\u7684\u7528\u6237\u914d\u7f6e\u5b57\u6bb5", "action_type": "verify"},
+            ],
+            "expected_result": "\u9875\u9762\u5c55\u793a\u5b8c\u6574\u7684\u524d\u7f6e\u914d\u7f6e\u8868\u5355\uff0c\u5e76\u4fdd\u6301\u53ef\u67e5\u770b\u72b6\u6001", "priority": "P2",
             "case_type": "manual", "test_category": "manual",
+            "case_category": "positive",
         }
         test_point = {"id": None, "module": "\u6d4b\u8bd5\u6a21\u5757"}
         with patch("app.services.test_case_generation.validate_mixin.settings") as mock_settings, \
@@ -573,10 +579,15 @@ class TestValidateMixinSaveTestCase:
         mixin = TestCaseGenerationValidateMixin()
         mixin.db = db
         generated_case = {
-            "title": "\u89e3\u6790\u5f02\u5e38", "module": "\u6d4b\u8bd5\u6a21\u5757",
-            "precondition": "\u524d\u7f6e\u6761\u4ef6", "steps": [],
-            "expected_result": "\u5b8c\u6210", "priority": "P2",
+            "title": "\u5df2\u767b\u5f55\u7528\u6237\u6253\u5f00\u5f02\u5e38\u5904\u7406\u9875\u5e76\u67e5\u770b\u72b6\u6001", "module": "\u6d4b\u8bd5\u6a21\u5757",
+            "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u7528\u6237\u5177\u5907\u5f02\u5e38\u5904\u7406\u9875\u8bbf\u95ee\u6743\u9650",
+            "steps": [
+                {"step": 1, "action": "\u5bfc\u822a\u5230\u5f02\u5e38\u5904\u7406\u9875", "expected_result": "\u5f02\u5e38\u5904\u7406\u9875\u6807\u9898\u548c\u72b6\u6001\u5217\u8868\u53ef\u89c1", "action_type": "navigate"},
+                {"step": 2, "action": "\u67e5\u770b\u5f02\u5e38\u72b6\u6001\u5217\u8868", "expected_result": "\u5217\u8868\u663e\u793a\u5f02\u5e38\u7c7b\u578b\u548c\u5904\u7406\u72b6\u6001\u5b57\u6bb5", "action_type": "verify"},
+            ],
+            "expected_result": "\u9875\u9762\u5c55\u793a\u5f02\u5e38\u5904\u7406\u72b6\u6001\u5217\u8868\uff0c\u5e76\u4fdd\u6301\u53ef\u67e5\u770b\u72b6\u6001", "priority": "P2",
             "case_type": "manual", "test_category": "manual",
+            "case_category": "positive",
         }
         test_point = {"id": None, "module": "\u6d4b\u8bd5\u6a21\u5757"}
         with patch("app.services.test_case_generation.validate_mixin.settings") as mock_settings, \
