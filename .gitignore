@@ -109,5 +109,42 @@ bug_report.json
 test_report.json
 _categorize_failures.py
 fix_encoding.py
+fix_encoding_temp.py
+test_ai_gen.py
+e2e_hidden_bug_report.json
+debug_ai_response.txt
+
+# Local investigation outputs/scripts
+scripts/cases_output.txt
+scripts/tablet70_generation_comparison.json
+scripts/delete_project_cases.py
+scripts/delete_recent_cases.py
+alembic/versions/alter_test_result_task_id_set_null.py
+e2e_hidden_bug_test.py
+start_all.py
+scripts/add_missing_columns.py
+scripts/compare_tablet70_generation.py
+scripts/debug_ai_response.py
+scripts/dump_cases.py
+scripts/e2e_generate_cases.py
+scripts/extract-testids.mjs
+scripts/query_project.py
+scripts/query_test_points.py
+scripts/review_cases.py
+scripts/test_parser.py
+scripts/verify_case_quality.py
+scripts/verify_data_pipeline.py
+scripts/verify_data_pipeline_v2.py
+src/composables/useProjectResourceLoader.ts
+src/store/generate/useGenerateAI.ts
+src/store/generate/useGenerateForm.ts
+src/store/generate/useGenerateTestPoint.ts
+tests/mocks/
+
+# E2E test run artifacts
+test-results/
+
+# Debug auth scripts
+scripts/debug_auth*.py
 
 # Misc
