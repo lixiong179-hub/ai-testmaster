@@ -74,7 +74,7 @@ class CleanupMixin:
         Returns:
             包含orphaned_count和cleaned_count的统计字典。
         """
-        videos = self.db.query(VideoRecord).all()
+        videos = self.db.query(VideoRecord).all() if getattr(self, "db", None) is not None else []
         orphaned_count = 0
         cleaned_count = 0
 
@@ -100,7 +100,7 @@ class CleanupMixin:
         Returns:
             包含total_count、total_size_mb、各状态数量及disk_usage_mb的字典。
         """
-        videos = self.db.query(VideoRecord).all()
+        videos = self.db.query(VideoRecord).all() if getattr(self, "db", None) is not None else []
         total_count = len(videos)
         total_size = sum(v.file_size or 0 for v in videos)
         ready_count = sum(1 for v in videos if v.status == "completed")
@@ -118,6 +118,10 @@ class CleanupMixin:
                     except OSError:
                         logger.debug("获取视频文件大小失败")
 
+        total_files = 0
+        if video_dir and Path(video_dir).exists():
+            total_files = sum(1 for path in Path(video_dir).rglob("*") if path.is_file())
+
         return {
             "total_count": total_count,
             "total_size_mb": round(total_size / (1024 * 1024), 2),
@@ -125,6 +129,11 @@ class CleanupMixin:
             "processing_count": processing_count,
             "failed_count": failed_count,
             "disk_usage_mb": round(disk_usage / (1024 * 1024), 2),
+            "total_videos": total_count if videos else total_files,
+            "total_size_bytes": total_size if videos else disk_usage,
+            "total_size_gb": round((total_size if videos else disk_usage) / (1024 ** 3), 4),
+            "video_directory": str(video_dir),
+            "retention_days": self._retention_days,
         }
 
     def set_retention_policy(self, days: int) -> None:

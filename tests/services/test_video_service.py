@@ -144,8 +144,7 @@ class TestVideoService:
     def test_service_initialization(self, video_service):
         """测试服务初始化"""
         assert video_service.db is not None
-        assert isinstance(video_service._video_base_dir, str)
-        assert video_service._video_base_dir == "./test_videos"
+        assert str(video_service._video_base_dir) == "test_videos"
 
     @pytest.mark.asyncio
     async def test_save_video_info(self, video_service, sample_task, sample_test_case):

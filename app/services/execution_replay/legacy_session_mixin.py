@@ -9,6 +9,7 @@ from app.models.test_task import TestTask
 from app.models.test_case import TestCase
 from app.models.test_result import TestResult
 from app.services.execution_replay.legacy_models import ReplayEvent, ExecutionTimeline, ReplaySession
+from app.utils.db_time import utcnow
 
 
 class LegacySessionMixin:

@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
-from app.services.video_service import VideoService
-from app.services.execution_replay_service import (
+from app.services.video import get_video_service
+from app.services.execution_replay.legacy_service import (
     get_execution_replay_service
 )
 from app.api.v1.endpoints.execution_vis_schemas import (
@@ -44,7 +44,7 @@ async def get_video_storage_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = VideoService.get_instance(db)
+    service = get_video_service(db)
     stats = await service.get_storage_stats()
     total_size_bytes = stats.get("total_size_mb", 0) * 1024 * 1024
     total_size_gb = round(total_size_bytes / (1024 ** 3), 2)
@@ -67,7 +67,7 @@ async def get_task_videos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = VideoService.get_instance(db)
+    service = get_video_service(db)
     videos = await service.get_videos_by_task(task_id)
     return [VideoInfoResponse(**v.to_dict()) for v in videos]
 
@@ -78,7 +78,7 @@ async def get_case_videos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = VideoService.get_instance(db)
+    service = get_video_service(db)
     videos = await service.get_videos_by_case(case_id)
     return [VideoInfoResponse(**v.to_dict()) for v in videos]
 
@@ -89,7 +89,7 @@ async def delete_video(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = VideoService.get_instance(db)
+    service = get_video_service(db)
     success = await service.delete_video(video_id)
     if not success:
         raise HTTPException(
@@ -105,7 +105,7 @@ async def cleanup_expired_videos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = VideoService.get_instance(db)
+    service = get_video_service(db)
     result = await service.cleanup_expired_videos(retention_days)
     return {
         "success": True,
