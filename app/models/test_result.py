@@ -43,7 +43,7 @@ class TestResult(Base):
     __tablename__ = "test_results"
     
     id = Column(Integer, primary_key=True, autoincrement=True)                                        # 结果主键ID
-    task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="CASCADE"), nullable=False, comment="任务ID")  # 所属任务ID，级联删除
+    task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="SET NULL"), nullable=True, comment="任务ID")  # 所属任务ID，任务删除时保留结果
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, comment="项目ID")  # 所属项目ID，级联删除
     case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, comment="用例ID")  # 所属用例ID，级联删除
     case_no = Column(String(50), nullable=False, comment="用例编号")                                   # 冗余存储用例编号，避免关联查询

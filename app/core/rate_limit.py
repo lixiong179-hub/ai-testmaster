@@ -209,10 +209,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     detail="请求过于频繁，请稍后再试"
                 )
 
-            # 限流通过，继续处理请求
-            response = await call_next(request)
-            return response
-
         except HTTPException:
             # 限流异常需要向上抛出，不能被通用异常处理吞掉
             raise
@@ -221,6 +217,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # 降级而非拒绝，保证服务可用性优先于限流精确性
             logger.warning(f"Redis 运行时异常，降级本次请求为内存模式: {e}")
             return await self._dispatch_memory(client_ip, current_time, request, call_next)
+
+        # 限流通过，继续处理请求。业务处理异常不能被当成 Redis 异常重试，
+        # 否则上传请求体被消费后会出现二次执行卡住的问题。
+        response = await call_next(request)
+        return response
 
     async def _dispatch_memory(self, client_ip: str, current_time: float, request: Request, call_next):
         """

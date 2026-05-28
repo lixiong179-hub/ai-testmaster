@@ -66,7 +66,9 @@ class ActionType(str, Enum):
     CLOSE_WINDOW = "close_window"
     REFRESH = "refresh"
     EXECUTE_SCRIPT = "execute_script"
+    CAPTCHA = "captcha"
     VERIFY_CAPTCHA = "verify_captcha"
+    KEYPRESS = "keypress"
     API_CALL = "api_call"
     CUSTOM = "custom"
 

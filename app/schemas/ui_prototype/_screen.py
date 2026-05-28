@@ -37,6 +37,9 @@ class UIScreenDetailResponse(UIScreenResponse):
 
 
 class UIScreenParseRequest(BaseModel):
+    screen_ids: Optional[List[int]] = None
+    prototype_project_id: Optional[int] = None
+    parse_mode: Optional[str] = "text"
     force_reparse: bool = False
     extract_elements: bool = True
     generate_spec: bool = True
@@ -51,7 +54,8 @@ class UIScreenParseResponse(BaseModel):
 
 
 class UIFlowGenerateRequest(BaseModel):
-    project_id: int
+    project_id: Optional[int] = None
+    prototype_project_id: Optional[int] = None
     screen_ids: Optional[List[int]] = None
     flow_description: Optional[str] = Field(None, max_length=1000)
 

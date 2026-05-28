@@ -50,6 +50,44 @@ class ReportService:
     """
 
     @staticmethod
+    def _generate_fix_suggestion(analysis_text: str | None) -> str | None:
+        if not analysis_text:
+            return None
+        if "功能" in analysis_text or "业务" in analysis_text:
+            return "建议优先检查业务逻辑、接口返回与状态流转。"
+        if "显示" in analysis_text or "渲染" in analysis_text or "数据" in analysis_text:
+            return "建议检查前端渲染、数据绑定与接口字段映射。"
+        if "预期" in analysis_text or "不符" in analysis_text:
+            return "建议核对预期行为、产品规则与实际实现差异。"
+        return "建议结合执行日志、截图和复现步骤定位根因。"
+
+    @staticmethod
+    def _build_self_test_bug_list(db: Session, project_id: int) -> List[Dict[str, Any]]:
+        from app.models.bug import Bug
+
+        bugs = (
+            db.query(Bug)
+            .filter(Bug.project_id == project_id, Bug.source == "self_test")
+            .order_by(Bug.create_time.desc())
+            .all()
+        )
+        return [
+            {
+                "bug_no": bug.bug_no,
+                "title": bug.title,
+                "severity": bug.severity,
+                "priority": bug.priority,
+                "status": bug.status,
+                "screenshot_url": bug.test_result.screenshot_url if bug.test_result else None,
+                "ai_analysis": bug.test_result.ai_analysis if bug.test_result else None,
+                "fix_suggestion": ReportService._generate_fix_suggestion(
+                    bug.description or (bug.test_result.ai_analysis if bug.test_result else None)
+                ),
+            }
+            for bug in bugs
+        ]
+
+    @staticmethod
     def generate_report(db: Session, project_id: int, test_task_id: int = None, name: str = None, description: str = None, user_id: int = None) -> TestReport:
         """生成测试报告，包含统计数据、用例明细和执行时间。
 

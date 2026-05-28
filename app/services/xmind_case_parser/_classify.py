@@ -29,7 +29,7 @@ class _ClassifyMixin:
     )
     EXPECTED_PATTERNS = (
         "界面显示", "界面提示", "提示", "显示", "置灰", "不可点击",
-        "默认", "成功", "失败", "跳转", "进入", "仍然", "返回到",
+        "成功", "失败", "跳转", "进入", "仍然", "返回到",
         "toast", "弹窗", "自动", "不出现", "出现", "倒计时", "切换为",
     )
     IGNORE_PATTERNS = (
@@ -42,12 +42,12 @@ class _ClassifyMixin:
             return "ignore"
         if any(pattern in normalized for pattern in self.IGNORE_PATTERNS):
             return "ignore"
+        if normalized.startswith(self.PRECONDITION_HINTS):
+            return "condition"
         if any(pattern in normalized for pattern in self.ACTION_PATTERNS):
             return "action"
         if any(pattern in normalized for pattern in self.EXPECTED_PATTERNS):
             return "expected"
-        if normalized.startswith(self.PRECONDITION_HINTS):
-            return "condition"
         if re.match(r"^\d+[.、]", normalized):
             return "action"
         return "other"

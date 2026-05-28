@@ -98,5 +98,5 @@ class TestTask(Base):
     # 关系
     project = relationship("Project", back_populates="test_tasks")                                    # 所属项目
     executor = relationship("User", back_populates="test_tasks")                                      # 任务执行人
-    test_results = relationship("TestResult", back_populates="test_task", cascade="all, delete-orphan")  # 测试结果，级联删除
+    test_results = relationship("TestResult", back_populates="test_task", cascade="save-update, merge")  # 测试结果，任务删除时保留
     video_records = relationship("VideoRecord", back_populates="task", cascade="all, delete-orphan")  # 视频录制，级联删除

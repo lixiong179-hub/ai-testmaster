@@ -72,6 +72,7 @@ class Iteration(Base):
 
     # 流水线上下文字段
     base_iteration_id = Column(Integer, ForeignKey("iterations.id", ondelete="SET NULL"), nullable=True, comment="基线迭代ID，用于跨迭代对比")  # 基线迭代，SET NULL保留当前迭代
+    target_device = Column(String(20), nullable=True, comment="迭代目标设备：tablet/phone/desktop/web")
     created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, comment="创建人ID")  # 创建人，SET NULL保留迭代
     finalized_at = Column(DateTime, nullable=True, comment="定稿时间")                                 # 评审 finalize 时设置
 

@@ -29,9 +29,10 @@
     - 通过cleanup_callback参数支持删除前的关联资源清理
 
 迭代状态枚举：
-    - planning: 规划中
-    - in_progress: 进行中
-    - completed: 已完成
+    - draft: 草稿
+    - in_pipeline: 流水线运行中
+    - in_review: 评审中
+    - finalized: 已定稿
     - archived: 已归档
 """
 from typing import Optional, Callable, List
@@ -39,6 +40,12 @@ from sqlalchemy.orm import Session
 from app.models.iteration import Iteration
 from datetime import datetime
 from app.utils.db_time import utcnow
+
+MAX_ITERATION_NAME_LENGTH = 200
+
+
+def _normalize_iteration_name(name: str) -> str:
+    return name[:MAX_ITERATION_NAME_LENGTH]
 
 
 def create_iteration(
@@ -54,7 +61,7 @@ def create_iteration(
     """
     创建迭代
 
-    创建一个新的迭代记录，默认状态为planning。创建前校验项目下是否存在同名迭代，
+    创建一个新的迭代记录，默认状态为draft。创建前校验项目下是否存在同名迭代，
     防止重复。
 
     Args:
@@ -63,12 +70,12 @@ def create_iteration(
         name: 迭代名称，同一项目下必须唯一
         version: 版本号，默认"v1.0"
         description: 迭代描述（可选）
-        status: 迭代状态，默认"planning"，可选in_progress/completed/archived
+        status: 迭代状态，默认"draft"，可选in_pipeline/in_review/finalized/archived
         start_date: 开始日期（可选）
         end_date: 结束日期（可选）
 
     Returns:
-        Iteration: 创建成功后的迭代对象（已commit并refresh）
+        Iteration: 创建成功后的迭代对象（已flush，由调用方控制commit）
 
     Raises:
         ValueError: 项目下已存在同名迭代时抛出
@@ -78,6 +85,8 @@ def create_iteration(
         不同项目下允许存在同名迭代。
     """
     # 同名校验：防止项目下出现重复迭代名称
+    name = _normalize_iteration_name(name)
+
     existing = db.query(Iteration).filter(
         Iteration.project_id == project_id,
         Iteration.name == name
@@ -95,8 +104,7 @@ def create_iteration(
         end_date=end_date
     )
     db.add(db_iteration)
-    db.commit()
-    db.refresh(db_iteration)
+    db.flush()
     return db_iteration
 
 
@@ -194,6 +202,7 @@ def update_iteration(db: Session, iteration_id: int, **kwargs) -> Optional[Itera
 
     # 重命名校验：若更新name字段，检查项目下是否存在同名迭代（排除自身）
     if "name" in kwargs and kwargs["name"] is not None:
+        kwargs["name"] = _normalize_iteration_name(kwargs["name"])
         existing = db.query(Iteration).filter(
             Iteration.project_id == db_iteration.project_id,
             Iteration.name == kwargs["name"],

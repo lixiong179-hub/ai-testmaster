@@ -31,7 +31,69 @@ from app.services.test_case_generation.quality_validator import (
 )
 from app.utils.ai_client_enhanced._repair import _repair_truncated_json
 
-AI_GENERATE_MAX_TOKENS = 16384
+AI_GENERATE_MAX_TOKENS = 8192
+AI_GENERATE_MAX_TOKENS_FULL = 16384
+
+
+def _resolve_max_tokens(context: Dict[str, Any], *, graph_mode: bool) -> int:
+    test_points = _normalize_test_points(context)
+    if graph_mode or len(test_points) > 1 or context.get("history_cases"):
+        return AI_GENERATE_MAX_TOKENS_FULL
+    return AI_GENERATE_MAX_TOKENS
+
+
+def _as_dict_list(value: Any) -> List[Dict[str, Any]]:
+    if isinstance(value, dict):
+        return [value]
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _normalize_test_points(context: Dict[str, Any]) -> List[Dict[str, Any]]:
+    points_by_id: Dict[str, Dict[str, Any]] = {}
+    anonymous_points: List[Dict[str, Any]] = []
+
+    for key in ("test_points", "test_points_data", "test_point", "current_test_point"):
+        for point in _as_dict_list(context.get(key)):
+            point_id = point.get("id")
+            if point_id is None:
+                anonymous_points.append(point)
+                continue
+            point_key = str(point_id)
+            merged = dict(points_by_id.get(point_key, {}))
+            for field, value in point.items():
+                if value not in (None, "", []):
+                    merged[field] = value
+            points_by_id[point_key] = merged
+
+    return list(points_by_id.values()) + anonymous_points
+
+
+def _normalize_ui_specs(value: Any) -> List[Dict[str, Any]]:
+    if isinstance(value, dict):
+        return [value]
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _stringify_ui_description(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        parts: List[str] = []
+        for item in value:
+            if isinstance(item, dict):
+                name = item.get("screen_name") or item.get("file_name") or item.get("name") or "未命名"
+                desc = item.get("description") or item.get("summary") or json.dumps(item, ensure_ascii=False)
+                parts.append(f"【{name}】\n{desc}")
+            elif item:
+                parts.append(str(item))
+        return "\n\n".join(parts)
+    return ""
 
 
 def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -43,15 +105,33 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
             sanitize_input, build_weight_model,
             build_ui_specs_description, build_project_env_info
         )
-        requirement = sanitize_input(context.get('requirement', ''))
-        test_points = context.get('test_points', [])
-        ui_specs = context.get('ui_specs', [])
-        project_config = context.get('project_config', {})
+        raw_requirement = (
+            context.get('requirement_content')
+            or context.get('requirement')
+            or context.get('requirement_text')
+            or ''
+        )
+        requirement = sanitize_input(str(raw_requirement))
+        test_points = _normalize_test_points(context)
+        ui_specs = _normalize_ui_specs(context.get('ui_specs'))
+        raw_ui_description = _stringify_ui_description(
+            context.get('ui_description') or context.get('ui_descriptions')
+        )
+        project_config = context.get('project_config')
+        if not isinstance(project_config, dict):
+            project_config = {}
+        extra_requirements = sanitize_input(str(context.get('extra_requirements') or ''), max_length=10000)
         has_requirement = bool(requirement and requirement.strip())
-        has_ui = bool(ui_specs)
+        ui_desc = (
+            build_ui_specs_description(ui_specs)
+            if ui_specs
+            else sanitize_input(raw_ui_description)
+        )
+        has_ui = bool(ui_specs) or bool(ui_desc and ui_desc.strip())
         has_test_point = bool(test_points)
-        weight_desc, weight_example, weight_warning = build_weight_model(has_requirement, has_ui, has_test_point)
-        ui_desc = build_ui_specs_description(ui_specs) if has_ui else "无UI原型图解析结果"
+        weight_desc, weight_example, weight_warning = build_weight_model(has_ui, has_requirement, has_test_point)
+        if not has_ui:
+            ui_desc = "无UI原型图解析结果"
         env_desc = build_project_env_info(project_config)
         history_cases = context.get('history_cases', [])
         history_cases_text = ""
@@ -74,6 +154,13 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
                 point = tp.get('point', '')
                 priority = tp.get('priority', 2)
                 test_points_text += f"{i+1}. [{module} - {function}] {point} (优先级:{priority})\n"
+        extra_requirements_text = ""
+        if extra_requirements:
+            extra_requirements_text = f"""## 补充生成要求
+{extra_requirements}
+
+---
+"""
         prompt = f"""你是一名高级测试工程师，请根据以下信息生成一个高质量的测试用例。
 
 {weight_desc}
@@ -105,6 +192,8 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
 {history_cases_text}
 
 ---
+
+{extra_requirements_text}
 
 ## 输出格式要求
 0. 必须返回测试用例，至少覆盖正向（case_category=positive）、边界（case_category=boundary）、异常（case_category=exception）三种测试类型，每种类型至少1条用例。如果需求或UI涉及多个功能点或页面，请为每个功能点分别生成用例，总数不少于3条
@@ -167,15 +256,28 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
     messages = [{"role": "user", "content": prompt}]
     is_graph_mode = bool(graph_prompt)
     min_case_count = 3 if is_graph_mode else 1
+    max_tokens = _resolve_max_tokens(context, graph_mode=is_graph_mode)
     for attempt in range(max_retries):
         try:
+            started_at = time.monotonic()
             logger.info(f"增强版AI生成测试用例 - 尝试 {attempt + 1}/{max_retries}")
             response = client.chat.completions.create(
                 model=client.model_name,
                 messages=messages,
                 temperature=0.3,
-                max_tokens=AI_GENERATE_MAX_TOKENS
+                max_tokens=max_tokens
             )
+            latency_ms = int((time.monotonic() - started_at) * 1000)
+            finish_reason = response.choices[0].finish_reason if response.choices else None
+            logger.info(
+                "增强版AI生成调用完成: "
+                f"latency_ms={latency_ms}, max_tokens={max_tokens}, "
+                f"finish_reason={finish_reason}, attempt={attempt + 1}/{max_retries}"
+            )
+            if finish_reason == "length" and max_tokens < AI_GENERATE_MAX_TOKENS_FULL:
+                max_tokens = AI_GENERATE_MAX_TOKENS_FULL
+                logger.warning("增强版AI响应被截断，提升max_tokens后重试")
+                continue
             resp_content = response.choices[0].message.content
             if not resp_content:
                 raise AIResponseParseError("AI返回内容为空")

@@ -121,6 +121,7 @@ class UISpecOcrMixin:
 
         for attempt in range(self.max_retries):
             try:
+                started_at = time.monotonic()
                 logger.info(f"文本结构化解析，使用 DeepSeek 模型，尝试 {attempt + 1}/{self.max_retries}")
                 text_model = self._get_text_model()
                 response = text_model.chat.completions.create(
@@ -133,7 +134,11 @@ class UISpecOcrMixin:
                 result_text = response.choices[0].message.content
                 result = self._parse_json_response(result_text)
                 if result:
-                    logger.info("文本结构化解析成功")
+                    logger.info(
+                        "文本结构化解析成功: "
+                        f"latency_ms={int((time.monotonic() - started_at) * 1000)}, "
+                        f"attempt={attempt + 1}/{self.max_retries}"
+                    )
                     return result
                 if attempt < self.max_retries - 1:
                     time.sleep(self.retry_delay)

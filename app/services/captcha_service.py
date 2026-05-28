@@ -25,6 +25,7 @@
     当存储的验证码数量超过100时，自动清理过期记录。
     已使用记录集合保留最近1000条，防止内存泄漏。
 """
+import os
 import random
 import string
 import time
@@ -54,6 +55,7 @@ class CaptchaService:
     """
 
     _instance = None
+    _rate_limit: int = int(os.getenv("CAPTCHA_RATE_LIMIT", "10"))
 
     def __new__(cls):
         """单例模式实现，确保全局只有一个验证码服务实例。"""
@@ -90,7 +92,7 @@ class CaptchaService:
         current_time = time.time()
         self._ip_limits[ip] = [t for t in self._ip_limits[ip] if current_time - t < 60]
 
-        if len(self._ip_limits[ip]) >= 10:
+        if len(self._ip_limits[ip]) >= self._rate_limit:
             raise Exception("请求过于频繁，请稍后再试")
 
         self._ip_limits[ip].append(current_time)

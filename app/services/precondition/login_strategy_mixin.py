@@ -170,6 +170,27 @@ class LoginStrategyMixin:
         在_perform_login中调用_recognize_and_solve_captcha处理验证码。
     """
 
+    @handle_precondition_errors
+    async def _click_and_type(self, x: int, y: int, text: str) -> None:
+        """Click a coordinate and type text.
+
+        Kept for compatibility with older precondition workflows that used
+        coordinate fallback directly.
+        """
+        if not self.browser_controller:
+            raise RuntimeError("浏览器未初始化")
+        page = getattr(self.browser_controller, "_page", None)
+        if page is None:
+            raise RuntimeError("浏览器未初始化")
+
+        cfg = getattr(self, "_timing_config", PreconditionTimingConfig())
+        await page.mouse.click(x, y)
+        await asyncio.sleep(cfg.click_delay)
+        await page.keyboard.press("Control+a")
+        await page.keyboard.press("Delete")
+        await asyncio.sleep(cfg.fill_delay)
+        await page.keyboard.type(text, delay=cfg.input_delay)
+
     async def _recognize_login_form(self, screenshot: bytes) -> LoginFormInfo:
         """委托给precondition_parser的recognize_login_form函数。
 

@@ -100,6 +100,10 @@ class TestCase(Base):
     summary_version = Column(Integer, nullable=False, default=0, comment="摘要版本号，0=未生成")  # 摘要版本，AI重算时递增
     summary_model_version = Column(String(64), nullable=True, comment="生成摘要的AI模型版本")  # 跟踪模型升级触发的批量重算
     parent_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="SET NULL"), nullable=True, comment="父用例ID，用于用例衍生/拆分")  # 血缘关系，SET NULL保留子用例
+    target_device = Column(String(20), nullable=True, comment="目标设备类型：tablet/phone/desktop/web，为空表示通用")
+    migration_source_id = Column(Integer, ForeignKey("test_cases.id", ondelete="SET NULL"), nullable=True, comment="迁移来源用例ID，跨设备迁移时指向原设备用例")
+    migration_type = Column(String(20), nullable=True, comment="迁移类型：cloned=直接克隆/adapted=AI改写/split=拆分迁移/new=新增/deprecated=废弃")
+    migration_batch_id = Column(String(50), nullable=True, comment="迁移批次ID，同一次批量迁移产出的用例共享此ID，用于回退")
     ai_change_type = Column(String(20), nullable=True, comment="AI评审结果：added=查漏新增/modified=补缺修正/deprecated=去冗废弃")  # AI用例评审标注，手动创建的用例此字段为空
     depends_on = Column(String(255), nullable=True, comment="依赖的主干用例标题，UI自动化执行时先执行主干用例到anchor_step后继续")
     anchor_step = Column(Integer, nullable=True, comment="依赖主干用例的步骤号，从此步骤后继续执行本用例")
@@ -116,6 +120,7 @@ class TestCase(Base):
     test_point = relationship("TestPoint", backref="test_cases", foreign_keys=[test_point_id])        # 关联测试点
     parent_case = relationship("TestCase", remote_side=[id], foreign_keys=[parent_case_id], back_populates="child_cases")  # 父用例血缘关系
     child_cases = relationship("TestCase", back_populates="parent_case", foreign_keys=[parent_case_id])  # 子用例列表
+    migration_source = relationship("TestCase", remote_side="TestCase.id", foreign_keys=[migration_source_id], lazy="select")
     last_review = relationship("CodeReview", foreign_keys=[last_review_id])  # 最近评审记录
     test_steps = relationship("TestStep", back_populates="test_case", cascade="all, delete-orphan")   # 测试步骤，级联删除
     precondition_steps = relationship("TestCasePreconditionStep", back_populates="test_case", cascade="all, delete-orphan", order_by="TestCasePreconditionStep.step_number")  # 前置条件步骤，按序号排序

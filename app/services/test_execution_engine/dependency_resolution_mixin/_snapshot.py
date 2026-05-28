@@ -30,14 +30,18 @@ class _SnapshotMixin:
                 "url": page.url,
                 "anchor_step": anchor_step,
                 "case_title": case.title,
+                "case_id": getattr(case, "id", None),
+                "case_no": getattr(case, "case_no", None),
             }
 
             if context:
                 storage_state = await context.storage_state()
                 snapshot["storage_state"] = storage_state
 
-            snapshot_key = f"{case.title}_{anchor_step}"
-            self._anchor_snapshots[snapshot_key] = snapshot
+            snapshot_keys = self._snapshot_keys_for_case(case, anchor_step)
+            for snapshot_key in snapshot_keys:
+                self._anchor_snapshots[snapshot_key] = snapshot
+            snapshot_key = snapshot_keys[0] if snapshot_keys else f"{case.title}_{anchor_step}"
             logger.info(f"Web快照已保存: key={snapshot_key}, url={page.url}")
             return True
 
@@ -70,6 +74,8 @@ class _SnapshotMixin:
                 "screenshot_hash": screenshot_hash,
                 "anchor_step": anchor_step,
                 "case_title": case.title,
+                "case_id": getattr(case, "id", None),
+                "case_no": getattr(case, "case_no", None),
             }
 
             project = getattr(self, '_current_project', None)
@@ -77,8 +83,10 @@ class _SnapshotMixin:
                 snapshot["app_package"] = getattr(project, 'test_object_app_package', None)
                 snapshot["app_activity"] = getattr(project, 'test_object_app_activity', None)
 
-            snapshot_key = f"{case.title}_{anchor_step}"
-            self._anchor_snapshots[snapshot_key] = snapshot
+            snapshot_keys = self._snapshot_keys_for_case(case, anchor_step)
+            for snapshot_key in snapshot_keys:
+                self._anchor_snapshots[snapshot_key] = snapshot
+            snapshot_key = snapshot_keys[0] if snapshot_keys else f"{case.title}_{anchor_step}"
             logger.info(
                 f"Mobile快照已保存: key={snapshot_key}, "
                 f"activity={current_activity}"
@@ -133,8 +141,13 @@ class _SnapshotMixin:
         if not depends_on or anchor_step is None:
             return False
 
+        snapshot = None
         snapshot_key = f"{depends_on}_{anchor_step}"
-        snapshot = self._anchor_snapshots.get(snapshot_key)
+        for candidate_key in self._snapshot_keys_for_dependency(case):
+            snapshot = self._anchor_snapshots.get(candidate_key)
+            if snapshot:
+                snapshot_key = candidate_key
+                break
         if not snapshot:
             logger.info(f"快照不存在: key={snapshot_key}，将尝试降级导航")
             return False

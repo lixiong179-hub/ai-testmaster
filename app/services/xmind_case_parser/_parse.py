@@ -11,39 +11,30 @@ from app.services.xmind_case_parser._classify import TopicNode, _ClassifyMixin
 class _ParseMixin:
 
     def parse(self, file_path: str) -> List[Dict[str, Any]]:
-        root_topic = self._load_root_topic(file_path)
-        module_nodes = self._get_child_topics(root_topic)
+        root_topics = self._load_all_root_topics(file_path)
         cases: List[Dict[str, Any]] = []
 
-        for module_topic in module_nodes:
-            module_name = self._extract_topic_text(module_topic)
-            if not module_name:
-                continue
-            module_name = self._truncate_field(module_name, self.MODULE_MAX_LEN)
-            module_node = self._build_topic_tree(module_topic)
-            for path in self._collect_leaf_paths(module_node):
-                case = self._build_case_from_path(module_name, path)
-                if case:
-                    cases.append(case)
+        for root_topic in root_topics:
+            module_nodes = self._get_child_topics(root_topic)
+            for module_topic in module_nodes:
+                module_name = self._extract_topic_text(module_topic)
+                if not module_name:
+                    continue
+                module_name = self._truncate_field(module_name, self.MODULE_MAX_LEN)
+                module_node = self._build_topic_tree(module_topic)
+                for path in self._collect_leaf_paths(module_node):
+                    case = self._build_case_from_path(module_name, path)
+                    if case:
+                        cases.append(case)
 
         deduped = self._dedupe_cases(cases)
         logger.info(f"XMind 场景解析完成，共提取 {len(deduped)} 条测试用例")
         return deduped
 
-    def _load_root_topic(self, file_path: str) -> ET.Element:
-        import zipfile
-        try:
-            with zipfile.ZipFile(file_path, "r") as zf:
-                if "content.xml" not in zf.namelist():
-                    raise XmindParseError("XMind 文件内容缺失，文件可能已损坏")
-                content = zf.read("content.xml")
-        except zipfile.BadZipFile:
-            raise XmindParseError("无效的 XMind 文件格式，请上传 .xmind 文件")
-        except XmindParseError:
-            raise
-        except Exception as exc:
-            logger.error(f"读取 XMind 文件失败: {exc}")
-            raise XmindParseError("读取 XMind 文件失败，请检查文件是否损坏") from exc
+    def _load_all_root_topics(self, file_path: str) -> List[ET.Element]:
+        from app.services.xmind_parser import XmindParser
+        xml_loader = XmindParser()
+        content = xml_loader._extract_content_xml(file_path)
 
         try:
             root = ET.fromstring(content)
@@ -51,13 +42,19 @@ class _ParseMixin:
             logger.error(f"XML 解析失败: {exc}")
             raise XmindParseError("无法解析 XMind 文件内容，请确认文件格式正确") from exc
 
-        sheet = self._find_element(root, "sheet")
-        if sheet is None:
+        sheets = root.findall("xmap:sheet", self.NS)
+        if not sheets:
+            sheets = root.findall(f"{{{self.XMAP_NS}}}sheet")
+        if not sheets:
             raise XmindParseError("XMind 文件中未找到 sheet 元素")
-        topic = self._find_element(sheet, "topic")
-        if topic is None:
+        topics: List[ET.Element] = []
+        for sheet in sheets:
+            topic = self._find_element(sheet, "topic")
+            if topic is not None:
+                topics.append(topic)
+        if not topics:
             raise XmindParseError("XMind 文件中未找到根主题")
-        return topic
+        return topics
 
     def _build_topic_tree(self, topic: ET.Element) -> TopicNode:
         return TopicNode(

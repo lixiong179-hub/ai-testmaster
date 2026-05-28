@@ -24,7 +24,7 @@ from app.db.database import get_db
 from app.models.user import User
 from app.models.test_task import TestTask
 from app.api.v1.endpoints.auth import get_current_user
-from app.services.video_service import get_video_service
+from app.services.video import get_video_service
 from app.core.exception import create_response
 from loguru import logger
 
@@ -94,8 +94,8 @@ async def get_execution_video(
         from app.api.v1.endpoints.execution_core import verify_project_permission
         verify_project_permission(db, task.project_id, current_user.id)
 
-        service = get_video_service()
-        videos = await service.get_videos_by_task(db, task_id)
+        service = get_video_service(db)
+        videos = await service.get_videos_by_task(task_id)
 
         for video in videos:
             if video.case_id == case_id and video.file_path:
@@ -138,8 +138,8 @@ async def get_video_info(
         from app.api.v1.endpoints.execution_core import verify_project_permission
         verify_project_permission(db, task.project_id, current_user.id)
 
-        service = get_video_service()
-        videos = await service.get_videos_by_case(db, case_id)
+        service = get_video_service(db)
+        videos = await service.get_videos_by_case(case_id)
 
         if videos:
             video = videos[0]

@@ -65,6 +65,16 @@ from app.services.test_data import TestDataGenerator as TestDataService
 from app.services.visibility_config import VisibilityConfigService
 from app.utils.browser_controller_v2 import BrowserControllerV2
 from app.utils.unified_vision_model import UnifiedVisionModel
+from app.services.test_execution_engine import action_executor_verify_captcha_mixin as _captcha_mixin_module
+from app.services.test_execution_engine.structured_assertion_mixin import (
+    StructuredAssertionMixin,
+    _ASSERTION_PATTERN,
+    _STRUCTURED_ASSERTION_PREFIXES,
+)
+
+_captcha_mixin_module.ActionExecutorVerifyCaptchaMixin = StructuredAssertionMixin
+_captcha_mixin_module._ASSERTION_PATTERN = _ASSERTION_PATTERN
+_captcha_mixin_module._STRUCTURED_ASSERTION_PREFIXES = _STRUCTURED_ASSERTION_PREFIXES
 
 
 class TestExecutionEngineV2(

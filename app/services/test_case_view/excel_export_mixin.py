@@ -165,7 +165,7 @@ class ExcelExportMixin:
                 ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = width
 
             current_row = 2
-            priority_map = {1: "P0/P1", 2: "P2", 3: "P3"}
+            priority_map = {1: "P0", 2: "P2", 3: "P3"}
 
             # 批量查询所有步骤，避免 N+1
             all_case_ids = [tc.id for tc in test_cases]

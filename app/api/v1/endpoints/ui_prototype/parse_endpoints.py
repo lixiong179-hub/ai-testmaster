@@ -255,9 +255,16 @@ async def generate_page_flow(
     current_user: User = Depends(get_current_user),
 ):
     try:
+        prototype_project_id = flow_request.prototype_project_id or flow_request.project_id
+        if not prototype_project_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="缺少原型项目ID",
+            )
+
         prototype_project = (
             db.query(UIPrototypeProject)
-            .filter(UIPrototypeProject.id == flow_request.prototype_project_id)
+            .filter(UIPrototypeProject.id == prototype_project_id)
             .first()
         )
 
@@ -285,7 +292,7 @@ async def generate_page_flow(
             db, db_project.id, current_user.id, UPLOAD_DIR
         )
         success, message = await pipeline.generate_flow(
-            flow_request.prototype_project_id
+            prototype_project_id
         )
 
         return create_response(

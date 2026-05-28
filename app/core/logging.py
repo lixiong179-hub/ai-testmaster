@@ -30,6 +30,10 @@ def setup_logging(
         enable_file_logging: 是否启用文件日志
     """
     logger.remove()
+
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     
     log_format = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "

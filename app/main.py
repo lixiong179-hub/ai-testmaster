@@ -16,7 +16,7 @@ from app.api.v1.endpoints import auth, project, file, test_task, report, test_po
 from app.api.v1.endpoints import user, websocket, test_case, batch_locator, test_data
 from app.api.v1.endpoints import execution_visualization, case_quality, execution, visibility
 from app.api.v1.endpoints import requirement_link, ui_prototype, iteration, pipeline, review_inbox
-from app.api.v1.endpoints import test_capability, audit_log
+from app.api.v1.endpoints import test_capability, audit_log, case_migration
 from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
@@ -66,9 +66,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info(f"{settings.APP_NAME} v{settings.APP_VERSION} 启动成功 (环境: {settings.ENVIRONMENT})")
 
+    # 启动 APScheduler 定时任务调度器
+    from app.services.scheduler_service import start_scheduler
+    start_scheduler()
+
     yield  # 应用运行中
 
     # 关闭阶段（清理资源）
+    # 关闭 APScheduler 调度器
+    from app.services.scheduler_service import shutdown_scheduler
+    shutdown_scheduler()
+
     logger.info("应用正在关闭...")
 
 
@@ -126,6 +134,7 @@ app.include_router(pipeline.router, prefix="/api/v1")
 app.include_router(review_inbox.router, prefix="/api/v1")
 app.include_router(test_capability.router, prefix="/api/v1")
 app.include_router(audit_log.router, prefix="/api/v1")
+app.include_router(case_migration.router, prefix="/api/v1")
 
 
 # 根路径
@@ -136,7 +145,7 @@ def root() -> dict[str, str]:
 
 # 健康检查接口
 @app.get("/health")
-def health_check() -> dict[str, str]:
+def health_check() -> dict[str, object]:
     """健康检查接口（含依赖服务状态检测）"""
     health_status = {
         "status": "healthy",

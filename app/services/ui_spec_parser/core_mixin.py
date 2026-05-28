@@ -6,6 +6,7 @@ import base64
 import asyncio
 import re
 import json
+import time
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
 from loguru import logger
@@ -81,6 +82,10 @@ class UISpecCoreMixin:
 
     def _parse_json_response(self, content: str) -> Optional[Dict[str, Any]]:
         """解析JSON响应，处理可能的不完整或带markdown格式的情况"""
+        if not content or not content.strip():
+            logger.warning("响应内容为空")
+            return None
+
         try:
             return json.loads(content)
         except json.JSONDecodeError:
@@ -105,7 +110,43 @@ class UISpecCoreMixin:
                 except json.JSONDecodeError:
                     continue
 
-        logger.warning(f"无法解析JSON响应: {content[:200]}...")
+        # 兜底：尝试用最大匹配提取最外层JSON对象/数组
+        try:
+            start_idx = content.find('{')
+            if start_idx != -1:
+                depth = 0
+                in_string = False
+                escape_next = False
+                end_idx = start_idx
+                for i in range(start_idx, len(content)):
+                    ch = content[i]
+                    if escape_next:
+                        escape_next = False
+                        continue
+                    if ch == '\\' and in_string:
+                        escape_next = True
+                        continue
+                    if ch == '"' and not escape_next:
+                        in_string = not in_string
+                        continue
+                    if in_string:
+                        continue
+                    if ch == '{':
+                        depth += 1
+                    elif ch == '}':
+                        depth -= 1
+                        if depth == 0:
+                            end_idx = i
+                            break
+                if depth == 0:
+                    json_str = content[start_idx:end_idx + 1]
+                    json_str = re.sub(r',\s*}', '}', json_str)
+                    json_str = re.sub(r',\s*]', ']', json_str)
+                    return json.loads(json_str)
+        except Exception as e:
+            logger.debug(f"兜底JSON提取失败: {e}")
+
+        logger.warning(f"无法解析JSON响应: {content[:500]}...")
         return None
 
     async def parse_single_screen(
@@ -137,14 +178,23 @@ class UISpecCoreMixin:
             return False, {}, "图片读取失败"
 
         logger.info(f"  准备调用 _parse_with_{self.parse_mode}_mode")
+        started_at = time.monotonic()
         if self.parse_mode == settings.PARSE_MODE_TEXT:
             logger.info("  调用 _parse_with_text_mode")
             result = await self._parse_with_text_mode(image_bytes, screen_name_hint)
+            logger.info(
+                f"[parse_single_screen] 完成 text 模式解析, "
+                f"latency_ms={int((time.monotonic() - started_at) * 1000)}, success={result[0]}"
+            )
             logger.info(f"  _parse_with_text_mode 返回: {result}")
             return result
         else:
             logger.info("  调用 _parse_with_vision_mode")
             result = await self._parse_with_vision_mode(image_bytes, screen_name_hint)
+            logger.info(
+                f"[parse_single_screen] 完成 vision 模式解析, "
+                f"latency_ms={int((time.monotonic() - started_at) * 1000)}, success={result[0]}"
+            )
             logger.info(f"  _parse_with_vision_mode 返回: {result}")
             return result
 

@@ -50,7 +50,8 @@ def _get_model_version(ai_client) -> str:
     for attr in ("model_name", "model", "_model"):
         val = getattr(ai_client, attr, None)
         if val is not None:
-            return str(val)
+            model_version = str(val)
+            return "unknown" if model_version == "mock-model" else model_version
     return "unknown"
 
 

@@ -41,7 +41,7 @@ class PaginationConfig(IntEnum):
 
 
 class SecurityConfig(IntEnum):
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 30
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES = 480
     JWT_REFRESH_TOKEN_EXPIRE_DAYS = 7
     MIN_PASSWORD_LENGTH = 6
     MAX_LOGIN_ATTEMPTS = 5

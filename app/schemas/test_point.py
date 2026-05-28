@@ -269,7 +269,7 @@ class TestPointBatchGenerateRequest(BaseModel):
     """测试点批量生成测试用例请求模型。"""
 
     project_id: int = Field(..., description="项目ID")
-    test_point_ids: List[int] = Field(..., min_length=1, description="测试点ID列表")
+    test_point_ids: List[int] = Field(default_factory=list, description="测试点ID列表；为空时按项目自动加载")
     case_type: Optional[str] = Field(None, description="用例类型，可选")
 
 

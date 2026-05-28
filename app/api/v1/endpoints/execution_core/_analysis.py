@@ -8,7 +8,7 @@ from app.models.test_case import TestCase, TestStep
 from app.models.test_result import TestResult
 from app.models.enums import LocatorStatus, ExecStatus
 from app.api.v1.endpoints.auth import get_current_user
-from app.services.execution_replay_service import get_execution_replay_service
+from app.services.execution_replay.legacy_service import get_execution_replay_service
 from app.core.exception import create_response
 from app.utils.db_time import utcnow
 from app.api.v1.endpoints.execution_core._helpers import (
@@ -173,6 +173,58 @@ def _perform_failure_analysis(result: TestResult, test_case: TestCase, db: Sessi
         "screenshot_url": result.screenshot_url,
         "analysis_time": utcnow().isoformat()
     }
+
+
+def _generate_bug_no(db: Session, project_id: int) -> str:
+    from app.models.bug import Bug
+
+    prefix = f"BUG-{project_id}-{utcnow().strftime('%Y%m%d')}-"
+    count = db.query(Bug).filter(Bug.project_id == project_id, Bug.bug_no.like(f"{prefix}%")).count()
+    return f"{prefix}{count + 1:04d}"
+
+
+def _auto_create_bug_for_self_test(
+    db: Session,
+    project,
+    result: TestResult,
+    test_case: TestCase,
+    analysis: dict,
+):
+    if not getattr(project, "is_self_test", False):
+        return None
+    if analysis.get("suggested_type") != "product_bug":
+        return None
+
+    from app.models.bug import Bug
+
+    confidence = float(analysis.get("confidence") or 0)
+    bug = Bug(
+        bug_no=_generate_bug_no(db, project.id),
+        project_id=project.id,
+        title=f"自测发现缺陷: {test_case.title}",
+        description=(
+            "AI分析结果\n"
+            f"建议类型: {analysis.get('suggested_type')}\n"
+            f"置信度: {confidence}\n"
+            f"原因: {analysis.get('reason')}\n"
+            f"错误信息: {result.error_msg or ''}\n"
+            f"AI分析: {result.ai_analysis or ''}"
+        ),
+        severity=2 if confidence >= 0.7 else 3,
+        priority=1 if confidence >= 0.7 else 2,
+        status="open",
+        source="self_test",
+        reporter_id=project.user_id,
+        test_case_id=test_case.id,
+        test_result_id=result.id,
+        reproduction_steps=f"执行日志: {result.exec_log or ''}\n错误信息: {result.error_msg or ''}",
+        expected_behavior=test_case.expected_result,
+        actual_behavior=result.error_msg or result.ai_analysis,
+    )
+    db.add(bug)
+    db.commit()
+    db.refresh(bug)
+    return bug
 
 
 @router.post("/quick-verify")
