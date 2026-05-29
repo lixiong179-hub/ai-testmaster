@@ -4,12 +4,18 @@ import { getNodeData, getMainNodesInOrder } from '@/composables/useFlowEditor'
 import {
   DEFAULT_LAYOUT_OPTIONS,
   COMPACT_OPTIONS,
+  SWIMLANE_OPTIONS,
   type LayoutOptions,
   type LayoutMode,
 } from './flow/flowLayoutTypes'
 
 export type { LayoutOptions, LayoutMode } from './flow/flowLayoutTypes'
-export { DEFAULT_LAYOUT_OPTIONS, COMPACT_OPTIONS, LAYOUT_MODE_LABELS } from './flow/flowLayoutTypes'
+export {
+  DEFAULT_LAYOUT_OPTIONS,
+  COMPACT_OPTIONS,
+  SWIMLANE_OPTIONS,
+  LAYOUT_MODE_LABELS,
+} from './flow/flowLayoutTypes'
 
 export const layeredAutoLayout = (
   nodes: FlowEditorNode[],
@@ -246,6 +252,144 @@ export const focusedPathAutoLayout = (
   })
 }
 
+export const swimlaneAutoLayout = (
+  nodes: FlowEditorNode[],
+  edges: Edge[],
+  options: Partial<LayoutOptions> = {}
+): FlowEditorNode[] => {
+  const opts = { ...DEFAULT_LAYOUT_OPTIONS, ...SWIMLANE_OPTIONS, ...options }
+  const mainNodes = getMainNodesInOrder(nodes, edges)
+  const nonMainNodes = nodes.filter((n) => getNodeData(n).flow_type !== 'main')
+  const positionMap = new Map<string, { x: number; y: number }>()
+
+  const targetToSourceMap = new Map<string, string>()
+  edges.forEach((e) => {
+    const edgeType = (e.data as { edge_type?: string })?.edge_type
+    const isSemantic = edgeType && ['branch', 'exception', 'bypass'].includes(edgeType)
+    if (!targetToSourceMap.has(e.target)) targetToSourceMap.set(e.target, e.source)
+    else if (isSemantic) {
+      const existingEdgeType = edges.find(
+        (pe) => pe.target === e.target && pe.source === targetToSourceMap.get(e.target)
+      )?.data?.edge_type
+      if (
+        !existingEdgeType ||
+        !['branch', 'exception', 'bypass'].includes(existingEdgeType as string)
+      )
+        targetToSourceMap.set(e.target, e.source)
+    }
+  })
+
+  const childrenBySource = new Map<string, FlowEditorNode[]>()
+  nonMainNodes.forEach((node) => {
+    const d = getNodeData(node)
+    const sourceId =
+      d.flow_meta?.parent_node_id ||
+      d.flow_meta?.parent_main_node_id ||
+      targetToSourceMap.get(node.id)
+    if (!sourceId) return
+    if (!childrenBySource.has(sourceId)) childrenBySource.set(sourceId, [])
+    childrenBySource.get(sourceId)!.push(node)
+  })
+
+  const rowGapY = opts.branchStartY + opts.branchGapY * 2 + opts.typeGapY
+
+  mainNodes.forEach((node, index) => {
+    const row = Math.floor(index / opts.maxMainPerRow)
+    const col = index % opts.maxMainPerRow
+    positionMap.set(node.id, {
+      x: col * opts.mainGapX,
+      y: row * rowGapY + opts.mainStartY,
+    })
+  })
+
+  const layoutChildren = (
+    sourceId: string,
+    sourcePos: { x: number; y: number },
+    visited: Set<string> = new Set()
+  ) => {
+    if (visited.has(sourceId)) return
+    visited.add(sourceId)
+    const children = childrenBySource.get(sourceId)
+    if (!children || children.length === 0) return
+
+    const branchChildren = children.filter((n) => getNodeData(n).flow_type === 'branch')
+    const exceptionChildren = children.filter(
+      (n) => getNodeData(n).flow_type === 'exception' || getNodeData(n).flow_type === 'bypass'
+    )
+
+    let currentY = sourcePos.y + opts.branchStartY
+    if (branchChildren.length > 0) {
+      const cols = Math.max(1, Math.ceil(branchChildren.length / opts.maxChildrenPerColumn))
+      branchChildren.forEach((child, idx) => {
+        const col = idx % cols
+        const row = Math.floor(idx / cols)
+        const childPos = {
+          x: sourcePos.x + col * opts.childrenHorizontalGap,
+          y: currentY + row * opts.branchGapY,
+        }
+        positionMap.set(child.id, childPos)
+        layoutChildren(child.id, childPos, visited)
+      })
+      currentY += Math.ceil(branchChildren.length / cols) * opts.branchGapY + opts.typeGapY
+    }
+
+    if (exceptionChildren.length > 0) {
+      const cols = Math.max(1, Math.ceil(exceptionChildren.length / opts.maxChildrenPerColumn))
+      const totalHeight = Math.ceil(exceptionChildren.length / cols) * opts.branchGapY
+      exceptionChildren.forEach((child, idx) => {
+        const col = idx % cols
+        const row = Math.floor(idx / cols)
+        const childPos = {
+          x: sourcePos.x + col * opts.childrenHorizontalGap,
+          y: sourcePos.y - totalHeight + row * opts.branchGapY,
+        }
+        positionMap.set(child.id, childPos)
+        layoutChildren(child.id, childPos, visited)
+      })
+    }
+  }
+
+  mainNodes.forEach((mainNode) => {
+    const mainPos = positionMap.get(mainNode.id)
+    if (mainPos) layoutChildren(mainNode.id, mainPos)
+  })
+
+  nonMainNodes.forEach((node) => {
+    if (positionMap.has(node.id)) return
+    const d = getNodeData(node)
+    const sourceId =
+      d.flow_meta?.parent_node_id ||
+      d.flow_meta?.parent_main_node_id ||
+      targetToSourceMap.get(node.id)
+    if (sourceId && positionMap.has(sourceId)) {
+      const sourcePos = positionMap.get(sourceId)!
+      positionMap.set(node.id, {
+        x: sourcePos.x + opts.nestedIndentX,
+        y: sourcePos.y + opts.branchStartY,
+      })
+    }
+  })
+
+  const maxMainX =
+    mainNodes.length > 0 ? (Math.min(mainNodes.length, opts.maxMainPerRow) - 1) * opts.mainGapX : 0
+  const maxRow = mainNodes.length > 0 ? Math.floor((mainNodes.length - 1) / opts.maxMainPerRow) : 0
+  const orphanStartX = maxMainX + opts.mainGapX * 2
+  const orphanStartY = maxRow * rowGapY
+  let orphanY = orphanStartY
+  nonMainNodes.forEach((node) => {
+    if (!positionMap.has(node.id)) {
+      positionMap.set(node.id, { x: orphanStartX, y: orphanY })
+      orphanY += 200
+    }
+  })
+
+  return nodes.map((node) => {
+    const pos = positionMap.get(node.id)
+    if (!pos) return node
+    return { ...node, position: pos }
+  })
+}
+
 export const autoLayoutByMode = (
   mode: LayoutMode,
   nodes: FlowEditorNode[],
@@ -260,6 +404,8 @@ export const autoLayoutByMode = (
       return typeLayeredAutoLayout(nodes, edges, options)
     case 'focused-path':
       return focusedPathAutoLayout(nodes, edges, focusedNodeId ?? null, options)
+    case 'swimlane':
+      return swimlaneAutoLayout(nodes, edges, options)
     case 'standard':
     default:
       return layeredAutoLayout(nodes, edges, options)
@@ -271,5 +417,6 @@ export const useFlowLayout = () => ({
   compactAutoLayout,
   typeLayeredAutoLayout,
   focusedPathAutoLayout,
+  swimlaneAutoLayout,
   autoLayoutByMode,
 })
