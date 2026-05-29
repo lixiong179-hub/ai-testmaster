@@ -25,41 +25,28 @@
             ><el-icon :size="14"><ZoomIn /></el-icon
           ></el-button>
         </el-tooltip>
-        <el-tooltip content="设为主干" placement="top" v-if="data.flow_type !== 'main'">
-          <el-button
-            size="small"
-            circle
-            class="hover-action-btn hover-action-main"
-            @click.stop="handleFlowTypeChange('main')"
-            ><el-icon :size="14"><Guide /></el-icon
-          ></el-button>
-        </el-tooltip>
-        <el-tooltip content="设为分支" placement="top" v-if="data.flow_type !== 'branch'">
-          <el-button
-            size="small"
-            circle
-            class="hover-action-btn hover-action-branch"
-            @click.stop="handleFlowTypeChange('branch')"
-            ><el-icon :size="14"><Connection /></el-icon
-          ></el-button>
-        </el-tooltip>
-        <el-tooltip content="设为异常" placement="top" v-if="data.flow_type !== 'exception'">
-          <el-button
-            size="small"
-            circle
-            class="hover-action-btn hover-action-exception"
-            @click.stop="handleFlowTypeChange('exception')"
-            ><el-icon :size="14"><Warning /></el-icon
-          ></el-button>
-        </el-tooltip>
-        <el-tooltip content="设为旁路" placement="top" v-if="data.flow_type !== 'bypass'">
-          <el-button
-            size="small"
-            circle
-            class="hover-action-btn hover-action-bypass"
-            @click.stop="handleFlowTypeChange('bypass')"
-            ><el-icon :size="14"><More /></el-icon
-          ></el-button>
+        <el-tooltip content="快速改类型" placement="top">
+          <el-dropdown trigger="click" @command="handleFlowTypeChange">
+            <el-button size="small" circle class="hover-action-btn"
+              ><el-icon :size="14"><Switch /></el-icon
+            ></el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="main"
+                  ><el-icon><Guide /></el-icon>主干流程</el-dropdown-item
+                >
+                <el-dropdown-item command="branch"
+                  ><el-icon><Connection /></el-icon>分支流程</el-dropdown-item
+                >
+                <el-dropdown-item command="exception"
+                  ><el-icon><Warning /></el-icon>异常流程</el-dropdown-item
+                >
+                <el-dropdown-item command="bypass"
+                  ><el-icon><More /></el-icon>弹窗/浮层</el-dropdown-item
+                >
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </el-tooltip>
       </div>
     </transition>
@@ -69,16 +56,14 @@
         :disabled="displayMode === 'overview'"
         @command="handleFlowTypeChange"
       >
-        <el-tag
-          :type="flowTypeTagType"
-          size="small"
-          effect="dark"
+        <button
+          type="button"
           class="flow-type-tag"
-          :class="{ 'tag-animated': isHovered }"
+          :class="[`flow-type-tag--${data.flow_type}`, { 'tag-animated': isHovered }]"
+          :disabled="displayMode === 'overview'"
         >
-          <el-icon v-if="flowTypeIcon" class="tag-icon"><component :is="flowTypeIcon" /></el-icon>
           {{ flowTypeLabel }}
-        </el-tag>
+        </button>
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="main"
@@ -91,7 +76,7 @@
               ><el-icon><Warning /></el-icon>异常流程</el-dropdown-item
             >
             <el-dropdown-item command="bypass"
-              ><el-icon><More /></el-icon>旁路流程</el-dropdown-item
+              ><el-icon><More /></el-icon>弹窗/浮层</el-dropdown-item
             >
           </el-dropdown-menu>
         </template>
@@ -138,6 +123,9 @@
           <el-icon :size="28"><Picture /></el-icon
           ><span class="placeholder-text">{{ imageLoadError ? '加载失败' : '暂无图片' }}</span>
         </div>
+        <span v-if="data.flow_type === 'main' && data.main_order" class="main-order-badge">{{
+          data.main_order
+        }}</span>
       </div>
       <div class="node-footer node-footer--overview">
         <div class="screen-name screen-name--overview" :title="data.screen_name">
@@ -171,9 +159,6 @@
       </div>
       <div class="node-footer">
         <div class="screen-name" :title="data.screen_name">{{ data.screen_name }}</div>
-        <el-tooltip v-if="data.summary" :content="data.summary" placement="top" :show-after="500"
-          ><div class="screen-summary">{{ data.summary }}</div></el-tooltip
-        >
       </div>
     </template>
     <Handle type="source" :position="Position.Top" id="source-top" />
@@ -201,25 +186,26 @@ import {
   Loading,
   ArrowRight,
   ArrowDown,
+  Switch,
 } from '@element-plus/icons-vue'
-import type { TagType } from '@/types/element-plus'
 
 interface FlowNodeCardData {
   screen_id: number
   screen_name: string
   summary?: string
   flow_type: 'main' | 'branch' | 'exception' | 'bypass'
+  main_order?: number
   image_url?: string
   element_count?: number
 }
 
 type DisplayMode = 'overview' | 'edit'
 
-const flowTypeConfig: Record<string, { label: string; icon: typeof Guide; color: string }> = {
-  main: { label: '主干', icon: Guide, color: '#409eff' },
-  branch: { label: '分支', icon: Connection, color: '#67c23a' },
-  exception: { label: '异常', icon: Warning, color: '#f56c6c' },
-  bypass: { label: '旁路', icon: More, color: '#e6a23c' },
+const flowTypeConfig: Record<string, { label: string }> = {
+  main: { label: '主干' },
+  branch: { label: '分支' },
+  exception: { label: '异常' },
+  bypass: { label: '弹窗' },
 }
 
 const props = defineProps<{
@@ -269,16 +255,6 @@ const handleImageError = () => {
   imageLoadError.value = true
 }
 const flowTypeLabel = computed(() => flowTypeConfig[props.data.flow_type]?.label || '主干')
-const flowTypeIcon = computed(() => flowTypeConfig[props.data.flow_type]?.icon || Guide)
-const flowTypeTagType = computed(() => {
-  const types: Record<string, TagType> = {
-    main: 'primary',
-    branch: 'success',
-    exception: 'danger',
-    bypass: 'warning',
-  }
-  return types[props.data.flow_type] || 'primary'
-})
 const handleFlowTypeChange = (type: string) => {
   emit('update:flow-type', type)
 }
