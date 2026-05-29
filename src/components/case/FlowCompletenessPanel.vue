@@ -42,7 +42,7 @@
           </div>
           <div class="stat-item stat-bypass">
             <span class="stat-dot"></span>
-            <span class="stat-name">旁路</span>
+            <span class="stat-name">弹窗</span>
             <span class="stat-count">{{ stats.bypassNodes }}</span>
           </div>
         </div>
@@ -69,7 +69,7 @@
           </div>
           <div class="stat-item stat-bypass">
             <span class="stat-dot"></span>
-            <span class="stat-name">旁路</span>
+            <span class="stat-name">弹窗</span>
             <span class="stat-count">{{ stats.bypassEdges }}</span>
           </div>
         </div>

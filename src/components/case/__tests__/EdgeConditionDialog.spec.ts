@@ -230,7 +230,7 @@ describe('EdgeConditionDialog', () => {
     const testCases = [
       { type: 'branch' as const, expectedPlaceholder: '例如：用户点击高级筛选按钮' },
       { type: 'exception' as const, expectedPlaceholder: '例如：输入非法字符或接口超时' },
-      { type: 'bypass' as const, expectedPlaceholder: '例如：进入页面自动弹出' },
+      { type: 'bypass' as const, expectedPlaceholder: '例如：进入页面自动弹出公告或引导' },
     ]
 
     for (const testCase of testCases) {

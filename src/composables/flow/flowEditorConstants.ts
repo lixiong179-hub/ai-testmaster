@@ -9,10 +9,10 @@ export const EDGE_STYLES: Record<string, EdgeStyleConfig> = {
 }
 
 export const OVERVIEW_EDGE_STYLES: Record<string, EdgeStyleConfig> = {
-  normal: { stroke: '#b8c2cc', strokeWidth: 1.2 },
-  branch: { stroke: '#95d475', strokeWidth: 1.2 },
-  exception: { stroke: '#f3a6a6', strokeWidth: 1.2, strokeDasharray: '5 5' },
-  bypass: { stroke: '#eebe77', strokeWidth: 1.2, strokeDasharray: '3 3' },
+  normal: { stroke: '#c8cdd5', strokeWidth: 1 },
+  branch: { stroke: '#a4d48d', strokeWidth: 1 },
+  exception: { stroke: '#f0b8b8', strokeWidth: 1, strokeDasharray: '5 5' },
+  bypass: { stroke: '#ebd3a0', strokeWidth: 1, strokeDasharray: '3 3' },
 }
 
 export const FLOW_TYPE_TAG_MAP: Record<string, TagType> = {
@@ -26,7 +26,7 @@ export const FLOW_TYPE_LABEL_MAP: Record<string, string> = {
   main: '主干',
   branch: '分支',
   exception: '异常',
-  bypass: '旁路',
+  bypass: '弹窗',
 }
 
 export const AUTO_CONNECT_DISTANCE = 350

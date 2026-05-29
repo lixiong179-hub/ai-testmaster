@@ -11,7 +11,7 @@ export interface FlowStats {
   branchNodes: number
   /** 异常路径节点数 */
   exceptionNodes: number
-  /** 旁路节点数 */
+  /** 弹窗/浮层节点数 */
   bypassNodes: number
   /** 连线总数 */
   totalEdges: number
@@ -21,11 +21,11 @@ export interface FlowStats {
   branchEdges: number
   /** 异常连线数 */
   exceptionEdges: number
-  /** 旁路连线数 */
+  /** 弹窗/浮层连线数 */
   bypassEdges: number
   /** 未连线节点数（孤立节点） */
   orphanNodes: number
-  /** 缺条件连线数（分支/异常/旁路连线缺少 condition） */
+  /** 缺条件连线数（分支/异常/弹窗连线缺少 condition） */
   missingConditionEdges: number
   /** 完整度评分 0-100 */
   completenessScore: number
@@ -63,7 +63,7 @@ export function computeFlowStats(nodes: FlowEditorNode[], edges: FlowGraphEdge[]
   }
   const orphanCount = nodes.filter((n) => !connectedNodeIds.has(n.id)).length
 
-  // 计算缺条件连线：分支/异常/旁路连线缺少 condition
+  // 计算缺条件连线：分支/异常/弹窗连线缺少 condition
   let missingConditionCount = 0
   for (const edge of edges) {
     const et = (edge.data?.edge_type as EdgeType) || 'normal'
@@ -123,7 +123,7 @@ export function deriveStatsIssues(stats: FlowStats): FlowStatsIssue[] {
   if (stats.missingConditionEdges > 0) {
     issues.push({
       type: 'warning',
-      message: `${stats.missingConditionEdges} 条分支/异常/旁路连线缺少触发条件`,
+      message: `${stats.missingConditionEdges} 条分支/异常/弹窗连线缺少触发条件`,
     })
   }
 

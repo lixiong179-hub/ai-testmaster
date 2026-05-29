@@ -32,7 +32,7 @@
             <span class="stat-value">{{ previewData.exception_count }}</span>
           </div>
           <div class="stat-item stat-bypass">
-            <span class="stat-label">旁路</span>
+            <span class="stat-label">弹窗</span>
             <span class="stat-value">{{ previewData.bypass_count }}</span>
           </div>
         </div>
