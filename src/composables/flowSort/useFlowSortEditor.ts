@@ -78,6 +78,10 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
   const showPromptPreview = ref(false)
   const showEdgeSuggestion = ref(false)
   const showCompletenessPanel = ref(false)
+  const showDetailPanel = ref(false)
+  const detailPanelNodeId = ref<string | null>(null)
+  const showMainStepList = ref(false)
+  const flowFilter = ref<'all' | 'main' | 'branch' | 'exception' | 'bypass'>('all')
 
   const { emitSortData, getFlowSortSubmitData, getFlowValidationIssues } = useFlowSortData({
     vueFlowNodes,
@@ -120,8 +124,8 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     applyAllEdgeStyles,
     getEdgeStyle,
     defaultEdgeOptions,
-    handleNodeClick,
-    handlePaneClick,
+    handleNodeClick: _handleNodeClick,
+    handlePaneClick: _handlePaneClick,
   } = useFlowPathHighlight({
     vueFlowNodes,
     vueFlowEdges: vueFlowEdges as Ref<FlowGraphEdge[]>,
@@ -129,6 +133,18 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     isOverviewMode,
     collapsedParentNodeIds,
   })
+
+  const handleNodeClick = (event: { node: Node }) => {
+    _handleNodeClick(event)
+    detailPanelNodeId.value = event.node.id
+    showDetailPanel.value = true
+  }
+
+  const handlePaneClick = () => {
+    _handlePaneClick()
+    showDetailPanel.value = false
+    detailPanelNodeId.value = null
+  }
 
   const {
     edgeTooltipVisible,
@@ -311,6 +327,23 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     return n !== undefined && getNodeData(n).flow_type === 'main'
   })
 
+  const detailPanelNodeData = computed(() => {
+    if (!detailPanelNodeId.value) return null
+    const node = vueFlowNodes.value.find((n) => n.id === detailPanelNodeId.value)
+    if (!node) return null
+    const d = getNodeData(node)
+    return {
+      id: node.id,
+      screen_id: d.screen_id,
+      screen_name: d.screen_name,
+      summary: d.summary,
+      flow_type: d.flow_type,
+      main_order: d.main_order,
+      image_url: d.image_url,
+      element_count: d.element_count,
+    }
+  })
+
   function applyCollapsedHidden() {
     const hiddenNodeIds = new Set<string>()
     collapsedParentNodeIds.value.forEach((pid) => {
@@ -409,6 +442,89 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
         screen_name: data.screen_name,
         image_url: data.image_url,
       })
+  }
+
+  const handleDetailFlowTypeChange = (type: string) => {
+    if (detailPanelNodeId.value) {
+      handleFlowTypeChange(detailPanelNodeId.value, type)
+    }
+  }
+
+  const handleDetailLocateNode = (nodeId: string) => {
+    const node = vueFlowNodes.value.find((n) => n.id === nodeId)
+    if (node) {
+      focusedNodeId.value = nodeId
+      selectedNodes.value = [nodeId]
+      detailPanelNodeId.value = nodeId
+      setCenter(node.position.x, node.position.y, { zoom: currentZoom.value, duration: 300 })
+    }
+  }
+
+  const handleDetailPreview = () => {
+    if (detailPanelNodeData.value) {
+      handleNodePreview(detailPanelNodeData.value)
+    }
+  }
+
+  const handleMainStepReorder = (orderedIds: string[]) => {
+    saveSnapshot()
+    const orderMap = new Map<string, number>()
+    orderedIds.forEach((id, index) => orderMap.set(id, index + 1))
+    vueFlowNodes.value = vueFlowNodes.value.map((node) => {
+      const newOrder = orderMap.get(node.id)
+      if (newOrder !== undefined) {
+        return {
+          ...node,
+          data: { ...getNodeData(node), main_order: newOrder },
+        }
+      }
+      return node
+    })
+    emitSortData()
+  }
+
+  const handleMainStepLocateNode = (nodeId: string) => {
+    const node = vueFlowNodes.value.find((n) => n.id === nodeId)
+    if (node) {
+      focusedNodeId.value = nodeId
+      selectedNodes.value = [nodeId]
+      detailPanelNodeId.value = nodeId
+      showDetailPanel.value = true
+      setCenter(node.position.x, node.position.y, { zoom: currentZoom.value, duration: 300 })
+    }
+  }
+
+  const applyFlowFilter = () => {
+    const filter = flowFilter.value
+    if (filter === 'all') {
+      vueFlowNodes.value = vueFlowNodes.value.map((node) => ({ ...node, hidden: false }))
+      vueFlowEdges.value = vueFlowEdges.value.map((edge: any) => ({ ...edge, hidden: false }))
+      applyCollapsedHidden()
+      return
+    }
+    const visibleNodeIds = new Set<string>()
+    vueFlowNodes.value.forEach((node) => {
+      const d = getNodeData(node)
+      const isVisible =
+        filter === 'main'
+          ? d.flow_type === 'main'
+          : filter === 'branch'
+            ? d.flow_type === 'branch' || d.flow_type === 'main'
+            : filter === 'exception'
+              ? d.flow_type === 'exception' || d.flow_type === 'main'
+              : filter === 'bypass'
+                ? d.flow_type === 'bypass' || d.flow_type === 'main'
+                : true
+      if (isVisible) visibleNodeIds.add(node.id)
+    })
+    vueFlowNodes.value = vueFlowNodes.value.map((node) => ({
+      ...node,
+      hidden: !visibleNodeIds.has(node.id),
+    }))
+    vueFlowEdges.value = vueFlowEdges.value.map((edge: any) => ({
+      ...edge,
+      hidden: !visibleNodeIds.has(edge.source) || !visibleNodeIds.has(edge.target),
+    }))
   }
 
   const onNodeDragStart = (event: { node?: Node }) => {
@@ -531,6 +647,11 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     showPromptPreview,
     showEdgeSuggestion,
     showCompletenessPanel,
+    showDetailPanel,
+    detailPanelNodeId,
+    detailPanelNodeData,
+    showMainStepList,
+    flowFilter,
     isOverviewMode,
     canUndo,
     saveSnapshot,
@@ -613,6 +734,12 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     handleToggleCollapse,
     handlePreviewPrompt,
     handleNodePreview,
+    handleDetailFlowTypeChange,
+    handleDetailLocateNode,
+    handleDetailPreview,
+    handleMainStepReorder,
+    handleMainStepLocateNode,
+    applyFlowFilter,
     onNodeDragStart,
     onNodeDragStop,
     handleKeyDown,
