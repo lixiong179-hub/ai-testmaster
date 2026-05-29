@@ -136,13 +136,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { ElIcon } from 'element-plus'
-import {
-  Close,
-  Picture,
-  View,
-  Grid,
-  Loading,
-} from '@element-plus/icons-vue'
+import { Close, Picture, View, Grid, Loading } from '@element-plus/icons-vue'
 import type { TagType } from '@/types/element-plus'
 import { useFlowSortEditor } from '@/composables/flowSort/useFlowSortEditor'
 import type { FlowEditorNode, FlowGraphEdge } from '@/composables/useFlowEditor'
