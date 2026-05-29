@@ -28,6 +28,14 @@
         </div>
       </div>
       <div v-else class="graph-mode">
+        <MainStepList
+          v-if="ctx.displayMode.value === 'edit'"
+          :visible="ctx.showMainStepList.value"
+          :active-node-id="ctx.detailPanelNodeId.value"
+          @update:visible="ctx.showMainStepList.value = $event"
+          @locate-node="ctx.handleMainStepLocateNode"
+          @reorder="ctx.handleMainStepReorder"
+        />
         <VueFlow
           v-model:nodes="ctx.vueFlowNodes.value"
           v-model:edges="ctx.vueFlowEdges.value"
@@ -109,6 +117,15 @@
             />
           </template>
         </VueFlow>
+        <NodeDetailPanel
+          :visible="ctx.showDetailPanel.value"
+          :node-data="ctx.detailPanelNodeData.value"
+          :display-mode="ctx.displayMode.value"
+          @update:visible="ctx.showDetailPanel.value = $event"
+          @flow-type-change="ctx.handleDetailFlowTypeChange"
+          @locate-node="ctx.handleDetailLocateNode"
+          @preview="ctx.handleDetailPreview"
+        />
       </div>
 
       <FlowCompletenessPanel
@@ -117,6 +134,27 @@
         :stats="flowStats"
         :issues="flowStatsIssues"
       />
+
+      <transition name="tip-fade">
+        <div
+          v-if="
+            ctx.flowSortStore.quickMode === false &&
+            flowStatsIssues.length > 0 &&
+            ctx.displayMode.value === 'edit'
+          "
+          class="flow-issues-bar"
+        >
+          <el-icon :size="14" color="#e6a23c"><Warning /></el-icon>
+          <span class="issues-text">{{ flowStatsIssues.length }} 个流程问题</span>
+          <el-button
+            size="small"
+            type="warning"
+            text
+            @click="ctx.showCompletenessPanel.value = true"
+            >查看详情</el-button
+          >
+        </div>
+      </transition>
     </div>
 
     <FlowSortEdgeTooltip v-if="ctx.flowSortStore.quickMode === false" />
@@ -163,6 +201,7 @@
 import { computed } from 'vue'
 import { VueFlow } from '@vue-flow/core'
 import { Background, Controls, MiniMap } from '@vue-flow/additional-components'
+import { Warning } from '@element-plus/icons-vue'
 import FlowNodeCard from './FlowNodeCard.vue'
 import EdgeConditionDialog from './EdgeConditionDialog.vue'
 import FlowTypeConfigDialog from './FlowTypeConfigDialog.vue'
@@ -174,6 +213,8 @@ import { provideFlowSortEditor } from '@/composables/flowSort/useFlowSortEditor'
 import { useFlowSortEditorSync } from '@/composables/flowSort/useFlowSortEditorSync'
 import FlowSortToolbar from './components/FlowSortToolbar.vue'
 import FlowSortEdgeTooltip from './components/FlowSortEdgeTooltip.vue'
+import NodeDetailPanel from './components/NodeDetailPanel.vue'
+import MainStepList from './components/MainStepList.vue'
 import { computeFlowStats, deriveStatsIssues } from '@/composables/useFlowStats'
 import type { UIScreen } from '@/api/uiPrototype'
 
