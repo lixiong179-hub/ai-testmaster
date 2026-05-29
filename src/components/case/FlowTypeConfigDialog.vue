@@ -19,7 +19,7 @@
               :value="option.id"
             />
           </el-option-group>
-          <el-option-group v-if="branchParentOptions.length > 0" label="分支/异常/旁路节点">
+          <el-option-group v-if="branchParentOptions.length > 0" label="分支/异常/弹窗节点">
             <el-option
               v-for="option in branchParentOptions"
               :key="option.id"
@@ -57,12 +57,12 @@
         />
       </el-form-item>
 
-      <el-form-item v-if="showBypassReason" label="跳过原因">
+      <el-form-item v-if="showBypassReason" label="出现原因">
         <el-input
           v-model="formData.bypass_reason"
           type="textarea"
           :rows="2"
-          placeholder="例如：已存在有效登录态，直接进入首页"
+          placeholder="例如：首次进入页面自动弹出新手引导"
         />
       </el-form-item>
 
@@ -146,7 +146,7 @@ const dialogTitle = computed(() => {
   const titleMap: Record<NonMainFlowType, string> = {
     branch: '配置分支流程',
     exception: '配置异常流程',
-    bypass: '配置旁路流程',
+    bypass: '配置弹窗/浮层',
   }
   return titleMap[props.flowType]
 })
@@ -155,7 +155,7 @@ const typeLabel = computed(() => {
   const labelMap: Record<NonMainFlowType, string> = {
     branch: '分支流程',
     exception: '异常流程',
-    bypass: '旁路流程',
+    bypass: '弹窗/浮层',
   }
   return labelMap[props.flowType]
 })
@@ -182,7 +182,7 @@ const conditionPlaceholder = computed(() => {
   const placeholderMap: Record<NonMainFlowType, string> = {
     branch: '例如：用户点击“更多筛选”按钮后进入高级筛选页',
     exception: '例如：提交时接口超时、鉴权失效、参数校验失败',
-    bypass: '例如：进入页面后自动命中快捷入口，跳过中间步骤',
+    bypass: '例如：进入页面后自动弹出公告或新手引导',
   }
   return placeholderMap[props.flowType]
 })
@@ -191,7 +191,7 @@ const expectedResultPlaceholder = computed(() => {
   const placeholderMap: Record<NonMainFlowType, string> = {
     branch: '例如：展示高级筛选结果',
     exception: '例如：提示提交失败并允许重试',
-    bypass: '例如：直接进入目标页并保留原上下文',
+    bypass: '例如：关闭弹窗后回到当前主流程页面',
   }
   return placeholderMap[props.flowType]
 })
@@ -237,7 +237,7 @@ const flowTypeTag = (type: NonMainFlowType | 'main'): string => {
     main: '[主干]',
     branch: '[分支]',
     exception: '[异常]',
-    bypass: '[旁路]',
+    bypass: '[弹窗]',
   }
   return map[type] || ''
 }

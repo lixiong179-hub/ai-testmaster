@@ -55,7 +55,7 @@ export function useFlowGroupBackground(
 
   const showGroupBackground = ref(true)
 
-  /** 分支子节点映射：主干节点 ID → 其分支/异常/旁路子节点列表 */
+  /** 分支子节点映射：主干节点 ID → 其分支/异常/弹窗子节点列表 */
   const branchChildrenMap = computed(() => {
     const map = new Map<string, Array<{ node: FlowEditorNode; edge: FlowGraphEdge }>>()
     const nodes = vueFlowNodes.value

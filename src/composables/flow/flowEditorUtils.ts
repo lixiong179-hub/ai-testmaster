@@ -178,7 +178,7 @@ export const validateFlowData = (
       const labelMap: Record<string, string> = {
         branch: '分支触发条件',
         exception: '异常场景',
-        bypass: '旁路出现时机',
+        bypass: '弹窗出现时机',
       }
       warnings.push(`${edge.label} 缺少${labelMap[edge.edge_type] || '说明'}，系统将自动推断`)
     }

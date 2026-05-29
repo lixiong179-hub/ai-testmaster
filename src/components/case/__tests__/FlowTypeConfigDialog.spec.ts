@@ -223,7 +223,7 @@ describe('FlowTypeConfigDialog', () => {
 
     expect(labels.some((l) => l.includes('挂靠节点'))).toBe(true)
     expect(labels.some((l) => l.includes('出现时机'))).toBe(true)
-    expect(labels).toContain('跳过原因')
+    expect(labels).toContain('出现原因')
     expect(labels).toContain('补充说明')
   })
 
@@ -305,7 +305,7 @@ describe('FlowTypeConfigDialog', () => {
     const groups = wrapper.findAll('optgroup')
     expect(groups.length).toBe(2)
     expect(groups[0].attributes('label')).toBe('主干节点')
-    expect(groups[1].attributes('label')).toBe('分支/异常/旁路节点')
+    expect(groups[1].attributes('label')).toBe('分支/异常/弹窗节点')
   })
 
   it('should exclude descendant nodes from branch options', () => {

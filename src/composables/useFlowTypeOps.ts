@@ -177,7 +177,7 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
         type: 'default',
         animated: true,
         style,
-        label: `${type === 'branch' ? '分支' : type === 'exception' ? '异常' : '旁路'}：${meta.trigger_condition || ''}`,
+        label: `${type === 'branch' ? '分支' : type === 'exception' ? '异常' : '弹窗'}：${meta.trigger_condition || ''}`,
         data: {
           edge_type: type,
           condition: meta.trigger_condition,

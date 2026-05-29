@@ -6,7 +6,7 @@
           <el-option label="正常流转" value="normal" />
           <el-option label="条件分支" value="branch" />
           <el-option label="异常跳转" value="exception" />
-          <el-option label="旁路步骤" value="bypass" />
+          <el-option label="弹窗/浮层" value="bypass" />
         </el-select>
       </el-form-item>
 
@@ -101,7 +101,7 @@ const conditionPlaceholder = computed(() => {
   const placeholders: Record<string, string> = {
     branch: '例如：用户点击高级筛选按钮',
     exception: '例如：输入非法字符或接口超时',
-    bypass: '例如：进入页面自动弹出',
+    bypass: '例如：进入页面自动弹出公告或引导',
   }
   return placeholders[formData.value.edge_type] || ''
 })
@@ -147,7 +147,7 @@ const handleConfirm = () => {
     normal: '正常流转',
     branch: '条件分支',
     exception: '异常跳转',
-    bypass: '旁路步骤',
+    bypass: '弹窗/浮层',
   }
 
   emit('confirm', {
