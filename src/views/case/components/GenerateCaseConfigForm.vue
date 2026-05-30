@@ -49,6 +49,18 @@
               <template #title>{{ warning }}</template>
             </el-alert>
           </div>
+          <ContextHealthPanel
+            v-if="store.contextStats"
+            :context-stats="store.contextStats"
+            :warnings="store.serverWarnings"
+            :evidence-refs="store.evidenceRefs"
+          />
+          <EvidenceRefsPanel
+            v-if="store.evidenceRefs"
+            :context-stats="store.contextStats"
+            :warnings="store.serverWarnings"
+            :evidence-refs="store.evidenceRefs"
+          />
           <div class="scope-stats">
             <el-statistic title="已选测试点" :value="store.formData.test_point_ids.length" />
             <el-statistic
@@ -88,7 +100,7 @@
             v-model="store.formData.case_type"
             placeholder="请选择用例类型（不选择则由AI智能判断）"
             style="width: 180px"
-            @change="store.handleCaseTypeChange"
+            @change="handleCaseTypeSelect"
           >
             <el-option label="UI自动化" value="ui_automation" />
             <el-option label="手工测试" value="manual" />
@@ -185,11 +197,59 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { MagicStick, InfoFilled } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 import { useGenerateStore } from '@/store/useGenerateStore'
+import ContextHealthPanel from './ContextHealthPanel.vue'
+import EvidenceRefsPanel from './EvidenceRefsPanel.vue'
+import type { Project } from '@/api/project'
+
+/** 需要UI原型图的项目类型 */
+const UI_PROJECT_TYPES = new Set(['web', 'app'])
 
 defineEmits<{ prev: []; generate: [] }>()
 const store = useGenerateStore()
+
+/** 当前选中的项目对象 */
+const currentProject = computed<Project | null>(() => {
+  if (!store.formData.project_id) return null
+  return store.projects.find((p) => p.id === store.formData.project_id) ?? null
+})
+
+/** 项目是否为需要UI原型图的类型（web/app） */
+const isUiProjectType = computed<boolean>(() => {
+  if (!currentProject.value) return false
+  return UI_PROJECT_TYPES.has(currentProject.value.project_type)
+})
+
+/** 项目是否缺少UI原型图 */
+const missingUiPrototype = computed<boolean>(() => {
+  return isUiProjectType.value && store.uiPrototypeProjects.length === 0
+})
+
+/** 用例类型选择处理：选择 ui_automation 且缺少UI原型图时弹出确认 */
+const handleCaseTypeSelect = async (val: string) => {
+  store.handleCaseTypeChange(val)
+  if (val === 'ui_automation' && missingUiPrototype.value) {
+    try {
+      await ElMessageBox.confirm(
+        '当前项目未上传UI原型图，将降级为手工用例模式生成，UI步骤标记为【待确认UI】。',
+        '缺少UI原型图',
+        {
+          confirmButtonText: '确认降级为手工用例',
+          cancelButtonText: '取消选择',
+          type: 'warning',
+        }
+      )
+      store.formData.case_type = 'manual'
+      store.formData.exec_mode = 'all'
+    } catch {
+      store.formData.case_type = 'manual'
+      store.formData.exec_mode = 'all'
+    }
+  }
+}
 </script>
 
 <style scoped>

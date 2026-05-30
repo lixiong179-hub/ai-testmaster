@@ -633,7 +633,7 @@ class TestFactoryFunctions:
 
     def test_create_vision_model_invalid(self):
         model = create_vision_model("invalid_model")
-        assert model.model_type == VisionModelType.MIMO
+        assert model.model_type == VisionModelType.QWEN
 
     def test_get_default_vision_model(self):
         model = get_default_vision_model()

@@ -47,8 +47,7 @@ class TestCaseGenerationBatchMixin:
         Yields:
             生成进度和结果
         """
-        yield {"progress": 5, "message": "获取上下文信息", "status": "running"}
-
+        # 先获取上下文，提取context_stats和warnings用于首帧推送
         context = await self.get_context_for_generation(
             project_id=project_id,
             user_id=user_id,
@@ -60,10 +59,24 @@ class TestCaseGenerationBatchMixin:
             test_point_page_size=test_point_page_size
         )
 
+        if hasattr(self, 'enrich_context_with_trust_and_scoring'):
+            self.enrich_context_with_trust_and_scoring(context, project_id)
+
+        context_stats = context.get("context_stats", {})
         warnings = context.get("warnings", [])
+        evidence_refs = context.get("evidence_refs", {})
+
+        yield {"progress": 5, "message": "获取上下文信息", "status": "running", "context_stats": context_stats, "warnings": warnings, "evidence_refs": evidence_refs}
+
         if warnings:
             for warning in warnings[:3]:
-                yield {"progress": 5, "message": warning, "status": "warning"}
+                if isinstance(warning, dict):
+                    msg_text = str(warning.get("message", ""))
+                    warning_detail = warning
+                else:
+                    msg_text = str(warning)
+                    warning_detail = {"message": str(warning), "code": "UNKNOWN"}
+                yield {"progress": 5, "message": msg_text, "status": "warning", "warning_detail": warning_detail}
 
         test_points = context.get("test_points", [])
         total = len(test_points)

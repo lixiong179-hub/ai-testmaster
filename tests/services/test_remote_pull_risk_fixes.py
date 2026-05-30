@@ -169,6 +169,36 @@ def test_generation_quality_gate_rejects_referenced_step() -> None:
     assert any("引用其他步骤或用例" in issue for issue in issues)
 
 
+def test_generation_quality_gate_accepts_ui_elements_in_context() -> None:
+    case = _valid_generated_case("账号已登录，设备网络正常，已配置可用教材和单词数据")
+    case["steps"][0]["target_element"] = "AI单词听写入口"
+    case["steps"][1]["target_element"] = "开始按钮"
+    ui_specs = [{
+        "screen_name": "AI听写首页",
+        "ui_spec": {
+            "elements": [
+                {"type": "button", "label": "AI单词听写入口"},
+                {"type": "button", "text": "开始"},
+            ]
+        },
+    }]
+
+    assert GenerationService._quality_gate_issues(case, 100.0, ui_specs=ui_specs) == []
+
+
+def test_generation_quality_gate_rejects_ui_element_missing_from_context() -> None:
+    case = _valid_generated_case("账号已登录，设备网络正常，已配置可用教材和单词数据")
+    case["steps"][0]["target_element"] = "不存在按钮"
+    ui_specs = [{
+        "screen_name": "AI听写首页",
+        "ui_spec": {"elements": [{"type": "button", "label": "AI单词听写入口"}]},
+    }]
+
+    issues = GenerationService._quality_gate_issues(case, 100.0, ui_specs=ui_specs)
+
+    assert any("UI元素命中率" in issue and "不存在按钮" in issue for issue in issues)
+
+
 def test_generation_promotes_core_risk_case_to_p1() -> None:
     generated_case = {
         "title": "正向-屏幕听写提交批改后进入听写结果页",

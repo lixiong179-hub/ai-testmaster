@@ -41,7 +41,7 @@ class TestCaseVersion(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 版本主键ID
     test_case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联用例ID")  # 用例ID，级联删除
     version_number = Column(Integer, nullable=False, comment="版本号，从1开始递增")                     # 版本号，每次变更递增
-    change_type = Column(String(30), nullable=True, comment="修改类型：create/update/delete/restore/correction")  # create=创建，update=更新，delete=删除，restore=恢复，correction=AI纠正
+    change_type = Column(String(30), nullable=True, comment="修改类型：create/update/delete/restore/correction/human_edit")  # create=创建，update=更新，delete=删除，restore=恢复，correction=AI纠正，human_edit=人工修改
     change_description = Column(String(500), nullable=True, comment="修改说明")                         # 变更描述
     changed_fields = Column(JSON, nullable=True, comment="变更的字段及前后值")                          # 变更字段对比，格式：{"field": {"old": ..., "new": ...}}
     snapshot_data = Column(JSON, nullable=False, comment="用例完整数据快照（JSON格式）")                  # 用例变更后的完整数据快照

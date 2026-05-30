@@ -99,11 +99,15 @@ async def ai_enhanced_generate_stream(
 
     async def event_generator():
         try:
-            yield f"data: {json.dumps({'code': 0, 'message': '开始生成', 'data': {'status': 'started'}}, ensure_ascii=False)}\n\n"
-
+            # 先构建context，提取context_stats和warnings用于首帧推送
             context = dict(request.context or {})
             if request.extra_requirements:
                 context["extra_requirements"] = request.extra_requirements
+            context_stats = context.get("context_stats", {})
+            warnings = context.get("warnings", [])
+            evidence_refs = context.get("evidence_refs", {})
+
+            yield f"data: {json.dumps({'code': 0, 'message': '开始生成', 'data': {'status': 'started', 'context_stats': context_stats, 'warnings': warnings, 'evidence_refs': evidence_refs}}, ensure_ascii=False)}\n\n"
 
             if request.mode == "graph" and request.flow_sort_data:
                 yield f"data: {json.dumps({'code': 0, 'message': '构建流程图Prompt...', 'data': {'status': 'building_prompt'}}, ensure_ascii=False)}\n\n"

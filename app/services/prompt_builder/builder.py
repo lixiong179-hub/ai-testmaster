@@ -136,7 +136,8 @@ class PromptBuilder:
         ui_specs: Optional[List[Dict[str, Any]]] = None,
         case_type: Optional[str] = None,
         test_username: str = "testuser",
-        test_password: str = "TestPass123"
+        test_password: str = "TestPass123",
+        min_case_count: int = 3,
     ) -> Dict[str, Any]:
         """构建测试用例生成 Prompt，支持 graph 和 linear 两种模式。
 
@@ -169,7 +170,8 @@ class PromptBuilder:
                 include_images=include_images,
                 case_type=case_type,
                 test_username=test_username,
-                test_password=test_password
+                test_password=test_password,
+                min_case_count=min_case_count,
             )
             return {'prompt': prompt, 'weight_hint': 'graph'}
 
@@ -180,6 +182,7 @@ class PromptBuilder:
             point=point, priority=priority,
             ui_specs=ui_specs,
             case_type=case_type,
+            min_case_count=min_case_count,
         )
         return {'prompt': prompt, 'weight_hint': 'linear'}
 
@@ -246,7 +249,8 @@ class PromptBuilder:
         history_cases: Optional[List[Dict[str, Any]]] = None,
         case_type: Optional[str] = None,
         test_username: str = "testuser",
-        test_password: str = "TestPass123"
+        test_password: str = "TestPass123",
+        min_case_count: int = 3,
     ) -> str:
         """构建流程图模式 Prompt（向后兼容接口）。
 
@@ -273,7 +277,8 @@ class PromptBuilder:
             history_cases=history_cases,
             case_type=case_type,
             test_username=test_username,
-            test_password=test_password
+            test_password=test_password,
+            min_case_count=min_case_count,
         )
 
     @staticmethod
@@ -284,7 +289,8 @@ class PromptBuilder:
         requirement_content: str = "",
         test_point_json: str = "",
         ui_specs_text: str = "",
-        history_cases: Optional[List[Dict[str, Any]]] = None
+        history_cases: Optional[List[Dict[str, Any]]] = None,
+        min_case_count: int = 3,
     ) -> str:
         """构建多模态 Prompt（自动包含图片 URL，向后兼容接口）。
 
@@ -306,7 +312,8 @@ class PromptBuilder:
             test_point_json=test_point_json,
             ui_specs_text=ui_specs_text,
             include_images=True,
-            history_cases=history_cases
+            history_cases=history_cases,
+            min_case_count=min_case_count,
         )
 
     @staticmethod
@@ -320,6 +327,7 @@ class PromptBuilder:
         ui_specs: Optional[List[Dict[str, Any]]] = None,
         extra_context: Optional[Dict[str, Any]] = None,
         case_type: Optional[str] = None,
+        min_case_count: int = 3,
     ) -> str:
         """构建线性模式 Prompt（向后兼容接口）。
 

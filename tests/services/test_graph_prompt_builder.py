@@ -424,7 +424,7 @@ def test_graph_prompt_flow_structure_before_history_cases():
     ]
     prompt = _build_graph_prompt(nodes, edges, history_cases=history_cases)
     flow_pos = prompt.find("UI原型图流程结构")
-    history_pos = prompt.find("流程感知评审")
+    history_pos = prompt.find("覆盖摘要")
     assert flow_pos > 0, "流程结构部分应存在"
     assert history_pos > 0, "历史用例评审部分应存在"
     assert flow_pos < history_pos, "流程结构必须在历史用例之前"

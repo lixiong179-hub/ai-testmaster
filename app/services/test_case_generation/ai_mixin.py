@@ -91,11 +91,13 @@ class TestCaseGenerationAiMixin:
             "ui_description": ui_description,
             "ui_specs": context.get("ui_specs", []),
             "test_point": test_point,
-            "case_type": case_type if case_type else "ui_automation",
+            "case_type": case_type if case_type else ("manual" if not has_ui else "ui_automation"),
             "case_category": case_type if case_type else case_category
         }
 
-        return await self._generate_case_with_ai(generation_context)
+        generated_case = await self._generate_case_with_ai(generation_context)
+        generated_case["_context_ui_specs"] = context.get("ui_specs", [])
+        return generated_case
 
     async def _generate_case_with_ai(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """使用AI生成测试用例"""
@@ -103,6 +105,8 @@ class TestCaseGenerationAiMixin:
         import asyncio
 
         test_point = context.get("test_point", {})
+        test_points = context.get("test_points", [])
+        min_case_count = 3 if (len(test_points) >= 2 if test_points else False) else 1
         prompt = PromptBuilder.build_linear_prompt(
             requirement_content=context.get("requirement_content", ""),
             ui_description=context.get("ui_description", ""),
@@ -112,6 +116,7 @@ class TestCaseGenerationAiMixin:
             priority=test_point.get("priority", 2),
             ui_specs=context.get("ui_specs", []),
             case_type=context.get("case_type"),
+            min_case_count=min_case_count,
         )
 
         headers = {

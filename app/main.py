@@ -16,7 +16,7 @@ from app.api.v1.endpoints import auth, project, file, test_task, report, test_po
 from app.api.v1.endpoints import user, websocket, test_case, batch_locator, test_data
 from app.api.v1.endpoints import execution_visualization, case_quality, execution, visibility
 from app.api.v1.endpoints import requirement_link, ui_prototype, iteration, pipeline, review_inbox
-from app.api.v1.endpoints import test_capability, audit_log, case_migration
+from app.api.v1.endpoints import test_capability, audit_log, case_migration, case_refresh, ab_test
 from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
@@ -135,6 +135,8 @@ app.include_router(review_inbox.router, prefix="/api/v1")
 app.include_router(test_capability.router, prefix="/api/v1")
 app.include_router(audit_log.router, prefix="/api/v1")
 app.include_router(case_migration.router, prefix="/api/v1")
+app.include_router(case_refresh.router, prefix="/api/v1/caseRefresh")
+app.include_router(ab_test.router, prefix="/api/v1/ab-test")
 
 
 # 根路径

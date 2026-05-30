@@ -99,6 +99,53 @@ export interface SaveSingleCaseParam {
   _dbId?: number
 }
 
+/** 上下文统计信息 */
+export interface ContextStats {
+  strategy: string
+  token_budget: number
+  requirements_used: number
+  ui_screens_used: number
+  test_points_loaded: number
+  fallbacks: string[]
+  requirement_strategy?: string
+  ui_strategy?: string
+  estimated_tokens?: Record<string, number>
+  history_cases_used?: number
+  history_low_trust_filtered?: number
+  completeness_score: number
+  missing_core_context: string[]
+  low_confidence_reasons: string[]
+}
+
+/** 后端警告信息 */
+export interface ServerWarning {
+  code: string
+  message: string
+  detail?: Record<string, unknown>
+}
+
+/** 证据引用条目 */
+export interface EvidenceRef {
+  id: number
+  [key: string]: unknown
+}
+
+/** 证据引用集合 */
+export interface EvidenceRefs {
+  requirements: EvidenceRef[]
+  requirement_files: EvidenceRef[]
+  ui_screens: EvidenceRef[]
+  history_cases: Array<{
+    id: number
+    case_no?: string
+    design_tag?: string
+    similarity?: number
+    trust_level: string
+    staleness_reason: string
+  }>
+  warnings: ServerWarning[]
+}
+
 export interface StoreActions {
   nextCaseId: () => number
   handleSourceFileChange: () => void

@@ -31,6 +31,7 @@ from typing import Optional
 
 from app.utils.unified_vision.model_types import (
     VisionModelType, ElementInfo, ModelProviderConfig, MODEL_PROVIDER_CONFIGS,
+    resolve_default_model_type,
 )
 from app.utils.unified_vision.request_builder_mixin import RequestBuilderMixin
 from app.utils.unified_vision.response_parser_mixin import ResponseParserMixin
@@ -74,7 +75,7 @@ class UnifiedVisionModel(
         temperature: float = 0.1,
         timeout: int = 60,
     ):
-        self.model_type = model_type or VisionModelType.OPENAI
+        self.model_type = model_type or resolve_default_model_type()
         config = MODEL_PROVIDER_CONFIGS.get(self.model_type.value)
 
         # 按优先级获取配置：显式参数 > 提供商默认配置 > 环境变量/settings
@@ -104,9 +105,8 @@ def get_default_vision_model() -> UnifiedVisionModel:
     """
     global _default_vision_model
     if _default_vision_model is None:
-        from app.core.config import settings
-        default_model = getattr(settings, 'VISION_MODEL_DEFAULT', 'mimo')
-        _default_vision_model = UnifiedVisionModel(model_type=VisionModelType(default_model))
+        default_type = resolve_default_model_type()
+        _default_vision_model = UnifiedVisionModel(model_type=default_type)
     return _default_vision_model
 
 

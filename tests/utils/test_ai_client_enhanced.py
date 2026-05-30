@@ -143,10 +143,11 @@ class TestGenerateTestCaseEnhanced:
         assert len(result) >= 1
         assert "订单提交需求内容" in prompt
         assert "提交订单成功后展示结果页" in prompt
-        assert "订单页" in prompt
         assert "步骤必须可自动化断言" in prompt
         assert "缺少需求文档" not in prompt
-        assert "需求文档（60%" in prompt
+        assert "信息优先级" in prompt
+        assert "订单页" not in prompt or "无UI原型图" in prompt or "待确认UI" in prompt, \
+            "ui_descriptions without ui_specs should not inject interactive UI context"
 
     @patch("app.utils.ai_client_enhanced._enhanced.get_ai_client")
     def test_case_type_constraint(self, mock_get_client):
@@ -245,7 +246,7 @@ class TestGenerateTestCaseEnhanced:
             {"title": "评审用例", "precondition": "P", "steps": [],
              "case_type": "ui_automation", "priority": "P0",
              "expected_result": "R", "test_data": {},
-             "change_type": "modified", "parent_case_id": 1, "case_category": "positive"}
+             "change_type": "added", "case_category": "positive"}
         ])
         mock_client.chat.completions.create.return_value = mock_response
         mock_client.model_name = "test-model"

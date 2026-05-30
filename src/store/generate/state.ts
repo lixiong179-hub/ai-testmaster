@@ -5,7 +5,15 @@ import type { ProjectFile } from '@/api/file'
 import type { TestPoint } from '@/api/testPoint'
 import type { UIPrototypeProject, UIScreen } from '@/api/uiPrototype'
 import type { TestCase } from '@/api/case'
-import type { GenerateFormData, GeneratedCase, EditingCase, ContextPreview } from './types'
+import type {
+  GenerateFormData,
+  GeneratedCase,
+  EditingCase,
+  ContextPreview,
+  ContextStats,
+  ServerWarning,
+  EvidenceRefs,
+} from './types'
 
 export interface GenerateState {
   caseIdSeq: Ref<number>
@@ -51,6 +59,9 @@ export interface GenerateState {
   issueDialogValidation: Ref<{ errors: string[]; warnings: string[] }>
   issueDialogResolver: Ref<((confirmed: boolean) => void) | null>
   formData: GenerateFormData
+  contextStats: Ref<ContextStats | null>
+  serverWarnings: Ref<ServerWarning[]>
+  evidenceRefs: Ref<EvidenceRefs | null>
 }
 
 export function createGenerateState(): GenerateState {
@@ -132,6 +143,10 @@ export function createGenerateState(): GenerateState {
     extra_requirements: '',
   })
 
+  const contextStats = ref<ContextStats | null>(null)
+  const serverWarnings = ref<ServerWarning[]>([])
+  const evidenceRefs = ref<EvidenceRefs | null>(null)
+
   return {
     caseIdSeq,
     nextCaseId,
@@ -176,5 +191,8 @@ export function createGenerateState(): GenerateState {
     issueDialogValidation,
     issueDialogResolver,
     formData,
+    contextStats,
+    serverWarnings,
+    evidenceRefs,
   }
 }

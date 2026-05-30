@@ -1,7 +1,7 @@
 from typing import Optional
 from loguru import logger
 
-from app.utils.unified_vision_model._types import VisionModelType
+from app.utils.unified_vision_model._types import VisionModelType, resolve_default_model_type
 from app.utils.unified_vision_model._core_mixin import _VisionCoreMixin
 from app.utils.unified_vision_model._api_mixin import _VisionApiMixin
 
@@ -9,7 +9,7 @@ from app.utils.unified_vision_model._api_mixin import _VisionApiMixin
 class UnifiedVisionModel(_VisionCoreMixin, _VisionApiMixin):
     def __init__(
         self,
-        model_type: VisionModelType = VisionModelType.MIMO,
+        model_type: Optional[VisionModelType] = None,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         model_name: Optional[str] = None,
@@ -37,13 +37,14 @@ def create_vision_model(
     **kwargs,
 ) -> UnifiedVisionModel:
     if model_type is None:
-        from app.core.config import settings
-        model_type = getattr(settings, 'VISION_MODEL_DEFAULT', 'mimo')
-    try:
-        model_enum = VisionModelType(model_type.lower())
-    except ValueError:
-        logger.error(f"不支持的模型类型: {model_type}，使用默认模型mimo")
-        model_enum = VisionModelType.MIMO
+        model_enum = resolve_default_model_type()
+    else:
+        try:
+            model_enum = VisionModelType(model_type.lower())
+        except ValueError:
+            fallback = resolve_default_model_type()
+            logger.error(f"不支持的模型类型: {model_type}，使用默认模型{fallback.value}")
+            model_enum = fallback
 
     return UnifiedVisionModel(model_type=model_enum, **kwargs)
 
@@ -51,6 +52,5 @@ def create_vision_model(
 def get_default_vision_model() -> UnifiedVisionModel:
     from app.core.config import settings
 
-    default_model = getattr(settings, 'VISION_MODEL_DEFAULT', 'mimo')
     max_tokens = getattr(settings, 'VISION_MAX_TOKENS', 4096)
-    return create_vision_model(default_model, max_tokens=max_tokens)
+    return create_vision_model(max_tokens=max_tokens)

@@ -6,11 +6,12 @@
 
 | 模型 | 类型 | 厂商 | 特点 |
 |------|------|------|------|
+| 通义千问VL | `qwen` | 阿里云 | 默认模型，多语言支持好，支持思维链推理 |
 | Kimi | `kimi` | Moonshot | 128K上下文，视觉理解能力强 |
 | 智谱GLM-4V | `zhipu` | 智谱AI | 中文理解优秀 |
-| 通义千问VL | `qwen` | 阿里云 | 多语言支持好 |
 | 文心一言 | `baidu` | 百度 | 中文场景优化 |
 | 豆包 | `doubao` | 字节跳动 | OpenAI兼容格式 |
+| MiMo | `mimo` | 小米 | 已过期，不再推荐使用 |
 
 ## 设计思路
 
@@ -31,12 +32,12 @@
 
 ```env
 # 设置默认模型
-DEFAULT_VISION_MODEL=kimi
+VISION_MODEL_DEFAULT=qwen
 
 # 配置各模型的API Key
+QWEN_API_KEY=your_qwen_api_key
 KIMI_API_KEY=your_kimi_api_key
 ZHIPU_API_KEY=your_zhipu_api_key
-QWEN_API_KEY=your_qwen_api_key
 BAIDU_API_KEY=your_baidu_api_key
 DOUBAO_API_KEY=your_doubao_api_key
 ```
@@ -72,7 +73,7 @@ success, reason = model.verify_action_result(
 from app.utils.unified_vision_model import create_vision_model
 
 # 一行代码切换模型
-model = create_vision_model("zhipu")  # 或 "kimi", "qwen", "baidu", "doubao"
+model = create_vision_model("qwen")  # 或 "kimi", "zhipu", "baidu", "doubao"
 
 # 使用模型
 elements = model.recognize_bytes(screenshot, "提交按钮")

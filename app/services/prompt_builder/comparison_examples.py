@@ -5,6 +5,20 @@
 """
 
 
+_COMPARISON_EXAMPLES_ZH_COMPACT = """## 正反用例对比（精简版）
+❌差劲：测试拍照提交作文功能 | 前置：账号已登录 | 步骤：进入页面→拍摄裁剪→点击提交 | 预期：页面正常→拍照正常→提交成功
+问题：描述笼统；前置缺网络/权限；步骤口语化；预期模糊无判定标准
+✅优秀：联网+已授权，验证拍照裁剪提交完整流程 | 前置：账号已登录、相机权限允许、设备网络正常 | 步骤：1.点击进入中文作文批改模块 2.点击拍照拍摄作文并完成裁剪确认 3.点击去批改按钮提交图片 | 预期：1.模块页面加载正常功能入口完整 2.相机正常唤起图片裁剪完成并本地保存 3.提交请求正常发起成功跳转展示批改报告
+
+❌差劲：测试拍照数量限制 | 前置：账号已登录 | 步骤：打开拍照页面→连续拍摄多张照片 | 预期：达到上限后禁止继续拍照
+问题：未明确页数上限无量化标准；步骤模糊无固定复现路径；预期缺弹窗文案等校验点
+✅优秀：验证最多3页拍摄限制，超出上限校验拦截提示 | 前置：账号已登录、相机权限开启、规则限制最多3页 | 步骤：1.进入作文拍照拍摄页面 2.依次拍摄并保存3张作文图片 3.再次点击拍摄按钮尝试拍摄第4页 | 预期：1.相机预览界面正常展示无闪退黑屏 2.3张图片全部保存成功底部预览栏正常展示 3.弹出页数上限提示无法触发第四次拍摄
+
+❌差劲：无相机权限测试拍照 | 前置：相机权限禁止 | 步骤：点击进入拍照功能 | 预期：无法打开相机弹出提示
+问题：未区分临时/永久拒绝场景覆盖不足；预期过于简单未校验弹窗按钮跳转
+✅优秀：相机权限永久拒绝，校验权限拦截与引导弹窗 | 前置：账号已登录、系统关闭APP相机权限 | 步骤：1.点击中文作文批改拍照入口 2.查看权限引导弹窗内容 | 预期：1.无法唤起相机预览自动弹出权限引导弹窗 2.弹窗包含提示文案、取消、前往设置按钮功能可用
+"""
+
 _COMPARISON_EXAMPLES_ZH = """## 正反用例对比（学习优秀写法，避免差劲写法）
 
 【对比1-主流程】
@@ -122,15 +136,18 @@ Issues: Step 2 uses "or" causing operation uncertainty, automation script cannot
 Strengths: Expected results follow three-part format "【Element State】+【Specific Text/Value】+【Interaction Result】", each step contains at least one objectively verifiable checkpoint; Step operation is uniquely determined without ambiguity"""
 
 
-def get_comparison_examples(lang: str = "zh") -> str:
-    """返回正反用例对比示例的完整文本。
+def get_comparison_examples(lang: str = "zh", compact: bool = True) -> str:
+    """返回正反用例对比示例文本。
 
     Args:
         lang: 语言代码，"zh" 返回中文，"en" 返回英文，默认 "zh"
+        compact: True 时返回精简版（3组对比，约1/3长度），False 返回完整版
 
     Returns:
-        包含9组对比示例的字符串，含标题和所有对比内容。
+        对比示例字符串。
     """
+    if compact:
+        return _COMPARISON_EXAMPLES_ZH_COMPACT
     if lang == "en":
         return _COMPARISON_EXAMPLES_EN
     return _COMPARISON_EXAMPLES_ZH

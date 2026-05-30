@@ -212,9 +212,9 @@ def _append_flow_aware_history_cases(
     bypass_by_source: Dict[int, List[Dict[str, Any]]],
     node_map: Dict[Any, Dict[str, Any]],
 ) -> None:
-    """追加流程感知的历史用例评审部分到 parts 列表。
+    """追加历史用例覆盖摘要/避重部分到 parts 列表。
 
-    以高级测试工程师视角，基于上方流程结构逐条评审历史用例：
+    以避重视角列出已有用例的覆盖摘要，仅供避免重复生成参考：
     1. 每条历史用例标注其覆盖的流程节点
     2. 评审规则按流程步骤逐一检查覆盖
     3. 查漏补缺以流程结构为骨架
@@ -228,31 +228,21 @@ def _append_flow_aware_history_cases(
         bypass_by_source: 按源节点分组的旁路连线。
         node_map: 节点映射字典。
     """
-    parts.append("## 项目已有测试用例（流程感知评审）\n")
+    parts.append("## 项目已有测试用例（覆盖摘要，仅供避重参考）\n")
     parts.append(
-        "以下为项目已有的测试用例。"
-        "请基于上方的UI页面流程结构，以高级测试工程师视角逐条评审："
+        "以下为项目已有的测试用例摘要，仅供避免重复生成使用："
     )
     parts.append("")
-    parts.append("评审原则（按流程场景逐一检查）：")
+    parts.append("参考原则：")
     parts.append(
-        "- 查漏：流程场景中的主干/分支/异常未被任何旧用例覆盖 "
-        "→ 生成新用例（change_type=added）"
+        "- 已覆盖：流程场景已被旧用例覆盖 → 无需重复生成"
     )
     parts.append(
-        "- 拆分：旧用例将多个场景混合在同一条用例中 "
-        "→ 拆分为独立场景用例（change_type=modified，parent_case_id=原用例ID）"
+        "- 避重：新场景未被任何旧用例覆盖 → 仅生成新场景用例"
     )
     parts.append(
-        "- 补缺：旧用例的步骤顺序与当前流程结构不一致，"
-        "或预期结果与UI原型不匹配 "
-        "→ 输出修正后的用例（change_type=modified，parent_case_id=原用例ID）"
+        "- 不要改写或废弃已有用例，已有用例的维护由保鲜建议流程单独处理"
     )
-    parts.append(
-        "- 去冗：旧用例对应的场景在当前流程结构中已不存在 "
-        "→ 标注建议废弃（change_type=deprecated，parent_case_id=原用例ID）"
-    )
-    parts.append("- 保留：旧用例仍完全符合当前流程结构和UI原型 → 无需重复生成")
     parts.append("")
 
     for i, case in enumerate(history_cases, 1):

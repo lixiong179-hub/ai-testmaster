@@ -14,7 +14,6 @@ const HISTORY_CASE_LIFECYCLE_STATUSES = [
   'pending_review',
   'needs_modify',
   'locator_broken',
-  'deprecated',
 ].join(',')
 
 export function createProjectActions(state: GenerateState, getActions: () => StoreActions) {

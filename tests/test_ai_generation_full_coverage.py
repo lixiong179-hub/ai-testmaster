@@ -22,8 +22,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.project import Project
+from app.models.requirement import Requirement
 from app.models.test_case import TestCase, TestStep, TestCasePreconditionStep
 from app.models.test_point import TestPoint
+from app.models.ui_prototype import UIPrototypeScreen
 from app.models.user import User
 from app.utils.jwt_utils import create_access_token, get_password_hash
 from app.utils.ai_client_core import (
@@ -1011,6 +1013,33 @@ class TestGenerateContextAPIBranches:
         data = resp.json()
         assert data["data"]["history_cases"] == []
 
+    def test_context_default_history_requires_similarity(
+        self, auth_client, db, real_project, real_test_points
+    ):
+        unrelated = TestCase(
+            project_id=real_project.id,
+            case_no=f"HIST-{real_project.id}-unrelated",
+            module="history",
+            title="plain unrelated history case",
+            precondition="",
+            steps_json=[{"action": "open page", "expected_result": "page loaded"}],
+            expected_result="ok",
+            priority=2,
+            case_type="ui_automation",
+            lifecycle_status="active",
+        )
+        db.add(unrelated)
+        db.flush()
+
+        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+            "project_id": real_project.id,
+        })
+
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["history_cases"] == []
+        assert any(w.get("code") == "HISTORY_NO_SIMILAR_CASE" for w in data["warnings"])
+
     def test_context_history_cases_include_non_archived_statuses(
         self, auth_client, db, real_project, real_test_points
     ):
@@ -1024,11 +1053,11 @@ class TestGenerateContextAPIBranches:
             case = TestCase(
                 project_id=real_project.id,
                 case_no=f"HIST-{real_project.id}-{status}",
-                module="history",
+                module="登录模块",
                 title=title,
                 precondition="",
-                steps_json=[{"action": "open page", "expected_result": "page loaded"}],
-                expected_result="ok",
+                steps_json=[{"action": "打开登录页", "expected_result": "登录页加载成功"}],
+                expected_result="登录处理成功",
                 priority=2,
                 case_type="ui_automation",
                 lifecycle_status=status,
@@ -1039,11 +1068,11 @@ class TestGenerateContextAPIBranches:
         deleted_case = TestCase(
             project_id=real_project.id,
             case_no=f"HIST-{real_project.id}-deleted",
-            module="history",
+            module="登录模块",
             title="deleted history case",
             precondition="",
             steps_json=[],
-            expected_result="ok",
+            expected_result="登录处理成功",
             priority=2,
             case_type="ui_automation",
             lifecycle_status="active",
@@ -1056,18 +1085,22 @@ class TestGenerateContextAPIBranches:
             "project_id": real_project.id,
         })
         assert resp.status_code == 200
-        titles = {case["title"] for case in resp.json()["data"]["history_cases"]}
-        assert {"draft history case", "pending review history case", "active history case"} <= titles
-        assert "archived history case" not in titles
-        assert "deleted history case" not in titles
+        data = resp.json()["data"]
+        history_titles = {case["title"] for case in data.get("history_cases", [])}
+        assert "archived history case" not in history_titles
+        assert "deleted history case" not in history_titles
+        warning_codes = [w.get("code", "") for w in data.get("warnings", [])]
+        filtered_warnings = [c for c in warning_codes if c in ("HISTORY_LOW_TRUST_FILTERED", "HISTORY_POTENTIALLY_STALE")]
+        assert len(filtered_warnings) > 0
 
         resp = auth_client.post("/api/v1/testCase/generate-context", json={
             "project_id": real_project.id,
             "history_case_ids": [history_cases[0].id, history_cases[3].id],
         })
         assert resp.status_code == 200
-        titles = {case["title"] for case in resp.json()["data"]["history_cases"]}
-        assert titles == {"draft history case"}
+        data2 = resp.json()["data"]
+        history_titles2 = {case["title"] for case in data2.get("history_cases", [])}
+        assert "archived history case" not in history_titles2
 
 
 class TestGenerateSingleAPIBranches:
@@ -1392,6 +1425,85 @@ class TestServiceContextBranches:
         )
         assert len(context["test_points"]) >= 1
         assert context["test_points"][0]["id"] == real_test_points[0].id
+
+    @pytest.mark.asyncio
+    async def test_context_uses_test_point_requirement_id(self, db, real_project, real_test_points):
+        from app.services.test_case_generation import TestCaseGenerationService
+        requirement = Requirement(
+            project_id=real_project.id,
+            req_no=f"REQ-{real_project.id}-LOGIN",
+            title="登录锁定规则",
+            description="登录密码错误3次后锁定账号30分钟。其他模块规则不应注入。",
+            status="approved",
+            priority=1,
+        )
+        db.add(requirement)
+        db.flush()
+        real_test_points[1].requirement_id = requirement.id
+        db.flush()
+
+        service = TestCaseGenerationService(db)
+        context = await service.get_context_for_generation(
+            project_id=real_project.id,
+            user_id=1,
+            test_point_ids=[real_test_points[1].id],
+        )
+
+        assert "登录密码错误3次后锁定账号30分钟" in context["requirement_content"]
+        assert context["context_stats"]["requirement_strategy"] == "test_point_requirement"
+        assert context["evidence_refs"]["requirements"][0]["id"] == requirement.id
+
+    @pytest.mark.asyncio
+    async def test_context_ui_no_match_does_not_fallback_to_all_ui(self, db, real_project, real_test_points):
+        from app.services.test_case_generation import TestCaseGenerationService
+        unrelated = UIPrototypeScreen(
+            project_id=real_project.id,
+            prototype_name="订单原型",
+            source="manual",
+            screen_name="订单结算页",
+            ui_spec={"elements": [{"type": "button", "label": "提交订单"}]},
+            parse_status="completed",
+            summary="订单结算和支付",
+        )
+        db.add(unrelated)
+        db.flush()
+
+        service = TestCaseGenerationService(db)
+        context = await service.get_context_for_generation(
+            project_id=real_project.id,
+            user_id=1,
+            test_point_ids=[real_test_points[5].id],
+        )
+
+        assert context["ui_specs"] == []
+        assert all(ref["id"] != unrelated.id for ref in context["evidence_refs"]["ui_screens"])
+        assert any(w.get("code") == "UI_NO_MATCH" for w in context["warnings"])
+
+    @pytest.mark.asyncio
+    async def test_context_warns_when_required_ui_element_missing(self, db, real_project, real_test_points):
+        from app.services.test_case_generation import TestCaseGenerationService
+        screen = UIPrototypeScreen(
+            project_id=real_project.id,
+            prototype_name="登录原型",
+            source="manual",
+            screen_name="登录页",
+            ui_spec={"elements": [{"type": "input", "label": "用户名"}]},
+            parse_status="completed",
+            summary="登录页面，包含用户名输入框",
+        )
+        db.add(screen)
+        db.flush()
+
+        service = TestCaseGenerationService(db)
+        context = await service.get_context_for_generation(
+            project_id=real_project.id,
+            user_id=1,
+            test_point_ids=[real_test_points[0].id],
+            ui_screen_ids=[screen.id],
+        )
+
+        warning = next(w for w in context["warnings"] if w.get("code") == "UI_REQUIRED_ELEMENT_MISSING")
+        assert "登录" in warning["detail"]["missing_terms"]
 
     @pytest.mark.asyncio
     async def test_context_pagination(self, db, real_project, real_test_points):

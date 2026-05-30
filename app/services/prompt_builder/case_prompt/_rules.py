@@ -12,8 +12,17 @@ def _append_generation_rules(
     parts: List[str],
     case_type: Optional[str] = None,
     has_history: bool = False,
+    min_case_count: int = 3,
 ) -> None:
     parts.append("## 生成要求")
+    parts.append("")
+    parts.append("### 零、上下文优先级与冲突规则")
+    parts.append("0.1 信息优先级：当前测试点 > 关联需求文档 > 当前UI元素(ui_spec) > UI流程/navigation_flow > 历史用例摘要")
+    parts.append("0.2 UI元素存在性仅依据当前UI解析结果(ui_spec)，不得使用未出现的按钮、输入框、链接或页面元素")
+    parts.append("0.3 需求与UI不一致时，以需求为准，但涉及UI交互的步骤必须标记【待确认UI】")
+    parts.append("0.4 ui_spec缺失或解析失败时，不得臆造元素；需要交互时必须标记【待确认UI】")
+    parts.append("0.5 历史用例仅用于避免重复，不代表当前测试点必须覆盖同类场景；不得照搬、改写或合并历史用例步骤")
+    parts.append("0.6 缺少信息时输出【待补充】或【待确认UI】，禁止编造页面、按钮、字段、接口或业务规则")
     parts.append("")
     parts.append("### 一、用例结构规范")
     parts.append("1. 每个场景必须生成独立的测试用例，禁止将不同场景的步骤混合在同一条用例中")
@@ -72,17 +81,14 @@ def _append_generation_rules(
     )
     if has_history:
         parts.append(
-            "17. 评审历史用例时，必须对照流程场景逐一检查："
-            "旧用例是否将不同场景混合在同一条用例中（应拆分）、"
-            "步骤顺序是否与当前流程一致、"
-            "是否遗漏新增的分支/异常场景、预期结果是否与UI原型匹配"
+            "17. 历史用例仅供避重参考，不要改写或废弃已有用例；"
+            "所有生成用例的 change_type 必须为 added"
         )
     parts.append("")
     parts.append("### 四、分类与覆盖规范")
     parts.append(
-        "18. 变更类用例必须设置 parent_case_id 为原用例ID、"
-        "change_type 为 modified；新增用例 change_type 为 added；"
-        "建议废弃的原用例 change_type 为 deprecated"
+        "18. 所有生成用例的 change_type 必须为 added，"
+        "不允许生成 modified 或 deprecated 类型的用例"
     )
     parts.append(
         "19. 每条用例必须标注 case_category 字段，"
@@ -127,15 +133,17 @@ def _append_generation_rules(
         if extra:
             parts.append(f"   {extra}")
     parts.append("")
-    parts.append(get_comparison_examples())
+    parts.append(get_comparison_examples(compact=True))
 
-    parts.append("""
-## 输出JSON格式（数组，最少3条）：
+    output_format_header = f"""
+## 输出JSON格式（数组，最少{min_case_count}条）：
 注意：steps 中 action 字段必须填写完整的业务操作描述（如"点击提交按钮""在用户名输入框中输入admin"），禁止只写操作类型关键词（如"click""input"）。action_type 字段才填写操作类型枚举值。
 重要：expected_result 必须按三段式格式书写"【元素状态】+【具体文案/数值】+【交互结果】"，参考下方示例。步骤数量约束：每条用例2-8步；正向用例通常3-8步，边界和异常用例通常2-5步；超过8步说明混合了多个测试场景，必须拆分为多条独立用例。
 字段说明：depends_on 为 null（主干用例）或所依赖的主干用例标题（分支/异常用例必填）；anchor_step 为 null（主干用例）或所依赖的主干用例步骤号（分支/异常用例必填，表示从此步骤后继续执行）。
+"""
+    parts.append(output_format_header)
 
-[
+    output_format_example = """
   {
     "title": "正向-登录页输入有效账号密码后点击登录验证跳转首页",
     "module": "用户登录",
@@ -264,4 +272,5 @@ def _append_generation_rules(
     "depends_on": "正向-输入有效用户名密码点击登录按钮验证跳转首页成功",
     "anchor_step": 1
   }
-]""")
+]"""
+    parts.append(output_format_example)

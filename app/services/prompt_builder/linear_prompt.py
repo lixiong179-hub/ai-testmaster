@@ -19,6 +19,7 @@ def _build_linear_prompt(
     priority: int,
     ui_specs: Optional[List[Dict[str, Any]]] = None,
     case_type: Optional[str] = None,
+    min_case_count: int = 3,
 ) -> str:
     """构建线性模式的 Prompt。
 
@@ -74,8 +75,16 @@ def _build_linear_prompt(
 
 {case_type_section}
 
+## 上下文优先级与冲突规则（必须遵守）：
+1. 信息优先级：当前测试点 > 关联需求文档 > 当前UI元素(ui_spec) > UI流程/navigation_flow > 历史用例摘要。
+2. UI元素存在性仅依据当前UI解析结果(ui_spec)。不得使用未在当前UI上下文中出现的按钮、输入框、链接或页面元素。
+3. 需求与UI不一致时，以需求为准，但涉及UI交互的步骤必须标记【待确认UI】。
+4. ui_spec缺失或解析失败时，不得臆造元素；需要交互时必须标记【待确认UI】。
+5. 历史用例仅用于避免重复，不代表当前测试点必须覆盖同类场景；不得照搬、改写或合并历史用例步骤。
+6. 缺少信息时输出【待补充】或【待确认UI】，禁止编造页面、按钮、字段、接口或业务规则。
+
 ## 覆盖要求（核心）：
-你必须根据测试点的复杂度自行判断生成用例数量，最少3条，复杂测试点建议5-8条，且必须覆盖以下测试类型：
+你必须根据测试点的复杂度自行判断生成用例数量，最少{min_case_count}条，且必须覆盖以下测试类型：
 - 正向用例（Happy Path）：主流程正常操作，至少1条
 - 边界值用例：输入/状态/数据的边界条件，至少1条
 - 异常用例：错误输入、权限缺失、网络异常、容错等，至少1条
@@ -112,7 +121,7 @@ def _build_linear_prompt(
    - 最少步骤原则：每条用例至少2步（导航到目标页面+核心操作/验证），前置条件中的状态必须通过步骤到达，禁止生成仅1步的用例
    - 最多步骤原则：每条用例最多8步，超过8步说明用例混合了多个测试场景，必须拆分为多条独立用例
 
-{get_comparison_examples()}
+{get_comparison_examples(compact=True)}
 
 ## 用例分类标签说明：
 - ui_automation: UI自动化测试用例 - 可通过Selenium/Appium等工具自动化执行
@@ -124,7 +133,7 @@ def _build_linear_prompt(
 - 纯后端逻辑验证（API调用、数据校验）→ api_automation
 - 复杂用户体验测试 → manual
 
-## 输出JSON格式（数组，最少3条，复杂测试点5-8条）：
+## 输出JSON格式（数组，最少{min_case_count}条）：
 [
   {{
     "title": "正向场景+操作+验证重点",
