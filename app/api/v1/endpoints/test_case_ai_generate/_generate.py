@@ -141,9 +141,10 @@ async def ai_enhanced_generate(
         )
 
         has_requirement = bool(context.get("requirement_content", "").strip())
-        has_ui = bool(context.get("ui_specs")) or bool(context.get("ui_descriptions"))
+        has_ui = bool(context.get("ui_specs"))
+        has_ui_reference = has_ui or bool(context.get("ui_descriptions"))
         has_flow = request.mode == "graph" and request.flow_sort_data and len(request.flow_sort_data.nodes) > 0
-        if not has_requirement and not has_ui and not has_flow:
+        if not has_requirement and not has_ui_reference and not has_flow:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="生成上下文为空：请上传需求文档、UI原型图或配置流程节点，确保AI有足够的输入信息"

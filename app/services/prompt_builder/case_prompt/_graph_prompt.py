@@ -37,7 +37,8 @@ def _build_graph_prompt(
     history_cases: Optional[List[Dict[str, Any]]] = None,
     case_type: Optional[str] = None,
     test_username: str = "testuser",
-    test_password: str = "TestPass123"
+    test_password: str = "TestPass123",
+    min_case_count: int = 3,
 ) -> str:
     node_map: Dict[Any, Dict[str, Any]] = {}
     for n in nodes:
@@ -96,7 +97,7 @@ def _build_graph_prompt(
             branch_by_source, exception_by_source, bypass_by_source, node_map
         )
 
-    _append_generation_rules(parts, case_type, has_history=bool(history_cases))
+    _append_generation_rules(parts, case_type, has_history=bool(history_cases), min_case_count=min_case_count)
 
     prompt = "\n".join(parts)
     if test_username != "admin":

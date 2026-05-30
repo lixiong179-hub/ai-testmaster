@@ -1,3 +1,6 @@
+import json
+import re
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,9 +17,134 @@ from app.core.exception import create_response
 from app.db.database import get_db
 from app.models.project import Project
 from app.models.test_case import TestCase
+from app.models.test_point import TestPoint
+from app.models.requirement import Requirement
 from app.models.user import User
 
 router = APIRouter()
+
+DEFAULT_HISTORY_CASE_LIMIT = 10
+
+
+def _safe_text(value: Any) -> str:
+    if value in (None, "", [], {}):
+        return ""
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False, default=str)
+    except Exception:
+        return str(value)
+
+
+def _extract_terms(*parts: Any) -> set[str]:
+    text = " ".join(str(part or "") for part in parts).lower()
+    raw_tokens = re.findall(r"[a-z0-9_]+|[\u4e00-\u9fff]+", text)
+    terms: set[str] = set()
+    for token in raw_tokens:
+        if len(token) < 2:
+            continue
+        terms.add(token)
+        if re.fullmatch(r"[\u4e00-\u9fff]+", token) and len(token) > 2:
+            terms.update(token[i:i + 2] for i in range(len(token) - 1))
+    return {term for term in terms if len(term) >= 2}
+
+
+def _score_terms(terms: set[str], *parts: Any) -> int:
+    if not terms:
+        return 0
+    text = " ".join(_safe_text(part) for part in parts).lower()
+    return sum(1 for term in terms if term in text)
+
+
+def _infer_design_tag(case: TestCase, steps: Any) -> str:
+    text = " ".join([
+        case.title or "",
+        case.summary or "",
+        case.expected_result or "",
+        _safe_text(steps),
+    ])
+    if any(keyword in text for keyword in ("空", "为空", "必填", "超长", "最大", "最小", "边界", "长度")):
+        return "边界值"
+    if any(keyword in text for keyword in ("失败", "错误", "异常", "无权限", "断网", "超时", "锁定")):
+        return "异常流程"
+    if isinstance(steps, list) and len(steps) >= 5:
+        return "组合场景"
+    return "常规流程"
+
+
+def _assess_history_trust(
+    case: TestCase,
+    current_requirement_ids: set[int],
+    current_ui_screen_ids: set[int],
+    db: Session,
+) -> tuple[str, str]:
+    staleness_reasons: list[str] = []
+
+    if case.test_point_id:
+        tp = db.query(TestPoint).filter(TestPoint.id == case.test_point_id).first()
+        if tp and tp.requirement_id and tp.requirement_id not in current_requirement_ids:
+            staleness_reasons.append("requirement_mismatch")
+        if tp and tp.requirement_id:
+            req = db.query(Requirement).filter(Requirement.id == tp.requirement_id).first()
+            if req and isinstance(req.update_time, datetime) and isinstance(case.update_time, datetime):
+                if req.update_time > case.update_time:
+                    staleness_reasons.append("requirement_newer_than_case")
+
+    if isinstance(case.update_time, datetime):
+        now = datetime.now(timezone.utc)
+        case_update = case.update_time.replace(tzinfo=timezone.utc) if case.update_time.tzinfo is None else case.update_time
+        case_age_days = (now - case_update).days
+        if case_age_days > 90:
+            staleness_reasons.append("case_older_than_90_days")
+
+    if not case.summary and not case.summary_version:
+        staleness_reasons.append("summary_missing")
+
+    if current_ui_screen_ids:
+        try:
+            case_ui_screen_ids = {s.id for s in case.linked_ui_screens} if case.linked_ui_screens else set()
+        except Exception:
+            case_ui_screen_ids = set()
+        if case_ui_screen_ids and not case_ui_screen_ids.intersection(current_ui_screen_ids):
+            staleness_reasons.append("ui_screen_mismatch")
+
+    if staleness_reasons:
+        if "requirement_mismatch" in staleness_reasons:
+            return "low", "HISTORY_REQUIREMENT_MISMATCH"
+        if any(r in staleness_reasons for r in ("requirement_newer_than_case", "case_older_than_90_days")):
+            return "medium", "HISTORY_POTENTIALLY_STALE"
+        return "medium", ",".join(staleness_reasons)
+
+    return "high", ""
+
+
+def _summarize_history_case(
+    case: TestCase,
+    similarity: float | None = None,
+    trust_level: str = "high",
+    staleness_reason: str = "",
+) -> dict[str, Any]:
+    steps = case.steps_json or []
+    steps_summary = ""
+    if isinstance(steps, list) and steps:
+        actions = [s.get("action", s.get("description", "")) for s in steps[:3] if isinstance(s, dict)]
+        steps_summary = " -> ".join(a for a in actions if a)
+    summary = (case.summary or steps_summary or case.expected_result or "")[:150]
+    result = {
+        "id": case.id,
+        "case_no": case.case_no,
+        "module": case.module or "",
+        "title": case.title,
+        "summary": summary,
+        "covered_scene": summary,
+        "design_tag": _infer_design_tag(case, steps),
+        "trust_level": trust_level,
+        "staleness_reason": staleness_reason,
+    }
+    if similarity is not None:
+        result["similarity"] = round(similarity, 2)
+    return result
 
 
 @router.post("/generate-context", response_model=dict)
@@ -48,37 +176,12 @@ async def get_generation_context(
     if test_points_count == 0:
         logger.warning(f"项目 {request.project_id} 没有找到测试点")
 
-    history_cases = []
-    if request.history_case_ids is None:
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == request.project_id,
-            TestCase.is_deleted.is_(False),
-            TestCase.lifecycle_status != 'archived',
-        ).order_by(TestCase.id).all()
-    elif len(request.history_case_ids) > 0:
-        cases = db.query(TestCase).filter(
-            TestCase.id.in_(request.history_case_ids),
-            TestCase.project_id == request.project_id,
-            TestCase.is_deleted.is_(False),
-            TestCase.lifecycle_status != 'archived',
-        ).all()
-    else:
-        cases = []
-
-    for c in cases:
-        steps = c.steps_json or []
-        steps_summary = ""
-        if isinstance(steps, list) and steps:
-            actions = [s.get("action", s.get("description", "")) for s in steps[:3]]
-            steps_summary = " → ".join(a for a in actions if a)
-        history_cases.append({
-            "id": c.id,
-            "case_no": c.case_no,
-            "module": c.module or "",
-            "title": c.title,
-            "summary": (c.summary or steps_summary or "")[:150],
-            "expected_result": (c.expected_result or "")[:100],
-        })
+    service.enrich_context_with_trust_and_scoring(
+        context,
+        request.project_id,
+        history_case_ids=request.history_case_ids,
+        history_limit=DEFAULT_HISTORY_CASE_LIMIT,
+    )
 
     project_config = {
         "project_name": project.name,
@@ -104,7 +207,9 @@ async def get_generation_context(
         "warnings": context.get("warnings", []),
         "pagination": context.get("pagination", None),
         "project_config": project_config,
-        "history_cases": history_cases,
+        "history_cases": context.get("history_cases", []),
+        "context_stats": context.get("context_stats", {}),
+        "evidence_refs": context.get("evidence_refs", {}),
         "message": f"获取成功：{test_points_count}个测试点",
     })
 
@@ -131,6 +236,7 @@ async def generate_single_test_case(
         ui_screen_ids=request.ui_screen_ids,
         test_point_ids=[request.test_point_id],
     )
+    service.enrich_context_with_trust_and_scoring(context, request.project_id)
     test_points = context.get("test_points", [])
     if not test_points:
         raise HTTPException(
@@ -164,6 +270,9 @@ async def generate_single_test_case(
             "priority": saved_case.priority, "case_type": saved_case.case_type,
             "generate_status": saved_case.generate_status,
             "test_point_id": test_point.get("id"),
+            "context_stats": context.get("context_stats", {}),
+            "evidence_refs": context.get("evidence_refs", {}),
+            "warnings": context.get("warnings", []),
             "message": "测试用例生成成功",
         })
     except Exception as e:

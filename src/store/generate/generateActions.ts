@@ -4,7 +4,7 @@ import { caseApi } from '@/api/case'
 import type { TestPoint } from '@/api/testPoint'
 import type { GenerateState } from './state'
 import type { GenerateComputed } from './computed'
-import type { StoreActions } from './types'
+import type { StoreActions, ContextStats, ServerWarning, EvidenceRefs } from './types'
 import {
   generateForTestPoints,
   generateForFlowNodes,
@@ -181,6 +181,9 @@ export function createGenerateActions(
           test_points?: TestPoint[]
           project_config?: unknown
           history_cases?: unknown[]
+          context_stats?: Record<string, unknown>
+          warnings?: unknown[]
+          evidence_refs?: Record<string, unknown>
         }>
 
         if (contextResponse?.data) {
@@ -189,13 +192,20 @@ export function createGenerateActions(
           context = {
             requirement_content: data.requirement_content || '',
             ui_descriptions: data.ui_descriptions || [],
-            ui_description: JSON.stringify(data.ui_descriptions || []),
+            ui_description: Array.isArray(data.ui_descriptions) && data.ui_descriptions.length > 0
+              ? JSON.stringify(data.ui_descriptions)
+              : '',
             ui_specs: data.ui_specs || [],
             test_points: contextTestPoints,
             project_config: data.project_config || null,
             history_cases: data.history_cases || [],
           }
           state.lastContext.value = { ...context }
+
+          // 提取上下文健康检查信息
+          state.contextStats.value = (data.context_stats as unknown as ContextStats) || null
+          state.serverWarnings.value = Array.isArray(data.warnings) ? (data.warnings as unknown as ServerWarning[]) : []
+          state.evidenceRefs.value = (data.evidence_refs as unknown as EvidenceRefs) || null
 
           state.progress.value = 15
           state.progressText.value = '上下文准备完成，开始构建生成数据...'

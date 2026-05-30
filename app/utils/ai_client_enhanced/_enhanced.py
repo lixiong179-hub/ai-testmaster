@@ -96,13 +96,41 @@ def _stringify_ui_description(value: Any) -> str:
     return ""
 
 
+def _build_priority_rules(has_ui: bool, has_requirement: bool, has_test_point: bool) -> str:
+    rules = """## 信息优先级与冲突规则（必须遵守）
+1. 信息优先级：当前测试点 > 关联需求文档 > 当前UI元素(ui_spec) > UI流程/navigation_flow > 历史用例摘要
+2. UI元素存在性仅依据当前UI解析结果(ui_spec)。不得使用未在当前UI上下文中出现的按钮、输入框、链接或页面元素
+3. 需求与UI不一致时，以需求为准，但涉及UI交互的步骤必须标记【待确认UI】
+4. ui_spec缺失或解析失败时，不得臆造元素；需要交互时必须标记【待确认UI】
+5. 历史用例仅用于避免重复，不代表当前测试点必须覆盖同类场景；不得照搬、改写或合并历史用例步骤
+6. 缺少信息时输出【待补充】或【待确认UI】，禁止编造页面、按钮、字段、接口或业务规则
+
+## 硬约束
+- 禁止使用需求中未提及的规则或UI中不存在的元素
+- 缺失信息必须标记【待补充】或【待确认UI】
+- 权重规则仅为可信上下文内的二级提示策略，不能覆盖上述来源优先级"""
+
+    if not has_requirement:
+        rules += "\n\n⚠️ **缺少需求文档**：可能导致生成的测试用例偏离实际业务功能。请基于现有信息生成合理的测试用例，但需注意可能无法完全贴合实际需求。UI或历史用例不得升级为业务事实来源。"
+    if not has_ui:
+        rules += "\n\n⚠️ **缺少UI原型图**：不得编造按钮、输入框、页面区域、弹窗或跳转入口。如测试点必须涉及UI操作，请使用【待确认UI】标记。优先生成基于需求、业务规则、接口或人工验证视角的测试用例。"
+    if not has_test_point:
+        rules += "\n\n⚠️ **缺少测试点**：请从需求文档的每个功能点自动推断需要生成的测试用例，但不得超出需求文档定义的功能边界。"
+
+    return rules
+
+
 def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]:
     graph_prompt = context.get('graph_prompt')
+    min_case_count = 3
+    test_points = context.get('test_points', [])
+    if test_points and len(test_points) < 2:
+        min_case_count = 1
     if graph_prompt:
         prompt = graph_prompt
     else:
         from app.utils.ai_client_prompt import (
-            sanitize_input, build_weight_model,
+            sanitize_input,
             build_ui_specs_description, build_project_env_info
         )
         raw_requirement = (
@@ -127,21 +155,22 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
             if ui_specs
             else sanitize_input(raw_ui_description)
         )
-        has_ui = bool(ui_specs) or bool(ui_desc and ui_desc.strip())
+        has_ui = bool(ui_specs)
+        has_ui_reference = has_ui or bool(ui_desc and ui_desc.strip() and ui_desc.strip() not in ("[]", "{}", ""))
         has_test_point = bool(test_points)
-        weight_desc, weight_example, weight_warning = build_weight_model(has_ui, has_requirement, has_test_point)
+        min_case_count = 3 if (len(test_points) >= 2 if test_points else False) else 1
+        priority_rules = _build_priority_rules(has_ui, has_requirement, has_test_point)
         if not has_ui:
             ui_desc = "无UI原型图解析结果"
         env_desc = build_project_env_info(project_config)
         history_cases = context.get('history_cases', [])
         history_cases_text = ""
         if history_cases:
-            history_cases_text = "## 项目已有测试用例（用例评审）\n\n"
-            history_cases_text += "以下为项目已有的测试用例，请逐条对照新需求/UI进行评审：\n"
-            history_cases_text += "- 查漏：新场景未被任何旧用例覆盖 → 生成新用例（change_type=added）\n"
-            history_cases_text += "- 补缺：旧用例的步骤/预期与新代码或UI不一致 → 输出修正后的用例（change_type=modified，parent_case_id=原用例ID）\n"
-            history_cases_text += "- 去冗：旧用例对应的场景已不存在 → 标注建议废弃（change_type=deprecated，parent_case_id=原用例ID）\n"
-            history_cases_text += "- 保留：旧用例仍完全符合当前场景 → 无需重复生成\n\n"
+            history_cases_text = "## 项目已有测试用例（覆盖摘要，仅供避重参考）\n\n"
+            history_cases_text += "以下为项目已有的测试用例摘要，仅供避免重复生成使用：\n"
+            history_cases_text += "- 这些用例已覆盖的场景无需重复生成\n"
+            history_cases_text += "- 请仅生成新场景的用例，不要改写或废弃已有用例\n"
+            history_cases_text += "- 已有用例的维护由保鲜建议流程单独处理\n\n"
             for i, case in enumerate(history_cases, 1):
                 desc = case.get("summary", "") or case.get("expected_result", "") or "无摘要"
                 history_cases_text += f"  {i}. [{case.get('module', '')}] {case.get('title', '')} (ID:{case.get('id', '')}) — {desc}\n"
@@ -163,11 +192,7 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
 """
         prompt = f"""你是一名高级测试工程师，请根据以下信息生成一个高质量的测试用例。
 
-{weight_desc}
-
-{weight_example}
-
-{weight_warning}
+{priority_rules}
 
 ---
 
@@ -196,7 +221,7 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
 {extra_requirements_text}
 
 ## 输出格式要求
-0. 必须返回测试用例，至少覆盖正向（case_category=positive）、边界（case_category=boundary）、异常（case_category=exception）三种测试类型，每种类型至少1条用例。如果需求或UI涉及多个功能点或页面，请为每个功能点分别生成用例，总数不少于3条
+0. {'必须返回测试用例，覆盖正向（case_category=positive）、边界（case_category=boundary）、异常（case_category=exception）三种测试类型。如果需求或UI涉及多个功能点或页面，请为每个功能点分别生成用例，总数不少于3条' if min_case_count >= 3 else '必须返回至少1条正向用例（case_category=positive）。仅在条件允许时补充边界（case_category=boundary）或异常（case_category=exception）用例，不要为了凑数而生成低质量用例'}
 请严格按照以下JSON数组格式输出（不要添加markdown代码块标记）：
 [
   {{
@@ -219,8 +244,7 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
     ],
     "expected_result": "所有步骤预期结果的汇总描述",
     "case_category": "positive",
-    "change_type": "added/modified/deprecated（无参考用例时为added）",
-    "parent_case_id": "原用例ID（仅modified/deprecated时填写，added时为null）"
+    "change_type": "added"
   }}
 ]
 {get_title_spec_rules()}
@@ -237,17 +261,26 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
         case_type = context.get('case_type')
         if case_type:
             prompt += f"\n## 用例类型约束\n"
-            prompt += f"所有用例的 case_type 字段必须统一为 \"{case_type}\"，不允许生成其他类型的用例。\n"
-            type_guidance = {
-                "ui_automation": "步骤必须包含UI元素交互，action_type使用click/input/scroll等UI操作，预期结果可自动化验证",
-                "manual": "允许包含需要人工判断的步骤，预期结果允许主观描述，不要求完全可自动化",
-                "api_automation": "用例聚焦接口层面验证，步骤以API请求/响应断言为主，无需UI元素引用",
-                "performance": "关注响应时间、并发数、吞吐量等性能指标，预期结果包含数值阈值",
-                "security": "关注XSS注入、SQL注入、权限绕过、敏感数据泄露等安全验证点",
-            }
-            extra = type_guidance.get(case_type, "")
-            if extra:
-                prompt += f"{extra}\n"
+            if case_type == "ui_automation" and not has_ui:
+                prompt += (
+                    "当前项目未提供UI原型图，ui_automation降级为草稿模式。\n"
+                    "所有用例的 case_type 字段填写 \"manual\"，不得填写 \"ui_automation\"。\n"
+                    "涉及UI交互的步骤必须标记【待确认UI】，不得编造按钮、输入框等页面元素。\n"
+                    "优先生成基于需求、业务规则或人工验证视角的测试用例。\n"
+                )
+                case_type = "manual"
+            else:
+                prompt += f"所有用例的 case_type 字段必须统一为 \"{case_type}\"，不允许生成其他类型的用例。\n"
+                type_guidance = {
+                    "ui_automation": "步骤必须包含UI元素交互，action_type使用click/input/scroll等UI操作，预期结果可自动化验证",
+                    "manual": "允许包含需要人工判断的步骤，预期结果允许主观描述，不要求完全可自动化",
+                    "api_automation": "用例聚焦接口层面验证，步骤以API请求/响应断言为主，无需UI元素引用",
+                    "performance": "关注响应时间、并发数、吞吐量等性能指标，预期结果包含数值阈值",
+                    "security": "关注XSS注入、SQL注入、权限绕过、敏感数据泄露等安全验证点",
+                }
+                extra = type_guidance.get(case_type, "")
+                if extra:
+                    prompt += f"{extra}\n"
 
         prompt += f"\n{get_automation_friendly_rules()}\n"
 
@@ -255,7 +288,8 @@ def generate_test_case_enhanced(context: Dict[str, Any]) -> List[Dict[str, Any]]
     max_retries = 3
     messages = [{"role": "user", "content": prompt}]
     is_graph_mode = bool(graph_prompt)
-    min_case_count = 3 if is_graph_mode else 1
+    if is_graph_mode and min_case_count < 3:
+        min_case_count = 3
     max_tokens = _resolve_max_tokens(context, graph_mode=is_graph_mode)
     for attempt in range(max_retries):
         try:

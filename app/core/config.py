@@ -121,7 +121,7 @@ class Settings(BaseSettings):
             raise ValueError(f"{info.field_name} must be positive, got {v}")
         return v
 
-    VISION_MODEL_DEFAULT: str = "mimo"
+    VISION_MODEL_DEFAULT: str = "qwen"
     VISION_MAX_TOKENS: int = 4096
     UI_PARSER_MODE: str = "text"
 
@@ -129,7 +129,7 @@ class Settings(BaseSettings):
     KIMI_MODEL: str = "moonshot-v1-128k-vision-preview"
 
     QWEN_API_KEY: str = ""
-    QWEN_MODEL: str = "qwen-vl-plus"
+    QWEN_MODEL: str = "qwen3-vl-235b-a22b-thinking"
 
     PARSE_MODE_TEXT: str = "text"
     PARSE_MODE_VISION: str = "vision"

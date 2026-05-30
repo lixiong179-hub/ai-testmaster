@@ -59,7 +59,7 @@ MODEL_PROVIDER_CONFIGS: Dict[VisionModelType, ModelProviderConfig] = {
         base_url_env="QWEN_BASE_URL",
         model_name_env="QWEN_MODEL",
         default_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-        default_model_name="qwen-vl-plus",
+        default_model_name="qwen3-vl-235b-a22b-thinking",
         api_endpoint="/chat/completions",
         build_payload_fn=None,
         parse_response_fn=None
@@ -90,3 +90,13 @@ MODEL_PROVIDER_CONFIGS: Dict[VisionModelType, ModelProviderConfig] = {
         default_model_name="mimo-v2.5"
     ),
 }
+
+
+def resolve_default_model_type() -> VisionModelType:
+    from app.core.config import settings
+
+    default_name = getattr(settings, 'VISION_MODEL_DEFAULT', 'qwen')
+    try:
+        return VisionModelType(default_name.lower())
+    except ValueError:
+        return VisionModelType.QWEN

@@ -33,6 +33,7 @@ const MENU_CONFIG: MenuItem[] = [
       { index: '/home/case', label: '用例列表' },
       { index: '/home/case/ai-generate', label: 'AI生成用例' },
       { index: '/home/case/migration', label: '用例迁移' },
+      { index: '/home/case/case-refresh', label: '保鲜建议' },
     ],
   },
   { index: '/home/task', label: '执行中心', icon: Timer },
@@ -93,6 +94,7 @@ export function useMainLayout() {
       return '/home/case/test-point-management'
     if (route.path.startsWith('/home/case/ai-generate')) return '/home/case/ai-generate'
     if (route.path.startsWith('/home/case/migration')) return '/home/case/migration'
+    if (route.path.startsWith('/home/case/case-refresh')) return '/home/case/case-refresh'
     if (route.path.startsWith('/home/case/iteration/regression-generate'))
       return '/home/iteration/regression-generate'
     if (route.path.startsWith('/home/case/pipeline/')) return '/home/pipeline-dashboard'
@@ -122,6 +124,7 @@ export function useMainLayout() {
     '/home/case/test-point-extract': '测试点提取',
     '/home/case/ai-generate': 'AI生成用例',
     '/home/case/migration': '用例迁移',
+    '/home/case/case-refresh': '保鲜建议',
     '/home/case/quality': '用例质量分析',
     '/home/case/iteration/regression-generate': '回归变更分析',
     '/home/task': '执行中心',

@@ -68,6 +68,8 @@ from app.models.operation_log import OperationLog
 from app.models.nl_test_step import NLTestStep
 from app.models.test_case_data import TestCaseData
 from app.models.review import IterationReview, ReviewDecision, ReviewLock
+from app.models.case_refresh_suggestion import CaseRefreshSuggestion
+from app.models.ab_test_metric import ABTestMetric
 
 __all__ = [
     # UI原型相关
@@ -122,4 +124,7 @@ __all__ = [
     # 测试用例数据关联
     "TestCaseData",
     "IterationReview", "ReviewDecision", "ReviewLock",
+    "CaseRefreshSuggestion",
+    # A/B测试指标
+    "ABTestMetric",
 ]

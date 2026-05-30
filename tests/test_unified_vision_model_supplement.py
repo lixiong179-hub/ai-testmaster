@@ -614,9 +614,9 @@ class TestUnifiedVisionModelSupplement:
 
     def test_create_vision_model_invalid_type(self):
         """测试创建无效类型的模型"""
-        with patch.dict('os.environ', {'MIMO_API_KEY': 'test-key'}):
+        with patch.dict('os.environ', {'QWEN_API_KEY': 'test-key'}):
             model = create_vision_model("invalid_type")
-            assert model.model_type == VisionModelType.MIMO
+            assert model.model_type == VisionModelType.QWEN
 
     def test_create_vision_model_with_kwargs(self):
         """测试使用额外参数创建模型"""

@@ -66,56 +66,89 @@
       </el-form-item>
       <el-form-item label="UI原型图">
         <div class="ui-mockup-section">
+          <!-- 非UI项目提示：api/backend/data 等类型无需UI原型图 -->
           <el-alert
-            title="选择UI原型图版本（可选）"
-            type="info"
+            v-if="showNonUiHint"
+            title="当前项目无需UI原型图，可按需求/API视角生成"
+            type="success"
             :closable="false"
             show-icon
-            style="margin-bottom: 16px"
-          >
-            <template #default
-              >选择不同版本的UI原型图，下方可查看和调整屏幕顺序。 点击图片可预览大图。</template
-            >
-          </el-alert>
-          <div class="version-selector">
-            <el-select
-              v-model="store.selectedUiPrototypeProjectId"
-              placeholder="请选择UI原型图版本"
-              style="width: 100%"
-              @change="store.handleUIPrototypeProjectChange"
-              :disabled="!store.formData.project_id"
-              clearable
-            >
-              <el-option
-                v-for="project in store.uiPrototypeProjects"
-                :key="project.id"
-                :label="project.name"
-                :value="project.id"
-              >
-                <div class="version-option">
-                  <span class="version-name">{{ project.name }}</span>
-                  <el-tag v-if="project.parse_status === 'completed'" type="success" size="small"
-                    >已解析</el-tag
-                  >
-                  <el-tag v-else-if="project.parse_status === 'partial'" type="warning" size="small"
-                    >部分解析 ({{ project.parsed_count }}/{{ project.screen_count }})</el-tag
-                  >
-                  <el-tag v-else-if="project.parse_status === 'failed'" type="danger" size="small"
-                    >解析失败</el-tag
-                  >
-                  <el-tag v-else type="info" size="small">待解析</el-tag>
-                </div>
-              </el-option>
-            </el-select>
-            <el-button
-              type="primary"
-              plain
-              @click="store.loadUIPrototypeProjects"
-              :disabled="!store.formData.project_id"
-              style="margin-left: 12px"
-              ><el-icon><Refresh /></el-icon>刷新</el-button
-            >
+            style="margin-bottom: 12px"
+          />
+          <!-- Web/App项目但未上传UI原型图：显示引导卡片 -->
+          <div v-if="showUiEmptyState" class="ui-empty-card">
+            <div class="ui-empty-icon">
+              <el-icon :size="40" color="#909399"><PictureFilled /></el-icon>
+            </div>
+            <div class="ui-empty-title">未检测到UI原型图</div>
+            <div class="ui-empty-desc">
+              UI自动化步骤将标记为【待确认UI】，建议上传UI原型图以提升生成质量
+            </div>
+            <div class="ui-empty-actions">
+              <el-button type="primary" @click="handleUploadUiMockup">
+                上传UI原型图
+              </el-button>
+              <el-button @click="handleSwitchToManual">
+                切换为手工用例
+              </el-button>
+              <el-button type="info" plain @click="handleContinueDraft">
+                继续生成草稿
+              </el-button>
+            </div>
           </div>
+          <!-- 正常状态：有UI原型图可选，或项目未选择 -->
+          <template v-if="!showUiEmptyState">
+            <el-alert
+              title="选择UI原型图版本（可选）"
+              type="info"
+              :closable="false"
+              show-icon
+              style="margin-bottom: 16px"
+            >
+              <template #default
+                >选择不同版本的UI原型图，下方可查看和调整屏幕顺序。 点击图片可预览大图。</template
+              >
+            </el-alert>
+            <div class="version-selector">
+              <el-select
+                v-model="store.selectedUiPrototypeProjectId"
+                placeholder="请选择UI原型图版本"
+                style="width: 100%"
+                @change="store.handleUIPrototypeProjectChange"
+                :disabled="!store.formData.project_id"
+                clearable
+              >
+                <el-option
+                  v-for="project in store.uiPrototypeProjects"
+                  :key="project.id"
+                  :label="project.name"
+                  :value="project.id"
+                >
+                  <div class="version-option">
+                    <span class="version-name">{{ project.name }}</span>
+                    <el-tag v-if="project.parse_status === 'completed'" type="success" size="small"
+                      >已解析</el-tag
+                    >
+                    <el-tag v-else-if="project.parse_status === 'partial'" type="warning" size="small"
+                      >部分解析 ({{ project.parsed_count }}/{{ project.screen_count }})</el-tag
+                    >
+                    <el-tag v-else-if="project.parse_status === 'failed'" type="danger" size="small"
+                      >解析失败</el-tag
+                    >
+                    <el-tag v-else type="info" size="small">待解析</el-tag>
+                  </div>
+                </el-option>
+              </el-select>
+              <el-button
+                type="primary"
+                plain
+                @click="store.loadUIPrototypeProjects"
+                :disabled="!store.formData.project_id"
+                style="margin-left: 12px"
+                ><el-icon><Refresh /></el-icon>刷新</el-button
+              >
+            </div>
+          </template>
         </div>
       </el-form-item>
       <ContextHistoryCases />
@@ -159,12 +192,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ArrowRight, Refresh } from '@element-plus/icons-vue'
+import { ref, computed } from 'vue'
+import { ArrowRight, Refresh, PictureFilled } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { useGenerateStore } from '@/store/useGenerateStore'
 import ContextHistoryCases from './components/ContextHistoryCases.vue'
 import ContextScreenPreview from './components/ContextScreenPreview.vue'
 import ContextTestPointSelector from './components/ContextTestPointSelector.vue'
+import type { Project } from '@/api/project'
+
+/** 需要UI原型图的项目类型 */
+const UI_PROJECT_TYPES = new Set(['web', 'app'])
 
 const store = useGenerateStore()
 const fetchingRequirement = ref(false)
@@ -177,6 +215,56 @@ const emit = defineEmits<{
   'go-resource-manage': []
   'preview-screen': [url: string]
 }>()
+
+/** 当前选中的项目对象 */
+const currentProject = computed<Project | null>(() => {
+  if (!store.formData.project_id) return null
+  return store.projects.find((p) => p.id === store.formData.project_id) ?? null
+})
+
+/** 项目是否为需要UI原型图的类型（web/app） */
+const isUiProjectType = computed<boolean>(() => {
+  if (!currentProject.value) return false
+  return UI_PROJECT_TYPES.has(currentProject.value.project_type)
+})
+
+/** 项目是否已上传UI原型图 */
+const hasUiPrototypes = computed<boolean>(() => {
+  return store.uiPrototypeProjects.length > 0
+})
+
+/** 已选择项目且为Web/App类型但无UI原型图 */
+const showUiEmptyState = computed<boolean>(() => {
+  return Boolean(store.formData.project_id) && isUiProjectType.value && !hasUiPrototypes.value
+})
+
+/** 已选择项目且为非UI类型（api/backend/data等） */
+const showNonUiHint = computed<boolean>(() => {
+  return Boolean(store.formData.project_id) && !isUiProjectType.value
+})
+
+/** 跳转到资源中心上传页 */
+const handleUploadUiMockup = () => {
+  emit('go-resource-manage')
+}
+
+/** 切换为手工用例 */
+const handleSwitchToManual = () => {
+  store.formData.case_type = 'manual'
+  store.formData.exec_mode = 'all'
+  ElMessage.success('已切换为手工用例模式')
+}
+
+const noUiConfirmed = ref(false)
+
+/** 继续生成草稿（降级为manual，标记确认，进入下一步） */
+const handleContinueDraft = () => {
+  store.formData.case_type = 'manual'
+  store.formData.exec_mode = 'all'
+  noUiConfirmed.value = true
+  ElMessage.info('已切换为手工用例模式，将以草稿方式生成')
+  emit('next')
+}
 
 const handleTestPointLinkResult = (ids: number[]) => {
   relatedTestPointIds.value = ids
@@ -214,5 +302,37 @@ defineExpose({ getFlowSortEditorRef })
 }
 .context-preview {
   max-width: 800px;
+}
+.ui-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 24px 24px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 8px;
+  background: #fafbfc;
+  text-align: center;
+}
+.ui-empty-icon {
+  margin-bottom: 12px;
+}
+.ui-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+}
+.ui-empty-desc {
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.6;
+  max-width: 400px;
+  margin-bottom: 20px;
+}
+.ui-empty-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 </style>

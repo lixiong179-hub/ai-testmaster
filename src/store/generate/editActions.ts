@@ -214,6 +214,9 @@ export function createEditActions(state: GenerateState, computed: GenerateComput
     state.currentCaseIndex.value = -1
     state.selectedCaseIndices.value = new Set()
     state.caseIdSeq.value = 0
+    state.contextStats.value = null
+    state.serverWarnings.value = []
+    state.evidenceRefs.value = null
   }
 
   return {

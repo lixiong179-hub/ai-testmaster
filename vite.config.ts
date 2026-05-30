@@ -51,20 +51,18 @@ export default defineConfig({
   },
   build: {
     target: 'es2015',
-    minify: 'terser',
+    minify: 'esbuild',
     chunkSizeWarningLimit: 1000,
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['vue', 'vue-router', 'pinia'],
-          element: ['element-plus'],
-          echarts: ['echarts'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('echarts')) return 'echarts'
+            if (id.includes('element-plus')) return 'element'
+            if (id.includes('vue-flow') || id.includes('@vue-flow')) return 'vue-flow'
+            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router')) return 'vendor'
+            return 'vendor'
+          }
         },
       },
     },

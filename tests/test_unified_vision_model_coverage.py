@@ -89,7 +89,7 @@ class TestModelProviderConfigs(unittest.TestCase):
         config = MODEL_PROVIDER_CONFIGS[VisionModelType.QWEN]
         self.assertEqual(config.model_type, VisionModelType.QWEN)
         self.assertEqual(config.api_key_env, "QWEN_API_KEY")
-        self.assertEqual(config.default_model_name, "qwen-vl-plus")
+        self.assertEqual(config.default_model_name, "qwen3-vl-235b-a22b-thinking")
     
     def test_zhipu_config(self):
         """测试智谱配置"""

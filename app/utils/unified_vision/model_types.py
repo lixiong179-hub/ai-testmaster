@@ -29,7 +29,8 @@ class VisionModelType(str, Enum):
     OPENAI = "openai"      # OpenAI及兼容API（如DeepSeek）
     BAIDU = "baidu"        # 百度文心大模型
     ZHIPU = "zhipu"        # 智谱GLM视觉模型
-    MIMO = "mimo"          # 小米MiMo多模态模型（OpenAI兼容API）
+    QWEN = "qwen"          # 通义千问VL视觉模型（OpenAI兼容API）
+    MIMO = "mimo"          # 小米MiMo多模态模型（OpenAI兼容API，已过期）
     CUSTOM = "custom"      # 自定义模型（需手动配置API格式）
 
 
@@ -139,4 +140,20 @@ MODEL_PROVIDER_CONFIGS: Dict[str, ModelProviderConfig] = {
         api_url="https://token-plan-cn.xiaomimimo.com/v1/chat/completions",
         model_name="mimo-v2.5",
     ),
+    "qwen": ModelProviderConfig(
+        model_type=VisionModelType.QWEN,
+        api_key_env="QWEN_API_KEY",
+        api_url="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        model_name="qwen3-vl-235b-a22b-thinking",
+    ),
 }
+
+
+def resolve_default_model_type() -> VisionModelType:
+    from app.core.config import settings
+
+    default_name = getattr(settings, 'VISION_MODEL_DEFAULT', 'qwen')
+    try:
+        return VisionModelType(default_name.lower())
+    except ValueError:
+        return VisionModelType.QWEN

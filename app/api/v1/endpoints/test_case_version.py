@@ -11,6 +11,7 @@
     - 版本列表/详情/恢复
 """
 import json
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
@@ -215,10 +216,17 @@ async def restore_test_case_version(
                 detail="该版本无快照数据，无法恢复"
             )
 
+        # 恢复前记录各字段旧值，用于changed_fields埋点
         restorable_fields = ["title", "module", "precondition", "expected_result", "priority", "case_type", "steps_json"]
+        changed_fields: dict[str, Any] = {}
         for field in restorable_fields:
             if field in snapshot:
-                setattr(test_case, field, snapshot[field])
+                old_value = getattr(test_case, field, None)
+                new_value = snapshot[field]
+                # 仅记录实际发生变更的字段
+                if old_value != new_value:
+                    changed_fields[field] = {"old": old_value, "new": new_value}
+                setattr(test_case, field, new_value)
 
         if "steps_json" in snapshot and snapshot["steps_json"]:
             db.query(TestStep).filter(TestStep.test_case_id == test_case_id).delete()
@@ -233,6 +241,33 @@ async def restore_test_case_version(
                     target_element=step_data.get("target_element", "")
                 )
                 db.add(step)
+
+        # 创建版本快照，记录变更字段及前后值
+        latest_version = db.query(TestCaseVersion).filter(
+            TestCaseVersion.test_case_id == test_case_id,
+        ).order_by(TestCaseVersion.version_number.desc()).first()
+        next_version = (latest_version.version_number + 1) if latest_version else 1
+
+        snapshot_data = {
+            "title": test_case.title,
+            "module": test_case.module,
+            "precondition": test_case.precondition,
+            "expected_result": test_case.expected_result,
+            "priority": test_case.priority,
+            "case_type": test_case.case_type,
+            "steps_json": test_case.steps_json,
+        }
+        new_version = TestCaseVersion(
+            test_case_id=test_case_id,
+            version_number=next_version,
+            change_type="restore",
+            change_description=f"恢复到版本V{version.version_number}",
+            changed_fields=changed_fields if changed_fields else None,
+            snapshot_data=snapshot_data,
+            operator_id=current_user.id,
+            operator_name=current_user.username,
+        )
+        db.add(new_version)
 
         db.commit()
         db.refresh(test_case)

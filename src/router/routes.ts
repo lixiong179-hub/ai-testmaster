@@ -160,6 +160,12 @@ export const routes: RouteRecordRaw[] = [
             meta: { title: '测试点提取向导' },
           },
           {
+            path: 'case-refresh',
+            name: 'CaseRefresh',
+            component: () => import('../views/case/CaseRefresh.vue'),
+            meta: { title: '保鲜建议' },
+          },
+          {
             path: 'detail/:caseId',
             name: 'CaseDetail',
             component: () => import('../views/case/CaseDetail.vue'),

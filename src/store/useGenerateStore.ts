@@ -16,6 +16,10 @@ export type {
   EditingCase,
   ContextPreview,
   GenerateFormData,
+  ContextStats,
+  ServerWarning,
+  EvidenceRef,
+  EvidenceRefs,
 } from './generate/types'
 
 export const useGenerateStore = defineStore('generate', () => {
@@ -78,6 +82,9 @@ export const useGenerateStore = defineStore('generate', () => {
     testPointCache: state.testPointCache,
     contextPreview: state.contextPreview,
     lastContext: state.lastContext,
+    contextStats: state.contextStats,
+    serverWarnings: state.serverWarnings,
+    evidenceRefs: state.evidenceRefs,
     generatedCases: state.generatedCases,
     currentCaseIndex: state.currentCaseIndex,
     isEditingResult: state.isEditingResult,

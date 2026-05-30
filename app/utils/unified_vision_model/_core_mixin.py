@@ -11,13 +11,14 @@ from app.utils.unified_vision_model._types import (
     ElementInfo,
     ModelProviderConfig,
     MODEL_PROVIDER_CONFIGS,
+    resolve_default_model_type,
 )
 
 
 class _VisionCoreMixin:
     def _init_core(
         self,
-        model_type: VisionModelType = VisionModelType.MIMO,
+        model_type: Optional[VisionModelType] = None,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         model_name: Optional[str] = None,
@@ -27,6 +28,8 @@ class _VisionCoreMixin:
         temperature: float = 0.3,
         max_tokens: int = 4096,
     ):
+        if model_type is None:
+            model_type = resolve_default_model_type()
         self.model_type = model_type
         self.provider_config = MODEL_PROVIDER_CONFIGS[model_type]
 
