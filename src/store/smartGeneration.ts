@@ -176,6 +176,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   const uiUploadDialogVisible = ref(false)
   const uiUploading = ref(false)
   const uiParsing = ref(false)
+  let parsePollingTimer: ReturnType<typeof setTimeout> | null = null
+  const deselectedUIScreenIds = ref<Set<number>>(new Set())
 
   const contextStats = ref<Record<string, unknown>>({})
   const warnings = ref<NormalizedWarning[]>([])
@@ -756,10 +758,10 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       const prevSelected = new Set(uiScreenIds.value)
       const newSelected = [...prevSelected].filter((id) => completedIds.has(id))
       if (newSelected.length === 0 && prevSelected.size === 0) {
-        uiScreenIds.value = [...completedIds]
+        uiScreenIds.value = [...completedIds].filter((id) => !deselectedUIScreenIds.value.has(id))
       } else {
         for (const id of completedIds) {
-          if (!prevSelected.has(id)) {
+          if (!prevSelected.has(id) && !deselectedUIScreenIds.value.has(id)) {
             newSelected.push(id)
           }
         }
@@ -787,8 +789,10 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
 
   async function handleUIPrototypeProjectChange(projectId: number | '') {
     selectedUIPrototypeProjectId.value = projectId
+    cancelParsePolling()
     uiScreenDetails.value = []
     uiScreenIds.value = []
+    deselectedUIScreenIds.value = new Set()
     Object.values(uiScreenImageUrls.value).forEach((url) => {
       if (url.startsWith('blob:')) URL.revokeObjectURL(url)
     })
@@ -821,7 +825,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
         .filter((s) => s.parse_status === 'pending')
         .map((s) => s.id)
       if (pendingIds.length > 0) {
-        await parseUIScreens(pendingIds)
+        parseUIScreens(pendingIds)
       }
     } finally {
       uiUploading.value = false
@@ -833,33 +837,61 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     uiParsing.value = true
     try {
       await uiPrototypeApi.parseUIScreens(screenIds)
-      const maxPolls = 60
-      const pollInterval = 3000
-      for (let i = 0; i < maxPolls; i++) {
-        await new Promise((r) => setTimeout(r, pollInterval))
+      startParsePolling(screenIds)
+    } catch {
+      uiParsing.value = false
+    }
+  }
+
+  function cancelParsePolling() {
+    if (parsePollingTimer !== null) {
+      clearTimeout(parsePollingTimer)
+      parsePollingTimer = null
+    }
+    uiParsing.value = false
+  }
+
+  function startParsePolling(screenIds: number[]) {
+    const maxPolls = 60
+    const pollInterval = 3000
+    let pollCount = 0
+    cancelParsePolling()
+    const poll = async () => {
+      try {
         await loadUIScreenDetails()
         const allDone = screenIds.every((sid) => {
           const screen = uiScreenDetails.value.find((s) => s.id === sid)
           return screen && (screen.parse_status === 'completed' || screen.parse_status === 'failed')
         })
-        if (allDone) break
+        pollCount++
+        if (allDone || pollCount >= maxPolls) {
+          await loadUIScreenImages()
+          parsePollingTimer = null
+          uiParsing.value = false
+          return
+        }
+        parsePollingTimer = setTimeout(poll, pollInterval)
+      } catch {
+        parsePollingTimer = null
+        uiParsing.value = false
       }
-      await loadUIScreenImages()
-    } finally {
-      uiParsing.value = false
     }
+    parsePollingTimer = setTimeout(poll, pollInterval)
   }
 
   function toggleUIScreen(screenId: number) {
     const idx = uiScreenIds.value.indexOf(screenId)
     if (idx >= 0) {
       uiScreenIds.value.splice(idx, 1)
+      deselectedUIScreenIds.value.add(screenId)
     } else {
       uiScreenIds.value.push(screenId)
+      deselectedUIScreenIds.value.delete(screenId)
     }
   }
 
   function reset() {
+    cancelParsePolling()
     currentStep.value = 'task'
     selectedTask.value = 'new_feature'
     selectedProjectId.value = ''
@@ -879,6 +911,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     uiUploadDialogVisible.value = false
     uiUploading.value = false
     uiParsing.value = false
+    deselectedUIScreenIds.value = new Set()
     contextStats.value = {}
     warnings.value = []
     evidenceRefs.value = {}
@@ -961,6 +994,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     handleUIPrototypeProjectChange,
     uploadUIScreens,
     parseUIScreens,
+    cancelParsePolling,
     toggleUIScreen,
     reset,
   }

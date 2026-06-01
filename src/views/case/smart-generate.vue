@@ -524,7 +524,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, WarningFilled, Loading, Upload, Picture } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -607,13 +607,7 @@ async function handleUIUploadSubmit() {
   await store.uploadUIScreens(uiUploadFiles.value)
   uiUploadFiles.value = []
   store.uiUploadDialogVisible = false
-  ElMessage.success('上传成功')
-  const pendingIds = store.uiScreenDetails
-    .filter((s) => s.parse_status === 'pending')
-    .map((s) => s.id)
-  if (pendingIds.length > 0) {
-    await store.parseUIScreens(pendingIds)
-  }
+  ElMessage.success('上传成功，正在后台解析')
 }
 
 async function loadProjects() {
@@ -794,6 +788,10 @@ function handleBack() {
 
 onMounted(() => {
   loadProjects()
+})
+
+onBeforeUnmount(() => {
+  store.cancelParsePolling()
 })
 </script>
 
