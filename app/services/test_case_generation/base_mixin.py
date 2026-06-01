@@ -131,6 +131,7 @@ def _screen_ref(screen: UIPrototypeScreen, confidence: str) -> Dict[str, Any]:
         "prototype_name": screen.prototype_name,
         "confidence": confidence,
         "parse_status": screen.parse_status,
+        "element_count": screen.element_count or 0,
     }
 
 
