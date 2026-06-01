@@ -148,7 +148,11 @@ async def upload_ui_screens(
         )
 
         return create_response(
-            data={"screen_ids": screen_ids, "total": len(screen_ids)},
+            data={
+                "screen_ids": screen_ids,
+                "total": len(screen_ids),
+                "prototype_project_id": prototype_project_id,
+            },
             msg=message
         )
     except HTTPException:
