@@ -85,13 +85,86 @@
               提取或新建
             </div>
           </el-form-item>
-          <el-form-item label="UI页面">
-            <el-select v-model="store.uiScreenIds" multiple placeholder="选择UI页面（可选）" filterable style="width: 100%">
-              <el-option v-for="s in uiScreens" :key="s.id" :label="s.screen_name || `页面${s.id}`" :value="s.id" />
+          <el-form-item label="UI原型项目">
+            <el-select
+              v-model="store.selectedUIPrototypeProjectId"
+              placeholder="选择UI原型项目（可选）"
+              filterable
+              clearable
+              style="width: 100%"
+              @change="store.handleUIPrototypeProjectChange"
+            >
+              <el-option v-for="p in store.uiPrototypeProjects" :key="p.id" :label="p.name" :value="p.id">
+                <span>{{ p.name }}</span>
+                <el-tag size="small" type="info" style="margin-left: 8px">{{ p.screen_count || 0 }} 页</el-tag>
+              </el-option>
             </el-select>
             <div class="optional-hint">UI原型图可选，不提供也能继续生成</div>
           </el-form-item>
         </el-form>
+
+        <div v-if="store.selectedUIPrototypeProjectId" class="ui-screen-section">
+          <div class="ui-screen-header">
+            <h4>UI页面选择</h4>
+            <div class="ui-screen-actions">
+              <el-button size="small" @click="store.uiUploadDialogVisible = true">
+                <el-icon><Upload /></el-icon>
+                上传页面
+              </el-button>
+              <el-button
+                v-if="unparsedScreenIds.length > 0"
+                size="small"
+                type="warning"
+                :loading="store.uiParsing"
+                @click="store.parseUIScreens(unparsedScreenIds)"
+              >
+                解析待处理页面 ({{ unparsedScreenIds.length }})
+              </el-button>
+            </div>
+          </div>
+
+          <el-alert v-if="store.hasUIParseFailure" type="warning" :closable="false" show-icon class="ui-parse-alert">
+            <template #title>部分 UI 页面解析失败，不影响生成，但相关步骤需人工确认页面元素</template>
+          </el-alert>
+
+          <el-alert v-if="store.hasUIParsePending" type="info" :closable="false" show-icon class="ui-parse-alert">
+            <template #title>部分 UI 页面尚未解析，建议先解析以获得更准确的页面元素信息</template>
+          </el-alert>
+
+          <div class="ui-screen-grid">
+            <div
+              v-for="screen in store.uiScreenDetails"
+              :key="screen.id"
+              class="ui-screen-card"
+              :class="{
+                selected: store.uiScreenIds.includes(screen.id),
+                'parse-failed': screen.parse_status === 'failed',
+                'parse-pending': screen.parse_status === 'pending' || screen.parse_status === 'running',
+              }"
+              @click="store.toggleUIScreen(screen.id)"
+            >
+              <div class="screen-thumb">
+                <img v-if="store.uiScreenImageUrls[screen.id]" :src="store.uiScreenImageUrls[screen.id]" :alt="screen.screen_name" />
+                <el-icon v-else :size="32" color="#c0c4cc"><Picture /></el-icon>
+              </div>
+              <div class="screen-info">
+                <span class="screen-name">{{ screen.screen_name || `页面${screen.id}` }}</span>
+                <el-tag
+                  size="small"
+                  :type="screen.parse_status === 'completed' ? 'success' : screen.parse_status === 'failed' ? 'danger' : 'info'"
+                >
+                  {{ parseStatusLabel(screen.parse_status) }}
+                </el-tag>
+              </div>
+              <div v-if="screen.parse_status === 'completed'" class="screen-elements">
+                {{ screen.element_count || 0 }} 元素 / {{ screen.button_count || 0 }} 按钮
+              </div>
+              <div v-if="screen.parse_status === 'failed'" class="screen-error">
+                {{ screen.parse_error || '解析失败' }}
+              </div>
+            </div>
+          </div>
+        </div>
 
         <el-collapse class="advanced-collapse">
           <el-collapse-item title="高级配置" name="advanced">
@@ -159,6 +232,21 @@
             <el-tag size="small" :type="ref.type === 'requirement' ? undefined : ref.type === 'ui' ? 'success' : 'info'">{{ ref.label }}</el-tag>
             <span v-for="(item, i) in ref.items" :key="i" class="evidence-item">{{ item }}</span>
           </div>
+        </el-card>
+
+        <el-card v-if="store.uiScreenMatchResults.length > 0" class="ui-match-card">
+          <template #header><span>UI 页面匹配结果</span></template>
+          <el-table :data="store.uiScreenMatchResults" size="small" stripe>
+            <el-table-column prop="screen_name" label="页面名称" />
+            <el-table-column prop="confidence" label="匹配置信度" width="140">
+              <template #default="{ row }">
+                <el-tag size="small" :type="row.confidence === 'explicit' ? 'success' : row.confidence === 'matched' ? 'primary' : 'info'">
+                  {{ confidenceLabel(row.confidence) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="element_count" label="识别元素" width="100" />
+          </el-table>
         </el-card>
 
         <el-card v-if="store.warnings.length > 0" class="warning-card">
@@ -275,6 +363,17 @@
                 </ol>
               </el-descriptions-item>
               <el-descriptions-item label="预期结果" :span="2">{{ c.expected_result }}</el-descriptions-item>
+              <el-descriptions-item v-if="c.source_refs && Object.keys(c.source_refs).length > 0" label="来源依据" :span="2">
+                <span v-if="c.source_refs.ui_screen_name" class="source-ref-item">
+                  <el-tag size="small" type="success">UI: {{ c.source_refs.ui_screen_name }}</el-tag>
+                </span>
+                <span v-if="c.source_refs.requirement_file_name" class="source-ref-item">
+                  <el-tag size="small">需求: {{ c.source_refs.requirement_file_name }}</el-tag>
+                </span>
+                <span v-if="c.source_refs.test_point_name" class="source-ref-item">
+                  <el-tag size="small" type="info">测试点: {{ c.source_refs.test_point_name }}</el-tag>
+                </span>
+              </el-descriptions-item>
             </el-descriptions>
           </el-card>
         </div>
@@ -395,13 +494,37 @@
         <el-button type="primary" @click="saveEdit">保存修改</el-button>
       </template>
     </el-dialog>
+
+    <!-- UI 上传对话框 -->
+    <el-dialog v-model="store.uiUploadDialogVisible" title="上传 UI 页面" width="500px" destroy-on-close>
+      <el-upload
+        ref="uiUploadRef"
+        action=""
+        :auto-upload="false"
+        :limit="20"
+        :multiple="true"
+        accept=".png,.jpg,.jpeg,.gif,.webp,.bmp"
+        drag
+        :on-change="handleUIFileChange"
+      >
+        <el-icon :size="48" color="#c0c4cc"><Upload /></el-icon>
+        <div>拖拽或点击上传 UI 页面截图</div>
+        <template #tip>
+          <div class="upload-tip">支持 PNG/JPG/GIF/WebP/BMP，单次最多 20 张</div>
+        </template>
+      </el-upload>
+      <template #footer>
+        <el-button @click="store.uiUploadDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="store.uiUploading" @click="handleUIUploadSubmit">上传并解析</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, WarningFilled, Loading } from '@element-plus/icons-vue'
+import { ArrowLeft, WarningFilled, Loading, Upload, Picture } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSmartGenerationStore } from '@/store/smartGeneration'
 import type { QualityStatus, SmartPreviewCase } from '@/store/smartGeneration'
@@ -413,9 +536,16 @@ const store = useSmartGenerationStore()
 const projects = ref<{ id: number; name: string }[]>([])
 const requirementFiles = ref<{ id: number; file_name: string; original_name: string }[]>([])
 const testPoints = ref<{ id: number; name: string; test_point: string; module: string }[]>([])
-const uiScreens = ref<{ id: number; screen_name: string }[]>([])
 
 const saveMode = ref<'draft' | 'formal' | 'passed_only'>('draft')
+
+const uiUploadFiles = ref<File[]>([])
+
+const unparsedScreenIds = computed(() => {
+  return store.uiScreenDetails
+    .filter((s) => s.parse_status === 'pending' || s.parse_status === 'failed')
+    .map((s) => s.id)
+})
 
 const editDialogVisible = ref(false)
 const editingCase = ref<SmartPreviewCase | null>(null)
@@ -453,6 +583,37 @@ function priorityLabel(p: number) {
   return map[p] || '中'
 }
 
+function parseStatusLabel(status: string | undefined) {
+  const map: Record<string, string> = { completed: '已解析', pending: '待解析', running: '解析中', failed: '解析失败' }
+  return map[status || 'pending'] || '待解析'
+}
+
+function confidenceLabel(confidence: string) {
+  const map: Record<string, string> = { explicit: '精确匹配', ui_file: 'UI文件匹配', matched: '关键词匹配', adjacent: '相邻页面' }
+  return map[confidence] || confidence
+}
+
+function handleUIFileChange(_file: unknown, fileList: unknown[]) {
+  uiUploadFiles.value = fileList.map((f) => (f as { raw: File }).raw).filter(Boolean)
+}
+
+async function handleUIUploadSubmit() {
+  if (uiUploadFiles.value.length === 0) {
+    ElMessage.warning('请选择要上传的文件')
+    return
+  }
+  await store.uploadUIScreens(uiUploadFiles.value)
+  uiUploadFiles.value = []
+  store.uiUploadDialogVisible = false
+  ElMessage.success('上传成功')
+  const pendingIds = store.uiScreenDetails
+    .filter((s) => s.parse_status === 'pending')
+    .map((s) => s.id)
+  if (pendingIds.length > 0) {
+    await store.parseUIScreens(pendingIds)
+  }
+}
+
 async function loadProjects() {
   try {
     const resp = await request.get('/api/v1/projects')
@@ -479,22 +640,12 @@ async function loadTestPoints() {
   } catch { testPoints.value = [] }
 }
 
-async function loadUIScreens() {
-  if (!store.selectedProjectId) { uiScreens.value = []; return }
-  try {
-    const resp = await request.get(`/api/v1/ui-prototype/screens?project_id=${store.selectedProjectId}`)
-    const data = (resp as { data?: unknown })?.data || resp
-    uiScreens.value = Array.isArray(data) ? data : (data as { items?: unknown[] })?.items || []
-  } catch { uiScreens.value = [] }
-}
-
 watch(() => store.selectedProjectId, async (val) => {
   if (val) {
-    await Promise.all([loadProjectFiles(), loadTestPoints(), loadUIScreens()])
+    await Promise.all([loadProjectFiles(), loadTestPoints(), store.loadUIPrototypeProjects()])
   } else {
     requirementFiles.value = []
     testPoints.value = []
-    uiScreens.value = []
   }
 })
 
@@ -738,6 +889,107 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+}
+.ui-screen-section {
+  margin-top: 16px;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 16px;
+}
+.ui-screen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.ui-screen-header h4 {
+  margin: 0;
+}
+.ui-screen-actions {
+  display: flex;
+  gap: 8px;
+}
+.ui-parse-alert {
+  margin-bottom: 12px;
+}
+.ui-screen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.ui-screen-card {
+  border: 2px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.ui-screen-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64,158,255,0.12);
+}
+.ui-screen-card.selected {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+.ui-screen-card.parse-failed {
+  border-color: #f56c6c;
+  opacity: 0.8;
+}
+.ui-screen-card.parse-pending {
+  border-color: #e6a23c;
+  opacity: 0.85;
+}
+.screen-thumb {
+  width: 100%;
+  height: 80px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #f5f7fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.screen-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.screen-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.screen-name {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  text-align: left;
+}
+.screen-elements {
+  font-size: 11px;
+  color: #909399;
+}
+.screen-error {
+  font-size: 11px;
+  color: #f56c6c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.source-ref-item {
+  margin-right: 8px;
+}
+.upload-tip {
+  font-size: 12px;
+  color: #909399;
 }
 .advanced-collapse {
   max-width: 600px;

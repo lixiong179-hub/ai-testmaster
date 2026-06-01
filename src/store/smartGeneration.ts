@@ -9,6 +9,7 @@ import type {
   PreviewCasePayload,
 } from '@/api/generationBatch'
 import { aiApi } from '@/api/case/ai'
+import { uiPrototypeApi, type UIScreen, type UIPrototypeProject } from '@/api/uiPrototype'
 
 export type SmartGenStep = 'task' | 'material' | 'context' | 'strategy' | 'generating' | 'preview' | 'save_confirm' | 'save_result'
 export type TaskType = 'new_feature' | 'history_update' | 'import_asset'
@@ -133,6 +134,14 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   const requirementFileIds = ref<number[]>([])
   const testPointIds = ref<number[]>([])
   const uiScreenIds = ref<number[]>([])
+
+  const uiPrototypeProjects = ref<UIPrototypeProject[]>([])
+  const selectedUIPrototypeProjectId = ref<number | ''>('')
+  const uiScreenDetails = ref<UIScreen[]>([])
+  const uiScreenImageUrls = ref<Record<number, string>>({})
+  const uiUploadDialogVisible = ref(false)
+  const uiUploading = ref(false)
+  const uiParsing = ref(false)
 
   const contextStats = ref<Record<string, unknown>>({})
   const warnings = ref<NormalizedWarning[]>([])
@@ -663,6 +672,125 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     return result
   })
 
+  const uiScreenParseStatusMap = computed(() => {
+    const map: Record<number, string> = {}
+    for (const s of uiScreenDetails.value) {
+      map[s.id] = s.parse_status || 'pending'
+    }
+    return map
+  })
+
+  const uiScreenMatchResults = computed(() => {
+    const refs = evidenceRefs.value
+    const screens = refs.ui_screens as Record<string, unknown>[] | undefined
+    if (!screens || !Array.isArray(screens)) return []
+    return screens.map((s) => ({
+      screen_name: (s.screen_name as string) || `页面${s.id}`,
+      confidence: (s.confidence as string) || 'unknown',
+      element_count: (s.element_count as number) || 0,
+    }))
+  })
+
+  const hasUIParseFailure = computed(() => {
+    return uiScreenDetails.value.some((s) => s.parse_status === 'failed')
+  })
+
+  const hasUIParsePending = computed(() => {
+    return uiScreenDetails.value.some((s) => s.parse_status === 'pending' || s.parse_status === 'running')
+  })
+
+  async function loadUIPrototypeProjects() {
+    if (!selectedProjectId.value) { uiPrototypeProjects.value = []; return }
+    try {
+      const resp = await uiPrototypeApi.getUIPrototypeProjectList(selectedProjectId.value as number)
+      const data = (resp as { data?: unknown })?.data || resp
+      uiPrototypeProjects.value = Array.isArray(data) ? data : (data as { items?: unknown[] })?.items || []
+    } catch { uiPrototypeProjects.value = [] }
+  }
+
+  async function loadUIScreenDetails() {
+    if (!selectedProjectId.value) { uiScreenDetails.value = []; return }
+    try {
+      const resp = await uiPrototypeApi.getUIScreenList(
+        selectedProjectId.value as number,
+        selectedUIPrototypeProjectId.value as number || undefined,
+      )
+      const data = (resp as { data?: unknown })?.data || resp
+      uiScreenDetails.value = Array.isArray(data) ? data : (data as { items?: unknown[] })?.items || []
+      uiScreenIds.value = uiScreenDetails.value
+        .filter((s) => s.parse_status === 'completed')
+        .map((s) => s.id)
+    } catch { uiScreenDetails.value = []; uiScreenIds.value = [] }
+  }
+
+  async function loadUIScreenImages() {
+    for (const screen of uiScreenDetails.value) {
+      if (!screen.id || !screen.original_file_path) continue
+      if (uiScreenImageUrls.value[screen.id]) continue
+      try {
+        const resp = await fetch(`/api/v1/files/preview-screen/${screen.id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        })
+        if (!resp.ok) continue
+        const blob = await resp.blob()
+        if (blob.size > 0) {
+          uiScreenImageUrls.value[screen.id] = URL.createObjectURL(blob)
+        }
+      } catch { /* ignore */ }
+    }
+  }
+
+  async function handleUIPrototypeProjectChange(projectId: number | '') {
+    selectedUIPrototypeProjectId.value = projectId
+    uiScreenDetails.value = []
+    uiScreenIds.value = []
+    Object.values(uiScreenImageUrls.value).forEach((url) => {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url)
+    })
+    uiScreenImageUrls.value = {}
+    if (projectId) {
+      await loadUIScreenDetails()
+      await loadUIScreenImages()
+    }
+  }
+
+  async function uploadUIScreens(files: File[]) {
+    if (!selectedProjectId.value || files.length === 0) return
+    uiUploading.value = true
+    try {
+      await uiPrototypeApi.uploadUIScreens(
+        selectedProjectId.value as number,
+        files,
+        `智能生成上传-${new Date().toLocaleDateString()}`,
+        selectedUIPrototypeProjectId.value as number || undefined,
+      )
+      await loadUIScreenDetails()
+      await loadUIScreenImages()
+    } finally {
+      uiUploading.value = false
+    }
+  }
+
+  async function parseUIScreens(screenIds: number[]) {
+    if (screenIds.length === 0) return
+    uiParsing.value = true
+    try {
+      await uiPrototypeApi.parseUIScreens(screenIds)
+      await loadUIScreenDetails()
+    } finally {
+      uiParsing.value = false
+    }
+  }
+
+  function toggleUIScreen(screenId: number) {
+    const idx = uiScreenIds.value.indexOf(screenId)
+    if (idx >= 0) {
+      uiScreenIds.value.splice(idx, 1)
+    } else {
+      uiScreenIds.value.push(screenId)
+    }
+  }
+
   function reset() {
     currentStep.value = 'task'
     selectedTask.value = 'new_feature'
@@ -673,6 +801,16 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     requirementFileIds.value = []
     testPointIds.value = []
     uiScreenIds.value = []
+    uiPrototypeProjects.value = []
+    selectedUIPrototypeProjectId.value = ''
+    uiScreenDetails.value = []
+    Object.values(uiScreenImageUrls.value).forEach((url) => {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url)
+    })
+    uiScreenImageUrls.value = {}
+    uiUploadDialogVisible.value = false
+    uiUploading.value = false
+    uiParsing.value = false
     contextStats.value = {}
     warnings.value = []
     evidenceRefs.value = {}
@@ -705,6 +843,13 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     requirementFileIds,
     testPointIds,
     uiScreenIds,
+    uiPrototypeProjects,
+    selectedUIPrototypeProjectId,
+    uiScreenDetails,
+    uiScreenImageUrls,
+    uiUploadDialogVisible,
+    uiUploading,
+    uiParsing,
     contextStats,
     warnings,
     evidenceRefs,
@@ -738,6 +883,17 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     recalcQualitySummary,
     coverageSummary,
     evidenceRefsDisplay,
+    uiScreenParseStatusMap,
+    uiScreenMatchResults,
+    hasUIParseFailure,
+    hasUIParsePending,
+    loadUIPrototypeProjects,
+    loadUIScreenDetails,
+    loadUIScreenImages,
+    handleUIPrototypeProjectChange,
+    uploadUIScreens,
+    parseUIScreens,
+    toggleUIScreen,
     reset,
   }
 })
