@@ -86,31 +86,33 @@
             </div>
           </el-form-item>
           <el-form-item label="UI原型项目">
-            <el-select
-              v-model="store.selectedUIPrototypeProjectId"
-              placeholder="选择UI原型项目（可选）"
-              filterable
-              clearable
-              style="width: 100%"
-              @change="store.handleUIPrototypeProjectChange"
-            >
-              <el-option v-for="p in store.uiPrototypeProjects" :key="p.id" :label="p.name" :value="p.id">
-                <span>{{ p.name }}</span>
-                <el-tag size="small" type="info" style="margin-left: 8px">{{ p.screen_count || 0 }} 页</el-tag>
-              </el-option>
-            </el-select>
-            <div class="optional-hint">UI原型图可选，不提供也能继续生成</div>
+            <div class="ui-project-row">
+              <el-select
+                v-model="store.selectedUIPrototypeProjectId"
+                placeholder="选择已有原型项目（可选）"
+                filterable
+                clearable
+                style="flex: 1"
+                @change="store.handleUIPrototypeProjectChange"
+              >
+                <el-option v-for="p in store.uiPrototypeProjects" :key="p.id" :label="p.name" :value="p.id">
+                  <span>{{ p.name }}</span>
+                  <el-tag size="small" type="info" style="margin-left: 8px">{{ p.screen_count || 0 }} 页</el-tag>
+                </el-option>
+              </el-select>
+              <el-button size="default" @click="store.uiUploadDialogVisible = true">
+                <el-icon><Upload /></el-icon>
+                上传UI页面
+              </el-button>
+            </div>
+            <div class="optional-hint">UI原型图可选，不提供也能继续生成。可直接上传截图，无需先创建原型项目</div>
           </el-form-item>
         </el-form>
 
-        <div v-if="store.selectedUIPrototypeProjectId" class="ui-screen-section">
+        <div v-if="store.uiScreenDetails.length > 0" class="ui-screen-section">
           <div class="ui-screen-header">
             <h4>UI页面选择</h4>
             <div class="ui-screen-actions">
-              <el-button size="small" @click="store.uiUploadDialogVisible = true">
-                <el-icon><Upload /></el-icon>
-                上传页面
-              </el-button>
               <el-button
                 v-if="unparsedScreenIds.length > 0"
                 size="small"
@@ -889,6 +891,11 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+}
+.ui-project-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
 }
 .ui-screen-section {
   margin-top: 16px;
