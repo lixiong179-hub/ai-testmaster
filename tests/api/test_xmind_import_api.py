@@ -617,6 +617,7 @@ def real_ai_client():
     app.dependency_overrides.pop(get_current_user, None)
 
 
+@pytest.mark.real_api
 class TestImportXmindAiReal:
     """真实 AI 端到端测试。
 
