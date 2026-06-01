@@ -56,6 +56,7 @@ from app.models import bug
 from app.models import video_record
 from app.models import test_case_data
 from app.models import project_flow_data
+from app.models import generation_batch
 
 # Alembic Config对象
 config = context.config
