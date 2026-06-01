@@ -1,0 +1,743 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { generationBatchApi } from '@/api/generationBatch'
+import type {
+  GenerationBatchCreatePayload,
+  GenerationBatchSavePayload,
+  GenerationBatchSaveResponse,
+  NormalizedWarning,
+  PreviewCasePayload,
+} from '@/api/generationBatch'
+import { aiApi } from '@/api/case/ai'
+
+export type SmartGenStep = 'task' | 'material' | 'context' | 'strategy' | 'generating' | 'preview' | 'save_confirm' | 'save_result'
+export type TaskType = 'new_feature' | 'history_update' | 'import_asset'
+export type QualityStatus = 'passed' | 'warning' | 'pending_review' | 'rejected'
+
+export interface SmartPreviewCase {
+  client_id: string
+  source_test_point_id: number | null
+  requirement_file_id: number | null
+  title: string
+  module: string
+  precondition: string
+  steps: Record<string, unknown>[]
+  expected_result: string
+  priority: number
+  case_type: string
+  case_category: string | null
+  quality_status: QualityStatus
+  quality_issues: Record<string, unknown>[]
+  selected_for_save: boolean
+  dirty: boolean
+  regenerating: boolean
+  source_refs: Record<string, unknown>
+}
+
+export interface GenerationContext {
+  requirement_content: string
+  ui_descriptions: string[]
+  ui_specs: string[]
+  test_points: Record<string, unknown>[]
+  history_cases: Record<string, unknown>[]
+  context_stats: Record<string, unknown>
+  warnings: NormalizedWarning[]
+  evidence_refs: Record<string, unknown>
+  project_config: Record<string, unknown>
+  pagination?: Record<string, unknown>
+  files_used?: Record<string, unknown>
+}
+
+const WARNING_CODE_MAP: Record<string, string> = {
+  UI_NO_MATCH: '未找到匹配的 UI 页面，页面元素需要人工确认',
+  REQUIREMENT_NOT_FOUND: '未找到关联需求，本次生成可信度较低',
+  REQUIREMENT_KEYWORD_MATCH: '未找到直接关联需求，已按关键词匹配相关需求',
+  REQUIREMENT_TRIMMED_BY_KEYWORDS: '需求内容较长，已按测试点关键词裁剪',
+  UI_SPEC_MISSING: '部分 UI 页面缺少可交互元素解析，相关步骤需确认',
+  UI_PARTIAL_MATCH: '部分 UI 页面未纳入上下文，可能缺少页面信息',
+  UI_REQUIRED_ELEMENT_MISSING: '当前 UI 资料可能缺少测试点所需页面元素',
+  UI_SCREEN_NOT_FOUND: '部分指定 UI 页面不存在，已跳过',
+  UI_FILE_NO_PARSED_SCREENS: '上传的 UI 文件尚未完成解析，页面元素需要人工确认',
+  HISTORY_NO_SIMILAR_CASE: '未找到相似历史用例，本次不使用历史参考',
+  HISTORY_NO_QUERY_TEXT: '测试点信息不足，未使用历史用例参考',
+  HISTORY_LOW_TRUST_FILTERED: '部分历史用例与当前资料不匹配，已排除',
+  HISTORY_POTENTIALLY_STALE: '部分历史用例可能过时，已不作为生成依据',
+  CONTEXT_COMPLETENESS_LOW: '资料完整度较低，建议保存为草稿后人工复核',
+  TEST_POINT_NOT_FOUND: '部分测试点不存在，已跳过',
+  UNKNOWN: '存在其他资料提示，建议查看详情',
+}
+
+function normalizeWarnings(raw: unknown[]): NormalizedWarning[] {
+  return raw.map((w) => {
+    if (typeof w === 'string') {
+      return { code: 'UNKNOWN', message: w, detail: {} }
+    }
+    if (typeof w === 'object' && w !== null) {
+      const obj = w as Record<string, unknown>
+      return {
+        code: (obj.code as string) || 'UNKNOWN',
+        message: (obj.message as string) || '',
+        detail: (obj.detail as Record<string, unknown>) || {},
+      }
+    }
+    return { code: 'UNKNOWN', message: String(w), detail: {} }
+  })
+}
+
+function getWarningUserText(code: string): string {
+  return WARNING_CODE_MAP[code] || '存在其他资料提示，建议查看详情'
+}
+
+function computeQualityStatus(
+  caseData: Partial<SmartPreviewCase>,
+  warnings: NormalizedWarning[],
+  contextStats: Record<string, unknown>,
+): QualityStatus {
+  if (!caseData.title || !caseData.steps?.length || !caseData.expected_result) {
+    return 'rejected'
+  }
+  const missingCore = contextStats.missing_core_context as string[] | undefined
+  const hasLowCompleteness = warnings.some((w) => w.code === 'CONTEXT_COMPLETENESS_LOW')
+  const hasNoRequirement = warnings.some((w) => w.code === 'REQUIREMENT_NOT_FOUND')
+  const hasNoUI = warnings.some((w) => w.code === 'UI_NO_MATCH')
+  const hasUIElement = caseData.steps?.some(
+    (s) => (s as Record<string, unknown>)?.target_element || (s as Record<string, unknown>)?.action_type === 'click',
+  )
+
+  if (hasLowCompleteness || hasNoRequirement || (missingCore && missingCore.includes('requirement'))) {
+    return 'pending_review'
+  }
+  if (hasNoUI && hasUIElement) {
+    return 'pending_review'
+  }
+  if (hasNoUI || warnings.some((w) => ['HISTORY_LOW_TRUST_FILTERED', 'HISTORY_POTENTIALLY_STALE'].includes(w.code))) {
+    return 'warning'
+  }
+  return 'passed'
+}
+
+function normalizeGenerationDescription(raw: string): string {
+  const trimmed = raw.trim()
+  const withFallback = trimmed.length >= 5 ? trimmed : `${trimmed} 生成测试用例`.trim()
+  return withFallback.slice(0, 10000)
+}
+
+export const useSmartGenerationStore = defineStore('smartGeneration', () => {
+  const currentStep = ref<SmartGenStep>('task')
+  const selectedTask = ref<TaskType>('new_feature')
+  const selectedProjectId = ref<number | ''>('')
+  const batchId = ref<number | null>(null)
+  const batchNo = ref<string>('')
+  const batchStatus = ref<string>('created')
+
+  const requirementFileIds = ref<number[]>([])
+  const testPointIds = ref<number[]>([])
+  const uiScreenIds = ref<number[]>([])
+
+  const contextStats = ref<Record<string, unknown>>({})
+  const warnings = ref<NormalizedWarning[]>([])
+  const evidenceRefs = ref<Record<string, unknown>>({})
+  const generationContext = ref<GenerationContext | null>(null)
+  const strategy = ref<string>('')
+  const scenarioType = ref<string>('B1_REQUIREMENT_TESTPOINT')
+
+  const previewCases = ref<SmartPreviewCase[]>([])
+  const qualitySummary = ref<Record<string, number>>({ passed: 0, warning: 0, pending_review: 0, rejected: 0 })
+
+  const generating = ref(false)
+  const generationProgress = ref<string>('')
+  const saving = ref(false)
+  const saveResult = ref<GenerationBatchSaveResponse | null>(null)
+  const saveError = ref<string>('')
+
+  const advancedConfig = ref({
+    case_type: 'manual' as string,
+    exec_mode: 'manual' as string,
+    priority: 2 as number,
+    enhanced_mode: true,
+    mode: 'linear' as string,
+  })
+
+  const materialLevel = computed(() => {
+    const hasReq = (contextStats.value.requirements_used as number) > 0
+    const hasTP = (contextStats.value.test_points_loaded as number) > 0
+    const hasUI = (contextStats.value.ui_screens_used as number) > 0
+    if (hasReq && hasTP && hasUI) return 'L3'
+    if (hasReq && hasTP) return 'L2'
+    if (hasTP || hasReq) return 'L1'
+    return 'L0'
+  })
+
+  const materialLevelText = computed(() => {
+    const map: Record<string, string> = {
+      L3: '资料充足：需求 + 测试点 + UI',
+      L2: '资料较完整：需求 + 测试点',
+      L1: '资料不足：仅有部分资料',
+      L0: '不建议生成：关键资料为空',
+    }
+    return map[materialLevel.value] || ''
+  })
+
+  const strategyDisplayText = computed(() => {
+    if (strategy.value === 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION') return '标准需求生成'
+    if (strategy.value === 'FULL_CONTEXT_GENERATION_LITE') return '完整资料生成'
+    return strategy.value
+  })
+
+  const warningUserTexts = computed(() => {
+    return warnings.value.map((w) => ({
+      code: w.code,
+      text: getWarningUserText(w.code),
+      detail: w.detail,
+    }))
+  })
+
+  const selectedForSaveCount = computed(() => previewCases.value.filter((c) => c.selected_for_save).length)
+  const passedCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'passed').length)
+  const warningCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'warning').length)
+  const pendingReviewCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'pending_review').length)
+  const rejectedCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'rejected').length)
+
+  function recalcQualitySummary() {
+    qualitySummary.value = {
+      passed: previewCases.value.filter((c) => c.quality_status === 'passed').length,
+      warning: previewCases.value.filter((c) => c.quality_status === 'warning').length,
+      pending_review: previewCases.value.filter((c) => c.quality_status === 'pending_review').length,
+      rejected: previewCases.value.filter((c) => c.quality_status === 'rejected').length,
+    }
+  }
+
+  async function createBatch() {
+    const hasUI = uiScreenIds.value.length > 0
+    scenarioType.value = hasUI ? 'A1_REQUIREMENT_TESTPOINT_UI' : 'B1_REQUIREMENT_TESTPOINT'
+    strategy.value = hasUI ? 'FULL_CONTEXT_GENERATION_LITE' : 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION'
+
+    const payload: GenerationBatchCreatePayload = {
+      project_id: selectedProjectId.value as number,
+      entry_type: 'NEW_FEATURE_GENERATION',
+      scenario_type: scenarioType.value as GenerationBatchCreatePayload['scenario_type'],
+      generation_strategy: strategy.value as GenerationBatchCreatePayload['generation_strategy'],
+      requirement_file_ids: requirementFileIds.value,
+      test_point_ids: testPointIds.value,
+      ui_screen_ids: uiScreenIds.value,
+    }
+    const result = await generationBatchApi.create(payload)
+    batchId.value = result.id
+    batchNo.value = result.batch_no
+    batchStatus.value = result.status
+  }
+
+  async function fetchContext() {
+    generationProgress.value = '正在读取需求...'
+    const contextResp = await aiApi.generateContext({
+      project_id: selectedProjectId.value,
+      requirement_file_ids: requirementFileIds.value,
+      test_point_ids: testPointIds.value,
+      ui_screen_ids: uiScreenIds.value,
+      test_point_page: 1,
+      test_point_page_size: 500,
+    })
+    const respData = ((contextResp as { data?: unknown })?.data || contextResp) as Record<string, unknown>
+
+    generationProgress.value = '正在分析测试点...'
+    const rawWarnings = normalizeWarnings((respData.warnings as unknown[]) || [])
+    warnings.value = rawWarnings
+    contextStats.value = (respData.context_stats as Record<string, unknown>) || {}
+    evidenceRefs.value = (respData.evidence_refs as Record<string, unknown>) || {}
+
+    generationContext.value = {
+      requirement_content: (respData.requirement_content as string) || '',
+      ui_descriptions: (respData.ui_descriptions as string[]) || [],
+      ui_specs: (respData.ui_specs as string[]) || [],
+      test_points: (respData.test_points as Record<string, unknown>[]) || [],
+      history_cases: (respData.history_cases as Record<string, unknown>[]) || [],
+      context_stats: contextStats.value,
+      warnings: rawWarnings,
+      evidence_refs: evidenceRefs.value,
+      project_config: (respData.project_config as Record<string, unknown>) || {},
+      pagination: respData.pagination as Record<string, unknown>,
+      files_used: respData.files_used as Record<string, unknown>,
+    }
+
+    generationProgress.value = '正在检查 UI 资料...'
+
+    const hasUI = uiScreenIds.value.length > 0
+    scenarioType.value = hasUI ? 'A1_REQUIREMENT_TESTPOINT_UI' : 'B1_REQUIREMENT_TESTPOINT'
+    strategy.value = hasUI ? 'FULL_CONTEXT_GENERATION_LITE' : 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION'
+
+    if (batchId.value) {
+      await generationBatchApi.update(batchId.value, {
+        status: 'context_ready',
+        context_stats: contextStats.value,
+        warnings: rawWarnings,
+        evidence_refs: evidenceRefs.value,
+      })
+      batchStatus.value = 'context_ready'
+    }
+
+    generationProgress.value = ''
+  }
+
+  async function startGeneration() {
+    if (!generationContext.value) return
+    generating.value = true
+    generationProgress.value = '正在组织生成资料...'
+    previewCases.value = []
+
+    try {
+      if (batchId.value) {
+        await generationBatchApi.update(batchId.value, { status: 'generating' })
+        batchStatus.value = 'generating'
+      }
+
+      const ctx = generationContext.value
+      const hasUI = uiScreenIds.value.length > 0
+      const caseType = hasUI ? 'manual' : 'manual'
+      const execMode = hasUI ? 'all' : 'manual'
+
+      const description = normalizeGenerationDescription(
+        `基于本批次需求文档、测试点和可选 UI 资料生成测试用例`,
+      )
+
+      generationProgress.value = '正在生成测试用例...'
+
+      const response = await fetch('/api/v1/testCase/ai-enhanced-generate/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+        },
+        body: JSON.stringify({
+          project_id: selectedProjectId.value,
+          description,
+          case_type: caseType,
+          exec_mode: execMode,
+          priority: 2,
+          enhanced_mode: true,
+          mode: 'linear',
+          context: {
+            requirement_content: ctx.requirement_content,
+            test_points: ctx.test_points,
+            ui_descriptions: ctx.ui_descriptions,
+            ui_specs: ctx.ui_specs,
+            history_cases: ctx.history_cases,
+            context_stats: ctx.context_stats,
+            warnings: ctx.warnings,
+            evidence_refs: ctx.evidence_refs,
+            project_config: ctx.project_config,
+            pagination: ctx.pagination,
+            files_used: ctx.files_used,
+          },
+        }),
+      })
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('无法获取流式响应')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data: ')) continue
+          const jsonStr = trimmed.slice(6)
+          try {
+            const event = JSON.parse(jsonStr)
+            if (event.code === 0) {
+              if (event.data?.status === 'started') {
+                generationProgress.value = '正在准备生成...'
+              } else if (event.data?.status === 'building_prompt') {
+                generationProgress.value = '正在组织生成资料...'
+              } else if (event.data?.status === 'generating') {
+                generationProgress.value = '正在生成测试用例...'
+              } else if (Array.isArray(event.data)) {
+                generationProgress.value = '正在准备预览结果...'
+                const cases = event.data
+                for (const c of cases) {
+                  const previewCase: SmartPreviewCase = {
+                    client_id: `case-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    source_test_point_id: c.test_point_id || null,
+                    requirement_file_id: null,
+                    title: c.title || '',
+                    module: c.module || '',
+                    precondition: c.precondition || '',
+                    steps: c.steps || [],
+                    expected_result: c.expected_result || '',
+                    priority: c.priority || 2,
+                    case_type: c.case_type || 'manual',
+                    case_category: c.test_category || c.case_category || null,
+                    quality_status: 'pending_review',
+                    quality_issues: [],
+                    selected_for_save: true,
+                    dirty: false,
+                    regenerating: false,
+                    source_refs: {},
+                  }
+                  previewCase.quality_status = computeQualityStatus(previewCase, warnings.value, contextStats.value)
+                  if (previewCase.quality_status === 'rejected') {
+                    previewCase.selected_for_save = false
+                  }
+                  previewCases.value.push(previewCase)
+                }
+              } else if (event.data && typeof event.data === 'object' && !Array.isArray(event.data) && event.data.title) {
+                const c = event.data
+                const previewCase: SmartPreviewCase = {
+                  client_id: `case-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                  source_test_point_id: c.test_point_id || null,
+                  requirement_file_id: null,
+                  title: c.title || '',
+                  module: c.module || '',
+                  precondition: c.precondition || '',
+                  steps: c.steps || [],
+                  expected_result: c.expected_result || '',
+                  priority: c.priority || 2,
+                  case_type: c.case_type || 'manual',
+                  case_category: c.test_category || c.case_category || null,
+                  quality_status: 'pending_review',
+                  quality_issues: [],
+                  selected_for_save: true,
+                  dirty: false,
+                  regenerating: false,
+                  source_refs: {},
+                }
+                previewCase.quality_status = computeQualityStatus(previewCase, warnings.value, contextStats.value)
+                if (previewCase.quality_status === 'rejected') previewCase.selected_for_save = false
+                previewCases.value.push(previewCase)
+              }
+            } else if (event.code === 1) {
+              generationProgress.value = event.message || '生成的用例均未通过质量校验'
+            } else if (event.code === 500) {
+              throw new Error(event.message || '生成失败')
+            }
+          } catch {
+            // ignore parse errors for incomplete chunks
+          }
+        }
+      }
+
+      recalcQualitySummary()
+
+      if (batchId.value) {
+        await generationBatchApi.update(batchId.value, {
+          status: 'preview_ready',
+          quality_summary: qualitySummary.value as unknown as Record<string, unknown>,
+        })
+        batchStatus.value = 'preview_ready'
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '生成失败'
+      generationProgress.value = msg
+      if (batchId.value) {
+        await generationBatchApi.update(batchId.value, { status: 'failed' }).catch(() => {})
+        batchStatus.value = 'failed'
+      }
+    } finally {
+      generating.value = false
+    }
+  }
+
+  async function saveBatch(saveMode: 'draft' | 'formal' | 'passed_only') {
+    if (!batchId.value) return
+    saving.value = true
+    saveError.value = ''
+    saveResult.value = null
+
+    try {
+      const idempotencyKey = `${batchId.value}-${Date.now()}`
+      const casesToSave: PreviewCasePayload[] = previewCases.value
+        .filter((c) => {
+          if (saveMode === 'passed_only') return c.quality_status === 'passed' || c.quality_status === 'warning'
+          return c.selected_for_save
+        })
+        .map((c) => ({
+          client_id: c.client_id,
+          source_test_point_id: c.source_test_point_id,
+          requirement_file_id: c.requirement_file_id,
+          title: c.title,
+          module: c.module,
+          precondition: c.precondition,
+          steps: c.steps as unknown as PreviewCasePayload['steps'],
+          expected_result: c.expected_result,
+          priority: c.priority,
+          case_type: c.case_type,
+          case_category: c.case_category,
+          quality_status: c.quality_status,
+          quality_issues: c.quality_issues,
+          selected_for_save: c.selected_for_save,
+          source_refs: c.source_refs,
+        }))
+
+      if (casesToSave.length === 0) {
+        saveError.value = '没有可保存的用例'
+        return
+      }
+
+      const payload: GenerationBatchSavePayload = {
+        idempotency_key: idempotencyKey,
+        save_mode: saveMode,
+        cases: casesToSave,
+      }
+
+      const result = await generationBatchApi.save(batchId.value, payload)
+      saveResult.value = result
+      batchStatus.value = result.status
+    } catch (e: unknown) {
+      saveError.value = e instanceof Error ? e.message : '保存失败'
+    } finally {
+      saving.value = false
+    }
+  }
+
+  function toggleCaseSelection(clientId: string) {
+    const c = previewCases.value.find((pc) => pc.client_id === clientId)
+    if (c) c.selected_for_save = !c.selected_for_save
+  }
+
+  function removeCase(clientId: string) {
+    previewCases.value = previewCases.value.filter((c) => c.client_id !== clientId)
+    recalcQualitySummary()
+  }
+
+  async function regenerateSingleCase(clientId: string) {
+    const caseIndex = previewCases.value.findIndex((c) => c.client_id === clientId)
+    if (caseIndex === -1) return
+    if (!generationContext.value) return
+
+    const oldCase = previewCases.value[caseIndex]
+    oldCase.regenerating = true
+
+    try {
+      const ctx = generationContext.value
+      const description = normalizeGenerationDescription(
+        `重新生成测试用例：${oldCase.title}`,
+      )
+
+      const response = await fetch('/api/v1/testCase/ai-enhanced-generate/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+        },
+        body: JSON.stringify({
+          project_id: selectedProjectId.value,
+          description,
+          case_type: advancedConfig.value.case_type,
+          exec_mode: advancedConfig.value.exec_mode,
+          priority: oldCase.priority,
+          enhanced_mode: advancedConfig.value.enhanced_mode,
+          mode: advancedConfig.value.mode,
+          test_point_id: oldCase.source_test_point_id,
+          context: {
+            requirement_content: ctx.requirement_content,
+            test_points: ctx.test_points,
+            ui_descriptions: ctx.ui_descriptions,
+            ui_specs: ctx.ui_specs,
+            history_cases: ctx.history_cases,
+            context_stats: ctx.context_stats,
+            warnings: ctx.warnings,
+            evidence_refs: ctx.evidence_refs,
+            project_config: ctx.project_config,
+            pagination: ctx.pagination,
+            files_used: ctx.files_used,
+          },
+        }),
+      })
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('无法获取流式响应')
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data: ')) continue
+          const jsonStr = trimmed.slice(6)
+          try {
+            const event = JSON.parse(jsonStr)
+            if (event.code === 0) {
+              let newCaseData: Record<string, unknown> | null = null
+              if (Array.isArray(event.data) && event.data.length > 0) {
+                newCaseData = event.data[0]
+              } else if (event.data && typeof event.data === 'object' && !Array.isArray(event.data) && event.data.title) {
+                newCaseData = event.data
+              }
+              if (newCaseData) {
+                const c = newCaseData
+                const replacement: SmartPreviewCase = {
+                  client_id: oldCase.client_id,
+                  source_test_point_id: (c.test_point_id as number) || oldCase.source_test_point_id,
+                  requirement_file_id: oldCase.requirement_file_id,
+                  title: (c.title as string) || '',
+                  module: (c.module as string) || '',
+                  precondition: (c.precondition as string) || '',
+                  steps: (c.steps as Record<string, unknown>[]) || [],
+                  expected_result: (c.expected_result as string) || '',
+                  priority: (c.priority as number) || 2,
+                  case_type: (c.case_type as string) || 'manual',
+                  case_category: (c.test_category as string) || (c.case_category as string) || null,
+                  quality_status: 'pending_review',
+                  quality_issues: [],
+                  selected_for_save: true,
+                  dirty: false,
+                  regenerating: false,
+                  source_refs: oldCase.source_refs,
+                }
+                replacement.quality_status = computeQualityStatus(replacement, warnings.value, contextStats.value)
+                if (replacement.quality_status === 'rejected') replacement.selected_for_save = false
+                previewCases.value[caseIndex] = replacement
+                recalcQualitySummary()
+                return
+              }
+            } else if (event.code === 500) {
+              throw new Error(event.message || '重新生成失败')
+            }
+          } catch (parseErr) {
+            if (parseErr instanceof Error && parseErr.message.includes('重新生成')) throw parseErr
+          }
+        }
+      }
+    } catch (e: unknown) {
+      oldCase.regenerating = false
+      throw e
+    } finally {
+      oldCase.regenerating = false
+    }
+  }
+
+  const coverageSummary = computed(() => {
+    const total = previewCases.value.length
+    const byCategory: Record<string, number> = {}
+    const byTestPoint: Record<string, number> = {}
+    for (const c of previewCases.value) {
+      const cat = c.case_category || '未分类'
+      byCategory[cat] = (byCategory[cat] || 0) + 1
+      const tpKey = c.source_test_point_id ? `TP-${c.source_test_point_id}` : '无测试点'
+      byTestPoint[tpKey] = (byTestPoint[tpKey] || 0) + 1
+    }
+    return { total, byCategory, byTestPoint }
+  })
+
+  const evidenceRefsDisplay = computed(() => {
+    const refs = evidenceRefs.value
+    const result: { type: string; label: string; items: string[] }[] = []
+    const reqFiles = refs.requirement_files as Record<string, unknown>[] | undefined
+    if (reqFiles && reqFiles.length > 0) {
+      result.push({
+        type: 'requirement',
+        label: '需求文档',
+        items: reqFiles.map((f) => (f.file_name as string) || (f.original_name as string) || `文件${f.id}`),
+      })
+    }
+    const uiScreens = refs.ui_screens as Record<string, unknown>[] | undefined
+    if (uiScreens && uiScreens.length > 0) {
+      result.push({
+        type: 'ui',
+        label: 'UI页面',
+        items: uiScreens.map((s) => (s.screen_name as string) || `页面${s.id}`),
+      })
+    }
+    const historyCases = refs.history_cases as Record<string, unknown>[] | undefined
+    if (historyCases && historyCases.length > 0) {
+      result.push({
+        type: 'history',
+        label: '历史参考',
+        items: historyCases.map((h) => (h.title as string) || `用例${h.id}`),
+      })
+    }
+    return result
+  })
+
+  function reset() {
+    currentStep.value = 'task'
+    selectedTask.value = 'new_feature'
+    selectedProjectId.value = ''
+    batchId.value = null
+    batchNo.value = ''
+    batchStatus.value = 'created'
+    requirementFileIds.value = []
+    testPointIds.value = []
+    uiScreenIds.value = []
+    contextStats.value = {}
+    warnings.value = []
+    evidenceRefs.value = {}
+    generationContext.value = null
+    strategy.value = ''
+    scenarioType.value = 'B1_REQUIREMENT_TESTPOINT'
+    previewCases.value = []
+    qualitySummary.value = { passed: 0, warning: 0, pending_review: 0, rejected: 0 }
+    generating.value = false
+    generationProgress.value = ''
+    saving.value = false
+    saveResult.value = null
+    saveError.value = ''
+    advancedConfig.value = {
+      case_type: 'manual',
+      exec_mode: 'manual',
+      priority: 2,
+      enhanced_mode: true,
+      mode: 'linear',
+    }
+  }
+
+  return {
+    currentStep,
+    selectedTask,
+    selectedProjectId,
+    batchId,
+    batchNo,
+    batchStatus,
+    requirementFileIds,
+    testPointIds,
+    uiScreenIds,
+    contextStats,
+    warnings,
+    evidenceRefs,
+    generationContext,
+    strategy,
+    scenarioType,
+    previewCases,
+    qualitySummary,
+    generating,
+    generationProgress,
+    saving,
+    saveResult,
+    saveError,
+    advancedConfig,
+    materialLevel,
+    materialLevelText,
+    strategyDisplayText,
+    warningUserTexts,
+    selectedForSaveCount,
+    passedCount,
+    warningCount,
+    pendingReviewCount,
+    rejectedCount,
+    createBatch,
+    fetchContext,
+    startGeneration,
+    saveBatch,
+    toggleCaseSelection,
+    removeCase,
+    regenerateSingleCase,
+    recalcQualitySummary,
+    coverageSummary,
+    evidenceRefsDisplay,
+    reset,
+  }
+})

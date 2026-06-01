@@ -17,6 +17,7 @@ from app.api.v1.endpoints import user, websocket, test_case, batch_locator, test
 from app.api.v1.endpoints import execution_visualization, case_quality, execution, visibility
 from app.api.v1.endpoints import requirement_link, ui_prototype, iteration, pipeline, review_inbox
 from app.api.v1.endpoints import test_capability, audit_log, case_migration, case_refresh, ab_test
+from app.api.v1.endpoints import generation_batch
 from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
@@ -137,6 +138,7 @@ app.include_router(audit_log.router, prefix="/api/v1")
 app.include_router(case_migration.router, prefix="/api/v1")
 app.include_router(case_refresh.router, prefix="/api/v1/caseRefresh")
 app.include_router(ab_test.router, prefix="/api/v1/ab-test")
+app.include_router(generation_batch.router, prefix="/api/v1/generation-batches")
 
 
 # 根路径

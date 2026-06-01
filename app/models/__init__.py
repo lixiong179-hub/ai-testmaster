@@ -70,6 +70,7 @@ from app.models.test_case_data import TestCaseData
 from app.models.review import IterationReview, ReviewDecision, ReviewLock
 from app.models.case_refresh_suggestion import CaseRefreshSuggestion
 from app.models.ab_test_metric import ABTestMetric
+from app.models.generation_batch import GenerationBatch, GenerationBatchSave
 
 __all__ = [
     # UI原型相关
@@ -127,4 +128,6 @@ __all__ = [
     "CaseRefreshSuggestion",
     # A/B测试指标
     "ABTestMetric",
+    # 资料融合生成批次
+    "GenerationBatch", "GenerationBatchSave",
 ]
