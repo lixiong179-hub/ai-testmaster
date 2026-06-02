@@ -10,6 +10,11 @@ import type {
 } from '@/api/generationBatch'
 import { aiApi } from '@/api/case/ai'
 import { uiPrototypeApi, type UIScreen, type UIPrototypeProject } from '@/api/uiPrototype'
+import { historyAssetApi } from '@/api/historyAsset'
+import type {
+  HistoryAssetItem,
+  HistoryClassificationResponse,
+} from '@/api/historyAsset'
 
 export type SmartGenStep = 'task' | 'material' | 'context' | 'strategy' | 'generating' | 'preview' | 'save_confirm' | 'save_result'
 export type TaskType = 'new_feature' | 'history_update' | 'import_asset'
@@ -203,6 +208,12 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     mode: 'linear' as string,
   })
 
+  const historyAssets = ref<HistoryAssetItem[]>([])
+  const selectedHistoryAssetIds = ref<number[]>([])
+  const historyClassification = ref<HistoryClassificationResponse | null>(null)
+  const historyAligning = ref(false)
+  const historyItemSelections = ref<Map<string, boolean>>(new Map())
+
   const materialLevel = computed(() => {
     const hasReq = (contextStats.value.requirements_used as number) > 0
     const hasTP = (contextStats.value.test_points_loaded as number) > 0
@@ -237,7 +248,11 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     }))
   })
 
-  const selectedForSaveCount = computed(() => previewCases.value.filter((c) => c.selected_for_save).length)
+  const selectedForSaveCount = computed(() => {
+    const previewCount = previewCases.value.filter((c) => c.selected_for_save).length
+    const historyCount = Array.from(historyItemSelections.value.values()).filter((v) => v === true).length
+    return previewCount + historyCount
+  })
   const passedCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'passed').length)
   const warningCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'warning').length)
   const pendingReviewCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'pending_review').length)
@@ -253,6 +268,50 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   }
 
   async function createBatch() {
+    if (selectedTask.value === 'history_update') {
+      const hasExcel = historyAssets.value.some(
+        (a) => a.asset_type === 'excel' && selectedHistoryAssetIds.value.includes(a.id),
+      )
+      const hasXMind = historyAssets.value.some(
+        (a) => a.asset_type === 'xmind' && selectedHistoryAssetIds.value.includes(a.id),
+      )
+      const hasReq = requirementFileIds.value.length > 0
+      const hasUI = uiScreenIds.value.length > 0
+
+      if (hasExcel && hasReq && hasUI) {
+        scenarioType.value = 'A2_HISTORY_EXCEL_REQUIREMENT_UI'
+        strategy.value = 'HISTORY_INCREMENTAL_UPDATE'
+      } else if (hasXMind && hasReq && hasUI) {
+        scenarioType.value = 'A3_HISTORY_XMIND_REQUIREMENT_UI'
+        strategy.value = 'HISTORY_INCREMENTAL_UPDATE'
+      } else if (hasXMind && hasUI) {
+        scenarioType.value = 'B2_HISTORY_XMIND_UI'
+        strategy.value = 'HISTORY_UI_ADAPTATION'
+      } else if (hasExcel && hasUI) {
+        scenarioType.value = 'B3_HISTORY_EXCEL_UI'
+        strategy.value = 'HISTORY_UI_ADAPTATION'
+      } else {
+        scenarioType.value = 'A2_HISTORY_EXCEL_REQUIREMENT_UI'
+        strategy.value = 'HISTORY_INCREMENTAL_UPDATE'
+      }
+
+      const payload: Record<string, unknown> = {
+        project_id: selectedProjectId.value as number,
+        entry_type: 'HISTORY_UPDATE',
+        scenario_type: scenarioType.value,
+        generation_strategy: strategy.value,
+        requirement_file_ids: requirementFileIds.value,
+        test_point_ids: testPointIds.value,
+        ui_screen_ids: uiScreenIds.value,
+        history_asset_ids: selectedHistoryAssetIds.value,
+      }
+      const result = await generationBatchApi.create(payload as unknown as GenerationBatchCreatePayload)
+      batchId.value = result.id
+      batchNo.value = result.batch_no
+      batchStatus.value = result.status
+      return
+    }
+
     const hasUI = uiScreenIds.value.length > 0
     scenarioType.value = hasUI ? 'A1_REQUIREMENT_TESTPOINT_UI' : 'B1_REQUIREMENT_TESTPOINT'
     strategy.value = hasUI ? 'FULL_CONTEXT_GENERATION_LITE' : 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION'
@@ -306,9 +365,11 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
 
     generationProgress.value = '正在检查 UI 资料...'
 
-    const hasUI = uiScreenIds.value.length > 0
-    scenarioType.value = hasUI ? 'A1_REQUIREMENT_TESTPOINT_UI' : 'B1_REQUIREMENT_TESTPOINT'
-    strategy.value = hasUI ? 'FULL_CONTEXT_GENERATION_LITE' : 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION'
+    if (selectedTask.value !== 'history_update') {
+      const hasUI = uiScreenIds.value.length > 0
+      scenarioType.value = hasUI ? 'A1_REQUIREMENT_TESTPOINT_UI' : 'B1_REQUIREMENT_TESTPOINT'
+      strategy.value = hasUI ? 'FULL_CONTEXT_GENERATION_LITE' : 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION'
+    }
 
     if (batchId.value) {
       await generationBatchApi.update(batchId.value, {
@@ -497,28 +558,89 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
 
     try {
       const idempotencyKey = `${batchId.value}-${Date.now()}`
-      const casesToSave: PreviewCasePayload[] = previewCases.value
-        .filter((c) => {
-          if (saveMode === 'passed_only') return c.quality_status === 'passed' || c.quality_status === 'warning'
-          return c.selected_for_save
-        })
-        .map((c) => ({
-          client_id: c.client_id,
-          source_test_point_id: c.source_test_point_id,
-          requirement_file_id: c.requirement_file_id,
-          title: c.title,
-          module: c.module,
-          precondition: c.precondition,
-          steps: c.steps as unknown as PreviewCasePayload['steps'],
-          expected_result: c.expected_result,
-          priority: c.priority,
-          case_type: c.case_type,
-          case_category: c.case_category,
-          quality_status: c.quality_status,
-          quality_issues: c.quality_issues,
-          selected_for_save: c.selected_for_save,
-          source_refs: c.source_refs,
-        }))
+      let casesToSave: PreviewCasePayload[]
+
+      if (selectedTask.value === 'history_update' && historyClassification.value) {
+        casesToSave = historyClassification.value.items
+          .filter((item) => {
+            if (item.classification === 'REUSE_CASE') return false
+            if (item.classification === 'CONFIRM_REQUIRED') return false
+            const userSelection = historyItemSelections.value.get(item.client_id)
+            if (userSelection !== true) return false
+            return true
+          })
+          .map((item) => {
+            if (item.classification === 'DEPRECATED_CASE') {
+              const userSelection = historyItemSelections.value.get(item.client_id)
+              return {
+                client_id: item.client_id,
+                title: '',
+                module: '',
+                precondition: '',
+                steps: [],
+                expected_result: '',
+                priority: 2,
+                case_type: 'manual',
+                quality_status: 'pending_review' as const,
+                selected_for_save: userSelection === true,
+                classification: item.classification,
+                history_case_id: item.matched_system_case_id || null,
+                update_action: 'deprecate' as const,
+                diff_fields: item.diff_fields || null,
+              } as PreviewCasePayload
+            }
+            const caseData = item.suggested_case || item.history_case
+            if (!caseData) return null
+            let updateAction: 'create_new' | 'update_existing' | 'skip' | 'deprecate' = 'create_new'
+            if (item.classification === 'UPDATE_CASE') updateAction = 'update_existing'
+            else if (item.classification === 'NEW_CASE') updateAction = 'create_new'
+            const userSelection = historyItemSelections.value.get(item.client_id)
+            return {
+              client_id: item.client_id,
+              title: caseData.title || '',
+              module: caseData.module || '',
+              precondition: caseData.precondition || '',
+              steps: (caseData.steps || []).map((s: Record<string, unknown>, idx: number) => ({
+                step: s.step ?? s.step_number ?? (idx + 1),
+                action: String(s.action || s.step || ''),
+                expected_result: String(s.expected_result || ''),
+              })),
+              expected_result: caseData.expected_result || '',
+              priority: caseData.priority || 2,
+              case_type: 'manual',
+              quality_status: 'pending_review' as const,
+              selected_for_save: userSelection === true,
+              classification: item.classification,
+              history_case_id: item.matched_system_case_id || null,
+              update_action: updateAction,
+              diff_fields: item.diff_fields || null,
+            } as PreviewCasePayload
+          })
+          .filter((c): c is PreviewCasePayload => c !== null)
+      } else {
+        casesToSave = previewCases.value
+          .filter((c) => {
+            if (saveMode === 'passed_only') return c.quality_status === 'passed' || c.quality_status === 'warning'
+            return c.selected_for_save
+          })
+          .map((c) => ({
+            client_id: c.client_id,
+            source_test_point_id: c.source_test_point_id,
+            requirement_file_id: c.requirement_file_id,
+            title: c.title,
+            module: c.module,
+            precondition: c.precondition,
+            steps: c.steps as unknown as PreviewCasePayload['steps'],
+            expected_result: c.expected_result,
+            priority: c.priority,
+            case_type: c.case_type,
+            case_category: c.case_category,
+            quality_status: c.quality_status,
+            quality_issues: c.quality_issues,
+            selected_for_save: c.selected_for_save,
+            source_refs: c.source_refs,
+          }))
+      }
 
       if (casesToSave.length === 0) {
         saveError.value = '没有可保存的用例'
@@ -890,6 +1012,62 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     }
   }
 
+  async function loadHistoryAssets() {
+    if (!selectedProjectId.value) { historyAssets.value = []; return }
+    try {
+      const result = await historyAssetApi.getList(selectedProjectId.value as number)
+      historyAssets.value = Array.isArray(result) ? result : []
+    } catch { historyAssets.value = [] }
+  }
+
+  async function uploadHistoryAsset(file: File, assetType: string) {
+    if (!selectedProjectId.value) return
+    const result = await historyAssetApi.upload(selectedProjectId.value as number, file, assetType)
+    historyAssets.value.push(result)
+    selectedHistoryAssetIds.value.push(result.id)
+  }
+
+  async function importSystemCasesAsHistory(caseIds: number[]) {
+    if (!selectedProjectId.value || caseIds.length === 0) return
+    const result = await historyAssetApi.importSystemCases(selectedProjectId.value as number, caseIds)
+    historyAssets.value.push(result)
+    selectedHistoryAssetIds.value.push(result.id)
+  }
+
+  async function alignHistoryAssets() {
+    if (!selectedProjectId.value || selectedHistoryAssetIds.value.length === 0) return
+    historyAligning.value = true
+    try {
+      const result = await historyAssetApi.align({
+        project_id: selectedProjectId.value as number,
+        history_asset_ids: selectedHistoryAssetIds.value,
+        requirement_file_ids: requirementFileIds.value.length > 0 ? requirementFileIds.value : undefined,
+        ui_screen_ids: uiScreenIds.value.length > 0 ? uiScreenIds.value : undefined,
+      })
+      historyClassification.value = result
+      const newSelections = new Map(historyItemSelections.value)
+      for (const item of result.items) {
+        if (item.classification === 'NEW_CASE') {
+          newSelections.set(item.client_id, true)
+        }
+      }
+      historyItemSelections.value = newSelections
+    } catch {
+      historyClassification.value = null
+    } finally {
+      historyAligning.value = false
+    }
+  }
+
+  function removeHistoryAsset(assetId: number) {
+    selectedHistoryAssetIds.value = selectedHistoryAssetIds.value.filter((id) => id !== assetId)
+    historyAssets.value = historyAssets.value.filter((a) => a.id !== assetId)
+  }
+
+  function setHistoryItemSelection(clientId: string, selected: boolean) {
+    historyItemSelections.value.set(clientId, selected)
+  }
+
   function reset() {
     cancelParsePolling()
     currentStep.value = 'task'
@@ -932,6 +1110,11 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       enhanced_mode: true,
       mode: 'linear',
     }
+    historyAssets.value = []
+    selectedHistoryAssetIds.value = []
+    historyClassification.value = null
+    historyAligning.value = false
+    historyItemSelections.value = new Map()
   }
 
   return {
@@ -996,6 +1179,17 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     parseUIScreens,
     cancelParsePolling,
     toggleUIScreen,
+    historyAssets,
+    selectedHistoryAssetIds,
+    historyClassification,
+    historyAligning,
+    historyItemSelections,
+    loadHistoryAssets,
+    uploadHistoryAsset,
+    importSystemCasesAsHistory,
+    alignHistoryAssets,
+    removeHistoryAsset,
+    setHistoryItemSelection,
     reset,
   }
 })

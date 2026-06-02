@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Any, Literal
 from datetime import datetime
 
@@ -7,18 +7,25 @@ from app.schemas.test_case._core import TestCaseStep
 
 class GenerationBatchCreate(BaseModel):
     project_id: int = Field(..., gt=0)
-    entry_type: Literal["NEW_FEATURE_GENERATION"] = "NEW_FEATURE_GENERATION"
+    entry_type: Literal["NEW_FEATURE_GENERATION", "HISTORY_UPDATE"] = "NEW_FEATURE_GENERATION"
     scenario_type: Literal[
         "B1_REQUIREMENT_TESTPOINT",
         "A1_REQUIREMENT_TESTPOINT_UI",
+        "A2_HISTORY_EXCEL_REQUIREMENT_UI",
+        "A3_HISTORY_XMIND_REQUIREMENT_UI",
+        "B2_HISTORY_XMIND_UI",
+        "B3_HISTORY_EXCEL_UI",
     ]
     generation_strategy: Literal[
         "REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
         "FULL_CONTEXT_GENERATION_LITE",
+        "HISTORY_INCREMENTAL_UPDATE",
+        "HISTORY_UI_ADAPTATION",
     ]
     requirement_file_ids: list[int] = Field(default_factory=list, max_length=200)
     test_point_ids: list[int] = Field(default_factory=list, max_length=200)
     ui_screen_ids: list[int] = Field(default_factory=list, max_length=200)
+    history_asset_ids: list[int] = Field(default_factory=list, max_length=200)
     client_request_id: str | None = Field(None, max_length=80)
 
 
@@ -51,6 +58,7 @@ class GenerationBatchResponse(BaseModel):
     requirement_file_ids: list[int]
     test_point_ids: list[int]
     ui_screen_ids: list[int]
+    history_asset_ids: list[int]
     context_stats: dict[str, Any]
     warnings: list[dict[str, Any]]
     evidence_refs: dict[str, Any]
@@ -65,11 +73,11 @@ class PreviewCasePayload(BaseModel):
     client_id: str = Field(..., min_length=1, max_length=80)
     source_test_point_id: int | None = None
     requirement_file_id: int | None = None
-    title: str = Field(..., min_length=1, max_length=255)
+    title: str = Field("", max_length=255)
     module: str = Field("", max_length=100)
     precondition: str = ""
-    steps: list[TestCaseStep] = Field(..., min_length=1)
-    expected_result: str = Field(..., min_length=1)
+    steps: list[TestCaseStep] = Field(default_factory=list)
+    expected_result: str = ""
     priority: int = Field(2, ge=1, le=3)
     case_type: str = Field("manual", max_length=20)
     case_category: str | None = None
@@ -77,6 +85,22 @@ class PreviewCasePayload(BaseModel):
     quality_issues: list[dict[str, Any]] = Field(default_factory=list)
     selected_for_save: bool = True
     source_refs: dict[str, Any] = Field(default_factory=dict)
+    classification: str | None = Field(None, max_length=30, comment="历史更新分类: REUSE_CASE/UPDATE_CASE/NEW_CASE/DEPRECATED_CASE/CONFIRM_REQUIRED")
+    history_case_id: int | None = Field(None, comment="UPDATE_CASE 对应的系统用例ID")
+    update_action: Literal["create_new", "update_existing", "skip", "deprecate"] | None = Field(None, comment="保存动作")
+    diff_fields: dict[str, Any] | None = Field(None, comment="变更字段及前后值")
+
+    @model_validator(mode="after")
+    def _validate_non_deprecate_fields(self) -> "PreviewCasePayload":
+        if self.update_action == "deprecate":
+            return self
+        if not self.title:
+            raise ValueError("非废弃场景 title 不能为空")
+        if not self.steps:
+            raise ValueError("非废弃场景 steps 不能为空")
+        if not self.expected_result:
+            raise ValueError("非废弃场景 expected_result 不能为空")
+        return self
 
 
 class GenerationBatchSaveRequest(BaseModel):

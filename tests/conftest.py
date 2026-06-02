@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.database import Base, get_db
 from app.db.smart_sync import DatabaseSyncTool
 from app.utils.jwt_utils import create_access_token, get_password_hash
+import app.models  # noqa: F401 — ensure all models registered before create_all
 
 os.environ.setdefault("ENVIRONMENT", "test")
 
