@@ -27,6 +27,8 @@ export type {
   CaseVersionItem,
   CaseVersionDetail,
   CaseVersionCompareResult,
+  FieldDiff,
+  StepDiff,
   CaseVersionPageResponse,
   CorrectionResponse,
   VerificationResponse,

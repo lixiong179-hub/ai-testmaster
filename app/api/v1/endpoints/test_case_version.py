@@ -180,7 +180,6 @@ async def restore_test_case_version(
     Raises:
         HTTPException 404: 用例或版本不存在
     """
-    from app.models.test_case_version import TestCaseVersion
     from app.models.project import Project
 
     test_case = db.query(TestCase).join(Project).filter(
@@ -194,87 +193,33 @@ async def restore_test_case_version(
             detail="测试用例不存在"
         )
 
-    version = db.query(TestCaseVersion).filter(
-        TestCaseVersion.id == version_id,
-        TestCaseVersion.test_case_id == test_case_id
-    ).first()
+    try:
+        from app.services.case_version_service import CaseVersionService
 
-    if not version:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="版本记录不存在"
+        restored_case = CaseVersionService.restore_version(
+            db=db,
+            test_case_id=test_case_id,
+            version_id=version_id,
+            operator_id=current_user.id,
         )
 
-    try:
-        snapshot = version.snapshot_data
-        if isinstance(snapshot, str):
-            snapshot = json.loads(snapshot)
-
-        if not snapshot:
+        if not restored_case:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="该版本无快照数据，无法恢复"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="版本记录不存在"
             )
 
-        # 恢复前记录各字段旧值，用于changed_fields埋点
-        restorable_fields = ["title", "module", "precondition", "expected_result", "priority", "case_type", "steps_json"]
-        changed_fields: dict[str, Any] = {}
-        for field in restorable_fields:
-            if field in snapshot:
-                old_value = getattr(test_case, field, None)
-                new_value = snapshot[field]
-                # 仅记录实际发生变更的字段
-                if old_value != new_value:
-                    changed_fields[field] = {"old": old_value, "new": new_value}
-                setattr(test_case, field, new_value)
-
-        if "steps_json" in snapshot and snapshot["steps_json"]:
-            db.query(TestStep).filter(TestStep.test_case_id == test_case_id).delete()
-            for i, step_data in enumerate(snapshot["steps_json"]):
-                step = TestStep(
-                    test_case_id=test_case_id,
-                    step_number=i + 1,
-                    action=step_data.get("action", ""),
-                    expected_result=step_data.get("expected_result", ""),
-                    action_type=step_data.get("action_type", ""),
-                    input_value=step_data.get("input_value", ""),
-                    target_element=step_data.get("target_element", "")
-                )
-                db.add(step)
-
-        # 创建版本快照，记录变更字段及前后值
-        latest_version = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == test_case_id,
-        ).order_by(TestCaseVersion.version_number.desc()).first()
-        next_version = (latest_version.version_number + 1) if latest_version else 1
-
-        snapshot_data = {
-            "title": test_case.title,
-            "module": test_case.module,
-            "precondition": test_case.precondition,
-            "expected_result": test_case.expected_result,
-            "priority": test_case.priority,
-            "case_type": test_case.case_type,
-            "steps_json": test_case.steps_json,
-        }
-        new_version = TestCaseVersion(
-            test_case_id=test_case_id,
-            version_number=next_version,
-            change_type="restore",
-            change_description=f"恢复到版本V{version.version_number}",
-            changed_fields=changed_fields if changed_fields else None,
-            snapshot_data=snapshot_data,
-            operator_id=current_user.id,
-            operator_name=current_user.username,
-        )
-        db.add(new_version)
-
         db.commit()
-        db.refresh(test_case)
+        db.refresh(restored_case)
 
-        logger.info(f"[版本恢复] 用户ID={current_user.id}, 用例ID={test_case_id}, 恢复到版本={version.version_number}")
+        logger.info(f"[版本恢复] 用户ID={current_user.id}, 用例ID={test_case_id}, 恢复到版本ID={version_id}")
 
-        return create_response(data=build_test_case_response(test_case))
+        return create_response(data=build_test_case_response(restored_case))
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -283,4 +228,54 @@ async def restore_test_case_version(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="恢复版本失败"
+        )
+
+
+@router.get("/{test_case_id}/versions/{v1_id}/diff/{v2_id}")
+async def diff_test_case_versions(
+    test_case_id: int,
+    v1_id: int,
+    v2_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """对比两个版本的字段级差异
+
+    返回指定用例两个版本之间的逐字段 diff（旧值/新值）。
+
+    路径参数:
+        - test_case_id: 测试用例ID
+        - v1_id: 旧版本ID
+        - v2_id: 新版本ID
+    权限要求: 需要Bearer令牌认证
+    Raises:
+        HTTPException 404: 用例不存在
+        HTTPException 400: 版本不存在或不属于指定用例
+    """
+    from app.models.project import Project
+    from app.services.case_version_service import CaseVersionService
+
+    test_case = db.query(TestCase).join(Project).filter(
+        TestCase.id == test_case_id,
+        TestCase.is_deleted.is_(False),
+        Project.user_id == current_user.id
+    ).first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+
+    try:
+        result = CaseVersionService.compare_versions(
+            db=db,
+            test_case_id=test_case_id,
+            v1_id=v1_id,
+            v2_id=v2_id,
+        )
+        return create_response(data=result)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
         )

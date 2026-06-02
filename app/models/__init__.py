@@ -72,6 +72,10 @@ from app.models.case_refresh_suggestion import CaseRefreshSuggestion
 from app.models.ab_test_metric import ABTestMetric
 from app.models.generation_batch import GenerationBatch, GenerationBatchSave
 from app.models.history_asset import HistoryAsset
+from app.models.case_number_seq import CaseNumberSeq
+from app.models.feature_flag import FeatureFlag
+from app.models.quality_rule_config import QualityRuleConfig
+from app.models.prompt_template import PromptTemplate
 
 __all__ = [
     # UI原型相关
@@ -132,4 +136,12 @@ __all__ = [
     # 资料融合生成批次
     "GenerationBatch", "GenerationBatchSave",
     "HistoryAsset",
+    # 用例编号序列
+    "CaseNumberSeq",
+    # 运行时特性开关
+    "FeatureFlag",
+    # 质量规则配置
+    "QualityRuleConfig",
+    # Prompt模板版本管理
+    "PromptTemplate",
 ]

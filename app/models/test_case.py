@@ -26,6 +26,8 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
+from typing import Any
+
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float, event, Index
 from sqlalchemy.orm import relationship, Session
 from app.utils.db_time import utcnow
@@ -59,7 +61,8 @@ class TestCase(Base):
     __tablename__ = "test_cases"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                          # 用例主键ID
-    case_no = Column(String(50), nullable=False, unique=True, comment="用例编号，如'PROJ1-CASE001'")   # 用例编号，全局唯一，格式为 项目前缀-CASE序号
+    case_no = Column(String(50), nullable=False, unique=True, comment="用例编号，如'TC-001-0001'")   # 用例编号，全局唯一，格式为 TC-{项目ID}-{序号}
+    legacy_case_no = Column(String(80), nullable=True, comment="历史用例编号，Excel导入时保留原始编号")  # 历史编号，导入时保留原编号
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID，多项目隔离核心")  # 项目ID，级联删除
     requirement_file_id = Column(Integer, ForeignKey("project_files.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联需求文件ID，用于按需求筛选")  # 需求文件ID，SET NULL保留用例
     test_point_id = Column(Integer, ForeignKey("test_points.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联测试点ID")  # 测试点ID，兼容历史数据允许为空
@@ -185,6 +188,8 @@ def _guard_lifecycle_status(session, flush_context, instances):
 
     如果 lifecycle_status 被修改且当前线程未通过 LifecycleService 授权，
     则抛出 RuntimeError，强制所有状态变更经过 LifecycleService.transition()。
+
+    同时检测追踪字段的变更，自动创建版本快照。
     """
     for instance in session.dirty:
         if not isinstance(instance, TestCase):
@@ -203,6 +208,57 @@ def _guard_lifecycle_status(session, flush_context, instances):
                     f"old={hist.deleted[0] if hist.deleted else '?'}, "
                     f"new={hist.added[0] if hist.added else '?'})"
                 )
+
+        # 自动版本快照：检测追踪字段变更
+        _auto_create_version_snapshot(session, instance, state)
+
+
+# 上下文标记：跳过自动版本快照（用于批量操作或内部流程手动控制）
+_version_snapshot_skip: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    'version_snapshot_skip', default=False
+)
+
+
+def skip_version_snapshot() -> None:
+    """设置跳过自动版本快照标记。"""
+    _version_snapshot_skip.set(True)
+
+
+def resume_version_snapshot() -> None:
+    """恢复自动版本快照标记。"""
+    _version_snapshot_skip.set(False)
+
+
+def _auto_create_version_snapshot(session: Session, instance: TestCase, state: Any) -> None:
+    """当 TestCase 的追踪字段变更时自动创建版本快照。
+
+    仅在实例有持久化主键且追踪字段真正变更时触发，
+    通过 CaseVersionService.create_snapshot 统一处理。
+    由于在 before_flush 事件中调用，auto_flush=False 避免递归 flush。
+
+    Args:
+        session: 数据库会话。
+        instance: TestCase 脏实例。
+        state: SQLAlchemy instance state。
+    """
+    if _version_snapshot_skip.get():
+        return
+    if instance.id is None:
+        return
+
+    from app.services.case_version_service import CaseVersionService, TRACKED_FIELDS
+
+    changed_fields = CaseVersionService.build_changed_fields(instance, state)
+    if not changed_fields:
+        return
+
+    CaseVersionService.create_snapshot(
+        db=session,
+        test_case_id=instance.id,
+        change_type="update",
+        changed_fields=changed_fields,
+        auto_flush=False,
+    )
 
 
 class TestStep(Base):

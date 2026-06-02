@@ -9,6 +9,8 @@ import type {
   PreviewCasePayload,
 } from '@/api/generationBatch'
 import { aiApi } from '@/api/case/ai'
+import { aiInvocationApi } from '@/api/aiInvocation'
+import type { BatchCostInfo } from '@/api/aiInvocation'
 import { uiPrototypeApi, type UIScreen, type UIPrototypeProject } from '@/api/uiPrototype'
 import { historyAssetApi } from '@/api/historyAsset'
 import type {
@@ -199,6 +201,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   const saving = ref(false)
   const saveResult = ref<GenerationBatchSaveResponse | null>(null)
   const saveError = ref<string>('')
+  const batchCost = ref<BatchCostInfo | null>(null)
 
   const advancedConfig = ref({
     case_type: 'manual' as string,
@@ -656,6 +659,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       const result = await generationBatchApi.save(batchId.value, payload)
       saveResult.value = result
       batchStatus.value = result.status
+      // 保存成功后查询成本
+      fetchBatchCost()
     } catch (e: unknown) {
       saveError.value = e instanceof Error ? e.message : '保存失败'
     } finally {
@@ -666,6 +671,15 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   function toggleCaseSelection(clientId: string) {
     const c = previewCases.value.find((pc) => pc.client_id === clientId)
     if (c) c.selected_for_save = !c.selected_for_save
+  }
+
+  async function fetchBatchCost() {
+    if (!batchId.value) return
+    try {
+      batchCost.value = await aiInvocationApi.getBatchCost(batchId.value)
+    } catch {
+      batchCost.value = null
+    }
   }
 
   function removeCase(clientId: string) {
@@ -1103,6 +1117,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     saving.value = false
     saveResult.value = null
     saveError.value = ''
+    batchCost.value = null
     advancedConfig.value = {
       case_type: 'manual',
       exec_mode: 'manual',
@@ -1147,6 +1162,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     saving,
     saveResult,
     saveError,
+    batchCost,
     advancedConfig,
     materialLevel,
     materialLevelText,
@@ -1164,6 +1180,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     toggleCaseSelection,
     removeCase,
     regenerateSingleCase,
+    fetchBatchCost,
     recalcQualitySummary,
     coverageSummary,
     evidenceRefsDisplay,

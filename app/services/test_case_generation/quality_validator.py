@@ -248,6 +248,86 @@ def validate_single_case(case: Dict[str, Any]) -> List[str]:
     return issues
 
 
+def validate_single_case_status(case: Dict[str, Any]) -> Tuple[str, List[str]]:
+    """对单条用例执行全量质量校验，返回4档状态。
+
+    状态映射规则:
+        - 无问题 -> passed
+        - 仅存在标题过长等轻微问题 -> warning
+        - 存在模糊词、原子性违反等需人工确认问题 -> pending_review
+        - 存在必填字段为空、步骤不足等严重问题 -> rejected
+
+    Args:
+        case: 单条测试用例字典
+
+    Returns:
+        (4档状态, 问题描述列表)
+    """
+    case_type = case.get("case_type", "")
+    issues: List[str] = []
+    worst_severity = "passed"
+
+    title_result = validate_title(case.get("title", ""))
+    if not title_result[0]:
+        msg = title_result[1]
+        issues.append(f"[标题] {msg}")
+        if "为空" in msg or "过短" in msg:
+            worst_severity = _worse_status(worst_severity, "rejected")
+        elif "模糊词" in msg or "原子性" in msg:
+            worst_severity = _worse_status(worst_severity, "pending_review")
+        else:
+            worst_severity = _worse_status(worst_severity, "warning")
+
+    precondition_result = validate_precondition(case.get("precondition", ""))
+    if not precondition_result[0]:
+        msg = precondition_result[1]
+        issues.append(f"[前置条件] {msg}")
+        if "为空" in msg:
+            worst_severity = _worse_status(worst_severity, "rejected")
+        else:
+            worst_severity = _worse_status(worst_severity, "pending_review")
+
+    steps_result = validate_steps(case.get("steps", []), case_type=case_type)
+    if not steps_result[0]:
+        msg = steps_result[1]
+        issues.append(f"[步骤] {msg}")
+        if "为空" in msg or "不足" in msg:
+            worst_severity = _worse_status(worst_severity, "rejected")
+        else:
+            worst_severity = _worse_status(worst_severity, "pending_review")
+
+    test_data_result = validate_test_data_quality(case.get("steps", []))
+    if not test_data_result[0]:
+        msg = test_data_result[1]
+        issues.append(f"[测试数据] {msg}")
+        worst_severity = _worse_status(worst_severity, "warning")
+
+    expected_result = validate_expected_result(case.get("expected_result", ""))
+    if not expected_result[0]:
+        msg = expected_result[1]
+        issues.append(f"[预期结果] {msg}")
+        if "为空" in msg:
+            worst_severity = _worse_status(worst_severity, "rejected")
+        else:
+            worst_severity = _worse_status(worst_severity, "pending_review")
+
+    category_result = validate_case_category(case.get("case_category", ""))
+    if not category_result[0]:
+        msg = category_result[1]
+        issues.append(f"[case_category] {msg}")
+        worst_severity = _worse_status(worst_severity, "rejected")
+
+    return worst_severity, issues
+
+
+def _worse_status(current: str, new: str) -> str:
+    """取两个4档状态中更严重的一个。"""
+    severity_order = {"passed": 0, "warning": 1, "pending_review": 2, "rejected": 3}
+    if severity_order.get(new, 0) > severity_order.get(current, 0):
+        return new
+    return current
+
+
 def validate_cases_quality(cases: List[Dict[str, Any]], min_count: int = 0) -> Tuple[bool, List[str]]:
     """对用例列表执行全量质量校验。
 

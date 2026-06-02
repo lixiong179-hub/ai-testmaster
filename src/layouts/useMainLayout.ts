@@ -45,6 +45,7 @@ const MENU_CONFIG: MenuItem[] = [
     icon: DataLine,
     children: [
       { index: '/home/pipeline-dashboard', label: 'Pipeline仪表盘' },
+      { index: '/home/ai-cost-dashboard', label: 'AI成本仪表盘' },
       { index: '/home/iteration/regression-generate', label: '回归变更分析' },
     ],
   },
@@ -57,6 +58,8 @@ const MENU_CONFIG: MenuItem[] = [
       { index: '/home/system/role', label: '角色管理', permission: 'role:list' },
       { index: '/home/system/audit-log', label: '审计日志', permission: 'system:manage' },
       { index: '/home/system/test-capability', label: '测试能力', permission: 'system:manage' },
+      { index: '/home/system/quality-rule', label: '质量规则配置', permission: 'system:manage' },
+      { index: '/home/system/feature-flag', label: 'FeatureFlag管理', permission: 'system:manage' },
     ],
   },
 ]
@@ -101,6 +104,7 @@ export function useMainLayout() {
       return '/home/iteration/regression-generate'
     if (route.path.startsWith('/home/case/pipeline/')) return '/home/pipeline-dashboard'
     if (route.path.startsWith('/home/iteration/pipeline/')) return '/home/pipeline-dashboard'
+    if (route.path.startsWith('/home/ai-cost-dashboard')) return '/home/ai-cost-dashboard'
     if (route.path.startsWith('/home/iteration/regression-generate'))
       return '/home/iteration/regression-generate'
     if (route.path.startsWith('/home/requirement/ui-prototype')) return '/home/requirement'
@@ -138,6 +142,7 @@ export function useMainLayout() {
     '/home/report': '报告中心',
     '/home/report/detail': '报告详情',
     '/home/pipeline-dashboard': 'Pipeline仪表盘',
+    '/home/ai-cost-dashboard': 'AI成本仪表盘',
     '/home/iteration': '迭代中心',
     '/home/iteration/pipeline': 'Pipeline进度',
     '/home/iteration/regression-generate': '回归变更分析',
@@ -146,6 +151,8 @@ export function useMainLayout() {
     '/home/system/role': '角色管理',
     '/home/system/audit-log': '审计日志',
     '/home/system/test-capability': '测试能力',
+    '/home/system/quality-rule': '质量规则配置',
+    '/home/system/feature-flag': 'FeatureFlag管理',
     '/home/system/profile': '个人中心',
     '/home/analysis': '需求分析',
   }

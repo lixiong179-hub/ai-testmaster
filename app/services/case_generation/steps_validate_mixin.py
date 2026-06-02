@@ -18,7 +18,6 @@
     - app.services.case_generation.core_mixin: ContentSanitizer和分类常量
 """
 from typing import List, Dict, Any, Optional
-from datetime import datetime
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep
@@ -28,6 +27,7 @@ from app.services.case_generation.core_mixin import (
     TEST_CATEGORY_MANUAL,
 )
 from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE, normalize_priority
+from app.services.case_number_service import CaseNumberService
 
 
 class StepsValidateMixin:
@@ -118,8 +118,8 @@ class StepsValidateMixin:
         Returns:
             持久化后的TestCase ORM实例。
         """
-        # 生成唯一用例编号，格式: CASE{项目ID}-{时间戳+微秒}
-        case_no = f"CASE{project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
+        # 生成唯一用例编号，格式: TC-{项目ID:03d}-{序号:04d}
+        case_no = CaseNumberService.generate(project_id, self.db)
 
         # 构建步骤JSON
         steps = generated_case.get("steps", [])

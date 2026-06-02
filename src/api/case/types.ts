@@ -259,10 +259,31 @@ export interface CaseVersionDetail {
   create_time: string
 }
 
+/** 单个字段的变更信息 */
+export interface FieldDiff {
+  /** 旧值 */
+  old: unknown
+  /** 新值 */
+  new: unknown
+  /** 变更类型：added 新增 / deleted 删除 / modified 修改 */
+  changeType: 'added' | 'deleted' | 'modified'
+}
+
+/** 步骤级变更信息，按步骤序号对齐 */
+export interface StepDiff {
+  /** 步骤序号 */
+  stepNumber: number
+  /** 该步骤内各字段变更 */
+  fields: Record<string, FieldDiff>
+}
+
 export interface CaseVersionCompareResult {
   from_version: CaseVersionDetail
   to_version: CaseVersionDetail
-  diff: Record<string, unknown>
+  /** 普通字段变更（title、module、priority 等） */
+  diff: Record<string, FieldDiff>
+  /** steps 字段按步骤序号对齐的变更 */
+  stepsDiff: StepDiff[]
 }
 
 export interface CaseVersionPageResponse {

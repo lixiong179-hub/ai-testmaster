@@ -19,6 +19,10 @@ from app.api.v1.endpoints import requirement_link, ui_prototype, iteration, pipe
 from app.api.v1.endpoints import test_capability, audit_log, case_migration, case_refresh, ab_test
 from app.api.v1.endpoints import generation_batch
 from app.api.v1.endpoints import history_asset
+from app.api.v1.endpoints import feature_flag
+from app.api.v1.endpoints import ai_invocation
+from app.api.v1.endpoints import prompt_template
+from app.api.v1.endpoints import quality_rule
 from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
@@ -116,6 +120,7 @@ register_exception_handlers(app)
 # 注册API路由（所有模块均自带prefix，此处统一添加/api/v1前缀）
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(project.router, prefix="/api/v1")
+app.include_router(quality_rule.router, prefix="/api/v1/projects", tags=["质量规则"])
 app.include_router(test_point.router, prefix="/api/v1")
 app.include_router(file.router, prefix="/api/v1")
 app.include_router(test_task.router, prefix="/api/v1")
@@ -141,6 +146,9 @@ app.include_router(case_refresh.router, prefix="/api/v1/caseRefresh")
 app.include_router(ab_test.router, prefix="/api/v1/ab-test")
 app.include_router(generation_batch.router, prefix="/api/v1/generation-batches")
 app.include_router(history_asset.router, prefix="/api/v1/history-assets")
+app.include_router(feature_flag.router, prefix="/api/v1/feature-flags")
+app.include_router(ai_invocation.router, prefix="/api/v1/ai-invocation")
+app.include_router(prompt_template.router, prefix="/api/v1/prompt-templates")
 
 
 # 根路径

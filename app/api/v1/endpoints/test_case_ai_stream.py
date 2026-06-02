@@ -107,6 +107,16 @@ async def ai_enhanced_generate_stream(
             warnings = context.get("warnings", [])
             evidence_refs = context.get("evidence_refs", {})
 
+            # 构建审计增强 metadata
+            ai_metadata: Dict[str, Any] = {
+                "db": db,
+                "scenario_type": context.get("scenario_type"),
+                "generation_strategy": context.get("generation_strategy"),
+            }
+            batch_id = context.get("generation_batch_id")
+            if batch_id is not None:
+                ai_metadata["generation_batch_id"] = int(batch_id)
+
             yield f"data: {json.dumps({'code': 0, 'message': '开始生成', 'data': {'status': 'started', 'context_stats': context_stats, 'warnings': warnings, 'evidence_refs': evidence_refs}}, ensure_ascii=False)}\n\n"
 
             if request.mode == "graph" and request.flow_sort_data:
@@ -137,7 +147,9 @@ async def ai_enhanced_generate_stream(
                 return
 
             yield f"data: {json.dumps({'code': 0, 'message': 'AI生成中...', 'data': {'status': 'generating'}}, ensure_ascii=False)}\n\n"
-            generated_case = await asyncio.to_thread(generate_test_case_enhanced, prompt_data)
+            generated_case = await asyncio.to_thread(
+                generate_test_case_enhanced, prompt_data, ai_metadata,
+            )
 
             cases_list = generated_case if isinstance(generated_case, list) else [generated_case]
             cases_list = [c for c in cases_list if isinstance(c, dict) and c]

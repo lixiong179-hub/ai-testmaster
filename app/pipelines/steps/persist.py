@@ -343,34 +343,14 @@ def _persist_case_steps(
 
 
 def _generate_case_no(ctx: PipelineContext, project_id: int) -> str:
-    """生成用例编号，格式: TC-{project_id:03d}-{seq:04d}。
+    """[deprecated] 生成用例编号，内部委托到 CaseNumberService。
 
-    使用 SELECT ... FOR UPDATE 加行级锁防止并发生成重复编号，
-    并基于当前最大编号递增，确保编号连续且唯一。
+    Args:
+        ctx: Pipeline上下文（仅使用 ctx.db）。
+        project_id: 项目ID。
+
+    Returns:
+        格式为 TC-{project_id:03d}-{seq:04d} 的用例编号。
     """
-    from sqlalchemy import func
-    from app.models.test_case import TestCase
-
-    prefix = f"TC-{project_id:03d}-"
-
-    # 查找当前项目下同前缀的最大编号
-    last_case = ctx.db.query(TestCase).filter(
-        TestCase.project_id == project_id,
-        TestCase.is_deleted.is_(False),
-        TestCase.case_no.like(f"{prefix}%"),
-    ).order_by(TestCase.id.desc()).with_for_update().first()
-
-    next_num = 1
-    if last_case and last_case.case_no:
-        try:
-            num_part = last_case.case_no[len(prefix):]
-            next_num = int(num_part) + 1
-        except (ValueError, IndexError):
-            # 编号格式异常时，回退到基于 count 的方式
-            count = ctx.db.query(func.count(TestCase.id)).filter(
-                TestCase.project_id == project_id,
-                TestCase.is_deleted.is_(False),
-            ).scalar() or 0
-            next_num = count + 1
-
-    return f"{prefix}{next_num:04d}"
+    from app.services.case_number_service import CaseNumberService
+    return CaseNumberService.generate(project_id, ctx.db)

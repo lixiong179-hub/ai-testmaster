@@ -168,15 +168,20 @@ def compute_and_persist_posterior(db: Session, project_id: int) -> Dict[str, Any
 
     posterior_score = result["posterior_quality_score"]
 
-    # 回填到该项目所有非删除用例
-    updated = (
+    # 回填到该项目所有非删除用例（ORM 逐条更新，确保 before_flush event 触发版本快照）
+    cases = (
         db.query(TestCase)
         .filter(
             TestCase.project_id == project_id,
             TestCase.is_deleted.is_(False),
         )
-        .update({TestCase.posterior_quality_score: posterior_score}, synchronize_session="fetch")
+        .all()
     )
+    updated = 0
+    for case in cases:
+        if case.posterior_quality_score != posterior_score:
+            case.posterior_quality_score = posterior_score
+            updated += 1
 
     db.flush()
 

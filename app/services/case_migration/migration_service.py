@@ -6,7 +6,6 @@ from datetime import datetime
 from loguru import logger
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
 from app.models.project import Project
@@ -534,35 +533,26 @@ class CaseMigrationService:
         return created
 
     def _generate_case_nos(self, project_id: int, count: int) -> List[str]:
-        prefix = f"TC-{project_id:03d}-"
-        last_case = (
-            self.db.query(TestCase)
-            .filter(
-                TestCase.project_id == project_id,
-                TestCase.is_deleted.is_(False),
-                TestCase.case_no.like(f"{prefix}%"),
-            )
-            .order_by(TestCase.case_no.desc())
-            .with_for_update()
-            .first()
-        )
-        start_num = 1
-        if last_case and last_case.case_no:
-            try:
-                num_part = last_case.case_no[len(prefix):]
-                start_num = int(num_part) + 1
-            except (ValueError, IndexError):
-                total = (
-                    self.db.query(func.count(TestCase.id))
-                    .filter(
-                        TestCase.project_id == project_id,
-                        TestCase.is_deleted.is_(False),
-                    )
-                    .scalar()
-                ) or 0
-                start_num = total + 1
-        return [f"{prefix}{start_num + i:04d}" for i in range(count)]
+        """[deprecated] 批量生成用例编号，内部委托到 CaseNumberService。
+
+        Args:
+            project_id: 项目ID。
+            count: 需要生成的编号数量。
+
+        Returns:
+            编号列表。
+        """
+        from app.services.case_number_service import CaseNumberService
+        return CaseNumberService.generate_batch(project_id, count, self.db)
 
     def _generate_case_no(self, project_id: int) -> str:
-        nos = self._generate_case_nos(project_id, 1)
-        return nos[0]
+        """[deprecated] 生成单条用例编号，内部委托到 CaseNumberService。
+
+        Args:
+            project_id: 项目ID。
+
+        Returns:
+            用例编号。
+        """
+        from app.services.case_number_service import CaseNumberService
+        return CaseNumberService.generate(project_id, self.db)

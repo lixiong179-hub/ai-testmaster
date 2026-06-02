@@ -21,7 +21,6 @@
     - 删除为软删除（is_deleted标记），支持批量恢复
     - 用例编号自动生成，格式: CASE{project_id}-{时间戳}
 """
-from datetime import datetime
 from typing import Optional
 from app.utils.db_time import utcnow
 import json
@@ -38,6 +37,7 @@ from app.models.test_data import TestData, DataType, GenerationRule
 from app.models.project import Project
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
+from app.services.case_number_service import CaseNumberService
 from app.utils.test_case_helpers import build_test_case_response
 from app.core.exception import create_response
 from loguru import logger
@@ -123,7 +123,7 @@ async def create_test_case(
 
     new_test_case = TestCase(
         project_id=test_case.project_id,
-        case_no=test_case.case_no if test_case.case_no else f"CASE{test_case.project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+        case_no=test_case.case_no if test_case.case_no else CaseNumberService.generate(test_case.project_id, db),
         module=test_case.module,
         title=test_case.title,
         precondition=test_case.precondition,

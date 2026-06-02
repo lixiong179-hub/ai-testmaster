@@ -4,7 +4,6 @@ Test Case Generation Service - 验证与保存Mixin
 """
 import re
 import inspect
-from datetime import datetime
 from typing import Dict, Any, Optional, List
 from loguru import logger
 
@@ -16,6 +15,8 @@ from app.services.test_case_generation.quality_validator import (
     compute_quality_score,
     validate_cases_quality,
 )
+from app.services.quality.quality_gate_service import QualityGateService
+from app.services.case_number_service import CaseNumberService
 
 
 class TestCaseGenerationValidateMixin:
@@ -275,11 +276,25 @@ class TestCaseGenerationValidateMixin:
         generated_case: Dict[str, Any],
         quality_score: Optional[float],
         ui_specs: Optional[List[Dict[str, Any]]] = None,
+        project_id: Optional[int] = None,
+        db: Any = None,
     ) -> List[str]:
-        issues: List[str] = []
-        passed, validation_issues = validate_cases_quality([generated_case])
-        if not passed:
-            issues.extend(validation_issues)
+        """使用 QualityGateService 执行统一校验，返回问题列表。
+
+        当校验状态为 rejected 时返回问题列表，passed/warning/pending_review
+        仅记录日志不阻断入库。
+        """
+        context: Dict[str, Any] = {
+            "ui_specs": ui_specs or generated_case.get("_context_ui_specs"),
+        }
+        gate_service = QualityGateService(db=db)
+        result = gate_service.validate(
+            generated_case,
+            context=context,
+            project_id=project_id,
+        )
+        issues: List[str] = [issue.message for issue in result.issues]
+
         if quality_score is None:
             issues.append("quality score is missing")
         elif quality_score < cls._MIN_PERSIST_QUALITY_SCORE:
@@ -355,7 +370,7 @@ class TestCaseGenerationValidateMixin:
         Returns:
             保存的测试用例对象
         """
-        case_no = f"CASE{project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
+        case_no = CaseNumberService.generate(project_id, self.db)
 
         steps = generated_case.get("steps", [])
         case_test_data = generated_case.get("test_data")
@@ -411,6 +426,8 @@ class TestCaseGenerationValidateMixin:
             case_for_quality,
             quality_score,
             ui_specs=generated_case.get("_context_ui_specs"),
+            project_id=project_id,
+            db=self.db,
         )
         if quality_issues:
             issue_text = "; ".join(quality_issues[:3])

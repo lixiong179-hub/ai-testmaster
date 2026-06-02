@@ -4,14 +4,20 @@ PromptBuilder 类支持:
     - for_test_case: 测试用例生成（graph/linear）
     - for_test_data: 测试数据生成
     - 静态兼容方法: build_graph_prompt / build_multimodal_prompt / build_linear_prompt
+
+可通过可选的 registry 参数从 PromptRegistry 读取 Prompt 内容，
+DB 有记录则使用 DB 内容，否则使用现有硬编码逻辑。
 """
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
 from app.services.prompt_builder.case_prompt import _build_graph_prompt
 from app.services.prompt_builder.linear_prompt import _build_linear_prompt
 from app.services.prompt_builder.data_prompt import _build_test_data_prompt
+
+if TYPE_CHECKING:
+    from app.services.prompt_registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +122,29 @@ class PromptBuilder:
         - build_graph_prompt: 流程图模式 Prompt
         - build_multimodal_prompt: 多模态 Prompt
         - build_linear_prompt: 线性模式 Prompt
+
+    Args:
+        registry: 可选的 PromptRegistry 实例，提供时优先从 DB 读取 Prompt 内容。
     """
+
+    def __init__(self, registry: Optional["PromptRegistry"] = None) -> None:
+        self._registry = registry
+
+    def _resolve_prompt_content(self, key: str, fallback: str) -> str:
+        """从 PromptRegistry 获取 Prompt 内容，DB 无记录时使用 fallback。
+
+        Args:
+            key: Prompt 唯一标识键。
+            fallback: 硬编码 fallback 内容。
+
+        Returns:
+            Prompt 内容字符串。
+        """
+        if self._registry is not None:
+            content = self._registry.get_prompt_content(key)
+            if content:
+                return content
+        return fallback
 
     def for_test_case(
         self,

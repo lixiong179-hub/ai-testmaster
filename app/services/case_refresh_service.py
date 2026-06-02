@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.models.case_refresh_suggestion import CaseRefreshSuggestion
 from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
-from app.models.test_case_version import TestCaseVersion
 from app.models.requirement import Requirement
 from app.models.test_point import TestPoint
 from app.services.lifecycle_service._service import transition as lifecycle_transition
@@ -240,30 +239,21 @@ class CaseRefreshService:
         return version_id
 
     def _create_version_snapshot(self, case: TestCase, change_type: str) -> int:
-        latest_version = self.db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id,
-        ).order_by(TestCaseVersion.version_number.desc()).first()
-        next_version = (latest_version.version_number + 1) if latest_version else 1
+        from app.services.case_version_service import CaseVersionService
+        from app.models.test_case import skip_version_snapshot, resume_version_snapshot
 
-        snapshot_data = {
-            "title": case.title,
-            "module": case.module,
-            "precondition": case.precondition,
-            "expected_result": case.expected_result,
-            "priority": case.priority,
-            "case_type": case.case_type,
-            "steps_json": case.steps_json,
-        }
-        version = TestCaseVersion(
-            test_case_id=case.id,
-            version_number=next_version,
-            change_type=change_type,
-            change_description="保鲜建议应用前自动快照",
-            snapshot_data=snapshot_data,
-        )
-        self.db.add(version)
-        self.db.flush()
-        return version.id
+        skip_version_snapshot()
+        try:
+            version = CaseVersionService.create_snapshot(
+                db=self.db,
+                test_case_id=case.id,
+                change_type=change_type,
+                change_description="保鲜建议应用前自动快照",
+            )
+        finally:
+            resume_version_snapshot()
+
+        return version.id if version else 0
 
     def _suggestion_to_dict(self, suggestion: CaseRefreshSuggestion) -> Dict[str, Any]:
         return {
