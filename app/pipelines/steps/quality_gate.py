@@ -28,6 +28,15 @@ from app.pipelines.steps._scoring import (
 )
 
 
+def _grade_to_quality_status(grade: str) -> str:
+    """将评分等级(A/B/C/D)映射到4档质量状态。
+
+    A -> passed, B -> warning, C -> pending_review, D -> rejected
+    """
+    mapping = {"A": "passed", "B": "warning", "C": "pending_review", "D": "rejected"}
+    return mapping.get(grade, "pending_review")
+
+
 class QualityGate(PipelineStep):
     name: ClassVar[str] = "quality_gate"
     version: ClassVar[str] = "2.0"
@@ -122,6 +131,7 @@ class QualityGate(PipelineStep):
                     "case_title": case_data.get("title", ""),
                     "score": score,
                     "grade": grade,
+                    "quality_status": _grade_to_quality_status(grade),
                     "breakdown": breakdown,
                     "lifecycle_status": case_data.get("lifecycle_status", "draft"),
                 })
@@ -198,6 +208,7 @@ class QualityGate(PipelineStep):
                     "case_title": case_data.get("title", ""),
                     "score": 50.0,
                     "grade": "C",
+                    "quality_status": "pending_review",
                     "breakdown": {"fallback": True},
                     "lifecycle_status": "pending_review",
                 })
@@ -223,6 +234,7 @@ __all__ = [
     "_compute_prior_score",
     "_compute_analyzer_score",
     "_score_to_grade",
+    "_grade_to_quality_status",
     "_score_title",
     "_score_steps",
     "_score_expected_result",

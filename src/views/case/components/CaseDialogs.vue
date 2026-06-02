@@ -28,12 +28,34 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="ctx.versionHistoryVisible.value" title="版本历史" width="700px">
+  <el-dialog v-model="ctx.versionHistoryVisible.value" title="版本历史" width="750px">
     <div v-if="ctx.versionLoading.value" class="loading-container">
       <el-skeleton :rows="5" animated />
     </div>
     <div v-else>
-      <el-table :data="ctx.versionList.value" style="width: 100%" border stripe>
+      <div class="version-compare-bar">
+        <span class="compare-hint">
+          已选择 {{ selectedVersionIds.length }}/2 个版本进行对比
+        </span>
+        <el-button
+          type="primary"
+          size="small"
+          :disabled="selectedVersionIds.length !== 2"
+          :loading="compareLoading"
+          @click="handleCompare"
+        >
+          对比
+        </el-button>
+      </div>
+      <el-table
+        ref="versionTableRef"
+        :data="ctx.versionList.value"
+        style="width: 100%"
+        border
+        stripe
+        @selection-change="handleVersionSelectionChange"
+      >
+        <el-table-column type="selection" width="45" align="center" :selectable="() => true" />
         <el-table-column label="版本号" width="80" align="center">
           <template #default="{ row }"
             ><el-tag size="small">v{{ row.version_number }}</el-tag></template
@@ -65,7 +87,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="修改说明" min-width="200">
+        <el-table-column label="修改说明" min-width="180">
           <template #default="{ row }">{{ row.change_description || '-' }}</template>
         </el-table-column>
         <el-table-column label="操作人" width="100">
@@ -103,6 +125,34 @@
         />
       </div>
     </div>
+
+    <!-- 版本对比结果嵌套对话框 -->
+    <el-dialog
+      v-model="compareDialogVisible"
+      title="版本对比"
+      width="800px"
+      append-to-body
+      destroy-on-close
+    >
+      <div v-if="compareLoading" class="loading-container">
+        <el-skeleton :rows="5" animated />
+      </div>
+      <div v-else-if="compareResult">
+        <div class="compare-version-header">
+          <el-tag type="info">
+            v{{ compareResult.from_version.version_number }}
+          </el-tag>
+          <el-icon class="compare-arrow"><Right /></el-icon>
+          <el-tag type="success">
+            v{{ compareResult.to_version.version_number }}
+          </el-tag>
+        </div>
+        <CaseVersionDiff
+          :diff-data="compareResult.diff"
+          :steps-diff="compareResult.stepsDiff"
+        />
+      </div>
+    </el-dialog>
   </el-dialog>
 
   <el-dialog v-model="ctx.addLocatorVisible.value" title="添加元素定位" width="500px">
@@ -142,12 +192,80 @@
 </template>
 
 <script setup lang="ts">
-import { watch, ref } from 'vue'
+import { watch, ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Right } from '@element-plus/icons-vue'
 import { useCaseDetail } from '@/composables/case/useCaseDetail'
+import { testCaseApi } from '@/api/case'
+import type { CaseVersionCompareResult } from '@/api/case/types'
 import BatchLocatorDialog from '../BatchLocatorDialog.vue'
+import CaseVersionDiff from './CaseVersionDiff.vue'
 
 const ctx = useCaseDetail()
 const batchLocatorRef = ref<InstanceType<typeof BatchLocatorDialog>>()
+
+// ---- 版本对比相关状态 ----
+const selectedVersionRows = ref<Array<{ id: number; version_number: number }>>([])
+const selectedVersionIds = computed(() => selectedVersionRows.value.map((r) => r.id))
+const compareDialogVisible = ref(false)
+const compareLoading = ref(false)
+const compareResult = ref<CaseVersionCompareResult | null>(null)
+
+/** 表格多选变更，限制最多选2行 */
+const handleVersionSelectionChange = (selection: Array<{ id: number; version_number: number }>) => {
+  if (selection.length > 2) {
+    // 只保留最后选中的2条
+    selectedVersionRows.value = selection.slice(-2)
+    // 需要同步表格勾选状态
+    const tableRef = versionTableRef.value
+    if (tableRef) {
+      tableRef.clearSelection()
+      selectedVersionRows.value.forEach((row) => {
+        const found = ctx.versionList.value.find((v: { id: number }) => v.id === row.id)
+        if (found) tableRef.toggleRowSelection(found, true)
+      })
+    }
+  } else {
+    selectedVersionRows.value = selection
+  }
+}
+
+/** 触发版本对比 */
+const handleCompare = async () => {
+  if (selectedVersionRows.value.length !== 2) {
+    ElMessage.warning('请选择两个版本进行对比')
+    return
+  }
+  // 按 version_number 排序，小的作为 from
+  const sorted = [...selectedVersionRows.value].sort(
+    (a, b) => a.version_number - b.version_number
+  )
+  const fromVersion = sorted[0]
+  const toVersion = sorted[1]
+  const caseId = ctx.caseId.value
+  if (!caseId) return
+
+  compareLoading.value = true
+  compareDialogVisible.value = true
+  compareResult.value = null
+  try {
+    compareResult.value = await testCaseApi.compareCaseVersions(
+      caseId,
+      fromVersion.id,
+      toVersion.id
+    )
+  } catch (error: unknown) {
+    const msg =
+      error instanceof Error ? error.message : '版本对比失败'
+    console.error('版本对比失败:', error)
+    ElMessage.error(msg)
+    compareDialogVisible.value = false
+  } finally {
+    compareLoading.value = false
+  }
+}
+
+const versionTableRef = ref<InstanceType<typeof import('element-plus')['ElTable']>>()
 
 watch(
   () => ctx.batchLocatorVisible.value,
@@ -159,3 +277,34 @@ watch(
   }
 )
 </script>
+
+<style scoped>
+.version-compare-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.compare-hint {
+  font-size: 13px;
+  color: #909399;
+}
+
+.compare-version-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.compare-arrow {
+  color: #909399;
+  font-size: 16px;
+}
+
+.loading-container {
+  padding: 20px 0;
+}
+</style>

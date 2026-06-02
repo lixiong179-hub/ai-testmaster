@@ -12,7 +12,6 @@ from app.db.database import get_db
 from app.models.generation_batch import GenerationBatch, GenerationBatchSave
 from app.models.project import Project, ProjectFile
 from app.models.test_case import TestCase, TestStep
-from app.models.test_case_version import TestCaseVersion
 from app.models.user import User
 from app.services.lifecycle_service import transition as lifecycle_transition
 from app.schemas.generation_batch import (
@@ -55,10 +54,33 @@ def _generate_batch_no(project_id: int) -> str:
     return f"GB{date_str}{time_str}{project_id:04d}"
 
 
+import warnings
+
+from app.services.case_number_service import CaseNumberService
+
+
 def _generate_case_no(project_id: int, index: int) -> str:
-    now = datetime.now()
-    ts = now.strftime("%Y%m%d%H%M%S%f")
-    return f"CASE{project_id}-{ts}{index:04d}"
+    """[deprecated] 生成用例编号，内部委托到 CaseNumberService。
+
+    Args:
+        project_id: 项目ID。
+        index: 忽略，仅保留接口兼容。
+
+    Returns:
+        格式为 TC-{project_id:03d}-{seq:04d} 的用例编号。
+    """
+    warnings.warn(
+        "_generate_case_no is deprecated, use CaseNumberService.generate instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return CaseNumberService.generate(project_id, db=_get_db_for_case_no())
+
+
+def _get_db_for_case_no():
+    """获取当前请求的数据库会话，供 deprecated 的 _generate_case_no 使用。"""
+    from app.db.database import PrimarySessionLocal
+    return PrimarySessionLocal()
 
 
 def _batch_to_response(batch: GenerationBatch) -> dict:
@@ -268,28 +290,21 @@ def save_generation_batch(
                 if not existing_case:
                     raise ValueError(f"用例ID={case_payload.history_case_id}不存在或不属于当前项目")
 
-                max_ver = db.query(TestCaseVersion.version_number).filter(
-                    TestCaseVersion.test_case_id == existing_case.id
-                ).order_by(TestCaseVersion.version_number.desc()).first()
-                next_version = (max_ver[0] + 1) if max_ver else 1
-
-                snapshot = TestCaseVersion(
-                    test_case_id=existing_case.id,
-                    version_number=next_version,
-                    change_type="update",
-                    change_description=f"历史资产更新批次 {batch.batch_no} 触发更新",
-                    changed_fields=case_payload.diff_fields if case_payload.diff_fields else None,
-                    snapshot_data={
-                        "title": existing_case.title,
-                        "module": existing_case.module,
-                        "precondition": existing_case.precondition,
-                        "steps": existing_case.steps_json or [],
-                        "expected_result": existing_case.expected_result,
-                        "priority": existing_case.priority,
-                    },
-                    operator_id=batch.user_id,
-                )
-                db.add(snapshot)
+                # 跳过自动版本快照，由 CaseVersionService 手动创建
+                from app.models.test_case import skip_version_snapshot, resume_version_snapshot
+                skip_version_snapshot()
+                try:
+                    from app.services.case_version_service import CaseVersionService
+                    CaseVersionService.create_snapshot(
+                        db=db,
+                        test_case_id=existing_case.id,
+                        change_type="update",
+                        operator_id=batch.user_id,
+                        change_description=f"历史资产更新批次 {batch.batch_no} 触发更新",
+                        changed_fields=case_payload.diff_fields if case_payload.diff_fields else None,
+                    )
+                finally:
+                    resume_version_snapshot()
 
                 existing_case.title = case_payload.title
                 existing_case.module = case_payload.module or existing_case.module
@@ -329,29 +344,21 @@ def save_generation_batch(
                 if not existing_case:
                     raise ValueError(f"用例ID={case_payload.history_case_id}不存在或不属于当前项目")
 
-                max_ver = db.query(TestCaseVersion.version_number).filter(
-                    TestCaseVersion.test_case_id == existing_case.id
-                ).order_by(TestCaseVersion.version_number.desc()).first()
-                next_version = (max_ver[0] + 1) if max_ver else 1
-
-                snapshot = TestCaseVersion(
-                    test_case_id=existing_case.id,
-                    version_number=next_version,
-                    change_type="update",
-                    change_description=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
-                    changed_fields={"lifecycle_status": {"old": existing_case.lifecycle_status, "new": "deprecated"}},
-                    snapshot_data={
-                        "title": existing_case.title,
-                        "module": existing_case.module,
-                        "precondition": existing_case.precondition,
-                        "steps": existing_case.steps_json or [],
-                        "expected_result": existing_case.expected_result,
-                        "priority": existing_case.priority,
-                        "lifecycle_status": existing_case.lifecycle_status,
-                    },
-                    operator_id=batch.user_id,
-                )
-                db.add(snapshot)
+                # 跳过自动版本快照，由 CaseVersionService 手动创建
+                from app.models.test_case import skip_version_snapshot, resume_version_snapshot
+                skip_version_snapshot()
+                try:
+                    from app.services.case_version_service import CaseVersionService
+                    CaseVersionService.create_snapshot(
+                        db=db,
+                        test_case_id=existing_case.id,
+                        change_type="update",
+                        operator_id=batch.user_id,
+                        change_description=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
+                        changed_fields={"lifecycle_status": {"old": existing_case.lifecycle_status, "new": "deprecated"}},
+                    )
+                finally:
+                    resume_version_snapshot()
                 db.flush()
 
                 lifecycle_transition(
@@ -381,10 +388,7 @@ def save_generation_batch(
             steps_list = [step.model_dump() for step in case_payload.steps]
             test_category = case_payload.case_category or ""
 
-            case_no = _generate_case_no(batch.project_id, idx + 1)
-            existing_no = db.query(TestCase).filter(TestCase.case_no == case_no).first()
-            if existing_no:
-                case_no = _generate_case_no(batch.project_id, idx + 1 + 1000)
+            case_no = CaseNumberService.generate(batch.project_id, db)
 
             new_case = TestCase(
                 case_no=case_no,

@@ -187,7 +187,11 @@ class OpenAIClient:
         response: AIResponse,
         metadata: Optional[Dict[str, Any]],
     ) -> None:
-        """记录成功的 AI 调用日志"""
+        """记录成功的 AI 调用日志
+
+        从 metadata 提取审计增强字段（generation_batch_id, scenario_type 等）
+        一并写入 AICallLog。
+        """
         try:
             from app.ai.call_log import record_call
             db = metadata.get("db") if metadata else None
@@ -200,6 +204,12 @@ class OpenAIClient:
                 latency_ms=response.latency_ms,
                 step_name=metadata.get("step_name") if metadata else None,
                 run_id=metadata.get("run_id") if metadata else None,
+                generation_batch_id=metadata.get("generation_batch_id") if metadata else None,
+                scenario_type=metadata.get("scenario_type") if metadata else None,
+                generation_strategy=metadata.get("generation_strategy") if metadata else None,
+                prompt_key=metadata.get("prompt_key") if metadata else None,
+                prompt_version=metadata.get("prompt_version") if metadata else None,
+                prompt_hash=metadata.get("prompt_hash") if metadata else None,
             )
         except Exception as log_err:
             logger.warning(f"Failed to record AI call log: {log_err}")
@@ -210,7 +220,10 @@ class OpenAIClient:
         metadata: Optional[Dict[str, Any]],
         latency_ms: int,
     ) -> None:
-        """记录失败的 AI 调用日志"""
+        """记录失败的 AI 调用日志
+
+        从 metadata 提取审计增强字段及 error_code，一并写入 AICallLog。
+        """
         try:
             from app.ai.call_log import record_call
             db = metadata.get("db") if metadata else None
@@ -225,6 +238,13 @@ class OpenAIClient:
                 run_id=metadata.get("run_id") if metadata else None,
                 status="failed",
                 error_message=error_msg[:500] if error_msg else None,
+                generation_batch_id=metadata.get("generation_batch_id") if metadata else None,
+                scenario_type=metadata.get("scenario_type") if metadata else None,
+                generation_strategy=metadata.get("generation_strategy") if metadata else None,
+                prompt_key=metadata.get("prompt_key") if metadata else None,
+                prompt_version=metadata.get("prompt_version") if metadata else None,
+                prompt_hash=metadata.get("prompt_hash") if metadata else None,
+                error_code=metadata.get("error_code") if metadata else None,
             )
         except Exception as log_err:
             logger.warning(f"Failed to record AI failure log: {log_err}")

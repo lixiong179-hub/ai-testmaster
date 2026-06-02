@@ -254,21 +254,24 @@ def _batch_update_posterior_scores(
     db: Session,
     score_map: dict[int, float],
 ) -> None:
-    """批量更新后验质量分，按 score 分组减少 SQL 语句数
+    """批量更新后验质量分（ORM 逐条更新，确保 before_flush event 触发版本快照）
 
     Args:
         db: 数据库会话
         score_map: {case_id: score} 映射
     """
-    score_groups: dict[float, List[int]] = {}
-    for cid, score in score_map.items():
-        score_groups.setdefault(score, []).append(cid)
+    if not score_map:
+        return
 
-    for score, cids in score_groups.items():
-        db.query(TestCase).filter(
-            TestCase.id.in_(cids),
+    cases = (
+        db.query(TestCase)
+        .filter(
+            TestCase.id.in_(list(score_map.keys())),
             TestCase.is_deleted.is_(False),
-        ).update(
-            {TestCase.posterior_quality_score: score},
-            synchronize_session="fetch",
         )
+        .all()
+    )
+    for case in cases:
+        target_score = score_map.get(case.id)
+        if target_score is not None and case.posterior_quality_score != target_score:
+            case.posterior_quality_score = target_score

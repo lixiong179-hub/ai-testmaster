@@ -10,6 +10,7 @@ from app.models.element_locator import ElementLocator
 from app.models.project import Project
 from app.models.enums import LocatorStatus
 from app.services.test_case_view.models import BusinessStepView
+from app.services.case_number_service import CaseNumberService
 
 
 class ExcelImportMixin:
@@ -33,11 +34,12 @@ class ExcelImportMixin:
 
             case_info = case_info_df.iloc[0]
             original_case_no = str(case_info.get('用例编号', ''))
-            case_no = self._generate_unique_case_no(project_id, original_case_no)
+            case_no = CaseNumberService.generate(project_id, self.db)
 
             test_case = TestCase(
                 project_id=project_id,
                 case_no=case_no,
+                legacy_case_no=original_case_no if original_case_no else None,
                 module=str(case_info.get('所属模块', '默认模块')),
                 title=str(case_info.get('用例标题', '未命名用例')),
                 precondition=str(case_info.get('前置条件', '')),
@@ -131,10 +133,8 @@ class ExcelImportMixin:
                 raw_seq = str(row.get('用例序号', '')).strip()
                 if not case_no and raw_seq and not raw_seq.isdigit():
                     case_no = raw_seq
-                if not case_no:
-                    case_no = f"TC{project_id}_{int(datetime.now().timestamp())}"
-
-                case_no = self._generate_unique_case_no(project_id, case_no)
+                original_case_no = case_no if case_no else None
+                case_no = CaseNumberService.generate(project_id, self.db)
 
                 # 模块名优先使用从合并行提取的 current_module，其次从列读取（兼容旧格式）
                 col_module = row.get('所属模块', row.get('所属分组', None))
@@ -156,6 +156,7 @@ class ExcelImportMixin:
                 test_case = TestCase(
                     project_id=project_id,
                     case_no=case_no,
+                    legacy_case_no=original_case_no,
                     module=group,
                     title=title,
                     precondition=precondition,

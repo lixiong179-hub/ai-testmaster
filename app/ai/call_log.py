@@ -3,12 +3,16 @@ AI 调用日志模块
 
 本模块定义 ai_call_log 表模型和调用记录/预算检查逻辑：
     - AICallLog 模型：记录每次 AI 调用的模型、Token、成本、延迟、step_name、run_id
+      及审计增强字段（generation_batch_id, scenario_type, generation_strategy,
+      prompt_key, prompt_version, prompt_hash, error_code）
     - record_call()：写入调用日志
     - check_budget()：检查 run 的 Token 预算是否超限
 
 表结构：
     id, run_id FK, step_name, model, prompt_tokens, completion_tokens,
-    cost_usd, latency_ms, status, error_message, created_at
+    cost_usd, latency_ms, status, error_message, created_at,
+    generation_batch_id FK, scenario_type, generation_strategy,
+    prompt_key, prompt_version, prompt_hash, error_code
 
 依赖关系：
     - app.utils.db_time.utcnow : UTC 时间戳
@@ -54,6 +58,17 @@ class AICallLog(Base):
         DateTime, nullable=False, default=utcnow,
         server_default=text("CURRENT_TIMESTAMP"), comment="创建时间",
     )
+    # 审计增强字段
+    generation_batch_id = Column(
+        Integer, ForeignKey("generation_batches.id", ondelete="SET NULL"),
+        nullable=True, index=True, comment="关联生成批次ID",
+    )
+    scenario_type = Column(String(50), nullable=True, comment="资料组合场景")
+    generation_strategy = Column(String(50), nullable=True, comment="生成策略")
+    prompt_key = Column(String(80), nullable=True, comment="Prompt模板键")
+    prompt_version = Column(Integer, nullable=True, comment="Prompt版本号")
+    prompt_hash = Column(String(64), nullable=True, comment="Prompt内容哈希")
+    error_code = Column(String(30), nullable=True, comment="错误码枚举值")
 
     def __repr__(self) -> str:
         return f"<AICallLog(id={self.id}, model='{self.model}', cost={self.cost_usd})>"
@@ -71,6 +86,13 @@ def record_call(
     run_id: Optional[int] = None,
     status: str = "success",
     error_message: Optional[str] = None,
+    generation_batch_id: Optional[int] = None,
+    scenario_type: Optional[str] = None,
+    generation_strategy: Optional[str] = None,
+    prompt_key: Optional[str] = None,
+    prompt_version: Optional[int] = None,
+    prompt_hash: Optional[str] = None,
+    error_code: Optional[str] = None,
 ) -> AICallLog:
     """写入 AI 调用日志
 
@@ -85,6 +107,13 @@ def record_call(
         run_id: 运行 ID
         status: 状态（success/failed）
         error_message: 错误信息
+        generation_batch_id: 关联生成批次ID
+        scenario_type: 资料组合场景
+        generation_strategy: 生成策略
+        prompt_key: Prompt模板键
+        prompt_version: Prompt版本号
+        prompt_hash: Prompt内容哈希
+        error_code: 错误码枚举值
 
     Returns:
         AICallLog 实例
@@ -99,6 +128,13 @@ def record_call(
         latency_ms=latency_ms,
         status=status,
         error_message=error_message,
+        generation_batch_id=generation_batch_id,
+        scenario_type=scenario_type,
+        generation_strategy=generation_strategy,
+        prompt_key=prompt_key,
+        prompt_version=prompt_version,
+        prompt_hash=prompt_hash,
+        error_code=error_code,
     )
     if db is not None:
         db.add(log)

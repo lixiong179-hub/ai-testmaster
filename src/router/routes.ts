@@ -31,6 +31,18 @@ const dynamicRoutes: RouteRecordRaw[] = [
     component: () => import('../views/system/audit-log/index.vue'),
     meta: { title: '审计日志', permission: 'system:manage' },
   },
+  {
+    path: 'quality-rule',
+    name: 'QualityRule',
+    component: () => import('../views/system/quality-rule/index.vue'),
+    meta: { title: '质量规则配置', permission: 'system:manage' },
+  },
+  {
+    path: 'feature-flag',
+    name: 'FeatureFlag',
+    component: () => import('../views/system/feature-flag/index.vue'),
+    meta: { title: 'FeatureFlag管理', permission: 'system:manage' },
+  },
 ]
 
 export const routes: RouteRecordRaw[] = [
@@ -60,6 +72,12 @@ export const routes: RouteRecordRaw[] = [
         name: 'PipelineDashboard',
         component: () => import('@/views/admin/PipelineDashboard.vue'),
         meta: { title: 'Pipeline仪表盘', requireAuth: true },
+      },
+      {
+        path: 'ai-cost-dashboard',
+        name: 'AICostDashboard',
+        component: () => import('@/views/admin/AICostDashboard.vue'),
+        meta: { title: 'AI成本仪表盘', requireAuth: true },
       },
       {
         path: 'system',

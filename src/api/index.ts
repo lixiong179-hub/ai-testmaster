@@ -185,3 +185,14 @@ export type {
 // 审计日志 API
 export { default as auditLogApi } from './auditLog'
 export type { AuditLogItem, AuditLogListResponse, AuditLogQueryParams } from './auditLog'
+
+// AI 调用审计 API
+export { aiInvocationApi, usdToCny } from './aiInvocation'
+export type {
+  AIInvocationStatsParams,
+  AIInvocationStatsItem,
+  AIInvocationStatsResponse,
+  AIInvocationListParams,
+  AIInvocationListItem,
+  AIInvocationListResponse,
+} from './aiInvocation'

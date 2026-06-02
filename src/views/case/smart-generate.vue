@@ -237,6 +237,11 @@
           <el-tag type="danger">可能废弃 {{ store.historyClassification.summary.deprecated_count }}</el-tag>
           <el-tag type="info">待确认 {{ store.historyClassification.summary.confirm_required_count }}</el-tag>
         </div>
+        <div v-if="store.selectedTask !== 'history_update'" class="preview-toolbar">
+          <el-checkbox v-model="isAllSelected" :indeterminate="isIndeterminate" @change="handleToggleAll">全选</el-checkbox>
+          <el-button size="small" type="danger" plain :disabled="selectedCaseCount === 0" @click="handleBatchDelete">批量删除 ({{ selectedCaseCount }})</el-button>
+          <el-button size="small" type="primary" plain :disabled="selectedCaseCount === 0" :loading="batchRegenerating" @click="handleBatchRegenerate">批量重新生成 ({{ selectedCaseCount }})</el-button>
+        </div>
         <el-collapse class="coverage-collapse">
           <el-collapse-item title="覆盖摘要" name="coverage">
             <el-descriptions :column="2" border size="small">
@@ -364,7 +369,24 @@
           <template #header><span>保存结果</span></template>
           <el-result :icon="store.saveResult.status === 'saved' ? 'success' : store.saveResult.status === 'partial_saved' ? 'warning' : 'error'" :title="store.saveResult.status === 'saved' ? '保存成功' : store.saveResult.status === 'partial_saved' ? '部分保存成功' : '保存失败'">
             <template #extra>
-              <el-descriptions :column="2" border><el-descriptions-item label="成功数量">{{ store.saveResult.saved_count }}</el-descriptions-item><el-descriptions-item label="失败数量">{{ store.saveResult.failed_count }}</el-descriptions-item></el-descriptions>
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="成功数量">{{ store.saveResult.saved_count }}</el-descriptions-item>
+                <el-descriptions-item label="失败数量">{{ store.saveResult.failed_count }}</el-descriptions-item>
+                <el-descriptions-item label="Token 消耗">
+                  <template v-if="store.batchCost">
+                    <span>{{ store.batchCost.totalTokens.toLocaleString() }}</span>
+                    <span class="cost-detail">（输入 {{ store.batchCost.totalPromptTokens.toLocaleString() }} / 输出 {{ store.batchCost.totalCompletionTokens.toLocaleString() }}）</span>
+                  </template>
+                  <el-icon v-else class="spin-icon" :size="14" color="#909399"><Loading /></el-icon>
+                </el-descriptions-item>
+                <el-descriptions-item label="估算成本">
+                  <template v-if="store.batchCost">
+                    <span>${{ store.batchCost.totalCostUsd.toFixed(4) }}</span>
+                    <span class="cost-detail">约 &yen;{{ (store.batchCost.totalCostUsd * 7.25).toFixed(2) }}</span>
+                  </template>
+                  <el-icon v-else class="spin-icon" :size="14" color="#909399"><Loading /></el-icon>
+                </el-descriptions-item>
+              </el-descriptions>
               <div v-if="store.saveResult.failures.length > 0" class="failure-list"><h4>失败明细</h4><div v-for="(f, i) in store.saveResult.failures" :key="i" class="failure-item"><el-tag type="danger" size="small">{{ f.title || f.client_id }}</el-tag><span>{{ f.reason }}</span></div></div>
               <div class="result-actions"><el-button type="primary" @click="goToCaseList">查看已保存用例</el-button><el-button @click="handleReset">重新生成</el-button></div>
             </template>
@@ -587,6 +609,60 @@ async function handleRegenerateSingle(clientId: string) {
   catch (e: unknown) { ElMessage.error(e instanceof Error ? e.message : '重新生成失败') }
 }
 
+const isAllSelected = computed(() => store.previewCases.length > 0 && store.previewCases.every((c) => c.selected_for_save))
+const isIndeterminate = computed(() => {
+  const selected = store.previewCases.filter((c) => c.selected_for_save).length
+  return selected > 0 && selected < store.previewCases.length
+})
+const selectedCaseCount = computed(() => store.previewCases.filter((c) => c.selected_for_save).length)
+
+function handleToggleAll(val: boolean | string | number) {
+  const checked = Boolean(val)
+  for (const c of store.previewCases) {
+    c.selected_for_save = checked
+  }
+  store.recalcQualitySummary()
+}
+
+async function handleBatchDelete() {
+  const selectedIds = store.previewCases.filter((c) => c.selected_for_save).map((c) => c.client_id)
+  if (selectedIds.length === 0) return
+  try {
+    await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.length} 条用例？`, '批量删除', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
+    for (const id of selectedIds) {
+      store.removeCase(id)
+    }
+    ElMessage.success(`已删除 ${selectedIds.length} 条用例`)
+  } catch { /* 用户取消 */ }
+}
+
+const batchRegenerating = ref(false)
+
+async function handleBatchRegenerate() {
+  const selectedCases = store.previewCases.filter((c) => c.selected_for_save)
+  if (selectedCases.length === 0) return
+  try {
+    await ElMessageBox.confirm(`确定重新生成选中的 ${selectedCases.length} 条用例？`, '批量重新生成', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
+  } catch { return }
+  batchRegenerating.value = true
+  let successCount = 0
+  let failCount = 0
+  for (const c of selectedCases) {
+    try {
+      await store.regenerateSingleCase(c.client_id)
+      successCount++
+    } catch {
+      failCount++
+    }
+  }
+  batchRegenerating.value = false
+  if (failCount > 0) {
+    ElMessage.warning(`重新生成完成：成功 ${successCount} 条，失败 ${failCount} 条`)
+  } else {
+    ElMessage.success(`已重新生成 ${successCount} 条用例`)
+  }
+}
+
 function openEditDialog(c: SmartPreviewCase) { editingClientId.value = c.client_id; editingCase.value = JSON.parse(JSON.stringify(c)); editDialogVisible.value = true }
 
 function updateStepField(idx: number, field: string, value: string) {
@@ -668,6 +744,7 @@ onBeforeUnmount(() => { store.cancelParsePolling() })
 .progress-hint { color: #909399; margin-top: 12px; }
 .recovery-actions { display: flex; gap: 12px; justify-content: center; }
 .preview-summary { display: flex; gap: 12px; margin-bottom: 16px; }
+.preview-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 8px 12px; background: #f5f7fa; border-radius: 6px; }
 .coverage-collapse { margin-bottom: 16px; }
 .coverage-tag { margin: 2px 4px; }
 .preview-case-card { margin-bottom: 12px; border-left: 4px solid #e4e7ed; }
@@ -693,6 +770,7 @@ onBeforeUnmount(() => { store.cancelParsePolling() })
 .failure-list { margin-top: 16px; text-align: left; }
 .failure-list h4 { margin: 0 0 8px; }
 .failure-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+.cost-detail { color: #909399; font-size: 12px; margin-left: 8px; }
 .result-actions { margin-top: 16px; display: flex; gap: 12px; justify-content: center; }
 .edit-steps { width: 100%; }
 .edit-step-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
