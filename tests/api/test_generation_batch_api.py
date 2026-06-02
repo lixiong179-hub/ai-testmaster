@@ -277,6 +277,137 @@ class TestGenerationBatchSaveIdempotent:
         assert data["saved_count"] == 1
 
 
+class TestHistoryUpdateSaveSemantics:
+    def test_update_case_not_selected_for_save_is_skipped(self, db, client, authHeaders, testProject):
+        from app.models.test_case import TestCase
+
+        existing = TestCase(
+            case_no="TC-UPD-SKIP",
+            project_id=testProject.id,
+            module="登录模块",
+            title="原始登录用例",
+            precondition="用户已注册",
+            steps_json=[{"step": 1, "action": "打开登录页", "expected_result": "显示登录表单"}],
+            expected_result="登录成功",
+            priority=2,
+            case_type="manual",
+            lifecycle_status="active",
+        )
+        db.add(existing)
+        db.flush()
+
+        original_title = existing.title
+
+        batch = GenerationBatch(
+            batch_no="GB-UPD-SKIP",
+            project_id=testProject.id,
+            user_id=testProject.user_id,
+            entry_type="HISTORY_UPDATE",
+            scenario_type="A2_HISTORY_INCREMENTAL_UPDATE",
+            generation_strategy="HISTORY_INCREMENTAL_UPDATE",
+            status="preview_ready",
+        )
+        db.add(batch)
+        db.flush()
+
+        resp = client.post(
+            f"/api/v1/generation-batches/{batch.id}/save",
+            json={
+                "idempotency_key": "idem-upd-skip",
+                "save_mode": "draft",
+                "cases": [
+                    {
+                        "client_id": "case-upd-skip",
+                        "title": "修改后的登录用例",
+                        "module": "登录模块",
+                        "precondition": "用户已注册",
+                        "steps": [{"step": 1, "action": "打开新登录页", "expected_result": "显示新表单"}],
+                        "expected_result": "新登录成功",
+                        "priority": 1,
+                        "case_type": "manual",
+                        "quality_status": "pending_review",
+                        "selected_for_save": False,
+                        "classification": "UPDATE_CASE",
+                        "history_case_id": existing.id,
+                        "update_action": "update_existing",
+                        "diff_fields": {"title": {"old": "原始登录用例", "new": "修改后的登录用例"}},
+                    },
+                ],
+            },
+            headers=authHeaders,
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()["data"]
+        assert data["saved_count"] == 0
+
+        db.refresh(existing)
+        assert existing.title == original_title
+
+    def test_deprecated_case_selected_triggers_lifecycle_transition(self, db, client, authHeaders, testProject):
+        from app.models.test_case import TestCase
+
+        existing = TestCase(
+            case_no="TC-DEP-OK",
+            project_id=testProject.id,
+            module="旧功能模块",
+            title="即将废弃的用例",
+            precondition="无",
+            steps_json=[{"step": 1, "action": "执行旧操作", "expected_result": "旧结果"}],
+            expected_result="旧预期",
+            priority=3,
+            case_type="manual",
+            lifecycle_status="active",
+        )
+        db.add(existing)
+        db.flush()
+
+        batch = GenerationBatch(
+            batch_no="GB-DEP-OK",
+            project_id=testProject.id,
+            user_id=testProject.user_id,
+            entry_type="HISTORY_UPDATE",
+            scenario_type="A2_HISTORY_INCREMENTAL_UPDATE",
+            generation_strategy="HISTORY_INCREMENTAL_UPDATE",
+            status="preview_ready",
+        )
+        db.add(batch)
+        db.flush()
+
+        resp = client.post(
+            f"/api/v1/generation-batches/{batch.id}/save",
+            json={
+                "idempotency_key": "idem-dep-ok",
+                "save_mode": "draft",
+                "cases": [
+                    {
+                        "client_id": "case-dep-ok",
+                        "title": "",
+                        "module": "",
+                        "precondition": "",
+                        "steps": [],
+                        "expected_result": "",
+                        "priority": 2,
+                        "case_type": "manual",
+                        "quality_status": "pending_review",
+                        "selected_for_save": True,
+                        "classification": "DEPRECATED_CASE",
+                        "history_case_id": existing.id,
+                        "update_action": "deprecate",
+                        "diff_fields": None,
+                    },
+                ],
+            },
+            headers=authHeaders,
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()["data"]
+        assert data["saved_count"] == 1
+
+        db.refresh(existing)
+        assert existing.lifecycle_status == "deprecated"
+        assert existing.deprecated_at is not None
+
+
 class TestGenerationBatchSaveHashConflict:
     def test_idempotent_key_with_different_content_returns_409(self, db, client, authHeaders, testProject):
         batch = GenerationBatch(

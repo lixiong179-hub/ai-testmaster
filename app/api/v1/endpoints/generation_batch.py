@@ -12,7 +12,9 @@ from app.db.database import get_db
 from app.models.generation_batch import GenerationBatch, GenerationBatchSave
 from app.models.project import Project, ProjectFile
 from app.models.test_case import TestCase, TestStep
+from app.models.test_case_version import TestCaseVersion
 from app.models.user import User
+from app.services.lifecycle_service import transition as lifecycle_transition
 from app.schemas.generation_batch import (
     BatchSaveFailureItem,
     GenerationBatchCreate,
@@ -72,6 +74,7 @@ def _batch_to_response(batch: GenerationBatch) -> dict:
         requirement_file_ids=batch.requirement_file_ids_json or [],
         test_point_ids=batch.test_point_ids_json or [],
         ui_screen_ids=batch.ui_screen_ids_json or [],
+        history_asset_ids=batch.history_asset_ids_json or [],
         context_stats=batch.context_stats_json or {},
         warnings=batch.warnings_json or [],
         evidence_refs=batch.evidence_refs_json or {},
@@ -106,6 +109,7 @@ def create_generation_batch(
         requirement_file_ids_json=body.requirement_file_ids,
         test_point_ids_json=body.test_point_ids,
         ui_screen_ids_json=body.ui_screen_ids,
+        history_asset_ids_json=body.history_asset_ids,
         client_request_id=body.client_request_id,
     )
     db.add(batch)
@@ -254,6 +258,113 @@ def save_generation_batch(
     for idx, case_payload in enumerate(cases_to_save):
         try:
             savepoint = db.begin_nested()
+
+            if case_payload.update_action == "update_existing" and case_payload.history_case_id:
+                existing_case = db.query(TestCase).filter(
+                    TestCase.id == case_payload.history_case_id,
+                    TestCase.project_id == batch.project_id,
+                    TestCase.is_deleted.is_(False),
+                ).first()
+                if not existing_case:
+                    raise ValueError(f"用例ID={case_payload.history_case_id}不存在或不属于当前项目")
+
+                max_ver = db.query(TestCaseVersion.version_number).filter(
+                    TestCaseVersion.test_case_id == existing_case.id
+                ).order_by(TestCaseVersion.version_number.desc()).first()
+                next_version = (max_ver[0] + 1) if max_ver else 1
+
+                snapshot = TestCaseVersion(
+                    test_case_id=existing_case.id,
+                    version_number=next_version,
+                    change_type="update",
+                    change_description=f"历史资产更新批次 {batch.batch_no} 触发更新",
+                    changed_fields=case_payload.diff_fields if case_payload.diff_fields else None,
+                    snapshot_data={
+                        "title": existing_case.title,
+                        "module": existing_case.module,
+                        "precondition": existing_case.precondition,
+                        "steps": existing_case.steps_json or [],
+                        "expected_result": existing_case.expected_result,
+                        "priority": existing_case.priority,
+                    },
+                    operator_id=batch.user_id,
+                )
+                db.add(snapshot)
+
+                existing_case.title = case_payload.title
+                existing_case.module = case_payload.module or existing_case.module
+                existing_case.precondition = case_payload.precondition or existing_case.precondition
+                existing_case.expected_result = case_payload.expected_result or existing_case.expected_result
+                if case_payload.priority:
+                    existing_case.priority = case_payload.priority
+                if case_payload.steps:
+                    steps_list = [step.model_dump() for step in case_payload.steps]
+                    existing_case.steps_json = steps_list
+                    db.query(TestStep).filter(TestStep.test_case_id == existing_case.id).delete()
+                    for step_idx, step_data in enumerate(case_payload.steps):
+                        test_step = TestStep(
+                            test_case_id=existing_case.id,
+                            step_number=step_idx + 1,
+                            action=step_data.action or "",
+                            expected_result=step_data.expected_result or "",
+                            action_type=step_data.action_type,
+                            input_value=step_data.input_value,
+                            target_element=step_data.target_element,
+                            is_business_view=1,
+                            is_technical_view=1,
+                        )
+                        db.add(test_step)
+
+                db.flush()
+                savepoint.commit()
+                saved_case_ids.append(existing_case.id)
+                continue
+
+            if case_payload.update_action == "deprecate" and case_payload.history_case_id:
+                existing_case = db.query(TestCase).filter(
+                    TestCase.id == case_payload.history_case_id,
+                    TestCase.project_id == batch.project_id,
+                    TestCase.is_deleted.is_(False),
+                ).first()
+                if not existing_case:
+                    raise ValueError(f"用例ID={case_payload.history_case_id}不存在或不属于当前项目")
+
+                max_ver = db.query(TestCaseVersion.version_number).filter(
+                    TestCaseVersion.test_case_id == existing_case.id
+                ).order_by(TestCaseVersion.version_number.desc()).first()
+                next_version = (max_ver[0] + 1) if max_ver else 1
+
+                snapshot = TestCaseVersion(
+                    test_case_id=existing_case.id,
+                    version_number=next_version,
+                    change_type="update",
+                    change_description=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
+                    changed_fields={"lifecycle_status": {"old": existing_case.lifecycle_status, "new": "deprecated"}},
+                    snapshot_data={
+                        "title": existing_case.title,
+                        "module": existing_case.module,
+                        "precondition": existing_case.precondition,
+                        "steps": existing_case.steps_json or [],
+                        "expected_result": existing_case.expected_result,
+                        "priority": existing_case.priority,
+                        "lifecycle_status": existing_case.lifecycle_status,
+                    },
+                    operator_id=batch.user_id,
+                )
+                db.add(snapshot)
+                db.flush()
+
+                lifecycle_transition(
+                    db=db,
+                    case_id=existing_case.id,
+                    to_status="deprecated",
+                    actor_id=batch.user_id,
+                    reason=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
+                )
+                db.flush()
+                savepoint.commit()
+                saved_case_ids.append(existing_case.id)
+                continue
 
             req_file_id = case_payload.requirement_file_id
             if req_file_id is None and case_payload.source_refs:

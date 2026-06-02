@@ -18,6 +18,7 @@ class GenerationBatch(Base):
     requirement_file_ids_json = Column(JSON, default=list, nullable=False, comment="本次选择的需求文件ID列表")
     test_point_ids_json = Column(JSON, default=list, nullable=False, comment="本次选择的测试点ID列表")
     ui_screen_ids_json = Column(JSON, default=list, nullable=False, comment="本次选择的UI页面ID列表")
+    history_asset_ids_json = Column(JSON, default=list, nullable=False, comment="本次选择的历史资产ID列表")
     context_stats_json = Column(JSON, default=dict, nullable=False, comment="上下文统计")
     warnings_json = Column(JSON, default=list, nullable=False, comment="结构化warning")
     evidence_refs_json = Column(JSON, default=dict, nullable=False, comment="来源依据")

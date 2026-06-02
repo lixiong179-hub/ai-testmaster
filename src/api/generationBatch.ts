@@ -61,6 +61,10 @@ export interface PreviewCasePayload {
   quality_issues?: Record<string, unknown>[]
   selected_for_save?: boolean
   source_refs?: Record<string, unknown>
+  classification?: string | null
+  history_case_id?: number | null
+  update_action?: 'create_new' | 'update_existing' | 'skip' | 'deprecate' | null
+  diff_fields?: Record<string, { old: unknown; new: unknown }> | null
 }
 
 export interface PreviewStepPayload {
