@@ -17,6 +17,7 @@
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, and_
+from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base
@@ -59,6 +60,7 @@ class TestResult(Base):
     ai_analysis = Column(Text, nullable=True, comment="AI智能分析结果（失败原因、改进建议）")            # AI对失败用例的智能分析
     location_method = Column(String(50), nullable=True, comment="元素定位方式：css/xpath/ai/image")     # UI自动化使用的元素定位方式
     video_path = Column(String(500), nullable=True, comment="执行视频录制文件路径")                      # 执行过程的视频录制路径
+    defect_evidence = Column(JSON, nullable=True, comment="浏览器缺陷证据（控制台错误/网络失败/内存泄漏/未捕获异常）")  # 浏览器环境缺陷捕获
 
     # 关系
     project = relationship("Project", backref="test_results")                                         # 所属项目
