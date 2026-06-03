@@ -99,6 +99,55 @@
 
 **测试总计：109个用例全部通过**
 
+### Phase 5 - Defect Discovery & Self-Test Automation (2026-06-03)
+
+#### Database (commit 2ab7dad)
+- **alembic 4 步迁移链** - snapshot_nullable → add_defect_evidence → add_ux_category_to_bugs + merge_phase4_heads
+- **defect_evidence 表** - 缺陷证据（截图/PDF/日志）
+- **bugs.ux_category** - UX 缺陷分类（loading_experience/error_feedback/response_performance/visual_consistency/empty_state/security）
+- **test_case_versions.snapshot_data → nullable** - 归档后可置空以省存储
+- **设计要点**：ux_category 在应用层用 VALID_UX_CATEGORIES 常量校验（不用 SQL Enum）；add_ux_category 检 information_schema 实现幂等
+
+#### Service & Endpoint (commit 81c8c4d)
+- **/api/v1/bugs 端点** - bug 生命周期 + ux_category 感知
+- **/api/v1/feature-flag 端点 + 运行时开关服务** - 用于灰度/紧急回滚
+- **/api/v1/prompt-template 端点** - 提示词模板管理
+- **defect discovery pipeline** - 从浏览器交互到缺陷创建的完整链路
+- **self_test_service 增强** - 53 → 1194 行；含 requirement 自动导入、严重度评估、证据打包
+- **self_test_prompt + self_test_scheduler** - APScheduler 定时自测
+- **structured_assertion_mixin + task_batch_executor_mixin** - 测试执行引擎结构化断言与批量执行
+- **browser_controller_base 增强** - 177 行；增加 defect 证据收集/clear 钩子
+- **step_executor_mixin** - 每步前后清空/收集 defect 证据
+- **report_service 增强** - 290 行；缺陷指标、UX 分布
+- **feature_flag_service 修复** - `hash()` → `hashlib.md5()`（修 Python hash 随机化，重启后缓存 key 失效问题）
+
+#### Frontend (commit 8aed1fa)
+- **src/views/report/ReportDetail.vue** - 缺陷分布 + ux_category 过滤 + 严重度图表
+- **src/api/report.ts** - 缺陷指标 + UX 分布类型
+- **src/views/case/smart-generate.vue** - 4 个 API 路径修正（`/api/v1/project/list`、`/api/v1/file/list`、`/api/v1/test-point/list/{id}`、`/api/v1/testCase/`）；`.stop` 事件冒泡修复；币种符号 ¥/$ 互换
+
+#### Docs
+- **docs/requirement_specification.md** - 1369 行需求规格说明书（20 模块、状态机、完整性约束、RBAC）。被 self_test_service._auto_import_requirement_doc() 自动消费
+
+#### Tests
+- **test_self_test_service.py** - 19 用例（自测项目创建/幂等导入）
+- **test_self_test_prompt.py** - 93 用例
+- **test_defect_discovery_pipeline.py** - 152 用例
+- **test_defect_metrics.py** - 67 用例
+- **test_defect_severity_assessment.py** - 38 用例
+- **test_browser_defect_capture.py** - 23 用例
+- **test_structured_assertion.py** - 45 用例
+- **test_feature_flag_api.py** - 33 用例
+- **test_video_extended.py** - 39 用例
+- **test_remote_pull_risk_fixes.py** - 21 用例
+- **test_step_helpers.py + test_models.py** - 32 用例
+- **总计：562 个新增/修改用例通过，0 失败**
+
+#### Commits
+- `2ab7dad` feat(db): defect discovery + ux_category + snapshot nullable for archive
+- `81c8c4d` feat(service): defect discovery pipeline + self-test automation + bug endpoint
+- `8aed1fa` feat(frontend): defect metrics UI + smart-generate API path fix + requirement spec
+
 ## [1.0.0] - 2026-04-21
 
 ### Added
