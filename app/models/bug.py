@@ -23,6 +23,16 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, text
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 
+# ux_category 合法枚举值（应用层校验，不使用 SQL Enum）
+VALID_UX_CATEGORIES = frozenset({
+    "loading_experience",
+    "error_feedback",
+    "response_performance",
+    "visual_consistency",
+    "empty_state",
+    "security",
+})
+
 
 class Bug(Base):
     """
@@ -58,6 +68,9 @@ class Bug(Base):
     # 状态管理
     status = Column(String(20), nullable=False, default="open", comment="状态: open/in_progress/fixed/closed/rejected")  # open=待处理，in_progress=处理中，fixed=已修复，closed=已关闭，rejected=已拒绝
     source = Column(String(20), nullable=False, default="manual", server_default="manual", comment="Bug来源: manual/self_test")
+
+    # UX分类（应用层校验，不使用SQL Enum）
+    ux_category = Column(String(50), nullable=True, comment="UX缺陷分类: loading_experience/error_feedback/response_performance/visual_consistency/empty_state/security")
 
     # 人员分配
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="报告人ID")  # Bug报告人

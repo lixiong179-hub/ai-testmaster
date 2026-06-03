@@ -44,7 +44,7 @@ class TestCaseVersion(Base):
     change_type = Column(String(30), nullable=True, comment="修改类型：create/update/delete/restore/correction/human_edit")  # create=创建，update=更新，delete=删除，restore=恢复，correction=AI纠正，human_edit=人工修改
     change_description = Column(String(500), nullable=True, comment="修改说明")                         # 变更描述
     changed_fields = Column(JSON, nullable=True, comment="变更的字段及前后值")                          # 变更字段对比，格式：{"field": {"old": ..., "new": ...}}
-    snapshot_data = Column(JSON, nullable=False, comment="用例完整数据快照（JSON格式）")                  # 用例变更后的完整数据快照
+    snapshot_data = Column(JSON, nullable=True, comment="用例完整数据快照（JSON格式，归档后置空）")                  # 用例变更后的完整数据快照
     operator_id = Column(Integer, nullable=True, comment="操作人ID")                                   # 变更操作人ID
     operator_name = Column(String(100), nullable=True, comment="操作人姓名")                            # 变更操作人姓名
     created_at = Column(DateTime, default=utcnow, nullable=False, comment="创建时间")                   # 版本创建时间，UTC时区
