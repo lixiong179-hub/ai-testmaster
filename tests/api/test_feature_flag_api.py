@@ -228,7 +228,7 @@ class TestFeatureFlagAPI:
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
-    def test_create_flag_via_api(self, client, authHeaders):
+    def test_create_flag_via_api(self, client, adminAuthHeaders):
         """通过 API 创建特性开关"""
         resp = client.post(
             "/api/v1/feature-flags/",
@@ -240,7 +240,7 @@ class TestFeatureFlagAPI:
                 "rollout_percentage": 80,
                 "target_type": "all",
             },
-            headers=authHeaders,
+            headers=adminAuthHeaders,
         )
         assert resp.status_code == 201
         data = resp.json()
@@ -248,77 +248,77 @@ class TestFeatureFlagAPI:
         assert data["name"] == "API创建开关"
         assert data["rollout_percentage"] == 80
 
-    def test_create_flag_duplicate_via_api(self, client, authHeaders):
+    def test_create_flag_duplicate_via_api(self, client, adminAuthHeaders):
         """通过 API 重复创建返回 409"""
         payload = {"key": "dup_api", "name": "重复"}
-        client.post("/api/v1/feature-flags/", json=payload, headers=authHeaders)
-        resp = client.post("/api/v1/feature-flags/", json=payload, headers=authHeaders)
+        client.post("/api/v1/feature-flags/", json=payload, headers=adminAuthHeaders)
+        resp = client.post("/api/v1/feature-flags/", json=payload, headers=adminAuthHeaders)
         assert resp.status_code == 409
 
-    def test_update_flag_via_api(self, client, authHeaders):
+    def test_update_flag_via_api(self, client, adminAuthHeaders):
         """通过 API 更新特性开关"""
         client.post(
             "/api/v1/feature-flags/",
             json={"key": "upd_api", "name": "更新前"},
-            headers=authHeaders,
+            headers=adminAuthHeaders,
         )
         resp = client.put(
             "/api/v1/feature-flags/upd_api",
             json={"name": "更新后", "rollout_percentage": 30},
-            headers=authHeaders,
+            headers=adminAuthHeaders,
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["name"] == "更新后"
         assert data["rollout_percentage"] == 30
 
-    def test_update_flag_not_found_via_api(self, client, authHeaders):
+    def test_update_flag_not_found_via_api(self, client, adminAuthHeaders):
         """通过 API 更新不存在的开关返回 404"""
         resp = client.put(
             "/api/v1/feature-flags/nonexistent",
             json={"name": "不存在"},
-            headers=authHeaders,
+            headers=adminAuthHeaders,
         )
         assert resp.status_code == 404
 
-    def test_toggle_flag_via_api(self, client, authHeaders):
+    def test_toggle_flag_via_api(self, client, adminAuthHeaders):
         """通过 API 切换特性开关"""
         client.post(
             "/api/v1/feature-flags/",
             json={"key": "toggle_api", "name": "切换测试", "enabled": True},
-            headers=authHeaders,
+            headers=adminAuthHeaders,
         )
         resp = client.post(
             "/api/v1/feature-flags/toggle_api/toggle?enabled=false",
-            headers=authHeaders,
+            headers=adminAuthHeaders,
         )
         assert resp.status_code == 200
         assert resp.json()["enabled"] is False
 
-    def test_toggle_flag_not_found_via_api(self, client, authHeaders):
+    def test_toggle_flag_not_found_via_api(self, client, adminAuthHeaders):
         """通过 API 切换不存在的开关返回 404"""
         resp = client.post(
             "/api/v1/feature-flags/nonexistent/toggle?enabled=true",
-            headers=authHeaders,
+            headers=adminAuthHeaders,
         )
         assert resp.status_code == 404
 
-    def test_delete_flag_via_api(self, client, authHeaders):
+    def test_delete_flag_via_api(self, client, adminAuthHeaders):
         """通过 API 删除特性开关"""
         client.post(
             "/api/v1/feature-flags/",
             json={"key": "del_api", "name": "删除测试"},
-            headers=authHeaders,
+            headers=adminAuthHeaders,
         )
-        resp = client.delete("/api/v1/feature-flags/del_api", headers=authHeaders)
+        resp = client.delete("/api/v1/feature-flags/del_api", headers=adminAuthHeaders)
         assert resp.status_code == 200
 
-    def test_delete_flag_not_found_via_api(self, client, authHeaders):
+    def test_delete_flag_not_found_via_api(self, client, adminAuthHeaders):
         """通过 API 删除不存在的开关返回 404"""
-        resp = client.delete("/api/v1/feature-flags/nonexistent", headers=authHeaders)
+        resp = client.delete("/api/v1/feature-flags/nonexistent", headers=adminAuthHeaders)
         assert resp.status_code == 404
 
-    def test_create_flag_with_specific_target(self, client, authHeaders):
+    def test_create_flag_with_specific_target(self, client, adminAuthHeaders):
         """通过 API 创建项目级定向开关"""
         resp = client.post(
             "/api/v1/feature-flags/",
@@ -329,7 +329,7 @@ class TestFeatureFlagAPI:
                 "target_project_ids": [1, 2, 3],
                 "rollout_percentage": 100,
             },
-            headers=authHeaders,
+            headers=adminAuthHeaders,
         )
         assert resp.status_code == 201
         data = resp.json()

@@ -1,10 +1,12 @@
 """步骤执行Mixin - 处理单个测试步骤的执行逻辑。
 
-包含核心的 _execute_step 方法，负责步骤的解析、定位、执行和结果记录。
+包含核心的 _execute_step 方法，负责步骤的解析、定位、执行和结果记录，
+并在步骤执行前后集成浏览器缺陷捕获（控制台错误/网络失败/内存泄漏/未捕获异常）。
 """
 import json
 import asyncio
-from typing import Dict, Any
+import time
+from typing import Dict, Any, Optional
 from loguru import logger
 
 from app.models.test_case import TestStep
@@ -17,8 +19,8 @@ from app.services.test_execution_engine.models import (
 
 
 _UNRECOVERABLE_ERROR_PATTERNS = (
-    "\u6d4f\u89c8\u5668\u672a\u521d\u59cb\u5316",
-    "\u9875\u9762\u672a\u521d\u59cb\u5316",
+    "浏览器未初始化",
+    "页面未初始化",
     "browser not initialized",
     "page not initialized",
 )
@@ -126,10 +128,14 @@ class StepExecutorMixin:
     async def _execute_step(self, step: TestStep, execution_mode: str = "smart") -> StepExecutionResult:
         """Execute a single test step with bounded retry for transient failures."""
         if execution_mode not in self.VALID_EXECUTION_MODES:
-            logger.warning(f"闈炴硶鎵ц妯″紡 '{execution_mode}'锛屽洖閫€鍒?'smart'")
+            logger.warning(f"非法执行模式 '{execution_mode}'，回退到 'smart'")
             execution_mode = "smart"
 
+        # 步骤执行前清空缺陷收集器
+        self._clear_browser_defect_evidence()
+
         start_time = utcnow()
+        self._step_start_time_monotonic = time.monotonic()
         result = StepExecutionResult(
             step_number=step.step_number,
             action=step.action,
@@ -231,7 +237,45 @@ class StepExecutorMixin:
                 logger.warning("步骤 {} 执行失败，准备重试: {}", step.step_number, exc)
                 await asyncio.sleep(self.RETRY_DELAY)
 
+        # 步骤完成后采集内存快照并收集缺陷证据
+        await self._collect_step_defect_evidence(result)
+
         return self._finalize_step_result(result, start_time)
+
+    def _clear_browser_defect_evidence(self) -> None:
+        """步骤执行前清空浏览器缺陷收集器。"""
+        if self.browser and hasattr(self.browser, 'clear_defect_evidence'):
+            try:
+                self.browser.clear_defect_evidence()
+            except Exception as e:
+                logger.debug(f"清空缺陷收集器异常(不影响执行): {e}")
+
+    async def _collect_step_defect_evidence(self, result: StepExecutionResult) -> None:
+        """步骤完成后采集内存快照并收集缺陷证据，写入 result.defect_evidence。
+
+        即使用例通过（status=passed），defect_evidence 仍可能有内容（隐性缺陷）。
+        """
+        if not self.browser or not hasattr(self.browser, 'collect_memory_sample'):
+            return
+        try:
+            await self.browser.collect_memory_sample()
+        except Exception as e:
+            logger.debug(f"采集内存快照异常(不影响执行): {e}")
+
+        if hasattr(self.browser, 'get_defect_evidence'):
+            try:
+                evidence = self.browser.get_defect_evidence()
+                # 仅当存在实质缺陷内容时才写入，避免存储空结构
+                has_evidence = (
+                    evidence.get("console_errors")
+                    or evidence.get("network_failures")
+                    or evidence.get("memory_leak_suspect")
+                    or evidence.get("uncaught_exceptions")
+                )
+                if has_evidence:
+                    result.defect_evidence = evidence
+            except Exception as e:
+                logger.debug(f"收集缺陷证据异常(不影响执行): {e}")
 
     def _prepare_step_data(self, step: TestStep) -> tuple:
         """准备步骤测试数据和替换后的操作描述。"""

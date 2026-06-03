@@ -23,6 +23,7 @@ from app.api.v1.endpoints import feature_flag
 from app.api.v1.endpoints import ai_invocation
 from app.api.v1.endpoints import prompt_template
 from app.api.v1.endpoints import quality_rule
+from app.api.v1.endpoints import bug as bug_endpoint
 from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
@@ -149,6 +150,7 @@ app.include_router(history_asset.router, prefix="/api/v1/history-assets")
 app.include_router(feature_flag.router, prefix="/api/v1/feature-flags")
 app.include_router(ai_invocation.router, prefix="/api/v1/ai-invocation")
 app.include_router(prompt_template.router, prefix="/api/v1/prompt-templates")
+app.include_router(bug_endpoint.router, prefix="/api/v1/bugs", tags=["Bug缺陷管理"])
 
 
 # 根路径

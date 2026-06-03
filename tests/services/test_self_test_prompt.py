@@ -26,6 +26,13 @@ from app.services.prompt_builder.self_test_prompt import (
     SELF_TEST_ASSERTION_SYNTAX,
     SELF_TEST_NAVIGATION_GUIDE,
     SELF_TEST_CORE_FLOWS,
+    SELF_TEST_DEFECT_BOUNDARY,
+    SELF_TEST_DEFECT_EXCEPTION,
+    SELF_TEST_DEFECT_PERMISSION,
+    SELF_TEST_DEFECT_STATE,
+    SELF_TEST_DEFECT_SECURITY,
+    SELF_TEST_DEFECT_REQUIREMENT,
+    SELF_TEST_DEFECT_DISTRIBUTION,
     TESTID_MAP_PATH,
 )
 from app.services.prompt_builder import PromptBuilder
@@ -560,3 +567,315 @@ def test_load_testid_map_entry_with_context():
         assert "- 登录按钮: [data-testid=\"login-submit\"]" in result
     finally:
         os.unlink(tmp_path)
+
+
+# ── 缺陷挖掘指导 - 边界值攻击常量测试 ────────────────────────
+
+
+def test_defect_boundary_contains_max_length():
+    assert "最大长度" in SELF_TEST_DEFECT_BOUNDARY
+
+
+def test_defect_boundary_contains_min_length():
+    assert "最小长度" in SELF_TEST_DEFECT_BOUNDARY
+
+
+def test_defect_boundary_contains_empty_value():
+    assert "空值" in SELF_TEST_DEFECT_BOUNDARY
+
+
+def test_defect_boundary_contains_special_chars():
+    assert "<script>alert(1)</script>" in SELF_TEST_DEFECT_BOUNDARY
+    assert "'; DROP TABLE--" in SELF_TEST_DEFECT_BOUNDARY
+    assert "{{7*7}}" in SELF_TEST_DEFECT_BOUNDARY
+
+
+def test_defect_boundary_contains_long_string():
+    assert "500+" in SELF_TEST_DEFECT_BOUNDARY
+
+
+def test_defect_boundary_contains_zero_negative():
+    assert "零值" in SELF_TEST_DEFECT_BOUNDARY or "0" in SELF_TEST_DEFECT_BOUNDARY
+    assert "-1" in SELF_TEST_DEFECT_BOUNDARY
+
+
+def test_defect_boundary_contains_format_boundary():
+    assert "格式边界" in SELF_TEST_DEFECT_BOUNDARY
+
+
+# ── 缺陷挖掘指导 - 异常路径覆盖常量测试 ──────────────────────
+
+
+def test_defect_exception_contains_network_disconnect():
+    assert "断网" in SELF_TEST_DEFECT_EXCEPTION
+
+
+def test_defect_exception_contains_duplicate_submit():
+    assert "重复提交" in SELF_TEST_DEFECT_EXCEPTION
+
+
+def test_defect_exception_contains_concurrent_edit():
+    assert "并发" in SELF_TEST_DEFECT_EXCEPTION or "标签页" in SELF_TEST_DEFECT_EXCEPTION
+
+
+def test_defect_exception_contains_unauthorized_access():
+    assert "Token" in SELF_TEST_DEFECT_EXCEPTION or "未授权" in SELF_TEST_DEFECT_EXCEPTION
+
+
+def test_defect_exception_contains_missing_dependency():
+    assert "不选择项目" in SELF_TEST_DEFECT_EXCEPTION or "依赖缺失" in SELF_TEST_DEFECT_EXCEPTION
+
+
+# ── 缺陷挖掘指导 - 权限绕过测试常量测试 ──────────────────────
+
+
+def test_defect_permission_contains_normal_user_access_admin():
+    assert "普通用户" in SELF_TEST_DEFECT_PERMISSION
+    assert "管理员" in SELF_TEST_DEFECT_PERMISSION
+
+
+def test_defect_permission_contains_cross_project_access():
+    assert "跨项目" in SELF_TEST_DEFECT_PERMISSION
+
+
+def test_defect_permission_contains_unauthorized_delete():
+    assert "越权" in SELF_TEST_DEFECT_PERMISSION or "非项目所有者" in SELF_TEST_DEFECT_PERMISSION
+
+
+def test_defect_permission_contains_api_bypass():
+    assert "API" in SELF_TEST_DEFECT_PERMISSION
+
+
+# ── 缺陷挖掘指导 - 状态不一致测试常量测试 ────────────────────
+
+
+def test_defect_state_contains_wrong_timing():
+    assert "draft" in SELF_TEST_DEFECT_STATE
+
+
+def test_defect_state_contains_skip_step():
+    assert "跳过" in SELF_TEST_DEFECT_STATE or "不选择项目" in SELF_TEST_DEFECT_STATE
+
+
+def test_defect_state_contains_delete_during_execution():
+    assert "执行中删除" in SELF_TEST_DEFECT_STATE or "删除" in SELF_TEST_DEFECT_STATE
+
+
+def test_defect_state_contains_concurrent_state_change():
+    assert "并发" in SELF_TEST_DEFECT_STATE or "一致性" in SELF_TEST_DEFECT_STATE
+
+
+# ── 缺陷挖掘指导 - 安全测试常量测试 ──────────────────────────
+
+
+def test_defect_security_contains_sensitive_data():
+    assert "no_sensitive_data" in SELF_TEST_DEFECT_SECURITY
+
+
+def test_defect_security_contains_xss():
+    assert "no_xss" in SELF_TEST_DEFECT_SECURITY
+    assert "<script>alert('xss')</script>" in SELF_TEST_DEFECT_SECURITY
+
+
+def test_defect_security_contains_token_security():
+    assert "过期Token" in SELF_TEST_DEFECT_SECURITY or "401" in SELF_TEST_DEFECT_SECURITY
+
+
+def test_defect_security_contains_sql_injection():
+    assert "SQL" in SELF_TEST_DEFECT_SECURITY or "OR 1=1" in SELF_TEST_DEFECT_SECURITY
+
+
+# ── 缺陷挖掘指导 - 基于需求文档生成用例常量测试 ──────────────
+
+
+def test_defect_requirement_contains_business_rule():
+    assert "业务规则" in SELF_TEST_DEFECT_REQUIREMENT
+
+
+def test_defect_requirement_contains_exception_handling():
+    assert "异常处理" in SELF_TEST_DEFECT_REQUIREMENT
+
+
+def test_defect_requirement_contains_violation_guidance():
+    assert "违反规则" in SELF_TEST_DEFECT_REQUIREMENT
+
+
+def test_defect_requirement_contains_input_spec():
+    assert "输入规范" in SELF_TEST_DEFECT_REQUIREMENT or "超出规范" in SELF_TEST_DEFECT_REQUIREMENT
+
+
+# ── 缺陷挖掘指导 - 用例类型分布控制常量测试 ──────────────────
+
+
+def test_defect_distribution_contains_defect_ratio():
+    assert "60%" in SELF_TEST_DEFECT_DISTRIBUTION
+
+
+def test_defect_distribution_contains_normal_ratio():
+    assert "40%" in SELF_TEST_DEFECT_DISTRIBUTION
+
+
+def test_defect_distribution_contains_boundary_per_module():
+    assert "边界场景" in SELF_TEST_DEFECT_DISTRIBUTION
+
+
+def test_defect_distribution_contains_exception_per_module():
+    assert "异常路径" in SELF_TEST_DEFECT_DISTRIBUTION
+
+
+def test_defect_distribution_contains_security_per_module():
+    assert "安全测试" in SELF_TEST_DEFECT_DISTRIBUTION
+
+
+def test_defect_distribution_contains_case_category():
+    assert "case_category" in SELF_TEST_DEFECT_DISTRIBUTION
+    assert "boundary" in SELF_TEST_DEFECT_DISTRIBUTION
+    assert "exception" in SELF_TEST_DEFECT_DISTRIBUTION
+    assert "security" in SELF_TEST_DEFECT_DISTRIBUTION
+    assert "stress" in SELF_TEST_DEFECT_DISTRIBUTION
+    assert "normal" in SELF_TEST_DEFECT_DISTRIBUTION
+
+
+# ── build_self_test_prompt 集成测试 - 缺陷挖掘段落 ────────────
+
+
+def test_self_test_prompt_contains_defect_boundary():
+    prompt = build_self_test_prompt(
+        requirement_content="需求",
+        ui_description="UI",
+        module="登录",
+        function="登录",
+        point="登录验证",
+        priority=1,
+    )
+    assert "边界值攻击" in prompt
+    assert "500+" in prompt
+
+
+def test_self_test_prompt_contains_defect_exception():
+    prompt = build_self_test_prompt(
+        requirement_content="需求",
+        ui_description="UI",
+        module="登录",
+        function="登录",
+        point="登录验证",
+        priority=1,
+    )
+    assert "异常路径覆盖" in prompt
+    assert "重复提交" in prompt
+
+
+def test_self_test_prompt_contains_defect_permission():
+    prompt = build_self_test_prompt(
+        requirement_content="需求",
+        ui_description="UI",
+        module="登录",
+        function="登录",
+        point="登录验证",
+        priority=1,
+    )
+    assert "权限绕过" in prompt
+    assert "跨项目" in prompt
+
+
+def test_self_test_prompt_contains_defect_state():
+    prompt = build_self_test_prompt(
+        requirement_content="需求",
+        ui_description="UI",
+        module="登录",
+        function="登录",
+        point="登录验证",
+        priority=1,
+    )
+    assert "状态不一致" in prompt
+    assert "draft" in prompt
+
+
+def test_self_test_prompt_contains_defect_security():
+    prompt = build_self_test_prompt(
+        requirement_content="需求",
+        ui_description="UI",
+        module="登录",
+        function="登录",
+        point="登录验证",
+        priority=1,
+    )
+    assert "安全测试" in prompt
+    assert "[no_sensitive_data]" in prompt
+    assert "[no_xss]" in prompt
+
+
+def test_self_test_prompt_contains_defect_requirement():
+    prompt = build_self_test_prompt(
+        requirement_content="需求",
+        ui_description="UI",
+        module="登录",
+        function="登录",
+        point="登录验证",
+        priority=1,
+    )
+    assert "基于需求文档" in prompt
+    assert "违反规则" in prompt
+
+
+def test_self_test_prompt_contains_defect_distribution():
+    prompt = build_self_test_prompt(
+        requirement_content="需求",
+        ui_description="UI",
+        module="登录",
+        function="登录",
+        point="登录验证",
+        priority=1,
+    )
+    assert "用例类型分布控制" in prompt
+    assert "60%" in prompt
+    assert "40%" in prompt
+
+
+def test_self_test_prompt_defect_sections_after_core_flows():
+    """验证缺陷挖掘段落位于核心流程之后、自测项目约束之后。"""
+    prompt = build_self_test_prompt(
+        requirement_content="需求",
+        ui_description="UI",
+        module="登录",
+        function="登录",
+        point="登录验证",
+        priority=1,
+    )
+    core_flows_pos = prompt.find("必须覆盖的核心流程")
+    defect_boundary_pos = prompt.find("边界值攻击")
+    assert core_flows_pos > 0, "核心流程段落应存在"
+    assert defect_boundary_pos > core_flows_pos, "边界值攻击段落应在核心流程之后"
+
+
+def test_build_full_prompt_self_test_contains_defect_mining():
+    """验证 _build_full_prompt 在 is_self_test=True 时包含缺陷挖掘指导。"""
+    tp = _make_tp()
+    prompt = _build_full_prompt(
+        tp=tp,
+        prd_content="需求",
+        ui_description="UI",
+        ui_specs=[],
+        is_self_test=True,
+    )
+    assert "边界值攻击" in prompt
+    assert "异常路径覆盖" in prompt
+    assert "权限绕过" in prompt
+    assert "状态不一致" in prompt
+    assert "安全测试" in prompt
+    assert "基于需求文档" in prompt
+    assert "用例类型分布控制" in prompt
+
+
+def test_build_full_prompt_normal_not_contains_defect_mining():
+    """验证 _build_full_prompt 在 is_self_test=False 时不包含缺陷挖掘指导。"""
+    tp = _make_tp()
+    prompt = _build_full_prompt(
+        tp=tp,
+        prd_content="需求",
+        ui_description="UI",
+        ui_specs=[],
+        is_self_test=False,
+    )
+    assert "边界值攻击" not in prompt
+    assert "异常路径覆盖" not in prompt

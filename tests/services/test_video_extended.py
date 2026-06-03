@@ -178,6 +178,11 @@ class TestCleanupMixin:
         mixin.db = db
         mixin._retention_days = 30
         mixin._video_base_dir = "/tmp/test_videos"
+        # 清理数据库中残留的过期 VideoRecord，避免数据隔离问题
+        db.query(VideoRecord).filter(
+            VideoRecord.created_at < datetime.utcnow() - timedelta(days=30)
+        ).delete(synchronize_session=False)
+        db.flush()
         result = await mixin.cleanup_expired_videos()
         assert result["deleted_count"] == 0
         assert result["freed_mb"] == 0

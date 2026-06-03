@@ -29,6 +29,12 @@ from app.schemas.feature_flag import (
 )
 from app.services.feature_flag_service import FeatureFlagService
 
+
+async def _require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not any(r.name == "admin" for r in current_user.roles):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="需要管理员权限")
+    return current_user
+
 router = APIRouter(tags=["特性开关"])
 
 
@@ -46,7 +52,7 @@ def list_feature_flags(
 def create_feature_flag(
     data: FeatureFlagCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_require_admin),
 ) -> FeatureFlagResponse:
     """创建特性开关"""
     service = FeatureFlagService(db)
@@ -73,9 +79,9 @@ def update_feature_flag(
     key: str,
     data: FeatureFlagUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_require_admin),
 ) -> FeatureFlagResponse:
-    """更新特性开关属性"""
+    """更新特性开关"""
     service = FeatureFlagService(db)
     update_kwargs = data.model_dump(exclude_unset=True)
     try:
@@ -92,7 +98,7 @@ def update_feature_flag(
 def delete_feature_flag(
     key: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_require_admin),
 ) -> Dict[str, Any]:
     """删除特性开关"""
     service = FeatureFlagService(db)
@@ -111,9 +117,9 @@ def toggle_feature_flag(
     key: str,
     enabled: bool,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_require_admin),
 ) -> FeatureFlagResponse:
-    """切换特性开关启用/禁用状态"""
+    """启用/禁用特性开关"""
     service = FeatureFlagService(db)
     try:
         flag = service.toggle_flag(key, enabled=enabled)

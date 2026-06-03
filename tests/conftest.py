@@ -193,6 +193,18 @@ def testAdminUser(db):
     db.add(user)
     db.flush()
 
+    # 确保 admin 角色存在并分配给该用户
+    from app.models.user import Role, user_role
+
+    admin_role = db.query(Role).filter(Role.name == "admin").first()
+    if not admin_role:
+        admin_role = Role(name="admin", desc="管理员角色", permissions=["*"])
+        db.add(admin_role)
+        db.flush()
+    if admin_role not in user.roles:
+        user.roles.append(admin_role)
+        db.flush()
+
     yield user
 
     try:

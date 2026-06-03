@@ -9,6 +9,7 @@
     4. rollout_percentage == 0 → False
     5. 否则按 hash(key + str(project_id or "")) % 100 < rollout_percentage 决定
 """
+import hashlib
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -70,7 +71,7 @@ class FeatureFlagService:
             return False
 
         bucket_key = f"{key}{project_id or ''}"
-        bucket_value = hash(bucket_key) % 100
+        bucket_value = int(hashlib.md5(bucket_key.encode()).hexdigest(), 16) % 100
         return bucket_value < flag.rollout_percentage
 
     def get_flag(self, key: str) -> Optional[FeatureFlag]:

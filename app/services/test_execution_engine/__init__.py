@@ -70,11 +70,13 @@ from app.services.test_execution_engine.structured_assertion_mixin import (
     StructuredAssertionMixin,
     _ASSERTION_PATTERN,
     _STRUCTURED_ASSERTION_PREFIXES,
+    _EXTENDED_ASSERTION_PATTERN,
 )
 
 _captcha_mixin_module.ActionExecutorVerifyCaptchaMixin = StructuredAssertionMixin
 _captcha_mixin_module._ASSERTION_PATTERN = _ASSERTION_PATTERN
 _captcha_mixin_module._STRUCTURED_ASSERTION_PREFIXES = _STRUCTURED_ASSERTION_PREFIXES
+_captcha_mixin_module._EXTENDED_ASSERTION_PATTERN = _EXTENDED_ASSERTION_PATTERN
 
 
 class TestExecutionEngineV2(

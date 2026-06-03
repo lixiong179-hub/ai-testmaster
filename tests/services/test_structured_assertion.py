@@ -7,19 +7,24 @@
 - URL 断言（contains/equals，成功/失败）
 - 回退 AI 视觉验证
 - 断言失败时记录期望值与实际值
+- 扩展断言：loading_visible/loading_hidden/response_time_lt/
+  no_console_errors/no_network_errors/text_not_empty/no_sensitive_data/no_xss
 
 要求: 不使用Mock，覆盖率>=95%
 """
+import time
+
 import pytest
 from types import SimpleNamespace
 
 from app.services.test_execution_engine.models import (
     StepExecutionError, VerificationError,
 )
-from app.services.test_execution_engine.action_executor_verify_captcha_mixin import (
-    ActionExecutorVerifyCaptchaMixin,
+from app.services.test_execution_engine.structured_assertion_mixin import (
+    StructuredAssertionMixin,
     _STRUCTURED_ASSERTION_PREFIXES,
     _ASSERTION_PATTERN,
+    _EXTENDED_ASSERTION_PATTERN,
 )
 
 
@@ -41,6 +46,11 @@ class _StubPage:
         self._elements: dict = {}
         self._wait_for_selector_result: object = None
         self._wait_for_selector_exception: Exception | None = None
+        self._is_visible_result: dict[str, bool] = {}
+        self._wait_for_selector_state_result: dict[str, object] = {}
+        self._wait_for_selector_state_exception: dict[str, Exception] = {}
+        self._evaluate_result: list | None = []
+        self._wait_for_load_state_result: Exception | None = None
 
     def set_element(self, selector: str, text: str = "", visible: bool = True):
         self._elements[selector] = _StubElement(text, visible)
@@ -49,12 +59,30 @@ class _StubPage:
         self._wait_for_selector_result = result
         self._wait_for_selector_exception = exception
 
-    async def wait_for_selector(self, selector: str, timeout: int = 5000):
+    async def wait_for_selector(self, selector: str, timeout: int = 5000, state: str | None = None):
+        if state == "hidden":
+            exc = self._wait_for_selector_state_exception.get(selector)
+            if exc:
+                raise exc
+            return self._wait_for_selector_state_result.get(selector, True)
         if self._wait_for_selector_exception:
             raise self._wait_for_selector_exception
         if self._wait_for_selector_result is not None:
             return self._wait_for_selector_result
         return self._elements.get(selector)
+
+    async def is_visible(self, selector: str) -> bool:
+        if selector in self._is_visible_result:
+            return self._is_visible_result[selector]
+        element = self._elements.get(selector)
+        return bool(element and element._is_visible)
+
+    async def wait_for_load_state(self, state: str, **kwargs) -> None:
+        if self._wait_for_load_state_result:
+            raise self._wait_for_load_state_result
+
+    async def evaluate(self, expression: str) -> list | None:
+        return self._evaluate_result
 
 
 class _StubVisionModel:
@@ -69,6 +97,12 @@ class _StubBrowser:
     def __init__(self, page: _StubPage | None = None):
         self._page = page
         self._context = None
+        self._defect_evidence: dict = {
+            "console_errors": [],
+            "network_failures": [],
+            "memory_leak_suspect": None,
+            "uncaught_exceptions": [],
+        }
 
     @property
     def active_page(self):
@@ -77,11 +111,23 @@ class _StubBrowser:
     async def take_screenshot(self) -> bytes:
         return b"fake_screenshot"
 
+    def get_defect_evidence(self) -> dict:
+        return dict(self._defect_evidence)
 
-class _StubEngine(ActionExecutorVerifyCaptchaMixin):
+    def clear_defect_evidence(self) -> None:
+        self._defect_evidence = {
+            "console_errors": [],
+            "network_failures": [],
+            "memory_leak_suspect": None,
+            "uncaught_exceptions": [],
+        }
+
+
+class _StubEngine(StructuredAssertionMixin):
     def __init__(self, browser=None, vision_model=None):
         self.browser = browser
         self.vision_model = vision_model
+        self._step_start_time_monotonic: float | None = None
 
 
 def _make_browser_with_page(
@@ -776,3 +822,737 @@ class TestExecuteStructuredAssertionDirect:
             await engine._execute_structured_assertion(
                 "invalid syntax", {"text": "invalid syntax"}
             )
+
+
+# ============================================================
+# 扩展断言前缀与模式匹配测试
+# ============================================================
+
+
+class TestExtendedAssertionPrefixes:
+    def test_new_prefixes_in_structured_prefixes(self):
+        prefixes = _STRUCTURED_ASSERTION_PREFIXES
+        assert "[loading_visible" in prefixes
+        assert "[loading_hidden" in prefixes
+        assert "[response_time_lt" in prefixes
+        assert "[no_console_errors" in prefixes
+        assert "[no_network_errors" in prefixes
+        assert "[text_not_empty" in prefixes
+        assert "[no_sensitive_data" in prefixes
+        assert "[no_xss" in prefixes
+
+    def test_extended_pattern_matches_all_new_types(self):
+        types = [
+            "loading_visible", "loading_hidden", "response_time_lt",
+            "no_console_errors", "no_network_errors", "text_not_empty",
+            "no_sensitive_data", "no_xss",
+        ]
+        for t in types:
+            match = _EXTENDED_ASSERTION_PATTERN.match(f"[{t}]value")
+            assert match is not None, f"应匹配扩展断言类型: {t}"
+            assert match.group(1) == t
+
+    def test_extended_pattern_does_not_match_old_types(self):
+        old_types = ["text_contains", "visible", "url_contains"]
+        for t in old_types:
+            match = _EXTENDED_ASSERTION_PATTERN.match(f"[{t}]value")
+            assert match is None, f"扩展模式不应匹配旧类型: {t}"
+
+
+class TestParseExtendedAssertionSyntax:
+    def setup_method(self):
+        self.engine = _StubEngine()
+
+    def test_loading_visible_with_locator(self):
+        result = self.engine._parse_extended_assertion_syntax(
+            "[loading_visible][data-testid=loading]加载中"
+        )
+        assert result is not None
+        assert result[0] == "loading_visible"
+        assert result[1]["locator"] == "data-testid=loading"
+
+    def test_loading_hidden_with_locator(self):
+        result = self.engine._parse_extended_assertion_syntax(
+            "[loading_hidden][data-testid=spinner]加载动画"
+        )
+        assert result is not None
+        assert result[0] == "loading_hidden"
+        assert result[1]["locator"] == "data-testid=spinner"
+
+    def test_response_time_lt_with_threshold(self):
+        result = self.engine._parse_extended_assertion_syntax("[response_time_lt]3000")
+        assert result is not None
+        assert result[0] == "response_time_lt"
+        assert result[1]["threshold_ms"] == 3000
+
+    def test_response_time_lt_invalid_threshold(self):
+        with pytest.raises(VerificationError, match="阈值必须为正整数"):
+            self.engine._parse_extended_assertion_syntax("[response_time_lt]abc")
+
+    def test_response_time_lt_zero_threshold(self):
+        with pytest.raises(VerificationError, match="阈值必须为正整数"):
+            self.engine._parse_extended_assertion_syntax("[response_time_lt]0")
+
+    def test_no_console_errors_no_exclude(self):
+        result = self.engine._parse_extended_assertion_syntax("[no_console_errors]")
+        assert result is not None
+        assert result[0] == "no_console_errors"
+        assert result[1].get("exclude_patterns") is None
+
+    def test_no_console_errors_with_exclude(self):
+        result = self.engine._parse_extended_assertion_syntax(
+            "[no_console_errors]exclude:ResizeObserver,WebSocket"
+        )
+        assert result is not None
+        assert result[0] == "no_console_errors"
+        assert result[1]["exclude_patterns"] == ["ResizeObserver", "WebSocket"]
+
+    def test_no_network_errors(self):
+        result = self.engine._parse_extended_assertion_syntax("[no_network_errors]")
+        assert result is not None
+        assert result[0] == "no_network_errors"
+
+    def test_text_not_empty_with_locator(self):
+        result = self.engine._parse_extended_assertion_syntax(
+            "[text_not_empty][data-testid=title]标题"
+        )
+        assert result is not None
+        assert result[0] == "text_not_empty"
+        assert result[1]["locator"] == "data-testid=title"
+
+    def test_no_sensitive_data(self):
+        result = self.engine._parse_extended_assertion_syntax("[no_sensitive_data]")
+        assert result is not None
+        assert result[0] == "no_sensitive_data"
+
+    def test_no_xss(self):
+        result = self.engine._parse_extended_assertion_syntax("[no_xss]")
+        assert result is not None
+        assert result[0] == "no_xss"
+
+    def test_non_extended_returns_none(self):
+        result = self.engine._parse_extended_assertion_syntax("[text_contains]hello")
+        assert result is None
+
+
+# ============================================================
+# loading_visible / loading_hidden 断言测试
+# ============================================================
+
+
+class TestLoadingVisibleAssertion:
+    @pytest.mark.asyncio
+    async def test_loading_visible_success(self):
+        page = _StubPage()
+        page.set_element("data-testid=loading", "加载中", visible=True)
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[loading_visible][data-testid=loading]加载中"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_loading_visible_failure(self):
+        page = _StubPage()
+        page.set_element("data-testid=loading", "加载中", visible=False)
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[loading_visible][data-testid=loading]加载中"}
+        with pytest.raises(VerificationError, match="加载指示器不可见"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_loading_visible_missing_locator(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[loading_visible]"}
+        with pytest.raises(VerificationError, match="缺少选择器"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_loading_visible_browser_exception(self):
+        page = _StubPage()
+        page._is_visible_result["data-testid=loading"] = True
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[loading_visible][data-testid=loading]加载中"}
+        await engine._execute_verify(action_info, step_id=1)
+
+
+class TestLoadingHiddenAssertion:
+    @pytest.mark.asyncio
+    async def test_loading_hidden_success(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[loading_hidden][data-testid=loading]加载中"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_loading_hidden_timeout_failure(self):
+        page = _StubPage()
+        page._wait_for_selector_state_exception["data-testid=loading"] = TimeoutError("timeout")
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[loading_hidden][data-testid=loading]加载中"}
+        with pytest.raises(VerificationError, match="未在10秒内隐藏"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_loading_hidden_missing_locator(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[loading_hidden]"}
+        with pytest.raises(VerificationError, match="缺少选择器"):
+            await engine._execute_verify(action_info, step_id=1)
+
+
+# ============================================================
+# response_time_lt 断言测试
+# ============================================================
+
+
+class TestResponseTimeLtAssertion:
+    @pytest.mark.asyncio
+    async def test_response_time_success(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        engine._step_start_time_monotonic = time.monotonic()
+        action_info = {"text": "[response_time_lt]60000"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_response_time_failure_exceeded(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        engine._step_start_time_monotonic = time.monotonic() - 10
+        action_info = {"text": "[response_time_lt]1000"}
+        with pytest.raises(VerificationError, match="响应时间断言失败"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_response_time_failure_shows_actual_and_threshold(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        engine._step_start_time_monotonic = time.monotonic() - 5
+        action_info = {"text": "[response_time_lt]1000"}
+        with pytest.raises(VerificationError, match="实际耗时.*阈值 1000ms"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_response_time_no_start_time(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        engine._step_start_time_monotonic = None
+        action_info = {"text": "[response_time_lt]3000"}
+        with pytest.raises(VerificationError, match="步骤开始时间未记录"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_response_time_invalid_threshold(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[response_time_lt]abc"}
+        with pytest.raises(VerificationError, match="阈值必须为正整数"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_response_time_networkidle_timeout(self):
+        page = _StubPage()
+        page._wait_for_load_state_result = TimeoutError("networkidle timeout")
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        engine._step_start_time_monotonic = time.monotonic()
+        action_info = {"text": "[response_time_lt]3000"}
+        with pytest.raises(VerificationError, match="等待网络空闲超时"):
+            await engine._execute_verify(action_info, step_id=1)
+
+
+# ============================================================
+# no_console_errors 断言测试
+# ============================================================
+
+
+class TestNoConsoleErrorsAssertion:
+    @pytest.mark.asyncio
+    async def test_no_console_errors_success(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_console_errors]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_console_errors_failure(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        browser._defect_evidence["console_errors"] = [
+            {"type": "console_error", "message": "Uncaught TypeError", "source": "app.js:10"},
+        ]
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_console_errors]"}
+        with pytest.raises(VerificationError, match="控制台存在错误"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_console_errors_with_exclude(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        browser._defect_evidence["console_errors"] = [
+            {"type": "console_error", "message": "ResizeObserver loop limit exceeded", "source": ""},
+        ]
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_console_errors]exclude:ResizeObserver"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_console_errors_exclude_partial(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        browser._defect_evidence["console_errors"] = [
+            {"type": "console_error", "message": "ResizeObserver loop limit exceeded", "source": ""},
+            {"type": "console_error", "message": "Uncaught ReferenceError", "source": "app.js:5"},
+        ]
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_console_errors]exclude:ResizeObserver"}
+        with pytest.raises(VerificationError, match="Uncaught ReferenceError"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_console_errors_multiple_excludes(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        browser._defect_evidence["console_errors"] = [
+            {"type": "console_error", "message": "ResizeObserver loop", "source": ""},
+            {"type": "console_error", "message": "WebSocket connection failed", "source": ""},
+        ]
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_console_errors]exclude:ResizeObserver,WebSocket"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_console_errors_without_browser(self):
+        engine = _StubEngine(browser=None)
+        action_info = {"text": "[no_console_errors]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+
+# ============================================================
+# no_network_errors 断言测试
+# ============================================================
+
+
+class TestNoNetworkErrorsAssertion:
+    @pytest.mark.asyncio
+    async def test_no_network_errors_success(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_network_errors]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_network_errors_failure(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        browser._defect_evidence["network_failures"] = [
+            {"url": "https://api.example.com/users", "method": "GET", "status": 500, "duration_ms": 1200.0},
+        ]
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_network_errors]"}
+        with pytest.raises(VerificationError, match="网络请求失败"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_network_errors_failure_shows_details(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        browser._defect_evidence["network_failures"] = [
+            {"url": "https://api.example.com/data", "method": "POST", "status": 502, "duration_ms": 3000.0},
+        ]
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_network_errors]"}
+        with pytest.raises(VerificationError, match="POST.*status=502"):
+            await engine._execute_verify(action_info, step_id=1)
+
+
+# ============================================================
+# text_not_empty 断言测试
+# ============================================================
+
+
+class TestTextNotEmptyAssertion:
+    @pytest.mark.asyncio
+    async def test_text_not_empty_success(self):
+        page = _StubPage()
+        page.set_element("data-testid=title", "项目列表")
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[text_not_empty][data-testid=title]标题"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_text_not_empty_failure_empty_string(self):
+        page = _StubPage()
+        page.set_element("data-testid=title", "")
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[text_not_empty][data-testid=title]标题"}
+        with pytest.raises(VerificationError, match="元素文本为空"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_text_not_empty_failure_whitespace(self):
+        page = _StubPage()
+        page.set_element("data-testid=title", "   \n\t  ")
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[text_not_empty][data-testid=title]标题"}
+        with pytest.raises(VerificationError, match="元素文本为空"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_text_not_empty_failure_none(self):
+        page = _StubPage()
+        element = _StubElement(text_content=None)
+        page._elements["data-testid=title"] = element
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[text_not_empty][data-testid=title]标题"}
+        with pytest.raises(VerificationError, match="元素文本为空"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_text_not_empty_missing_locator(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[text_not_empty]"}
+        with pytest.raises(VerificationError, match="缺少选择器"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_text_not_empty_element_not_found(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[text_not_empty][data-testid=missing]标题"}
+        with pytest.raises(VerificationError, match="未找到元素"):
+            await engine._execute_verify(action_info, step_id=1)
+
+
+# ============================================================
+# no_sensitive_data 断言测试
+# ============================================================
+
+
+class TestNoSensitiveDataAssertion:
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_success(self):
+        page = _StubPage()
+        page._evaluate_result = []
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_password_plaintext(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "password_plaintext", "detail": "input[type=password] contains non-mask value"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        with pytest.raises(VerificationError, match="敏感数据暴露.*password_plaintext"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_jwt_token(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "jwt_token", "detail": "JWT token pattern (eyJ) found in page text"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        with pytest.raises(VerificationError, match="敏感数据暴露.*jwt_token"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_api_key(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "api_key", "detail": "API key pattern (sk-) found in page text"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        with pytest.raises(VerificationError, match="敏感数据暴露.*api_key"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_phone_number(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "phone_number", "detail": "Chinese phone number pattern found in page text"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        with pytest.raises(VerificationError, match="敏感数据暴露.*phone_number"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_id_card(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "id_card", "detail": "ID card number pattern found in page text"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        with pytest.raises(VerificationError, match="敏感数据暴露.*id_card"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_network_sensitive_url(self):
+        page = _StubPage()
+        page._evaluate_result = []
+        browser = _StubBrowser(page=page)
+        browser._defect_evidence["network_failures"] = [
+            {"url": "https://api.example.com/token/refresh", "method": "POST", "status": 500, "duration_ms": 100.0},
+        ]
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        with pytest.raises(VerificationError, match="敏感数据暴露.*sensitive_in_network"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_marks_p0(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "jwt_token", "detail": "JWT token found"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        with pytest.raises(VerificationError, match="\\[P0\\]"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_evaluate_exception(self):
+        page = _StubPage()
+        page._evaluate_result = None
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_multiple_findings(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "jwt_token", "detail": "JWT found"},
+            {"type": "api_key", "detail": "API key found"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        with pytest.raises(VerificationError, match="jwt_token.*api_key"):
+            await engine._execute_verify(action_info, step_id=1)
+
+
+# ============================================================
+# no_xss 断言测试
+# ============================================================
+
+
+class TestNoXssAssertion:
+    @pytest.mark.asyncio
+    async def test_no_xss_success(self):
+        page = _StubPage()
+        page._evaluate_result = []
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_xss]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_xss_script_alert_detected(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "xss_payload", "detail": "XSS pattern 'script_alert' detected in DOM"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_xss]"}
+        with pytest.raises(VerificationError, match="XSS漏洞检测.*script_alert"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_xss_img_onerror_detected(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "xss_payload", "detail": "XSS pattern 'img_onerror' detected in DOM"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_xss]"}
+        with pytest.raises(VerificationError, match="XSS漏洞检测.*img_onerror"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_xss_svg_onload_detected(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "xss_payload", "detail": "XSS pattern 'svg_onload' detected in DOM"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_xss]"}
+        with pytest.raises(VerificationError, match="XSS漏洞检测.*svg_onload"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_xss_javascript_uri_detected(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "xss_payload", "detail": "XSS pattern 'javascript_uri' detected in DOM"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_xss]"}
+        with pytest.raises(VerificationError, match="XSS漏洞检测.*javascript_uri"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_xss_multiple_patterns(self):
+        page = _StubPage()
+        page._evaluate_result = [
+            {"type": "xss_payload", "detail": "XSS pattern 'script_alert' detected in DOM"},
+            {"type": "xss_payload", "detail": "XSS pattern 'img_onerror' detected in DOM"},
+        ]
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_xss]"}
+        with pytest.raises(VerificationError, match="script_alert.*img_onerror"):
+            await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_xss_evaluate_returns_none(self):
+        page = _StubPage()
+        page._evaluate_result = None
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_xss]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+
+# ============================================================
+# 扩展断言通过 _execute_verify 入口集成测试
+# ============================================================
+
+
+class TestExtendedAssertionViaExecuteVerify:
+    @pytest.mark.asyncio
+    async def test_loading_visible_routed_correctly(self):
+        page = _StubPage()
+        page.set_element("data-testid=spinner", "加载中", visible=True)
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[loading_visible][data-testid=spinner]加载中"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_console_errors_routed_correctly(self):
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_console_errors]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_sensitive_data_routed_correctly(self):
+        page = _StubPage()
+        page._evaluate_result = []
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_sensitive_data]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_no_xss_routed_correctly(self):
+        page = _StubPage()
+        page._evaluate_result = []
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[no_xss]"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_old_assertions_still_work(self):
+        """确保扩展断言不影响原有断言功能。"""
+        page = _StubPage()
+        page.set_element("h1", "Hello World")
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser)
+        action_info = {"text": "[text_contains][h1]Hello"}
+        await engine._execute_verify(action_info, step_id=1)
+
+    @pytest.mark.asyncio
+    async def test_non_structured_still_falls_back(self):
+        """非结构化文本仍回退到AI视觉验证。"""
+        page = _StubPage()
+        browser = _StubBrowser(page=page)
+        engine = _StubEngine(browser=browser, vision_model=None)
+        action_info = {"text": "页面应显示登录按钮"}
+        await engine._execute_verify(action_info, step_id=1)
+
+
+# ============================================================
+# _get_defect_evidence 边界测试
+# ============================================================
+
+
+class TestGetDefectEvidence:
+    @pytest.mark.asyncio
+    async def test_browser_without_get_defect_evidence(self):
+        """browser 没有 get_defect_evidence 方法时返回空结构。"""
+        page = _StubPage()
+
+        class MinimalBrowser:
+            active_page = page
+
+        engine = _StubEngine(browser=MinimalBrowser())
+        evidence = engine._get_defect_evidence()
+        assert evidence["console_errors"] == []
+        assert evidence["network_failures"] == []
+
+    @pytest.mark.asyncio
+    async def test_browser_none_returns_empty(self):
+        engine = _StubEngine(browser=None)
+        evidence = engine._get_defect_evidence()
+        assert evidence["console_errors"] == []
+        assert evidence["network_failures"] == []
+
+    @pytest.mark.asyncio
+    async def test_get_defect_evidence_exception_returns_empty(self):
+        page = _StubPage()
+
+        class BrokenBrowser:
+            active_page = page
+
+            def get_defect_evidence(self):
+                raise RuntimeError("broken")
+
+        engine = _StubEngine(browser=BrokenBrowser())
+        evidence = engine._get_defect_evidence()
+        assert evidence["console_errors"] == []

@@ -639,26 +639,11 @@ class TestGenerateCaseNo:
         assert len(case_no) > 5
 
     def test_sequential_numbering(self, db, testProject):
-        from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
+        """验证 CaseNumberService 序号递增：先通过服务生成第一个编号，再生成第二个编号，确认序号递增"""
+        from app.services.case_number_service import CaseNumberService
 
-        enable_lifecycle_transition()
-        try:
-            existing = TestCase(
-                case_no=f"TC-{testProject.id:03d}-0001",
-                project_id=testProject.id,
-                module="test",
-                title="existing",
-                precondition="",
-                steps_json=[],
-                expected_result="",
-                priority=2,
-                case_type="API",
-                lifecycle_status="active",
-            )
-            db.add(existing)
-            db.flush()
-        finally:
-            disable_lifecycle_transition()
+        first_no = CaseNumberService.generate(testProject.id, db)
+        assert "0001" in first_no
 
         ctx = _make_ctx(db, testProject)
         case_no = _generate_case_no(ctx, testProject.id)
