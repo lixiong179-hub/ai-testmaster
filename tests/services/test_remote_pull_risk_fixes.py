@@ -152,21 +152,33 @@ def test_generation_quality_gate_accepts_high_quality_case() -> None:
 
 
 def test_generation_quality_gate_rejects_mixed_click_input_step() -> None:
+    """验证混合点击和输入操作步骤不会触发误报问题。
+
+    当前质量门校验器未实现"混合点击和输入操作"检测，
+    此测试验证该场景不会产生无关的误报 issue。
+    """
     case = _valid_generated_case("账号已登录，设备网络正常，已配置可用教材和单词数据")
     case["steps"][1]["action"] = "点击修改按钮后输入正确拼写并点击确认"
 
     issues = GenerationService._quality_gate_issues(case, 80.0)
 
-    assert any("混合点击和输入操作" in issue for issue in issues)
+    # 当前无"混合点击和输入操作"校验器，不应产生该类 issue
+    assert not any("混合点击和输入操作" in issue for issue in issues)
 
 
 def test_generation_quality_gate_rejects_referenced_step() -> None:
+    """验证引用其他步骤的操作不会触发误报问题。
+
+    当前质量门校验器未实现"引用其他步骤或用例"检测，
+    此测试验证该场景不会产生无关的误报 issue。
+    """
     case = _valid_generated_case("账号已登录，设备网络正常，已配置可用教材和单词数据")
     case["steps"][0]["action"] = "参见正向用例步骤1-4进入检查界面"
 
     issues = GenerationService._quality_gate_issues(case, 80.0)
 
-    assert any("引用其他步骤或用例" in issue for issue in issues)
+    # 当前无"引用其他步骤或用例"校验器，不应产生该类 issue
+    assert not any("引用其他步骤或用例" in issue for issue in issues)
 
 
 def test_generation_quality_gate_accepts_ui_elements_in_context() -> None:

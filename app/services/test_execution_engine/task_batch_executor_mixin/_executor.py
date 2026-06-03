@@ -195,6 +195,12 @@ class _ExecutorMixin:
                     test_result.exec_time = utcnow()
                     if not test_result.exec_log:
                         test_result.exec_log = result.actual_result or ""
+
+                    # 聚合步骤级别的 defect_evidence 写入 TestResult
+                    aggregated_evidence = self._aggregate_defect_evidence(result)
+                    if aggregated_evidence:
+                        test_result.defect_evidence = aggregated_evidence
+
                     self._case_results[test_case.id] = result
 
                     if not depends_on and result.status == ExecutionStatus.PASSED:
@@ -229,3 +235,54 @@ class _ExecutorMixin:
                 await self.precondition_service.cleanup()
 
         return self._get_task_summary(task_id)
+
+    @staticmethod
+    def _aggregate_defect_evidence(result: "TestExecutionResult") -> Optional[Dict[str, Any]]:
+        """聚合步骤级别的 defect_evidence 为用例级别的缺陷证据。
+
+        合并所有步骤的 console_errors、network_failures、uncaught_exceptions，
+        对 memory_leak_suspect 取并集。
+        """
+        if not result or not result.steps:
+            return None
+
+        merged: Dict[str, list] = {
+            "console_errors": [],
+            "network_failures": [],
+            "uncaught_exceptions": [],
+            "memory_leak_suspect": [],
+        }
+        has_evidence = False
+
+        for step in result.steps:
+            evidence = getattr(step, 'defect_evidence', None)
+            if not evidence or not isinstance(evidence, dict):
+                continue
+            has_evidence = True
+            for key in ("console_errors", "network_failures", "uncaught_exceptions"):
+                items = evidence.get(key)
+                if isinstance(items, list):
+                    merged[key].extend(items)
+            leak = evidence.get("memory_leak_suspect")
+            if isinstance(leak, list):
+                merged["memory_leak_suspect"].extend(leak)
+
+        if not has_evidence:
+            return None
+
+        # 去重：对列表中的字典转为 tuple 去重
+        for key in merged:
+            seen = set()
+            unique = []
+            for item in merged[key]:
+                if isinstance(item, dict):
+                    ident = tuple(sorted(item.items()))
+                else:
+                    ident = str(item)
+                if ident not in seen:
+                    seen.add(ident)
+                    unique.append(item)
+            merged[key] = unique
+
+        # 仅保留非空字段
+        return {k: v for k, v in merged.items() if v} or None

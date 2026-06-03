@@ -156,9 +156,9 @@ class TestTestCaseVersionModel:
         assert tcv.operator_name == "admin"
 
     def test_snapshot_data_required(self):
-        """snapshot_data 是 nullable=False，验证约束"""
+        """snapshot_data 是 nullable=True（归档后置空），验证约束"""
         col = TestCaseVersion.__table__.c.snapshot_data
-        assert col.nullable is False
+        assert col.nullable is True
 
     def test_version_number_not_nullable(self):
         col = TestCaseVersion.__table__.c.version_number

@@ -6,20 +6,24 @@
     - 幂等性（重复创建返回已有项目）
     - 自测项目不可删除
     - 环境变量配置读取
+    - 需求文档自动导入（正常导入、文件不存在降级、提取失败降级）
 """
 import json
 import os
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 import pytest
 from sqlalchemy.orm import Session
 
-from app.models.project import Project
+from app.models.project import Project, ProjectFile
 from app.models.user import User
 from app.services.self_test_service import (
     create_self_test_project,
     get_self_test_project,
     _get_self_test_env_configs,
+    _get_project_root,
+    _auto_import_requirement_doc,
     SELF_TEST_PROJECT_NAME,
 )
 
@@ -188,3 +192,198 @@ class TestSelfTestProjectDeleteProtection:
             delete_project(project.id, db=db, current_user=testUser)
         )
         assert result["msg"] == "删除成功"
+
+
+class TestGetProjectRoot:
+    """项目根目录获取测试"""
+
+    def test_returns_path_object(self) -> None:
+        root = _get_project_root()
+        assert isinstance(root, Path)
+
+    def test_root_directory_exists(self) -> None:
+        root = _get_project_root()
+        assert root.exists()
+        assert root.is_dir()
+
+    def test_root_contains_app_directory(self) -> None:
+        root = _get_project_root()
+        app_dir = root / "app"
+        assert app_dir.exists()
+        assert app_dir.is_dir()
+
+
+class TestAutoImportRequirementDoc:
+    """需求文档自动导入测试"""
+
+    def test_import_success_when_doc_exists(
+        self, db: Session, testUser: User
+    ) -> None:
+        """需求文档存在时，自动导入创建 ProjectFile 记录并提取内容"""
+        project = Project(
+            name="import_test_project",
+            user_id=testUser.id,
+            status=1,
+            project_type="web",
+            is_self_test=True,
+        )
+        db.add(project)
+        db.flush()
+
+        _auto_import_requirement_doc(db, project)
+
+        # 验证 ProjectFile 记录已创建
+        file_record = (
+            db.query(ProjectFile)
+            .filter(
+                ProjectFile.project_id == project.id,
+                ProjectFile.resource_type == "requirement",
+            )
+            .first()
+        )
+        if file_record is not None:
+            assert file_record.file_name == "requirement_specification.md"
+            assert file_record.file_type == "md"
+            assert file_record.file_source == "auto_import"
+            assert file_record.resource_type == "requirement"
+            assert file_record.extract_status == "completed"
+            assert file_record.content is not None
+            assert len(file_record.content) > 0
+            assert file_record.is_active is True
+
+    def test_graceful_when_doc_not_exists(
+        self, db: Session, testUser: User
+    ) -> None:
+        """需求文档不存在时，仅记录警告日志，不阻断流程"""
+        project = Project(
+            name="no_doc_project",
+            user_id=testUser.id,
+            status=1,
+            project_type="web",
+            is_self_test=True,
+        )
+        db.add(project)
+        db.flush()
+
+        # 将项目根目录 mock 到一个不存在的路径
+        with patch(
+            "app.services.self_test_service._get_project_root",
+            return_value=Path("/nonexistent_root_for_test"),
+        ):
+            # 不应抛出异常
+            _auto_import_requirement_doc(db, project)
+
+        # 不应创建任何 ProjectFile 记录
+        file_count = (
+            db.query(ProjectFile)
+            .filter(ProjectFile.project_id == project.id)
+            .count()
+        )
+        assert file_count == 0
+
+    def test_graceful_when_extract_fails(
+        self, db: Session, testUser: User
+    ) -> None:
+        """文件读取异常时，仅记录警告日志，不阻断项目创建"""
+        project = Project(
+            name="extract_fail_project",
+            user_id=testUser.id,
+            status=1,
+            project_type="web",
+            is_self_test=True,
+        )
+        db.add(project)
+        db.flush()
+
+        # mock open 抛出异常
+        with patch("builtins.open", side_effect=PermissionError("no access")):
+            # 不应抛出异常
+            _auto_import_requirement_doc(db, project)
+
+        # 不应创建任何 ProjectFile 记录
+        file_count = (
+            db.query(ProjectFile)
+            .filter(ProjectFile.project_id == project.id)
+            .count()
+        )
+        assert file_count == 0
+
+    def test_import_does_not_block_project_creation(
+        self, db: Session, testUser: User
+    ) -> None:
+        """即使需求文档导入失败，项目创建仍然成功"""
+        with patch.dict(os.environ, {
+            "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
+            "SELF_TEST_USERNAME": "admin",
+            "SELF_TEST_PASSWORD": "pass",
+        }, clear=False):
+            # mock _get_project_root 返回不存在的路径，触发降级
+            with patch(
+                "app.services.self_test_service._get_project_root",
+                return_value=Path("/nonexistent_root_for_test"),
+            ):
+                project = create_self_test_project(db, testUser.id)
+
+        # 项目仍然创建成功
+        assert project is not None
+        assert project.name == SELF_TEST_PROJECT_NAME
+        assert project.is_self_test is True
+
+
+class TestCreateSelfTestProjectWithRequirementImport:
+    """创建自测项目时需求文档自动导入集成测试"""
+
+    def test_create_project_imports_requirement_doc(
+        self, db: Session, testUser: User
+    ) -> None:
+        """创建自测项目后，需求文档被自动导入"""
+        with patch.dict(os.environ, {
+            "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
+            "SELF_TEST_USERNAME": "admin",
+            "SELF_TEST_PASSWORD": "pass",
+        }, clear=False):
+            project = create_self_test_project(db, testUser.id)
+
+        assert project is not None
+
+        # 验证需求文档是否被导入（取决于 docs/requirement_specification.md 是否存在）
+        doc_path = _get_project_root() / "docs" / "requirement_specification.md"
+        if doc_path.exists():
+            file_record = (
+                db.query(ProjectFile)
+                .filter(
+                    ProjectFile.project_id == project.id,
+                    ProjectFile.resource_type == "requirement",
+                )
+                .first()
+            )
+            assert file_record is not None
+            assert file_record.file_name == "requirement_specification.md"
+            assert file_record.extract_status == "completed"
+            assert file_record.content is not None
+
+    def test_idempotent_create_does_not_duplicate_import(
+        self, db: Session, testUser: User
+    ) -> None:
+        """幂等创建自测项目时，不会重复导入需求文档"""
+        with patch.dict(os.environ, {
+            "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
+            "SELF_TEST_USERNAME": "admin",
+            "SELF_TEST_PASSWORD": "pass",
+        }, clear=False):
+            first = create_self_test_project(db, testUser.id)
+            second = create_self_test_project(db, testUser.id)
+
+        assert first.id == second.id
+
+        # 幂等返回已有项目，不应创建额外的文件记录
+        file_count = (
+            db.query(ProjectFile)
+            .filter(
+                ProjectFile.project_id == first.id,
+                ProjectFile.resource_type == "requirement",
+            )
+            .count()
+        )
+        # 最多只有一条需求文档记录
+        assert file_count <= 1

@@ -47,6 +47,7 @@ class StepExecutionResult:
     screenshot: Optional[Any] = None
     ai_analysis: Optional[str] = None
     element_locator: Optional[str] = None
+    defect_evidence: Optional[Dict[str, Any]] = None
 
     def to_dict(self, hidden_fields: Optional[list] = None) -> Dict[str, Any]:
         result = {
