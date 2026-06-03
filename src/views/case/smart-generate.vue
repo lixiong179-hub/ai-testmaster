@@ -18,7 +18,7 @@
             <h3>新功能生成用例</h3>
             <p>我有新需求或测试点，要生成测试用例</p>
             <div class="task-tags"><el-tag size="small">需求文档</el-tag><el-tag size="small">测试点</el-tag><el-tag size="small" type="info">UI原型（可选）</el-tag></div>
-            <el-button type="primary" class="task-btn" @click="goToMaterial">进入生成</el-button>
+            <el-button type="primary" class="task-btn" @click.stop="goToMaterial">进入生成</el-button>
           </div>
           <div class="task-card" :class="{ active: store.selectedTask === 'history_update' }" @click="store.selectedTask = 'history_update'">
             <div class="task-icon">📋</div>
@@ -381,8 +381,8 @@
                 </el-descriptions-item>
                 <el-descriptions-item label="估算成本">
                   <template v-if="store.batchCost">
-                    <span>${{ store.batchCost.totalCostUsd.toFixed(4) }}</span>
-                    <span class="cost-detail">约 &yen;{{ (store.batchCost.totalCostUsd * 7.25).toFixed(2) }}</span>
+                    <span>&yen;{{ (store.batchCost.totalCostUsd * 7.25).toFixed(2) }}</span>
+                    <span class="cost-detail">（${{ store.batchCost.totalCostUsd.toFixed(4) }}）</span>
                   </template>
                   <el-icon v-else class="spin-icon" :size="14" color="#909399"><Loading /></el-icon>
                 </el-descriptions-item>
@@ -546,10 +546,10 @@ function extractListData(resp: unknown) {
   return Array.isArray(data) ? data : (data as { items?: unknown[] })?.items || []
 }
 
-async function loadProjects() { try { projects.value = extractListData(await request.get('/api/v1/projects')) as { id: number; name: string }[] } catch { projects.value = [] } }
-async function loadProjectFiles() { if (!store.selectedProjectId) { requirementFiles.value = []; return } try { requirementFiles.value = extractListData(await request.get(`/api/v1/files?project_id=${store.selectedProjectId}&resource_type=requirement`)) as { id: number; file_name: string; original_name: string }[] } catch { requirementFiles.value = [] } }
-async function loadTestPoints() { if (!store.selectedProjectId) { testPoints.value = []; return } try { testPoints.value = extractListData(await request.get(`/api/v1/test-points?project_id=${store.selectedProjectId}&page=1&page_size=500`)) as { id: number; name: string; test_point: string; module: string }[] } catch { testPoints.value = [] } }
-async function loadSystemCases() { if (!store.selectedProjectId) { systemCases.value = []; return } try { systemCases.value = extractListData(await request.get(`/api/v1/cases?project_id=${store.selectedProjectId}&page=1&page_size=200`)) as { id: number; title: string; module: string; case_type: string }[] } catch { systemCases.value = [] } }
+async function loadProjects() { try { projects.value = extractListData(await request.get('/api/v1/project/list?page=1&page_size=100')) as { id: number; name: string }[] } catch { projects.value = [] } }
+async function loadProjectFiles() { if (!store.selectedProjectId) { requirementFiles.value = []; return } try { requirementFiles.value = extractListData(await request.get(`/api/v1/file/list?project_id=${store.selectedProjectId}&resource_type=requirement`)) as { id: number; file_name: string; original_name: string }[] } catch { requirementFiles.value = [] } }
+async function loadTestPoints() { if (!store.selectedProjectId) { testPoints.value = []; return } try { testPoints.value = extractListData(await request.get(`/api/v1/test-point/list/${store.selectedProjectId}?page=1&page_size=100`)) as { id: number; name: string; test_point: string; module: string }[] } catch { testPoints.value = [] } }
+async function loadSystemCases() { if (!store.selectedProjectId) { systemCases.value = []; return } try { systemCases.value = extractListData(await request.get(`/api/v1/testCase/?project_id=${store.selectedProjectId}&page=1&page_size=200`)) as { id: number; title: string; module: string; case_type: string }[] } catch { systemCases.value = [] } }
 
 watch(() => store.selectedProjectId, async (val) => {
   if (val) { await Promise.all([loadProjectFiles(), loadTestPoints(), store.loadUIPrototypeProjects(), store.loadHistoryAssets()]) }
