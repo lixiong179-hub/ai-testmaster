@@ -220,21 +220,25 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
     def _persist_cases(
         self, case_dicts: List[Dict[str, Any]], project_id: int, session: Session
     ) -> List[TestCase]:
-        """批量生成 case_no 并持久化用例，写入 grounding_source 与锚定 ratio。"""
+        """批量生成 case_no 并持久化用例，写入 grounding_source 与锚定 ratio。
+
+        使用 session.add_all 一次性批量入栈（替代循环 add），commit 触发批量
+        INSERT 并回填自增主键。去掉循环 session.refresh：commit 后对象 expire，
+        但主键 id 在 expire 后仍可直接访问不触发 SELECT（SQLAlchemy 优化），
+        后续 case_ids 取 id 不会产生 N+1 查询（项目规则：批量写入使用 batch）。
+        """
         case_nos = CaseNumberService.generate_batch(project_id, len(case_dicts), session)
-        persisted: List[TestCase] = []
-        for case_data, case_no in zip(case_dicts, case_nos):
-            test_case = self._build_test_case(case_data, project_id, case_no)
-            session.add(test_case)
-            persisted.append(test_case)
+        persisted: List[TestCase] = [
+            self._build_test_case(case_data, project_id, case_no)
+            for case_data, case_no in zip(case_dicts, case_nos)
+        ]
+        session.add_all(persisted)
         try:
             session.commit()
         except Exception as e:
             session.rollback()
             logger.error(f"用例持久化失败，已回滚: project_id={project_id} err={e}")
             raise
-        for test_case in persisted:
-            session.refresh(test_case)
         logger.info(
             f"页面驱动用例生成完成: project_id={project_id} count={len(persisted)}"
         )
