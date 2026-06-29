@@ -187,7 +187,13 @@ export const wsClient = new WebSocketClient()
 
 /**
  * 连接WebSocket（函数式API）
- * @param path WebSocket路径
+ *
+ * 鉴权方式：token 通过 URL Query 参数 ?token=xxx 传递，与后端
+ * /ws/execution/{execution_id}、/ws/quick-test/{task_id} 等端点的
+ * token: str = Query(...) 参数对齐。不再使用子协议传 token：
+ * FastAPI WebSocket 端点不显式响应子协议，浏览器会触发 onerror。
+ *
+ * @param path WebSocket路径（不含 /ws 前缀，由本函数拼接）
  * @param options 回调选项
  * @returns WebSocket连接对象
  */
@@ -198,12 +204,13 @@ export function connectWebSocket(
   // 从localStorage获取token
   const token = localStorage.getItem('token')
 
-  // 构建WebSocket URL
+  // 构建WebSocket URL：token 走 Query 参数（后端 Query 鉴权）
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
-  const wsUrl = `${protocol}//${host}/ws${path}`
+  const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : ''
+  const wsUrl = `${protocol}//${host}/ws${path}${tokenQuery}`
 
-  const ws = token ? new WebSocket(wsUrl, [token]) : new WebSocket(wsUrl)
+  const ws = new WebSocket(wsUrl)
 
   ws.onopen = () => {
     options.onOpen?.()

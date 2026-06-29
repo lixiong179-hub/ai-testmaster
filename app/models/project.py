@@ -66,6 +66,9 @@ class Project(Base):
     is_self_test = Column(Boolean, nullable=False, default=False, server_default=sa_text("0"), comment="是否为平台自测项目")
     self_test_schedule = Column(String(100), nullable=True, comment="自测项目定时执行 cron 表达式")
 
+    # 项目来源: manual=手动建项, url_quick_test=网址驱动快速测试（用于按来源筛选历史快速测试项目）
+    source = Column(String(64), nullable=False, server_default="manual", index=True, comment="来源:manual/url_quick_test")
+
     # 项目类型: web=Web端, app=客户端(Android/iOS)
     project_type = Column(String(50), nullable=False, default="web", comment="项目类型: web=Web端, app=客户端")  # 默认Web端
 

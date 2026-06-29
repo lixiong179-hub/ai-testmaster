@@ -38,6 +38,10 @@
   width: min(360px, 100%);
 }
 
+.source-filter {
+  width: 160px;
+}
+
 .project-table {
   width: 100%;
 }
@@ -78,6 +82,52 @@
   justify-content: flex-end;
 }
 
+/* ============== 顶部置顶：快速测试卡片 ============== */
+.quick-test-card {
+  border: none;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.quick-test-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quick-test-url-input {
+  width: 100%;
+}
+
+.quick-test-error {
+  color: #f56c6c;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: -8px;
+}
+
+.quick-test-advanced {
+  border-top: none;
+}
+
+.quick-test-advanced :deep(.el-collapse-item__header) {
+  font-size: 13px;
+  color: #7a8594;
+}
+
+.quick-test-advanced :deep(.el-collapse-item__wrap) {
+  border-bottom: none;
+}
+
+.quick-test-form {
+  margin-top: 4px;
+}
+
+.quick-test-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 900px) {
   .card-header {
     flex-direction: column;
@@ -89,6 +139,10 @@
   }
 
   .search-input {
+    width: 100%;
+  }
+
+  .source-filter {
     width: 100%;
   }
 

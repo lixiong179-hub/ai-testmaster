@@ -143,6 +143,7 @@ class ProjectResponse(ProjectBase):
     status: int
     is_self_test: bool = False
     self_test_schedule: Optional[str] = None
+    source: str = Field("manual", description="项目来源: manual=手动建项, url_quick_test=网址驱动快速测试")  # 项目创建来源标识，由后端设置不由用户传入
     create_time: datetime
     update_time: datetime
 

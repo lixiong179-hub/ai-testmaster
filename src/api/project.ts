@@ -1,6 +1,10 @@
 import request from '@/utils/request'
 
 // ============== 项目类型 ==============
+// source 字段：来源标识，用于区分项目创建途径
+//   - manual           手动创建
+//   - url_quick_test   快速测试自动创建
+// 后端 Phase 2 SubTask 4.3 已暴露该字段，缺省时前端按 manual 兜底
 export interface Project {
   id: number
   name: string
@@ -9,6 +13,7 @@ export interface Project {
   status: number
   create_time: string
   update_time: string
+  source?: string
 }
 
 export interface ProjectCreateRequest {

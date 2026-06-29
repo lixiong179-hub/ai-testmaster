@@ -166,6 +166,15 @@ class Settings(BaseSettings):
     MCP_EXECUTION_OPERATION_TYPES: str = "click,type,hover,select"
     AUTO_PARSE_PRECONDITION: bool = True
 
+    # 网址驱动快速测试：站点探索 BFS 深度上限，避免爬取过深拖慢首份报告
+    URL_QUICK_TEST_MAX_DEPTH: int = 3
+    # 单页加载超时（秒），超时跳过该页不阻断整体探索
+    URL_QUICK_TEST_PAGE_TIMEOUT: int = 30
+    # SiteMap Redis 缓存 TTL（秒），默认 1 天避免重复爬取同源站点
+    URL_QUICK_TEST_CACHE_TTL: int = 86400
+    # 危险路径黑名单，命中即跳过避免触发登出/删除等破坏性操作
+    URL_QUICK_TEST_BLACKLIST: list = ["/logout", "/delete", "/reset"]
+
     CELERY_BROKER_URL: str = ""
     CELERY_RESULT_BACKEND: str = ""
     CELERY_TASK_SERIALIZER: str = "json"

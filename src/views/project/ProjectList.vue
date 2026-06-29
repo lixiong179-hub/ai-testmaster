@@ -1,5 +1,81 @@
 <template>
   <div class="project-list">
+    <el-card class="quick-test-card">
+      <template #header>
+        <div class="card-header">
+          <div>
+            <div class="card-title">⚡ 快速测试</div>
+            <div class="card-subtitle">输入网址，5 分钟出报告</div>
+          </div>
+        </div>
+      </template>
+
+      <div class="quick-test-body">
+        <el-input
+          v-model="quickUrl"
+          placeholder="https://example.com"
+          clearable
+          class="quick-test-url-input"
+          size="large"
+          :status="quickError ? 'error' : undefined"
+          @keyup.enter="quickSubmit"
+          @input="quickClearError"
+        >
+          <template #prefix>
+            <el-icon><Link /></el-icon>
+          </template>
+        </el-input>
+
+        <div v-if="quickError" class="quick-test-error">{{ quickError }}</div>
+
+        <el-collapse v-model="advancedCollapse" class="quick-test-advanced">
+          <el-collapse-item title="高级选项（选填）" name="advanced">
+            <el-form label-position="top" class="quick-test-form">
+              <el-form-item label="测试范围描述">
+                <el-input
+                  v-model="quickDescription"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="如：重点测登录和搜索功能"
+                />
+              </el-form-item>
+              <el-form-item label="登录凭据（仅登录页场景）">
+                <el-row :gutter="10">
+                  <el-col :span="12">
+                    <el-input
+                      v-model="quickUsername"
+                      placeholder="账号"
+                      autocomplete="off"
+                    />
+                  </el-col>
+                  <el-col :span="12">
+                    <el-input
+                      v-model="quickPassword"
+                      type="password"
+                      placeholder="密码"
+                      show-password
+                      autocomplete="new-password"
+                    />
+                  </el-col>
+                </el-row>
+              </el-form-item>
+            </el-form>
+          </el-collapse-item>
+        </el-collapse>
+
+        <div class="quick-test-actions">
+          <el-button
+            type="primary"
+            size="large"
+            :loading="quickLoading"
+            @click="quickSubmit"
+          >
+            开始测试
+          </el-button>
+        </div>
+      </div>
+    </el-card>
+
     <el-card class="project-card">
       <template #header>
         <div class="card-header">
@@ -25,6 +101,17 @@
             <el-button @click="handleSearch">搜索</el-button>
           </template>
         </el-input>
+        <el-select
+          v-model="sourceFilter"
+          placeholder="来源"
+          clearable
+          class="source-filter"
+          size="default"
+        >
+          <el-option label="全部" value="" />
+          <el-option label="手动创建" value="manual" />
+          <el-option label="快速测试" value="url_quick_test" />
+        </el-select>
         <el-tag effect="plain" type="info">共 {{ projectStore.total }} 个项目</el-tag>
       </div>
 
@@ -45,6 +132,13 @@
           <template #default="scope">
             <el-tag :type="scope.row.project_type === 'web' ? 'success' : 'warning'">
               {{ scope.row.project_type === 'web' ? 'Web端' : 'C端' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="source" label="来源" width="120">
+          <template #default="scope">
+            <el-tag :type="getSourceTagType(scope.row.source)">
+              {{ getSourceText(scope.row.source) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -236,16 +330,22 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import { Link } from '@element-plus/icons-vue'
 import { useProjectList } from './useProjectList'
+import { useQuickTestCard } from './useQuickTestEntry'
 
 const {
   projectStore,
   dialogVisible,
   projectFormRef,
   searchKeyword,
+  sourceFilter,
   projectForm,
   projectRules,
   filteredProjects,
+  getSourceTagType,
+  getSourceText,
   getStatusType,
   getStatusText,
   handleSearch,
@@ -258,6 +358,21 @@ const {
   goToTestPointManagement,
   confirmDelete,
 } = useProjectList()
+
+// 顶部置顶"快速测试"卡片表单逻辑（校验/提交/跳转/错误提示均在 composable 内）
+// 解构为顶层绑定，模板中 ref 自动解包；重命名加 quick 前缀避免与 useProjectList 同名冲突
+const {
+    url: quickUrl,
+    description: quickDescription,
+    username: quickUsername,
+    password: quickPassword,
+    error: quickError,
+    loading: quickLoading,
+    clearError: quickClearError,
+    submitCard: quickSubmit,
+} = useQuickTestCard()
+// el-collapse v-model 接收展开面板 name 数组，纯 UI 态故留在组件本地
+const advancedCollapse = ref<string[]>([])
 
 const setProjectFormRef = (el: unknown) => {
   projectFormRef.value = el

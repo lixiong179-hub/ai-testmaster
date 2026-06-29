@@ -120,8 +120,12 @@ class _ExecutorMixin:
             test_results = self.db.query(TestResult).filter(TestResult.task_id == task_id).all()
 
             if not test_results:
-                logger.warning(f"测试任务 {task_id} 没有关联的测试用例")
-                task.status = TaskStatus.PENDING
+                # 任务已执行但无关联用例（如 AI 生成失败降级为 0 用例），
+                # 视为空完成而非回退到 PENDING：PENDING 会让前端状态机无法切换
+                # 出 running，且语义上任务已走完执行流程。前端 refreshStatus 仅识别
+                # 执行完成/执行失败/已停止，"等待执行" 会导致页面卡在"测试进行中"。
+                logger.warning(f"测试任务 {task_id} 没有关联的测试用例，标记为执行完成")
+                task.status = TaskStatus.COMPLETED
                 task.end_time = utcnow()
                 self.db.commit()
                 return self._get_task_summary(task_id)
@@ -185,7 +189,7 @@ class _ExecutorMixin:
                     else:
                         if nav_failed:
                             result.failure_category = FailureCategory.NAVIGATION_FAILURE
-                            test_result.exec_log = f"[导航失败] 依赖导航三级降级均失败，页面可能未到达正确状态，失败原因可能是测试基础设施问题而非产品Bug。原始结果: {result.actual_result or ''}"
+                            test_result.exec_log = f"[导航失败] 依赖导航三级降级均失败，页面可能未到达正确状态，失败原因可能是测试基础设施问题而非产品Bug。原始结果: {result.error_message or ''}"
                         elif result.failure_category is None:
                             result.failure_category = FailureCategory.PRODUCT_BUG
                         test_result.exec_status = ExecStatus.FAILED
@@ -194,7 +198,7 @@ class _ExecutorMixin:
 
                     test_result.exec_time = utcnow()
                     if not test_result.exec_log:
-                        test_result.exec_log = result.actual_result or ""
+                        test_result.exec_log = result.error_message or ""
 
                     # 聚合步骤级别的 defect_evidence 写入 TestResult
                     aggregated_evidence = self._aggregate_defect_evidence(result)

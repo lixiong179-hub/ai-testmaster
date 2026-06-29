@@ -11,6 +11,9 @@ export function useProjectList() {
   const dialogVisible = ref(false)
   const projectFormRef = ref<any>(null)
   const searchKeyword = ref('')
+  // 来源筛选：'' 全部 | manual 手动创建 | url_quick_test 快速测试
+  // 后端暂未在 list 接口支持 source 过滤参数，故仅在前端客户端过滤
+  const sourceFilter = ref<'' | 'manual' | 'url_quick_test'>('')
 
   const projectForm = ref({
     name: '',
@@ -28,12 +31,30 @@ export function useProjectList() {
     project_type: [{ required: true, message: '请选择项目类型', trigger: 'change' }],
   }
 
+  // 来源枚举值标准化：缺失或非 url_quick_test 一律按 manual 兜底
+  const resolveSource = (source?: string): 'manual' | 'url_quick_test' => {
+    return source === 'url_quick_test' ? 'url_quick_test' : 'manual'
+  }
+
   const filteredProjects = computed(() => {
-    if (!searchKeyword.value) return projectStore.projects
-    return projectStore.projects.filter((p) =>
-      p.name.toLowerCase().includes(searchKeyword.value.toLowerCase())
-    )
+    let list = projectStore.projects
+    if (searchKeyword.value) {
+      const kw = searchKeyword.value.toLowerCase()
+      list = list.filter((p) => p.name.toLowerCase().includes(kw))
+    }
+    if (sourceFilter.value) {
+      list = list.filter((p) => resolveSource(p.source) === sourceFilter.value)
+    }
+    return list
   })
+
+  // 来源映射：用于表格 el-tag 的颜色与文本展示
+  const getSourceTagType = (source?: string): TagType => {
+    return source === 'url_quick_test' ? 'primary' : 'info'
+  }
+  const getSourceText = (source?: string): string => {
+    return source === 'url_quick_test' ? '快速测试' : '手动创建'
+  }
 
   const getStatusType = (status: number): TagType => {
     const m: Record<number, TagType> = { 0: 'info', 1: 'success', 2: 'warning' }
@@ -129,9 +150,12 @@ export function useProjectList() {
     dialogVisible,
     projectFormRef,
     searchKeyword,
+    sourceFilter,
     projectForm,
     projectRules,
     filteredProjects,
+    getSourceTagType,
+    getSourceText,
     getStatusType,
     getStatusText,
     handleSearch,

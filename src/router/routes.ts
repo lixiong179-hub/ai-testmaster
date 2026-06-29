@@ -105,6 +105,12 @@ export const routes: RouteRecordRaw[] = [
         ],
       },
       {
+        path: 'quick-test',
+        name: 'QuickTest',
+        component: () => import('@/views/quick-test/QuickTest.vue'),
+        meta: { requireAuth: true, title: '快速测试' },
+      },
+      {
         path: 'requirement',
         name: 'RequirementManagement',
         meta: { title: '资源中心' },
