@@ -127,7 +127,12 @@ def build_launcher(
     db, testUser, *, project_raise=None, explorer_raise=None, explorer_map=None,
     generator_raise=None, generator_cases=None, push_raise=None, assembler_fail=False,
 ):
-    """组装 QuickLauncher，注入各 Fake 依赖，返回 (launcher, fakes_dict)。"""
+    """组装 QuickLauncher，注入各 Fake 依赖，返回 (launcher, fakes_dict)。
+
+    pipeline_session_factory 注入 db fixture 的 session 工厂：让 _run_pipeline_async
+    写入的数据落在 db fixture 事务隔离内，保证测试结束自动回滚清理；
+    同时使 FakeCaseGenerator 的 session.add 写入对 db.query 可见，断言可读取。
+    """
     project_builder = FakeProjectBuilder(raise_exc=project_raise)
     explorer = FakeSiteExplorer(site_map=explorer_map, raise_exc=explorer_raise)
     case_generator = FakeCaseGenerator(cases=generator_cases, raise_exc=generator_raise)
@@ -141,6 +146,7 @@ def build_launcher(
         case_generator_factory=lambda: case_generator,
         assembler=assembler,
         push_service=push_service,
+        pipeline_session_factory=lambda: db,
     )
     fakes = {
         "project_builder": project_builder, "explorer": explorer,
@@ -148,6 +154,18 @@ def build_launcher(
         "executor": executor, "assembler": assembler,
     }
     return launcher, fakes
+
+
+async def _drain_pipeline_tasks() -> None:
+    """排空 _run_pipeline_async + _run_executor_safely 两层 asyncio.create_task。
+
+    launch 异步化后，编排链路产生 2 个嵌套后台任务：
+    1) _run_pipeline_async（编排：探索+生成+装配）；
+    2) assemble 内 _start_task 启动的 _run_executor_safely（执行引擎）。
+    一次 sleep 通常不足以让两层任务都跑完，分两段排空确保断言前所有推送已落盘。
+    """
+    await asyncio.sleep(0.05)
+    await asyncio.sleep(0.05)
 
 
 class TestLaunchSuccess:
@@ -179,9 +197,10 @@ class TestLaunchSuccess:
         assert isinstance(resp, QuickTestLaunchResponse)
         assert resp.task_id > 0
         assert resp.project_id > 0
-        assert resp.estimated_duration_sec == 1 * 30
+        # 异步化后 launch 立即返回，case_count 未知，estimated_duration_sec=0
+        assert resp.estimated_duration_sec == 0
         assert resp.websocket_channel == f"quick_test:{resp.task_id}"
-        await asyncio.sleep(0.05)
+        await _drain_pipeline_tasks()
 
     @pytest.mark.asyncio
     async def test_estimated_duration_zero_when_no_cases(self, db, testUser):
@@ -190,7 +209,59 @@ class TestLaunchSuccess:
             "https://shop.example.com", None, None, testUser.id, db
         )
         assert resp.estimated_duration_sec == 0
-        await asyncio.sleep(0.05)
+        await _drain_pipeline_tasks()
+
+    @pytest.mark.asyncio
+    async def test_launch_returns_immediately_before_pipeline_done(self, db, testUser, monkeypatch):
+        """launch 立即返回：响应在 _run_pipeline_async 完成前已拿到。
+
+        验证：通过 monkeypatch _run_pipeline_async 注入阻塞事件（asyncio.Event），
+        使后台任务暂停，但 launch 已返回响应（task_id/project_id/websocket_channel
+        已就绪）。这是 BUG 8 onOpen refreshStatus 设计前提：前端拿到 task_id
+        后立即订阅 WebSocket，编排进度由后台推送。
+        """
+        launcher, _ = build_launcher(db, testUser, generator_cases=[])
+        proceed = asyncio.Event()
+        original_pipeline = launcher._run_pipeline_async
+
+        async def paused_pipeline(*args, **kwargs):
+            await proceed.wait()
+            await original_pipeline(*args, **kwargs)
+
+        monkeypatch.setattr(launcher, "_run_pipeline_async", paused_pipeline)
+        resp = await launcher.launch(
+            "https://shop.example.com", None, None, testUser.id, db
+        )
+        # launch 已返回，但 _run_pipeline_async 仍在等 proceed
+        assert resp.task_id > 0
+        assert resp.estimated_duration_sec == 0
+        assert resp.websocket_channel == f"quick_test:{resp.task_id}"
+        # 释放后台任务，避免泄漏
+        proceed.set()
+        await _drain_pipeline_tasks()
+
+    @pytest.mark.asyncio
+    async def test_pipeline_uses_injected_session_factory(self, db, testUser, monkeypatch):
+        """_run_pipeline_async 使用注入的 pipeline_session_factory 而非 PrimarySessionLocal。
+
+        验证：不注入 pipeline_session_factory 时，_create_pipeline_session lazy
+        import PrimarySessionLocal；注入时直接调用工厂返回 session，确保
+        测试场景下的 session 隔离可控。
+        """
+        launcher, fakes = build_launcher(db, testUser, generator_cases=[])
+        used_sessions: List[Any] = []
+        original_factory = launcher._pipeline_session_factory
+
+        def tracking_factory():
+            sess = original_factory()
+            used_sessions.append(sess)
+            return sess
+
+        launcher._pipeline_session_factory = tracking_factory
+        await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
+        await _drain_pipeline_tasks()
+        assert len(used_sessions) == 1
+        assert used_sessions[0] is db
 
     @pytest.mark.asyncio
     async def test_4_stages_pushed_in_order(self, db, testUser):
@@ -198,6 +269,7 @@ class TestLaunchSuccess:
         resp = await launcher.launch(
             "https://shop.example.com", None, None, testUser.id, db
         )
+        await _drain_pipeline_tasks()
         push = fakes["push_service"]
         # 提取阶段去重相邻（每阶段 running+done 两次推送）
         stages = []
@@ -208,7 +280,6 @@ class TestLaunchSuccess:
         assert stages == ["site_exploring", "case_generating", "task_assembling", "completed"]
         channels = {c["channel"] for c in push.calls}
         assert channels == {resp.websocket_channel}
-        await asyncio.sleep(0.05)
 
     @pytest.mark.asyncio
     async def test_completed_message_contains_task_and_project(self, db, testUser):
@@ -216,6 +287,7 @@ class TestLaunchSuccess:
         resp = await launcher.launch(
             "https://shop.example.com", None, None, testUser.id, db
         )
+        await _drain_pipeline_tasks()
         push = fakes["push_service"]
         completed = [c for c in push.calls if c["data"]["stage"] == "completed"]
         assert len(completed) == 1
@@ -224,7 +296,6 @@ class TestLaunchSuccess:
         assert data["progress"] == 100
         assert data["detail"]["task_id"] == resp.task_id
         assert data["detail"]["project_id"] == resp.project_id
-        await asyncio.sleep(0.05)
 
 
 class TestExploreFailure:
@@ -241,7 +312,7 @@ class TestExploreFailure:
         )
         assert resp.task_id > 0
         assert resp.estimated_duration_sec == 0
-        await asyncio.sleep(0.05)
+        await _drain_pipeline_tasks()
 
     @pytest.mark.asyncio
     async def test_explore_failure_pushes_failed_status(self, db, testUser):
@@ -250,11 +321,11 @@ class TestExploreFailure:
             generator_cases=[],
         )
         await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
+        await _drain_pipeline_tasks()
         push = fakes["push_service"]
         failed = [c for c in push.calls if c["data"]["stage"] == "site_exploring" and c["data"]["status"] == "failed"]
         assert len(failed) == 1
         assert failed[0]["data"]["detail"]["degraded"] is True
-        await asyncio.sleep(0.05)
 
 
 class TestCaseGenerationFailure:
@@ -270,7 +341,7 @@ class TestCaseGenerationFailure:
         )
         assert resp.task_id > 0
         assert resp.estimated_duration_sec == 0
-        await asyncio.sleep(0.05)
+        await _drain_pipeline_tasks()
 
     @pytest.mark.asyncio
     async def test_generation_failure_pushes_failed_status(self, db, testUser):
@@ -278,11 +349,11 @@ class TestCaseGenerationFailure:
             db, testUser, generator_raise=RuntimeError("ai timeout"),
         )
         await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
+        await _drain_pipeline_tasks()
         push = fakes["push_service"]
         failed = [c for c in push.calls if c["data"]["stage"] == "case_generating" and c["data"]["status"] == "failed"]
         assert len(failed) == 1
         assert failed[0]["data"]["detail"]["degraded"] is True
-        await asyncio.sleep(0.05)
 
 
 class TestAssembleFailure:
@@ -295,21 +366,21 @@ class TestAssembleFailure:
             "https://shop.example.com", None, None, testUser.id, db
         )
         assert resp.task_id > 0
-        await asyncio.sleep(0.05)
+        await _drain_pipeline_tasks()
 
     @pytest.mark.asyncio
     async def test_assemble_failure_pushes_failed_status(self, db, testUser):
         launcher, fakes = build_launcher(db, testUser, assembler_fail=True)
         await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
+        await _drain_pipeline_tasks()
         push = fakes["push_service"]
         failed = [c for c in push.calls if c["data"]["stage"] == "task_assembling" and c["data"]["status"] == "failed"]
         assert len(failed) == 1
         assert "error" in failed[0]["data"]["detail"]
-        await asyncio.sleep(0.05)
 
 
 class TestBuildFailure:
-    """建项失败抛出，编排终止。"""
+    """建项失败抛出，编排终止（同步阶段异常，无后台任务启动）。"""
 
     @pytest.mark.asyncio
     async def test_build_failure_raises(self, db, testUser):
@@ -318,7 +389,7 @@ class TestBuildFailure:
         )
         with pytest.raises(RuntimeError, match="build failed"):
             await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
-        # 建项失败前无推送
+        # 建项失败前无推送（site_exploring running 在建项之后才推送）
         assert fakes["push_service"].calls == []
 
 
@@ -332,7 +403,7 @@ class TestPushFailure:
         )
         resp = await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         assert resp.task_id > 0
-        await asyncio.sleep(0.05)
+        await _drain_pipeline_tasks()
 
 
 class TestDefaultCaseGeneratorFactory:
