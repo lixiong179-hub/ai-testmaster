@@ -3,6 +3,33 @@ import re
 from typing import Any, Dict, Optional
 from loguru import logger
 
+# AI 误产的 JS 字符串方法调用：形如 "literal".repeat(500) / "x".padEnd(100, "0")
+# 合法 JSON 值位置不会出现字符串字面量后紧跟方法调用，故此匹配专治非法 JSON
+# 方法名覆盖 AI 常见的字符串生成/补齐/拼接/截取场景
+_JS_STRING_METHOD_RE = re.compile(
+    r'("(?:[^"\\]|\\.)*")\s*\.\s*'
+    r'(?:repeat|padEnd|padStart|concat|slice|substring|substr|replace|replaceAll)'
+    r'\s*\([^()]*\)',
+)
+
+
+def strip_js_string_methods(text: str) -> str:
+    """清理 AI 误产的 JS 字符串方法调用，保留字符串字面量。
+
+    AI 偶尔产出 "a".repeat(500) / "x".padEnd(100, "0") 这类 JS 表达式作为
+    JSON 值，合法 JSON 不允许字符串字面量后跟方法调用，json.loads 必然失败。
+    本函数将 "literal".method(args) 替换为 "literal"，使 JSON 可解析。
+    合法 JSON 不会出现该结构（值位置字符串后应直接跟 , 或 }），故不会误伤。
+    链式调用如 "a".repeat(2).repeat(3) 通过循环逐层剥离。
+    """
+    if '"' not in text or '.' not in text:
+        return text
+    prev = None
+    while prev != text:
+        prev = text
+        text = _JS_STRING_METHOD_RE.sub(r'\1', text)
+    return text
+
 
 def fix_common_json_issues(json_str: str) -> Optional[str]:
     if not json_str:
@@ -142,7 +169,17 @@ def parse_ai_json_response(raw: str) -> Optional[Any]:
         if candidate in seen:
             continue
         seen.add(candidate)
-        for value in (candidate, fix_common_json_issues(candidate), clean_json_string(candidate)):
+        # JS 表达式剥离放在常规修复之后，并叠加 fix/clean 组合以应对
+        # "a".repeat(500) + 尾逗号 + 单引号等复合非法情形
+        js_stripped = strip_js_string_methods(candidate)
+        for value in (
+            candidate,
+            fix_common_json_issues(candidate),
+            clean_json_string(candidate),
+            js_stripped,
+            fix_common_json_issues(js_stripped),
+            clean_json_string(js_stripped),
+        ):
             if not value:
                 continue
             try:
