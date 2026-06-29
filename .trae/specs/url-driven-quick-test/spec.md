@@ -440,7 +440,7 @@ IDLE（输入视图） ──提交URL──> RUNNING（进度视图）
 - **THEN** 从 Pinia store 恢复 task_id，重新订阅 WebSocket 拉取当前进度
 - **AND** 恢复到刷新前的阶段状态
 
-### 实现约束（Phase 7 端到端验证已落地，发现并修复 5 处 BUG，已确认接受）
+### 实现约束（Phase 7 端到端验证已落地，发现并修复 11 处 BUG，已确认接受）
 
 端到端验证目标 URL：`https://demo.playwright.dev/todomvc`，验证结果 task_id=230（project_id=12739），完整跑通：建项 → 探索（1 page, 4 elements）→ 生成（5 cases, TC-12739-0001~0005）→ 编排（task_id=230）→ 执行（5 TestResult 持久化, all FAILED）→ 状态持久化（status=FAILED(3), start/end_time 已设置）。总耗时 ~38s（远低于 ≤5 分钟 SLA）。
 
@@ -505,6 +505,12 @@ IDLE（输入视图） ──提交URL──> RUNNING（进度视图）
 - **修复**：① `app/services/url_driven/task_assembler.py` 注入 `push_service`，`_run_executor_safely` 的 `finally` 块新增 `_push_final_status(task_id, session)` —— 查询任务最终状态，按 COMPLETED/FAILED 分别推送 `stage='completed',status='done',progress=100` 或 `stage='failed',status='error',progress=100`；② `app/services/url_driven/quick_launcher.py` 将 `push_service` 透传给 `TaskAssembler` 构造函数
 - **验证**：task 235 前端 WebSocket 自动收到终态推送，phase 从 running 自动切到 completed（无需刷新页面），progress=100，结果视图正确显示
 
+**BUG 11：AI 生成非法 JSON（JS 字符串方法调用导致解析失败 → 0 用例）**
+- **现象**：AI 偶发产出 `"a".repeat(500)` / `"x".padEnd(100, "0")` 这类 JS 表达式作为 JSON 值，json.loads 必然失败，4 级容错解析器未覆盖此类，导致用例解析失败 → 0 用例（task 235 再次复现）
+- **根因**：`app/utils/ai_client_parser/_json_fixer.py` 的 4 级容错（直接/fix 注释尾逗号/clean 引号控制字符/提取代码块）均未处理 JS 字符串方法调用。合法 JSON 值位置不允许字符串字面量后跟方法调用，故 `"a".repeat(500)` 是非法 JSON
+- **修复**：① 解析层新增 `strip_js_string_methods(text)` —— 把 `"literal".method(args)` 替换为 `"literal"`（保留字面量，链式调用循环剥离），集成到 `parse_ai_json_response` 的 candidate 处理序列（含 JS+fix/clean 组合）；② `__init__.py` 导出 `strip_js_string_methods` 供复用；③ `app/services/url_driven/_prompt_mixin.py` 新增 `_NO_JS_EXPRESSION_RULE` 强约束注入 prompt（源头治理，减少 AI 产出概率）
+- **验证**：`tests/test_ai_client_parser_json_fixer.py` 24 用例全通过（strip 单方法/链式/JSON 值位置/合法 JSON 不变/key 名 repeat 不误伤 + parse 含 JS 表达式/代码块内/多表达式/尾逗号组合/回归）；url_driven + ai_client + ai_client_fix 364 passed 无回归
+- **设计要点**：`strip_js_string_methods` 是通用工具，惠及所有调用 `parse_ai_json_response` 的 AI 解析路径，不只 url_driven。正则 `("(?:[^"\\]|\\.)*")\s*\.\s*(?:repeat|padEnd|padStart|concat|slice|substring|substr|replace|replaceAll)\s*\([^()]*\)` 专治非法 JSON，合法 JSON 不会出现该结构故不误伤
 **TaskStatus 枚举值确认**（避免映射错误）：
 ```python
 class TaskStatus:

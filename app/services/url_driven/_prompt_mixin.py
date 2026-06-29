@@ -48,6 +48,14 @@ _OUTPUT_JSON_SPEC = (
     "}"
 )
 
+# 禁 JS 表达式强约束：AI 偶发把 "a".repeat(500) 当 JSON 值导致解析失败 → 0 用例
+# 解析层已有 strip_js_string_methods 兜底，此处从源头约束减少发生
+_NO_JS_EXPRESSION_RULE = (
+    "⚠️ 所有值必须是 JSON 字面量：禁止使用任何 JavaScript 表达式，"
+    "如 \"a\".repeat(500)、\"x\".padEnd(100, \"0\")、Array(10).fill(0) 等。"
+    "字符串值直接写字面量（如 \"test_input\"），数值直接写数字。"
+)
+
 
 class PromptMixin:
     """用例生成 Prompt 构建 Mixin。
@@ -103,7 +111,8 @@ class PromptMixin:
             f"（如 textbox 适合 input，button/link 适合 click）；\n"
             f"- priority 取 1（高）/2（中）/3（低）。\n\n"
             f"## 输出格式\n"
-            f"{_OUTPUT_JSON_SPEC}\n"
+            f"{_OUTPUT_JSON_SPEC}\n\n"
+            f"{_NO_JS_EXPRESSION_RULE}\n"
         )
 
     def _render_elements_table(self, elements: List[Dict[str, Any]]) -> str:

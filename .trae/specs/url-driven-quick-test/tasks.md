@@ -112,13 +112,14 @@
   - [x] SubTask 12.6: 验证 WebSocket 实时进度推送，通道 quick_test:230 订阅成功
   - [x] SubTask 12.7: 验证需登录站点 — N/A（TodoMVC 非登录站点，登录路径已由单元测试 LoginMixin 覆盖）
   - [x] SubTask 12.8: 验证总耗时 ≤5 分钟产出首份报告：launch ~30s + 执行 ~8s = ~38s（远低于 5 分钟）
-  - [x] SubTask 12.9: 修复端到端验证中发现的问题（10 个 BUG，详见 spec.md Phase 7 偏离记录）
+  - [x] SubTask 12.9: 修复端到端验证中发现的问题（11 个 BUG，详见 spec.md Phase 7 偏离记录）
     - [x] BUG 1-5（第一轮）：Session 隔离 / AI max_tokens / SiteMap 缓存污染 / Playwright 1.58 兼容 / Windows 事件循环
     - [x] BUG 6（第二轮）：WebSocket 403 — 新增 /ws/quick-test 端点 + Query 鉴权 + vite proxy rewrite
     - [x] BUG 7（第二轮）：已用时长 480 分偏移 — naive UTC datetime 追加 'Z' 后缀
     - [x] BUG 8（第二轮）：进度推送时序 — onOpen 调 refreshStatus 补齐
     - [x] BUG 9（第三轮）：0 用例任务状态 PENDING — 改为 COMPLETED（空完成）
     - [x] BUG 10（第三轮）：异步执行完成未推送终态 — _run_executor_safely finally 块推送 completed/failed 到 quick_test 通道
+    - [x] BUG 11（第四轮）：AI 生成非法 JSON — strip_js_string_methods 清理 "a".repeat(500) 等 JS 方法调用 + prompt 禁 JS 表达式约束
 
 # Task Dependencies
 - [Task 2] depends on [Task 1] — 探索实现依赖数据模型与配置
