@@ -174,6 +174,10 @@ class Settings(BaseSettings):
     URL_QUICK_TEST_CACHE_TTL: int = 86400
     # 危险路径黑名单，命中即跳过避免触发登出/删除等破坏性操作
     URL_QUICK_TEST_BLACKLIST: list = ["/logout", "/delete", "/reset"]
+    # 用例生成 AI 调用 max_tokens：DeepSeek v4-flash 等推理模型先消耗 reasoning_tokens
+    # 再产出 content，2048 不足以同时容纳推理与用例 JSON 输出（spec BUG 2 根因）。
+    # 与 AI_MAX_TOKENS 全局默认解耦，独立调整不影响其他 AI 路径。
+    URL_QUICK_TEST_AI_MAX_TOKENS: int = 4096
 
     CELERY_BROKER_URL: str = ""
     CELERY_RESULT_BACKEND: str = ""

@@ -126,9 +126,10 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
         complete 抛出的任何异常（超时/额度/格式/不可用）均吞掉返回 None，
         由 generate 主流程决定是否降级登录用例。
 
-        max_tokens 使用 settings.AI_MAX_TOKENS（默认 4096）而非硬编码 2048：
+        max_tokens 使用 settings.URL_QUICK_TEST_AI_MAX_TOKENS（默认 4096）：
         DeepSeek v4-flash 等推理模型会先消耗 reasoning_tokens 再产出 content，
-        2048 不足以同时容纳推理与用例 JSON 输出，导致 content 为空。
+        2048 不足以同时容纳推理与用例 JSON 输出，导致 content 为空（spec BUG 2 根因）。
+        与 AI_MAX_TOKENS 全局默认解耦，独立调整不影响其他 AI 路径。
         """
         client = self._get_ai_client()
         try:
@@ -136,7 +137,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
                 prompt,
                 system="你是 Web 自动化测试用例生成助手，严格基于真实元素生成可执行用例。",
                 temperature=0.3,
-                max_tokens=settings.AI_MAX_TOKENS,
+                max_tokens=settings.URL_QUICK_TEST_AI_MAX_TOKENS,
                 metadata={"step_name": "url_driven_case_generation"},
             )
             content = (response.content or "").strip()

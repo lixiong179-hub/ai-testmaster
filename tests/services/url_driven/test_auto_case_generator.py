@@ -81,7 +81,10 @@ class FakeAIClient:
         max_tokens: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> AIResponse:
-        self.calls.append({"prompt": prompt, "system": system, "metadata": metadata})
+        self.calls.append({
+            "prompt": prompt, "system": system, "metadata": metadata,
+            "max_tokens": max_tokens,
+        })
         if self._raise is not None:
             raise self._raise
         return AIResponse(content=self._content, model_version="fake-model", latency_ms=10)
@@ -391,6 +394,29 @@ class TestCallAi:
         gen._call_ai("prompt")
         assert fake.calls[0]["system"] is not None
         assert fake.calls[0]["metadata"]["step_name"] == "url_driven_case_generation"
+
+    def test_call_ai_uses_url_quick_test_max_tokens(self, monkeypatch):
+        """验证 _call_ai 使用 URL_QUICK_TEST_AI_MAX_TOKENS 而非 AI_MAX_TOKENS（BUG 2 修复）。
+
+        spec BUG 2 根因：原代码用 settings.AI_MAX_TOKENS（默认 2048），DeepSeek
+        v4-flash 推理模型 reasoning_tokens + content 不足 2048 导致空 content。
+        修复后改用专用配置 URL_QUICK_TEST_AI_MAX_TOKENS（默认 4096），与全局
+        AI_MAX_TOKENS 解耦。
+
+        回归守护：通过 monkeypatch 强制 AI_MAX_TOKENS=2048 模拟默认场景，
+        断言 _call_ai 仍传 URL_QUICK_TEST_AI_MAX_TOKENS 而非 AI_MAX_TOKENS。
+        不依赖 .env 全局配置的具体值，避免环境差异导致测试不稳定。
+        """
+        from app.core.config import settings
+        monkeypatch.setattr(settings, "AI_MAX_TOKENS", 2048)
+        monkeypatch.setattr(settings, "URL_QUICK_TEST_AI_MAX_TOKENS", 4096)
+        fake = FakeAIClient(content="ok")
+        gen = AutoCaseGenerator(ai_client=fake)
+        gen._call_ai("prompt")
+        # 核心断言：_call_ai 使用专用配置项，不回退到 AI_MAX_TOKENS
+        assert fake.calls[0]["max_tokens"] == settings.URL_QUICK_TEST_AI_MAX_TOKENS
+        assert fake.calls[0]["max_tokens"] == 4096
+        assert fake.calls[0]["max_tokens"] != settings.AI_MAX_TOKENS
 
 
 class TestGenerateSuccess:
