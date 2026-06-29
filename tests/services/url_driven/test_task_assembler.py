@@ -348,3 +348,102 @@ class TestDefaultExecutorFactory:
         from app.services.test_execution_engine_v2 import TestExecutionEngineV2
         assert isinstance(executor, TestExecutionEngineV2)
         assert executor.db is db
+
+
+class _FakePushService:
+    """PushService 替身，记录 push 调用便于断言，无 WebSocket 副作用。"""
+
+    def __init__(self) -> None:
+        self.calls: List[Dict[str, Any]] = []
+
+    async def push(self, channel: str, data: Dict[str, Any]) -> None:
+        self.calls.append({"channel": channel, "data": data})
+
+
+class _FailingPushService:
+    """PushService 替身，push 抛异常验证降级不阻断。"""
+
+    async def push(self, channel: str, data: Dict[str, Any]) -> None:
+        raise RuntimeError("push failed")
+
+
+def _make_task_with_status(db, testUser, status: int) -> TestTask:
+    """构造并持久化 TestTask，状态由参数指定，依赖 db 事务回滚自动清理。
+
+    字段对齐 TestTask model：executor_id NOT NULL（ForeignKey users.id），
+    不存在 user_id 列；create_skeleton_task 内部用 executor_id=testUser.id。
+    """
+    proj = make_project(db, testUser, name="final_status_proj")
+    task = TestTask(
+        task_name="终态推送测试任务",
+        project_id=proj.id,
+        executor_id=testUser.id,
+        case_ids=[],
+        status=status,
+        total_count=0,
+        passed_count=0,
+        failed_count=0,
+    )
+    db.add(task)
+    db.flush()
+    return task
+
+
+class TestPushFinalStatus:
+    """_push_final_status 终态推送：COMPLETED/FAILED/STOPPED 三分支（BUG 10 修复）。"""
+
+    @pytest.mark.asyncio
+    async def test_completed_pushes_completed_stage(self, db, testUser):
+        task = _make_task_with_status(db, testUser, TaskStatus.COMPLETED)
+        push = _FakePushService()
+        asm = TaskAssembler(push_service=push)
+        await asm._push_final_status(task.id, db)
+        assert len(push.calls) == 1
+        assert push.calls[0]["channel"] == f"quick_test:{task.id}"
+        assert push.calls[0]["data"] == {
+            "stage": "completed", "status": "done", "progress": 100,
+            "detail": {"task_id": task.id},
+        }
+
+    @pytest.mark.asyncio
+    async def test_failed_pushes_failed_stage(self, db, testUser):
+        task = _make_task_with_status(db, testUser, TaskStatus.FAILED)
+        push = _FakePushService()
+        asm = TaskAssembler(push_service=push)
+        await asm._push_final_status(task.id, db)
+        assert len(push.calls) == 1
+        assert push.calls[0]["data"]["stage"] == "failed"
+        assert push.calls[0]["data"]["status"] == "error"
+        assert push.calls[0]["data"]["detail"]["message"] == "执行失败"
+
+    @pytest.mark.asyncio
+    async def test_stopped_pushes_stopped_stage(self, db, testUser):
+        """STOPPED 终态推送 stage=stopped（BUG 10 预防性修复）。
+
+        未来接入取消 API 时，前端能收到 stopped 终态推送避免永久卡 running。
+        推送格式与 _derive_stage 返回的 "stopped" 对齐。
+        """
+        task = _make_task_with_status(db, testUser, TaskStatus.STOPPED)
+        push = _FakePushService()
+        asm = TaskAssembler(push_service=push)
+        await asm._push_final_status(task.id, db)
+        assert len(push.calls) == 1
+        assert push.calls[0]["channel"] == f"quick_test:{task.id}"
+        assert push.calls[0]["data"] == {
+            "stage": "stopped", "status": "done", "progress": 100,
+            "detail": {"message": "任务已停止", "task_id": task.id},
+        }
+
+    @pytest.mark.asyncio
+    async def test_task_not_found_skips_push(self, db, testUser):
+        push = _FakePushService()
+        asm = TaskAssembler(push_service=push)
+        await asm._push_final_status(99999, db)
+        assert push.calls == []
+
+    @pytest.mark.asyncio
+    async def test_push_exception_doesnt_raise(self, db, testUser):
+        """推送异常仅记录不阻断，不影响 session.close（_run_executor_safely finally）。"""
+        task = _make_task_with_status(db, testUser, TaskStatus.COMPLETED)
+        asm = TaskAssembler(push_service=_FailingPushService())
+        await asm._push_final_status(task.id, db)  # 不抛即通过
