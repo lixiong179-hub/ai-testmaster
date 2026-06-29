@@ -33,7 +33,8 @@ def _handle_locator_and_modify(
     try:
         lifecycle_transition(db, case_id=target_id, to_status="locator_broken", actor_id=actor_id)
     except IllegalStateTransition as e:
-        return _build_result(decision, success=False, error=str(e))
+        logger.warning("locator_and_modify 状态转换失败: {}", e)
+        return _build_result(decision, success=False, error="状态转换不合法")
     if decision.review_id is None:
         return _build_result(decision, success=True)
     try:
@@ -68,7 +69,8 @@ def _handle_locator_and_modify(
             disable_lifecycle_transition()
         new_case_id = new_case.id
     except Exception as e:
-        return _build_result(decision, success=False, error=f"创建新版本失败: {e}")
+        logger.error("locator_and_modify 创建新版本失败: {}", e, exc_info=True)
+        return _build_result(decision, success=False, error="创建新版本失败，详情见日志")
     return _build_result(decision, success=True, new_case_id=new_case_id)
 
 
@@ -95,7 +97,8 @@ def _handle_deprecate(
         )
         return _build_result(decision, success=True)
     except (IllegalStateTransition, MissingReviewError, MissingDeprecateReasonError) as e:
-        return _build_result(decision, success=False, error=str(e))
+        logger.warning("deprecate 业务校验失败: {}", e)
+        return _build_result(decision, success=False, error="业务校验失败，请检查 review_id 与 deprecate_reason")
 
 
 def _handle_add_new(
@@ -189,8 +192,8 @@ def _handle_add_new(
             logger.error("_handle_add_new Pipeline 失败: {}", error_msg)
             return _build_result(decision, success=False, error=error_msg)
     except Exception as e:
-        logger.error("_handle_add_new 失败: {}", e)
-        return _build_result(decision, success=False, error=f"add_new 处理异常: {str(e)}")
+        logger.error("_handle_add_new 失败: {}", e, exc_info=True)
+        return _build_result(decision, success=False, error="add_new 处理失败，详情见日志")
 
 
 def _handle_conflict(decision: ApplyDecision) -> ApplyResult:
