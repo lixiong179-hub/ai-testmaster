@@ -238,3 +238,106 @@ class TestBuildResult:
         d = ApplyDecision(target_kind="tc", target_id=1, merged_action="add_new")
         r = _build_result(d, success=True, new_case_id=42)
         assert r.new_case_id == 42
+
+
+class TestErrorSanitization:
+    """守护 error 字段不泄露异常原始 str(e)（项目规则第四章：日志脱敏）。
+
+    回归守护：5 处业务异常 + 2 处通用 Exception 均改为脱敏消息，
+    原始异常通过 logger 记录。若未来回退到 str(e) 将被以下断言拦截。
+    """
+
+    _SENSITIVE_MARKER = "IllegalStateTransition"
+
+    def _patch_to_raise(self, monkeypatch, exc):
+        """让 lifecycle_transition 与 _ensure_target_exists 协同触发指定异常。
+
+        _ensure_target_exists 返回 sentinel 对象（非 None）使校验通过，
+        lifecycle_transition 抛出 exc 触发业务异常分支。
+        """
+        from app.services.decision_application_service import _core as core_mod
+        from app.services.decision_application_service import _handlers as handlers_mod
+        from app.models.test_case import TestCase
+        sentinel = TestCase(
+            project_id=1, case_no="TC-SANIT-0001", module="m",
+            title="t", priority=1, case_type="manual",
+            generate_status="completed", lifecycle_status="active",
+        )
+        sentinel.id = 99999
+        monkeypatch.setattr(core_mod, "_ensure_target_exists", lambda db, tid: sentinel)
+        monkeypatch.setattr(handlers_mod, "_ensure_target_exists", lambda db, tid: sentinel)
+        def _raise(*args, **kwargs):
+            raise exc
+        monkeypatch.setattr(core_mod, "lifecycle_transition", _raise)
+        monkeypatch.setattr(handlers_mod, "lifecycle_transition", _raise)
+        return sentinel
+
+    def test_locator_broken_sanitizes_illegal_transition(self, db, monkeypatch):
+        from app.services.lifecycle_service import IllegalStateTransition
+        self._patch_to_raise(monkeypatch, IllegalStateTransition("active", "locator_broken"))
+        d = ApplyDecision(target_kind="test_case", target_id=99999, merged_action="locator_broken")
+        result = _handle_locator_broken(db, d, actor_id=1)
+        assert result.success is False
+        assert result.error == "状态转换不合法"
+        assert self._SENSITIVE_MARKER not in result.error
+
+    def test_needs_modify_sanitizes_business_exceptions(self, db, monkeypatch):
+        from app.services.lifecycle_service import IllegalStateTransition
+        self._patch_to_raise(monkeypatch, IllegalStateTransition("active", "needs_modify"))
+        d = ApplyDecision(
+            target_kind="test_case", target_id=99999,
+            merged_action="needs_modify", review_id=10,
+        )
+        result = apply_single(db, d)
+        assert result.success is False
+        assert result.error == "业务校验失败，请检查 review_id"
+        assert self._SENSITIVE_MARKER not in result.error
+
+    def test_deprecate_sanitizes_business_exceptions(self, db, monkeypatch):
+        from app.services.lifecycle_service import MissingDeprecateReasonError
+        self._patch_to_raise(monkeypatch, MissingDeprecateReasonError("deprecate"))
+        d = ApplyDecision(
+            target_kind="test_case", target_id=99999,
+            merged_action="deprecate", review_id=10, deprecate_reason="原因",
+        )
+        from app.services.decision_application_service._handlers import _handle_deprecate
+        result = _handle_deprecate(db, d, actor_id=1)
+        assert result.success is False
+        assert result.error == "业务校验失败，请检查 review_id 与 deprecate_reason"
+        assert "MissingDeprecateReasonError" not in result.error
+
+    def test_locator_and_modify_sanitizes_illegal_transition(self, db, monkeypatch):
+        from app.services.lifecycle_service import IllegalStateTransition
+        self._patch_to_raise(monkeypatch, IllegalStateTransition("active", "locator_broken"))
+        d = ApplyDecision(
+            target_kind="test_case", target_id=99999,
+            merged_action="locator_and_modify", review_id=10,
+        )
+        from app.services.decision_application_service._handlers import _handle_locator_and_modify
+        result = _handle_locator_and_modify(db, d, actor_id=1)
+        assert result.success is False
+        assert result.error == "状态转换不合法"
+        assert self._SENSITIVE_MARKER not in result.error
+
+    def test_add_new_generic_exception_sanitized(self, db, monkeypatch):
+        d = ApplyDecision(
+            target_kind="test_case", target_id=None,
+            merged_action="add_new",
+            case_data={"project_id": "not_a_number"},
+        )
+        from app.services.decision_application_service._handlers import _handle_add_new
+        result = _handle_add_new(db, d, actor_id=1)
+        assert result.success is False
+        assert result.error == "add_new 处理失败，详情见日志"
+        assert "int" not in result.error.lower()
+        assert "Traceback" not in result.error
+
+    def test_errors_never_contain_exception_str(self, db, monkeypatch):
+        from app.services.lifecycle_service import IllegalStateTransition
+        sentinel_marker = "SENTINEL_LEAK_MARKER_xyz"
+        exc = IllegalStateTransition("active", "locator_broken")
+        exc.args = (sentinel_marker,)
+        self._patch_to_raise(monkeypatch, exc)
+        d = ApplyDecision(target_kind="test_case", target_id=99999, merged_action="locator_broken")
+        result = _handle_locator_broken(db, d, actor_id=1)
+        assert sentinel_marker not in (result.error or "")

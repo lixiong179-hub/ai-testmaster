@@ -133,7 +133,8 @@ def _handle_needs_modify(
         )
         return _build_result(decision, success=True)
     except (IllegalStateTransition, MissingReviewError) as e:
-        return _build_result(decision, success=False, error=str(e))
+        logger.warning("needs_modify 业务校验失败: {}", e)
+        return _build_result(decision, success=False, error="业务校验失败，请检查 review_id")
 
 
 def _handle_locator_broken(
@@ -151,4 +152,5 @@ def _handle_locator_broken(
         lifecycle_transition(db, case_id=target_id, to_status="locator_broken", actor_id=actor_id)
         return _build_result(decision, success=True)
     except IllegalStateTransition as e:
-        return _build_result(decision, success=False, error=str(e))
+        logger.warning("locator_broken 状态转换失败: {}", e)
+        return _build_result(decision, success=False, error="状态转换不合法")
