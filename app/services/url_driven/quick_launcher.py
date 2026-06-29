@@ -1,20 +1,25 @@
 """网址驱动快速测试 - QuickLauncher 编排入口。
 
 编排顺序：AutoProjectBuilder.build → TaskAssembler.create_skeleton_task（预创建占位
-任务拿 task_id）→ SiteExplorer.explore → AutoCaseGenerator.generate →
-TaskAssembler.assemble，每步异常捕获并降级，全程通过 WebSocket 推送 4 阶段进度
-到 `quick_test:{task_id}` 通道。
+任务拿 task_id）→ 后台 asyncio.create_task 异步执行：SiteExplorer.explore →
+AutoCaseGenerator.generate → TaskAssembler.assemble，每步异常捕获并降级，全程
+通过 WebSocket 推送 4 阶段进度到 `quick_test:{task_id}` 通道。
 
 设计要点：
-- 预创建占位任务：建项成功后立即 create_skeleton_task 拿 task_id，使前 2 阶段
-  （站点探索/用例生成）的进度能实时推送到 `quick_test:{task_id}`，满足 spec
-  "4 阶段进度条实时刷新"体验；assemble 阶段以 task_id=已有 更新 case_ids 并启动；
+- launch 立即返回 task_id：同步部分仅建项+预创建任务（用 request session），
+  探索+生成+装配在后台 asyncio.create_task 异步执行（用独立 session），避免
+  同步执行 4 阶段阻塞 HTTP 连接（nginx/uvicorn 默认 60s 超时），且消除"前端
+  订阅前已发推送"的设计缺陷（spec BUG 8 onOpen refreshStatus 补丁的根因）；
+- 独立 session 隔离：后台任务用 PrimarySessionLocal 创建独立 session，避免
+  request-scoped session 在请求结束后被 get_db() 关闭导致后续 commit 静默
+  失败（与 BUG 1 同根因）；
 - 降级策略：建项失败抛出（无法继续）；探索失败降级空 SiteMap；生成失败降级空
   用例仍 assemble；assemble 失败仍返回已预创建 task_id 供查询；
 - 全程异常捕获不整体崩溃，单步失败记录并推送对应 stage 的 failed 状态；
 - 推送复用 PushService.push(channel, data)，通道不以 "task:" 开头，作为独立
   execution_id 广播，与执行引擎的 `task:{task_id}` 通道互不干扰。
 """
+import asyncio
 from typing import Callable, Dict, List, Optional
 
 from loguru import logger
@@ -36,16 +41,14 @@ _STAGE_SITE_EXPLORING = "site_exploring"
 _STAGE_CASE_GENERATING = "case_generating"
 _STAGE_TASK_ASSEMBLING = "task_assembling"
 _STAGE_COMPLETED = "completed"
-# 预估执行时长：每用例 30 秒（spec: estimated_duration_sec 按 case_count * 30）
-_DURATION_PER_CASE_SEC = 30
 
 
 class QuickLauncher:
     """一键快速测试编排入口。
 
     依赖注入：project_builder / explorer_factory / case_generator_factory /
-    assembler / push_service / ai_client 均可注入，便于测试隔离外部依赖
-    （浏览器/AI/WebSocket）。
+    assembler / push_service / ai_client / pipeline_session_factory 均可注入，
+    便于测试隔离外部依赖（浏览器/AI/WebSocket/DB session）。
     """
 
     def __init__(
@@ -56,6 +59,7 @@ class QuickLauncher:
         assembler: Optional[TaskAssembler] = None,
         push_service: Optional[PushService] = None,
         ai_client: Optional[AIClient] = None,
+        pipeline_session_factory: Optional[Callable[[], Session]] = None,
     ) -> None:
         """注入编排链路组件，None 时用默认实现。
 
@@ -68,6 +72,10 @@ class QuickLauncher:
             push_service: WebSocket 推送服务。
             ai_client: AI 客户端，透传给 case_generator_factory，None 时由
                 AutoCaseGenerator 内部懒加载默认主备切换客户端。
+            pipeline_session_factory: 后台编排 session 工厂，None 时 lazy
+                import PrimarySessionLocal 创建独立 session（生产场景）；
+                测试场景注入 db fixture session 工厂，使 _run_pipeline_async
+                写入的数据落在 db fixture 事务隔离内，保证测试结束自动回滚。
         """
         self._project_builder = project_builder or AutoProjectBuilder()
         self._explorer_factory = explorer_factory or (lambda: SiteExplorer())
@@ -77,6 +85,7 @@ class QuickLauncher:
         self._push_service = push_service or get_push_service()
         self._assembler = assembler or TaskAssembler(push_service=self._push_service)
         self._ai_client = ai_client
+        self._pipeline_session_factory = pipeline_session_factory
 
     def _default_case_generator_factory(self) -> AutoCaseGenerator:
         """默认用例生成器工厂，透传 ai_client 支持测试注入。"""
@@ -90,18 +99,23 @@ class QuickLauncher:
         user_id: int,
         session: Session,
     ) -> QuickTestLaunchResponse:
-        """一键启动快速测试：建项 → 预创建任务 → 探索 → 生成 → 装配。
+        """一键启动快速测试：建项 → 预创建任务 → 后台异步执行探索+生成+装配。
+
+        launch 立即返回 task_id，编排在后台 asyncio.create_task 异步执行，
+        避免同步执行 4 阶段阻塞 HTTP 连接（nginx/uvicorn 默认 60s 超时）。
+        前端拿到 task_id 后立即订阅 WebSocket 接收 4 阶段进度推送。
 
         Args:
             url: 被测站点 URL。
             description: 可选自然语言描述，聚焦测试范围。
             credentials: 可选登录凭据 {username, password}。
             user_id: 触发用户 ID（项目所有者与任务执行人）。
-            session: SQLAlchemy 会话，由调用方管理事务。
+            session: SQLAlchemy 会话（request-scoped，仅用于建项与预创建任务）。
 
         Returns:
             QuickTestLaunchResponse: task_id / project_id /
-            estimated_duration_sec / websocket_channel。
+            estimated_duration_sec / websocket_channel。estimated_duration_sec
+            为 0（case_count 未知，前端按 WebSocket 推送的 case_count 动态更新）。
 
         Raises:
             Exception: 建项失败时抛出（无法继续编排）。
@@ -111,36 +125,85 @@ class QuickLauncher:
         # ② 预创建占位任务，拿 task_id 用于 WebSocket 通道（建项成功后必做）
         task = self._assembler.create_skeleton_task(project.id, user_id, session)
         channel = _CHANNEL_TEMPLATE.format(task_id=task.id)
-
-        # ③ 站点探索（失败降级为空 SiteMap）
+        # ③ 推送 site_exploring running 后立即启动后台编排
         await self._push(channel, _STAGE_SITE_EXPLORING, "running", 10, {"url": url})
-        site_map = await self._explore_safely(url, credentials, channel)
-
-        # ④ 用例生成（失败降级为空用例）
-        await self._push(channel, _STAGE_CASE_GENERATING, "running", 40, {})
-        cases = await self._generate_cases_safely(
-            site_map, project.id, description, user_id, session, channel
+        asyncio.create_task(self._run_pipeline_async(
+            task_id=task.id, project_id=project.id, url=url,
+            credentials=credentials, description=description,
+            user_id=user_id, channel=channel,
+        ))
+        logger.info(
+            f"快速测试编排已异步启动: task_id={task.id} project_id={project.id}"
         )
-        case_ids = [case.id for case in cases]
-
-        # ⑤ 任务装配（失败仍返回已预创建 task_id）
-        await self._push(
-            channel, _STAGE_TASK_ASSEMBLING, "running", 70, {"case_count": len(case_ids)}
-        )
-        await self._assemble_safely(project.id, case_ids, user_id, session, task, channel)
-
-        # ⑥ 完成
-        estimated = len(case_ids) * _DURATION_PER_CASE_SEC
-        await self._push(
-            channel, _STAGE_COMPLETED, "done", 100,
-            {"task_id": task.id, "project_id": project.id, "case_count": len(case_ids)},
-        )
+        # ④ 立即返回，前端拿到 task_id 后立即订阅 WebSocket 接收推送
         return QuickTestLaunchResponse(
             task_id=task.id,
             project_id=project.id,
-            estimated_duration_sec=estimated,
+            estimated_duration_sec=0,
             websocket_channel=channel,
         )
+
+    async def _run_pipeline_async(
+        self,
+        task_id: int,
+        project_id: int,
+        url: str,
+        credentials: Optional[Dict[str, str]],
+        description: Optional[str],
+        user_id: int,
+        channel: str,
+    ) -> None:
+        """后台执行编排：探索 → 生成 → 装配，使用独立 session。
+
+        每阶段推送进度到 quick_test:{task_id} 通道，异常兜底推送 failed 状态。
+        编排完成后由 TaskAssembler._start_task 内的 _run_executor_safely 接力
+        推送执行引擎进度与终态。使用独立 session（PrimarySessionLocal 或
+        pipeline_session_factory 注入），避免 request-scoped session 在请求
+        结束后被关闭导致后续 commit 静默失败（与 BUG 1 同根因）。
+        """
+        session = self._create_pipeline_session()
+        try:
+            # ① 站点探索（失败降级为空 SiteMap）
+            site_map = await self._explore_safely(url, credentials, channel)
+            # ② 用例生成（失败降级为空用例）
+            await self._push(channel, _STAGE_CASE_GENERATING, "running", 40, {})
+            cases = await self._generate_cases_safely(
+                site_map, project_id, description, user_id, session, channel
+            )
+            case_ids = [case.id for case in cases]
+            # ③ 任务装配（失败仍返回已预创建 task_id）
+            await self._push(
+                channel, _STAGE_TASK_ASSEMBLING, "running", 70, {"case_count": len(case_ids)}
+            )
+            await self._assemble_safely(
+                project_id, case_ids, user_id, session, task_id, channel
+            )
+            # ④ 编排完成（执行引擎进度由 _run_executor_safely 推送）
+            await self._push(
+                channel, _STAGE_COMPLETED, "done", 100,
+                {"task_id": task_id, "project_id": project_id, "case_count": len(case_ids)},
+            )
+        except Exception as exc:
+            logger.error(f"编排异常: task_id={task_id} err={exc}")
+            await self._push(
+                channel, _STAGE_COMPLETED, "failed", 100,
+                {"error": str(exc), "task_id": task_id, "degraded": True},
+            )
+        finally:
+            session.close()
+
+    def _create_pipeline_session(self) -> Session:
+        """创建后台编排专用 session。
+
+        生产场景：lazy import PrimarySessionLocal 创建独立会话；
+        测试场景：通过构造参数 pipeline_session_factory 注入测试 session，
+        使 _run_pipeline_async 写入的数据落在 db fixture 事务隔离内，
+        保证测试结束自动回滚清理。
+        """
+        if self._pipeline_session_factory is not None:
+            return self._pipeline_session_factory()
+        from app.db.database import PrimarySessionLocal
+        return PrimarySessionLocal()
 
     async def _explore_safely(
         self, url: str, credentials: Optional[Dict[str, str]], channel: str
@@ -187,29 +250,27 @@ class QuickLauncher:
 
     async def _assemble_safely(
         self, project_id: int, case_ids: List[int], user_id: int,
-        session: Session, task, channel: str,
+        session: Session, task_id: int, channel: str,
     ) -> None:
         """任务装配，异常不阻断（仍返回已预创建 task_id）。
 
-        assemble 成功时同步更新外层 task 对象的 case_ids/total_count，
-        保证 launch 返回的 estimated_duration_sec 基于真实用例数。
+        异步化后 launch 已立即返回，不再需要更新外层 task 对象；assemble
+        内部已更新 DB 中的 task.case_ids/total_count 并启动执行引擎。
         """
         try:
-            updated = await self._assembler.assemble(
-                project_id, case_ids, user_id, session, task_id=task.id
+            await self._assembler.assemble(
+                project_id, case_ids, user_id, session, task_id=task_id
             )
-            task.case_ids = updated.case_ids
-            task.total_count = updated.total_count
             await self._push(
-                channel, _STAGE_TASK_ASSEMBLING, "done", 90, {"task_id": task.id}
+                channel, _STAGE_TASK_ASSEMBLING, "done", 90, {"task_id": task_id}
             )
         except Exception as exc:
             logger.error(
-                f"任务装配失败，仍返回已预创建 task_id: task_id={task.id} err={exc}"
+                f"任务装配失败，仍返回已预创建 task_id: task_id={task_id} err={exc}"
             )
             await self._push(
                 channel, _STAGE_TASK_ASSEMBLING, "failed", 90,
-                {"error": str(exc), "task_id": task.id},
+                {"error": str(exc), "task_id": task_id},
             )
 
     async def _push(
