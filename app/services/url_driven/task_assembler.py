@@ -318,9 +318,12 @@ class TaskAssembler:
     async def _push_final_status(self, task_id: int, session: Session) -> None:
         """执行完成后推送终态到 quick_test:{task_id} 通道。
 
-        查询任务最终状态，按 COMPLETED/FAILED 分别推送 completed/failed 阶段，
-        与前端 applyPushMessage 的终态分支对齐（stage=completed+done→completed，
-        stage=failed→failed）。推送失败仅记录不阻断，不影响 session.close。
+        查询任务最终状态，按 COMPLETED/FAILED/STOPPED 分别推送对应阶段，
+        与前端 applyPushMessage 的终态分支及 _derive_stage 返回值对齐
+        （stage=completed+done→completed，stage=failed→failed，
+        stage=stopped→stopped）。STOPPED 是用户取消的终态，未来接入取消
+        API 时前端能收到终态推送避免永久卡 running（spec BUG 10 预防性修复）。
+        推送失败仅记录不阻断，不影响 session.close。
         """
         try:
             task = session.query(TestTask).filter(TestTask.id == task_id).first()
@@ -336,6 +339,11 @@ class TaskAssembler:
                 await self._push_service.push(channel, {
                     "stage": "failed", "status": "error", "progress": 100,
                     "detail": {"message": "执行失败", "task_id": task_id},
+                })
+            elif task.status == TaskStatus.STOPPED:
+                await self._push_service.push(channel, {
+                    "stage": "stopped", "status": "done", "progress": 100,
+                    "detail": {"message": "任务已停止", "task_id": task_id},
                 })
         except Exception as exc:
             logger.warning(f"终态推送失败: task_id={task_id} err={exc}")
