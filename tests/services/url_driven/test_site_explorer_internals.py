@@ -17,6 +17,7 @@ from tests.services.url_driven.conftest import (
     FakeController,
     FakePage,
     PageData,
+    build_page_snapshot,
     cache_key_for,
 )
 
@@ -38,7 +39,7 @@ class TestCaptureGuards:
 
 
 class TestCacheErrorPaths:
-    """缓存读写异常降级（241-242,256-257）。"""
+    """缓存读写异常降级（241-242,256-257）+ 空 SiteMap 不写缓存（BUG 3 源头修复）。"""
 
     async def test_get_cached_sitemap_swallows_json_error(
         self, explorer, fake_redis, monkeypatch
@@ -57,11 +58,24 @@ class TestCacheErrorPaths:
                 raise RuntimeError("set fail")
 
         monkeypatch.setattr(explorer, "_get_redis_client", lambda: _RaisingRedis())
+        # 用非空 pages 才会进入 set 调用路径；空 pages 直接跳过无法覆盖异常分支
+        page = build_page_snapshot("https://example.com", navigation=[])
         site_map = SiteMap(
-            entry_url=ENTRY, pages=[], max_depth_reached=0,
-            explored_count=0, skipped_count=0, cache_key="k",
+            entry_url=ENTRY, pages=[page], max_depth_reached=0,
+            explored_count=1, skipped_count=0, cache_key="k",
         )
         explorer._set_cached_sitemap("k", site_map)  # 不抛即通过
+
+    def test_set_cached_sitemap_skips_empty_pages(self, explorer, fake_redis, monkeypatch) -> None:
+        """空 SiteMap 不写缓存，避免前次失败污染后续 launch（BUG 3 源头修复）。"""
+        monkeypatch.setattr(explorer, "_get_redis_client", lambda: fake_redis)
+        empty_site_map = SiteMap(
+            entry_url=ENTRY, pages=[], max_depth_reached=0,
+            explored_count=0, skipped_count=1, cache_key="k",
+        )
+        explorer._set_cached_sitemap("k", empty_site_map)
+        assert fake_redis.set_calls == []
+        assert "k" not in fake_redis.store
 
 
 class TestGetRedisClientLifecycle:

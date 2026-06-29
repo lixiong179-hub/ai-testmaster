@@ -243,7 +243,15 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
         return None
 
     def _set_cached_sitemap(self, cache_key: str, site_map: SiteMap) -> None:
-        """写入 SiteMap 到 Redis 缓存，TTL 为 URL_QUICK_TEST_CACHE_TTL。"""
+        """写入 SiteMap 到 Redis 缓存，TTL 为 URL_QUICK_TEST_CACHE_TTL。
+
+        空 SiteMap（pages 为空）跳过缓存写入：前次失败产生的空探索结果若
+        写入缓存，会导致后续 launch 命中空缓存直接返回，0 用例生成（spec BUG 3
+        源头修复）。仅缓存有页面快照的探索结果。
+        """
+        if not site_map.pages:
+            logger.info(f"SiteMap 无页面快照，跳过缓存写入避免污染: {cache_key}")
+            return
         client = self._get_redis_client()
         if client is None:
             return

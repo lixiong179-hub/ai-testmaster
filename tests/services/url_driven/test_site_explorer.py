@@ -285,3 +285,21 @@ class TestExploreEntryUnreachable:
         assert site_map.skipped_count == 1
         assert site_map.pages == []
         assert site_map.entry_url == ENTRY
+
+    async def test_entry_unreachable_does_not_pollute_cache(
+        self, explorer, patch_browser, fake_redis, monkeypatch
+    ) -> None:
+        """首页不可达产生的空 SiteMap 不写缓存（BUG 3 源头修复端到端验证）。
+
+        场景：前次失败产生的空 SiteMap 不应被写入缓存，否则后续 launch 会命中
+        空缓存直接返回，导致 0 用例生成。验证：explore 完成后 Redis 不含该 URL
+        的缓存键。
+        """
+        _use_redis(explorer, fake_redis, monkeypatch)
+        page = FakePage({}, goto_errors={ENTRY})
+        patch_browser["page"] = page
+
+        await explorer.explore(ENTRY)
+
+        assert fake_redis.set_calls == []
+        assert cache_key_for(ENTRY) not in fake_redis.store
