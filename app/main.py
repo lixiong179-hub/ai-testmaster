@@ -1,6 +1,17 @@
+import asyncio
 import os
 import secrets
+import sys
 from typing import AsyncGenerator
+
+# Windows 平台必须使用 ProactorEventLoop 才能启动 Playwright 子进程
+# （asyncio.create_subprocess_exec 在 SelectorEventLoop 下抛 NotImplementedError）。
+# uvicorn 默认在 Windows 上设置 WindowsSelectorEventLoopPolicy，会导致
+# BrowserControllerV2.initialize 调用 playwright.async_api 时崩溃。
+# 此处提前覆盖策略，必须在 fastapi/uvicorn 任何其他导入之前执行。
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +35,8 @@ from app.api.v1.endpoints import ai_invocation
 from app.api.v1.endpoints import prompt_template
 from app.api.v1.endpoints import quality_rule
 from app.api.v1.endpoints import bug as bug_endpoint
+from app.api.v1.endpoints import ui_screens_batch
+from app.api.v1.endpoints import quick_test
 from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
@@ -137,6 +150,7 @@ app.include_router(execution.router, prefix="/api/v1")
 app.include_router(visibility.router, prefix="/api/v1")
 app.include_router(report.router, prefix="/api/v1")
 app.include_router(ui_prototype.router, prefix="/api/v1")
+app.include_router(ui_screens_batch.router, prefix="/api/v1")
 app.include_router(iteration.router, prefix="/api/v1")
 app.include_router(pipeline.router, prefix="/api/v1")
 app.include_router(review_inbox.router, prefix="/api/v1")
@@ -151,6 +165,7 @@ app.include_router(feature_flag.router, prefix="/api/v1/feature-flags")
 app.include_router(ai_invocation.router, prefix="/api/v1/ai-invocation")
 app.include_router(prompt_template.router, prefix="/api/v1/prompt-templates")
 app.include_router(bug_endpoint.router, prefix="/api/v1/bugs", tags=["Bug缺陷管理"])
+app.include_router(quick_test.router, prefix="/api/v1/quick-test", tags=["快速测试"])
 
 
 # 根路径

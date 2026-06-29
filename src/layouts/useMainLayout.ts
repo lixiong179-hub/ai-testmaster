@@ -9,6 +9,7 @@ import {
   Check,
   Timer,
   DataLine,
+  Lightning,
 } from '@element-plus/icons-vue'
 import { useFlowSortStore } from '@/store/flowSort'
 import { hasPermission } from '@/directives/permission'
@@ -22,6 +23,8 @@ export interface MenuItem {
 }
 
 const MENU_CONFIG: MenuItem[] = [
+  // 快速测试：网址驱动一键编排，置顶以便用户最快触达
+  { index: '/home/quick-test', label: '快速测试', icon: Lightning },
   { index: '/home/project', label: '项目中心', icon: HomeFilled },
   { index: '/home/requirement', label: '资源中心', icon: Message },
   {
@@ -119,6 +122,7 @@ export function useMainLayout() {
 
   const breadcrumbMap: Record<string, string> = {
     '/home/dashboard': '仪表盘',
+    '/home/quick-test': '快速测试',
     '/home/project': '项目中心',
     '/home/project/detail': '项目详情',
     '/home/requirement': '资源中心',

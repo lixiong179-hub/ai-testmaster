@@ -196,3 +196,12 @@ export type {
   AIInvocationListItem,
   AIInvocationListResponse,
 } from './aiInvocation'
+
+// 快速测试 API
+export { default as quickTestApi, QuickTestApi } from './quickTest'
+export type {
+  QuickTestLaunchRequest,
+  QuickTestLaunchResponse,
+  QuickTestStatusResponse,
+  QuickTestStage,
+} from './quickTest'

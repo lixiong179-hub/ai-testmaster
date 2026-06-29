@@ -53,6 +53,7 @@
           </el-breadcrumb>
         </div>
         <div class="nav-right">
+          <QuickTestGlobalEntry class="nav-quick-entry" />
           <el-dropdown>
             <span class="user-info">
               <el-avatar :size="32" :src="userAvatar"></el-avatar>
@@ -83,6 +84,7 @@
 <script setup lang="ts">
 import { Menu, ArrowDown, ArrowUp, User, SwitchButton } from '@element-plus/icons-vue'
 import { useMainLayout } from './useMainLayout'
+import QuickTestGlobalEntry from '@/components/QuickTestGlobalEntry.vue'
 
 const {
   isMobile,
@@ -235,6 +237,10 @@ const {
 .nav-right {
   display: flex;
   align-items: center;
+}
+
+.nav-quick-entry {
+  margin-right: 16px;
 }
 
 .user-info {

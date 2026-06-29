@@ -15,7 +15,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: 'http://127.0.0.1:8004',
         changeOrigin: true,
         secure: false,
         timeout: 300000,
@@ -39,6 +39,14 @@ export default defineConfig({
             }
           })
         },
+      },
+      '/ws': {
+        target: 'ws://127.0.0.1:8004',
+        ws: true,
+        changeOrigin: true,
+        // 后端 websocket router 注册在 /api/v1 前缀下，实际路径 /api/v1/ws/...
+        // 前端 connectWebSocket 拼接 /ws{path}，需 rewrite 补全 /api/v1 前缀
+        rewrite: (path) => path.replace(/^\/ws/, '/api/v1/ws'),
       },
     },
   },
