@@ -164,7 +164,7 @@ class TestUtilsFunctions:
 
 class TestServiceBackwardCompatibility:
     def test_case_generation_service_import(self):
-        from app.services.case_generation import TestCaseGenerationService
+        from app.services.test_case_generation import TestCaseGenerationService
         assert TestCaseGenerationService is not None
 
     def test_precondition_service_import(self):
