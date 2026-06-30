@@ -80,6 +80,7 @@ class TestPointCreate(TestPointBase):
     对应API：POST /api/v1/test-points/
     与Model映射：project_id对应TestPoint.project_id外键
     """
+    __test__ = False
     project_id: int = Field(..., description="项目ID")  # 必填，测试点所属项目，实现多项目隔离
     capability_id: Optional[int] = Field(None, description="关联业务能力ID")  # 可选，关联业务能力
 
@@ -189,6 +190,7 @@ class TestPointUpdate(BaseModel):
     验证规则：所有字段可选，仅更新传入的字段
     对应API：PUT /api/v1/test-points/{point_id}
     """
+    __test__ = False
     module: Optional[str] = Field(None, min_length=1, max_length=100, description="模块名称")  # 可选
     point: Optional[str] = Field(None, min_length=1, max_length=500, description="测试点描述")  # 可选
     priority: Optional[int] = Field(None, ge=1, le=3, description="优先级：1高/2中/3低")  # 可选

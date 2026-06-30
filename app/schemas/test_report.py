@@ -36,6 +36,7 @@ class TestReportBase(BaseModel):
     验证规则：名称必填，项目ID必填
     与Model映射：对应 TestReport Model 的 name/description/project_id/test_task_id 字段
     """
+    __test__ = False
     name: str = Field(..., description="报告名称")  # 必填，如"登录模块测试报告_v1.0"
     description: Optional[str] = Field(None, description="报告描述")  # 可选，报告内容概述
     project_id: int = Field(..., description="项目ID")  # 必填，报告所属项目
@@ -50,7 +51,7 @@ class TestReportCreate(TestReportBase):
     验证规则：直接继承TestReportBase
     对应API：POST /api/v1/reports/
     """
-    pass
+    __test__ = False
 
 
 class TestReportUpdate(BaseModel):
@@ -61,6 +62,7 @@ class TestReportUpdate(BaseModel):
     验证规则：所有字段可选
     对应API：PUT/PATCH /api/v1/reports/{report_id}
     """
+    __test__ = False
     name: Optional[str] = Field(None, description="报告名称")  # 可选，更新报告名称
     description: Optional[str] = Field(None, description="报告描述")  # 可选，更新报告描述
     status: Optional[str] = Field(None, description="报告状态")  # 可选，如pending/running/completed/failed
@@ -75,6 +77,7 @@ class TestCaseResult(BaseModel):
     嵌套关系：被TestReportDetail引用，作为用例结果列表的单项
     与Model映射：部分字段映射 TestResult Model
     """
+    __test__ = False
     case_id: int  # 用例ID
     case_name: str  # 用例名称/标题
     status: str  # 执行状态：passed/failed/blocked
@@ -91,6 +94,7 @@ class TestReportDetail(BaseModel):
     嵌套关系：被报告详情API使用，包含TestCaseResult列表
     与Model映射：对应 TestReport.content JSON字段的结构化表示
     """
+    __test__ = False
     test_cases: List[TestCaseResult]  # 所有用例的执行结果列表
     statistics: Dict[str, Any]  # 统计数据，如通过率、失败率、按模块统计等
     environment: Optional[Dict[str, Any]] = None  # 可选，测试环境信息，如浏览器版本/操作系统等
@@ -104,6 +108,7 @@ class TestReportResponse(TestReportBase):
     对应API：GET /api/v1/reports/{report_id}
     与Model映射：映射 TestReport Model 的所有业务字段
     """
+    __test__ = False
     id: int  # 报告主键ID
     status: str  # 报告状态：pending/running/completed/failed
     total_cases: int  # 总用例数
@@ -131,6 +136,7 @@ class TestReportList(BaseModel):
     业务用途：返回报告列表查询结果
     对应API：GET /api/v1/reports/ 的响应
     """
+    __test__ = False
     reports: List[TestReportResponse]  # 报告列表
     total: int  # 报告总数
 

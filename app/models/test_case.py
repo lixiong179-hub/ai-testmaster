@@ -58,6 +58,7 @@ class TestCase(Base):
         - 执行测试任务时选取用例
         - 用例与UI原型关联，辅助UI自动化测试
     """
+    __test__ = False
     __tablename__ = "test_cases"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                          # 用例主键ID
@@ -77,6 +78,10 @@ class TestCase(Base):
     # 用例分类标签（支持多标签）
     # 取值：ui_automation=UI自动化测试, manual=手工测试, api_automation=接口自动化测试
     test_category = Column(String(100), nullable=True, comment="用例分类标签，多个用逗号分隔")            # 多标签，逗号分隔
+
+    # 用例场景分类（单值）：positive/boundary/exception/security/performance
+    # 由 AI 生成时标注，domain_examples 按此字段分类提取 Few-shot 示例
+    case_category = Column(String(20), nullable=True, comment="用例场景分类：positive/boundary/exception/security/performance")
 
     exec_script = Column(Text, nullable=True, comment="执行脚本占位，供后续测试模型调用")                # 预留字段，存储自动化执行脚本
     create_time = Column(DateTime, default=utcnow, nullable=False, comment="创建时间")                  # 创建时间，UTC时区
@@ -98,6 +103,7 @@ class TestCase(Base):
     lifecycle_status = Column(String(30), nullable=False, default="draft", comment="生命周期状态：draft/active/pending_review/needs_modify/locator_broken/deprecated/archived")  # 生命周期状态，变更必经 LifecycleService
     prior_quality_score = Column(Float, nullable=True, comment="先验质量分（0-100），生成时由 QualityGate 计算")
     posterior_quality_score = Column(Float, nullable=True, comment="后验质量分（0-100），评审+执行后回填")
+    quality_grade = Column(String(2), nullable=True, comment="A/B/C/D 质量等级，由 grade_status 映射：A=passed/B=warning/C=pending_review/D=rejected")
     deprecated_at = Column(DateTime, nullable=True, comment="进入deprecated状态的时间戳，用于冷却期计算")  # 由 LifecycleService.transition() 在进入 deprecated 时设置
     summary = Column(Text, nullable=True, comment="AI生成的用例摘要")  # AI摘要，用于去重和检索
     summary_version = Column(Integer, nullable=False, default=0, comment="摘要版本号，0=未生成")  # 摘要版本，AI重算时递增
@@ -114,8 +120,22 @@ class TestCase(Base):
     setup_api_calls = Column(Text, nullable=True, comment="API前置准备JSON，B端用例通过API直接创建数据状态，避免依赖UI快照")
     last_review_id = Column(Integer, ForeignKey("code_reviews.id", ondelete="SET NULL"), nullable=True, comment="最近一次评审ID")  # 关联评审记录
 
+    # 执行验证结果字段（Task 10）
+    execution_verified = Column(Boolean, nullable=True, comment="是否通过Playwright执行验证")
+    element_verified_ratio = Column(Float, nullable=True, comment="元素定位成功率（0.0-1.0）")
+    execution_failure_type = Column(String(50), nullable=True, comment="执行失败类型：element_not_found/timeout/assertion_failed/network_error/other")
+    last_verified_at = Column(DateTime, nullable=True, comment="最后执行验证时间")
+
+    # 元素锚定来源（url-driven-quick-test Task 6）：标识用例步骤元素锚定的依据
+    # dom_snapshot=基于站点探索真实 DOM 快照生成（禁编造），manual=人工填写，None=未锚定
+    grounding_source = Column(String(32), nullable=True, index=True, comment="元素锚定来源: dom_snapshot/manual")
+
     __table_args__ = (
         Index("ix_test_cases_project_lifecycle", "project_id", "lifecycle_status"),
+        # R3 修复：(project_id, title) 复合索引，配合 _case_title_exists 的
+        # with_for_update() 利用 InnoDB gap lock 消除标题并发竞态。非唯一索引，
+        # 不阻塞历史重复数据，仅防止新增重复。
+        Index("ix_test_cases_project_title", "project_id", "title"),
     )
 
     # 关联关系 - 通过project_id隔离
@@ -279,6 +299,7 @@ class TestStep(Base):
         - UI自动化录制时记录元素定位
         - 数据驱动测试时绑定测试数据
     """
+    __test__ = False
     __tablename__ = "test_steps"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                           # 步骤主键ID
@@ -322,6 +343,7 @@ class TestCasePreconditionStep(Base):
         - UI自动化执行前自动完成前置条件
         - 技术视图中编辑前置条件的技术细节
     """
+    __test__ = False
     __tablename__ = "test_case_precondition_steps"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                           # 前置步骤主键ID

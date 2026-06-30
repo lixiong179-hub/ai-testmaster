@@ -41,6 +41,7 @@ class TestResult(Base):
         - AI分析失败原因并给出改进建议
         - 按项目/用例/状态筛选执行结果
     """
+    __test__ = False
     __tablename__ = "test_results"
     
     id = Column(Integer, primary_key=True, autoincrement=True)                                        # 结果主键ID

@@ -36,6 +36,7 @@ class TestCaseVersion(Base):
         - 用例回滚到历史版本
         - AI纠正操作的版本记录
     """
+    __test__ = False
     __tablename__ = "test_case_versions"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 版本主键ID

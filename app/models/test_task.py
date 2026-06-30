@@ -77,6 +77,7 @@ class TestTask(Base):
         - 查看任务执行进度和结果统计
         - 任务执行过程中支持停止操作
     """
+    __test__ = False
     __tablename__ = "test_tasks"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)                            # 任务主键ID

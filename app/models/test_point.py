@@ -38,6 +38,7 @@ class TestPoint(Base):
         - 基于测试点批量生成测试用例
         - 按模块组织测试关注点
     """
+    __test__ = False
     __tablename__ = "test_points"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                           # 测试点主键ID

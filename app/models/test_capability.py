@@ -38,6 +38,7 @@ class TestCapability(Base):
         - 多对一 → Project（所属项目，级联删除）
         - 一对多 → TestPoint（关联测试点，SET NULL）
     """
+    __test__ = False
     __tablename__ = "test_capabilities"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)

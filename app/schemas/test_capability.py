@@ -10,6 +10,7 @@ from app.models.enums import CAPABILITY_STATUS_PATTERN
 
 class TestCapabilityBase(BaseModel):
     """能力基础字段"""
+    __test__ = False
     key: str = Field(..., min_length=1, max_length=100, description="能力唯一标识，同项目内唯一")
     title: str = Field(..., min_length=1, max_length=255, description="能力显示名称")
     description: Optional[str] = Field(None, description="能力描述")
@@ -18,11 +19,13 @@ class TestCapabilityBase(BaseModel):
 
 class TestCapabilityCreate(TestCapabilityBase):
     """创建能力请求"""
+    __test__ = False
     project_id: int = Field(..., description="项目ID")
 
 
 class TestCapabilityUpdate(BaseModel):
     """更新能力请求"""
+    __test__ = False
     key: Optional[str] = Field(None, min_length=1, max_length=100, description="能力唯一标识")
     title: Optional[str] = Field(None, min_length=1, max_length=255, description="能力显示名称")
     description: Optional[str] = Field(None, description="能力描述")
@@ -31,6 +34,7 @@ class TestCapabilityUpdate(BaseModel):
 
 class TestCapabilityResponse(TestCapabilityBase):
     """能力响应"""
+    __test__ = False
     id: int
     project_id: int
     created_at: datetime
