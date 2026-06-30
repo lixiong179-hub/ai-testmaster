@@ -245,8 +245,21 @@ class TestBuildStatusResponse:
 
 
 class TestPerUserRateLimiter:
+    """内存模式限流测试（强制 _use_redis=False 隔离 Redis 环境）。
+
+    Redis 模式测试见 TestPerUserRateLimiterRedis。
+    """
+
+    @staticmethod
+    def _make_memory_limiter(max_requests: int, time_window: int) -> "_PerUserRateLimiter":
+        """创建强制走内存模式的 limiter，避免测试环境 Redis 干扰。"""
+        limiter = _PerUserRateLimiter(max_requests, time_window)
+        limiter._use_redis = False
+        limiter._redis_client = None
+        return limiter
+
     def test_acquire_over_limit_raises_429(self):
-        limiter = _PerUserRateLimiter(max_requests=3, time_window=60)
+        limiter = self._make_memory_limiter(max_requests=3, time_window=60)
         for _ in range(3):
             limiter.acquire(100)
         with pytest.raises(HTTPException) as exc:
@@ -254,14 +267,14 @@ class TestPerUserRateLimiter:
         assert exc.value.status_code == 429
 
     def test_acquire_isolated_per_user(self):
-        limiter = _PerUserRateLimiter(max_requests=1, time_window=60)
+        limiter = self._make_memory_limiter(max_requests=1, time_window=60)
         limiter.acquire(1)
         # 不同用户独立计数，不互相影响
         limiter.acquire(2)
 
     def test_cleanup_removes_expired(self):
         import time as _time
-        limiter = _PerUserRateLimiter(max_requests=2, time_window=1)
+        limiter = self._make_memory_limiter(max_requests=2, time_window=1)
         limiter.acquire(200)
         # 将唯一记录改为过期，触发清理后应放行
         limiter._requests[200][0] = _time.time() - 5
@@ -269,9 +282,87 @@ class TestPerUserRateLimiter:
         assert len(limiter._requests[200]) == 1
 
     def test_reset_clears_state(self):
-        limiter = _PerUserRateLimiter(max_requests=1, time_window=60)
+        limiter = self._make_memory_limiter(max_requests=1, time_window=60)
         limiter.acquire(300)
         limiter.reset()
         assert limiter._requests == {}
         # reset 后可再次获取配额
         limiter.acquire(300)
+
+
+class TestPerUserRateLimiterRedis:
+    """Redis 模式限流测试（双模式扩展，Task #17）。
+
+    验证 _PerUserRateLimiter 在 Redis 可用时正确使用 Sorted Set 滑动窗口，
+    以及 Redis 运行时异常时降级到内存模式。
+    """
+
+    _TEST_USER_ID = 99990
+
+    @pytest.fixture(autouse=True)
+    def _cleanup_redis(self):
+        """每个用例前后清理 Redis 中的测试 user 限流 key，避免跨用例计数污染。"""
+        yield
+        limiter = _PerUserRateLimiter(max_requests=100, time_window=60)
+        if limiter._redis_client is not None:
+            limiter._redis_client.delete(f"ratelimit:user:{self._TEST_USER_ID}")
+
+    @staticmethod
+    def _make_redis_limiter(max_requests: int, time_window: int) -> "_PerUserRateLimiter":
+        """创建走 Redis 模式的 limiter，若 Redis 不可用则 skip。"""
+        limiter = _PerUserRateLimiter(max_requests, time_window)
+        if not limiter._use_redis:
+            pytest.skip("Redis 不可用，跳过 Redis 模式测试")
+        return limiter
+
+    def test_redis_acquire_under_limit(self):
+        """Redis 模式下未超限时应放行。"""
+        limiter = self._make_redis_limiter(max_requests=5, time_window=60)
+        if limiter._redis_client is not None:
+            limiter._redis_client.delete(f"ratelimit:user:{self._TEST_USER_ID}")
+        limiter.acquire(self._TEST_USER_ID)
+
+    def test_redis_acquire_over_limit_raises_429(self):
+        """Redis 模式下超限应抛 429。"""
+        limiter = self._make_redis_limiter(max_requests=2, time_window=60)
+        if limiter._redis_client is not None:
+            limiter._redis_client.delete(f"ratelimit:user:{self._TEST_USER_ID}")
+        limiter.acquire(self._TEST_USER_ID)
+        limiter.acquire(self._TEST_USER_ID)
+        with pytest.raises(HTTPException) as exc:
+            limiter.acquire(self._TEST_USER_ID)
+        assert exc.value.status_code == 429
+
+    def test_redis_isolated_per_user(self):
+        """Redis 模式下不同 user_id 独立计数。"""
+        limiter = self._make_redis_limiter(max_requests=1, time_window=60)
+        other_user = 99991
+        if limiter._redis_client is not None:
+            limiter._redis_client.delete(f"ratelimit:user:{self._TEST_USER_ID}")
+            limiter._redis_client.delete(f"ratelimit:user:{other_user}")
+        try:
+            limiter.acquire(self._TEST_USER_ID)
+            limiter.acquire(other_user)
+        finally:
+            if limiter._redis_client is not None:
+                limiter._redis_client.delete(f"ratelimit:user:{other_user}")
+
+    def test_redis_runtime_exception_falls_back_to_memory(self):
+        """Redis 运行时异常应降级到内存模式，不阻断请求。"""
+        limiter = self._make_redis_limiter(max_requests=5, time_window=60)
+        if limiter._redis_client is not None:
+            limiter._redis_client.delete(f"ratelimit:user:{self._TEST_USER_ID}")
+
+        original_pipe = limiter._redis_client.pipeline
+        call_count = {"n": 0}
+
+        def _flaky_pipe():
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                raise RuntimeError("redis connection lost")
+            return original_pipe()
+
+        limiter._redis_client.pipeline = _flaky_pipe
+        limiter.acquire(self._TEST_USER_ID)
+        assert call_count["n"] == 1
+        assert len(limiter._requests[self._TEST_USER_ID]) == 1
