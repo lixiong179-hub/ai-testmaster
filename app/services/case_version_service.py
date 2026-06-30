@@ -10,27 +10,34 @@
 依赖关系：
     - app.models.test_case : TestCase
     - app.models.test_case_version : TestCaseVersion
+
+拆分说明：
+    - 查询与对比（compare_versions/get_version）+ 快照解析（_parse_snapshot）
+      拆分至 _case_version_query
+    - 归档与变更字段构建（_archive_old_versions/build_changed_fields）
+      + TRACKED_FIELDS/MAX_VERSIONS_PER_CASE/ARCHIVE_OLDER_THAN_DAYS 常量
+      拆分至 _case_version_archive；本模块 re-export 常量保持导入兼容
 """
-import json
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from loguru import logger
-from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from app.models.test_case import TestCase
 from app.models.test_case_version import TestCaseVersion
 
-# 需要追踪变更的核心字段
-TRACKED_FIELDS: List[str] = [
-    "title", "module", "precondition", "steps_json",
-    "expected_result", "priority",
-]
-
-# 版本保留策略阈值
-MAX_VERSIONS_PER_CASE: int = 50
-ARCHIVE_OLDER_THAN_DAYS: int = 90
+from app.services._case_version_archive import (
+    TRACKED_FIELDS,
+    MAX_VERSIONS_PER_CASE,
+    ARCHIVE_OLDER_THAN_DAYS,
+    archive_old_versions,
+    build_changed_fields_from_state,
+)
+from app.services._case_version_query import (
+    compare_versions as _compare_versions_impl,
+    get_version as _get_version_impl,
+    parse_snapshot_data,
+)
 
 
 class CaseVersionService:
@@ -116,7 +123,7 @@ class CaseVersionService:
         )
 
         if auto_flush:
-            CaseVersionService._archive_old_versions(db, test_case_id)
+            archive_old_versions(db, test_case_id)
 
         return version
 
@@ -129,61 +136,9 @@ class CaseVersionService:
     ) -> Dict[str, Any]:
         """对比两个版本，返回字段级 diff
 
-        逐字段比较两个版本的 snapshot_data，输出每个字段的旧值和新值。
-
-        Args:
-            db: 数据库会话。
-            test_case_id: 用例ID。
-            v1_id: 旧版本ID。
-            v2_id: 新版本ID。
-
-        Returns:
-            对比结果字典，包含 v1/v2 信息和字段级 diff。
-            格式: {"v1": {...}, "v2": {...}, "diff": {"field": {"old": ..., "new": ...}}}
-
-        Raises:
-            ValueError: 版本不存在或不属于指定用例。
+        详见 _case_version_query.compare_versions。
         """
-        v1 = db.query(TestCaseVersion).filter(
-            TestCaseVersion.id == v1_id,
-            TestCaseVersion.test_case_id == test_case_id,
-        ).first()
-        v2 = db.query(TestCaseVersion).filter(
-            TestCaseVersion.id == v2_id,
-            TestCaseVersion.test_case_id == test_case_id,
-        ).first()
-
-        if not v1:
-            raise ValueError(f"版本不存在: v1_id={v1_id}, test_case_id={test_case_id}")
-        if not v2:
-            raise ValueError(f"版本不存在: v2_id={v2_id}, test_case_id={test_case_id}")
-
-        snap1 = CaseVersionService._parse_snapshot(v1.snapshot_data)
-        snap2 = CaseVersionService._parse_snapshot(v2.snapshot_data)
-
-        diff: Dict[str, Dict[str, Any]] = {}
-        all_fields = set(list(snap1.keys()) + list(snap2.keys()))
-        for field in all_fields:
-            old_val = snap1.get(field)
-            new_val = snap2.get(field)
-            if old_val != new_val:
-                diff[field] = {"old": old_val, "new": new_val}
-
-        return {
-            "v1": {
-                "id": v1.id,
-                "version_number": v1.version_number,
-                "change_type": v1.change_type,
-                "created_at": v1.created_at.isoformat() if v1.created_at else None,
-            },
-            "v2": {
-                "id": v2.id,
-                "version_number": v2.version_number,
-                "change_type": v2.change_type,
-                "created_at": v2.created_at.isoformat() if v2.created_at else None,
-            },
-            "diff": diff,
-        }
+        return _compare_versions_impl(db, test_case_id, v1_id, v2_id)
 
     @staticmethod
     def get_version(
@@ -193,33 +148,9 @@ class CaseVersionService:
     ) -> Optional[Dict[str, Any]]:
         """获取版本详情
 
-        Args:
-            db: 数据库会话。
-            test_case_id: 用例ID。
-            version_id: 版本ID。
-
-        Returns:
-            版本详情字典，版本不存在时返回 None。
+        详见 _case_version_query.get_version。
         """
-        version = db.query(TestCaseVersion).filter(
-            TestCaseVersion.id == version_id,
-            TestCaseVersion.test_case_id == test_case_id,
-        ).first()
-        if not version:
-            return None
-
-        return {
-            "id": version.id,
-            "test_case_id": version.test_case_id,
-            "version_number": version.version_number,
-            "change_type": version.change_type,
-            "change_description": version.change_description,
-            "changed_fields": CaseVersionService._parse_snapshot(version.changed_fields),
-            "snapshot_data": CaseVersionService._parse_snapshot(version.snapshot_data),
-            "operator_id": version.operator_id,
-            "operator_name": version.operator_name,
-            "created_at": version.created_at.isoformat() if version.created_at else None,
-        }
+        return _get_version_impl(db, test_case_id, version_id)
 
     @staticmethod
     def restore_version(
@@ -255,7 +186,7 @@ class CaseVersionService:
         if not version:
             return None
 
-        snapshot = CaseVersionService._parse_snapshot(version.snapshot_data)
+        snapshot = parse_snapshot_data(version.snapshot_data)
         if not snapshot:
             raise ValueError(f"版本V{version.version_number}无快照数据，无法恢复")
 
@@ -300,90 +231,22 @@ class CaseVersionService:
     ) -> Dict[str, Dict[str, Any]]:
         """根据 SQLAlchemy instance state 构建 changed_fields
 
-        对比追踪字段的新旧值，只记录真正变更的字段。
-
-        Args:
-            case: TestCase 实例。
-            state: SQLAlchemy inspect 返回的 instance state。
-
-        Returns:
-            变更字段字典，格式 {"field_name": {"old": old_val, "new": new_val}}。
+        详见 _case_version_archive.build_changed_fields_from_state。
         """
-        changed_fields: Dict[str, Dict[str, Any]] = {}
-        for field in TRACKED_FIELDS:
-            hist = getattr(state.attrs, field, None)
-            if hist is None:
-                continue
-            history = hist.history
-            if history.deleted or history.added:
-                old_val = history.deleted[0] if history.deleted else None
-                new_val = history.added[0] if history.added else None
-                if old_val != new_val:
-                    changed_fields[field] = {"old": old_val, "new": new_val}
-        return changed_fields
+        return build_changed_fields_from_state(case, state)
 
     @staticmethod
     def _archive_old_versions(db: Session, test_case_id: int) -> None:
         """归档超过保留策略的旧版本
 
-        当同一用例的版本数超过 MAX_VERSIONS_PER_CASE 时，
-        将 ARCHIVE_OLDER_THAN_DAYS 天前的旧快照的 snapshot_data 置空，
-        保留元数据供审计追溯。
-
-        Args:
-            db: 数据库会话。
-            test_case_id: 用例ID。
+        详见 _case_version_archive.archive_old_versions。
         """
-        total = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == test_case_id,
-        ).count()
-
-        if total <= MAX_VERSIONS_PER_CASE:
-            return
-
-        cutoff = datetime.now(timezone.utc) - timedelta(days=ARCHIVE_OLDER_THAN_DAYS)
-        old_versions = (
-            db.query(TestCaseVersion)
-            .filter(
-                TestCaseVersion.test_case_id == test_case_id,
-                TestCaseVersion.created_at < cutoff,
-                TestCaseVersion.snapshot_data.isnot(None),
-            )
-            .order_by(TestCaseVersion.version_number.asc())
-            .all()
-        )
-
-        archived_count = 0
-        for ver in old_versions:
-            if total - archived_count <= MAX_VERSIONS_PER_CASE:
-                break
-            ver.snapshot_data = None
-            archived_count += 1
-
-        if archived_count > 0:
-            db.flush()
-            logger.info(
-                f"版本归档完成: case_id={test_case_id}, "
-                f"archived={archived_count}, remaining={total - archived_count}"
-            )
+        archive_old_versions(db, test_case_id)
 
     @staticmethod
     def _parse_snapshot(data: Any) -> Any:
         """解析 snapshot_data/changed_fields，兼容 JSON 字符串和 dict 类型
 
-        Args:
-            data: 原始数据（可能是 dict、str 或 None）。
-
-        Returns:
-            解析后的字典或原始值。
+        详见 _case_version_query.parse_snapshot_data。
         """
-        if data is None:
-            return None
-        if isinstance(data, dict):
-            return data
-        if isinstance(data, str):
-            try:
-                return json.loads(data)
-            except (json.JSONDecodeError, TypeError):
-                return data
-        return data
+        return parse_snapshot_data(data)
