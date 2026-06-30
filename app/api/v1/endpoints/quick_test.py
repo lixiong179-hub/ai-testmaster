@@ -16,12 +16,14 @@
 """
 import time
 from collections import defaultdict, deque
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
+from app.core.config import settings
 from app.db.database import get_db
 from app.models.test_task import TaskStatus, TestTask
 from app.models.user import User
@@ -42,20 +44,50 @@ _CHANNEL_TEMPLATE = "quick_test:{task_id}"
 
 
 class _PerUserRateLimiter:
-    """单用户内存限流器，算法与 RateLimitMiddleware 内存模式一致。
+    """单用户限流器，双模式：Redis（多 worker 共享）+ 内存（降级兜底）。
 
-    按 user_id 维护 deque 时间戳，超出时间窗口的记录自动清理，超限抛 429。
-    单独成类便于测试 reset 与未来扩展为 Redis 模式（与中间件双模式对齐）。
+    算法与 RateLimitMiddleware 双模式对齐：
+        - Redis 模式：基于 Sorted Set 滑动窗口，多 worker 共享计数（生产推荐）。
+        - 内存模式：基于 deque 时间窗口清理，单进程内计数（开发默认）。
+
+    Redis 不可用时自动降级到内存模式，保证服务可用性优先于限流精确性。
     """
 
     def __init__(self, max_requests: int, time_window: int) -> None:
-        """初始化限流参数与按 user_id 计数的请求桶。"""
+        """初始化限流参数、按 user_id 计数的请求桶、Redis 连接。"""
         self.max_requests = max_requests
         self.time_window = time_window
         # deque(maxlen) 提供极端情况下的兜底淘汰，精确限流仍依赖时间窗口清理
         self._requests: defaultdict = defaultdict(
             lambda: deque(maxlen=max_requests)
         )
+        self._redis_client = None
+        self._use_redis = False
+        self._init_redis()
+
+    def _init_redis(self) -> None:
+        """尝试初始化 Redis 连接，失败则回退到内存模式。
+
+        降级策略与 RateLimitMiddleware._init_redis 一致：
+        检查 REDIS_URL → 导入 redis → ping 验证 → 失败静默降级。
+        """
+        try:
+            import redis
+
+            redis_url = getattr(settings, 'REDIS_URL', None)
+            if redis_url:
+                self._redis_client = redis.from_url(
+                    redis_url,
+                    max_connections=10,
+                    decode_responses=True,
+                    socket_timeout=2,
+                    socket_connect_timeout=2,
+                )
+                self._redis_client.ping()
+                self._use_redis = True
+        except Exception as e:
+            logger.warning("launch_limiter Redis 不可用，降级为内存模式: {}", e)
+            self._use_redis = False
 
     def acquire(self, user_id: int) -> None:
         """占用一个配额，超限抛 HTTPException 429。
@@ -63,6 +95,39 @@ class _PerUserRateLimiter:
         Args:
             user_id: 当前认证用户 ID，作为限流计数 key。
         """
+        if self._use_redis:
+            try:
+                self._acquire_redis(user_id)
+                return
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.warning("launch_limiter Redis 运行时异常，降级本次请求为内存模式: {}", e)
+        self._acquire_memory(user_id)
+
+    def _acquire_redis(self, user_id: int) -> None:
+        """Redis 模式限流：基于 Sorted Set 滑动窗口（与 RateLimitMiddleware._dispatch_redis 一致）。
+
+        通过 pipeline 原子执行：zremrangebyscore 清理过期 → zcard 计数 → zadd 记录 → expire 过期。
+        member 用 uuid4 确保唯一，避免同一微秒内多次请求 time.time() 相同导致 zadd 更新而非新增。
+        """
+        now = time.time()
+        key = f"ratelimit:user:{user_id}"
+        pipe = self._redis_client.pipeline()
+        pipe.zremrangebyscore(key, 0, now - self.time_window)
+        pipe.zcard(key)
+        pipe.zadd(key, {f"{now}:{uuid4().hex}": now})
+        pipe.expire(key, self.time_window + 1)
+        results = pipe.execute()
+        count = results[1]
+        if count >= self.max_requests:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="请求过于频繁，请稍后再试",
+            )
+
+    def _acquire_memory(self, user_id: int) -> None:
+        """内存模式限流：基于 deque 时间窗口清理（与 RateLimitMiddleware._dispatch_memory 一致）。"""
         now = time.time()
         self._cleanup(user_id, now)
         if len(self._requests[user_id]) >= self.max_requests:
@@ -82,7 +147,10 @@ class _PerUserRateLimiter:
             del self._requests[user_id]
 
     def reset(self) -> None:
-        """清空限流状态，供测试隔离使用。"""
+        """清空内存限流状态，供测试隔离使用。
+
+        注意：仅清空内存模式计数，Redis 模式下测试应使用不同 user_id 隔离。
+        """
         self._requests.clear()
 
 
