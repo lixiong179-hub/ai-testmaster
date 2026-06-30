@@ -160,12 +160,6 @@ export const routes: RouteRecordRaw[] = [
             meta: { title: '用例列表' },
           },
           {
-            path: 'ai-generate',
-            name: 'CaseAIGenerate',
-            component: () => import('../views/case/ai-generate.vue'),
-            meta: { title: 'AI生成用例' },
-          },
-          {
             path: 'smart-generate',
             name: 'SmartGenerate',
             component: () => import('../views/case/smart-generate.vue'),

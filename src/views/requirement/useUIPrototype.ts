@@ -126,7 +126,7 @@ export function useUIPrototype() {
   }
   function goToCaseGenerate() {
     router.push({
-      path: '/home/case/ai-generate',
+      path: '/home/case/smart-generate',
       query: {
         project_id: projectId.value,
         ui_project_id: prototypeProjectId.value,

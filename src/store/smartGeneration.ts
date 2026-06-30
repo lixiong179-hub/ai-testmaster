@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
 import { generationBatchApi } from '@/api/generationBatch'
 import type {
   GenerationBatchCreatePayload,
@@ -13,12 +14,18 @@ import { aiInvocationApi } from '@/api/aiInvocation'
 import type { BatchCostInfo } from '@/api/aiInvocation'
 import { uiPrototypeApi, type UIScreen, type UIPrototypeProject } from '@/api/uiPrototype'
 import { historyAssetApi } from '@/api/historyAsset'
-import type {
-  HistoryAssetItem,
-  HistoryClassificationResponse,
-} from '@/api/historyAsset'
+import type { HistoryAssetItem, HistoryClassificationResponse } from '@/api/historyAsset'
+import {
+  computeProgressPercent,
+  extractErrorDetail,
+  isAbortError,
+  persistPreferenceData,
+  readUserId,
+  restorePreferenceData,
+} from './smartGenerationHelpers'
 
-export type SmartGenStep = 'task' | 'material' | 'context' | 'strategy' | 'generating' | 'preview' | 'save_confirm' | 'save_result'
+// Task2: 8 步合并为 4 步——context/strategy 合入 material，save_confirm/save_result 合入 preview
+export type SmartGenStep = 'task' | 'material' | 'generating' | 'preview'
 export type TaskType = 'new_feature' | 'history_update' | 'import_asset'
 export type QualityStatus = 'passed' | 'warning' | 'pending_review' | 'rejected'
 
@@ -99,7 +106,7 @@ function getWarningUserText(code: string): string {
 function computeQualityStatus(
   caseData: Partial<SmartPreviewCase>,
   warnings: NormalizedWarning[],
-  contextStats: Record<string, unknown>,
+  contextStats: Record<string, unknown>
 ): QualityStatus {
   if (!caseData.title || !caseData.steps?.length || !caseData.expected_result) {
     return 'rejected'
@@ -109,16 +116,27 @@ function computeQualityStatus(
   const hasNoRequirement = warnings.some((w) => w.code === 'REQUIREMENT_NOT_FOUND')
   const hasNoUI = warnings.some((w) => w.code === 'UI_NO_MATCH')
   const hasUIElement = caseData.steps?.some(
-    (s) => (s as Record<string, unknown>)?.target_element || (s as Record<string, unknown>)?.action_type === 'click',
+    (s) =>
+      (s as Record<string, unknown>)?.target_element ||
+      (s as Record<string, unknown>)?.action_type === 'click'
   )
 
-  if (hasLowCompleteness || hasNoRequirement || (missingCore && missingCore.includes('requirement'))) {
+  if (
+    hasLowCompleteness ||
+    hasNoRequirement ||
+    (missingCore && missingCore.includes('requirement'))
+  ) {
     return 'pending_review'
   }
   if (hasNoUI && hasUIElement) {
     return 'pending_review'
   }
-  if (hasNoUI || warnings.some((w) => ['HISTORY_LOW_TRUST_FILTERED', 'HISTORY_POTENTIALLY_STALE'].includes(w.code))) {
+  if (
+    hasNoUI ||
+    warnings.some((w) =>
+      ['HISTORY_LOW_TRUST_FILTERED', 'HISTORY_POTENTIALLY_STALE'].includes(w.code)
+    )
+  ) {
     return 'warning'
   }
   return 'passed'
@@ -127,21 +145,25 @@ function computeQualityStatus(
 function buildSourceRefs(
   caseData: Record<string, unknown>,
   ctx: GenerationContext | null,
-  screenDetails: UIScreen[],
+  screenDetails: UIScreen[]
 ): Record<string, unknown> {
   const refs: Record<string, unknown> = {}
   const tpId = caseData.test_point_id as number | undefined
   if (tpId) {
     const tp = ctx?.test_points.find((t) => (t as Record<string, unknown>).id === tpId)
     if (tp) {
-      refs.test_point_name = (tp as Record<string, unknown>).name || (tp as Record<string, unknown>).test_point || `测试点${tpId}`
+      refs.test_point_name =
+        (tp as Record<string, unknown>).name ||
+        (tp as Record<string, unknown>).test_point ||
+        `测试点${tpId}`
     }
   }
   const reqFileIds = ctx?.context_stats.requirement_file_ids as number[] | undefined
   if (reqFileIds && reqFileIds.length > 0) {
     const reqFiles = ctx?.evidence_refs.requirement_files as Record<string, unknown>[] | undefined
     if (reqFiles && reqFiles.length > 0) {
-      refs.requirement_file_name = reqFiles[0].file_name || reqFiles[0].original_name || `需求文件${reqFileIds[0]}`
+      refs.requirement_file_name =
+        reqFiles[0].file_name || reqFiles[0].original_name || `需求文件${reqFileIds[0]}`
     }
   }
   const screenId = caseData.ui_screen_id as number | undefined
@@ -182,7 +204,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   const uiScreenImageUrls = ref<Record<number, string>>({})
   const uiUploadDialogVisible = ref(false)
   const uiUploading = ref(false)
-  const uiParsing = ref(false)
+  // uiParsing: false=空闲, true=解析中, 'timeout'=轮询超时（UI 区显示重试）
+  const uiParsing = ref<boolean | 'timeout'>(false)
   let parsePollingTimer: ReturnType<typeof setTimeout> | null = null
   const deselectedUIScreenIds = ref<Set<number>>(new Set())
 
@@ -194,10 +217,21 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   const scenarioType = ref<string>('B1_REQUIREMENT_TESTPOINT')
 
   const previewCases = ref<SmartPreviewCase[]>([])
-  const qualitySummary = ref<Record<string, number>>({ passed: 0, warning: 0, pending_review: 0, rejected: 0 })
+  const qualitySummary = ref<Record<string, number>>({
+    passed: 0,
+    warning: 0,
+    pending_review: 0,
+    rejected: 0,
+  })
 
   const generating = ref(false)
   const generationProgress = ref<string>('')
+  // SSE 进度跟踪：已推送测试点数取 previewCases.length，总数优先取 SSE 事件 total，回退取上下文测试点数
+  const sseTotalCount = ref<number>(0)
+  // 当前生成/重生成流的 AbortController，供 abortGeneration 中断
+  const abortController = ref<AbortController | null>(null)
+  // 偏好持久化抑制标记：restore/reset 期间避免回写
+  let suppressPersist = false
   const saving = ref(false)
   const saveResult = ref<GenerationBatchSaveResponse | null>(null)
   const saveError = ref<string>('')
@@ -253,19 +287,35 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
 
   const selectedForSaveCount = computed(() => {
     const previewCount = previewCases.value.filter((c) => c.selected_for_save).length
-    const historyCount = Array.from(historyItemSelections.value.values()).filter((v) => v === true).length
+    const historyCount = Array.from(historyItemSelections.value.values()).filter(
+      (v) => v === true
+    ).length
     return previewCount + historyCount
   })
-  const passedCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'passed').length)
-  const warningCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'warning').length)
-  const pendingReviewCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'pending_review').length)
-  const rejectedCount = computed(() => previewCases.value.filter((c) => c.quality_status === 'rejected').length)
+  const passedCount = computed(
+    () => previewCases.value.filter((c) => c.quality_status === 'passed').length
+  )
+  const warningCount = computed(
+    () => previewCases.value.filter((c) => c.quality_status === 'warning').length
+  )
+  const pendingReviewCount = computed(
+    () => previewCases.value.filter((c) => c.quality_status === 'pending_review').length
+  )
+  const rejectedCount = computed(
+    () => previewCases.value.filter((c) => c.quality_status === 'rejected').length
+  )
+
+  // 生成进度百分比：总数未知返回 null（组件降级为 indeterminate）
+  const progressPercent = computed<number | null>(() =>
+    computeProgressPercent(previewCases.value.length, sseTotalCount.value)
+  )
 
   function recalcQualitySummary() {
     qualitySummary.value = {
       passed: previewCases.value.filter((c) => c.quality_status === 'passed').length,
       warning: previewCases.value.filter((c) => c.quality_status === 'warning').length,
-      pending_review: previewCases.value.filter((c) => c.quality_status === 'pending_review').length,
+      pending_review: previewCases.value.filter((c) => c.quality_status === 'pending_review')
+        .length,
       rejected: previewCases.value.filter((c) => c.quality_status === 'rejected').length,
     }
   }
@@ -273,10 +323,10 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   async function createBatch() {
     if (selectedTask.value === 'history_update') {
       const hasExcel = historyAssets.value.some(
-        (a) => a.asset_type === 'excel' && selectedHistoryAssetIds.value.includes(a.id),
+        (a) => a.asset_type === 'excel' && selectedHistoryAssetIds.value.includes(a.id)
       )
       const hasXMind = historyAssets.value.some(
-        (a) => a.asset_type === 'xmind' && selectedHistoryAssetIds.value.includes(a.id),
+        (a) => a.asset_type === 'xmind' && selectedHistoryAssetIds.value.includes(a.id)
       )
       const hasReq = requirementFileIds.value.length > 0
       const hasUI = uiScreenIds.value.length > 0
@@ -308,7 +358,9 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
         ui_screen_ids: uiScreenIds.value,
         history_asset_ids: selectedHistoryAssetIds.value,
       }
-      const result = await generationBatchApi.create(payload as unknown as GenerationBatchCreatePayload)
+      const result = await generationBatchApi.create(
+        payload as unknown as GenerationBatchCreatePayload
+      )
       batchId.value = result.id
       batchNo.value = result.batch_no
       batchStatus.value = result.status
@@ -317,7 +369,9 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
 
     const hasUI = uiScreenIds.value.length > 0
     scenarioType.value = hasUI ? 'A1_REQUIREMENT_TESTPOINT_UI' : 'B1_REQUIREMENT_TESTPOINT'
-    strategy.value = hasUI ? 'FULL_CONTEXT_GENERATION_LITE' : 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION'
+    strategy.value = hasUI
+      ? 'FULL_CONTEXT_GENERATION_LITE'
+      : 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION'
 
     const payload: GenerationBatchCreatePayload = {
       project_id: selectedProjectId.value as number,
@@ -344,7 +398,10 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       test_point_page: 1,
       test_point_page_size: 500,
     })
-    const respData = ((contextResp as { data?: unknown })?.data || contextResp) as Record<string, unknown>
+    const respData = ((contextResp as { data?: unknown })?.data || contextResp) as Record<
+      string,
+      unknown
+    >
 
     generationProgress.value = '正在分析测试点...'
     const rawWarnings = normalizeWarnings((respData.warnings as unknown[]) || [])
@@ -371,7 +428,9 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     if (selectedTask.value !== 'history_update') {
       const hasUI = uiScreenIds.value.length > 0
       scenarioType.value = hasUI ? 'A1_REQUIREMENT_TESTPOINT_UI' : 'B1_REQUIREMENT_TESTPOINT'
-      strategy.value = hasUI ? 'FULL_CONTEXT_GENERATION_LITE' : 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION'
+      strategy.value = hasUI
+        ? 'FULL_CONTEXT_GENERATION_LITE'
+        : 'REQUIREMENT_TESTPOINT_STANDARD_GENERATION'
     }
 
     if (batchId.value) {
@@ -392,6 +451,10 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     generating.value = true
     generationProgress.value = '正在组织生成资料...'
     previewCases.value = []
+    // 总数默认取上下文测试点数；首个 SSE 事件若携带 total 则覆盖
+    sseTotalCount.value = generationContext.value.test_points.length || 0
+    const controller = new AbortController()
+    abortController.value = controller
 
     try {
       if (batchId.value) {
@@ -400,12 +463,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       }
 
       const ctx = generationContext.value
-      const hasUI = uiScreenIds.value.length > 0
-      const caseType = hasUI ? 'manual' : 'manual'
-      const execMode = hasUI ? 'all' : 'manual'
-
       const description = normalizeGenerationDescription(
-        `基于本批次需求文档、测试点和可选 UI 资料生成测试用例`,
+        `基于本批次需求文档、测试点和可选 UI 资料生成测试用例`
       )
 
       generationProgress.value = '正在生成测试用例...'
@@ -416,14 +475,16 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
         },
+        signal: controller.signal,
         body: JSON.stringify({
           project_id: selectedProjectId.value,
           description,
-          case_type: caseType,
-          exec_mode: execMode,
-          priority: 2,
-          enhanced_mode: true,
-          mode: 'linear',
+          // Task1: 主路径与重生成路径统一读取 advancedConfig，用户调整真实生效
+          case_type: advancedConfig.value.case_type,
+          exec_mode: advancedConfig.value.exec_mode,
+          priority: advancedConfig.value.priority,
+          enhanced_mode: advancedConfig.value.enhanced_mode,
+          mode: advancedConfig.value.mode,
           context: {
             requirement_content: ctx.requirement_content,
             test_points: ctx.test_points,
@@ -446,6 +507,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       const decoder = new TextDecoder()
       let buffer = ''
 
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -463,6 +525,10 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
             if (event.code === 0) {
               if (event.data?.status === 'started') {
                 generationProgress.value = '正在准备生成...'
+                // Task3.1: 首个事件携带 total 时校正总测试点数，提升进度精度
+                if (typeof event.data.total === 'number' && event.data.total > 0) {
+                  sseTotalCount.value = event.data.total
+                }
               } else if (event.data?.status === 'building_prompt') {
                 generationProgress.value = '正在组织生成资料...'
               } else if (event.data?.status === 'generating') {
@@ -490,13 +556,22 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
                     regenerating: false,
                     source_refs: buildSourceRefs(c, generationContext.value, uiScreenDetails.value),
                   }
-                  previewCase.quality_status = computeQualityStatus(previewCase, warnings.value, contextStats.value)
+                  previewCase.quality_status = computeQualityStatus(
+                    previewCase,
+                    warnings.value,
+                    contextStats.value
+                  )
                   if (previewCase.quality_status === 'rejected') {
                     previewCase.selected_for_save = false
                   }
                   previewCases.value.push(previewCase)
                 }
-              } else if (event.data && typeof event.data === 'object' && !Array.isArray(event.data) && event.data.title) {
+              } else if (
+                event.data &&
+                typeof event.data === 'object' &&
+                !Array.isArray(event.data) &&
+                event.data.title
+              ) {
                 const c = event.data
                 const previewCase: SmartPreviewCase = {
                   client_id: `case-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -517,7 +592,11 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
                   regenerating: false,
                   source_refs: buildSourceRefs(c, generationContext.value, uiScreenDetails.value),
                 }
-                previewCase.quality_status = computeQualityStatus(previewCase, warnings.value, contextStats.value)
+                previewCase.quality_status = computeQualityStatus(
+                  previewCase,
+                  warnings.value,
+                  contextStats.value
+                )
                 if (previewCase.quality_status === 'rejected') previewCase.selected_for_save = false
                 previewCases.value.push(previewCase)
               }
@@ -542,14 +621,20 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
         batchStatus.value = 'preview_ready'
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '生成失败'
-      generationProgress.value = msg
-      if (batchId.value) {
-        await generationBatchApi.update(batchId.value, { status: 'failed' }).catch(() => {})
-        batchStatus.value = 'failed'
+      if (isAbortError(e)) {
+        // Task4.1: 用户主动取消，保留已生成部分用例在预览区，不标记失败、不弹错误
+        generationProgress.value = '已取消生成'
+      } else {
+        // Task8.2: 优先透出后端真实原因，兜底才用通用文案
+        generationProgress.value = extractErrorDetail(e, '生成失败')
+        if (batchId.value) {
+          await generationBatchApi.update(batchId.value, { status: 'failed' }).catch(() => {})
+          batchStatus.value = 'failed'
+        }
       }
     } finally {
       generating.value = false
+      abortController.value = null
     }
   }
 
@@ -604,7 +689,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
               module: caseData.module || '',
               precondition: caseData.precondition || '',
               steps: (caseData.steps || []).map((s: Record<string, unknown>, idx: number) => ({
-                step: s.step ?? s.step_number ?? (idx + 1),
+                step: s.step ?? s.step_number ?? idx + 1,
                 action: String(s.action || s.step || ''),
                 expected_result: String(s.expected_result || ''),
               })),
@@ -623,7 +708,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       } else {
         casesToSave = previewCases.value
           .filter((c) => {
-            if (saveMode === 'passed_only') return c.quality_status === 'passed' || c.quality_status === 'warning'
+            if (saveMode === 'passed_only')
+              return c.quality_status === 'passed' || c.quality_status === 'warning'
             return c.selected_for_save
           })
           .map((c) => ({
@@ -662,7 +748,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       // 保存成功后查询成本
       fetchBatchCost()
     } catch (e: unknown) {
-      saveError.value = e instanceof Error ? e.message : '保存失败'
+      // Task8.2: 透出后端真实 detail，兜底才用通用文案
+      saveError.value = extractErrorDetail(e, '保存失败')
     } finally {
       saving.value = false
     }
@@ -694,12 +781,12 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
 
     const oldCase = previewCases.value[caseIndex]
     oldCase.regenerating = true
+    const controller = new AbortController()
+    abortController.value = controller
 
     try {
       const ctx = generationContext.value
-      const description = normalizeGenerationDescription(
-        `重新生成测试用例：${oldCase.title}`,
-      )
+      const description = normalizeGenerationDescription(`重新生成测试用例：${oldCase.title}`)
 
       const response = await fetch('/api/v1/testCase/ai-enhanced-generate/stream', {
         method: 'POST',
@@ -707,6 +794,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
         },
+        signal: controller.signal,
         body: JSON.stringify({
           project_id: selectedProjectId.value,
           description,
@@ -738,6 +826,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       const decoder = new TextDecoder()
       let buffer = ''
 
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -755,7 +844,12 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
               let newCaseData: Record<string, unknown> | null = null
               if (Array.isArray(event.data) && event.data.length > 0) {
                 newCaseData = event.data[0]
-              } else if (event.data && typeof event.data === 'object' && !Array.isArray(event.data) && event.data.title) {
+              } else if (
+                event.data &&
+                typeof event.data === 'object' &&
+                !Array.isArray(event.data) &&
+                event.data.title
+              ) {
                 newCaseData = event.data
               }
               if (newCaseData) {
@@ -779,7 +873,11 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
                   regenerating: false,
                   source_refs: buildSourceRefs(c, generationContext.value, uiScreenDetails.value),
                 }
-                replacement.quality_status = computeQualityStatus(replacement, warnings.value, contextStats.value)
+                replacement.quality_status = computeQualityStatus(
+                  replacement,
+                  warnings.value,
+                  contextStats.value
+                )
                 if (replacement.quality_status === 'rejected') replacement.selected_for_save = false
                 previewCases.value[caseIndex] = replacement
                 recalcQualitySummary()
@@ -794,11 +892,20 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
         }
       }
     } catch (e: unknown) {
-      oldCase.regenerating = false
+      if (isAbortError(e)) {
+        // Task4.1: 用户主动取消单条重生成，保留原用例，不抛错以免触发错误 toast
+        return
+      }
       throw e
     } finally {
       oldCase.regenerating = false
+      abortController.value = null
     }
+  }
+
+  /** Task4.1: 中断当前生成/重生成流（AbortController.abort），供组件取消按钮调用 */
+  function abortGeneration(): void {
+    abortController.value?.abort()
   }
 
   const coverageSummary = computed(() => {
@@ -822,7 +929,9 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       result.push({
         type: 'requirement',
         label: '需求文档',
-        items: reqFiles.map((f) => (f.file_name as string) || (f.original_name as string) || `文件${f.id}`),
+        items: reqFiles.map(
+          (f) => (f.file_name as string) || (f.original_name as string) || `文件${f.id}`
+        ),
       })
     }
     const uiScreens = refs.ui_screens as Record<string, unknown>[] | undefined
@@ -868,29 +977,43 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   })
 
   const hasUIParsePending = computed(() => {
-    return uiScreenDetails.value.some((s) => s.parse_status === 'pending' || s.parse_status === 'running')
+    return uiScreenDetails.value.some(
+      (s) => s.parse_status === 'pending' || s.parse_status === 'running'
+    )
   })
 
   async function loadUIPrototypeProjects() {
-    if (!selectedProjectId.value) { uiPrototypeProjects.value = []; return }
+    if (!selectedProjectId.value) {
+      uiPrototypeProjects.value = []
+      return
+    }
     try {
       const resp = await uiPrototypeApi.getUIPrototypeProjectList(selectedProjectId.value as number)
       const data = (resp as { data?: unknown })?.data || resp
-      uiPrototypeProjects.value = Array.isArray(data) ? data : (data as { items?: unknown[] })?.items || []
-    } catch { uiPrototypeProjects.value = [] }
+      uiPrototypeProjects.value = Array.isArray(data)
+        ? data
+        : (data as { items?: unknown[] })?.items || []
+    } catch {
+      uiPrototypeProjects.value = []
+    }
   }
 
   async function loadUIScreenDetails() {
-    if (!selectedProjectId.value) { uiScreenDetails.value = []; return }
+    if (!selectedProjectId.value) {
+      uiScreenDetails.value = []
+      return
+    }
     try {
       const resp = await uiPrototypeApi.getUIScreenList(
         selectedProjectId.value as number,
-        selectedUIPrototypeProjectId.value as number || undefined,
+        (selectedUIPrototypeProjectId.value as number) || undefined
       )
       const data = (resp as { data?: unknown })?.data || resp
       const screens = Array.isArray(data) ? data : (data as { items?: unknown[] })?.items || []
       uiScreenDetails.value = screens
-      const completedIds = new Set(screens.filter((s) => s.parse_status === 'completed').map((s) => s.id))
+      const completedIds = new Set(
+        screens.filter((s) => s.parse_status === 'completed').map((s) => s.id)
+      )
       const prevSelected = new Set(uiScreenIds.value)
       const newSelected = [...prevSelected].filter((id) => completedIds.has(id))
       if (newSelected.length === 0 && prevSelected.size === 0) {
@@ -903,23 +1026,36 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
         }
         uiScreenIds.value = newSelected
       }
-    } catch { uiScreenDetails.value = [] }
+    } catch {
+      uiScreenDetails.value = []
+    }
   }
 
   async function loadUIScreenImages() {
-    for (const screen of uiScreenDetails.value) {
-      if (!screen.id || !screen.original_file_path) continue
-      if (uiScreenImageUrls.value[screen.id]) continue
-      try {
-        const resp = await fetch(`/api/v1/file/preview-screen/${screen.id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-        })
-        if (!resp.ok) continue
-        const blob = await resp.blob()
-        if (blob.size > 0) {
-          uiScreenImageUrls.value[screen.id] = URL.createObjectURL(blob)
-        }
-      } catch { /* ignore */ }
+    // Task6.2: 将 N+1 串行预览请求改为单次批量接口，返回 {id: url} 映射
+    const needLoad = uiScreenDetails.value.filter(
+      (s) => s.id && s.original_file_path && !uiScreenImageUrls.value[s.id]
+    )
+    if (needLoad.length === 0) return
+    const ids = needLoad.map((s) => s.id)
+    try {
+      const resp = await fetch(`/api/v1/ui-screens/batch?ids=${ids.join(',')}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      })
+      if (!resp.ok) return
+      const raw = (await resp.json()) as Record<string, unknown>
+      // 兼容 {id: url} 与 {code, data: {id: url}} 两种响应结构
+      const map = (
+        raw && typeof raw.data === 'object' && !Array.isArray(raw.data) ? raw.data : raw
+      ) as Record<string, unknown>
+      const newMap: Record<number, string> = { ...uiScreenImageUrls.value }
+      for (const id of ids) {
+        const url = map[String(id)]
+        if (typeof url === 'string' && url) newMap[id] = url
+      }
+      uiScreenImageUrls.value = newMap
+    } catch {
+      // 批量加载失败：保持空，不阻塞主流程
     }
   }
 
@@ -947,10 +1083,12 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
         selectedProjectId.value as number,
         files,
         `智能生成上传-${new Date().toLocaleDateString()}`,
-        selectedUIPrototypeProjectId.value as number || undefined,
+        (selectedUIPrototypeProjectId.value as number) || undefined
       )
       const respData = (result as { data?: unknown })?.data || result
-      const newPrototypeProjectId = (respData as Record<string, unknown>)?.prototype_project_id as number | undefined
+      const newPrototypeProjectId = (respData as Record<string, unknown>)?.prototype_project_id as
+        | number
+        | undefined
       if (newPrototypeProjectId && !selectedUIPrototypeProjectId.value) {
         selectedUIPrototypeProjectId.value = newPrototypeProjectId
         await loadUIPrototypeProjects()
@@ -979,11 +1117,15 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     }
   }
 
-  function cancelParsePolling() {
+  function clearParseTimer() {
     if (parsePollingTimer !== null) {
       clearTimeout(parsePollingTimer)
       parsePollingTimer = null
     }
+  }
+
+  function cancelParsePolling() {
+    clearParseTimer()
     uiParsing.value = false
   }
 
@@ -991,7 +1133,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     const maxPolls = 60
     const pollInterval = 3000
     let pollCount = 0
-    cancelParsePolling()
+    clearParseTimer()
+    uiParsing.value = true
     const poll = async () => {
       try {
         await loadUIScreenDetails()
@@ -1000,10 +1143,17 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
           return screen && (screen.parse_status === 'completed' || screen.parse_status === 'failed')
         })
         pollCount++
-        if (allDone || pollCount >= maxPolls) {
+        if (allDone) {
           await loadUIScreenImages()
           parsePollingTimer = null
           uiParsing.value = false
+          return
+        }
+        if (pollCount >= maxPolls) {
+          // Task7: 3 分钟超时弹 toast 提示，停止轮询，UI 进入可重试状态
+          ElMessage.warning('UI 解析超时，请稍后重试或检查 UI 文件')
+          parsePollingTimer = null
+          uiParsing.value = 'timeout'
           return
         }
         parsePollingTimer = setTimeout(poll, pollInterval)
@@ -1027,11 +1177,16 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   }
 
   async function loadHistoryAssets() {
-    if (!selectedProjectId.value) { historyAssets.value = []; return }
+    if (!selectedProjectId.value) {
+      historyAssets.value = []
+      return
+    }
     try {
       const result = await historyAssetApi.getList(selectedProjectId.value as number)
       historyAssets.value = Array.isArray(result) ? result : []
-    } catch { historyAssets.value = [] }
+    } catch {
+      historyAssets.value = []
+    }
   }
 
   async function uploadHistoryAsset(file: File, assetType: string) {
@@ -1043,7 +1198,10 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
 
   async function importSystemCasesAsHistory(caseIds: number[]) {
     if (!selectedProjectId.value || caseIds.length === 0) return
-    const result = await historyAssetApi.importSystemCases(selectedProjectId.value as number, caseIds)
+    const result = await historyAssetApi.importSystemCases(
+      selectedProjectId.value as number,
+      caseIds
+    )
     historyAssets.value.push(result)
     selectedHistoryAssetIds.value.push(result.id)
   }
@@ -1055,7 +1213,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       const result = await historyAssetApi.align({
         project_id: selectedProjectId.value as number,
         history_asset_ids: selectedHistoryAssetIds.value,
-        requirement_file_ids: requirementFileIds.value.length > 0 ? requirementFileIds.value : undefined,
+        requirement_file_ids:
+          requirementFileIds.value.length > 0 ? requirementFileIds.value : undefined,
         ui_screen_ids: uiScreenIds.value.length > 0 ? uiScreenIds.value : undefined,
       })
       historyClassification.value = result
@@ -1083,6 +1242,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
   }
 
   function reset() {
+    // 抑制偏好回写：重新开始不应清空用户已持久化的项目/任务/配置偏好
+    suppressPersist = true
     cancelParsePolling()
     currentStep.value = 'task'
     selectedTask.value = 'new_feature'
@@ -1114,6 +1275,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     qualitySummary.value = { passed: 0, warning: 0, pending_review: 0, rejected: 0 }
     generating.value = false
     generationProgress.value = ''
+    sseTotalCount.value = 0
+    abortController.value = null
     saving.value = false
     saveResult.value = null
     saveError.value = ''
@@ -1130,7 +1293,48 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     historyClassification.value = null
     historyAligning.value = false
     historyItemSelections.value = new Map()
+    nextTick(() => {
+      suppressPersist = false
+    })
   }
+
+  /** Task10: 持久化用户偏好（项目/任务/高级配置）到 localStorage，按 userId 隔离 */
+  function persistPreference(): void {
+    if (suppressPersist) return
+    persistPreferenceData(readUserId(), {
+      selectedProjectId: selectedProjectId.value,
+      selectedTask: selectedTask.value,
+      advancedConfig: {
+        case_type: advancedConfig.value.case_type,
+        exec_mode: advancedConfig.value.exec_mode,
+        enhanced_mode: advancedConfig.value.enhanced_mode,
+        mode: advancedConfig.value.mode,
+      },
+    })
+  }
+
+  /** Task10: 从 localStorage 恢复用户偏好，供组件 onMounted 调用；无记录时静默跳过 */
+  function restorePreference(): void {
+    const pref = restorePreferenceData(readUserId())
+    if (!pref) return
+    suppressPersist = true
+    selectedProjectId.value = pref.selectedProjectId
+    selectedTask.value = pref.selectedTask
+    advancedConfig.value = {
+      ...advancedConfig.value,
+      case_type: pref.advancedConfig.case_type,
+      exec_mode: pref.advancedConfig.exec_mode,
+      enhanced_mode: pref.advancedConfig.enhanced_mode,
+      mode: pref.advancedConfig.mode,
+    }
+    nextTick(() => {
+      suppressPersist = false
+    })
+  }
+
+  // Task10: 字段变更自动持久化（restore/reset 期间由 suppressPersist 抑制回写）
+  watch([selectedProjectId, selectedTask], () => persistPreference())
+  watch(advancedConfig, () => persistPreference(), { deep: true })
 
   return {
     currentStep,
@@ -1159,6 +1363,8 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     qualitySummary,
     generating,
     generationProgress,
+    progressPercent,
+    sseTotalCount,
     saving,
     saveResult,
     saveError,
@@ -1180,6 +1386,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     toggleCaseSelection,
     removeCase,
     regenerateSingleCase,
+    abortGeneration,
     fetchBatchCost,
     recalcQualitySummary,
     coverageSummary,
@@ -1208,5 +1415,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
     removeHistoryAsset,
     setHistoryItemSelection,
     reset,
+    persistPreference,
+    restorePreference,
   }
 })

@@ -15,6 +15,8 @@
         >
           <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
         </el-select>
+        <el-button :icon="Switch" @click="goToMigration">用例迁移</el-button>
+        <el-button :icon="MagicStick" @click="goToCaseRefresh">保鲜建议</el-button>
       </div>
     </div>
     <div v-if="selectedProjectId" class="workspace-card">
@@ -191,9 +193,21 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Search, RefreshRight, Download, ArrowDown } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import {
+  Search,
+  RefreshRight,
+  Download,
+  ArrowDown,
+  Switch,
+  MagicStick,
+} from '@element-plus/icons-vue'
 import { useTestCaseList } from './useTestCaseList'
 import BatchLocatorDialog from './BatchLocatorDialog.vue'
+
+const router = useRouter()
+const goToMigration = () => router.push('/home/case/migration')
+const goToCaseRefresh = () => router.push('/home/case/case-refresh')
 
 const batchLocatorDialogRef = ref<InstanceType<typeof BatchLocatorDialog>>()
 
@@ -253,6 +267,12 @@ watch(
   background: #fff;
   border: 1px solid #ebeef5;
   border-radius: 8px;
+}
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .page-title {
   margin: 0;
