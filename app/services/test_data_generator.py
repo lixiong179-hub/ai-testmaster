@@ -28,6 +28,8 @@ from app.services.test_data_gen_constants import CHINESE_CHARS, DataConstraints,
 class TestDataGenerator:
     """Compatibility generator used by legacy tests and helper modules."""
 
+    __test__ = False
+
     CHINESE_CHARS = CHINESE_CHARS
 
     def __init__(self, seed: Optional[int] = None) -> None:

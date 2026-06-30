@@ -19,6 +19,8 @@ class TestDataParameterizer(ParameterHandlerMixin):
         - 解析失败时保留原始表达式
     """
 
+    __test__ = False
+
     PARAM_PATTERN = re.compile(r'\$\{([^}]+)\}')
 
     def __init__(self, context: Optional[ParameterContext] = None) -> None:

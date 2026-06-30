@@ -13,7 +13,7 @@ from app.models.test_case import TestStep
 from app.utils.db_time import utcnow
 
 from app.services.test_execution_engine.models import (
-    ExecutionStatus, ActionType, ExecutionMode, StepExecutionError,
+    ExecutionStatus, ActionType, StepExecutionError,
     VerificationError, StepExecutionResult,
 )
 
@@ -70,12 +70,12 @@ class StepExecutorMixin:
             if locator_record:
                 result.element_locator = locator_record.get_best_locator()
 
-            is_mobile_mode = execution_mode in (ExecutionMode.MOBILE_REALTIME.value, ExecutionMode.MOBILE_SMART.value)
+            is_mobile_mode = execution_mode in ("mobile_realtime", "mobile_smart")
             if is_mobile_mode:
                 await self._execute_mobile_step(step, action_with_data, execution_mode, result)
                 return self._finalize_step_result(result, start_time)
 
-            if execution_mode == ExecutionMode.PREPROCESS.value:
+            if execution_mode == "preprocess":
                 if (
                     action_type in (
                         ActionType.INPUT, ActionType.CLICK,
@@ -329,7 +329,7 @@ class StepExecutorMixin:
         if self.locator_service and step.id:
             locator_record = self.locator_service.get_locator(step.id)
 
-        if execution_mode in (ExecutionMode.REALTIME.value, ExecutionMode.SMART.value):
+        if execution_mode in ("realtime", "smart"):
             if not locator_record and self.locator_service and self.browser:
                 logger.info(f"步骤 {step.step_number}: 无预存定位，尝试AI实时识别 (mode={execution_mode})")
                 try:
@@ -346,7 +346,7 @@ class StepExecutorMixin:
                         if locator_record and not direct_executed:
                             logger.info(f"步骤 {step.step_number}: AI实时识别成功，已缓存定位信息")
                     else:
-                        if execution_mode == ExecutionMode.REALTIME.value:
+                        if execution_mode == "realtime":
                             logger.warning(f"步骤 {step.step_number}: AI实时识别失败")
                 except Exception as e:
                     logger.warning(f"步骤 {step.step_number}: AI实时识别异常: {e}")

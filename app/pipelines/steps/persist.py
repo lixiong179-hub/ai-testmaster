@@ -4,12 +4,15 @@
 设置 lifecycle_status、关联测试点、生成用例编号。
 """
 import json
+import threading
+from datetime import datetime
 from typing import Any, ClassVar, Dict, List, Optional
 
 from loguru import logger
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
+from app.services.case_number_service import CaseNumberService
 
 
 def _serialize_json_field(value: Any) -> Optional[str]:
@@ -30,6 +33,34 @@ def _serialize_json_field(value: Any) -> Optional[str]:
     return None
 
 
+def _parse_datetime_field(value: Any) -> Optional[datetime]:
+    """将 ISO 字符串或 datetime 对象统一为 datetime 对象。
+
+    用于解析 case_data 中的 last_verified_at 字段（由 ExecutionValidation
+    Step 写入）。支持 ISO 8601 字符串和 datetime 对象，非法值返回 None。
+
+    Args:
+        value: ISO 字符串、datetime 对象或 None。
+
+    Returns:
+        datetime 对象或 None。
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            logger.warning("last_verified_at 非法 ISO 字符串: {}，已置为 None", value)
+            return None
+    logger.warning(
+        "last_verified_at 非法类型: {}，已置为 None", type(value).__name__,
+    )
+    return None
+
+
 class Persist(PipelineStep):
     """用例持久化 Step — 将生成的用例落库。"""
 
@@ -37,6 +68,10 @@ class Persist(PipelineStep):
     version: ClassVar[str] = "2.0"
     requires: ClassVar[List[str]] = ["generated_cases", "quality_scores"]
     produces: ClassVar[List[str]] = ["persisted_case_ids"]
+    # 类级初始化避免懒初始化的 TOCTOU 竞态：
+    # 若在方法内 `if not hasattr(...): Lock()` 判断与赋值之间可能两个线程同时进入，
+    # 创建两个不同的 Lock 实例导致锁失效。
+    _lifecycle_lock: ClassVar[threading.Lock] = threading.Lock()
 
     def should_run(self, ctx: PipelineContext) -> bool:
         cases = ctx.get_artifact("generated_cases")
@@ -64,11 +99,7 @@ class Persist(PipelineStep):
 
         from app.models.test_case import TestCase, enable_lifecycle_transition
 
-        # 使用线程锁保护全局生命周期状态，防止并发任务互相干扰
-        import threading
-        if not hasattr(Persist, '_lifecycle_lock'):
-            Persist._lifecycle_lock = threading.Lock()
-
+        # 使用类级线程锁保护全局生命周期状态，防止并发任务互相干扰
         with Persist._lifecycle_lock:
             enable_lifecycle_transition()
             try:
@@ -109,11 +140,29 @@ class Persist(PipelineStep):
                                 score_info = score_map.get(case_data.get("title", ""), {})
                                 prior_score = score_info.get("score")
                                 grade = score_info.get("grade") if score_info else None
+                            # Task 17.3: quality_grade 优先由 grade_status 映射
+                            # （A=passed/B=warning/C=pending_review/D=rejected）。
+                            # 向后兼容：映射失败时保留分数映射的 grade，不阻断入库。
+                            try:
+                                from app.services.case_quality.quality_scoring_service import (
+                                    QualityScoringService,
+                                )
+                                from app.services.quality.grade import grade_status_to_letter
+                                mapped = grade_status_to_letter(
+                                    QualityScoringService.grade_status(case_data)
+                                )
+                                if mapped:
+                                    grade = mapped
+                            except Exception as e:
+                                logger.debug(
+                                    "grade_status 映射失败，保留分数映射 grade={}: {}",
+                                    grade, e,
+                                )
                             lifecycle = case_data.get("lifecycle_status", "draft")
                             if grade == "D":
                                 lifecycle = "pending_review"
 
-                            case_no = _generate_case_no(ctx, project_id)
+                            case_no = CaseNumberService.generate(project_id, ctx.db)
 
                             steps_json = case_data.get("steps", [])
                             if isinstance(steps_json, list):
@@ -137,12 +186,19 @@ class Persist(PipelineStep):
                                 case_type=case_data.get("case_type", "ui_automation"),
                                 lifecycle_status=lifecycle,
                                 prior_quality_score=prior_score,
+                                quality_grade=grade,
                                 parent_case_id=parent_case_id,
                                 ai_change_type=ai_change_type,
                                 depends_on=case_data.get("depends_on"),
                                 anchor_step=case_data.get("anchor_step"),
                                 fallback_steps=_serialize_json_field(case_data.get("fallback_steps")),
                                 setup_api_calls=_serialize_json_field(case_data.get("setup_api_calls")),
+                                execution_verified=case_data.get("execution_verified"),
+                                element_verified_ratio=case_data.get("element_verified_ratio"),
+                                execution_failure_type=case_data.get("execution_failure_type"),
+                                last_verified_at=_parse_datetime_field(
+                                    case_data.get("last_verified_at"),
+                                ),
                             )
                             ctx.db.add(new_case)
                             ctx.db.flush()
@@ -205,10 +261,23 @@ class Persist(PipelineStep):
                 "not_found": 0,
                 "already_deprecated": 0,
             }
-            for ds in deprecation_suggestions[:20]:  # 最多检查20条
+            # 批量查询：收集 case_id 后一次 .in_() 查询，避免循环内 N+1 查询
+            check_items = deprecation_suggestions[:20]
+            case_ids_to_check = [
+                ds.get("case_id") for ds in check_items
+                if ds.get("case_id") is not None
+            ]
+            old_cases_map: Dict[int, _TC] = {}
+            if case_ids_to_check:
+                old_cases = ctx.db.query(_TC).filter(
+                    _TC.id.in_(case_ids_to_check)
+                ).all()
+                old_cases_map = {c.id: c for c in old_cases}
+
+            for ds in check_items:
                 case_id = ds.get("case_id")
                 if case_id:
-                    old_case = ctx.db.query(_TC).filter(_TC.id == case_id).first()
+                    old_case = old_cases_map.get(case_id)
                     if old_case is None:
                         deprecation_check["not_found"] += 1
                     elif old_case.lifecycle_status == "deprecated":
@@ -340,17 +409,3 @@ def _persist_case_steps(
 
     if steps_to_add:
         ctx.db.add_all(steps_to_add)
-
-
-def _generate_case_no(ctx: PipelineContext, project_id: int) -> str:
-    """[deprecated] 生成用例编号，内部委托到 CaseNumberService。
-
-    Args:
-        ctx: Pipeline上下文（仅使用 ctx.db）。
-        project_id: 项目ID。
-
-    Returns:
-        格式为 TC-{project_id:03d}-{seq:04d} 的用例编号。
-    """
-    from app.services.case_number_service import CaseNumberService
-    return CaseNumberService.generate(project_id, ctx.db)

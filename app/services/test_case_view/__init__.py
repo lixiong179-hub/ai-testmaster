@@ -41,6 +41,8 @@ class TestCaseViewService(
         - 定位覆盖率统计
     """
 
+    __test__ = False
+
     def __init__(self, db: Session):
         """初始化视图服务。
 

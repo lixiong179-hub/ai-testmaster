@@ -12,6 +12,8 @@ from app.services.test_data_generator import TestDataGenerator
 class TestDataService(TestDataCrudMixin, TestDataGenServiceMixin, TestDataServiceMixin):
     """测试数据服务 - 组合CRUD、生成和业务逻辑能力"""
 
+    __test__ = False
+
     def __init__(self, db: Session):
         """初始化测试数据服务"""
         self.db = db

@@ -1,23 +1,21 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from loguru import logger
 
-from app.pipelines.steps._scoring import (
-    _score_title,
-    _score_steps,
-    _score_expected_result,
-    _score_precondition,
-)
+from app.services.case_quality.quality_scoring_service import QualityScoringService
+from app.services.quality.grade import score_to_grade
 
 
 def _score_to_grade(score: float) -> str:
-    if score >= 85:
-        return "A"
-    if score >= 65:
-        return "B"
-    if score >= 45:
-        return "C"
-    return "D"
+    """委托共享工具 score_to_grade，保持 pipelines 模块向后兼容的私有别名。
+
+    score 必为 float（调用方保证非 None），故校验非 None 后取值。
+    使用 raise 而非 assert，避免 -O 模式下被移除。
+    """
+    grade = score_to_grade(score)
+    if grade is None:
+        raise RuntimeError(f"score_to_grade returned None for score={score}")
+    return grade
 
 
 def _check_user_confirmed(db: Any, iteration_id: int) -> bool:
@@ -74,7 +72,22 @@ def _compute_prior_score(
     aligned: Dict[str, Any],
     iteration_id: int,
     db: Any,
+    user_confirmed: Optional[bool] = None,
 ) -> tuple[float, str, Dict[str, float]]:
+    """计算 prior 质量分。
+
+    Args:
+        case_data: 单条用例数据。
+        tp: 测试点信息。
+        signals: raw_signals 产物。
+        inferred: inferred_business_summary 产物。
+        aligned: aligned_testpoints 产物。
+        iteration_id: 迭代 ID。
+        db: 数据库会话，仅在 user_confirmed 未传入时查询。
+        user_confirmed: 用户已确认标记。生产调用方应在循环前调用一次
+            _check_user_confirmed 后传入，避免循环内 N+1 查询。
+            None 表示未传入，函数内部回退到查询 DB（保留向后兼容）。
+    """
     signal_score = 0.0
     signal_breakdown: Dict[str, float] = {}
 
@@ -109,7 +122,11 @@ def _compute_prior_score(
     signal_breakdown["history"] = history_score
     signal_score += history_score
 
-    confirmed = _check_user_confirmed(db, iteration_id)
+    # 调用方在循环前查询一次传入，避免 N+1；None 时回退到 DB 查询（向后兼容）
+    if user_confirmed is None:
+        confirmed = _check_user_confirmed(db, iteration_id)
+    else:
+        confirmed = user_confirmed
     confirmed_score = 15.0 if confirmed else 0.0
     signal_breakdown["user_confirmed"] = confirmed_score
     signal_score += confirmed_score
@@ -121,27 +138,9 @@ def _compute_prior_score(
 
     signal_score = max(0.0, min(100.0, signal_score))
 
-    content_score = 0.0
-    content_breakdown: Dict[str, float] = {}
-
-    title_score = _score_title(case_data.get("title", ""))
-    content_breakdown["title_quality"] = title_score
-    content_score += title_score
-
-    case_type = case_data.get("case_type", "")
-    steps_score = _score_steps(case_data.get("steps", []), case_type=case_type)
-    content_breakdown["steps_quality"] = steps_score
-    content_score += steps_score
-
-    expected_score = _score_expected_result(case_data.get("expected_result", ""))
-    content_breakdown["expected_result_quality"] = expected_score
-    content_score += expected_score
-
-    precondition_score = _score_precondition(case_data.get("precondition", ""))
-    content_breakdown["precondition_quality"] = precondition_score
-    content_score += precondition_score
-
-    content_score = max(0.0, min(100.0, content_score))
+    # Task 14 三合一：content 部分委托 QualityScoringService.prior_score，
+    # 与 grade_status/score_dimensions 共享统一常量与 _classify_* 判定
+    content_score, content_breakdown = QualityScoringService.prior_score(case_data)
 
     final_score = round(0.4 * signal_score + 0.6 * content_score, 2)
     final_score = max(0.0, min(100.0, final_score))

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
 from app.models.project import Project
+from app.services.case_number_service import CaseNumberService
 from app.services.prompt_builder.migration_prompt import build_migration_prompt
 from app.utils.ai_client_parser import parse_ai_json_object
 
@@ -124,7 +125,7 @@ class CaseMigrationService:
                 if not isinstance(preview_cases, list) or not preview_cases:
                     errors.append(f"预览用例为空: {source_case.id}")
                     continue
-                case_nos = self._generate_case_nos(target_project_id, len(preview_cases))
+                case_nos = CaseNumberService.generate_batch(target_project_id, len(preview_cases), self.db)
                 for idx, case_data in enumerate(preview_cases):
                     if not isinstance(case_data, dict):
                         continue
@@ -343,7 +344,7 @@ class CaseMigrationService:
         try:
             new_case = TestCase(
                 project_id=target_project_id,
-                case_no=self._generate_case_no(target_project_id),
+                case_no=CaseNumberService.generate(target_project_id, self.db),
                 module=source_case.module,
                 title=source_case.title,
                 precondition=source_case.precondition,
@@ -493,7 +494,7 @@ class CaseMigrationService:
         if not adapted_cases:
             logger.error(f"AI返回adapted_cases为空，migration_type={migration_type}")
             return []
-        case_nos = self._generate_case_nos(target_project_id, len(adapted_cases))
+        case_nos = CaseNumberService.generate_batch(target_project_id, len(adapted_cases), self.db)
         created: List[TestCase] = []
         enable_lifecycle_transition()
         try:
@@ -531,28 +532,3 @@ class CaseMigrationService:
         finally:
             disable_lifecycle_transition()
         return created
-
-    def _generate_case_nos(self, project_id: int, count: int) -> List[str]:
-        """[deprecated] 批量生成用例编号，内部委托到 CaseNumberService。
-
-        Args:
-            project_id: 项目ID。
-            count: 需要生成的编号数量。
-
-        Returns:
-            编号列表。
-        """
-        from app.services.case_number_service import CaseNumberService
-        return CaseNumberService.generate_batch(project_id, count, self.db)
-
-    def _generate_case_no(self, project_id: int) -> str:
-        """[deprecated] 生成单条用例编号，内部委托到 CaseNumberService。
-
-        Args:
-            project_id: 项目ID。
-
-        Returns:
-            用例编号。
-        """
-        from app.services.case_number_service import CaseNumberService
-        return CaseNumberService.generate(project_id, self.db)
