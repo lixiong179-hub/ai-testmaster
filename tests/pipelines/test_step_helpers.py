@@ -30,10 +30,7 @@ from app.pipelines.steps._signal_scoring import (
     _compute_prior_score,
     _score_to_grade,
 )
-from app.pipelines.steps.persist import (
-    _build_score_map,
-    _generate_case_no,
-)
+from app.pipelines.steps.persist import _build_score_map
 from app.pipelines.scenarios import get_scenario, get_scenario_by_version, list_scenarios
 
 
@@ -629,25 +626,6 @@ class TestBuildScoreMap:
         scores_artifact = {"scores": [{"case_title": None, "grade": "A"}]}
         result = _build_score_map(scores_artifact)
         assert len(result) == 0
-
-
-class TestGenerateCaseNo:
-    def test_first_case(self, db, testProject):
-        ctx = _make_ctx(db, testProject)
-        case_no = _generate_case_no(ctx, testProject.id)
-        assert case_no.startswith("TC-")
-        assert len(case_no) > 5
-
-    def test_sequential_numbering(self, db, testProject):
-        """验证 CaseNumberService 序号递增：先通过服务生成第一个编号，再生成第二个编号，确认序号递增"""
-        from app.services.case_number_service import CaseNumberService
-
-        first_no = CaseNumberService.generate(testProject.id, db)
-        assert "0001" in first_no
-
-        ctx = _make_ctx(db, testProject)
-        case_no = _generate_case_no(ctx, testProject.id)
-        assert "0002" in case_no
 
 
 class TestScenariosRegistry:

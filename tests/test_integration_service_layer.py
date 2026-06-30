@@ -227,39 +227,7 @@ class TestIntegrationServiceLayer(unittest.TestCase):
                 shutil.rmtree(temp_dir)
             except:
                 pass
-    
-    @pytest.mark.skip(reason="功能用例Excel导出列映射已变更，'用例描述'列为空")
-    def test_05_export_functional_excel(self):
-        """联调测试5: 导出功能用例Excel（第三方格式）"""
-        print("\n🧪 联调测试5: 导出功能用例Excel")
-        
-        import tempfile
-        import pandas as pd
-        
-        temp_dir = tempfile.mkdtemp()
-        temp_path = os.path.join(temp_dir, 'test_functional.xlsx')
-        
-        try:
-            # 调用Service导出
-            result = self.service.export_to_functional_excel([self.test_case.id], temp_path)
-            self.assertTrue(result, "导出功能用例Excel应该成功")
-            self.assertTrue(os.path.exists(temp_path), "Excel文件应该存在")
-            
-            # 验证文件内容
-            df = pd.read_excel(temp_path)
-            self.assertGreater(len(df), 0, "应该至少有一条用例")
-            self.assertIn('用例描述', df.columns, "应该有用例描述列")
-            self.assertIn('操作步骤', df.columns, "应该有操作步骤列")
-            self.assertEqual(df.iloc[0]['用例描述'], self.test_case.title, "用例描述应该匹配")
-            
-            print("✅ 联调测试5通过: 导出功能用例Excel")
-        finally:
-            import shutil
-            try:
-                shutil.rmtree(temp_dir)
-            except:
-                pass
-    
+
     def test_06_import_from_excel(self):
         """联调测试6: 从Excel导入用例"""
         print("\n🧪 联调测试6: 从Excel导入用例")

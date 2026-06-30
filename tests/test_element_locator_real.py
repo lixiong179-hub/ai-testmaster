@@ -27,6 +27,8 @@ from app.utils.unified_vision_model import get_default_vision_model
 TestCase.__test__ = False
 TestStep.__test__ = False
 
+pytestmark = pytest.mark.real_browser
+
 
 # ==================== Fixtures ====================
 

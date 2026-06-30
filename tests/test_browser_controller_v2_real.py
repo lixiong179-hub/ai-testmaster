@@ -21,6 +21,8 @@ from app.utils.browser_controller_v2 import (
     create_browser_controller_v2
 )
 
+pytestmark = pytest.mark.real_browser
+
 
 # ==================== Fixtures ====================
 
