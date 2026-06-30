@@ -1,0 +1,17 @@
+.git
+.gitignore
+node_modules
+__pycache__
+*.pyc
+.venv
+venv
+.env
+.secret_keys
+*.md
+!README.md
+tests/
+docs/
+.trae/
+*.bat
+*.log
+dist/
