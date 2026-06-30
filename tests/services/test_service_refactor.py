@@ -15,23 +15,11 @@ class TestServiceImports:
     """验证所有Service层模块可正常导入"""
 
     def test_case_generation_imports(self):
-        """case_generation子包导入验证"""
-        from app.services.case_generation import (
-            TestCaseGenerationService,
-            ContentSanitizer,
-        )
+        """test_case_generation新包导入验证（legacy case_generation子包已删除）"""
+        from app.services.test_case_generation import TestCaseGenerationService
+        from app.services.test_case_generation.base_mixin import ContentSanitizer
         assert TestCaseGenerationService is not None
-
-    def test_case_generation_mixins(self):
-        """case_generation各mixin可独立导入"""
-        from app.services.case_generation.ai_mixin import AIMixin
-        from app.services.prompt_builder import PromptBuilder
-        from app.services.case_generation.ai_parse_mixin import AIParseMixin
-        from app.services.case_generation.core_mixin import CoreMixin
-        from app.services.case_generation.context_mixin import ContextMixin
-        from app.services.case_generation.steps_mixin import StepsMixin
-        from app.services.case_generation.steps_validate_mixin import StepsValidateMixin
-        assert all([AIMixin, PromptBuilder, AIParseMixin, CoreMixin, ContextMixin, StepsMixin, StepsValidateMixin])
+        assert ContentSanitizer is not None
 
     def test_precondition_imports(self):
         """precondition子包导入验证"""

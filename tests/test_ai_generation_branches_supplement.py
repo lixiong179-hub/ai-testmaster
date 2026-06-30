@@ -267,165 +267,6 @@ class TestAITestCaseMixinValidateAndNormalize:
         assert result["title"] == "T"
 
 
-class TestAiMixinGenerateCaseWithAi:
-
-    async def _make_mixin(self):
-        from app.services.case_generation.ai_mixin import AIMixin
-        mixin = AIMixin()
-        mixin._parse_ai_response = MagicMock(return_value={"title": "T"})
-        mixin._async_sleep = AsyncMock()
-        return mixin
-
-    async def test_timeout_retry_then_fail(self):
-        import httpx
-        mixin = await self._make_mixin()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
-            with pytest.raises(ValueError, match="AI\u751f\u6210\u5931\u8d25"):
-                await mixin._generate_case_with_ai({
-                    "requirement_content": "req", "ui_description": "", "ui_specs": [],
-                    "test_point": {"module": "M", "function": "F", "point": "P", "priority": 2}
-                })
-        assert mixin._async_sleep.call_count == 2
-
-    async def test_http_status_error_retry(self):
-        import httpx
-        mixin = await self._make_mixin()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.HTTPStatusError("err", request=MagicMock(), response=mock_response))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
-            with pytest.raises(ValueError):
-                await mixin._generate_case_with_ai({
-                    "requirement_content": "req", "ui_description": "", "ui_specs": [],
-                    "test_point": {"module": "M", "function": "F", "point": "P", "priority": 2}
-                })
-
-    async def test_request_error_retry(self):
-        import httpx
-        mixin = await self._make_mixin()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.RequestError("conn err"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
-            with pytest.raises(ValueError):
-                await mixin._generate_case_with_ai({
-                    "requirement_content": "req", "ui_description": "", "ui_specs": [],
-                    "test_point": {"module": "M", "function": "F", "point": "P", "priority": 2}
-                })
-
-    async def test_response_missing_choices_raises(self):
-        mixin = await self._make_mixin()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.raise_for_status = MagicMock()
-            mock_resp.json.return_value = {}
-            mock_client.post = AsyncMock(return_value=mock_resp)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
-            with pytest.raises(ValueError, match="choices"):
-                await mixin._generate_case_with_ai({
-                    "requirement_content": "req", "ui_description": "", "ui_specs": [],
-                    "test_point": {"module": "M", "function": "F", "point": "P", "priority": 2}
-                })
-
-    async def test_response_empty_choices_raises(self):
-        mixin = await self._make_mixin()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.raise_for_status = MagicMock()
-            mock_resp.json.return_value = {"choices": []}
-            mock_client.post = AsyncMock(return_value=mock_resp)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
-            with pytest.raises(ValueError, match="\u4e3a\u7a7a"):
-                await mixin._generate_case_with_ai({
-                    "requirement_content": "req", "ui_description": "", "ui_specs": [],
-                    "test_point": {"module": "M", "function": "F", "point": "P", "priority": 2}
-                })
-
-    async def test_response_missing_message_raises(self):
-        mixin = await self._make_mixin()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.raise_for_status = MagicMock()
-            mock_resp.json.return_value = {"choices": [{}]}
-            mock_client.post = AsyncMock(return_value=mock_resp)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
-            with pytest.raises(ValueError, match="message"):
-                await mixin._generate_case_with_ai({
-                    "requirement_content": "req", "ui_description": "", "ui_specs": [],
-                    "test_point": {"module": "M", "function": "F", "point": "P", "priority": 2}
-                })
-
-    async def test_response_empty_content_raises(self):
-        mixin = await self._make_mixin()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.raise_for_status = MagicMock()
-            mock_resp.json.return_value = {"choices": [{"message": {"content": ""}}]}
-            mock_client.post = AsyncMock(return_value=mock_resp)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
-            with pytest.raises(ValueError, match="\u4e3a\u7a7a"):
-                await mixin._generate_case_with_ai({
-                    "requirement_content": "req", "ui_description": "", "ui_specs": [],
-                    "test_point": {"module": "M", "function": "F", "point": "P", "priority": 2}
-                })
-
-    async def test_success_on_first_attempt(self):
-        mixin = await self._make_mixin()
-
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_resp = MagicMock()
-            mock_resp.raise_for_status = MagicMock()
-            mock_resp.json.return_value = {"choices": [{"message": {"content": "valid json"}}]}
-            mock_client.post = AsyncMock(return_value=mock_resp)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
-            result = await mixin._generate_case_with_ai({
-                "requirement_content": "req", "ui_description": "", "ui_specs": [],
-                "test_point": {"module": "M", "function": "F", "point": "P", "priority": 2}
-            })
-        assert result["title"] == "T"
-
-
 class TestAiMixinGenerateTestCaseForPoint:
 
     async def test_no_ui_description_manual_category(self):
@@ -438,7 +279,9 @@ class TestAiMixinGenerateTestCaseForPoint:
             project_id=1,
         )
         call_args = mixin._generate_case_with_ai.call_args[0][0]
-        assert call_args["case_category"] == "manual"
+        # R1 修复后 case_type 才是 manual/ui_automation（执行方式），
+        # case_category 是 positive/boundary/exception（测试场景，未传入时为 None）。
+        assert call_args["case_type"] == "manual"
 
     async def test_ui_with_interactive_elements(self):
         from app.services.test_case_generation.ai_mixin import TestCaseGenerationAiMixin
@@ -450,7 +293,8 @@ class TestAiMixinGenerateTestCaseForPoint:
             project_id=1,
         )
         call_args = mixin._generate_case_with_ai.call_args[0][0]
-        assert call_args["case_category"] == "ui_automation"
+        # R1 修复后断言 case_type（执行方式），而非 case_category（测试场景）。
+        assert call_args["case_type"] == "ui_automation"
 
     async def test_ui_without_interactive_elements(self):
         from app.services.test_case_generation.ai_mixin import TestCaseGenerationAiMixin
@@ -462,7 +306,8 @@ class TestAiMixinGenerateTestCaseForPoint:
             project_id=1,
         )
         call_args = mixin._generate_case_with_ai.call_args[0][0]
-        assert call_args["case_category"] == "manual"
+        # R1 修复后断言 case_type（执行方式），而非 case_category（测试场景）。
+        assert call_args["case_type"] == "manual"
 
     async def test_case_type_override(self):
         from app.services.test_case_generation.ai_mixin import TestCaseGenerationAiMixin
@@ -486,42 +331,6 @@ class TestAiMixinGenerateTestCaseForPoint:
         ])
         assert "\u5907\u7528\u63cf\u8ff0" in result
         assert "\u4e3b\u63cf\u8ff0" in result
-
-
-class TestAiParseMixin:
-
-    def test_direct_json_parse(self):
-        from app.services.case_generation.ai_parse_mixin import AIParseMixin
-        mixin = AIParseMixin()
-        result = mixin._parse_ai_response('{"title": "T", "steps": []}')
-        assert result["title"] == "T"
-
-    def test_fix_common_json_issues_then_parse(self):
-        from app.services.case_generation.ai_parse_mixin import AIParseMixin
-        mixin = AIParseMixin()
-        content = '{"title": "T", "steps": [],}'
-        result = mixin._parse_ai_response(content)
-        assert result["title"] == "T"
-
-    def test_clean_json_string_then_parse(self):
-        from app.services.case_generation.ai_parse_mixin import AIParseMixin
-        mixin = AIParseMixin()
-        content = '```json\n{"title": "T", "steps": []}\n```'
-        result = mixin._parse_ai_response(content)
-        assert result["title"] == "T"
-
-    def test_regex_extract_then_fix(self):
-        from app.services.case_generation.ai_parse_mixin import AIParseMixin
-        mixin = AIParseMixin()
-        content = 'Result: {"title": "T", "steps": []} end'
-        result = mixin._parse_ai_response(content)
-        assert result["title"] == "T"
-
-    def test_all_strategies_fail_raises(self):
-        from app.services.case_generation.ai_parse_mixin import AIParseMixin
-        mixin = AIParseMixin()
-        with pytest.raises(ValueError, match="\u65e0\u6cd5\u89e3\u6790"):
-            mixin._parse_ai_response("totally not json")
 
 
 class TestValidateMixinSaveTestCase:
@@ -661,27 +470,3 @@ class TestBatchMixin:
         final = results[-1]
         assert final["status"] == "success"
         assert final["created"] == 1
-
-
-class TestContextMixinFlowSort:
-
-    async def test_sort_flow_nodes_main_first(self):
-        from app.services.case_generation.context_mixin import _sort_flow_nodes
-
-        class FakeNode:
-            def __init__(self, flow_type, main_order=None, screen_order=0):
-                self.flow_type = flow_type
-                self.main_order = main_order
-                self.screen_order = screen_order
-
-        nodes = [
-            FakeNode("branch", screen_order=2),
-            FakeNode("main", main_order=2, screen_order=3),
-            FakeNode("main", main_order=1, screen_order=1),
-            FakeNode("exception", screen_order=4),
-        ]
-        sorted_nodes = _sort_flow_nodes(nodes)
-        assert sorted_nodes[0].flow_type == "main"
-        assert sorted_nodes[0].main_order == 1
-        assert sorted_nodes[1].flow_type == "main"
-        assert sorted_nodes[1].main_order == 2
