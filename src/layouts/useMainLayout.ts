@@ -32,12 +32,9 @@ const MENU_CONFIG: MenuItem[] = [
     label: '测试资产',
     icon: Check,
     children: [
-      { index: '/home/case/smart-generate', label: '智能生成用例' },
-      { index: '/home/case/test-point-management', label: '测试点管理' },
       { index: '/home/case', label: '用例列表' },
-      { index: '/home/case/ai-generate', label: 'AI生成用例' },
-      { index: '/home/case/migration', label: '用例迁移' },
-      { index: '/home/case/case-refresh', label: '保鲜建议' },
+      { index: '/home/case/test-point-management', label: '测试点管理' },
+      { index: '/home/case/smart-generate', label: '智能生成用例' },
     ],
   },
   { index: '/home/task', label: '执行中心', icon: Timer },
@@ -100,7 +97,6 @@ export function useMainLayout() {
     if (route.path.startsWith('/home/case/test-point-extract'))
       return '/home/case/test-point-management'
     if (route.path.startsWith('/home/case/smart-generate')) return '/home/case/smart-generate'
-    if (route.path.startsWith('/home/case/ai-generate')) return '/home/case/ai-generate'
     if (route.path.startsWith('/home/case/migration')) return '/home/case/migration'
     if (route.path.startsWith('/home/case/case-refresh')) return '/home/case/case-refresh'
     if (route.path.startsWith('/home/case/iteration/regression-generate'))
@@ -132,7 +128,6 @@ export function useMainLayout() {
     '/home/case/detail': '用例详情',
     '/home/case/test-point-management': '测试点管理',
     '/home/case/test-point-extract': '测试点提取',
-    '/home/case/ai-generate': 'AI生成用例',
     '/home/case/smart-generate': '智能生成用例',
     '/home/case/migration': '用例迁移',
     '/home/case/case-refresh': '保鲜建议',

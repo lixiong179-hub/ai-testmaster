@@ -274,7 +274,7 @@ export function useTestPointActions(
       query.filename = state.selectedResource.value.display_name
     }
 
-    state.router.push({ path: '/home/case/ai-generate', query })
+    state.router.push({ path: '/home/case/smart-generate', query })
   }
 
   function goToManagement(): void {
