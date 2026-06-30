@@ -308,7 +308,7 @@ async def start_test_task(
                 mobile_device_id=mobile_device_id
             )
         except Exception as e:
-            logger.error(f"任务执行异常: {e}")
+            logger.error("任务执行异常: {}", e, exc_info=True)
             task.status = 2
             task.end_time = utcnow()
             db.commit()
@@ -321,7 +321,7 @@ async def start_test_task(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"启动任务失败: {e}")
+        logger.error("启动任务失败: {}", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="启动任务失败"
