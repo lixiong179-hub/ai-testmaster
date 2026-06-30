@@ -13,6 +13,7 @@ from app.models.generation_batch import GenerationBatch, GenerationBatchSave
 from app.models.project import Project, ProjectFile
 from app.models.test_case import TestCase, TestStep
 from app.models.user import User
+from app.services.case_number_service import CaseNumberService
 from app.services.lifecycle_service import transition as lifecycle_transition
 from app.schemas.generation_batch import (
     BatchSaveFailureItem,
@@ -52,35 +53,6 @@ def _generate_batch_no(project_id: int) -> str:
     date_str = now.strftime("%Y%m%d")
     time_str = now.strftime("%H%M%S%f")
     return f"GB{date_str}{time_str}{project_id:04d}"
-
-
-import warnings
-
-from app.services.case_number_service import CaseNumberService
-
-
-def _generate_case_no(project_id: int, index: int) -> str:
-    """[deprecated] 生成用例编号，内部委托到 CaseNumberService。
-
-    Args:
-        project_id: 项目ID。
-        index: 忽略，仅保留接口兼容。
-
-    Returns:
-        格式为 TC-{project_id:03d}-{seq:04d} 的用例编号。
-    """
-    warnings.warn(
-        "_generate_case_no is deprecated, use CaseNumberService.generate instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return CaseNumberService.generate(project_id, db=_get_db_for_case_no())
-
-
-def _get_db_for_case_no():
-    """获取当前请求的数据库会话，供 deprecated 的 _generate_case_no 使用。"""
-    from app.db.database import PrimarySessionLocal
-    return PrimarySessionLocal()
 
 
 def _batch_to_response(batch: GenerationBatch) -> dict:
