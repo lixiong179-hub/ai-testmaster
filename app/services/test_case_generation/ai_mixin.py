@@ -1,8 +1,11 @@
 """Test Case Generation Service - AI生成相关Mixin
 包含AI调用、Prompt构建、响应解析等能力
 """
+import asyncio
+import copy
 import hashlib
 import json
+import threading
 import time
 from typing import List, Dict, Any, Optional
 from loguru import logger
@@ -13,6 +16,20 @@ from app.services.test_case_generation.base_mixin import (
 )
 from app.services.prompt_builder import PromptBuilder
 from app.services.test_case_generation.ai_response_parser import parse_ai_response
+from app.services.test_case_generation.quality_validator import validate_single_case_status
+
+
+def _get_openai_client() -> "OpenAIClient":
+    """延迟导入并创建 OpenAIClient 单例（线程安全）。"""
+    from app.ai.openai_client import OpenAIClient
+    if not hasattr(_get_openai_client, "_instance"):
+        with _get_openai_client._lock:
+            if not hasattr(_get_openai_client, "_instance"):
+                _get_openai_client._instance = OpenAIClient()
+    return _get_openai_client._instance
+
+
+_get_openai_client._lock = threading.Lock()
 
 
 class TestCaseGenerationAiMixin:
@@ -36,6 +53,10 @@ class TestCaseGenerationAiMixin:
             "test_point": context.get("test_point", {}),
             "case_type": context.get("case_type"),
             "case_category": context.get("case_category"),
+            # 缓存键必须包含 history_cases 和 execution_feedback，
+            # 否则同测试点跨批次重试时缓存命中会抵消 Task 1/12 的上下文增强效果
+            "history_cases": context.get("history_cases", []),
+            "execution_feedback": context.get("execution_feedback"),
             "model": settings.DEEPSEEK_MODEL,
         }
         raw = json.dumps(cache_payload, ensure_ascii=False, sort_keys=True, default=str)
@@ -78,137 +99,195 @@ class TestCaseGenerationAiMixin:
 
         has_ui = bool(ui_description and ui_description.strip()) or bool(context.get("ui_specs", []))
 
+        # 计算 case_type 默认值（manual/ui_automation），与 case_category 字段语义不同：
+        # case_type 描述执行方式，case_category 描述测试场景（positive/boundary/exception）。
+        # 历史实现把 case_type 值赋给名为 case_category 的局部变量并写入 generation_context，
+        # 导致 case_category 字段被污染为 "manual"/"ui_automation"（非合法 case_category 值）。
         if not has_ui:
-            case_category = TEST_CATEGORY_MANUAL
+            derived_case_type = TEST_CATEGORY_MANUAL
         else:
             ui_keywords = ['按钮', '表单', '输入框', '下拉框', '复选框', '单选框', '链接', '导航',
                           'button', 'input', 'form', 'dropdown', 'checkbox', 'radio', 'link', 'menu']
             ui_has_interactive = any(k in ui_description.lower() for k in ui_keywords)
-            case_category = TEST_CATEGORY_UI_AUTO if ui_has_interactive else TEST_CATEGORY_MANUAL
+            derived_case_type = TEST_CATEGORY_UI_AUTO if ui_has_interactive else TEST_CATEGORY_MANUAL
 
         generation_context = {
             "requirement_content": requirement_content,
             "ui_description": ui_description,
-            "ui_specs": context.get("ui_specs", []),
+            # 并发安全：ui_specs/history_cases 是 base_context 的嵌套可变对象，
+            # 在 3 路并发生成下若按引用共享，下游 PromptBuilder 或 _save_test_case
+            # 修改会污染其他测试点。这里深拷贝切断共享引用。
+            "ui_specs": copy.deepcopy(context.get("ui_specs", [])),
             "test_point": test_point,
-            "case_type": case_type if case_type else ("manual" if not has_ui else "ui_automation"),
-            "case_category": case_type if case_type else case_category
+            # 多测试点场景下需让 AI 一次生成 ≥3 条用例（Task spec 核心功能），
+            # 上游 batch_mixin 会把整个 test_points 列表放入 context，
+            # 透传到 _generate_case_with_ai 计算 min_case_count
+            "test_points": context.get("test_points", []),
+            "case_type": case_type or derived_case_type,
+            # case_category 由 AI 按测试场景生成（positive/boundary/exception），
+            # 仅在显式传入时透传，不用 case_type 值兜底以免污染字段语义。
+            "case_category": context.get("case_category"),
+            "history_cases": copy.deepcopy(context.get("history_cases", [])),
+            "project_id": project_id,
+            "execution_feedback": context.get("execution_feedback"),
         }
 
         generated_case = await self._generate_case_with_ai(generation_context)
-        generated_case["_context_ui_specs"] = context.get("ui_specs", [])
+        generated_case["_context_ui_specs"] = copy.deepcopy(context.get("ui_specs", []))
         return generated_case
 
     async def _generate_case_with_ai(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """使用AI生成测试用例"""
-        import httpx
-        import asyncio
+        """使用AI生成测试用例，含3轮质量反馈闭环（Task 15 提取为共享函数）。
+
+        业务原因：首轮AI输出可能不达标，通过 run_quality_feedback_loop
+        注入质量反馈与质量信号，让AI在第2/3轮修复问题，提升一次通过率。
+        流式与非流式端点共用 run_quality_feedback_loop（历史避坑：禁止盲重试）。
+        """
+        from app.services.case_quality.quality_feedback_loop import (
+            build_quality_feedback_text, run_quality_feedback_loop,
+        )
 
         test_point = context.get("test_point", {})
         test_points = context.get("test_points", [])
         min_case_count = 3 if (len(test_points) >= 2 if test_points else False) else 1
-        prompt = PromptBuilder.build_linear_prompt(
-            requirement_content=context.get("requirement_content", ""),
-            ui_description=context.get("ui_description", ""),
-            module=test_point.get("module", "未知模块"),
-            function=test_point.get("function", "未知功能"),
-            point=test_point.get("point", ""),
-            priority=test_point.get("priority", 2),
-            ui_specs=context.get("ui_specs", []),
-            case_type=context.get("case_type"),
-            min_case_count=min_case_count,
-        )
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}"
-        }
         cache_key = self._build_generation_cache_key(context)
         cached = self._get_cached_generation(cache_key)
         if cached is not None:
             logger.info("AI生成测试用例缓存命中")
             return cached
 
-        payload = {
-            "model": settings.DEEPSEEK_MODEL,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.3,  # 统一低温度，输出稳定
-            "max_tokens": self._get_case_generation_max_tokens()
+        prompt_kwargs: Dict[str, Any] = {
+            "requirement_content": context.get("requirement_content", ""),
+            "ui_description": context.get("ui_description", ""),
+            "module": test_point.get("module", "未知模块"),
+            "function": test_point.get("function", "未知功能"),
+            "point": test_point.get("point", ""),
+            "priority": test_point.get("priority", 2),
+            "ui_specs": context.get("ui_specs", []),
+            "case_type": context.get("case_type"),
+            "min_case_count": min_case_count,
+            "history_cases": context.get("history_cases", []),
+            "project_id": context.get("project_id"),
+            "db": getattr(self, "db", None),
+            "execution_feedback": context.get("execution_feedback"),
         }
 
+        async def _regen_with_feedback(
+            extra_context: Dict[str, Any],
+        ) -> Optional[Dict[str, Any]]:
+            """重生成函数：注入 extra_context 到 PromptBuilder，调用 AI 并校验额外用例。"""
+            kwargs = dict(prompt_kwargs)
+            if extra_context:
+                kwargs["extra_context"] = extra_context
+            prompt = PromptBuilder.build_linear_prompt(**kwargs)
+            new_case = await self._call_ai_and_parse(prompt, min_case_count=min_case_count)
+            if new_case is None:
+                return None
+            self._validate_extra_cases(new_case)
+            return new_case
+
+        # 首轮生成（无 extra_context）
+        first_case = await _regen_with_feedback({})
+        if first_case is None:
+            raise ValueError("AI生成失败: 所有轮次均未返回有效用例")
+
+        # Task 15: 调用共享 3 轮反馈闭环（含 quality_signals 注入）
+        final_case, status, _ = await run_quality_feedback_loop(
+            first_case, _regen_with_feedback, build_quality_feedback_text,
+        )
+
+        # 只缓存 passed 用例，避免低质量用例污染缓存
+        if status == "passed":
+            self._set_cached_generation(cache_key, final_case)
+        return final_case
+
+    def _validate_extra_cases(self, case: Dict[str, Any]) -> None:
+        """校验并剔除 rejected 的额外用例（原 _generate_case_with_ai 内联逻辑）。
+
+        只剔除 rejected，pending_review/warning 保留（历史避坑：质量门禁分级阻断）。
+        """
+        extra_cases = case.get("_extra_cases", [])
+        if not extra_cases:
+            return
+        validated_extras: List[Dict[str, Any]] = []
+        for extra in extra_cases:
+            extra_status, _ = validate_single_case_status(extra)
+            if extra_status != "rejected":
+                validated_extras.append(extra)
+            else:
+                logger.warning(f"额外用例校验不通过已剔除: {extra.get('title', '')}")
+        case["_extra_cases"] = validated_extras
+
+    async def _call_ai_and_parse(
+        self, prompt: str, min_case_count: int = 1
+    ) -> Optional[Dict[str, Any]]:
+        """调用AI并解析响应，含3次网络重试。
+
+        业务原因：AI接口可能超时或返回空内容，需重试保证可靠性。
+        重试间隔使用指数退避（2^attempt 秒）。
+        解析失败可能是 max_tokens 不足导致 JSON 截断，重试时升级到
+        AI_CASE_GENERATION_MAX_TOKENS_FULL（8192）以容纳完整输出。
+
+        Args:
+            prompt: 发送给 AI 的提示词。
+            min_case_count: 期望 AI 返回的最少用例数（含主用例与 _extra_cases）。
+                当 AI 返回的用例数不足时记 warning，由调用方决定是否进入下一轮。
+
+        Returns:
+            解析后的主用例 dict（_extra_cases 字段携带额外用例）；解析失败返回 None。
+        """
         max_retries = 3
-        last_error = None
+        last_error: Optional[str] = None
+        use_full_tokens = False
 
         for attempt in range(max_retries):
-            started_at = time.monotonic()
             try:
-                async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
-                    response = await client.post(
-                        settings.DEEPSEEK_API_URL,
-                        headers=headers,
-                        json=payload
-                    )
-                    response.raise_for_status()
-                    result = response.json()
+                client = _get_openai_client()
+                max_tokens = self._get_case_generation_max_tokens(retry_full=use_full_tokens)
+                # 同步 OpenAI 客户端在 async 上下文中调用会阻塞事件循环，
+                # 在 batch_mixin 的 Semaphore(3) 并发下使并发退化为串行。
+                # 用 asyncio.to_thread 将同步网络 IO 移至线程池执行。
+                response = await asyncio.to_thread(
+                    client.complete, prompt, max_tokens=max_tokens
+                )
+                content = response.content or ""
+                if not content:
+                    raise ValueError("AI响应内容为空")
 
-                    if "choices" not in result:
-                        raise ValueError("AI API响应格式错误：缺少choices字段")
-                    choices = result["choices"]
-                    if not choices or len(choices) == 0:
-                        raise ValueError("AI API返回结果为空")
-                    first_choice = choices[0]
-                    if "message" not in first_choice:
-                        raise ValueError("AI响应格式错误：缺少message字段")
+                parsed = parse_ai_response(content)
 
-                    finish_reason = first_choice.get("finish_reason")
-                    content = first_choice["message"].get("content", "")
-                    if not content:
-                        raise ValueError("AI响应内容为空")
+                if "cases" in parsed and isinstance(parsed["cases"], list):
+                    cases_list = parsed["cases"]
+                    if not cases_list:
+                        raise ValueError("AI返回的用例数组为空")
+                    # 多测试点场景下要求 AI 一次生成 ≥ min_case 条用例，
+                    # 不足时记 warning 触发下一轮重试，避免下游因用例数不足
+                    # 反复触发补充生成（_enhance_coverage_for_point）增加 AI 调用成本
+                    if len(cases_list) < min_case_count:
+                        logger.warning(
+                            f"AI返回用例数 {len(cases_list)} 少于期望 {min_case_count}"
+                        )
+                    primary_case = cases_list[0]
+                    primary_case["_extra_cases"] = cases_list[1:]
+                    return primary_case
 
-                    latency_ms = int((time.monotonic() - started_at) * 1000)
-                    logger.debug(f"AI原始响应长度: {len(content)} 字符")
-                    logger.debug(f"AI原始响应前300字符: {content[:300]}")
-                    logger.info(
-                        "AI生成测试用例完成: "
-                        f"latency_ms={latency_ms}, max_tokens={payload['max_tokens']}, "
-                        f"finish_reason={finish_reason}, attempt={attempt + 1}/{max_retries}"
-                    )
-                    if finish_reason == "length" and payload["max_tokens"] < self._get_case_generation_max_tokens(retry_full=True):
-                        payload["max_tokens"] = self._get_case_generation_max_tokens(retry_full=True)
-                        logger.warning("AI响应被截断，使用更高max_tokens重试以保证用例完整性")
-                        continue
+                return parsed
 
-                    parsed = parse_ai_response(content)
-
-                    if "cases" in parsed and isinstance(parsed["cases"], list):
-                        cases_list = parsed["cases"]
-                        if not cases_list:
-                            raise ValueError("AI返回的用例数组为空")
-                        primary_case = cases_list[0]
-                        primary_case["_extra_cases"] = cases_list[1:]
-                        self._set_cached_generation(cache_key, primary_case)
-                        return primary_case
-
-                    self._set_cached_generation(cache_key, parsed)
-                    return parsed
-
-            except httpx.TimeoutException:
-                last_error = f"AI API请求超时 (尝试 {attempt + 1}/{max_retries})"
-                logger.warning(last_error)
-            except httpx.HTTPStatusError as e:
-                last_error = f"AI API HTTP错误: {e.response.status_code}"
-                logger.error(last_error)
-            except httpx.RequestError as e:
-                last_error = "AI API请求错误"
-                logger.error(f"AI API请求错误: {e}")
             except (ValueError, json.JSONDecodeError) as e:
-                logger.error(f"AI响应解析失败: {e}")
-                raise
+                last_error = str(e)
+                use_full_tokens = True
+                logger.warning(f"AI响应解析失败(尝试{attempt + 1}/{max_retries}): {e}")
+            except ConnectionError as e:
+                last_error = str(e)
+                logger.error(f"AI网络错误(尝试{attempt + 1}/{max_retries}): {e}")
+            except Exception as e:
+                last_error = str(e)
+                logger.error(f"AI调用异常(尝试{attempt + 1}/{max_retries}): {e}")
 
             if attempt < max_retries - 1:
                 await asyncio.sleep(2 ** attempt)
 
-        logger.error(f"AI生成失败，已重试{max_retries}次: {last_error}")
         raise ValueError(f"AI生成失败: {last_error}")
 
     def _build_ui_description(self, ui_descriptions: List[Dict[str, Any]]) -> str:

@@ -1,335 +1,67 @@
 """
 Test Case Generation Service - 基础方法Mixin
-包含内容清洗器、上下文获取、UI描述构建等基础能力
+包含上下文获取、UI描述构建、信任度评分等基础能力。
+
+模块拆分说明：
+    - 模块级辅助函数和 ContextBudgetController 已拆分到 _base_helpers.py
+    - ContentSanitizer 已拆分到 _content_sanitizer.py
+    本文件保留 re-export 以维持向后兼容（外部模块仍可从 base_mixin 导入这些符号）。
 """
 import re
-import json
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
 from app.models.requirement import Requirement
 from app.models.test_point import TestPoint
 from app.models.test_case import TestCase
-from app.models.project import Project, ProjectFile
+from app.models.project import Project
 from app.models.ui_prototype import UIPrototypeScreen
 from app.crud import test_point as test_point_crud
 from app.crud import file as file_crud
-from app.services.test_case_generation.test_point_loader import _extract_function_from_ai_prompt
 from app.services.file_content_extractor import get_file_content
+
+# 从拆分模块 re-export，保持向后兼容
+from app.services.test_case_generation._base_helpers import (  # noqa: F401
+    ContextBudgetController,
+    DEFAULT_ADJACENT_UI_SCREEN_LIMIT,
+    DEFAULT_CONTEXT_TOKEN_BUDGET,
+    DEFAULT_MATCHED_REQUIREMENT_LIMIT,
+    DEFAULT_MATCHED_UI_SCREEN_LIMIT,
+    REQUIRED_UI_ELEMENT_HINTS,
+    REQUIREMENT_ACTION_VERBS,
+    REQUIREMENT_MIN_CHAR_COUNT,
+    _assess_requirement_quality,
+    _collect_navigation_screen_ids,
+    _dedupe_ints,
+    _dedupe_strings,
+    _extract_terms,
+    _find_missing_required_ui_terms,
+    _has_flow_intent,
+    _normalize_match_text,
+    _requirement_ref,
+    _safe_json_text,
+    _score_terms,
+    _screen_desc,
+    _screen_ref,
+    _test_point_entry,
+    _test_point_search_text,
+    _trim_requirement_text,
+    _warning,
+)
+from app.services.test_case_generation._content_sanitizer import ContentSanitizer  # noqa: F401
 
 DEFAULT_TEST_POINT_PAGE_SIZE = 100
 MAX_TEST_POINT_PAGE_SIZE = 500
-DEFAULT_CONTEXT_TOKEN_BUDGET = 5000
-DEFAULT_MATCHED_REQUIREMENT_LIMIT = 3
-DEFAULT_MATCHED_UI_SCREEN_LIMIT = 3
-DEFAULT_ADJACENT_UI_SCREEN_LIMIT = 2
-REQUIRED_UI_ELEMENT_HINTS = (
-    "忘记密码",
-    "验证码",
-    "提交",
-    "下一步",
-    "上一步",
-    "登录",
-    "注册",
-    "搜索",
-    "支付",
-    "结算",
-    "加入购物车",
-    "保存",
-    "取消",
-    "确认",
-)
 
 TEST_CATEGORY_UI_AUTO = "ui_automation"
 TEST_CATEGORY_MANUAL = "manual"
 TEST_CATEGORY_API_AUTO = "api_automation"
 
 
-def _dedupe_ints(values: Optional[List[int]]) -> List[int]:
-    if not values:
-        return []
-    result: List[int] = []
-    seen = set()
-    for value in values:
-        try:
-            item = int(value)
-        except (TypeError, ValueError):
-            continue
-        if item not in seen:
-            seen.add(item)
-            result.append(item)
-    return result
-
-
-def _safe_json_text(value: Any) -> str:
-    if value in (None, "", [], {}):
-        return ""
-    if isinstance(value, str):
-        return value
-    try:
-        return json.dumps(value, ensure_ascii=False, default=str)
-    except Exception:
-        return str(value)
-
-
-def _extract_terms(*parts: Any) -> set[str]:
-    text = " ".join(str(part or "") for part in parts).lower()
-    raw_tokens = re.findall(r"[a-z0-9_]+|[\u4e00-\u9fff]+", text)
-    terms: set[str] = set()
-    for token in raw_tokens:
-        if len(token) < 2:
-            continue
-        terms.add(token)
-        if re.fullmatch(r"[\u4e00-\u9fff]+", token) and len(token) > 2:
-            terms.update(token[i:i + 2] for i in range(len(token) - 1))
-    return {term for term in terms if len(term) >= 2}
-
-
-def _score_terms(terms: set[str], *parts: Any) -> int:
-    if not terms:
-        return 0
-    text = " ".join(_safe_json_text(part) for part in parts).lower()
-    return sum(1 for term in terms if term and term in text)
-
-
-def _warning(code: str, message: str, detail: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    return {"code": code, "message": message, "detail": detail or {}}
-
-
-def _test_point_entry(point: TestPoint) -> Dict[str, Any]:
-    return {
-        "id": point.id,
-        "module": point.module,
-        "function": _extract_function_from_ai_prompt(point.ai_prompt),
-        "point": point.point,
-        "priority": point.priority,
-        "requirement_id": point.requirement_id,
-    }
-
-
-def _test_point_search_text(points: List[TestPoint]) -> str:
-    return " ".join(
-        f"{point.module or ''} {point.point or ''} {point.ai_prompt or ''}"
-        for point in points
-    )
-
-
-def _requirement_ref(requirement: Requirement) -> Dict[str, Any]:
-    return {
-        "id": requirement.id,
-        "req_no": requirement.req_no,
-        "title": requirement.title,
-        "status": requirement.status,
-        "source_file_id": requirement.source_file_id,
-    }
-
-
-def _screen_ref(screen: UIPrototypeScreen, confidence: str) -> Dict[str, Any]:
-    return {
-        "id": screen.id,
-        "screen_name": screen.screen_name,
-        "prototype_name": screen.prototype_name,
-        "confidence": confidence,
-        "parse_status": screen.parse_status,
-        "element_count": screen.element_count or 0,
-    }
-
-
-def _screen_desc(screen: UIPrototypeScreen, confidence: str = "matched") -> Dict[str, Any]:
-    return {
-        "screen_id": screen.id,
-        "screen_name": screen.screen_name,
-        "prototype_name": screen.prototype_name,
-        "parse_status": screen.parse_status,
-        "summary": screen.summary or "",
-        "element_count": screen.element_count or 0,
-        "button_count": screen.button_count or 0,
-        "input_count": screen.input_count or 0,
-        "description": screen.summary or "",
-        "match_confidence": confidence,
-    }
-
-
-def _collect_navigation_screen_ids(screen: UIPrototypeScreen) -> List[int]:
-    ids: List[int] = []
-
-    def collect(value: Any) -> None:
-        if isinstance(value, int):
-            ids.append(value)
-        elif isinstance(value, str):
-            if value.isdigit():
-                ids.append(int(value))
-        elif isinstance(value, list):
-            for item in value:
-                collect(item)
-        elif isinstance(value, dict):
-            for key, item in value.items():
-                if key in {"id", "screen_id", "target", "target_id", "to", "next"}:
-                    collect(item)
-                elif isinstance(item, (dict, list)):
-                    collect(item)
-
-    collect(screen.related_screens)
-    collect(screen.navigation_flow)
-    return _dedupe_ints(ids)
-
-
-def _has_flow_intent(text: str) -> bool:
-    keywords = ("进入", "跳转", "提交", "返回", "下一步", "上一步", "flow", "next", "submit", "back")
-    lower_text = (text or "").lower()
-    return any(keyword in lower_text for keyword in keywords)
-
-
-def _normalize_match_text(value: Any) -> str:
-    return re.sub(r"[\s【】「」\"'`<>《》:：,，。；;、\[\]()（）]", "", _safe_json_text(value)).lower()
-
-
-def _find_missing_required_ui_terms(search_text: str, ui_specs: List[Dict[str, Any]]) -> List[str]:
-    if not search_text or not ui_specs:
-        return []
-    required_terms = [
-        term for term in REQUIRED_UI_ELEMENT_HINTS
-        if term.lower() in search_text.lower()
-    ]
-    if not required_terms:
-        return []
-
-    ui_text = _normalize_match_text([
-        item.get("ui_spec")
-        for item in ui_specs
-        if isinstance(item, dict)
-    ])
-    missing = [
-        term for term in required_terms
-        if _normalize_match_text(term) not in ui_text
-    ]
-    return _dedupe_strings(missing)
-
-
-def _dedupe_strings(values: List[str]) -> List[str]:
-    result: List[str] = []
-    seen = set()
-    for value in values:
-        item = str(value or "").strip()
-        if not item or item in seen:
-            continue
-        seen.add(item)
-        result.append(item)
-    return result
-
-
-class ContextBudgetController:
-    """Lightweight context budget helper using a deterministic token estimate."""
-
-    def __init__(self, max_tokens: int = DEFAULT_CONTEXT_TOKEN_BUDGET) -> None:
-        self.max_tokens = max_tokens
-
-    @staticmethod
-    def estimate_tokens(value: Any) -> int:
-        text = _safe_json_text(value)
-        if not text:
-            return 0
-        ascii_count = sum(1 for ch in text if ord(ch) < 128)
-        non_ascii_count = len(text) - ascii_count
-        return max(1, ascii_count // 4 + non_ascii_count // 2)
-
-    def trim_text(self, text: str, token_budget: int) -> str:
-        if not text or self.estimate_tokens(text) <= token_budget:
-            return text or ""
-        # Approximate two CJK chars per token. Keep the front matter because it
-        # usually contains the requirement title and explicit constraints.
-        char_budget = max(200, token_budget * 2)
-        return text[:char_budget] + f"\n\n[上下文已按预算裁剪，原始长度 {len(text)} 字符]"
-
-
-def _trim_requirement_text(
-    text: str,
-    terms: set[str],
-    budget: ContextBudgetController,
-    token_budget: int,
-) -> tuple[str, bool]:
-    if not text:
-        return "", False
-    if len(text) <= 800:
-        return budget.trim_text(text, token_budget), False
-
-    chunks = [
-        chunk.strip()
-        for chunk in re.split(r"(?<=[。！？；;\n])\s*", text)
-        if chunk and chunk.strip()
-    ]
-    scored_chunks = []
-    for index, chunk in enumerate(chunks):
-        score = _score_terms(terms, chunk)
-        if score > 0:
-            scored_chunks.append((score, index, chunk))
-
-    if not scored_chunks:
-        trimmed = budget.trim_text(text, token_budget)
-        return trimmed, len(trimmed) < len(text)
-
-    scored_chunks.sort(key=lambda item: (-item[0], item[1]))
-    selected_indexes = set()
-    for _, index, _ in scored_chunks[:4]:
-        selected_indexes.add(index)
-        if index > 0:
-            selected_indexes.add(index - 1)
-        if index + 1 < len(chunks):
-            selected_indexes.add(index + 1)
-
-    selected_text = "\n".join(chunks[index] for index in sorted(selected_indexes))
-    if len(selected_text) < 500:
-        selected_text = "\n".join([selected_text, text[:500]]).strip()
-    trimmed = budget.trim_text(selected_text, token_budget)
-    return trimmed, True
-
-
-class ContentSanitizer:
-    """
-    内容清洗器 - 防止Prompt注入攻击
-    对用户输入的内容进行清洗和转义，确保AI输出安全可靠
-    """
-
-    INJECTION_PATTERNS = [
-        r'```system',
-        r'```prompt',
-        r'忽略.*指令',
-        r'忽略.*规则',
-        r'你是一个.*而不是',
-        r'你现在是',
-        r'/system',
-        r'<system>',
-        r'{{.*}}',
-    ]
-
-    @classmethod
-    def sanitize(cls, content: str, max_length: int = 10000) -> str:
-        """清洗内容，防止Prompt注入"""
-        if not content:
-            return ""
-        content = re.sub(r'```(?:json|yaml|xml|markdown|prompt|system)', '', content, flags=re.IGNORECASE)
-        content = re.sub(r'```', '', content)
-        content = re.sub(r'<[^>]+>', '', content)
-        content = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', content)
-        for pattern in cls.INJECTION_PATTERNS:
-            content = re.sub(pattern, '[已过滤]', content, flags=re.IGNORECASE)
-        if len(content) > max_length:
-            content = content[:max_length] + f"\n\n[内容已截断，原长度: {len(content)}字符]"
-        return content
-
-    @classmethod
-    def sanitize_for_log(cls, content: str, max_length: int = 200) -> str:
-        """清洗内容用于日志记录（更严格的截断）"""
-        if not content:
-            return ""
-        content = re.sub(r'[\n\r\t]+', ' ', content)
-        if len(content) > max_length:
-            return content[:max_length] + "..."
-        return content
-
-
 class TestCaseGenerationBaseMixin:
     """测试用例生成服务 - 基础方法Mixin"""
+
+    __test__ = False
 
     def __init__(self, db: Session):
         self.db = db
@@ -359,197 +91,6 @@ class TestCaseGenerationBaseMixin:
             test_point_page_size=test_point_page_size,
         )
 
-        context = {
-            "requirement_content": "",
-            "ui_descriptions": [],
-            "ui_specs": [],
-            "test_points": [],
-            "files_used": [],
-            "warnings": [],
-            "cache_info": {}
-        }
-
-        if requirement_file_ids:
-            for file_id in requirement_file_ids:
-                file_record = file_crud.get_file_by_id(self.db, file_id, project_id)
-                if file_record and file_record.resource_type == "requirement":
-                    content = file_record.content or ""
-                    if force_refresh or not content:
-                        content = await get_file_content(file_id)
-                    if content:
-                        context["requirement_content"] += f"\n\n【{file_record.file_name}】\n{content}"
-                        context["files_used"].append(file_id)
-
-        if not context["requirement_content"]:
-            all_req_files = file_crud.get_project_files_by_type(self.db, project_id, "requirement")
-            for file_record in all_req_files:
-                content = file_record.content or ""
-                if force_refresh or not content:
-                    content = await get_file_content(file_record.id)
-                if content:
-                    context["requirement_content"] += f"\n\n【{file_record.file_name}】\n{content}"
-                    context["files_used"].append(file_record.id)
-
-        if ui_screen_ids:
-            found_screen_ids = set()
-            for screen_id in ui_screen_ids:
-                screen = self.db.query(UIPrototypeScreen).filter(
-                    UIPrototypeScreen.id == screen_id,
-                    UIPrototypeScreen.project_id == project_id
-                ).first()
-                if screen:
-                    found_screen_ids.add(screen.id)
-                    ui_desc = {
-                        "screen_id": screen.id,
-                        "screen_name": screen.screen_name,
-                        "prototype_name": screen.prototype_name,
-                        "parse_status": screen.parse_status,
-                        "summary": screen.summary or "",
-                        "element_count": screen.element_count or 0,
-                        "button_count": screen.button_count or 0,
-                        "input_count": screen.input_count or 0,
-                        "description": screen.summary or ""
-                    }
-                    if not screen.summary and screen.parse_status != "completed":
-                        ui_desc["description"] = "该屏幕尚未完成AI解析，仅可基于页面名称和流程顺序生成基础用例"
-                        context["warnings"].append(
-                            f"屏幕「{screen.screen_name}」尚未完成解析，AI可用的UI元素信息有限"
-                        )
-                    context["ui_descriptions"].append(ui_desc)
-                    if screen.ui_spec:
-                        context["ui_specs"].append({
-                            "screen_id": screen.id,
-                            "screen_name": screen.screen_name,
-                            "ui_spec": screen.ui_spec
-                        })
-                else:
-                    context["warnings"].append(f"未找到UI屏幕ID: {screen_id}")
-            missing_count = len(set(ui_screen_ids) - found_screen_ids)
-            if missing_count:
-                context["warnings"].append(f"{missing_count}个UI屏幕未被纳入上下文")
-        elif ui_file_ids:
-            for file_id in ui_file_ids:
-                file_record = file_crud.get_file_by_id(self.db, file_id, project_id)
-                if file_record and file_record.resource_type == "ui_mockup":
-                    ui_desc = {
-                        "file_name": file_record.file_name,
-                        "file_url": file_record.file_url,
-                        "description": file_record.description or ""
-                    }
-                    context["ui_descriptions"].append(ui_desc)
-                    context["files_used"].append(file_id)
-
-                    linked_screens = self.db.query(UIPrototypeScreen).filter(
-                        UIPrototypeScreen.project_id == project_id,
-                        UIPrototypeScreen.prototype_name == file_record.file_name,
-                        UIPrototypeScreen.parse_status == "completed",
-                        UIPrototypeScreen.ui_spec.isnot(None)
-                    ).all()
-                    for screen in linked_screens:
-                        context["ui_specs"].append({
-                            "screen_id": screen.id,
-                            "screen_name": screen.screen_name,
-                            "ui_spec": screen.ui_spec
-                        })
-
-        if not context["ui_descriptions"] and not context["ui_specs"]:
-            screens_with_spec = self.db.query(UIPrototypeScreen).filter(
-                UIPrototypeScreen.project_id == project_id,
-                UIPrototypeScreen.parse_status == "completed",
-                UIPrototypeScreen.ui_spec.isnot(None)
-            ).order_by(UIPrototypeScreen.screen_order).all()
-
-            if screens_with_spec:
-                for screen in screens_with_spec:
-                    ui_desc = {
-                        "screen_id": screen.id,
-                        "screen_name": screen.screen_name,
-                        "prototype_name": screen.prototype_name,
-                        "parse_status": screen.parse_status,
-                        "summary": screen.summary or "",
-                        "element_count": screen.element_count or 0,
-                        "button_count": screen.button_count or 0,
-                        "input_count": screen.input_count or 0,
-                        "description": screen.summary or ""
-                    }
-                    context["ui_descriptions"].append(ui_desc)
-                    if screen.ui_spec:
-                        context["ui_specs"].append({
-                            "screen_id": screen.id,
-                            "screen_name": screen.screen_name,
-                            "ui_spec": screen.ui_spec
-                        })
-            else:
-                all_ui_files = file_crud.get_project_files_by_type(self.db, project_id, "ui_mockup")
-                for file_record in all_ui_files:
-                    ui_desc = {
-                        "file_name": file_record.file_name,
-                        "file_url": file_record.file_url,
-                        "description": file_record.description or ""
-                    }
-                    context["ui_descriptions"].append(ui_desc)
-                    context["files_used"].append(file_record.id)
-
-        if test_point_ids:
-            for point_id in test_point_ids:
-                point = test_point_crud.get_test_point_by_id(self.db, point_id, project_id)
-                if point:
-                    context["test_points"].append({
-                        "id": point.id,
-                        "module": point.module,
-                        "function": _extract_function_from_ai_prompt(point.ai_prompt),
-                        "point": point.point,
-                        "priority": point.priority
-                    })
-        else:
-            skip = (test_point_page - 1) * test_point_page_size
-            page_limit = min(test_point_page_size, MAX_TEST_POINT_PAGE_SIZE)
-            covered_test_point_ids = {
-                row[0]
-                for row in self.db.query(TestCase.test_point_id)
-                .filter(
-                    TestCase.project_id == project_id,
-                    TestCase.is_deleted == False,  # noqa: E712
-                    TestCase.generate_status == 1,
-                    TestCase.test_point_id.isnot(None),
-                )
-                .distinct()
-                .all()
-                if row[0] is not None
-            }
-            all_points = self.db.query(TestPoint).filter(
-                TestPoint.project_id == project_id
-            ).all()
-            total_count = len(all_points)
-            all_points.sort(
-                key=lambda point: (
-                    point.id in covered_test_point_ids,
-                    point.priority or 99,
-                    point.id,
-                )
-            )
-            page_points = all_points[skip: skip + page_limit]
-
-            for point in page_points:
-                context["test_points"].append({
-                    "id": point.id,
-                    "module": point.module,
-                    "function": _extract_function_from_ai_prompt(point.ai_prompt),
-                    "point": point.point,
-                    "priority": point.priority
-                })
-
-            context["pagination"] = {
-                "page": test_point_page,
-                "page_size": len(page_points),
-                "total": total_count,
-                "has_more": (skip + page_limit) < total_count,
-                "uncovered_first": True,
-                "covered_test_point_count": len(covered_test_point_ids)
-            }
-
-        return context
-
     async def _get_context_for_generation_precision(
         self,
         project_id: int,
@@ -574,7 +115,6 @@ class TestCaseGenerationBaseMixin:
             "test_points": [],
             "files_used": [],
             "warnings": [],
-            "cache_info": {},
             "context_stats": {
                 "strategy": "precision",
                 "token_budget": budget.max_tokens,
@@ -715,13 +255,29 @@ class TestCaseGenerationBaseMixin:
                 context["warnings"].append(_warning("REQUIREMENT_NOT_FOUND", "测试点文本为空，无法按需匹配需求"))
                 context["context_stats"]["fallbacks"].append("empty_test_point_for_requirement")
 
+        # 需求文档质量预检：基于字数与操作动词判定 requirement_quality
+        requirement_text = context["requirement_content"].strip()
+        requirement_quality, quality_warning = _assess_requirement_quality(requirement_text)
+        if requirement_quality == "insufficient":
+            context["warnings"].append(_warning(
+                "REQUIREMENT_TOO_SHORT",
+                "需求文档内容过短（<50字），生成质量可能受限",
+                {"char_count": len(requirement_text)},
+            ))
+        if quality_warning is not None:
+            context["warnings"].append(quality_warning)
+        context["context_stats"]["requirement_quality"] = requirement_quality
+
         if ui_screen_ids:
+            # 批量查询替代循环内逐个查询，规避 N+1 问题
+            screens = self.db.query(UIPrototypeScreen).filter(
+                UIPrototypeScreen.id.in_(ui_screen_ids),
+                UIPrototypeScreen.project_id == project_id,
+            ).all()
+            screen_map: Dict[int, UIPrototypeScreen] = {screen.id: screen for screen in screens}
             found_screen_ids = set()
             for screen_id in ui_screen_ids:
-                screen = self.db.query(UIPrototypeScreen).filter(
-                    UIPrototypeScreen.id == screen_id,
-                    UIPrototypeScreen.project_id == project_id,
-                ).first()
+                screen = screen_map.get(screen_id)
                 if screen:
                     found_screen_ids.add(screen.id)
                     context["ui_descriptions"].append(_screen_desc(screen, "explicit"))
@@ -1105,18 +661,6 @@ class TestCaseGenerationBaseMixin:
             "missing_core_context": missing_core_context,
             "low_confidence_reasons": low_confidence_reasons,
         }
-
-    async def _get_file_content(self, file: ProjectFile, force_refresh: bool = False) -> Optional[str]:
-        """获取文件内容（支持自动提取）"""
-        if file.content and file.extract_status == 'completed' and not force_refresh:
-            return file.content
-        if not file.content or file.extract_status in ['pending', 'failed']:
-            from app.services.file_content_extractor import FileContentExtractor
-            extractor = FileContentExtractor(self.db)
-            result = await extractor.extract_file_content(file, force_refresh)
-            if result.get("success"):
-                return result.get("content") or ""
-        return file.content
 
     def _build_ui_description(self, ui_descriptions: List[Dict[str, Any]]) -> str:
         """构建UI描述文本"""

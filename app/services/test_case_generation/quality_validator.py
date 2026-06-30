@@ -11,64 +11,42 @@
     - case_category 合法性
     - 用例数量达标
     - 原子性：标题不应同时包含主流程+分支/旁路逻辑
+    - 边界值策略：boundary 用例须使用实际边界值而非占位符
+    - 类型一致性：case_type 与 action_type 组合不可矛盾
 """
-import re
 from typing import List, Dict, Any, Tuple
 
-VALID_CASE_CATEGORIES = frozenset({"positive", "boundary", "exception"})
-CLICK_ACTION_KEYWORDS = frozenset({"点击", "选择", "勾选", "切换", "按下", "长按"})
-INPUT_ACTION_KEYWORDS = frozenset({"输入", "填写", "键入", "录入"})
-
-TITLE_VAGUE_WORDS = frozenset({
-    "功能验证", "界面测试", "XX测试", "功能测试", "页面测试",
-    "模块测试", "系统测试", "单元测试", "集成测试", "回归测试",
-})
-
-EXPECTED_VAGUE_WORDS = frozenset({
-    "正常显示", "提交成功", "功能正常", "页面正常", "操作成功",
-    "显示正常", "运行正常", "没问题", "交互跳转正确", "无崩溃白屏",
-    "UI元素完整", "无崩溃", "无白屏", "流程正常",
-})
-
-_STEP_UNCERTAINTY_PATTERN = re.compile(
-    r'(或者|或点击|或选择|或输入|或按|或触发|或通过|或弹窗|或在|或长按|或滑动|或拖拽|'
-    r'也可以|任选|二选一|任选其一)'
+from app.services.case_quality.quality_scoring_constants import (
+    CLICK_ACTION_KEYWORDS,
+    EXPECTED_VAGUE_WORDS,
+    INPUT_ACTION_KEYWORDS,
+    INPUT_VALUE_PLACEHOLDERS,
+    LOGGED_IN_MARKERS,
+    LOGGED_OUT_MARKERS,
+    MANUAL_JUDGMENT_PATTERN,
+    STEP_INFERENCE_ACTION_PATTERN,
+    STEP_INFERENCE_EXPECTED_PATTERN,
+    STEP_REFERENCE_PATTERN,
+    STEP_UNCERTAINTY_PATTERN,
+    TITLE_ATOMICITY_VIOLATION_PATTERN,
+    TITLE_VAGUE_WORDS,
+    UI_ACTION_TYPES,
+    VALID_ACTION_TYPES,
+    VALID_CASE_CATEGORIES,
 )
+from app.services.case_quality.quality_scoring_service import QualityScoringService
 
-_MANUAL_JUDGMENT_PATTERN = re.compile(
-    r'(手动判断|人工确认|目测|肉眼|人工检查|手动检查|手动验证|人工判断|目视确认|手动标记|'
-    r'主观判断|凭感觉|大致判断|自行判断)'
-)
-
-_STEP_REFERENCE_PATTERN = re.compile(
-    r'(参见|参考|同上|重复.*步骤|重复.*用例|如上|按照.*步骤)'
-)
-
-_STEP_INFERENCE_ACTION_PATTERN = re.compile(
-    r'(应该\w{0,4}|可能\w{0,4}|预计\w{0,4}|大概是|也许是|或许是|'
-    r'根据常规|根据经验|通常应该|一般来说|按理说|'
-    r'任意值|任意数据|合理值|合适的数据|适当的数据|随机值|'
-    r'可能是.*按钮|可能是.*元素|大概是.*位置)'
-)
-
-_STEP_INFERENCE_EXPECTED_PATTERN = re.compile(
-    r'(大概是|也许是|或许是|'
-    r'根据常规|根据经验|一般来说|按理说|'
-    r'任意值|任意数据|合理值|合适的数据|适当的数据|随机值|'
-    r'可能是.*按钮|可能是.*元素|大概是.*位置)'
-)
-
-_TITLE_ATOMICITY_VIOLATION = re.compile(
-    r'(触发.*旁路.*验证|'
-    r'触发.*话术.*验证|'
-    r'正确率100%.*错词|'
-    r'全对.*错词学习|'
-    r'旁路.*错词.*学习|'
-    r'完成听写.*触发.*旁路|'
-    r'主流程.*分支.*验证|'
-    r'正向.*触发.*旁路.*验证)',
-    re.IGNORECASE,
-)
+# 向后兼容别名（带下划线前缀，供 historical 导入方使用）
+_LOGGED_IN_MARKERS = LOGGED_IN_MARKERS
+_LOGGED_OUT_MARKERS = LOGGED_OUT_MARKERS
+_INPUT_VALUE_PLACEHOLDERS = INPUT_VALUE_PLACEHOLDERS
+_UI_ACTION_TYPES = UI_ACTION_TYPES
+_STEP_UNCERTAINTY_PATTERN = STEP_UNCERTAINTY_PATTERN
+_MANUAL_JUDGMENT_PATTERN = MANUAL_JUDGMENT_PATTERN
+_STEP_REFERENCE_PATTERN = STEP_REFERENCE_PATTERN
+_STEP_INFERENCE_ACTION_PATTERN = STEP_INFERENCE_ACTION_PATTERN
+_STEP_INFERENCE_EXPECTED_PATTERN = STEP_INFERENCE_EXPECTED_PATTERN
+_TITLE_ATOMICITY_VIOLATION = TITLE_ATOMICITY_VIOLATION_PATTERN
 
 
 def validate_title(title: str) -> Tuple[bool, str]:
@@ -107,9 +85,14 @@ def validate_precondition(precondition: str) -> Tuple[bool, str]:
     if not precondition or not precondition.strip():
         return False, "前置条件为空"
     precondition = precondition.strip()
-    login_markers = ("账号已登录", "已登录", "用户未登录", "未登录")
-    if not any(marker in precondition for marker in login_markers):
+    has_logged_in = any(marker in precondition for marker in _LOGGED_IN_MARKERS)
+    has_logged_out = any(marker in precondition for marker in _LOGGED_OUT_MARKERS)
+    if not has_logged_in and not has_logged_out:
         return False, "前置条件缺少登录状态"
+    # 互斥校验：同时出现"已登录"与"未登录"标记属于语义矛盾（如"账号已登录状态为未登录"），
+    # 旧实现仅用 any() 命中即放行，无法发现此类矛盾。
+    if has_logged_in and has_logged_out:
+        return False, "前置条件登录状态自相矛盾（同时含已登录与未登录标记）"
     if len(precondition) < 15:
         return False, f"前置条件过于简单（{len(precondition)}字）: {precondition}"
     return True, ""
@@ -167,11 +150,6 @@ def validate_test_data_quality(steps: List[Dict[str, Any]]) -> Tuple[bool, str]:
     """
     if not steps:
         return True, ""
-    _INPUT_VALUE_PLACEHOLDERS = frozenset({
-        "待输入", "测试数据", "xxx", "XXX", "test", "Test",
-        "示例", "占位", "placeholder",
-        "任意值", "合理值", "合适的数据", "适当的数据", "随机值", "任意数据",
-    })
     for i, step in enumerate(steps):
         action_type = step.get("action_type", "")
         if action_type not in ("input", "select"):
@@ -223,6 +201,82 @@ def validate_case_category(case_category: str) -> Tuple[bool, str]:
     return True, ""
 
 
+def validate_boundary_strategy(case: Dict[str, Any]) -> List[str]:
+    """校验边界用例是否使用实际边界值而非占位符。
+
+    业务原因：case_category=boundary 的用例应使用最大值/最小值/空值/特殊字符等边界值，
+    而非占位符（待输入/测试数据/xxx 等），否则边界测试无效。
+
+    Args:
+        case: 单条测试用例字典
+
+    Returns:
+        问题描述列表，空列表表示全部通过
+    """
+    issues: List[str] = []
+    case_category = case.get("case_category", "")
+    if case_category != "boundary":
+        return issues
+
+    steps = case.get("steps", [])
+    if not isinstance(steps, list):
+        return issues
+
+    for idx, step in enumerate(steps, 1):
+        if not isinstance(step, dict):
+            continue
+        action_type = step.get("action_type", "")
+        if action_type not in ("input", "select"):
+            continue
+        input_value = str(step.get("input_value") or "").strip()
+        if not input_value or input_value in _INPUT_VALUE_PLACEHOLDERS:
+            issues.append(
+                f"[步骤{idx}] 边界用例应使用边界值（最大值/最小值/空值/特殊字符），"
+                f"而非占位符或空值"
+            )
+    return issues
+
+
+def validate_type_consistency(case: Dict[str, Any]) -> List[str]:
+    """校验 case_type/case_category/action_type 三者组合一致性。
+
+    业务原因：api_automation 用例不应包含 UI 操作动作（click/hover 等），
+    manual 用例不应包含 api_call 动作，避免类型矛盾导致用例无法执行。
+
+    Args:
+        case: 单条测试用例字典
+
+    Returns:
+        问题描述列表，空列表表示全部通过
+    """
+    issues: List[str] = []
+    case_type = case.get("case_type", "")
+    steps = case.get("steps", [])
+    if not isinstance(steps, list):
+        return issues
+
+    for idx, step in enumerate(steps, 1):
+        if not isinstance(step, dict):
+            continue
+        action_type = step.get("action_type", "")
+        if not action_type:
+            continue
+
+        # api_automation 不应含 UI 动作
+        if case_type == "api_automation" and action_type in _UI_ACTION_TYPES:
+            issues.append(
+                f"[步骤{idx}] api_automation 用例不应包含 UI 操作动作（{action_type}）"
+            )
+
+        # manual 不应含 api_call
+        if case_type == "manual" and action_type == "api_call":
+            issues.append(
+                f"[步骤{idx}] manual 用例不应包含 api_call 动作"
+            )
+
+    return issues
+
+
 def validate_single_case(case: Dict[str, Any]) -> List[str]:
     """对单条用例执行全量质量校验。
 
@@ -245,17 +299,18 @@ def validate_single_case(case: Dict[str, Any]) -> List[str]:
     for check_name, (passed, msg) in checks:
         if not passed:
             issues.append(f"[{check_name}] {msg}")
+    # 边界值策略与类型一致性校验返回多问题列表，单独追加
+    issues.extend(validate_boundary_strategy(case))
+    issues.extend(validate_type_consistency(case))
     return issues
 
 
 def validate_single_case_status(case: Dict[str, Any]) -> Tuple[str, List[str]]:
     """对单条用例执行全量质量校验，返回4档状态。
 
-    状态映射规则:
-        - 无问题 -> passed
-        - 仅存在标题过长等轻微问题 -> warning
-        - 存在模糊词、原子性违反等需人工确认问题 -> pending_review
-        - 存在必填字段为空、步骤不足等严重问题 -> rejected
+    状态由 QualityScoringService.grade_status 权威判定（Task 14 三合一），
+    问题描述由 validate_single_case 生成（供反馈闭环描述具体问题）。
+    两处共享 _classify_* 底层判定，保证状态与描述一致。
 
     Args:
         case: 单条测试用例字典
@@ -263,69 +318,9 @@ def validate_single_case_status(case: Dict[str, Any]) -> Tuple[str, List[str]]:
     Returns:
         (4档状态, 问题描述列表)
     """
-    case_type = case.get("case_type", "")
-    issues: List[str] = []
-    worst_severity = "passed"
-
-    title_result = validate_title(case.get("title", ""))
-    if not title_result[0]:
-        msg = title_result[1]
-        issues.append(f"[标题] {msg}")
-        if "为空" in msg or "过短" in msg:
-            worst_severity = _worse_status(worst_severity, "rejected")
-        elif "模糊词" in msg or "原子性" in msg:
-            worst_severity = _worse_status(worst_severity, "pending_review")
-        else:
-            worst_severity = _worse_status(worst_severity, "warning")
-
-    precondition_result = validate_precondition(case.get("precondition", ""))
-    if not precondition_result[0]:
-        msg = precondition_result[1]
-        issues.append(f"[前置条件] {msg}")
-        if "为空" in msg:
-            worst_severity = _worse_status(worst_severity, "rejected")
-        else:
-            worst_severity = _worse_status(worst_severity, "pending_review")
-
-    steps_result = validate_steps(case.get("steps", []), case_type=case_type)
-    if not steps_result[0]:
-        msg = steps_result[1]
-        issues.append(f"[步骤] {msg}")
-        if "为空" in msg or "不足" in msg:
-            worst_severity = _worse_status(worst_severity, "rejected")
-        else:
-            worst_severity = _worse_status(worst_severity, "pending_review")
-
-    test_data_result = validate_test_data_quality(case.get("steps", []))
-    if not test_data_result[0]:
-        msg = test_data_result[1]
-        issues.append(f"[测试数据] {msg}")
-        worst_severity = _worse_status(worst_severity, "warning")
-
-    expected_result = validate_expected_result(case.get("expected_result", ""))
-    if not expected_result[0]:
-        msg = expected_result[1]
-        issues.append(f"[预期结果] {msg}")
-        if "为空" in msg:
-            worst_severity = _worse_status(worst_severity, "rejected")
-        else:
-            worst_severity = _worse_status(worst_severity, "pending_review")
-
-    category_result = validate_case_category(case.get("case_category", ""))
-    if not category_result[0]:
-        msg = category_result[1]
-        issues.append(f"[case_category] {msg}")
-        worst_severity = _worse_status(worst_severity, "rejected")
-
-    return worst_severity, issues
-
-
-def _worse_status(current: str, new: str) -> str:
-    """取两个4档状态中更严重的一个。"""
-    severity_order = {"passed": 0, "warning": 1, "pending_review": 2, "rejected": 3}
-    if severity_order.get(new, 0) > severity_order.get(current, 0):
-        return new
-    return current
+    issues = validate_single_case(case)
+    status = QualityScoringService.grade_status(case)
+    return status, issues
 
 
 def validate_cases_quality(cases: List[Dict[str, Any]], min_count: int = 0) -> Tuple[bool, List[str]]:
@@ -351,7 +346,9 @@ def validate_cases_quality(cases: List[Dict[str, Any]], min_count: int = 0) -> T
 def compute_quality_score(cases: List[Dict[str, Any]]) -> float:
     """计算用例列表的质量分（0~100）。
 
-    每维度 20 分，5 维度总分 100。
+    使用7维度连续评分加权平均（Task 8）：
+    标题15% + 前置条件15% + 步骤20% + 预期结果15%
+    + case_category10% + action_type10% + 步骤原子性15%
 
     Args:
         cases: 用例字典列表
@@ -361,23 +358,9 @@ def compute_quality_score(cases: List[Dict[str, Any]]) -> float:
     """
     if not cases:
         return 0.0
-    dim_scores: List[float] = []
-    for case in cases:
-        passed = 0
-        total = 5
-        case_type = case.get("case_type", "")
-        if validate_title(case.get("title", ""))[0]:
-            passed += 1
-        if validate_precondition(case.get("precondition", ""))[0]:
-            passed += 1
-        if validate_steps(case.get("steps", []), case_type=case_type)[0]:
-            passed += 1
-        if validate_expected_result(case.get("expected_result", ""))[0]:
-            passed += 1
-        if validate_case_category(case.get("case_category", ""))[0]:
-            passed += 1
-        dim_scores.append(passed / total * 100)
-    return sum(dim_scores) / len(dim_scores)
+    from app.services.test_case_generation.continuous_scorer import compute_continuous_score
+    scores: List[float] = [compute_continuous_score(case) for case in cases]
+    return round(sum(scores) / len(scores), 1)
 
 
 QUALITY_MIN_SCORE = 50.0

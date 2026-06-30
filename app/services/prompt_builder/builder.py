@@ -33,6 +33,23 @@ def _append_extra_context_sections(
     task_context = extra_context.get("task_context", {})
     sections: List[str] = [prompt]
 
+    # 质量反馈闭环：注入上轮校验问题供AI修复（与task_type正交，优先级最高）
+    quality_feedback = extra_context.get("quality_feedback")
+    if quality_feedback:
+        sections.append("## 质量反馈")
+        sections.append(str(quality_feedback))
+        sections.append("")
+
+    # Task 16: 质量信号注入（具体问题+低分维度），与 quality_feedback 正交。
+    # 禁止盲重试：quality_signals 携带具体失败原因（历史避坑要点 4）。
+    quality_signals = extra_context.get("quality_signals")
+    if quality_signals:
+        from app.services.case_quality.quality_signals import format_quality_signals
+        signals_text = format_quality_signals(quality_signals)
+        if signals_text:
+            sections.append(signals_text)
+            sections.append("")
+
     if task_type == "modify" and task_context.get("original_case"):
         original = task_context["original_case"]
         sections.append("## 原有用例（需基于此修改）")
@@ -166,6 +183,11 @@ class PromptBuilder:
         test_username: str = "testuser",
         test_password: str = "TestPass123",
         min_case_count: int = 3,
+        history_cases: Optional[List[Dict[str, Any]]] = None,
+        project_id: Optional[int] = None,
+        db: Any = None,
+        execution_feedback: Optional[str] = None,
+        extra_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """构建测试用例生成 Prompt，支持 graph 和 linear 两种模式。
 
@@ -184,6 +206,15 @@ class PromptBuilder:
             point: 测试点描述（linear 模式）。
             priority: 优先级（linear 模式）。
             ui_specs: UI 规格列表（linear 模式）。
+            case_type: 用例类型约束。
+            test_username: 测试账号（graph 模式）。
+            test_password: 测试密码（graph 模式）。
+            min_case_count: 期望最少用例数。
+            history_cases: 历史参考用例列表，提供时注入 Prompt。
+            project_id: 项目ID，用于加载领域 Few-shot 示例。
+            db: 数据库会话，用于加载领域示例。
+            execution_feedback: 历史执行失败归因文本。
+            extra_context: 额外上下文字典（含 quality_feedback / task_type / task_context）。
 
         Returns:
             包含 prompt 和 weight_hint 的字典。
@@ -196,11 +227,14 @@ class PromptBuilder:
                 test_point_json=test_point_json,
                 ui_specs_text=ui_specs_text,
                 include_images=include_images,
+                history_cases=history_cases,
                 case_type=case_type,
                 test_username=test_username,
                 test_password=test_password,
                 min_case_count=min_case_count,
             )
+            # graph 模式同样支持 extra_context（质量反馈/任务类型）
+            prompt = _append_extra_context_sections(prompt, extra_context)
             return {'prompt': prompt, 'weight_hint': 'graph'}
 
         prompt = _build_linear_prompt(
@@ -211,7 +245,12 @@ class PromptBuilder:
             ui_specs=ui_specs,
             case_type=case_type,
             min_case_count=min_case_count,
+            history_cases=history_cases,
+            project_id=project_id,
+            db=db,
+            execution_feedback=execution_feedback,
         )
+        prompt = _append_extra_context_sections(prompt, extra_context)
         return {'prompt': prompt, 'weight_hint': 'linear'}
 
     def for_test_data(
@@ -356,6 +395,10 @@ class PromptBuilder:
         extra_context: Optional[Dict[str, Any]] = None,
         case_type: Optional[str] = None,
         min_case_count: int = 3,
+        history_cases: Optional[List[Dict[str, Any]]] = None,
+        project_id: Optional[int] = None,
+        db: Any = None,
+        execution_feedback: Optional[str] = None,
     ) -> str:
         """构建线性模式 Prompt（向后兼容接口）。
 
@@ -367,6 +410,13 @@ class PromptBuilder:
             point: 测试点描述。
             priority: 优先级。
             ui_specs: UI 规格列表。
+            extra_context: 额外上下文字典（含 quality_feedback 等键）。
+            case_type: 用例类型约束。
+            min_case_count: 最少用例数。
+            history_cases: 历史参考用例列表。
+            project_id: 项目ID，用于加载领域 Few-shot 示例。
+            db: 数据库会话，用于加载领域示例。
+            execution_feedback: 历史执行失败归因文本。
 
         Returns:
             完整的 Prompt 字符串。
@@ -378,5 +428,10 @@ class PromptBuilder:
             point=point, priority=priority,
             ui_specs=ui_specs,
             case_type=case_type,
+            min_case_count=min_case_count,
+            history_cases=history_cases,
+            project_id=project_id,
+            db=db,
+            execution_feedback=execution_feedback,
         )
         return _append_extra_context_sections(prompt, extra_context)

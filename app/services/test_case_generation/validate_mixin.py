@@ -4,8 +4,9 @@ Test Case Generation Service - 验证与保存Mixin
 """
 import re
 import inspect
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from loguru import logger
+from sqlalchemy.exc import IntegrityError
 
 from app.models.test_case import TestCase, TestStep
 from app.models.project import Project
@@ -15,8 +16,19 @@ from app.services.test_case_generation.quality_validator import (
     compute_quality_score,
     validate_cases_quality,
 )
+from app.services.quality.grade import grade_status_to_letter
 from app.services.quality.quality_gate_service import QualityGateService
 from app.services.case_number_service import CaseNumberService
+from app.services.case_quality.history_cache import invalidate_project_cache
+
+
+class AIGenerationError(Exception):
+    """AI 生成质量门禁阻断异常（spec L71）。
+
+    业务原因：rejected 状态用例阻断入库时抛出此异常，与普通 ValueError 区分，
+    便于上层（batch_mixin 的 except 分支）按异常类型精准识别质量门禁拦截，
+    而非笼统捕获所有 ValueError。
+    """
 
 
 class TestCaseGenerationValidateMixin:
@@ -278,40 +290,71 @@ class TestCaseGenerationValidateMixin:
         ui_specs: Optional[List[Dict[str, Any]]] = None,
         project_id: Optional[int] = None,
         db: Any = None,
-    ) -> List[str]:
-        """使用 QualityGateService 执行统一校验，返回问题列表。
+    ) -> Tuple[List[str], str]:
+        """使用 QualityGateService 执行统一校验，返回 (issues, status) 元组。
 
-        当校验状态为 rejected 时返回问题列表，passed/warning/pending_review
-        仅记录日志不阻断入库。
+        分级阻断规则:
+            - rejected: 返回非空 issues，调用方应阻断入库
+            - pending_review/warning/passed: 返回空 issues 列表，调用方不阻断
+
+        本地硬性校验（quality_score/precondition/UI可执行性）失败时，
+        状态提升为 rejected，确保硬性质量门槛始终阻断。
         """
         context: Dict[str, Any] = {
             "ui_specs": ui_specs or generated_case.get("_context_ui_specs"),
         }
         gate_service = QualityGateService(db=db)
-        result = gate_service.validate(
-            generated_case,
-            context=context,
-            project_id=project_id,
-        )
-        issues: List[str] = [issue.message for issue in result.issues]
+        # R5 修复：QualityGate 编排异常时降级为 warning 不阻断入库，仅记录告警。
+        # 业务原因：QualityGateService.validate 内部虽对每个 validator 有 try/except，
+        # 但 _build_context / ValidationResult.merge / db session 失效等环节仍可能抛
+        # 异常。无兜底时异常会冒泡到 _save_test_case → batch_mixin._generate_one，
+        # 导致本应通过本地硬性校验的用例被误判为失败。本地硬性校验（quality_score /
+        # precondition / UI 可执行性）仍正常执行，由 local_blocking 决定是否阻断。
+        try:
+            result = gate_service.validate(
+                generated_case,
+                context=context,
+                project_id=project_id,
+            )
+            gate_status: str = result.status
+            issues: List[str] = [issue.message for issue in result.issues]
+        except Exception as e:
+            logger.warning(f"QualityGate 编排异常，降级为 warning: {e}")
+            gate_status = "warning"
+            issues = []
 
+        # 本地硬性校验：任一失败则提升为 rejected
+        local_blocking = False
         if quality_score is None:
             issues.append("quality score is missing")
+            local_blocking = True
         elif quality_score < cls._MIN_PERSIST_QUALITY_SCORE:
             issues.append(
                 f"quality score {quality_score:.0f} is below "
                 f"{cls._MIN_PERSIST_QUALITY_SCORE:.0f}"
             )
+            local_blocking = True
         precondition = (generated_case.get("precondition") or "").strip()
         if len(precondition) < cls._MIN_PRECONDITION_LENGTH:
             issues.append(
                 f"precondition is too short ({len(precondition)} chars)"
             )
-        issues.extend(cls._ui_executability_issues(
+            local_blocking = True
+        ui_issues = cls._ui_executability_issues(
             generated_case.get("steps", []),
             ui_specs or generated_case.get("_context_ui_specs"),
-        ))
-        return issues
+        )
+        if ui_issues:
+            issues.extend(ui_issues)
+            local_blocking = True
+
+        if local_blocking:
+            gate_status = "rejected"
+
+        # 仅 rejected 返回非空 issues，其他状态返回空列表（不阻断）
+        if gate_status == "rejected":
+            return issues, gate_status
+        return [], gate_status
 
     @classmethod
     def _resolve_generated_priority(
@@ -343,12 +386,15 @@ class TestCaseGenerationValidateMixin:
     def _case_title_exists(self, project_id: int, title: str) -> bool:
         if not title:
             return False
+        # R3 修复：with_for_update() 在 InnoDB REPEATABLE READ 下对 (project_id, title)
+        # 索引加 gap lock，使 check-then-insert 原子化，消除并发竞态导致的重复 title。
+        # 依赖 ix_test_cases_project_title 索引（见 models/test_case.py __table_args__）。
         existing = self.db.query(TestCase.id).filter(
             TestCase.project_id == project_id,
             TestCase.is_deleted == False,  # noqa: E712
             TestCase.generate_status == 1,
             TestCase.title == title,
-        ).first()
+        ).with_for_update().first()
         return existing is not None
 
     async def _save_test_case(
@@ -422,7 +468,7 @@ class TestCaseGenerationValidateMixin:
             "case_category": case_category,
         })
         quality_score = compute_quality_score([case_for_quality])
-        quality_issues = self._quality_gate_issues(
+        quality_issues, gate_status = self._quality_gate_issues(
             case_for_quality,
             quality_score,
             ui_specs=generated_case.get("_context_ui_specs"),
@@ -431,8 +477,16 @@ class TestCaseGenerationValidateMixin:
         )
         if quality_issues:
             issue_text = "; ".join(quality_issues[:3])
-            raise ValueError(f"generated case failed quality gate: {issue_text}")
+            raise AIGenerationError(f"generated case failed quality gate: {issue_text}")
+        if gate_status == "warning":
+            logger.warning(
+                f"generated case passed gate with warning status (title={title})"
+            )
+        pending_review = gate_status == "pending_review"
         priority = self._resolve_generated_priority(case_for_quality, test_point)
+
+        # Task 17.3: 由 grade_status 映射质量等级（A=passed/B=warning/C=pending_review/D=rejected）
+        quality_grade = grade_status_to_letter(gate_status)
 
         test_case = TestCase(
             project_id=project_id,
@@ -451,10 +505,26 @@ class TestCaseGenerationValidateMixin:
             ai_change_type=generated_case.get("change_type"),
             generate_status=1,
             prior_quality_score=quality_score,
+            quality_grade=quality_grade,
+            lifecycle_status="pending_review" if pending_review else "draft",
         )
 
-        self.db.add(test_case)
-        self.db.flush()
+        # 并发安全：_case_title_exists 是 check-then-insert 非原子操作，
+        # 在 batch_mixin 的 Semaphore(3) 并发下可能两个协程同时通过检查后并发写入。
+        # 捕获 IntegrityError 兜底（若 DB 加了唯一约束则可防御；无约束时前置检查仍生效）
+        try:
+            self.db.add(test_case)
+            self.db.flush()
+        except IntegrityError as e:
+            self.db.rollback()
+            if "title" in str(e).lower() or "duplicate" in str(e).lower():
+                raise ValueError(
+                    f"concurrent duplicate generated case title: {title}"
+                ) from e
+            raise
+
+        # 新用例入库后精准失效该项目的历史用例缓存，避免后续查询返回陈旧数据
+        invalidate_project_cache(project_id)
 
         for i, step in enumerate(steps):
             raw_action_type = step.get("action_type", "")

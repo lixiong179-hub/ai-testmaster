@@ -334,6 +334,19 @@ def generate_test_case_enhanced(
 
         prompt += f"\n{get_automation_friendly_rules()}\n"
 
+    # Task 15/16: 注入质量反馈与质量信号（重生成轮次）。
+    # graph 与线性模式统一在此注入，避免散落到各 Prompt 构建分支。
+    # 禁止盲重试：quality_signals 携带具体问题与低分维度（历史避坑要点 4）。
+    quality_feedback = context.get('quality_feedback')
+    if quality_feedback:
+        prompt += f"\n\n## 质量反馈\n{quality_feedback}\n"
+    quality_signals = context.get('quality_signals')
+    if quality_signals:
+        from app.services.case_quality.quality_signals import format_quality_signals
+        signals_text = format_quality_signals(quality_signals)
+        if signals_text:
+            prompt += f"\n\n{signals_text}\n"
+
     client = get_ai_client()
     max_retries = 3
     messages = [{"role": "user", "content": prompt}]
