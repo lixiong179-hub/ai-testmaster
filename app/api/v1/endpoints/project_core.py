@@ -245,11 +245,21 @@ def _delete_project_core_assets(db: Session, project_id: int) -> None:
     from app.models.test_case import TestCase
     from app.models.test_result import TestResult
     from app.models.test_task import TestTask
+    from app.models.test_case_version import TestCaseVersion
 
     db.query(TestResult).filter(TestResult.project_id == project_id).delete(synchronize_session=False)
 
     for task in db.query(TestTask).filter(TestTask.project_id == project_id).all():
         db.delete(task)
+
+    # 先批量删除用例版本记录：TestCaseVersion.test_case_id 为 NOT NULL，
+    # ORM relationship 在删用例时会尝试置空该字段触发 IntegrityError，
+    # 需在删用例前清理版本记录并同步 session
+    case_ids = [tc.id for tc in db.query(TestCase).filter(TestCase.project_id == project_id).all()]
+    if case_ids:
+        db.query(TestCaseVersion).filter(
+            TestCaseVersion.test_case_id.in_(case_ids)
+        ).delete(synchronize_session="fetch")
 
     for test_case in db.query(TestCase).filter(TestCase.project_id == project_id).all():
         db.delete(test_case)

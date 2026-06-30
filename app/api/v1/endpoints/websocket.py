@@ -216,6 +216,89 @@ async def pipeline_progress_websocket(
         manager.disconnect(websocket, channel_id)
 
 
+@router.websocket("/ws/quick-test/{task_id}")
+async def quick_test_websocket(
+    websocket: WebSocket,
+    task_id: int,
+    token: str = Query(..., description="JWT Token用于身份验证"),
+):
+    """WebSocket连接端点 - 用于实时接收快速测试编排进度。
+
+    连接URL: ws://host/api/v1/ws/quick-test/{task_id}?token=xxx
+
+    通道映射: 订阅 `quick_test:{task_id}` 通道，接收 QuickLauncher 推送的
+    4 阶段进度（site_exploring/case_generating/task_assembling/completed）。
+
+    消息格式:
+    - 阶段进度: {"stage": "site_exploring", "status": "running",
+        "progress": 10, "detail": {...}}
+    - 连接成功: {"type": "connected", "task_id": 1,
+        "message": "快速测试WebSocket连接成功"}
+
+    Args:
+        websocket: WebSocket对象
+        task_id: 快速测试任务ID
+        token: JWT Token
+    """
+    try:
+        payload = decode_token(token)
+        if not payload:
+            await websocket.close(code=1008, reason="Invalid token")
+            return
+    except Exception:
+        await websocket.close(code=1008, reason="Token validation failed")
+        return
+
+    channel_id = f"quick_test:{task_id}"
+
+    connected = await manager.connect(websocket, channel_id)
+    if not connected:
+        return
+
+    try:
+        success = await manager.send_message(websocket, {
+            "type": "connected",
+            "task_id": task_id,
+            "message": "快速测试WebSocket连接成功",
+        })
+        if not success:
+            manager.disconnect(websocket, channel_id)
+            return
+
+        while True:
+            try:
+                data = await asyncio.wait_for(
+                    websocket.receive_text(), timeout=30.0,
+                )
+                try:
+                    message = json.loads(data)
+                except json.JSONDecodeError:
+                    await manager.send_message(websocket, {
+                        "type": "error",
+                        "message": "Invalid JSON format",
+                    })
+                    continue
+
+                if message.get("type") == "ping":
+                    success = await manager.send_message(websocket, {"type": "pong"})
+                    if not success:
+                        break
+                elif message.get("type") == "close":
+                    break
+
+            except asyncio.TimeoutError:
+                success = await manager.send_message(websocket, {"type": "ping"})
+                if not success:
+                    break
+
+    except WebSocketDisconnect:
+        logger.debug("快速测试WebSocket连接断开")
+    except Exception:
+        logger.debug("快速测试WebSocket连接异常", exc_info=True)
+    finally:
+        manager.disconnect(websocket, channel_id)
+
+
 @router.get("/ws/stats")
 async def get_websocket_stats() -> dict:
     """

@@ -14,7 +14,7 @@
 """
 import asyncio
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -32,38 +32,59 @@ from app.api.v1.endpoints.test_case_ai import (
 from app.db.database import get_db
 from app.models.project import Project
 from app.models.user import User
-from app.services.test_case_generation.quality_validator import validate_single_case
+from app.services.case_quality.quality_feedback_loop import (
+    build_quality_feedback_text,
+    run_quality_feedback_loop,
+)
 from app.utils.ai_client import generate_test_case, generate_test_case_enhanced
 
 router = APIRouter()
 
 
-def _filter_valid_cases(cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """过滤掉质量校验不通过的用例，记录问题日志。
+async def _run_quality_feedback_for_cases(
+    cases: List[Dict[str, Any]],
+    regen_fn: Any,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """对用例列表执行质量反馈闭环，返回通过用例与重生成事件。
 
-    流式端点无法像非流式端点那样做重试循环，
-    因此采用过滤策略：校验通过的用例正常返回，不通过的丢弃并记录。
+    替代原直接丢弃策略：低质量用例经最多 3 轮重生成修复，只 rejected
+    阻断，pending_review/warning 保留（历史避坑：质量门禁分级阻断）。
 
     Args:
-        cases: AI生成的用例列表
+        cases: AI 首轮生成的用例列表。
+        regen_fn: 重生成 async 函数，接收 extra_context dict，返回新用例。
 
     Returns:
-        通过质量校验的用例子集
+        (通过用例列表, 重生成事件列表)。事件含 round/status/issues_count/case_title。
     """
-    valid_cases: List[Dict[str, Any]] = []
-    for i, case in enumerate(cases):
+    final_cases: List[Dict[str, Any]] = []
+    regen_events: List[Dict[str, Any]] = []
+
+    for case in cases:
         if not isinstance(case, dict):
-            logger.warning(f"流式端点：第{i + 1}条用例非dict类型，已丢弃")
             continue
-        issues = validate_single_case(case)
-        if issues:
-            issue_text = "; ".join(issues[:3])
+        case_title = case.get("title", "")
+
+        def on_round(
+            round_idx: int, rst_status: str, issues: List[str],
+            _title: str = case_title,
+        ) -> None:
+            regen_events.append({
+                "round": round_idx, "status": rst_status,
+                "issues_count": len(issues), "case_title": _title,
+            })
+
+        case, rst_status, _ = await run_quality_feedback_loop(
+            case, regen_fn, build_quality_feedback_text, on_round=on_round,
+        )
+        if rst_status == "rejected":
             logger.warning(
-                f"流式端点：第{i + 1}条用例质量校验不通过，已丢弃: {issue_text}"
+                f"流式端点：用例经反馈闭环仍rejected已丢弃: {case.get('title', '')}"
             )
         else:
-            valid_cases.append(case)
-    return valid_cases
+            final_cases.append(case)
+
+    return final_cases, regen_events
 
 
 # ── AI增强模式流式生成端点 ────────────────────────────────
@@ -153,7 +174,37 @@ async def ai_enhanced_generate_stream(
 
             cases_list = generated_case if isinstance(generated_case, list) else [generated_case]
             cases_list = [c for c in cases_list if isinstance(c, dict) and c]
-            valid_cases = _filter_valid_cases(cases_list)
+
+            # Task 15: 流式端点接入 3 轮反馈闭环，低质量用例重生成而非直接丢弃
+            async def _regen_case(extra_ctx: Dict[str, Any]) -> Any:
+                new_prompt_data = dict(prompt_data)
+                if extra_ctx.get("quality_feedback"):
+                    new_prompt_data["quality_feedback"] = extra_ctx["quality_feedback"]
+                if extra_ctx.get("quality_signals"):
+                    new_prompt_data["quality_signals"] = extra_ctx["quality_signals"]
+                result = await asyncio.to_thread(
+                    generate_test_case_enhanced, new_prompt_data, ai_metadata,
+                )
+                if isinstance(result, list) and result and isinstance(result[0], dict):
+                    return result[0]
+                if isinstance(result, dict):
+                    return result
+                return None
+
+            valid_cases, regen_events = await _run_quality_feedback_for_cases(
+                cases_list, _regen_case,
+            )
+
+            # Task 15.3: 推送重生成进度事件（仅重生成轮次，首轮不推送）
+            for event in regen_events:
+                if event.get("round", 0) > 0:
+                    regen_msg = json.dumps(
+                        {'code': 0, 'message': f'重生成第{event["round"]}轮',
+                         'data': {'status': 'regen', **event}},
+                        ensure_ascii=False,
+                    )
+                    yield f"data: {regen_msg}\n\n"
+
             if not valid_cases:
                 fail_msg = json.dumps(
                     {'code': 1, 'message': '生成的用例均未通过质量校验，请调整描述后重试', 'data': None},
