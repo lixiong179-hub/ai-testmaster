@@ -10,6 +10,91 @@ from app.services.prompt_builder.ui_spec_formatter import format_ui_specs_list
 from app.services.prompt_builder.comparison_examples import get_comparison_examples
 
 
+def _build_history_cases_section(history_cases: Optional[List[Dict[str, Any]]]) -> str:
+    """构建历史参考用例章节，非空时返回章节文本，空时返回空字符串。
+
+    业务原因：_scoring_mixin 填充的历史用例需注入 Prompt 供 AI 参考风格与结构，
+    避免直接复制。取 top 3（按 trust_level 降序），总长度上限 300 字符。
+    """
+    if not history_cases:
+        return ""
+
+    trust_order = {"high": 0, "medium": 1, "low": 2}
+    sorted_cases = sorted(
+        history_cases,
+        key=lambda c: trust_order.get(str(c.get("trust_level", "low")).lower(), 3)
+    )[:3]
+
+    lines = [
+        "## 历史参考用例",
+        "以下为同项目历史高质量用例，供参考风格与结构（勿直接复制）：",
+    ]
+    for idx, case in enumerate(sorted_cases, 1):
+        trust = case.get("trust_level", "medium")
+        title = case.get("title", "")
+        # _summarize_history_case 产出不含 steps 字段，统一用 summary
+        step_summary = case.get("summary", "")
+        lines.append(f"{idx}. [信任度:{trust}] {title}")
+        if step_summary:
+            lines.append(f"   - {step_summary}")
+
+    section = "\n".join(lines)
+    if len(section) > 300:
+        section = section[:297] + "..."
+    return section
+
+
+def _extract_ui_supplement_info(ui_description: str) -> str:
+    """从 ui_description 提取 navigation_flow/match_confidence 补充信息。
+
+    业务原因：ui_specs 存在时 ui_description 仍可能含导航流程等关键信息，
+    完全忽略会导致 AI 缺失上下文。仅提取结构化字段，避免重复注入纯描述文本。
+
+    兼容两种格式：
+        1. JSON 字符串：按 key 提取 navigation_flow/match_confidence（含中文键）。
+        2. 纯文本：按关键词提取相关行。
+
+    Args:
+        ui_description: UI 描述文本，可能是 JSON 字符串或纯文本。
+
+    Returns:
+        补充信息章节文本；无相关信息时返回空字符串（不产生空章节）。
+    """
+    if not ui_description or not ui_description.strip():
+        return ""
+
+    supplement_parts: List[str] = []
+    stripped = ui_description.strip()
+
+    # 优先尝试 JSON 解析（结构化场景）
+    is_json = False
+    try:
+        data = json.loads(stripped)
+        is_json = True
+        if isinstance(data, dict):
+            nav_flow = data.get("navigation_flow") or data.get("导航流程")
+            if nav_flow:
+                supplement_parts.append(f"导航流程: {nav_flow}")
+            match_conf = data.get("match_confidence") or data.get("匹配置信度")
+            if match_conf:
+                supplement_parts.append(f"匹配置信度: {match_conf}")
+    except json.JSONDecodeError:
+        pass
+
+    # 纯文本场景：按关键词提取相关行
+    if not is_json:
+        keywords = ("navigation_flow", "导航流程", "match_confidence", "匹配置信度")
+        for line in ui_description.split("\n"):
+            line_stripped = line.strip()
+            if line_stripped and any(kw in line for kw in keywords):
+                supplement_parts.append(line_stripped)
+
+    if not supplement_parts:
+        return ""
+
+    return "## UI原型图补充信息\n" + "\n".join(supplement_parts)
+
+
 def _build_linear_prompt(
     requirement_content: str,
     ui_description: str,
@@ -20,6 +105,10 @@ def _build_linear_prompt(
     ui_specs: Optional[List[Dict[str, Any]]] = None,
     case_type: Optional[str] = None,
     min_case_count: int = 3,
+    history_cases: Optional[List[Dict[str, Any]]] = None,
+    project_id: Optional[int] = None,
+    db: Any = None,
+    execution_feedback: Optional[str] = None,
 ) -> str:
     """构建线性模式的 Prompt。
 
@@ -31,6 +120,12 @@ def _build_linear_prompt(
         point: 测试点描述。
         priority: 优先级。
         ui_specs: UI 规格列表。
+        case_type: 用例类型约束。
+        min_case_count: 最少用例数。
+        history_cases: 历史用例列表。
+        project_id: 项目ID，用于加载领域 Few-shot 示例。
+        db: 数据库会话，用于加载领域示例。
+        execution_feedback: 历史执行失败归因文本，注入 Prompt 指导避坑。
 
     Returns:
         完整的 Prompt 字符串。
@@ -39,6 +134,10 @@ def _build_linear_prompt(
 
     if ui_spec_text:
         ui_section = f"## UI原型图解析结果（验收标准，优先参考）：\n{ui_spec_text}"
+        # Task 10: ui_specs 存在时仍从 ui_description 提取补充信息，避免完全忽略
+        ui_supplement = _extract_ui_supplement_info(ui_description)
+        if ui_supplement:
+            ui_section = f"{ui_section}\n\n{ui_supplement}"
     elif ui_description and ui_description.strip():
         ui_section = f"## UI原型图描述：\n{ui_description}"
     else:
@@ -63,6 +162,20 @@ def _build_linear_prompt(
 {type_guidance}
 """
 
+    history_section = _build_history_cases_section(history_cases)
+
+    # Task 7: 加载项目领域 Few-shot 示例
+    domain_section = ""
+    if project_id is not None and db is not None:
+        from app.services.prompt_builder.domain_examples import get_domain_examples
+        # get_domain_examples 返回 None 时保留通用示例（domain_section 保持空串）
+        domain_section = get_domain_examples(db, project_id) or ""
+
+    # Task 12: 注入历史执行失败归因
+    execution_feedback_section = ""
+    if execution_feedback:
+        execution_feedback_section = f"## 历史执行失败归因（请避免同类问题）：\n{execution_feedback}"
+
     return f"""你是一名资深测试工程师，拥有10年以上的测试经验。请根据以下信息生成详细的、可执行的测试用例。
 
 ## 测试点信息（JSON格式）：
@@ -75,13 +188,20 @@ def _build_linear_prompt(
 
 {case_type_section}
 
+{history_section}
+
+{domain_section}
+
+{execution_feedback_section}
+
 ## 上下文优先级与冲突规则（必须遵守）：
 1. 信息优先级：当前测试点 > 关联需求文档 > 当前UI元素(ui_spec) > UI流程/navigation_flow > 历史用例摘要。
 2. UI元素存在性仅依据当前UI解析结果(ui_spec)。不得使用未在当前UI上下文中出现的按钮、输入框、链接或页面元素。
 3. 需求与UI不一致时，以需求为准，但涉及UI交互的步骤必须标记【待确认UI】。
 4. ui_spec缺失或解析失败时，不得臆造元素；需要交互时必须标记【待确认UI】。
 5. 历史用例仅用于避免重复，不代表当前测试点必须覆盖同类场景；不得照搬、改写或合并历史用例步骤。
-6. 缺少信息时输出【待补充】或【待确认UI】，禁止编造页面、按钮、字段、接口或业务规则。
+6. 页面导航关系与需求文档矛盾时，以需求文档为准。
+7. 缺少信息时输出【待补充】或【待确认UI】，禁止编造页面、按钮、字段、接口或业务规则。
 
 ## 覆盖要求（核心）：
 你必须根据测试点的复杂度自行判断生成用例数量，最少{min_case_count}条，且必须覆盖以下测试类型：

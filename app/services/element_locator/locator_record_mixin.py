@@ -118,20 +118,3 @@ class LocatorRecordMixin:
 
         logger.info(f"前置条件步骤 {precondition_step_id}: 元素定位信息已保存，ID={locator.id}")
         return locator
-
-    async def _recognize_element(
-        self,
-        screenshot: bytes,
-        action_description: str,
-        action_type: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
-        logger.warning("_recognize_element已废弃，请使用recognizer.recognize()")
-        from app.services.recognizers.vision_recognizer import VisionRecognizer
-        if isinstance(self.recognizer, VisionRecognizer):
-            result = await self.recognizer.recognize(self.browser, action_description, action_type)
-        else:
-            vision_recognizer = VisionRecognizer(self.vision_model, self.confidence_threshold)
-            result = await vision_recognizer.recognize(self.browser, action_description, action_type)
-        if result and result.is_valid:
-            return result.element_info
-        return None
