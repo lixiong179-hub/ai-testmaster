@@ -14,6 +14,7 @@ class DevSettings(Settings):
 class TestSettings(Settings):
     """测试环境配置 - 关闭DEBUG、日志级别INFO、适度安全检查。"""
 
+    __test__ = False
     DEBUG: bool = False
     ENVIRONMENT: str = "test"
     LOG_LEVEL: str = "INFO"

@@ -95,6 +95,7 @@ class TestData(Base):
         - 按生成规则自动生成测试数据
         - 边界值和特殊字符测试数据准备
     """
+    __test__ = False
     __tablename__ = "test_data"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 数据主键ID

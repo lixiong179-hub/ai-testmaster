@@ -38,6 +38,7 @@ class TestReport(Base):
         - 按项目查看历史测试报告
         - 报告中查看用例通过率和失败详情
     """
+    __test__ = False
     __tablename__ = "test_reports"
 
     id = Column(Integer, primary_key=True, index=True)                                                # 报告主键ID

@@ -83,6 +83,12 @@ def ensure_secret_keys(settings_instance) -> None:
             "项目要求必须使用 MySQL。"
         )
 
+    if not settings_instance.AI_API_KEY and settings_instance.DEEPSEEK_API_KEY:
+        settings_instance.AI_API_KEY = settings_instance.DEEPSEEK_API_KEY
+
+    if not settings_instance.DEEPSEEK_API_KEY and settings_instance.AI_API_KEY:
+        settings_instance.DEEPSEEK_API_KEY = settings_instance.AI_API_KEY
+
     if settings_instance.ENVIRONMENT == "prod":
         if is_default_value(settings_instance.DEEPSEEK_API_KEY):
             raise ValueError(
@@ -102,9 +108,6 @@ def ensure_secret_keys(settings_instance) -> None:
                 "请在 .env 中配置真实的 API 密钥。",
                 UserWarning
             )
-
-    if not settings_instance.AI_API_KEY and settings_instance.DEEPSEEK_API_KEY:
-        settings_instance.AI_API_KEY = settings_instance.DEEPSEEK_API_KEY
 
     if not settings_instance.JWT_SECRET_KEY:
         settings_instance.JWT_SECRET_KEY = load_cached_key("jwt_secret_key", _key_cache_file)

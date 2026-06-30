@@ -40,6 +40,7 @@ class TestCaseData(Base):
         - 数据复用：同一组数据被多个用例引用
         - 参数映射：不同用例对同一数据的字段名映射
     """
+    __test__ = False
     __tablename__ = "test_case_data"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 关联主键ID

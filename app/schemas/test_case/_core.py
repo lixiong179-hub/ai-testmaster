@@ -7,6 +7,7 @@ from app.models.enums import TEST_CASE_LIFECYCLE_STATUS_PATTERN
 
 
 class TestCaseStep(BaseModel):
+    __test__ = False
     step: Union[str, int] = Field(..., description="步骤描述或编号")
     action: str = Field(..., description="操作")
     param: str = Field("", description="参数/预期结果")
@@ -22,6 +23,7 @@ class TestCaseStep(BaseModel):
 
 
 class TestCaseBase(BaseModel):
+    __test__ = False
     case_no: str = Field("", min_length=0, max_length=50, description="用例编号（为空时自动生成）")
     module: str = Field("", min_length=0, max_length=100, description="模块名称")
     title: str = Field(..., min_length=1, max_length=255, description="用例标题")
@@ -49,6 +51,7 @@ class TestCaseBase(BaseModel):
 
 
 class TestCaseCreate(TestCaseBase):
+    __test__ = False
     project_id: int = Field(..., description="项目ID")
     test_point_id: Optional[int] = Field(None, description="关联测试点ID")
     summary: Optional[str] = Field(None, description="AI生成的用例摘要")
@@ -139,6 +142,7 @@ class TestCaseResponse(TestCaseBase):
 
 
 class TestCaseUpdate(TestCaseBase):
+    __test__ = False
     case_no: Optional[str] = Field(None, min_length=0, max_length=50, description="用例编号（为空时自动生成）")
     module: Optional[str] = Field(None, min_length=0, max_length=100, description="模块名称")
     title: Optional[str] = Field(None, min_length=1, max_length=255, description="用例标题")
@@ -159,6 +163,7 @@ class TestCaseUpdate(TestCaseBase):
 
 
 class TestCaseListRequest(BaseModel):
+    __test__ = False
     project_id: int = Field(..., description="项目ID")
     module: Optional[str] = Field(None, description="模块名称")
     priority: Optional[int] = Field(None, ge=1, le=3, description="优先级")
@@ -171,6 +176,7 @@ class TestCaseListRequest(BaseModel):
 
 
 class TestCaseListResponse(BaseModel):
+    __test__ = False
     total: int
     items: List[TestCaseResponse]
     page: int
@@ -179,4 +185,5 @@ class TestCaseListResponse(BaseModel):
 
 
 class TestCaseDeleteRequest(BaseModel):
+    __test__ = False
     project_id: int = Field(..., description="项目ID")

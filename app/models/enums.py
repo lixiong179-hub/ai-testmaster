@@ -106,6 +106,7 @@ class TestCaseLifecycleStatus(str, Enum):
         DEPRECATED : 已废弃，不再推荐使用
         ARCHIVED : 已归档，终态
     """
+    __test__ = False
     DRAFT = "draft"                     # 草稿
     ACTIVE = "active"                    # 活跃
     PENDING_REVIEW = "pending_review"    # 待审核

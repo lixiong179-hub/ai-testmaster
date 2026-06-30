@@ -2,6 +2,7 @@ from enum import Enum, IntEnum
 
 
 class TestCasePriority(IntEnum):
+    __test__ = False
     HIGH = 1
     MEDIUM = 2
     LOW = 3
