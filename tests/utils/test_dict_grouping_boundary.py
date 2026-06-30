@@ -1,13 +1,12 @@
 """
-Store getter越界崩溃修复测试
+字典分组越界 key 处理测试
 
 覆盖范围:
-- testPointsByPriority getter处理越界priority值
-- testCasesByPriority getter处理越界priority值
-- testCasesByStatus getter处理越界generate_status值
-- null/undefined值的正确处理
+- 分组字典处理越界 priority 值（0/4/-1/100 等）
+- None key 的正确处理与新建数组
+- 越界 key 自动创建新分组的逻辑验证
 
-要求: 使用真实MySQL数据库，不使用Mock
+该逻辑模式用于前端 store getter 与后端分组聚合场景。
 """
 import pytest
 

@@ -307,20 +307,3 @@ class TestFlowSortDataSchema:
         assert len(data.edges) == 4
         main_nodes = [n for n in data.nodes if n.flow_type == 'main']
         assert len(main_nodes) == 2
-
-    @pytest.mark.skip(reason="_validate_flow_sort_data_size已移除")
-    def test_request_size_limit_nodes(self):
-        """测试nodes数量上限校验 - 验证校验函数存在且逻辑正确"""
-        from app.api.v1.endpoints.test_case_ai_schemas import AIGenerateEnhancedRequest
-        _validate_flow_sort_data_size = AIGenerateEnhancedRequest.validate_flow_sort_data_size
-        # 由于内存限制，仅验证函数存在和基本逻辑
-        assert callable(_validate_flow_sort_data_size)
-        assert _validate_flow_sort_data_size(None) is None
-
-    @pytest.mark.skip(reason="_validate_flow_sort_data_size已移")
-    def test_request_size_limit_edges(self):
-        """测试edges数量上限校验 - 验证校验函数存在且逻辑正确"""
-        from app.api.v1.endpoints.test_case_ai_schemas import AIGenerateEnhancedRequest
-        _validate_flow_sort_data_size = AIGenerateEnhancedRequest.validate_flow_sort_data_size
-        assert callable(_validate_flow_sort_data_size)
-        assert _validate_flow_sort_data_size(None) is None

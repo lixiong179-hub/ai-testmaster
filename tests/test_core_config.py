@@ -162,6 +162,7 @@ class TestEnsureSecretKeys:
             DATABASE_URL="mysql+pymysql://root:pass@localhost/db",
             ENVIRONMENT="dev",
             DEEPSEEK_API_KEY="",
+            AI_API_KEY="",
         )
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -173,6 +174,7 @@ class TestEnsureSecretKeys:
             DATABASE_URL="mysql+pymysql://root:pass@localhost/db",
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="",
+            AI_API_KEY="",
             JWT_SECRET_KEY="a" * 32,
             CORS_ORIGINS="https://prod.com",
         )
