@@ -11,7 +11,6 @@ from app.models.enums import LocatorStatus
 from app.models.test_case import TestStep
 from app.services.test_execution_engine.models import (
     ActionType,
-    ExecutionMode,
     ExecutionStatus,
     StepExecutionError,
     StepExecutionResult,
@@ -295,7 +294,7 @@ class PreconditionMixin:
         mobile_executor = self._get_mobile_executor()
         if not mobile_executor:
             raise StepExecutionError("Mobile executor is not initialized; check ADB connection")
-        use_cache = execution_mode == ExecutionMode.MOBILE_SMART.value
+        use_cache = execution_mode == "mobile_smart"
         action_result = await mobile_executor.execute_action(
             description=action_with_data,
             step_id=step.id,

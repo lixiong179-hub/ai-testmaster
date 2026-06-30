@@ -8,6 +8,7 @@ from app.pipelines.steps.signal_gatherer import SignalGatherer
 from app.pipelines.steps.testpoint_alignment import TestPointAlignment
 from app.pipelines.steps.case_generation import CaseGeneration
 from app.pipelines.steps.quality_gate import QualityGate
+from app.pipelines.steps.execution_validation import ExecutionValidation
 from app.pipelines.steps.persist import Persist
 from app.pipelines.steps.history_fingerprint import HistoryFingerprint
 from app.pipelines.steps.backward_scan import BackwardScan
@@ -22,6 +23,7 @@ __all__ = [
     "TestPointAlignment",
     "CaseGeneration",
     "QualityGate",
+    "ExecutionValidation",
     "Persist",
     "HistoryFingerprint",
     "BackwardScan",

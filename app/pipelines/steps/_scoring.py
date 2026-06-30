@@ -1,46 +1,20 @@
+"""prior 质量评分函数（0-25 分制精排序）。
+
+正则模式统一从 quality_scoring_constants 导入，与 grade_status /
+score_dimensions 共享底层模糊判定规则。本模块保留 prior 特有的
+长度细分、堆砌降分、步骤序号连续性等精排序逻辑。
+"""
 import re
-from typing import Any, Dict
+from typing import Any
 
-from app.services.test_case_generation.quality_validator import (
-    _STEP_UNCERTAINTY_PATTERN,
-    _MANUAL_JUDGMENT_PATTERN,
-    _TITLE_ATOMICITY_VIOLATION,
-)
-
-_VAGUE_TITLE_PATTERNS = re.compile(
-    r'^(功能验证|界面测试|UI测试|接口测试|性能测试|安全测试|'
-    r'异常测试|边界测试|兼容性测试|回归测试|'
-    r'.{1,6}测试$|.{1,6}验证$|.{1,6}功能$)',
-    re.IGNORECASE,
-)
-
-_VAGUE_EXPECTED_PATTERNS = re.compile(
-    r'(正常显示|提交成功|功能正常|页面正常|操作成功|'
-    r'显示正常|运行正常|没问题|交互跳转正确|无崩溃白屏|'
-    r'UI元素完整|无崩溃|无白屏|流程正常|'
-    r'无异常|无报错|正常工作)',
-    re.IGNORECASE,
-)
-
-_QUANTIFIABLE_PATTERNS = re.compile(
-    r'(为["\u201c]|等于|显示.*[：:]|文案.*[：:]|'
-    r'不可|无法|禁止|锁定|超时|状态码|错误码|'
-    r'\d+次|\d+秒|\d+条|\d+个|\d+%|'
-    r'\d+页|\d+张|\d+行|\d+字段|\d+记录|'
-    r'置灰|隐藏|消失|变红|变灰|高亮|'
-    r'跳转|弹出|返回|关闭|刷新|重定向|'
-    r'提示|弹窗|Toast|对话框|Snackbar|'
-    r'\d+[~\-～至到]\d+|'
-    r'(最多|不超过|不大于|上限为|≤|<=)\s*\d+\s*(个|条|次|秒|字|页|张|行|字段|记录|字符|位|MB|KB|GB|%)|'
-    r'(最少|不少于|不小于|至少|下限为|≥|>=)\s*\d+\s*(个|条|次|秒|字|页|张|行|字段|记录|字符|位|MB|KB|GB|%))',
-    re.IGNORECASE,
-)
-
-_VERB_STACKING_PATTERN = re.compile(
-    r'(点击|验证|检查|查看|测试|校验|弹出|关闭|跳转|返回)'
-    r'.*?(点击|验证|检查|查看|测试|校验|弹出|关闭|跳转|返回)'
-    r'.*?(点击|验证|检查|查看|测试|校验|弹出|关闭|跳转|返回)',
-    re.IGNORECASE,
+from app.services.case_quality.quality_scoring_constants import (
+    EXPECTED_VAGUE_PATTERNS,
+    MANUAL_JUDGMENT_PATTERN,
+    QUANTIFIABLE_PATTERNS,
+    STEP_UNCERTAINTY_PATTERN,
+    TITLE_ATOMICITY_VIOLATION_PATTERN,
+    TITLE_VAGUE_PATTERNS,
+    VERB_STACKING_PATTERN,
 )
 
 
@@ -51,9 +25,9 @@ def _score_title(title: str) -> float:
     title = title.strip()
     base_score: float
 
-    if _VAGUE_TITLE_PATTERNS.match(title):
+    if TITLE_VAGUE_PATTERNS.match(title):
         base_score = 5.0
-    elif _TITLE_ATOMICITY_VIOLATION.search(title):
+    elif TITLE_ATOMICITY_VIOLATION_PATTERN.search(title):
         base_score = 5.0
     else:
         length = len(title)
@@ -64,7 +38,7 @@ def _score_title(title: str) -> float:
         else:
             base_score = 25.0
 
-    if _VERB_STACKING_PATTERN.search(title) and len(title) > 30 and base_score >= 15.0:
+    if VERB_STACKING_PATTERN.search(title) and len(title) > 30 and base_score >= 15.0:
         return 15.0
 
     return base_score
@@ -114,9 +88,9 @@ def _score_steps(steps: Any, case_type: str = "") -> float:
             if num is not None:
                 step_numbers.append(num)
             action_text = (s.get("action") or s.get("description") or "")
-            if _STEP_UNCERTAINTY_PATTERN.search(action_text):
+            if STEP_UNCERTAINTY_PATTERN.search(action_text):
                 uncertainty_deduction += 3.0
-            if case_type == "ui_automation" and _MANUAL_JUDGMENT_PATTERN.search(action_text):
+            if case_type == "ui_automation" and MANUAL_JUDGMENT_PATTERN.search(action_text):
                 manual_judgment_deduction += 5.0
 
     completeness_ratio = complete_count / count if count > 0 else 0.0
@@ -154,10 +128,10 @@ def _score_expected_result(expected: str) -> float:
     if not expected or not expected.strip():
         return 0.0
 
-    if _QUANTIFIABLE_PATTERNS.search(expected):
+    if QUANTIFIABLE_PATTERNS.search(expected):
         return 25.0
 
-    if _VAGUE_EXPECTED_PATTERNS.search(expected):
+    if EXPECTED_VAGUE_PATTERNS.search(expected):
         return 5.0
 
     return 15.0

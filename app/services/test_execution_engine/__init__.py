@@ -100,6 +100,7 @@ class TestExecutionEngineV2(
     依赖底层能力实现更复杂的功能。
     """
 
+    __test__ = False
     DEFAULT_STEP_TIMEOUT = 30
     DEFAULT_VERIFY_TIMEOUT = 10
     MAX_RETRY_COUNT = 3

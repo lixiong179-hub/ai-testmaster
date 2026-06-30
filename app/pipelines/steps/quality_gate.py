@@ -1,4 +1,5 @@
 import hashlib
+import json
 from typing import Any, ClassVar, Dict, List, Optional
 
 from loguru import logger
@@ -16,6 +17,7 @@ from app.pipelines.steps._regeneration import (
     _regenerate_d_cases,
 )
 from app.pipelines.steps._signal_scoring import (
+    _check_user_confirmed,
     _compute_analyzer_score,
     _compute_prior_score,
     _score_to_grade,
@@ -50,6 +52,18 @@ class QualityGate(PipelineStep):
         return cases.get("success_count", 0) > 0
 
     def cache_key(self, ctx: PipelineContext) -> str:
+        """缓存键必须包含所有影响评分结果的上下文字段。
+
+        评分依赖：
+            - generated_cases 中的 case 标题集合（已包含）
+            - raw_signals（has_prd/has_ui/has_testpoints/is_old_project）
+            - inferred_business_summary（confidence 影响分数）
+            - aligned_testpoints（conflict_count 影响惩罚）
+            - iteration_id（_check_user_confirmed 查库影响 confirmed 分数）
+
+        若仅用 titles 作为键，当上游 signals/inferred/aligned 变化但标题集合
+        不变时会命中陈旧评分，导致评分与上下文脱节。
+        """
         cases = ctx.get_artifact("generated_cases")
         if not cases:
             return ""
@@ -58,7 +72,21 @@ class QualityGate(PipelineStep):
             if entry.get("status") == "success":
                 for cd in entry.get("case_data", []):
                     case_titles.append(cd.get("title", ""))
-        raw = f"{self.name}:{self.version}:titles={sorted(case_titles)}"
+
+        signals = ctx.get_artifact("raw_signals") or {}
+        inferred = ctx.get_artifact("inferred_business_summary") or {}
+        aligned = ctx.get_artifact("aligned_testpoints") or {}
+
+        # 将 dict 序列化为稳定字符串后参与哈希，避免 dict 顺序差异
+        signals_str = json.dumps(signals, ensure_ascii=False, sort_keys=True, default=str)
+        inferred_str = json.dumps(inferred, ensure_ascii=False, sort_keys=True, default=str)
+        aligned_str = json.dumps(aligned, ensure_ascii=False, sort_keys=True, default=str)
+
+        raw = (
+            f"{self.name}:{self.version}:titles={sorted(case_titles)}"
+            f":signals={signals_str}:inferred={inferred_str}"
+            f":aligned={aligned_str}:iteration_id={ctx.iteration_id}"
+        )
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def execute(self, ctx: PipelineContext) -> StepResult:
@@ -83,6 +111,10 @@ class QualityGate(PipelineStep):
         total_score = 0.0
         graded_count = 0
         _score_idx = 0
+
+        # 循环前查一次用户确认状态：iteration_id 在同一次 Pipeline 运行中不变，
+        # 避免在评分循环内对每条用例重复查询 IterationInput 表（N+1）
+        user_confirmed = _check_user_confirmed(ctx.db, ctx.iteration_id)
 
         tp_coverage_adj: Dict[Any, float] = {}
         for entry in generated_cases:
@@ -113,10 +145,12 @@ class QualityGate(PipelineStep):
                         logger.warning("CaseQualityAnalyzer 分析失败，降级到自研评分: {}", e)
                         score, grade, breakdown = _compute_prior_score(
                             case_data, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                            user_confirmed=user_confirmed,
                         )
                 else:
                     score, grade, breakdown = _compute_prior_score(
                         case_data, tp, signals, inferred, aligned, ctx.iteration_id, ctx.db,
+                        user_confirmed=user_confirmed,
                     )
 
                 if coverage_adj != 0.0 and case_data_list:

@@ -19,6 +19,7 @@ from app.pipelines.steps.testpoint_alignment._helpers import (
 
 class TestPointAlignment(PipelineStep):
 
+    __test__ = False
     name: ClassVar[str] = "testpoint_alignment"
     version: ClassVar[str] = "2.0"
     requires: ClassVar[List[str]] = ["raw_signals"]
