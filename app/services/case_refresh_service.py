@@ -1,15 +1,18 @@
 import json
 from typing import Any, Dict, List, Optional
-from datetime import datetime, timezone
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.models.case_refresh_suggestion import CaseRefreshSuggestion
-from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
+from app.models.test_case import TestCase
 from app.models.requirement import Requirement
 from app.models.test_point import TestPoint
-from app.services.lifecycle_service._service import transition as lifecycle_transition
+from app.services._case_refresh_apply import (
+    apply_suggestion as _apply_suggestion_impl,
+    create_version_snapshot as _create_version_snapshot_impl,
+    review_suggestion as _review_suggestion_impl,
+)
 
 
 REFRESH_PROMPT_TEMPLATE = """你是一名测试用例维护专家。请依据最新需求评估以下历史用例。
@@ -87,14 +90,15 @@ class CaseRefreshService:
         )
 
     def parse_refresh_response(self, response_text: str) -> Dict[str, Any]:
+        import re
         text = response_text.strip()
-        code_block_match = __import__("re").search(r'```(?:json)?\s*\n?([\s\S]*?)\n?\s*```', text)
+        code_block_match = re.search(r'```(?:json)?\s*\n?([\s\S]*?)\n?\s*```', text)
         if code_block_match:
             text = code_block_match.group(1).strip()
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            json_match = __import__("re").search(r'\{[\s\S]*\}', text)
+            json_match = re.search(r'\{[\s\S]*\}', text)
             if json_match:
                 try:
                     return json.loads(json_match.group(0))
@@ -164,96 +168,15 @@ class CaseRefreshService:
         reviewer_name: str,
         reject_reason: Optional[str] = None,
     ) -> CaseRefreshSuggestion:
-        suggestion = self.db.query(CaseRefreshSuggestion).filter(
-            CaseRefreshSuggestion.id == suggestion_id,
-        ).first()
-        if not suggestion:
-            raise ValueError(f"保鲜建议不存在: {suggestion_id}")
-        if suggestion.review_status != "pending":
-            raise ValueError(f"保鲜建议已审核: {suggestion.review_status}")
-
-        suggestion.reviewer_id = reviewer_id
-        suggestion.reviewer_name = reviewer_name
-        suggestion.reviewed_at = datetime.now(timezone.utc)
-
-        if action == "approve":
-            suggestion.review_status = "approved"
-            self._apply_suggestion(suggestion)
-        elif action == "reject":
-            suggestion.review_status = "rejected"
-            suggestion.reject_reason = reject_reason or ""
-            suggestion.suggestion_status = "rejected"
-        else:
-            raise ValueError(f"无效的审核操作: {action}")
-
-        self.db.flush()
-        return suggestion
+        return _review_suggestion_impl(
+            self.db, suggestion_id, action, reviewer_id, reviewer_name, reject_reason
+        )
 
     def _apply_suggestion(self, suggestion: CaseRefreshSuggestion) -> int:
-        case = self.db.query(TestCase).filter(TestCase.id == suggestion.case_id).first()
-        if not case:
-            suggestion.failure_reason = f"关联用例不存在: {suggestion.case_id}"
-            suggestion.suggestion_status = "expired"
-            return 0
-
-        version_id = self._create_version_snapshot(case, "refresh_apply")
-        suggestion.snapshot_version_id = version_id
-
-        if suggestion.deprecation_reason and not suggestion.suggested_title:
-            enable_lifecycle_transition()
-            try:
-                lifecycle_transition(
-                    db=self.db,
-                    case_id=case.id,
-                    to_status="deprecated",
-                    actor_id=suggestion.reviewer_id,
-                    reason=suggestion.deprecation_reason,
-                )
-            finally:
-                disable_lifecycle_transition()
-            suggestion.suggestion_status = "applied"
-            return version_id
-
-        if suggestion.suggested_title:
-            case.title = suggestion.suggested_title
-        if suggestion.suggested_expected_result:
-            case.expected_result = suggestion.suggested_expected_result
-        if suggestion.suggested_steps:
-            case.steps_json = suggestion.suggested_steps
-            from app.models.test_case import TestStep
-            self.db.query(TestStep).filter(TestStep.test_case_id == case.id).delete()
-            for idx, step_data in enumerate(suggestion.suggested_steps):
-                if isinstance(step_data, dict):
-                    step = TestStep(
-                        test_case_id=case.id,
-                        step_number=idx + 1,
-                        action=step_data.get("action", step_data.get("description", "")),
-                        expected_result=step_data.get("expected_result", ""),
-                        action_type=step_data.get("action_type"),
-                        input_value=step_data.get("input_value", ""),
-                        target_element=step_data.get("target_element", ""),
-                    )
-                    self.db.add(step)
-
-        suggestion.suggestion_status = "applied"
-        return version_id
+        return _apply_suggestion_impl(self.db, suggestion)
 
     def _create_version_snapshot(self, case: TestCase, change_type: str) -> int:
-        from app.services.case_version_service import CaseVersionService
-        from app.models.test_case import skip_version_snapshot, resume_version_snapshot
-
-        skip_version_snapshot()
-        try:
-            version = CaseVersionService.create_snapshot(
-                db=self.db,
-                test_case_id=case.id,
-                change_type=change_type,
-                change_description="保鲜建议应用前自动快照",
-            )
-        finally:
-            resume_version_snapshot()
-
-        return version.id if version else 0
+        return _create_version_snapshot_impl(self.db, case, change_type)
 
     def _suggestion_to_dict(self, suggestion: CaseRefreshSuggestion) -> Dict[str, Any]:
         return {
