@@ -16,6 +16,10 @@
 - project 不存在 → 抛 ValueError；
 - case_ids 为空 → 仍创建任务（total_count=0），执行引擎内部会置 PENDING 返回；
 - 执行引擎抛异常 → 后台任务内捕获记录，任务状态由 executor 内部置 FAILED。
+
+拆分说明:
+    - 后台执行（_run_executor_safely）与终态推送（_push_final_status）拆至
+      _task_assembler_async；本模块 re-export _CHANNEL_TEMPLATE 保持导入兼容
 """
 import asyncio
 from datetime import datetime
@@ -31,14 +35,17 @@ from app.models.test_result import TestResult
 from app.models.test_task import TaskStatus, TestTask
 from app.services.push_service import PushService, get_push_service
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
+from app.services.url_driven._task_assembler_async import (  # noqa: F401
+    _CHANNEL_TEMPLATE,
+    push_final_status as _push_final_status_impl,
+    run_executor_safely as _run_executor_safely_impl,
+)
 from app.utils.db_time import utcnow
 
 # 快速测试任务固定使用 smart 执行模式（spec Requirement: execution_mode = smart）
 EXECUTION_MODE_SMART = "smart"
 # 任务名时间戳格式：YYYYMMDDHHmmss，保证同项目多次快速测试任务名唯一可区分
 _TASK_NAME_TS_FORMAT = "%Y%m%d%H%M%S"
-# WebSocket 推送通道模板，与 QuickLauncher._CHANNEL_TEMPLATE 保持一致
-_CHANNEL_TEMPLATE = "quick_test:{task_id}"
 
 
 class TaskAssembler:
@@ -280,73 +287,12 @@ class TaskAssembler:
         logger.info(f"任务已异步启动: task_id={task.id} execution_mode={EXECUTION_MODE_SMART}")
 
     async def _run_executor_safely(self, task_id: int) -> None:
-        """后台执行任务（独立 session），捕获异常记录，避免 asyncio.create_task 吞异常。
-
-        创建独立 PrimarySessionLocal 会话供执行引擎使用，避免复用 request-scoped
-        session（已随请求结束被 get_db 关闭）。执行引擎内部已处理用例级异常
-        并置 task 状态；此处仅兜底捕获引擎级异常（如 DB 连接断开），记录后
-        尝试将任务置 FAILED，保证后台任务不污染事件循环。
-
-        执行完成后向 quick_test:{task_id} 通道推送终态：launch API 同步推送
-        编排阶段后即返回，实际执行在后台异步进行。前端 WebSocket 在 launch
-        返回后才连接，onOpen 时 refreshStatus 只能拿到 RUNNING 态；若不补推
-        终态，前端会永久卡在 running 视图，无法切换到 completed/failed。
-        """
-        from app.db.database import PrimarySessionLocal
-
-        session = PrimarySessionLocal()
-        try:
-            executor = self._executor_factory(session)
-            await executor.execute_test_task(
-                task_id=task_id, execution_mode=EXECUTION_MODE_SMART
-            )
-        except Exception as exc:
-            logger.error(f"任务执行引擎异常: task_id={task_id} err={exc}")
-            try:
-                task = session.query(TestTask).filter(TestTask.id == task_id).first()
-                if task and task.status == TaskStatus.RUNNING:
-                    task.status = TaskStatus.FAILED
-                    task.end_time = utcnow()
-                    session.commit()
-            except Exception as inner:
-                logger.error(f"任务失败状态持久化失败: task_id={task_id} err={inner}")
-                session.rollback()
-        finally:
-            await self._push_final_status(task_id, session)
-            session.close()
+        """后台执行任务（独立 session），薄委托至子模块函数。"""
+        await _run_executor_safely_impl(task_id, self._executor_factory, self._push_service)
 
     async def _push_final_status(self, task_id: int, session: Session) -> None:
-        """执行完成后推送终态到 quick_test:{task_id} 通道。
-
-        查询任务最终状态，按 COMPLETED/FAILED/STOPPED 分别推送对应阶段，
-        与前端 applyPushMessage 的终态分支及 _derive_stage 返回值对齐
-        （stage=completed+done→completed，stage=failed→failed，
-        stage=stopped→stopped）。STOPPED 是用户取消的终态，未来接入取消
-        API 时前端能收到终态推送避免永久卡 running（spec BUG 10 预防性修复）。
-        推送失败仅记录不阻断，不影响 session.close。
-        """
-        try:
-            task = session.query(TestTask).filter(TestTask.id == task_id).first()
-            if not task:
-                return
-            channel = _CHANNEL_TEMPLATE.format(task_id=task_id)
-            if task.status == TaskStatus.COMPLETED:
-                await self._push_service.push(channel, {
-                    "stage": "completed", "status": "done", "progress": 100,
-                    "detail": {"task_id": task_id},
-                })
-            elif task.status == TaskStatus.FAILED:
-                await self._push_service.push(channel, {
-                    "stage": "failed", "status": "error", "progress": 100,
-                    "detail": {"message": "执行失败", "task_id": task_id},
-                })
-            elif task.status == TaskStatus.STOPPED:
-                await self._push_service.push(channel, {
-                    "stage": "stopped", "status": "done", "progress": 100,
-                    "detail": {"message": "任务已停止", "task_id": task_id},
-                })
-        except Exception as exc:
-            logger.warning(f"终态推送失败: task_id={task_id} err={exc}")
+        """执行完成后推送终态到 quick_test:{task_id} 通道，薄委托至子模块函数。"""
+        await _push_final_status_impl(task_id, session, self._push_service)
 
     def _get_project(self, project_id: int, session: Session) -> Project:
         """查询项目，不存在抛 ValueError（参数化查询防注入）。"""
