@@ -3,26 +3,31 @@
 从 base_mixin.py 拆分而来，包含模块级纯函数和 ContextBudgetController，
 供 TestCaseGenerationBaseMixin 及其子类使用。
 
-业务原因：base_mixin.py 单文件超过 350 行限制，按职责拆分模块级辅助
-函数到独立文件，使主 mixin 文件聚焦于业务流程编排。
+拆分说明:
+    - 实体引用构造（_test_point_entry/_test_point_search_text/_requirement_ref/
+      _screen_ref/_screen_desc/_collect_navigation_screen_ids + 3 个 LIMIT 常量
+      + _dedupe_ints）拆分至 _entity_refs；本模块 re-export 全部符号保持导入兼容
+    - 文本处理、上下文预算控制、需求质量评估等模块级辅助函数保留在此模块
 """
 import json
 import re
 from typing import Any, Dict, List, Optional
 
-from app.models.requirement import Requirement
-from app.models.test_point import TestPoint
-from app.models.ui_prototype import UIPrototypeScreen
-from app.services.test_case_generation.test_point_loader import (
-    _extract_function_from_ai_prompt,
+from app.services.test_case_generation._entity_refs import (  # noqa: F401
+    DEFAULT_ADJACENT_UI_SCREEN_LIMIT,
+    DEFAULT_MATCHED_REQUIREMENT_LIMIT,
+    DEFAULT_MATCHED_UI_SCREEN_LIMIT,
+    _collect_navigation_screen_ids,
+    _dedupe_ints,
+    _requirement_ref,
+    _screen_desc,
+    _screen_ref,
+    _test_point_entry,
+    _test_point_search_text,
 )
-
 
 # 测试点分页与上下文预算默认值
 DEFAULT_CONTEXT_TOKEN_BUDGET = 5000
-DEFAULT_MATCHED_REQUIREMENT_LIMIT = 3
-DEFAULT_MATCHED_UI_SCREEN_LIMIT = 3
-DEFAULT_ADJACENT_UI_SCREEN_LIMIT = 2
 
 # UI 元素关键词提示：检测需求描述中提到的关键 UI 元素
 REQUIRED_UI_ELEMENT_HINTS = (
@@ -49,22 +54,6 @@ REQUIREMENT_ACTION_VERBS = (
     "打开", "进入", "返回",
 )
 REQUIREMENT_MIN_CHAR_COUNT = 50
-
-
-def _dedupe_ints(values: Optional[List[int]]) -> List[int]:
-    if not values:
-        return []
-    result: List[int] = []
-    seen = set()
-    for value in values:
-        try:
-            item = int(value)
-        except (TypeError, ValueError):
-            continue
-        if item not in seen:
-            seen.add(item)
-            result.append(item)
-    return result
 
 
 def _safe_json_text(value: Any) -> str:
@@ -141,84 +130,6 @@ def _assess_requirement_quality(
             },
         )
     return ("sufficient", None)
-
-
-def _test_point_entry(point: TestPoint) -> Dict[str, Any]:
-    return {
-        "id": point.id,
-        "module": point.module,
-        "function": _extract_function_from_ai_prompt(point.ai_prompt),
-        "point": point.point,
-        "priority": point.priority,
-        "requirement_id": point.requirement_id,
-    }
-
-
-def _test_point_search_text(points: List[TestPoint]) -> str:
-    return " ".join(
-        f"{point.module or ''} {point.point or ''} {point.ai_prompt or ''}"
-        for point in points
-    )
-
-
-def _requirement_ref(requirement: Requirement) -> Dict[str, Any]:
-    return {
-        "id": requirement.id,
-        "req_no": requirement.req_no,
-        "title": requirement.title,
-        "status": requirement.status,
-        "source_file_id": requirement.source_file_id,
-    }
-
-
-def _screen_ref(screen: UIPrototypeScreen, confidence: str) -> Dict[str, Any]:
-    return {
-        "id": screen.id,
-        "screen_name": screen.screen_name,
-        "prototype_name": screen.prototype_name,
-        "confidence": confidence,
-        "parse_status": screen.parse_status,
-        "element_count": screen.element_count or 0,
-    }
-
-
-def _screen_desc(screen: UIPrototypeScreen, confidence: str = "matched") -> Dict[str, Any]:
-    return {
-        "screen_id": screen.id,
-        "screen_name": screen.screen_name,
-        "prototype_name": screen.prototype_name,
-        "parse_status": screen.parse_status,
-        "summary": screen.summary or "",
-        "element_count": screen.element_count or 0,
-        "button_count": screen.button_count or 0,
-        "input_count": screen.input_count or 0,
-        "description": screen.summary or "",
-        "match_confidence": confidence,
-    }
-
-
-def _collect_navigation_screen_ids(screen: UIPrototypeScreen) -> List[int]:
-    ids: List[int] = []
-
-    def collect(value: Any) -> None:
-        if isinstance(value, int):
-            ids.append(value)
-        elif isinstance(value, str):
-            if value.isdigit():
-                ids.append(int(value))
-        elif isinstance(value, list):
-            for item in value:
-                collect(item)
-        elif isinstance(value, dict):
-            for key, item in value.items():
-                if key in {"id", "screen_id", "target", "target_id", "to", "next"}:
-                    collect(item)
-                elif isinstance(item, (dict, list)):
-                    collect(item)
-
-    collect(screen.related_screens)
-    collect(screen.navigation_flow)
-    return _dedupe_ints(ids)
 
 
 def _has_flow_intent(text: str) -> bool:
