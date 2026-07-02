@@ -2,13 +2,15 @@ version: '3.8'
 
 services:
   # -------------------- MySQL 8.0 --------------------
+  # 安全收紧：移除弱密码默认值（rootpassword/aitest123），强制通过 .env 注入强密码。
+  # 未配置环境变量时容器将拒绝启动，避免生产环境误用弱凭据。
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_testmaster}
       MYSQL_USER: ${MYSQL_USER:-aitest}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-aitest123}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set in .env}
     ports:
       - "3306:3306"
     volumes:

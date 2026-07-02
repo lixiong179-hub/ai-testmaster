@@ -1,0 +1,42 @@
+# =============================================================
+# 生产环境 Docker Compose Override
+# =============================================================
+# 用途：生产部署时与主 docker-compose.yml 合并使用，关闭 MySQL/Redis
+#       对宿主机的端口映射，仅通过 Docker 内部网络暴露给 backend。
+#
+# 启动命令：
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# 依赖：Docker Compose v2.24+ （支持 !reset 标签清空继承的 ports 列表）
+#       旧版本请直接编辑主 docker-compose.yml 移除 ports 字段。
+#
+# 安全收益：
+#   - MySQL/Redis 不再监听宿主机端口，杜绝外网扫描攻击面
+#   - 仅 backend 容器可通过 Docker 内部 DNS（mysql:3306, redis:6379）访问
+#   - 配合 .env 强密码策略，构成生产数据库最小暴露面
+# =============================================================
+
+services:
+  # -------------------- MySQL：移除宿主端口映射 --------------------
+  mysql:
+    ports: !reset []
+    expose:
+      - "3306"   # 仅对同一 Docker 网络内的 backend 容器可见
+
+  # -------------------- Redis：移除宿主端口映射 --------------------
+  redis:
+    ports: !reset []
+    expose:
+      - "6379"   # 仅对同一 Docker 网络内的 backend 容器可见
+
+  # -------------------- Backend：生产环境强化 --------------------
+  backend:
+    environment:
+      - ENVIRONMENT=prod
+      - DEBUG=false
+      - LOG_LEVEL=WARNING
+    restart: always   # 生产环境崩溃立即重启，区别于 unless-stopped
+
+  # -------------------- Nginx：仅保留 80 端口对外 --------------------
+  nginx:
+    restart: always

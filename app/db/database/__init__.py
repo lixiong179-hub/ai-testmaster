@@ -8,20 +8,34 @@ from app.db.database._engine import (
     SecondarySessionLocal,
     primary_scoped_session,
     secondary_scoped_session,
+    # 异步引擎层（渐进式迁移用，详见 _engine.py 末尾说明）
+    _to_sync_url,
+    _to_async_url,
+    create_async_database_engine,
+    async_primary_engine,
+    async_secondary_engine,
+    AsyncPrimarySessionLocal,
+    AsyncSecondarySessionLocal,
 )
 from app.db.database._session import (
     get_db,
     get_read_db,
     get_db_context,
     get_read_db_context,
+    async_get_db,
+    async_get_read_db,
+    async_get_db_context,
+    async_get_read_db_context,
 )
 from app.db.database._init import (
     init_db,
     drop_db,
     check_db_connection,
+    async_check_db_connection,
 )
 
 __all__ = [
+    # 同步层（现有代码继续使用）
     "Base",
     "create_database_engine",
     "primary_engine",
@@ -38,4 +52,15 @@ __all__ = [
     "init_db",
     "drop_db",
     "check_db_connection",
+    # 异步层（渐进式迁移新增代码使用）
+    "create_async_database_engine",
+    "async_primary_engine",
+    "async_secondary_engine",
+    "AsyncPrimarySessionLocal",
+    "AsyncSecondarySessionLocal",
+    "async_get_db",
+    "async_get_read_db",
+    "async_get_db_context",
+    "async_get_read_db_context",
+    "async_check_db_connection",
 ]

@@ -55,7 +55,9 @@ class Settings(BaseSettings):
 
     JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+    # 安全收紧：access token 60 分钟过期，配合 refresh_token（7 天）实现无感续期。
+    # 原值 480 分钟（8 小时）泄露窗口过大，违反最小权限原则。
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     ENCRYPTION_KEY: str = ""
