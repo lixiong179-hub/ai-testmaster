@@ -1,7 +1,8 @@
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
 import logging
 
-from app.db.database._engine import Base, primary_engine
+from app.db.database._engine import Base, primary_engine, async_primary_engine
 
 logger = logging.getLogger(__name__)
 
@@ -40,4 +41,25 @@ def check_db_connection() -> bool:
         return True
     except Exception as e:
         logger.error(f"数据库连接检查失败: {e}")
+        return False
+
+
+async def async_check_db_connection(
+    engine: AsyncEngine | None = None,
+) -> bool:
+    """异步数据库连接检查，供 async lifespan / 健康检查接口使用。
+
+    Args:
+        engine: 可选的异步引擎实例，未指定时使用全局 async_primary_engine。
+
+    Returns:
+        bool: 连接正常返回 True，否则 False。
+    """
+    target_engine = engine or async_primary_engine
+    try:
+        async with target_engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception as e:
+        logger.error(f"异步数据库连接检查失败: {e}")
         return False

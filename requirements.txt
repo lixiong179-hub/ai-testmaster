@@ -6,7 +6,8 @@ pydantic-settings==2.13.1
 
 # ==================== Database ====================
 sqlalchemy==2.0.48
-pymysql==1.1.2
+pymysql==1.1.2          # 同步驱动（现有同步引擎使用）
+aiomysql==0.2.0         # 异步驱动（AsyncSession 渐进式迁移基础设施使用）
 alembic==1.18.4
 
 # ==================== Authentication & Security ====================

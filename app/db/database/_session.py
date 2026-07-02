@@ -1,12 +1,15 @@
-from contextlib import contextmanager
-from typing import Generator
+from contextlib import contextmanager, asynccontextmanager
+from typing import AsyncGenerator, Generator
 import logging
 
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database._engine import (
     PrimarySessionLocal,
     SecondarySessionLocal,
+    AsyncPrimarySessionLocal,
+    AsyncSecondarySessionLocal,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,3 +63,73 @@ def get_read_db_context() -> Generator[Session, None, None]:
         raise
     finally:
         db.close()
+
+
+# =============================================================
+# 异步会话依赖 - 供 async def endpoint / service 使用
+# -------------------------------------------------------------
+# 用法（FastAPI 依赖注入）：
+#   from app.db.database import async_get_db
+#
+#   @router.get("/items")
+#   async def list_items(db: AsyncSession = Depends(async_get_db)):
+#       result = await db.execute(select(Item).where(...))
+#       return result.scalars().all()
+#
+# 用法（service 内上下文）：
+#   async with async_get_db_context() as db:
+#       db.add(obj)
+#       await db.commit()
+# =============================================================
+
+
+async def async_get_db() -> AsyncGenerator[AsyncSession, None]:
+    """异步数据库会话依赖，供 FastAPI async endpoint 注入使用。
+
+    异常处理与同步 get_db 对齐：异常时回滚，最终关闭会话归还连接池。
+    """
+    async with AsyncPrimarySessionLocal() as db:
+        try:
+            yield db
+        except Exception as e:
+            logger.error(f"异步数据库会话错误: {e}")
+            await db.rollback()
+            raise
+
+
+async def async_get_read_db() -> AsyncGenerator[AsyncSession, None]:
+    """异步只读会话依赖，绑定到从库引擎。"""
+    async with AsyncSecondarySessionLocal() as db:
+        try:
+            yield db
+        except Exception as e:
+            logger.error(f"异步只读会话错误: {e}")
+            await db.rollback()
+            raise
+
+
+@asynccontextmanager
+async def async_get_db_context() -> AsyncGenerator[AsyncSession, None]:
+    """异步数据库上下文管理器，提交成功自动 commit，异常自动 rollback。
+
+    与同步 get_db_context 行为对齐，用于 service 层 async 代码块。
+    """
+    async with AsyncPrimarySessionLocal() as db:
+        try:
+            yield db
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"异步数据库操作错误: {e}")
+            raise
+
+
+@asynccontextmanager
+async def async_get_read_db_context() -> AsyncGenerator[AsyncSession, None]:
+    """异步只读上下文管理器。"""
+    async with AsyncSecondarySessionLocal() as db:
+        try:
+            yield db
+        except Exception as e:
+            logger.error(f"异步只读操作错误: {e}")
+            raise
