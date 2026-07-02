@@ -74,6 +74,13 @@ os.environ.setdefault("ENVIRONMENT", "test")
 
 @pytest.fixture(scope="function")
 def test_user(db):
+    # 自愈：被测代码内部用 PrimarySessionLocal() 独立 session commit 时，
+    # conftest 事务隔离被绕过，admin@test.com 可能落库为 id!=1 的残留记录，
+    # 导致插入 id=1 时 email 唯一索引冲突。事务内删除 stale 记录后插入即可。
+    stale = db.query(User).filter(User.email == "admin@test.com", User.id != 1).all()
+    for s in stale:
+        db.delete(s)
+    db.flush()
     existing_admin = db.query(User).filter(User.id == 1).first()
     if not existing_admin:
         admin = User(
