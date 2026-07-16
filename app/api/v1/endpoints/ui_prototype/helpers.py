@@ -6,12 +6,14 @@ UI原型辅助工具模块
 函数概览:
     - _ensure_upload_dir: 确保上传目录存在，不存在则创建
     - _validate_image_file: 验证图片文件是否有效
+    - _sanitize_filename_component: 清理文件名组成部分，防止路径遍历
     - _build_screen_response: 将页面ORM对象转换为响应Schema
 
 常量:
     - UPLOAD_DIR: 原型文件上传目录路径，从配置中读取
 """
 import os
+import re
 from typing import Any
 
 import cv2
@@ -22,10 +24,37 @@ UPLOAD_DIR = settings.UI_PROTOTYPE_UPLOAD_DIR
 
 MIN_IMAGE_SIZE = 1024
 
+# 文件名组成部分安全字符白名单：字母、数字、中文、连字符、下划线、点
+# 其余字符（含路径分隔符 / \ .. 等）统一替换为下划线，杜绝路径遍历
+_FILENAME_SAFE_PATTERN = re.compile(r'[^\w\u4e00-\u9fa5\-\.]')
+
 
 def _ensure_upload_dir() -> None:
     """确保上传目录存在，若不存在则递归创建"""
     os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+def _sanitize_filename_component(component: str) -> str:
+    """清理文件名组成部分，防止路径遍历攻击。
+
+    将所有非安全字符（含路径分隔符 / \\、点号序列 .. 等）替换为下划线，
+    确保用户输入无法逃逸出目标目录。
+
+    Args:
+        component: 用户提供的文件名组成部分（如 prototype_name）
+
+    Returns:
+        仅包含安全字符的字符串
+    """
+    if not component:
+        return "unnamed"
+    sanitized = _FILENAME_SAFE_PATTERN.sub('_', component)
+    # 剥离可能的残留路径分隔符（防御性兜底）
+    sanitized = sanitized.replace('/', '_').replace('\\', '_')
+    # 防止 ".." 序列残留
+    while '..' in sanitized:
+        sanitized = sanitized.replace('..', '_')
+    return sanitized or "unnamed"
 
 
 def _validate_image_file(filepath: str) -> tuple[bool, str]:

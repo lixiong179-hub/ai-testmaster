@@ -34,6 +34,7 @@ from app.models.project import Project, ProjectFile
 from app.models.iteration import Iteration
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
+from app.schemas.common import ApiResponse
 from app.schemas.file import FileUpdateRequest
 from app.api.v1.endpoints.file_upload import _file_to_dict
 from loguru import logger
@@ -41,15 +42,17 @@ from loguru import logger
 router = APIRouter()
 
 
-@router.get("/list", response_model=dict)
+@router.get("/list", response_model=ApiResponse)
 async def get_all_files(
     resource_type: str = None,
     iteration_id: Optional[int] = Query(None),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        def _query_files(sync_db: Session) -> list:
+        def _query_files(sync_db: Session):
             user_projects = (
                 sync_db.query(Project).filter(Project.user_id == current_user.id).all()
             )
@@ -71,20 +74,27 @@ async def get_all_files(
                 else:
                     query = query.filter(ProjectFile.iteration_id == iteration_id)
 
-            return query.order_by(
+            # P1-1: 添加分页支持，避免全量加载
+            total = query.count()
+            skip = (page - 1) * page_size
+            files = query.order_by(
                 ProjectFile.resource_type.asc(),
                 ProjectFile.sort_order.asc(),
                 ProjectFile.upload_time.desc(),
-            ).all()
+            ).offset(skip).limit(page_size).all()
 
-        files = await db.run_sync(_query_files)
+            return files, total
+
+        files, total = await db.run_sync(_query_files)
 
         return {
             "code": 200,
             "message": "获取成功",
             "data": {
                 "items": [_file_to_dict(f) for f in files],
-                "total": len(files),
+                "total": total,
+                "page": page,
+                "page_size": page_size,
             },
         }
     except Exception as e:
@@ -94,16 +104,18 @@ async def get_all_files(
         )
 
 
-@router.get("/list/{project_id}", response_model=dict)
+@router.get("/list/{project_id}", response_model=ApiResponse)
 async def get_file_list(
     project_id: int,
     resource_type: str = None,
     iteration_id: Optional[int] = Query(None),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        def _query_files(sync_db: Session) -> list:
+        def _query_files(sync_db: Session) -> tuple:
             project = (
                 sync_db.query(Project)
                 .filter(
@@ -133,20 +145,26 @@ async def get_file_list(
                 else:
                     query = query.filter(ProjectFile.iteration_id == iteration_id)
 
-            return query.order_by(
+            total = query.count()
+            skip = (page - 1) * page_size
+            files = query.order_by(
                 ProjectFile.resource_type.asc(),
                 ProjectFile.sort_order.asc(),
                 ProjectFile.upload_time.desc(),
-            ).all()
+            ).offset(skip).limit(page_size).all()
 
-        files = await db.run_sync(_query_files)
+            return files, total
+
+        files, total = await db.run_sync(_query_files)
 
         return {
             "code": 200,
             "message": "获取成功",
             "data": {
                 "items": [_file_to_dict(f) for f in files],
-                "total": len(files),
+                "total": total,
+                "page": page,
+                "page_size": page_size,
             },
         }
     except HTTPException:
@@ -158,7 +176,7 @@ async def get_file_list(
         )
 
 
-@router.put("/{file_id}", response_model=dict)
+@router.put("/{file_id}", response_model=ApiResponse)
 async def update_file(
     file_id: int,
     update_data: FileUpdateRequest,
@@ -239,7 +257,7 @@ async def update_file(
         raise HTTPException(status_code=500, detail="更新文件失败")
 
 
-@router.delete("/{file_id}", response_model=dict)
+@router.delete("/{file_id}", response_model=ApiResponse)
 async def delete_file(
     file_id: int,
     project_id: int,

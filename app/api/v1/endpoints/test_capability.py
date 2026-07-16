@@ -1,11 +1,13 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
+from app.core.exception import create_response
 from app.db.database import async_get_db
 from app.models.user import User
+from app.schemas.common import ApiResponse
 from app.schemas.test_capability import (
     TestCapabilityCreate,
     TestCapabilityResponse,
@@ -24,19 +26,31 @@ from app.services.test_capability_service import (
 router = APIRouter(prefix="/test-capability", tags=["测试能力管理"])
 
 
-@router.get("/", response_model=List[TestCapabilityResponse])
+@router.get("/", response_model=ApiResponse)
 async def list_capabilities(
     project_id: int = Query(..., description="项目ID"),
     status: Optional[str] = Query(None, description="能力状态过滤"),
     include_archived: bool = Query(False, description="是否包含已归档能力"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> Dict[str, Any]:
     def _list(sync_db):
-        return get_capabilities_by_project(
+        capabilities = get_capabilities_by_project(
             sync_db, project_id=project_id, status=status, include_archived=include_archived,
         )
-    return await db.run_sync(_list)
+        total = len(capabilities)
+        skip = (page - 1) * page_size
+        page_capabilities = capabilities[skip:skip + page_size]
+        items = [
+            TestCapabilityResponse.model_validate(c).model_dump(mode="json")
+            for c in page_capabilities
+        ]
+        return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+    data = await db.run_sync(_list)
+    return create_response(data=data)
 
 
 @router.post("/", response_model=TestCapabilityResponse, status_code=status.HTTP_201_CREATED)

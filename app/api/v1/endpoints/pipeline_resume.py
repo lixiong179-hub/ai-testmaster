@@ -16,6 +16,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.pipeline_schemas import PipelineResumeRequest
 from app.api.v1.endpoints.pipeline_deps import verify_iteration_access
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 
 router = APIRouter(tags=["Pipeline管理"])
 
@@ -45,7 +46,7 @@ def create_ai_client(model_name: Optional[str] = None) -> AIClient:
     return primary
 
 
-@router.post("/{run_id}/resume", response_model=dict)
+@router.post("/{run_id}/resume", response_model=ApiResponse)
 async def resume_pipeline(
     run_id: int,
     body: PipelineResumeRequest,

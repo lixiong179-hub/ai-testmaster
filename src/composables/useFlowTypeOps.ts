@@ -25,7 +25,11 @@ export interface UseFlowTypeOpsOptions {
   getNodeData: (node: FlowEditorNode) => EditorNodeData
   getMainNodesInOrder: (nodes: FlowEditorNode[], edges?: Edge[]) => FlowEditorNode[]
   normalizeMainNodeOrders: (nodes: FlowEditorNode[], edges?: Edge[]) => FlowEditorNode[]
-  normalizeEdges: (edges: any[], styleMap?: any, isOverview?: boolean) => any[]
+  normalizeEdges: (
+    edges: Edge[],
+    styleMap?: Record<string, EdgeStyleConfig>,
+    isOverview?: boolean
+  ) => Edge[]
   autoLayoutByMode: (
     mode: string,
     nodes: FlowEditorNode[],
@@ -75,11 +79,11 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
       saveSnapshot()
       isProgrammaticEdgeChange.value = true
       vueFlowEdges.value = vueFlowEdges.value.filter(
-        (e: any) =>
-          !(e.target === nodeId && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type))
+        (e: FlowGraphEdge) =>
+          !(e.target === nodeId && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string))
       )
       const nextMainOrder =
-        getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as any).length + 1
+        getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[]).length + 1
       vueFlowNodes.value = normalizeMainNodeOrders(
         vueFlowNodes.value.map((node) => {
           if (node.id !== nodeId) return node
@@ -94,13 +98,13 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
             },
           }
         }),
-        vueFlowEdges.value as any
+        vueFlowEdges.value as unknown as Edge[]
       )
       emitSortData()
       vueFlowNodes.value = autoLayout(
         'focused-path',
         vueFlowNodes.value,
-        vueFlowEdges.value as any,
+        vueFlowEdges.value,
         nodeId
       )
       return
@@ -119,7 +123,7 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
     saveSnapshot()
     const currentMainNodesBefore = getMainNodesInOrder(
       vueFlowNodes.value,
-      vueFlowEdges.value as any
+      vueFlowEdges.value as unknown as Edge[]
     )
     const nodeIndexBefore = currentMainNodesBefore.findIndex((n) => n.id === nodeId)
     const wasMainNode = nodeIndexBefore >= 0 && type !== 'main'
@@ -144,10 +148,10 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
           },
         }
       }),
-      vueFlowEdges.value as any
+      vueFlowEdges.value as unknown as Edge[]
     )
     isProgrammaticEdgeChange.value = true
-    vueFlowEdges.value = vueFlowEdges.value.filter((e: any) => {
+    vueFlowEdges.value = vueFlowEdges.value.filter((e: FlowGraphEdge) => {
       if (e.target === nodeId && e.source === parentNodeId && e.data?.edge_type !== 'normal')
         return false
       if (e.source === nodeId || e.target === nodeId) {
@@ -163,7 +167,7 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
     })
     if (parentNodeId) {
       const existingEdgeIndex = vueFlowEdges.value.findIndex(
-        (e: any) => e.target === nodeId && e.source === parentNodeId
+        (e: FlowGraphEdge) => e.target === nodeId && e.source === parentNodeId
       )
       const style = getEdgeStyle(type)
       const handles = inferEdgeType('main', type)
@@ -191,20 +195,20 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
             ...vueFlowEdges.value.slice(0, existingEdgeIndex),
             newEdge,
             ...vueFlowEdges.value.slice(existingEdgeIndex + 1),
-          ] as any,
+          ] as unknown as Edge[],
           currentEdgeStyles.value,
           isOverviewMode.value
-        ) as any
+        ) as unknown as FlowGraphEdge[]
       else
         vueFlowEdges.value = normalizeEdges(
-          [...vueFlowEdges.value, newEdge] as any,
+          [...vueFlowEdges.value, newEdge] as unknown as Edge[],
           currentEdgeStyles.value,
           isOverviewMode.value
-        ) as any
+        ) as unknown as FlowGraphEdge[]
     }
     if (predecessorMainId && successorMainId) {
       const existingDirectEdge = vueFlowEdges.value.find(
-        (e: any) => e.source === predecessorMainId && e.target === successorMainId
+        (e: FlowGraphEdge) => e.source === predecessorMainId && e.target === successorMainId
       )
       const mainChainEdge: FlowGraphEdge = {
         id: existingDirectEdge?.id || `edge_${predecessorMainId}_${successorMainId}_${Date.now()}`,
@@ -217,7 +221,7 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
         data: existingDirectEdge?.data || { edge_type: 'normal' },
       }
       if (existingDirectEdge)
-        vueFlowEdges.value = vueFlowEdges.value.map((e: any) =>
+        vueFlowEdges.value = vueFlowEdges.value.map((e: FlowGraphEdge) =>
           e.id === existingDirectEdge.id ? mainChainEdge : e
         )
       else vueFlowEdges.value = [...vueFlowEdges.value, mainChainEdge]
@@ -228,7 +232,7 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
     vueFlowNodes.value = autoLayout(
       'focused-path',
       vueFlowNodes.value,
-      vueFlowEdges.value as any,
+      vueFlowEdges.value,
       nodeId
     )
     emitSortData()
@@ -284,16 +288,16 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
       }
       vueFlowNodes.value = [...vueFlowNodes.value, branchNode]
       vueFlowEdges.value = normalizeEdges(
-        [...vueFlowEdges.value, branchEdge] as any,
+        [...vueFlowEdges.value, branchEdge] as unknown as Edge[],
         currentEdgeStyles.value,
         isOverviewMode.value
-      ) as any
+      ) as unknown as FlowGraphEdge[]
       selectedNodes.value = [branchId]
       branchCounter.value++
       vueFlowNodes.value = autoLayout(
         'focused-path',
         vueFlowNodes.value,
-        vueFlowEdges.value as any,
+        vueFlowEdges.value,
         branchId
       )
       emitSortData()
@@ -322,20 +326,20 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
           },
         }
       }),
-      vueFlowEdges.value as any
+      vueFlowEdges.value as unknown as Edge[]
     )
     if (type === 'main') {
       isProgrammaticEdgeChange.value = true
       vueFlowEdges.value = vueFlowEdges.value.filter(
-        (e: any) =>
+        (e: FlowGraphEdge) =>
           !(
             selectedSet.has(e.target) &&
-            ['branch', 'exception', 'bypass'].includes(e.data?.edge_type)
+            ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string)
           )
       )
     }
     vueFlowEdges.value = applyAllEdgeStyles(
-      vueFlowEdges.value.map((edge: any) => {
+      vueFlowEdges.value.map((edge: FlowGraphEdge) => {
         const targetNode = vueFlowNodes.value.find((n) => n.id === edge.target)
         if (!targetNode) return edge
         const targetType = getNodeData(targetNode).flow_type

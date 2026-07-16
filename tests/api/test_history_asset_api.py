@@ -126,8 +126,10 @@ class TestHistoryAssetListAndGet:
 
         resp = await async_auth_client.get(BASE, params={"project_id": async_test_project.id})
         assert resp.status_code == 200, resp.text
-        items = resp.json()["data"]
-        assert any(a["id"] == asset.id for a in items)
+        data = resp.json()["data"]
+        assert data["page"] == 1
+        assert data["page_size"] == 20
+        assert any(a["id"] == asset.id for a in data["items"])
 
     async def test_get_asset_detail(self, async_auth_client, async_test_project, async_db):
         asset = HistoryAsset(

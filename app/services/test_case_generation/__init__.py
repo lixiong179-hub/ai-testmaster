@@ -86,10 +86,14 @@ class TestCaseGenerationService:
         context: Dict[str, Any],
         project_id: int,
         history_case_ids: Optional[List[int]] = None,
+        history_limit: int = 10,
     ) -> None:
         """历史用例信任度过滤与完整性评分（委托 ContextBuilder）。"""
         return self._context_builder.enrich_context_with_trust_and_scoring(
-            context, project_id, history_case_ids=history_case_ids
+            context,
+            project_id,
+            history_case_ids=history_case_ids,
+            history_limit=history_limit,
         )
 
     async def generate_test_case_for_point(

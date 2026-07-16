@@ -117,7 +117,12 @@ export function createProjectActions(state: GenerateState, getActions: () => Sto
         file_ids: allFileIds,
         project_id: Number(state.formData.project_id),
       })
-      const resData = (response as any)?.data ?? response
+      const resData = ((response as unknown as { data?: unknown })?.data ?? response) as {
+        code?: number
+        data?: { success?: number; failed?: number }
+        msg?: string
+        message?: string
+      }
       if (resData?.code === 200) {
         await getActions().loadProjectFiles()
         const data = resData.data as { success?: number; failed?: number }

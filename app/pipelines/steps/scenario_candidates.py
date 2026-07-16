@@ -101,6 +101,7 @@ class ScenarioCandidateExtractor(PipelineStep):
 
         modules_text = ", ".join(modules) if modules else "（无已有模块，请根据需求归纳，归纳的模块名标注[推断]前缀）"
 
+        # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
         prompt = _USER_TEMPLATE.format(
             prd_text=prd_text,
             ui_text=ui_text,

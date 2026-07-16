@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
+from app.schemas.common import ApiResponse
 from app.schemas.project import TestObjectInfoUpdate, ProjectConfigUpdate
 from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
@@ -82,7 +83,7 @@ def _parse_device_config(project: Project) -> dict | None:
         return None
 
 
-@router.get("/{project_id}/config", response_model=dict)
+@router.get("/{project_id}/config", response_model=ApiResponse)
 async def get_project_config(
     project_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -131,7 +132,7 @@ async def get_project_config(
         raise HTTPException(status_code=500, detail="获取项目配置失败")
 
 
-@router.put("/{project_id}/config", response_model=dict)
+@router.put("/{project_id}/config", response_model=ApiResponse)
 async def update_project_config(
     project_id: int,
     config_data: ProjectConfigUpdate,
@@ -212,7 +213,7 @@ async def update_project_config(
         raise HTTPException(status_code=500, detail="更新项目配置失败，请检查参数")
 
 
-@router.get("/{project_id}/test-object", response_model=dict)
+@router.get("/{project_id}/test-object", response_model=ApiResponse)
 async def get_test_object(
     project_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -280,7 +281,7 @@ async def get_test_object(
         raise HTTPException(status_code=500, detail="获取被测对象失败")
 
 
-@router.put("/{project_id}/test-object", response_model=dict)
+@router.put("/{project_id}/test-object", response_model=ApiResponse)
 async def update_test_object(
     project_id: int,
     obj_data: TestObjectInfoUpdate,

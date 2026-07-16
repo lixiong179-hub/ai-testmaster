@@ -11,8 +11,8 @@
 """
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -40,16 +40,26 @@ router = APIRouter(tags=["Prompt模板"])
 @router.get("/", response_model=PromptTemplateListResponse)
 async def list_prompt_templates(
     prompt_key: Optional[str] = None,
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> PromptTemplateListResponse:
     """获取 Prompt 模板列表，支持按 prompt_key 筛选。"""
+    count_stmt = select(func.count()).select_from(PromptTemplate)
     stmt = select(PromptTemplate)
     if prompt_key:
+        count_stmt = count_stmt.where(PromptTemplate.prompt_key == prompt_key)
         stmt = stmt.where(PromptTemplate.prompt_key == prompt_key)
-    stmt = stmt.order_by(PromptTemplate.prompt_key, PromptTemplate.prompt_version.asc())
+    total = (await db.execute(count_stmt)).scalar_one()
+    skip = (page - 1) * page_size
+    stmt = stmt.order_by(
+        PromptTemplate.prompt_key, PromptTemplate.prompt_version.asc()
+    ).offset(skip).limit(page_size)
     items = list((await db.execute(stmt)).scalars().all())
-    return PromptTemplateListResponse(items=items, total=len(items))
+    return PromptTemplateListResponse(
+        items=items, total=total, page=page, page_size=page_size
+    )
 
 
 @router.post("/", response_model=PromptTemplateResponse, status_code=status.HTTP_201_CREATED)

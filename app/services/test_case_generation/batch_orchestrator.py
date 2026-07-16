@@ -6,6 +6,11 @@
 
 构造函数注入 context_builder / ai_generator / validator 三个组件引用，
 对外保持 generate_test_cases_batch async generator 签名兼容。
+
+拆分说明：模块历史失败归因与类型覆盖补全逻辑分别抽取至
+ModuleFailureFeedbackMixin / CoverageEnhancementMixin（见同目录
+_batch_orchestrator_failure_feedback.py / _batch_orchestrator_coverage.py），
+本文件作为 thin wrapper 通过多继承组合并保留主流程编排与公开 API。
 """
 import asyncio
 import copy
@@ -15,9 +20,15 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.services.test_case_generation.helpers import ContentSanitizer
+from app.services.test_case_generation._batch_orchestrator_failure_feedback import (
+    ModuleFailureFeedbackMixin,
+)
+from app.services.test_case_generation._batch_orchestrator_coverage import (
+    CoverageEnhancementMixin,
+)
 
 
-class BatchOrchestrator:
+class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
     """测试用例批量生成编排器。
 
     职责：
@@ -53,161 +64,6 @@ class BatchOrchestrator:
         from app.core.config import settings
         value = int(getattr(settings, "AI_CASE_GENERATION_CONCURRENCY", self._DEFAULT_AI_CONCURRENCY))
         return max(1, value)
-
-    # ── 模块历史失败归因（合并自 _module_failure_feedback_mixin） ──
-    def _preload_module_failure_feedback(
-        self, project_id: int, test_points: List[Dict[str, Any]]
-    ) -> Dict[str, List[str]]:
-        """批量预加载各模块的历史执行失败类型，消除 _refine_context_for_point 的 N+1 查询。
-
-        业务原因：原实现每个测试点独立查询同模块失败用例，N 个测试点产生 N 次
-        DB 查询。同 module 的测试点重复查询同一份数据。此处按 module IN(...) 一次
-        查询全部，按模块分组取最近 5 条 failure_type，供 _refine_context_for_point
-        从缓存读取。
-        """
-        modules = list({tp.get("module") for tp in test_points if tp.get("module")})
-        if not modules:
-            return {}
-        db = getattr(self, "db", None)
-        if db is None:
-            return {}
-        try:
-            from app.models.test_case import TestCase
-            rows = (
-                db.query(TestCase.module, TestCase.execution_failure_type)
-                .filter(
-                    TestCase.project_id == project_id,
-                    TestCase.module.in_(modules),
-                    TestCase.execution_verified == False,  # noqa: E712
-                    TestCase.is_deleted == False,  # noqa: E712
-                )
-                .order_by(TestCase.module, TestCase.last_verified_at.desc())
-                .all()
-            )
-        except Exception as e:
-            logger.warning(f"批量预加载历史执行失败归因失败: {e}")
-            return {}
-
-        grouped: Dict[str, List[str]] = {}
-        for mod, ftype in rows:
-            if mod not in grouped:
-                grouped[mod] = []
-            if len(grouped[mod]) < 5:
-                grouped[mod].append(ftype or "other")
-        return grouped
-
-    async def _refine_context_for_point(
-        self,
-        context: Dict[str, Any],
-        test_point: Dict[str, Any],
-        project_id: int,
-        module_failures: Optional[Dict[str, List[str]]] = None,
-    ) -> None:
-        """查询同模块历史执行失败归因并注入生成上下文（Task 12）。
-
-        业务原因：同一模块的用例若历史上因元素定位失败/超时/断言失败等原因
-        执行验证未通过（execution_verified=False），新一轮生成时应注入失败
-        归因，指导AI避免同类问题。
-        """
-        module_name = test_point.get("module")
-        if not module_name:
-            return
-
-        if module_failures is not None:
-            failure_types: List[str] = module_failures.get(module_name, [])
-        else:
-            db = getattr(self, "db", None)
-            if db is None:
-                return
-            try:
-                from app.models.test_case import TestCase
-                rows = (
-                    db.query(TestCase.execution_failure_type)
-                    .filter(
-                        TestCase.project_id == project_id,
-                        TestCase.module == module_name,
-                        TestCase.execution_verified == False,  # noqa: E712
-                        TestCase.is_deleted == False,  # noqa: E712
-                    )
-                    .order_by(TestCase.last_verified_at.desc())
-                    .limit(5)
-                    .all()
-                )
-                failure_types = [r[0] or "other" for r in rows]
-            except Exception as e:
-                logger.warning(f"查询历史执行失败归因失败: {e}")
-                return
-
-        if not failure_types:
-            return
-
-        failure_summary: Dict[str, int] = {}
-        for ftype in failure_types:
-            ftype = ftype or "other"
-            failure_summary[ftype] = failure_summary.get(ftype, 0) + 1
-
-        lines = [f"同模块历史上有 {len(failure_types)} 条用例执行失败，失败类型统计:"]
-        for ftype, count in sorted(failure_summary.items(), key=lambda x: -x[1]):
-            lines.append(f"  - {ftype}: {count}次")
-        lines.append("请在新生成的用例中避免同类问题（如优化元素定位策略、增加等待逻辑、明确断言条件）。")
-        context["execution_feedback"] = "\n".join(lines)
-
-    # ── 类型覆盖补全（合并自 _coverage_enhancement_mixin） ──
-    async def _enhance_coverage_for_point(
-        self,
-        candidate_cases: List[Dict[str, Any]],
-        test_point: Dict[str, Any],
-        point_context: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
-        """检测类型覆盖缺失并补充生成缺失类型的用例。
-
-        并发安全：point_context 已由调用方深拷贝，candidate_cases 为本测试点
-        独有，generate_supplemental_cases 为纯函数不修改入参，故无需额外隔离。
-        补全失败不影响主流程，仅记录告警并返回原候选列表。
-        """
-        from app.services.case_quality.coverage_service import (
-            detect_missing_categories,
-            generate_supplemental_cases,
-        )
-        from app.services.test_case_generation.ai_generator import _get_openai_client
-
-        missing = detect_missing_categories(candidate_cases)
-        if not missing:
-            return candidate_cases
-
-        try:
-            ui_description = self._ai_generator._build_ui_description(
-                point_context.get("ui_descriptions", [])
-            )
-            has_ui = bool(ui_description and ui_description.strip()) or bool(
-                point_context.get("ui_specs", [])
-            )
-            supplemental_context: Dict[str, Any] = {
-                "prd_content": point_context.get("requirement_content", ""),
-                "ui_description": ui_description,
-                "ui_specs": point_context.get("ui_specs", []),
-                "existing_titles": [c.get("title", "") for c in candidate_cases],
-                "has_ui": has_ui,
-                "iteration_id": None,
-            }
-            supplemental = generate_supplemental_cases(
-                missing_categories=missing,
-                test_point=test_point,
-                context=supplemental_context,
-                ai_client=_get_openai_client(),
-            )
-            if supplemental:
-                logger.info(
-                    "批量生成覆盖补全 tp_id={} 补充{}条缺失类型用例: {}",
-                    test_point.get("id"), len(supplemental), missing,
-                )
-                return candidate_cases + supplemental
-        except (AttributeError, RuntimeError, ValueError, TypeError) as e:
-            logger.warning(
-                "批量生成覆盖补全失败 tp_id={} {}: {}",
-                test_point.get("id"), type(e).__name__, e,
-            )
-        return candidate_cases
 
     # ── 主流程 ──
     async def generate_test_cases_batch(
@@ -288,13 +144,16 @@ class BatchOrchestrator:
         failed_count = 0
 
         primary_requirement_file_id = requirement_file_ids[0] if requirement_file_ids else None
+        # 模块级信号量限制跨请求总 AI 并发（P-2 修复）；
+        # concurrency 仅用于进度提示，实际并发上限由 settings.AI_CASE_GENERATION_CONCURRENCY 控制
         concurrency = self._get_ai_generation_concurrency()
-        semaphore = asyncio.Semaphore(concurrency)
 
         module_failures = self._preload_module_failure_feedback(project_id, test_points)
 
+        from app.utils.ai_concurrency import ai_generation_slot
+
         async def _generate_one(index: int, point: Dict[str, Any]) -> Dict[str, Any]:
-            async with semaphore:
+            async with ai_generation_slot():
                 try:
                     point_context = copy.deepcopy(context)
                     await self._refine_context_for_point(

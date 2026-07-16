@@ -17,6 +17,7 @@ from app.api.v1.endpoints.pipeline_dashboard._utils import (
     build_run_subquery,
 )
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 from app.services.metrics_service import _date_trunc_day
 from app.utils.db_time import utcnow
 
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Pipeline仪表盘"])
 
 
-@router.get("/overview", response_model=dict)
+@router.get("/overview", response_model=ApiResponse)
 async def get_dashboard_overview(
     project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
     days: int = Query(7, ge=1, le=90, description="统计天数"),
@@ -36,42 +37,68 @@ async def get_dashboard_overview(
         try:
             since = utcnow() - timedelta(days=days)
 
-            total_runs = sync_db.query(func.count(PipelineRun.id)).filter(PipelineRun.started_at >= since)
-            completed_runs = sync_db.query(func.count(PipelineRun.id)).filter(PipelineRun.started_at >= since, PipelineRun.status == "completed")
-            total_tokens = sync_db.query(
-                func.coalesce(func.sum(AICallLog.prompt_tokens), 0)
-                + func.coalesce(func.sum(AICallLog.completion_tokens), 0)
+            # P2-2: 合并 8 次独立 COUNT/SUM/AVG 查询为 4 次（按表分组 + FILTER 子句条件聚合）
+            # PipelineRun: total_runs + completed_runs + avg_duration → 1 次查询
+            run_stats = sync_db.query(
+                func.count(PipelineRun.id).label("total_runs"),
+                func.count(PipelineRun.id)
+                    .filter(PipelineRun.status == "completed")
+                    .label("completed_runs"),
+                func.coalesce(
+                    func.avg(duration_seconds(PipelineRun.started_at, PipelineRun.finished_at, sync_db))
+                        .filter(
+                            PipelineRun.status == "completed",
+                            PipelineRun.started_at.isnot(None),
+                            PipelineRun.finished_at.isnot(None),
+                        ),
+                    0,
+                ).label("avg_duration"),
+            ).filter(PipelineRun.started_at >= since)
+
+            # AICallLog: total_tokens + total_cost → 1 次查询
+            ai_stats = sync_db.query(
+                (
+                    func.coalesce(func.sum(AICallLog.prompt_tokens), 0)
+                    + func.coalesce(func.sum(AICallLog.completion_tokens), 0)
+                ).label("total_tokens"),
+                func.coalesce(func.sum(AICallLog.cost_usd), 0).label("total_cost"),
             ).filter(AICallLog.created_at >= since)
-            total_cost = sync_db.query(func.coalesce(func.sum(AICallLog.cost_usd), 0)).filter(AICallLog.created_at >= since)
-            avg_duration = sync_db.query(func.coalesce(func.avg(duration_seconds(PipelineRun.started_at, PipelineRun.finished_at, sync_db)), 0)).filter(
-                PipelineRun.started_at >= since, PipelineRun.status == "completed",
-                PipelineRun.started_at.isnot(None), PipelineRun.finished_at.isnot(None),
-            )
-            cache_hit_steps = sync_db.query(func.count(PipelineStep.id)).filter(
-                PipelineStep.cache_key.isnot(None), PipelineStep.status == "skipped", PipelineStep.started_at >= since,
-            )
-            total_steps = sync_db.query(func.count(PipelineStep.id)).filter(PipelineStep.started_at >= since)
+
+            # PipelineStep: cache_hit_steps + total_steps → 1 次查询
+            step_stats = sync_db.query(
+                func.count(PipelineStep.id)
+                    .filter(
+                        PipelineStep.cache_key.isnot(None),
+                        PipelineStep.status == "skipped",
+                    )
+                    .label("cache_hit_steps"),
+                func.count(PipelineStep.id).label("total_steps"),
+            ).filter(PipelineStep.started_at >= since)
+
+            # PipelineMetric: fmea_active → 1 次查询（无合并对象，保持独立）
             fmea_active = sync_db.query(func.count(PipelineMetric.id)).filter(PipelineMetric.created_at >= since)
 
             if project_id is not None:
                 run_subq = build_run_subquery(sync_db, project_id)
-                total_runs = total_runs.filter(PipelineRun.id.in_(run_subq))
-                completed_runs = completed_runs.filter(PipelineRun.id.in_(run_subq))
-                total_tokens = total_tokens.filter(AICallLog.run_id.in_(run_subq))
-                total_cost = total_cost.filter(AICallLog.run_id.in_(run_subq))
-                cache_hit_steps = cache_hit_steps.filter(PipelineStep.run_id.in_(run_subq))
-                total_steps = total_steps.filter(PipelineStep.run_id.in_(run_subq))
+                run_stats = run_stats.filter(PipelineRun.id.in_(run_subq))
+                ai_stats = ai_stats.filter(AICallLog.run_id.in_(run_subq))
+                step_stats = step_stats.filter(PipelineStep.run_id.in_(run_subq))
                 metric_subq = sync_db.query(PipelineMetric.id).filter(PipelineMetric.project_id == project_id).subquery().select()
                 fmea_active = fmea_active.filter(PipelineMetric.id.in_(metric_subq))
 
-            total_runs_val = total_runs.scalar() or 0
-            completed_runs_val = completed_runs.scalar() or 0
-            total_tokens_val = int(total_tokens.scalar() or 0)
-            total_cost_val = float(total_cost.scalar() or 0)
-            avg_duration_val = float(avg_duration.scalar() or 0)
-            cache_hit_val = cache_hit_steps.scalar() or 0
-            total_steps_val = total_steps.scalar() or 0
+            # 4 次 SQL 往返（原 8 次）
+            run_row = run_stats.one()
+            ai_row = ai_stats.one()
+            step_row = step_stats.one()
             fmea_active_val = fmea_active.scalar() or 0
+
+            total_runs_val = run_row.total_runs or 0
+            completed_runs_val = run_row.completed_runs or 0
+            avg_duration_val = float(run_row.avg_duration or 0)
+            total_tokens_val = int(ai_row.total_tokens or 0)
+            total_cost_val = float(ai_row.total_cost or 0)
+            cache_hit_val = step_row.cache_hit_steps or 0
+            total_steps_val = step_row.total_steps or 0
 
             cache_hit_rate = (cache_hit_val / total_steps_val * 100) if total_steps_val > 0 else 0.0
             success_rate = (completed_runs_val / total_runs_val * 100) if total_runs_val > 0 else 0.0

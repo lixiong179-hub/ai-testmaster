@@ -99,6 +99,41 @@
 
 **测试总计：109个用例全部通过**
 
+### 全系统审计整改 (2026-07-16)
+
+基于全系统审计报告（23 项问题：1 P0 / 7 P1 / 9 P2 / 6 P3），分四批完成整改。
+
+#### Security - 安全加固
+- **P0-1 路径遍历修复** - `ui_prototype/helpers.py` 新增 `_sanitize_filename_component()` 白名单清洗 + `screen_endpoints.py` 路径边界校验
+- **P2-8 安全响应头中间件** - `app/main.py` 新增 `SecurityHeadersMiddleware`，统一注入 `X-Content-Type-Options`/`X-Frame-Options`/`X-XSS-Protection`/`Referrer-Policy`
+- **P1-7 跨项目迭代归属校验** - `app/models/project.py` 添加 `before_flush` 事件守卫，拒绝跨项目的 iteration_id 赋值
+
+#### Performance - 性能优化
+- **P1-2/3/4 N+1 查询修复** - `file_content_extractor.py`、`self_test/_pipeline_steps_setup.py`、`case_quality_check.py` 三处循环内查询改为批量 `in_()` 查询
+- **P2-2 Dashboard 查询合并** - `pipeline_dashboard/_overview.py` 8 次独立 COUNT/SUM/AVG 查询合并为 4 次（FILTER 子句条件聚合）
+- **P2-3 review_inbox 过滤排序下推** - `review_service/_lock.py` `get_decisions()` 新增 verdict/sort_by/order 参数，过滤与排序下推 SQL
+- **P1-1/P2-4 分页补齐** - 8 个列表端点统一添加 `page`/`page_size` Query 参数（file_management × 2、history_asset、test_capability、ab_test、review_inbox、prompt_template、feature_flag）
+
+#### API Consistency - API 一致性
+- **P1-5 response_model 标准化** - 84 处 `response_model=dict` 替换为 `response_model=ApiResponse`
+- **P3-1 路由前缀冲突修复** - `execution_visualization.py` 前缀 `/execution` → `/execution-vis`；前端 `testExecution.ts` 5 个回放控制端点同步更新
+- **P1-6 文档路径更新** - 5 个文档文件 19 处过时 API 路径修正
+
+#### Code Quality - 代码规范
+- **P3-3 动态导入消除** - `self_test/_pipeline_steps_setup.py` `__import__` 替换为静态 import
+- **P3-2 测试类误识别修复** - `app/db/database/_engine.py` Base 类添加 `__test__ = False`
+- **P2-6 测试包名冲突修复** - 删除 `tests/scripts/__init__.py` 解决与根 `scripts/` 包的命名冲突
+
+#### Tests - 测试修复
+- **P2-9 health 端点测试恢复** - 移除 `test_main.py` 中过时的 skip 标记，10 个测试恢复执行
+- **新增 `test_batch1_security_fixes.py`** - 12 个安全修复验证用例（路径遍历 + 跨项目迭代守卫）
+
+#### Deferred - 延后处理
+- P2-1 db.run_sync 系统性迁移（100+ 处，按模块逐步迁移）
+- P2-5 大文件拆分（execution.py/pipeline.py，架构级重构）
+- P2-7 30+ skip 测试清理（需逐个排查重构遗留）
+- P3-6 浏览器 eval 低风险项（JavaScript 上下文，非 Python）
+
 ### Phase 5 - Defect Discovery & Self-Test Automation (2026-06-03)
 
 #### Database (commit 2ab7dad)

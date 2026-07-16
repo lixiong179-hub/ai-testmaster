@@ -1,10 +1,10 @@
+import asyncio
 import json
 import re
-import time
 from typing import Dict, Any
 from loguru import logger
 
-import requests
+import httpx
 
 from app.utils.ai_client_core import (
     AIServiceError,
@@ -65,14 +65,11 @@ class _GenerateStreamMixin:
         full_content = ""
         for attempt in range(self.max_retries):
             try:
-                logger.info(f"AI生成测试用例（流式响应） - 尝试 {attempt + 1}/{self.max_retries}")
-                response = requests.post(self.api_url, headers=headers, json=data, stream=True, timeout=60)
-                response.raise_for_status()
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk:
-                        chunk_str = chunk.decode('utf-8')
-                        lines = chunk_str.split('\n')
-                        for line in lines:
+                logger.debug(f"AI生成测试用例（流式响应） - 尝试 {attempt + 1}/{self.max_retries}")
+                async with httpx.AsyncClient(timeout=60) as client:
+                    async with client.stream("POST", self.api_url, headers=headers, json=data) as response:
+                        response.raise_for_status()
+                        async for line in response.aiter_lines():
                             if line.startswith('data: '):
                                 data_part = line[6:]
                                 if data_part == '[DONE]':
@@ -109,10 +106,10 @@ class _GenerateStreamMixin:
                         return
                 yield {"progress": 100, "message": "AI响应格式错误，无法解析", "status": "error", "error": True}
                 return
-            except requests.RequestException as e:
+            except httpx.HTTPError as e:
                 logger.error(f"AI生成测试用例失败 (尝试 {attempt + 1}/{self.max_retries}): {str(e)}")
                 if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay)
+                    await asyncio.sleep(self.retry_delay)
                     continue
                 else:
                     error = _detect_ai_error(e)

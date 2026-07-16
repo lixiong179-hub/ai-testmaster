@@ -23,6 +23,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import async_get_db
+from app.schemas.common import ApiResponse
 from app.schemas.user import (
     User, UserCreate, UserUpdate, UserWithRoles,
     Role, RoleCreate, RoleUpdate,
@@ -182,7 +183,7 @@ async def update_role(
     return role
 
 
-@router.delete("/role/{role_id}", response_model=dict)
+@router.delete("/role/{role_id}", response_model=ApiResponse)
 async def delete_role(
     role_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -260,7 +261,7 @@ async def update_permission(
     return permission
 
 
-@router.delete("/permission/{perm_id}", response_model=dict)
+@router.delete("/permission/{perm_id}", response_model=ApiResponse)
 async def delete_permission(
     perm_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -275,7 +276,7 @@ async def delete_permission(
     return {"message": "权限删除成功"}
 
 
-@router.post("/role/assign", response_model=dict)
+@router.post("/role/assign", response_model=ApiResponse)
 async def assign_role(
     user_id: int = Body(...),
     role_id: int = Body(...),
@@ -291,7 +292,7 @@ async def assign_role(
     return {"message": "角色分配成功"}
 
 
-@router.post("/role/remove", response_model=dict)
+@router.post("/role/remove", response_model=ApiResponse)
 async def remove_role(
     user_id: int = Body(...),
     role_id: int = Body(...),
@@ -351,7 +352,7 @@ async def update_user(
     return user
 
 
-@router.delete("/{user_id}", response_model=dict)
+@router.delete("/{user_id}", response_model=ApiResponse)
 async def delete_user(
     user_id: int,
     db: AsyncSession = Depends(async_get_db),

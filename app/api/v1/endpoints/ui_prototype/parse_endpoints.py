@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from app.db.database import async_get_db, get_db_context
+from app.schemas.common import ApiResponse
 from app.schemas.ui_prototype import (
     UIScreenParseRequest,
     UIFlowGenerateRequest,
@@ -43,7 +44,7 @@ from app.core.exception import create_response
 router = APIRouter(tags=["UI原型管理"])
 
 
-@router.post("/parse", response_model=dict)
+@router.post("/parse", response_model=ApiResponse)
 async def parse_ui_screens(
     parse_request: UIScreenParseRequest,
     db: AsyncSession = Depends(async_get_db),
@@ -162,7 +163,7 @@ async def parse_ui_screens(
         )
 
 
-@router.post("/parse/project/{prototype_project_id}", response_model=dict)
+@router.post("/parse/project/{prototype_project_id}", response_model=ApiResponse)
 async def parse_prototype_project(
     prototype_project_id: int,
     parse_mode: Optional[str] = Query("text"),
@@ -257,7 +258,7 @@ async def parse_prototype_project(
         )
 
 
-@router.post("/flow/generate", response_model=dict)
+@router.post("/flow/generate", response_model=ApiResponse)
 async def generate_page_flow(
     flow_request: UIFlowGenerateRequest,
     db: AsyncSession = Depends(async_get_db),
@@ -321,7 +322,7 @@ async def generate_page_flow(
         )
 
 
-@router.get("/specs/{project_id}", response_model=dict)
+@router.get("/specs/{project_id}", response_model=ApiResponse)
 async def get_ui_specs_for_case_generation(
     project_id: int,
     prototype_project_id: Optional[int] = Query(None),

@@ -3,7 +3,8 @@ case generation, and review/save."""
 from typing import Any, Dict, List, Optional, Tuple
 
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project import ProjectFile
 
@@ -38,35 +39,36 @@ def _build_step_result(
 
 
 async def _step_requirement_confirmation(
-    db: Session,
+    db: AsyncSession,
     project_id: int,
 ) -> Tuple[bool, Optional[str]]:
     """步骤1: 需求确认 - 确认需求文档已导入且内容提取完成。
 
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话。
         project_id: 项目 ID。
 
     Returns:
         (成功标志, 错误信息) 二元组。
     """
     requirement_file = (
-        db.query(ProjectFile)
-        .filter(
-            ProjectFile.project_id == project_id,
-            ProjectFile.resource_type == "requirement",
-            ProjectFile.extract_status == "completed",
-            ProjectFile.is_active.is_(True),
+        await db.execute(
+            select(ProjectFile)
+            .where(
+                ProjectFile.project_id == project_id,
+                ProjectFile.resource_type == "requirement",
+                ProjectFile.extract_status == "completed",
+                ProjectFile.is_active.is_(True),
+            )
         )
-        .first()
-    )
+    ).scalars().first()
     if not requirement_file:
         return (False, f"项目 {project_id} 未找到已完成提取的需求文档")
     return (True, None)
 
 
 async def _step_extract_test_points(
-    db: Session,
+    db: AsyncSession,
     project_id: int,
 ) -> Tuple[bool, Optional[str], List[int]]:
     """步骤2: 测试点提取 - AI 基于需求文档提取测试点。
@@ -74,17 +76,17 @@ async def _step_extract_test_points(
     重点标注边界条件和异常处理规则。
 
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话。
         project_id: 项目 ID。
 
     Returns:
         (成功标志, 错误信息, 测试点ID列表) 三元组。
     """
-    from app.crud.test_point import get_test_points_by_project, batch_create_test_points
+    from app.crud.test_point import get_test_points_by_project_async, batch_create_test_points_async
     from app.services.ai_analysis_service import extract_test_points_from_content
 
     # 先检查是否已有活跃测试点，避免重复提取
-    existing_points = get_test_points_by_project(db, project_id, limit=500)
+    existing_points = await get_test_points_by_project_async(db, project_id, limit=500)
     if existing_points:
         existing_ids = [tp.id for tp in existing_points]
         logger.info(
@@ -94,15 +96,16 @@ async def _step_extract_test_points(
 
     # 获取需求文档内容
     requirement_file = (
-        db.query(ProjectFile)
-        .filter(
-            ProjectFile.project_id == project_id,
-            ProjectFile.resource_type == "requirement",
-            ProjectFile.extract_status == "completed",
-            ProjectFile.is_active.is_(True),
+        await db.execute(
+            select(ProjectFile)
+            .where(
+                ProjectFile.project_id == project_id,
+                ProjectFile.resource_type == "requirement",
+                ProjectFile.extract_status == "completed",
+                ProjectFile.is_active.is_(True),
+            )
         )
-        .first()
-    )
+    ).scalars().first()
     if not requirement_file or not requirement_file.content:
         return (False, "需求文档内容为空，无法提取测试点", [])
 
@@ -127,7 +130,7 @@ async def _step_extract_test_points(
             "created_by": "self_test_pipeline",
         })
 
-    created_points = batch_create_test_points(
+    created_points = await batch_create_test_points_async(
         db=db,
         project_id=project_id,
         test_points_data=point_data_list,
@@ -141,7 +144,7 @@ async def _step_extract_test_points(
 
 
 async def _step_generate_cases(
-    db: Session,
+    db: AsyncSession,
     project_id: int,
     user_id: int,
     test_point_ids: List[int],
@@ -150,8 +153,11 @@ async def _step_generate_cases(
 
     使用缺陷挖掘导向的 Prompt，确保 >=60% 非正常路径。
 
+    TestCaseGenerationService 内部使用 sync Session，通过
+    iter_async_gen_in_thread 在独立线程中运行，避免阻塞事件循环。
+
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话（本步骤未直接使用，用例生成在独立 sync 会话中完成）。
         project_id: 项目 ID。
         user_id: 用户 ID。
         test_point_ids: 测试点 ID 列表。
@@ -159,29 +165,39 @@ async def _step_generate_cases(
     Returns:
         (成功标志, 错误信息, 用例ID列表) 三元组。
     """
+    from app.db.database import PrimarySessionLocal
     from app.services.test_case_generation import TestCaseGenerationService
+    from app.utils.async_sync_bridge import iter_async_gen_in_thread
 
     if not test_point_ids:
         return (False, "无可用测试点，无法生成用例", [])
 
-    service = TestCaseGenerationService(db)
+    # TestCaseGenerationService 内部使用 sync Session.query()，
+    # 在独立线程+独立事件循环中运行，避免阻塞主事件循环
+    sync_db = PrimarySessionLocal()
     generated_case_ids: List[int] = []
 
-    # 使用批量生成接口，收集所有生成结果
-    async for result in service.generate_test_cases_batch(
-        project_id=project_id,
-        user_id=user_id,
-        test_point_ids=test_point_ids,
-        case_type="ui_automation",
-    ):
-        status = result.get("status")
-        if status == "completed":
-            case_id = result.get("case_id")
-            if case_id:
-                generated_case_ids.append(case_id)
-        elif status == "error":
-            error_msg = result.get("message", "未知错误")
-            logger.warning(f"用例生成出错: {error_msg}")
+    try:
+        service = TestCaseGenerationService(sync_db)
+
+        async for result in iter_async_gen_in_thread(
+            lambda: service.generate_test_cases_batch(
+                project_id=project_id,
+                user_id=user_id,
+                test_point_ids=test_point_ids,
+                case_type="ui_automation",
+            )
+        ):
+            status = result.get("status")
+            if status == "completed":
+                case_id = result.get("case_id")
+                if case_id:
+                    generated_case_ids.append(case_id)
+            elif status == "error":
+                error_msg = result.get("message", "未知错误")
+                logger.warning(f"用例生成出错: {error_msg}")
+    finally:
+        sync_db.close()
 
     if not generated_case_ids:
         return (False, "AI 用例生成未产出任何用例", [])
@@ -193,7 +209,7 @@ async def _step_generate_cases(
 
 
 async def _step_review_and_save(
-    db: Session,
+    db: AsyncSession,
     project_id: int,
     user_id: int,
     case_ids: List[int],
@@ -204,7 +220,7 @@ async def _step_review_and_save(
     对 deprecate 决策的用例标记为不活跃，其余保留。
 
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话。
         project_id: 项目 ID。
         user_id: 用户 ID。
         case_ids: 待评审用例 ID 列表。
@@ -219,20 +235,21 @@ async def _step_review_and_save(
     from app.models.review import IterationReview, ReviewDecision
     from app.models.enums import ReviewKind, ReviewStatus
     from app.services.review_service import (
-        create_review,
-        start_review,
-        add_decision,
-        finalize_review,
+        create_review_async,
+        start_review_async,
+        add_decision_async,
+        finalize_review_async,
     )
 
     # 获取项目关联的迭代，若无则跳过评审直接保存
     from app.models.iteration import Iteration
     iteration = (
-        db.query(Iteration)
-        .filter(Iteration.project_id == project_id)
-        .order_by(Iteration.id.desc())
-        .first()
-    )
+        await db.execute(
+            select(Iteration)
+            .where(Iteration.project_id == project_id)
+            .order_by(Iteration.id.desc())
+        )
+    ).scalars().first()
 
     if not iteration:
         # 无迭代时直接确认用例为活跃状态（跳过评审）
@@ -243,12 +260,20 @@ async def _step_review_and_save(
 
     try:
         # 创建评审
-        review = create_review(db, iteration_id=iteration.id, kind="forward")
-        review = start_review(db, review.id)
+        review = await create_review_async(db, iteration_id=iteration.id, kind="forward")
+        review = await start_review_async(db, review.id)
+
+        # P1-3: 批量查询用例替代循环内逐个查询，消除 N+1
+        cases = (
+            await db.execute(
+                select(TestCase).where(TestCase.id.in_(case_ids))
+            )
+        ).scalars().all()
+        cases_by_id = {c.id: c for c in cases}
 
         # 为每个用例添加 AI 评审决策
         for case_id in case_ids:
-            test_case = db.query(TestCase).filter(TestCase.id == case_id).first()
+            test_case = cases_by_id.get(case_id)
             if not test_case:
                 continue
 
@@ -262,7 +287,7 @@ async def _step_review_and_save(
                 ai_verdict = "keep"
                 ai_confidence = 85
 
-            add_decision(
+            await add_decision_async(
                 db=db,
                 review_id=review.id,
                 target_kind="case",
@@ -273,28 +298,37 @@ async def _step_review_and_save(
             )
 
         # 终结评审
-        finalize_review(db, review.id, finalized_by=user_id)
+        await finalize_review_async(db, review.id, finalized_by=user_id)
 
         # 应用高置信度决策
         decisions = (
-            db.query(ReviewDecision)
-            .filter(
-                ReviewDecision.review_id == review.id,
-                ReviewDecision.ai_confidence >= _AUTO_ADOPT_CONFIDENCE_THRESHOLD,
+            await db.execute(
+                select(ReviewDecision)
+                .where(
+                    ReviewDecision.review_id == review.id,
+                    ReviewDecision.ai_confidence >= _AUTO_ADOPT_CONFIDENCE_THRESHOLD,
+                )
             )
-            .all()
-        )
+        ).scalars().all()
 
-        for decision in decisions:
-            if decision.final_verdict == "deprecate":
-                case = db.query(TestCase).filter(
-                    TestCase.id == decision.target_id
-                ).first()
-                if case:
-                    case.is_deleted = True
-                    case.deleted_at = __import__("app.utils.db_time", fromlist=["utcnow"]).utcnow()
+        # P1-3: 批量查询待废弃用例替代循环内逐个查询，消除 N+1
+        deprecate_target_ids = [
+            d.target_id for d in decisions
+            if d.final_verdict == "deprecate" and d.target_id is not None
+        ]
+        if deprecate_target_ids:
+            deprecate_cases = (
+                await db.execute(
+                    select(TestCase)
+                    .where(TestCase.id.in_(deprecate_target_ids))
+                )
+            ).scalars().all()
+            from app.utils.db_time import utcnow as _utcnow
+            for case in deprecate_cases:
+                case.is_deleted = True
+                case.deleted_at = _utcnow()
 
-        db.commit()
+        await db.commit()
         logger.info(
             f"项目 {project_id} 评审保存完成: "
             f"评审 {len(decisions)} 个决策，置信度 >= {_AUTO_ADOPT_CONFIDENCE_THRESHOLD}"

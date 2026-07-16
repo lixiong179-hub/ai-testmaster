@@ -31,6 +31,8 @@ class PromptTemplateListResponse(BaseModel):
     """Prompt 模板版本列表响应"""
     items: List[PromptTemplateResponse]
     total: int
+    page: int
+    page_size: int
 
 
 class SetDefaultRequest(BaseModel):

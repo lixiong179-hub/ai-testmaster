@@ -331,7 +331,7 @@ describe('FlowTypeConfigDialog', () => {
     await nextTick()
 
     // Verify the Vue reactive formData was reset (not native select which may lag)
-    const vm = wrapper.vm as any
+    const vm = wrapper.vm as unknown as { formData?: { parent_node_id?: string } }
     expect(vm.formData?.parent_node_id || '').toBe('')
   })
 })

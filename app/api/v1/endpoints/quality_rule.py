@@ -44,11 +44,18 @@ async def get_quality_rules(
     current_user: User = Depends(get_current_user),
 ) -> List[QualityRuleConfig]:
     """获取指定项目的所有质量规则配置。"""
+    # 安全收紧：联合校验项目归属，避免越权访问他人项目数据
+    # 不区分 404/403，统一返回 403 避免泄露项目存在性
     project = (
-        await db.execute(select(Project).where(Project.id == project_id))
+        await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.user_id == current_user.id,
+            )
+        )
     ).scalar_one_or_none()
     if not project:
-        raise HTTPException(status_code=404, detail="项目不存在")
+        raise HTTPException(status_code=403, detail="无权限操作此项目")
     rules = (
         await db.execute(
             select(QualityRuleConfig).where(
@@ -71,11 +78,17 @@ async def update_quality_rule(
     current_user: User = Depends(get_current_user),
 ) -> QualityRuleConfig:
     """更新指定项目的质量规则配置，不存在则创建。"""
+    # 安全收紧：联合校验项目归属
     project = (
-        await db.execute(select(Project).where(Project.id == project_id))
+        await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.user_id == current_user.id,
+            )
+        )
     ).scalar_one_or_none()
     if not project:
-        raise HTTPException(status_code=404, detail="项目不存在")
+        raise HTTPException(status_code=403, detail="无权限操作此项目")
 
     existing = (
         await db.execute(

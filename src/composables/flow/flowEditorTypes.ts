@@ -1,4 +1,4 @@
-import type { Styles } from '@vue-flow/core'
+import type { Styles, Edge } from '@vue-flow/core'
 import type { FlowNodeData } from '@/store/flowSort'
 
 export type EditorNodeData = {
@@ -33,15 +33,15 @@ export interface FlowGraphEdge {
   id: string
   source: string
   target: string
-  type: string
+  type?: string
   sourceHandle?: string
   targetHandle?: string
-  label?: string | number
-  style?: Record<string, unknown>
+  label?: string
+  style?: Edge['style']
   animated?: boolean
   hidden?: boolean
   selected?: boolean
-  markerEnd?: unknown
+  markerEnd?: Edge['markerEnd']
   data?: Record<string, unknown>
 }
 

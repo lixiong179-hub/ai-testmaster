@@ -157,13 +157,13 @@ def init_database() -> None:
                     "is_active": True
                 }
             )
-            print("默认管理员用户创建成功: admin / ****")
+            logger.info("默认管理员用户创建成功: admin / ****")
         else:
-            print("管理员用户已存在")
+            logger.info("管理员用户已存在")
 
         # 提交所有DDL和DML操作
         conn.commit()
-        print("数据库初始化完成")
+        logger.info("数据库初始化完成")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { userApi } from '@/api/user'
-import type { User, UserForm, Pagination } from '@/types/user'
+import type { User, UserForm, Pagination, Role } from '@/types/user'
 
 export function useUserManagement() {
   const loading = ref(false)
@@ -44,7 +44,7 @@ export function useUserManagement() {
     ],
   }
 
-  const roles = ref<any[]>([])
+  const roles = ref<Role[]>([])
   const selectedRoles = ref<number[]>([])
   const currentUser = ref<User | null>(null)
 
@@ -125,8 +125,9 @@ export function useUserManagement() {
           }
           dialogVisible.value = false
           loadUsers()
-        } catch (error: any) {
-          ElMessage.error(error.response?.data?.message || '保存失败')
+        } catch (error: unknown) {
+          const err = error as { response?: { data?: { message?: string } } }
+          ElMessage.error(err.response?.data?.message || '保存失败')
         }
       }
     })
@@ -156,7 +157,7 @@ export function useUserManagement() {
     try {
       const response = await userApi.getUser(user.id)
       if (response.data.roles) {
-        selectedRoles.value = response.data.roles.map((role: any) => role.id)
+        selectedRoles.value = response.data.roles.map((role: Role) => role.id)
       }
     } catch (error) {
       ElMessage.error('获取用户角色失败')

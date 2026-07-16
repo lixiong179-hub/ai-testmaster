@@ -230,8 +230,9 @@ class TestListExperiments:
         resp = await async_auth_client.get("/api/v1/ab-test/experiments")
         assert resp.status_code == 200
         data = resp.json()["data"]
-        # create_response(data or {}) 把 falsy 的 [] 转为 {}，遵循统一响应约定
-        assert data in ([], {})
+        # 分页响应：data 为 {items, total, page, page_size}
+        assert data["items"] == []
+        assert data["total"] == 0
         assert resp.json()["msg"] == "获取实验列表成功"
 
     async def test_list_single_experiment(
@@ -251,9 +252,10 @@ class TestListExperiments:
         resp = await async_auth_client.get("/api/v1/ab-test/experiments")
         assert resp.status_code == 200
         data = resp.json()["data"]
-        assert len(data) == 1
-        assert data[0]["experiment_id"] == "list_exp1"
-        assert data[0]["sample_count"] == 2
+        assert data["total"] == 1
+        assert len(data["items"]) == 1
+        assert data["items"][0]["experiment_id"] == "list_exp1"
+        assert data["items"][0]["sample_count"] == 2
 
     async def test_list_multi_experiments_ordered(
         self, async_db, async_auth_client, async_test_project
@@ -276,7 +278,7 @@ class TestListExperiments:
         )
         resp = await async_auth_client.get("/api/v1/ab-test/experiments")
         assert resp.status_code == 200
-        ids = [item["experiment_id"] for item in resp.json()["data"]]
+        ids = [item["experiment_id"] for item in resp.json()["data"]["items"]]
         assert ids == ["aaa_exp", "mmm_exp", "zzz_exp"]
 
     async def test_list_filters_by_user_project(
@@ -296,7 +298,7 @@ class TestListExperiments:
         )
         resp = await async_auth_client.get("/api/v1/ab-test/experiments")
         assert resp.status_code == 200
-        ids = [item["experiment_id"] for item in resp.json()["data"]]
+        ids = [item["experiment_id"] for item in resp.json()["data"]["items"]]
         assert "owned_exp" in ids
         assert "others_exp" not in ids
 

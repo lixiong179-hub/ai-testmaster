@@ -1,7 +1,9 @@
+import asyncio
 from typing import Any, Dict, List, Optional
 from loguru import logger
 
-from app.utils.ai_client_core import AIClientBase, AIServiceError
+from app.core.config import settings
+from app.utils.ai_client_core import AIServiceError
 
 
 class _ExtractMixin:
@@ -16,16 +18,25 @@ class _ExtractMixin:
             logger.warning("提取测试点：内容为空")
             return []
 
+        if self.ai_client is None:
+            logger.warning("AI客户端未注入，跳过测试点提取")
+            return []
+
         prompt = self._build_extract_prompt(content, context)
 
         try:
-            response = await self.ai_client.complete(
+            # 性能优化：使用 complete_async + 单次调用硬超时，避免长尾请求阻塞 worker
+            response = await self.ai_client.complete_async(
                 prompt=prompt,
                 system="你是一名资深测试工程师，擅长从需求文档中提取结构化测试点。",
                 temperature=0.3,
                 max_tokens=4096,
+                timeout=float(settings.AI_CALL_TIMEOUT_SECONDS),
             )
             return self._parse_test_points_response(response.content)
+        except asyncio.TimeoutError:
+            logger.error(f"AI提取测试点超时（>{settings.AI_CALL_TIMEOUT_SECONDS}s）")
+            return []
         except AIServiceError as e:
             logger.error(f"AI提取测试点失败: {e}")
             return []
@@ -41,17 +52,26 @@ class _ExtractMixin:
         if not ui_specs:
             return []
 
+        if self.ai_client is None:
+            logger.warning("AI客户端未注入，跳过UI测试点提取")
+            return []
+
         content = self._build_ui_extract_content(ui_specs)
         prompt = self._build_ui_extract_prompt(content)
 
         try:
-            response = await self.ai_client.complete(
+            # 性能优化：使用 complete_async + 单次调用硬超时
+            response = await self.ai_client.complete_async(
                 prompt=prompt,
                 system="你是一名资深测试工程师，擅长从UI设计稿中提取测试点。",
                 temperature=0.3,
                 max_tokens=4096,
+                timeout=float(settings.AI_CALL_TIMEOUT_SECONDS),
             )
             return self._parse_test_points_response(response.content)
+        except asyncio.TimeoutError:
+            logger.error(f"AI从UI提取测试点超时（>{settings.AI_CALL_TIMEOUT_SECONDS}s）")
+            return []
         except AIServiceError as e:
             logger.error(f"AI从UI提取测试点失败: {e}")
             return []

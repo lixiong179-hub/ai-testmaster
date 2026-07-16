@@ -29,7 +29,8 @@
 """
 from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Index, and_, text as sa_text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Session
+from sqlalchemy import event, inspect as sa_inspect
 from app.db.database import Base
 from app.utils.crypto import encrypt_password, decrypt_password
 
@@ -193,3 +194,37 @@ class ProjectFile(Base):
     iteration = relationship("Iteration", backref="files")                                           # 所属迭代
 
     project = relationship("Project", back_populates="files")                                        # 所属项目
+
+
+@event.listens_for(Session, "before_flush")
+def _guard_project_file_iteration_consistency(session, flush_context, instances):
+    """拦截 ProjectFile.iteration_id 的跨项目赋值（P1-7 防御性深度校验）。
+
+    当 ProjectFile.iteration_id 被修改为非空值时，验证该迭代属于同一项目。
+    防止跨项目文件-迭代关联，即使绕过 API 层直接操作 DB 也会被拦截。
+
+    与 _guard_lifecycle_status 模式一致：注册在 Session 基类上，
+    对所有 sync session（含 run_sync 包装的 async session）生效。
+    """
+    for instance in list(session.dirty) + list(session.new):
+        if not isinstance(instance, ProjectFile):
+            continue
+        state = sa_inspect(instance)
+        hist = state.attrs.iteration_id.history
+        if not hist.added:
+            continue
+        new_iteration_id = hist.added[0]
+        if new_iteration_id is None:
+            continue
+        # 查询迭代验证项目归属（no_autoflush 避免递归 flush）
+        from app.models.iteration import Iteration
+        with session.no_autoflush:
+            iteration = session.query(Iteration).filter(
+                Iteration.id == new_iteration_id,
+                Iteration.project_id == instance.project_id,
+            ).first()
+        if not iteration:
+            raise ValueError(
+                f"迭代 ID {new_iteration_id} 不属于文件所在项目 "
+                f"(file_id={instance.id}, project_id={instance.project_id})"
+            )

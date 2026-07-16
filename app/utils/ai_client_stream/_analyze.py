@@ -1,7 +1,10 @@
+import asyncio
 import json
 import re
 from typing import Dict, Any, Optional, List
 from loguru import logger
+
+import httpx
 
 from app.utils.ai_client_core import (
     AIServiceError,
@@ -12,6 +15,7 @@ from app.utils.ai_client_parser import (
     fix_common_json_issues,
     extract_json_objects_fallback,
 )
+from app.core.constants import TimeoutConfig
 
 
 class _AnalyzeStreamMixin:
@@ -47,19 +51,13 @@ class _AnalyzeStreamMixin:
             "stream": True
         }
         full_content = ""
-        import requests
-        import time
-        from app.core.constants import TimeoutConfig
         for attempt in range(self.max_retries):
             try:
                 logger.info(f"AI分析需求（流式响应） - 尝试 {attempt + 1}/{self.max_retries}")
-                response = requests.post(self.api_url, headers=headers, json=data, stream=True, timeout=TimeoutConfig.AI_API)
-                response.raise_for_status()
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk:
-                        chunk_str = chunk.decode('utf-8')
-                        lines = chunk_str.split('\n')
-                        for line in lines:
+                async with httpx.AsyncClient(timeout=TimeoutConfig.AI_API) as client:
+                    async with client.stream("POST", self.api_url, headers=headers, json=data) as response:
+                        response.raise_for_status()
+                        async for line in response.aiter_lines():
                             if line.startswith('data: '):
                                 data_part = line[6:]
                                 if data_part == '[DONE]':
@@ -80,10 +78,10 @@ class _AnalyzeStreamMixin:
                     yield {"progress": 100, "message": "分析完成", "data": test_points}
                     return
                 raise AIResponseParseError()
-            except requests.RequestException as e:
+            except httpx.HTTPError as e:
                 logger.error(f"AI分析需求失败 (尝试 {attempt + 1}/{self.max_retries}): {str(e)}")
                 if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay)
+                    await asyncio.sleep(self.retry_delay)
                     continue
                 else:
                     error = _detect_ai_error(e)

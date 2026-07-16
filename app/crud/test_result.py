@@ -30,6 +30,8 @@
     - 3: 阻塞
 """
 from sqlalchemy.orm import Session
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.models.test_result import TestResult
 from app.utils.db_time import utcnow
@@ -258,3 +260,49 @@ def delete_test_results_by_task(db: Session, task_id: int, project_id: int) -> i
     ).delete()  # 批量删除：单次SQL DELETE语句，无需逐条查询
     db.commit()
     return deleted
+
+
+async def create_test_result_async(
+    db: AsyncSession,
+    task_id: int,
+    project_id: int,
+    case_id: int,
+    case_no: str,
+    exec_status: int,
+    exec_log: Optional[str] = None,
+    error_msg: Optional[str] = None,
+    screenshot_url: Optional[str] = None
+) -> TestResult:
+    """
+    创建执行结果（异步版本）
+
+    create_test_result 的异步实现，记录一条用例在测试任务中的执行情况。
+
+    Args:
+        db: 异步数据库会话
+        task_id: 所属测试任务ID
+        project_id: 所属项目ID
+        case_id: 测试用例ID
+        case_no: 用例编号
+        exec_status: 执行状态，0=未执行/1=执行成功/2=执行失败/3=阻塞
+        exec_log: 执行日志（可选）
+        error_msg: 错误信息（可选）
+        screenshot_url: 截图路径（可选）
+
+    Returns:
+        TestResult: 创建成功后的执行结果对象（已commit并refresh）
+    """
+    test_result = TestResult(
+        task_id=task_id,
+        project_id=project_id,
+        case_id=case_id,
+        case_no=case_no,
+        exec_status=exec_status,
+        exec_log=exec_log,
+        error_msg=error_msg,
+        screenshot_url=screenshot_url
+    )
+    db.add(test_result)
+    await db.commit()
+    await db.refresh(test_result)
+    return test_result

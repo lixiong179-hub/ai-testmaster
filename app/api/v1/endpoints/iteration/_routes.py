@@ -4,6 +4,7 @@ from loguru import logger
 from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
+from app.schemas.common import ApiResponse
 from app.schemas.iteration import IterationCreate, IterationUpdate, IterationInputCreate
 from app.api.v1.endpoints.pipeline import PipelineRunRequest
 from app.crud import iteration as iteration_crud
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/iteration", tags=["迭代管理"])
 ALLOWED_UPDATE_FIELDS = {"name", "version", "description", "start_date", "end_date"}
 
 
-@router.post("/", response_model=dict)
+@router.post("/", response_model=ApiResponse)
 async def create_iteration(
     iteration_data: IterationCreate,
     db: AsyncSession = Depends(async_get_db),
@@ -53,7 +54,7 @@ async def create_iteration(
     return await db.run_sync(_create)
 
 
-@router.get("/list/{project_id}", response_model=dict)
+@router.get("/list/{project_id}", response_model=ApiResponse)
 async def get_iterations(
     project_id: int,
     page: int = Query(1, ge=1, description="页码"),
@@ -78,7 +79,7 @@ async def get_iterations(
     return await db.run_sync(_list)
 
 
-@router.get("/{iteration_id}", response_model=dict)
+@router.get("/{iteration_id}", response_model=ApiResponse)
 async def get_iteration(
     iteration_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -100,7 +101,7 @@ async def get_iteration(
     return await db.run_sync(_get)
 
 
-@router.put("/{iteration_id}", response_model=dict)
+@router.put("/{iteration_id}", response_model=ApiResponse)
 async def update_iteration(
     iteration_id: int,
     update_data: IterationUpdate,
@@ -136,7 +137,7 @@ async def update_iteration(
     return await db.run_sync(_update)
 
 
-@router.delete("/{iteration_id}", response_model=dict)
+@router.delete("/{iteration_id}", response_model=ApiResponse)
 async def delete_iteration(
     iteration_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -161,7 +162,7 @@ async def delete_iteration(
     return await db.run_sync(_delete)
 
 
-@router.post("/{iteration_id}/finalize", response_model=dict)
+@router.post("/{iteration_id}/finalize", response_model=ApiResponse)
 async def finalize_iteration(
     iteration_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -192,7 +193,7 @@ async def finalize_iteration(
     return await db.run_sync(_finalize)
 
 
-@router.post("/{iteration_id}/inputs", response_model=dict)
+@router.post("/{iteration_id}/inputs", response_model=ApiResponse)
 async def add_iteration_input(
     iteration_id: int,
     input_data: IterationInputCreate,
@@ -234,7 +235,7 @@ async def add_iteration_input(
     return await db.run_sync(_add_input)
 
 
-@router.post("/{iteration_id}/pipeline/run", response_model=dict)
+@router.post("/{iteration_id}/pipeline/run", response_model=ApiResponse)
 async def run_iteration_pipeline(
     iteration_id: int,
     body: PipelineRunRequest,

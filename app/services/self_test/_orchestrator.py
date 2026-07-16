@@ -8,13 +8,13 @@ import time
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.self_test._pipeline_steps_setup import _build_step_result
 
 
 async def run_defect_discovery_self_test(
-    db: Session,
+    db: AsyncSession,
     project_id: int,
     user_id: int,
 ) -> Dict[str, Any]:
@@ -262,7 +262,7 @@ async def run_defect_discovery_self_test(
 
 
 async def _notify_pipeline_summary(
-    db: Session,
+    db: AsyncSession,
     project_id: int,
     steps: List[Dict[str, Any]],
     defect_summary: Dict[str, int],

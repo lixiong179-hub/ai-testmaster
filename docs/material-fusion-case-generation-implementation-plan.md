@@ -649,9 +649,9 @@ rejected         不建议直接保存
 
 继续复用：
 
-- `POST /api/v1/testCase/generate-context`
-- `POST /api/v1/testCase/ai-enhanced-generate`
-- `POST /api/v1/testCase/ai-enhanced-generate/stream`
+- `POST /api/v1/test-case/generate-context`
+- `POST /api/v1/test-case/ai-enhanced-generate`
+- `POST /api/v1/test-case/ai-enhanced-generate/stream`
 - `POST /api/v1/test-point/batch-generate-cases/stream`
 
 新增能力只围绕：
@@ -2324,7 +2324,7 @@ useSmartGenerationStore
 一期单条重新生成不能调用：
 
 ```text
-POST /api/v1/testCase/generate-single
+POST /api/v1/test-case/generate-single
 ```
 
 原因：
@@ -2334,7 +2334,7 @@ POST /api/v1/testCase/generate-single
 一期推荐使用：
 
 ```text
-POST /api/v1/testCase/ai-enhanced-generate
+POST /api/v1/test-case/ai-enhanced-generate
 ```
 
 请求构造：
@@ -2613,8 +2613,8 @@ Step 2 资料选择
 选择方案 A 的原因：
 
 - Step 3 需要在用户点击“开始生成”前展示资料识别、风险和策略确认。
-- `/api/v1/testCase/ai-enhanced-generate/stream` 不会直接入库，符合“生成预览后保存”语义。
-- `/api/v1/testCase/batch-generate/stream` 和 `/api/v1/test-point/batch-generate-cases/stream` 当前会边生成边保存，不适合作为一期主向导生成预览接口。
+- `/api/v1/test-case/ai-enhanced-generate/stream` 不会直接入库，符合“生成预览后保存”语义。
+- `/api/v1/test-case/batch-generate/stream` 和 `/api/v1/test-point/batch-generate-cases/stream` 当前会边生成边保存，不适合作为一期主向导生成预览接口。
 
 明确禁止：
 
@@ -2665,7 +2665,7 @@ Step 2 到 Step 5 参数映射：
 
 #### 16.13.6 SSE 事件格式
 
-`/api/v1/testCase/ai-enhanced-generate/stream` 当前事件格式为：
+`/api/v1/test-case/ai-enhanced-generate/stream` 当前事件格式为：
 
 ```text
 data: {"code":0,"message":"...","data":{...}}
@@ -2827,7 +2827,7 @@ project_config
 - 从 `generationContext.test_points` 中筛选当前 `source_test_point_id` 对应测试点。
 - 保留完整 `requirement_content`、`ui_specs`、`history_cases`。
 - `description` 拼接当前测试点、原用例标题、质量问题和用户补充说明。
-- 调用 `/api/v1/testCase/ai-enhanced-generate` 或 `/api/v1/testCase/ai-enhanced-generate/stream`。
+- 调用 `/api/v1/test-case/ai-enhanced-generate` 或 `/api/v1/test-case/ai-enhanced-generate/stream`。
 - 返回结果只替换当前 preview item，不写库。
 - 失败时保留旧 preview item，并展示失败原因。
 
@@ -3015,7 +3015,7 @@ A1-lite 有 UI 场景下，一期执行模式按以下规则确定：
 
 #### 16.14.5 SSE `context` 完整性要求
 
-方案 A 下，Step 3 已调用 `generate-context`。Step 5 调用 `/api/v1/testCase/ai-enhanced-generate/stream` 时，`context` 必须传完整上下文，而不能只传审计字段。
+方案 A 下，Step 3 已调用 `generate-context`。Step 5 调用 `/api/v1/test-case/ai-enhanced-generate/stream` 时，`context` 必须传完整上下文，而不能只传审计字段。
 
 必须包含：
 

@@ -12,6 +12,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.pipeline_schemas import Scenario4PrecheckRequest
 from app.api.v1.endpoints.pipeline_deps import verify_project_access_async
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 
 router = APIRouter(tags=["Pipeline管理"])
 
@@ -21,7 +22,7 @@ async def _count(db: AsyncSession, stmt) -> int:
     return (await db.execute(stmt)).scalar() or 0
 
 
-@router.post("/scenario-4/precheck", response_model=dict)
+@router.post("/scenario-4/precheck", response_model=ApiResponse)
 async def precheck_scenario_4(
     body: Scenario4PrecheckRequest,
     db: AsyncSession = Depends(async_get_db),

@@ -106,7 +106,9 @@ export function useCaseFilter(options: UseCaseFilterOptions) {
 
     if (selectedRequirementFileId.value !== null) {
       filtered = filtered.filter(
-        (caseItem) => (caseItem as any).requirement_file_id === selectedRequirementFileId.value
+        (caseItem) =>
+          (caseItem as unknown as { requirement_file_id?: number }).requirement_file_id ===
+          selectedRequirementFileId.value
       )
     }
 

@@ -19,19 +19,18 @@ class TestQualityRuleAsyncAPI:
         resp = await async_client.get("/api/v1/projects/1/quality-rules")
         assert resp.status_code in (401, 403)
 
-    async def test_get_rules_project_not_found_returns_404(
+    async def test_get_rules_project_not_found_returns_403(
         self, async_auth_client
     ):
-        """项目不存在应返回 404，验证 async select 查询路径。
+        """项目不存在或不属于当前用户均返回 403（不区分以避免泄露存在性）。
 
-        全局异常处理器将 HTTPException 转为统一格式（create_error_response），
-        因此只校验状态码与消息内容，不依赖具体字段名。
+        安全收紧：原实现返回 404 暴露项目存在性，现统一返回 403。
         """
         resp = await async_auth_client.get(
             "/api/v1/projects/999999/quality-rules"
         )
-        assert resp.status_code == 404
-        assert "项目不存在" in resp.text
+        assert resp.status_code == 403
+        assert "无权限" in resp.text
 
     async def test_get_rules_empty_list_returns_200(
         self, async_auth_client, async_test_project
@@ -99,12 +98,12 @@ class TestQualityRuleAsyncAPI:
         assert rules[0]["rule_key"] == "duplication_threshold"
         assert rules[0]["rule_value"] == 0.85
 
-    async def test_update_rule_project_not_found_returns_404(
+    async def test_update_rule_project_not_found_returns_403(
         self, async_auth_client
     ):
-        """PUT 不存在的项目应返回 404。"""
+        """PUT 不存在或不属于当前用户的项目应返回 403。"""
         resp = await async_auth_client.put(
             "/api/v1/projects/999999/quality-rules",
             json={"rule_key": "any", "rule_value": 1},
         )
-        assert resp.status_code == 404
+        assert resp.status_code == 403

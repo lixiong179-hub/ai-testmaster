@@ -31,6 +31,7 @@
 """
 from contextlib import contextmanager
 from typing import Generator
+import logging
 import os
 import secrets
 import warnings
@@ -38,6 +39,8 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db, init_db
 from app.models.user import User, Role, Permission, user_role
 from app.utils.jwt_utils import get_password_hash
+
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -102,9 +105,9 @@ def init_admin_user() -> User:
             )
             db.add(admin_user)
             db.commit()
-            print(f"默认管理员用户创建成功: admin / {password}")
+            logger.info("默认管理员用户创建成功: admin / ******（密码已通过环境变量或随机生成）")
         else:
-            print("管理员用户已存在")
+            logger.info("管理员用户已存在")
         return admin_user
 
 
@@ -157,9 +160,9 @@ def init_roles_and_permissions() -> Role:
             db.add(test_role)
 
             db.commit()
-            print("默认角色创建成功")
+            logger.info("默认角色创建成功")
         else:
-            print("角色已存在")
+            logger.info("角色已存在")
 
         # ============================================================
         # 权限初始化 - 仅当权限表为空时创建，避免与手动配置的权限冲突
@@ -190,9 +193,9 @@ def init_roles_and_permissions() -> Role:
             ]
             db.add_all(permissions)
             db.commit()
-            print("默认权限创建成功")
+            logger.info("默认权限创建成功")
         else:
-            print("权限已存在")
+            logger.info("权限已存在")
 
         return admin_role
 
@@ -227,9 +230,9 @@ def assign_role_to_admin(admin_user_id: int, admin_role_id: int) -> None:
                 user_role.insert().values(user_id=admin_user_id, role_id=admin_role_id)
             )
             db.commit()
-            print("管理员角色分配成功")
+            logger.info("管理员角色分配成功")
         else:
-            print("管理员角色已分配")
+            logger.info("管理员角色已分配")
 
 
 if __name__ == "__main__":
@@ -246,24 +249,24 @@ if __name__ == "__main__":
     警告：此流程会删除所有数据，仅用于首次部署或开发环境重置！
     """
     # 步骤1：删除现有的表结构（含所有数据）
-    print("删除现有数据库表结构...")
+    logger.info("删除现有数据库表结构...")
     from app.db.database import drop_db
     drop_db()
-    print("现有数据库表结构已删除")
+    logger.info("现有数据库表结构已删除")
 
     # 步骤2：初始化数据库表结构（create_all + smart_sync）
-    print("初始化数据库表结构...")
+    logger.info("初始化数据库表结构...")
     init_db()
-    print("数据库表结构初始化完成")
+    logger.info("数据库表结构初始化完成")
 
     # 步骤3：创建默认管理员用户
-    print("创建默认管理员用户...")
+    logger.info("创建默认管理员用户...")
     admin_user = init_admin_user()
     admin_role = init_roles_and_permissions()
 
     # 步骤4：将管理员角色分配给admin用户
     if admin_user and admin_role:
-        print("给管理员用户分配角色...")
+        logger.info("给管理员用户分配角色...")
         assign_role_to_admin(admin_user.id, admin_role.id)
 
-    print("初始化完成")
+    logger.info("初始化完成")

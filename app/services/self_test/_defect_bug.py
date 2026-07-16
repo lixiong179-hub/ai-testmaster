@@ -3,7 +3,8 @@ import json
 from typing import Any, Dict, Optional, Tuple
 
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project import Project
 
@@ -139,11 +140,11 @@ def _assess_defect_severity(
     return (3, None)
 
 
-def _generate_bug_no(db: Session, project_id: int) -> str:
+async def _generate_bug_no(db: AsyncSession, project_id: int) -> str:
     """生成 Bug 编号，格式: BUG-{project_id}-{YYYYMMDD}-{序号:04d}。
 
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话。
         project_id: 项目 ID。
 
     Returns:
@@ -153,12 +154,18 @@ def _generate_bug_no(db: Session, project_id: int) -> str:
     from app.utils.db_time import utcnow
 
     prefix = f"BUG-{project_id}-{utcnow().strftime('%Y%m%d')}-"
-    count = db.query(Bug).filter(Bug.project_id == project_id, Bug.bug_no.like(f"{prefix}%")).count()
+    count = (
+        await db.execute(
+            select(func.count())
+            .select_from(Bug)
+            .where(Bug.project_id == project_id, Bug.bug_no.like(f"{prefix}%"))
+        )
+    ).scalar()
     return f"{prefix}{count + 1:04d}"
 
 
-def _auto_create_defect_bug(
-    db: Session,
+async def _auto_create_defect_bug(
+    db: AsyncSession,
     project: Project,
     failure_type: str,
     error_message: str,
@@ -173,7 +180,7 @@ def _auto_create_defect_bug(
     P0/P1 缺陷标记为需立即通知，P2/P3 缺陷仅记录不立即通知。
 
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话。
         project: 关联的项目实例（必须为自测项目）。
         failure_type: 断言类型或缺陷来源标识。
         error_message: 步骤执行错误信息。
@@ -230,7 +237,7 @@ def _auto_create_defect_bug(
     description = "\n".join(description_parts)
 
     bug = Bug(
-        bug_no=_generate_bug_no(db, project.id),
+        bug_no=await _generate_bug_no(db, project.id),
         project_id=project.id,
         title=title,
         description=description,
@@ -246,8 +253,8 @@ def _auto_create_defect_bug(
         actual_behavior=error_message,
     )
     db.add(bug)
-    db.commit()
-    db.refresh(bug)
+    await db.commit()
+    await db.refresh(bug)
 
     logger.info(
         f"自测缺陷自动创建Bug: bug_no={bug.bug_no}, severity=P{severity}, "

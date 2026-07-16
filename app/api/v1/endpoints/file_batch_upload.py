@@ -32,6 +32,7 @@ from app.db.database import async_get_db
 from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
+from app.schemas.common import ApiResponse
 from app.schemas.file import ResourceType
 from app.crud import file as file_crud
 from app.core.config import settings
@@ -58,7 +59,7 @@ from loguru import logger
 router = APIRouter()
 
 
-@router.post("/batch-upload", response_model=dict)
+@router.post("/batch-upload", response_model=ApiResponse)
 async def batch_upload_files(
     project_id: int = Form(...),
     files: List[UploadFile] = File(...),

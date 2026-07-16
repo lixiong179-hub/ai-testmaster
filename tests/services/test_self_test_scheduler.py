@@ -8,18 +8,16 @@
     - 自测执行后数据清理
     - WebSocket通知
 """
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.core.websocket import manager as ws_manager
 from app.models.project import Project
 from app.models.test_case import TestCase
 from app.models.test_result import TestResult
 from app.models.test_task import TestTask
-from app.models.user import User
 from app.tasks.self_test_scheduler import (
     SelfTestScheduler,
     validate_cron_expression,
@@ -108,64 +106,66 @@ class TestSelfTestSchedulerRefreshJobs:
     def teardown_method(self) -> None:
         self.scheduler.stop()
 
-    def test_refresh_adds_scheduled_projects(self, db: Session, testUser: User) -> None:
+    async def test_refresh_adds_scheduled_projects(
+        self, async_db, async_test_user
+    ) -> None:
         project = Project(
             name="scheduled_self_test",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
             self_test_schedule="0 2 * * *",
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        self.scheduler.refresh_jobs(db)
+        await self.scheduler.refresh_jobs(async_db)
         job_id = SelfTestScheduler._make_job_id(project.id)
         job = self.scheduler._scheduler.get_job(job_id)
         assert job is not None
 
-    def test_refresh_skips_projects_without_schedule(
-        self, db: Session, testUser: User
+    async def test_refresh_skips_projects_without_schedule(
+        self, async_db, async_test_user
     ) -> None:
         project = Project(
             name="no_schedule_self_test",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
             self_test_schedule=None,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        self.scheduler.refresh_jobs(db)
+        await self.scheduler.refresh_jobs(async_db)
         job_id = SelfTestScheduler._make_job_id(project.id)
         job = self.scheduler._scheduler.get_job(job_id)
         assert job is None
 
-    def test_refresh_skips_non_self_test_projects(
-        self, db: Session, testUser: User
+    async def test_refresh_skips_non_self_test_projects(
+        self, async_db, async_test_user
     ) -> None:
         project = Project(
             name="normal_project_with_schedule",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=False,
             self_test_schedule="0 2 * * *",
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        self.scheduler.refresh_jobs(db)
+        await self.scheduler.refresh_jobs(async_db)
         job_id = SelfTestScheduler._make_job_id(project.id)
         job = self.scheduler._scheduler.get_job(job_id)
         assert job is None
 
-    def test_refresh_removes_stale_jobs(self, db: Session, testUser: User) -> None:
+    async def test_refresh_removes_stale_jobs(self, async_db) -> None:
         self.scheduler.add_job(99999, "0 2 * * *")
-        self.scheduler.refresh_jobs(db)
+        await self.scheduler.refresh_jobs(async_db)
         job_id = SelfTestScheduler._make_job_id(99999)
         job = self.scheduler._scheduler.get_job(job_id)
         assert job is None
@@ -278,7 +278,7 @@ class TestSelfTestScheduleAPI:
 class TestSelfTestDataCleanup:
     """自测执行后数据清理测试"""
 
-    def _create_test_case(self, db: Session, project_id: int) -> TestCase:
+    async def _create_test_case(self, async_db, project_id: int) -> TestCase:
         """辅助方法：创建测试用例"""
         test_case = TestCase(
             title="自测用例",
@@ -291,35 +291,35 @@ class TestSelfTestDataCleanup:
             priority=2,
             case_type="UI",
         )
-        db.add(test_case)
-        db.flush()
+        async_db.add(test_case)
+        await async_db.flush()
         return test_case
 
-    def test_cleanup_removes_task_but_preserves_results(
-        self, db: Session, testUser: User
+    async def test_cleanup_removes_task_but_preserves_results(
+        self, async_db, async_test_user
     ) -> None:
         project = Project(
             name="cleanup_test_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        test_case = self._create_test_case(db, project.id)
+        test_case = await self._create_test_case(async_db, project.id)
 
         task = TestTask(
             task_name="自测定时执行 - cleanup_test_project",
             project_id=project.id,
             case_ids=[test_case.id],
-            executor_id=testUser.id,
+            executor_id=async_test_user.id,
             status=2,
             total_count=1,
         )
-        db.add(task)
-        db.flush()
+        async_db.add(task)
+        await async_db.flush()
 
         result = TestResult(
             task_id=task.id,
@@ -328,50 +328,56 @@ class TestSelfTestDataCleanup:
             case_no=test_case.case_no,
             exec_status=2,
         )
-        db.add(result)
-        db.flush()
+        async_db.add(result)
+        await async_db.flush()
 
         scheduler = SelfTestScheduler()
-        asyncio.get_event_loop().run_until_complete(
-            scheduler._cleanup_self_test_data(db, task.id)
-        )
+        await scheduler._cleanup_self_test_data(async_db, task.id)
 
-        assert db.query(TestTask).filter(TestTask.id == task.id).first() is None
-        assert db.query(TestResult).filter(TestResult.id == result.id).first() is not None
+        taskResult = (
+            await async_db.execute(
+                select(TestTask).where(TestTask.id == task.id)
+            )
+        ).scalars().first()
+        assert taskResult is None
+        resultResult = (
+            await async_db.execute(
+                select(TestResult).where(TestResult.id == result.id)
+            )
+        ).scalars().first()
+        assert resultResult is not None
 
-    def test_cleanup_nonexistent_task_no_error(self, db: Session) -> None:
+    async def test_cleanup_nonexistent_task_no_error(self, async_db) -> None:
         scheduler = SelfTestScheduler()
-        asyncio.get_event_loop().run_until_complete(
-            scheduler._cleanup_self_test_data(db, 999999)
-        )
+        await scheduler._cleanup_self_test_data(async_db, 999999)
 
-    def test_cleanup_preserves_self_test_bugs(
-        self, db: Session, testUser: User
+    async def test_cleanup_preserves_self_test_bugs(
+        self, async_db, async_test_user
     ) -> None:
         from app.models.bug import Bug
 
         project = Project(
             name="cleanup_bug_test_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        test_case = self._create_test_case(db, project.id)
+        test_case = await self._create_test_case(async_db, project.id)
 
         task = TestTask(
             task_name="自测定时执行 - cleanup_bug_test_project",
             project_id=project.id,
             case_ids=[test_case.id],
-            executor_id=testUser.id,
+            executor_id=async_test_user.id,
             status=2,
             total_count=1,
         )
-        db.add(task)
-        db.flush()
+        async_db.add(task)
+        await async_db.flush()
 
         result = TestResult(
             task_id=task.id,
@@ -382,8 +388,8 @@ class TestSelfTestDataCleanup:
             error_msg="元素点击失败",
             exec_log="步骤1: 打开页面\n步骤2: 点击按钮",
         )
-        db.add(result)
-        db.flush()
+        async_db.add(result)
+        await async_db.flush()
 
         bug = Bug(
             bug_no=f"BUG-{project.id}-2026-0001",
@@ -394,42 +400,54 @@ class TestSelfTestDataCleanup:
             priority=2,
             status="open",
             source="self_test",
-            reporter_id=testUser.id,
+            reporter_id=async_test_user.id,
             test_result_id=result.id,
         )
-        db.add(bug)
-        db.flush()
+        async_db.add(bug)
+        await async_db.flush()
 
         scheduler = SelfTestScheduler()
-        asyncio.get_event_loop().run_until_complete(
-            scheduler._cleanup_self_test_data(db, task.id)
-        )
+        await scheduler._cleanup_self_test_data(async_db, task.id)
 
-        preserved_bug = db.query(Bug).filter(Bug.id == bug.id).first()
+        preserved_bug = (
+            await async_db.execute(
+                select(Bug).where(Bug.id == bug.id)
+            )
+        ).scalars().first()
         assert preserved_bug is not None
         assert preserved_bug.source == "self_test"
         assert preserved_bug.test_result_id is None
         assert "错误信息" in preserved_bug.reproduction_steps
         assert "执行日志" in preserved_bug.reproduction_steps
-        assert db.query(TestResult).filter(TestResult.id == result.id).first() is not None
-        assert db.query(TestTask).filter(TestTask.id == task.id).first() is None
+        resultResult = (
+            await async_db.execute(
+                select(TestResult).where(TestResult.id == result.id)
+            )
+        ).scalars().first()
+        assert resultResult is not None
+        taskResult = (
+            await async_db.execute(
+                select(TestTask).where(TestTask.id == task.id)
+            )
+        ).scalars().first()
+        assert taskResult is None
 
 
 class TestSelfTestWebSocketNotification:
     """WebSocket通知测试"""
 
-    def test_notify_new_failures_broadcasts_message(
-        self, db: Session, testUser: User
+    async def test_notify_new_failures_broadcasts_message(
+        self, async_db, async_test_user
     ) -> None:
         project = Project(
             name="ws_notify_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         test_case = TestCase(
             title="失败用例",
@@ -442,18 +460,16 @@ class TestSelfTestWebSocketNotification:
             priority=2,
             case_type="UI",
         )
-        db.add(test_case)
-        db.flush()
+        async_db.add(test_case)
+        await async_db.flush()
 
         scheduler = SelfTestScheduler()
 
         with patch.object(
             ws_manager, "broadcast", new_callable=AsyncMock
         ) as mock_broadcast:
-            asyncio.get_event_loop().run_until_complete(
-                scheduler._notify_new_failures(
-                    db, project, 1, {test_case.id}
-                )
+            await scheduler._notify_new_failures(
+                async_db, project, 1, {test_case.id}
             )
             mock_broadcast.assert_called_once()
             call_args = mock_broadcast.call_args
@@ -465,27 +481,25 @@ class TestSelfTestWebSocketNotification:
             assert len(message["new_failed_cases"]) == 1
             assert message["new_failed_cases"][0]["case_id"] == test_case.id
 
-    def test_notify_failure_broadcast_error_handled(
-        self, db: Session, testUser: User
+    async def test_notify_failure_broadcast_error_handled(
+        self, async_db, async_test_user
     ) -> None:
         project = Project(
             name="ws_error_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         scheduler = SelfTestScheduler()
 
         with patch.object(
             ws_manager, "broadcast", new_callable=AsyncMock, side_effect=Exception("WS error")
         ):
-            asyncio.get_event_loop().run_until_complete(
-                scheduler._notify_new_failures(db, project, 1, set())
-            )
+            await scheduler._notify_new_failures(async_db, project, 1, set())
 
 
 class TestSelfTestSchedulerStartStop:

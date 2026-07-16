@@ -368,11 +368,18 @@ class TestEnsureSecretKeys:
 class TestDevSettings:
     def test_dev_settings_defaults(self):
         with patch.dict(os.environ, {"ENVIRONMENT": "dev", "DEBUG": "true", "LOG_LEVEL": "DEBUG"}):
-            s = DevSettings(DATABASE_URL="mysql+pymysql://root:pass@localhost/db", ENVIRONMENT="dev", DEBUG=True, LOG_LEVEL="DEBUG")
+            # _env_file=None 屏蔽本地 .env 干扰，验证 DevSettings 代码默认值
+            s = DevSettings(
+                DATABASE_URL="mysql+pymysql://root:pass@localhost/db",
+                ENVIRONMENT="dev", DEBUG=True, LOG_LEVEL="DEBUG",
+                _env_file=None,
+            )
             assert s.DEBUG is True
             assert s.ENVIRONMENT == "dev"
             assert s.LOG_LEVEL == "DEBUG"
-            assert s.CORS_ORIGINS == "*"
+            # 安全收紧：dev 不再默认 "*"，继承基类 localhost 白名单
+            assert s.CORS_ORIGINS != "*"
+            assert "localhost" in s.CORS_ORIGINS
 
 
 class TestTestSettings:

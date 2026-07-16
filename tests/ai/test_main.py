@@ -1,10 +1,9 @@
 """main.py FastAPI 端点测试
 
-覆盖根路径、健康检查、应用工厂各维度场景〿使用真实 TestClient，禁歿Mock〿"""
+覆盖根路径、健康检查、应用工厂各维度场景〿使用真实 TestClient，禁亿Mock〿"""
 import pytest
 from fastapi.testclient import TestClient
 
-pytestmark = pytest.mark.skip(reason="ResponseValidationError")
 from app.main import app
 
 
@@ -23,7 +22,6 @@ class TestRootEndpoint:
         assert "version" in data
 
 
-@pytest.mark.skip(reason="ResponseValidationError: health端点services字段类型变更(dict→str)")
 class TestHealthCheck:
     def test_health_returns_200(self):
         client = TestClient(app)

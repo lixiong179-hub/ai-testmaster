@@ -8,6 +8,7 @@ from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 from app.services import review_service
 from app.api.v1.endpoints.review_inbox._schemas import (
     DecideRequest,
@@ -21,7 +22,7 @@ from app.api.v1.endpoints.review_inbox._schemas import (
 router = APIRouter()
 
 
-@router.post("/{review_id}/decisions/{decision_id}/decide", response_model=dict)
+@router.post("/{review_id}/decisions/{decision_id}/decide", response_model=ApiResponse)
 async def decide_single(
     review_id: int,
     decision_id: int,
@@ -79,7 +80,7 @@ async def decide_single(
         raise HTTPException(status_code=500, detail="提交人工判定失败")
 
 
-@router.post("/{review_id}/decisions/batch-decide", response_model=dict)
+@router.post("/{review_id}/decisions/batch-decide", response_model=ApiResponse)
 async def decide_batch(
     review_id: int,
     body: BatchDecideRequest,
@@ -153,7 +154,7 @@ async def decide_batch(
         raise HTTPException(status_code=500, detail="批量人工判定失败")
 
 
-@router.post("/{review_id}/finalize", response_model=dict)
+@router.post("/{review_id}/finalize", response_model=ApiResponse)
 async def finalize_review(
     review_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -189,7 +190,7 @@ async def finalize_review(
 
 @router.post(
     "/{review_id}/decisions/{decision_id}/rollback",
-    response_model=dict,
+    response_model=ApiResponse,
 )
 async def rollback_decision(
     review_id: int,
@@ -227,7 +228,7 @@ async def rollback_decision(
         raise HTTPException(status_code=500, detail="回滚决策失败")
 
 
-@router.post("/{review_id}/undo-decision/{decision_id}", response_model=dict)
+@router.post("/{review_id}/undo-decision/{decision_id}", response_model=ApiResponse)
 async def undo_decision(
     review_id: int,
     decision_id: int,
@@ -268,7 +269,7 @@ async def undo_decision(
         raise HTTPException(status_code=500, detail="撤销决策失败")
 
 
-@router.post("/{review_id}/undo-finalize", response_model=dict)
+@router.post("/{review_id}/undo-finalize", response_model=ApiResponse)
 async def undo_finalize(
     review_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -302,7 +303,7 @@ async def undo_finalize(
         raise HTTPException(status_code=500, detail="撤销最终化失败")
 
 
-@router.post("/{review_id}/apply-decisions", response_model=dict)
+@router.post("/{review_id}/apply-decisions", response_model=ApiResponse)
 async def apply_decisions_endpoint(
     review_id: int,
     db: AsyncSession = Depends(async_get_db),

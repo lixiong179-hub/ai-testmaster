@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 from app.db.database import async_get_db
 from app.models.project import Project
 from app.models.ui_prototype import UIPrototypeScreen
@@ -133,7 +134,7 @@ def _build_data_url(screen: UIPrototypeScreen) -> str | None:
     return f"data:image/{ext};base64,{encoded}"
 
 
-@router.get("/batch", response_model=dict)
+@router.get("/batch", response_model=ApiResponse)
 async def batch_get_ui_screens(
     ids: str = Query(..., description="逗号分隔的UI屏幕ID列表，如 1,2,3，最多100个"),
     db: AsyncSession = Depends(async_get_db),

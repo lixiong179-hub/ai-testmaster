@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import type { TestPoint, TestPointDraft } from '@/types/testPoint'
+import type { TestPoint, TestPointDraft, TestPointBatchSaveResponse } from '@/types/testPoint'
 import {
   type TestPointApiResponse,
   type TestPointListResponse,
@@ -8,8 +8,10 @@ import {
   type XmindPreviewResponse,
   type XmindImportResponse,
   type XmindImportSSECallbacks,
+  type XmindImportProgressEvent,
   type RelatedTestCaseListResponse,
   type TestPointRequirementOptionListResponse,
+  type TestPointRequirementOption,
   type BatchGenerateParams,
   type TestPointExtractRequest,
   type TestPointExtractResponse,
@@ -107,11 +109,11 @@ export const testPointApi = {
   batchSave: async (
     projectId: number,
     items: TestPointDraft[]
-  ): Promise<TestPointApiResponse<any>> => {
+  ): Promise<TestPointApiResponse<TestPointBatchSaveResponse>> => {
     return request.post('/api/v1/test-point/batch-save', items, {
       params: { project_id: projectId },
       headers: { 'Content-Type': 'application/json' },
-    }) as unknown as Promise<TestPointApiResponse<any>>
+    }) as unknown as Promise<TestPointApiResponse<TestPointBatchSaveResponse>>
   },
 
   getRelatedCases: async (
@@ -126,7 +128,7 @@ export const testPointApi = {
     return response.data
   },
 
-  getRequirementOptions: async (projectId: number): Promise<any[]> => {
+  getRequirementOptions: async (projectId: number): Promise<TestPointRequirementOption[]> => {
     const response = (await request.get(
       `/api/v1/test-point/requirements/${projectId}`
     )) as TestPointApiResponse<TestPointRequirementOptionListResponse>
@@ -154,7 +156,9 @@ export const testPointApi = {
     formData.append('preview', String(preview))
     formData.append('ai_enhance', String(aiEnhance))
     const response = await request.post('/api/v1/test-point/import-xmind', formData)
-    return unwrapApiPayload(response as any)
+    return unwrapApiPayload(
+      response as unknown as TestPointApiResponse<XmindPreviewResponse | XmindImportResponse>
+    )
   },
 
   importXmindStream: async (
@@ -189,8 +193,9 @@ export const testPointApi = {
         const currentData = currentDataParts.join('\n')
         try {
           const parsed = JSON.parse(currentData)
-          if (currentEvent === 'progress') callbacks.onProgress?.(parsed as any)
-          else if (currentEvent === 'result') callbacks.onResult?.(parsed as any)
+          if (currentEvent === 'progress') callbacks.onProgress?.(parsed as XmindImportProgressEvent)
+          else if (currentEvent === 'result')
+            callbacks.onResult?.(parsed as XmindPreviewResponse | XmindImportResponse)
           else if (currentEvent === 'error')
             callbacks.onError?.(parsed.detail || '导入失败', parsed.error_type)
         } catch {

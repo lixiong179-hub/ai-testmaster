@@ -90,6 +90,7 @@ def _infer_condition(
             f" (edge={edge.get('id', '?')})"
         )
         return f"未知触发条件（edge_type={edge_type}）（系统推断）"
+    # template 为动态传入的模板字符串，f-string 无法在运行时延迟求值，按项目规则例外使用 .format()
     inferred = template.format(source_name=source_name, target_name=target_name)
     logger.info(
         f"Auto-inferred {edge_type} condition: {inferred}"

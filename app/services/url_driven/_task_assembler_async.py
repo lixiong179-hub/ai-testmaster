@@ -17,9 +17,6 @@ from app.services.push_service import PushService
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
 from app.utils.db_time import utcnow
 
-# WebSocket 推送通道模板，与 QuickLauncher._CHANNEL_TEMPLATE 保持一致
-_CHANNEL_TEMPLATE = "quick_test:{task_id}"
-
 
 async def run_executor_safely(
     task_id: int,
@@ -80,7 +77,7 @@ async def push_final_status(
         task = session.query(TestTask).filter(TestTask.id == task_id).first()
         if not task:
             return
-        channel = _CHANNEL_TEMPLATE.format(task_id=task_id)
+        channel = f"quick_test:{task_id}"
         if task.status == TaskStatus.COMPLETED:
             await push_service.push(channel, {
                 "stage": "completed", "status": "done", "progress": 100,

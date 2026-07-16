@@ -29,6 +29,7 @@ from app.db.database import async_get_db
 from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
+from app.schemas.common import ApiResponse
 from app.schemas.file import FileExtractRequest
 from app.services.file_content_extractor import batch_extract_files
 from app.core.config import settings
@@ -196,7 +197,7 @@ def _extract_images_from_zip(
     return uploaded_files, failed_files
 
 
-@router.post("/extract-content", response_model=dict)
+@router.post("/extract-content", response_model=ApiResponse)
 async def extract_file_content(
     extract_request: FileExtractRequest,
     db: AsyncSession = Depends(async_get_db),

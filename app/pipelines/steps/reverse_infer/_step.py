@@ -83,6 +83,7 @@ class ReverseInfer(PipelineStep):
             if is_old_project and fingerprints and fingerprints.get("total_count", 0) > 0:
                 system_prompt = _SYSTEM_OLD_PROJECT_NO_UI
                 fp_text = _build_fingerprint_text(fingerprints)
+                # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
                 user_prompt = _USER_OLD_PROJECT_NO_UI.format(fingerprint_text=fp_text)
                 change_notes = raw_signals.get("change_notes", "")
                 if change_notes:
@@ -94,10 +95,12 @@ class ReverseInfer(PipelineStep):
             ui_text = _build_ui_text(ui_descriptions, ui_specs)
             system_prompt = _SYSTEM_OLD_PROJECT
             fp_text = _build_fingerprint_text(fingerprints)
+            # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
             user_prompt = _USER_OLD_PROJECT.format(ui_text=ui_text, fingerprint_text=fp_text)
         else:
             ui_text = _build_ui_text(ui_descriptions, ui_specs)
             system_prompt = _SYSTEM_NEW_PROJECT
+            # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
             user_prompt = _USER_NEW_PROJECT.format(ui_text=ui_text)
 
         try:

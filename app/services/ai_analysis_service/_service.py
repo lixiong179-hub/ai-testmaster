@@ -1,13 +1,16 @@
+import asyncio
 from typing import Any, Dict, List, Optional
 from loguru import logger
 
-from app.utils.ai_client_core import AIClientBase, AIServiceError
+from app.ai.openai_client import AsyncOpenAIClient
+from app.core.config import settings
+from app.utils.ai_client_core import AIServiceError
 from app.services.ai_analysis_service._extract import _ExtractMixin
 
 
 class AIAnalysisService(_ExtractMixin):
 
-    def __init__(self, ai_client: AIClientBase) -> None:
+    def __init__(self, ai_client: Optional[AsyncOpenAIClient]) -> None:
         self.ai_client = ai_client
 
     async def analyze_requirement(
@@ -38,14 +41,23 @@ class AIAnalysisService(_ExtractMixin):
 
 {content[:3000]}"""
 
+        if self.ai_client is None:
+            logger.warning("AI客户端未注入，跳过摘要生成")
+            return ""
         try:
-            response = await self.ai_client.complete(
+            # 性能优化：使用 AsyncOpenAIClient.complete_async + 单次调用硬超时
+            # 避免长尾 AI 请求阻塞 ASGI worker（与 ai_generator 一致）
+            response = await self.ai_client.complete_async(
                 prompt=prompt,
                 system="你是一名资深测试工程师，擅长总结需求核心功能。",
                 temperature=0.3,
                 max_tokens=500,
+                timeout=float(settings.AI_CALL_TIMEOUT_SECONDS),
             )
             return response.content.strip()
+        except asyncio.TimeoutError:
+            logger.error(f"AI生成摘要超时（>{settings.AI_CALL_TIMEOUT_SECONDS}s）")
+            return ""
         except AIServiceError as e:
             logger.error(f"AI生成摘要失败: {e}")
             return ""
@@ -90,6 +102,7 @@ ai_analysis_service: Optional[AIAnalysisService] = None
 def get_ai_analysis_service() -> AIAnalysisService:
     global ai_analysis_service
     if ai_analysis_service is None:
-        from app.utils.ai_client_core import get_ai_client
-        ai_analysis_service = AIAnalysisService(ai_client=get_ai_client())
+        # 性能优化：使用 AsyncOpenAIClient 替代原 OpenAI SDK 客户端，
+        # 统一走 complete_async + asyncio.wait_for 超时保护
+        ai_analysis_service = AIAnalysisService(ai_client=AsyncOpenAIClient())
     return ai_analysis_service

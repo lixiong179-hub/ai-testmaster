@@ -34,8 +34,6 @@ from app.services.url_driven.auto_project_builder import AutoProjectBuilder
 from app.services.url_driven.site_explorer import SiteExplorer, SiteMap
 from app.services.url_driven.task_assembler import TaskAssembler
 
-# WebSocket 推送通道模板（与 spec 通道命名 quick_test:{task_id} 一致）
-_CHANNEL_TEMPLATE = "quick_test:{task_id}"
 # 4 阶段进度标识（与 spec Task 8 一致）
 _STAGE_SITE_EXPLORING = "site_exploring"
 _STAGE_CASE_GENERATING = "case_generating"
@@ -124,7 +122,7 @@ class QuickLauncher:
         project = self._project_builder.build(url, description, user_id, session)
         # ② 预创建占位任务，拿 task_id 用于 WebSocket 通道（建项成功后必做）
         task = self._assembler.create_skeleton_task(project.id, user_id, session)
-        channel = _CHANNEL_TEMPLATE.format(task_id=task.id)
+        channel = f"quick_test:{task.id}"
         # ③ 推送 site_exploring running 后立即启动后台编排
         await self._push(channel, _STAGE_SITE_EXPLORING, "running", 10, {"url": url})
         asyncio.create_task(self._run_pipeline_async(
@@ -231,10 +229,21 @@ class QuickLauncher:
         self, site_map: SiteMap, project_id: int, description: Optional[str],
         user_id: int, session: Session, channel: str,
     ) -> List[TestCase]:
-        """用例生成，异常降级为空用例并推送 failed 状态。"""
+        """用例生成，异常降级为空用例并推送 failed 状态。
+
+        sync generate 通过 asyncio.to_thread 放到独立线程执行，避免阻塞事件循环；
+        AI 生成调用受模块级信号量保护，限制跨请求总并发（P-2 修复）。
+        session 在本方法执行期间不会被主线程访问，跨线程使用安全。
+        """
+        from app.utils.ai_concurrency import ai_generation_slot
+
         try:
             generator = self._case_generator_factory()
-            cases = generator.generate(site_map, project_id, description, user_id, session)
+            async with ai_generation_slot():
+                cases = await asyncio.to_thread(
+                    generator.generate,
+                    site_map, project_id, description, user_id, session,
+                )
             await self._push(
                 channel, _STAGE_CASE_GENERATING, "done", 60,
                 {"case_count": len(cases)},

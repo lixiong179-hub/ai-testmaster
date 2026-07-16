@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { TagType, ProgressStatus } from '@/types/element-plus'
 import { useTaskStore } from '@/store/task'
+import type { TestResult, ExecutionLog } from '@/store/taskTypes'
 import { wsClient } from '@/utils/websocket'
 import { getConnectedDevices } from '@/api/testExecution'
 
@@ -26,7 +27,7 @@ function createTaskDetailContext() {
   const activeNames = ref(['results'])
   const logActiveNames = ref(['logs'])
   const autoScroll = ref(true)
-  const scrollbarRef = ref<any>(null)
+  const scrollbarRef = ref<{ setScrollTop: (top: number) => void } | null>(null)
   const logContainerRef = ref<HTMLElement | null>(null)
   const logDialogVisible = ref(false)
   const currentCaseLog = ref('')
@@ -87,15 +88,16 @@ function createTaskDetailContext() {
   const fetchTaskDetail = async () => {
     try {
       await taskStore.fetchTaskDetail(taskId.value, projectId.value)
-    } catch (error: any) {
-      ElMessage.error(error.message || '获取任务详情失败')
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      ElMessage.error(err.message || '获取任务详情失败')
     }
   }
 
   const fetchTaskResults = async () => {
     try {
       await taskStore.fetchTaskResults(taskId.value, projectId.value)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('获取执行结果失败:', error)
     }
   }
@@ -132,8 +134,9 @@ function createTaskDetailContext() {
       ElMessage.success('任务已启动')
       await fetchTaskDetail()
       startPolling()
-    } catch (error: any) {
-      ElMessage.error(error.message || '启动任务失败')
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      ElMessage.error(err.message || '启动任务失败')
     } finally {
       actionLoading.value = false
     }
@@ -151,8 +154,11 @@ function createTaskDetailContext() {
       ElMessage.success('任务已停止')
       await fetchTaskDetail()
       stopPolling()
-    } catch (error: any) {
-      if (error !== 'cancel') ElMessage.error(error.message || '停止任务失败')
+    } catch (error: unknown) {
+      if (error !== 'cancel') {
+        const err = error as { message?: string }
+        ElMessage.error(err.message || '停止任务失败')
+      }
     } finally {
       actionLoading.value = false
     }
@@ -175,7 +181,7 @@ function createTaskDetailContext() {
       ElMessage.warning('暂无结果可导出')
       return
     }
-    const results = taskResults.value.map((r: any) => ({
+    const results = taskResults.value.map((r: TestResult) => ({
       case_no: r.case_no,
       case_id: r.case_id,
       exec_status: execStatusText(r.exec_status),
@@ -191,7 +197,7 @@ function createTaskDetailContext() {
     downloadFile(csv, `task_${taskId.value}_results.csv`, 'text/csv')
   }
 
-  const viewCaseLog = (result: any) => {
+  const viewCaseLog = (result: TestResult) => {
     currentCaseLog.value = result.exec_log || '暂无日志'
     logDialogVisible.value = true
   }
@@ -203,13 +209,13 @@ function createTaskDetailContext() {
       ElMessage.error('复制失败')
     }
   }
-  const viewScreenshot = (result: any) => {
+  const viewScreenshot = (result: TestResult) => {
     if (result.screenshot_url) {
       currentScreenshot.value = result.screenshot_url
       screenshotDialogVisible.value = true
     } else ElMessage.warning('暂无截图')
   }
-  const viewError = (result: any) => {
+  const viewError = (result: TestResult) => {
     currentError.value = result.error_msg || '暂无错误信息'
     errorDialogVisible.value = true
   }
@@ -222,7 +228,7 @@ function createTaskDetailContext() {
     }
     const logs = executionLogs.value
       .map(
-        (log: any) =>
+        (log: ExecutionLog) =>
           `[${formatTime(log.timestamp)}] [${logStatusText(log.status)}] ${log.case_no ? `[${log.case_no}] ` : ''}${log.log}`
       )
       .join('\n')
@@ -252,29 +258,42 @@ function createTaskDetailContext() {
     }
   }
 
-  const handleWsMessage = (data: any) => {
-    if (data.type === 'log')
+  const handleWsMessage = (data: unknown) => {
+    const msg = data as {
+      type: string
+      case_id?: number
+      case_no?: string
+      status: number
+      log?: string
+      timestamp?: string
+      progress?: number
+      success_count?: number
+      fail_count?: number
+      current_case?: number
+      total_cases?: number
+    }
+    if (msg.type === 'log')
       taskStore.addExecutionLog({
         task_id: taskId.value,
-        case_id: data.case_id,
-        case_no: data.case_no,
-        status: data.status,
-        log: data.log,
-        timestamp: data.timestamp || new Date().toISOString(),
+        case_id: msg.case_id,
+        case_no: msg.case_no,
+        status: msg.status,
+        log: msg.log ?? '',
+        timestamp: msg.timestamp || new Date().toISOString(),
       })
-    else if (data.type === 'progress')
+    else if (msg.type === 'progress')
       taskStore.updateExecutionProgress({
         task_id: taskId.value,
-        progress: data.progress,
-        success_count: data.success_count,
-        fail_count: data.fail_count,
-        current_case: data.current_case,
-        total_cases: data.total_cases,
+        progress: msg.progress ?? 0,
+        success_count: msg.success_count ?? 0,
+        fail_count: msg.fail_count ?? 0,
+        current_case: msg.current_case ?? 0,
+        total_cases: msg.total_cases ?? 0,
         timestamp: new Date().toISOString(),
       })
-    else if (data.type === 'status') {
-      taskStore.updateTaskStatus(taskId.value, data.status)
-      if (data.status !== 1) stopPolling()
+    else if (msg.type === 'status') {
+      taskStore.updateTaskStatus(taskId.value, msg.status)
+      if (msg.status !== 1) stopPolling()
     }
   }
 

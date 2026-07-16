@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import async_get_db
+from app.schemas.common import ApiResponse
 from app.schemas.ui_prototype import UIScreenReviewRequest
 from app.models.user import User
 from app.models.project import Project
@@ -29,7 +30,7 @@ from loguru import logger
 router = APIRouter(tags=["UI原型管理"])
 
 
-@router.post("/screen/{screen_id}/review", response_model=dict)
+@router.post("/screen/{screen_id}/review", response_model=ApiResponse)
 async def review_ui_screen(
     screen_id: int,
     request: UIScreenReviewRequest,
@@ -81,7 +82,7 @@ async def review_ui_screen(
         )
 
 
-@router.put("/screen/{screen_id}/order", response_model=dict)
+@router.put("/screen/{screen_id}/order", response_model=ApiResponse)
 async def update_ui_screen_order(
     screen_id: int,
     screen_order: int = Body(..., embed=True),

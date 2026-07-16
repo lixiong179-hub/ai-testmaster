@@ -89,8 +89,9 @@ export function useProjectDetail() {
       })
       if (res.code === 200) ElMessage.success('Web环境配置保存成功')
       else ElMessage.error(res.message || '保存失败')
-    } catch (e: any) {
-      ElMessage.error(e?.response?.data?.detail || '保存失败')
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } }
+      ElMessage.error(err?.response?.data?.detail || '保存失败')
     } finally {
       saving.value = false
     }
@@ -113,8 +114,9 @@ export function useProjectDetail() {
       })
       if (res.code === 200) ElMessage.success('设备配置保存成功')
       else ElMessage.error(res.message || '保存失败')
-    } catch (e: any) {
-      ElMessage.error(e?.response?.data?.detail || '保存失败')
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } }
+      ElMessage.error(err?.response?.data?.detail || '保存失败')
     } finally {
       saving.value = false
     }

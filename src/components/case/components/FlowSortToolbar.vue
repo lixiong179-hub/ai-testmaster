@@ -251,7 +251,7 @@
                 @click="
                   ctx.isPlaying.value
                     ? ctx.stopPlayback()
-                    : ctx.startPlayback(ctx.vueFlowNodes.value, ctx.vueFlowEdges.value as any)
+                    : ctx.startPlayback(ctx.vueFlowNodes.value, ctx.vueFlowEdges.value as unknown as Edge[])
                 "
               >
                 <el-icon><VideoPlay v-if="!ctx.isPlaying.value" /><VideoPause v-else /></el-icon>
@@ -375,11 +375,13 @@ import {
   FLOW_TYPE_LABEL_MAP,
   LAYOUT_MODE_LABELS,
 } from '@/composables/flowSort/useFlowSortEditor'
+import type { Edge } from '@vue-flow/core'
+import type { FlowEditorNode } from '@/composables/useFlowEditor'
 
 const ctx = useFlowSortEditor()
 
 const mainNodeCount = computed(
-  () => ctx.vueFlowNodes.value.filter((n: any) => n.data?.flow_type === 'main').length
+  () => ctx.vueFlowNodes.value.filter((n: FlowEditorNode) => n.data?.flow_type === 'main').length
 )
 
 const handleFilterChange = (command: string | number | boolean) => {

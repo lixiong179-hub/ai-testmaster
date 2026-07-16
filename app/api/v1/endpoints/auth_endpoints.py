@@ -29,6 +29,7 @@ from app.schemas.auth import RegisterRequest
 from app.api.v1.endpoints.auth_deps import get_current_user
 from app.utils.jwt_utils import verify_password, get_password_hash, create_access_token
 from app.services.captcha_service import captcha_service
+from app.schemas.common import ApiResponse
 
 router = APIRouter()
 
@@ -52,8 +53,8 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-@router.get("/captcha", response_model=dict)
-@router.get("/captcha/generate", response_model=dict)
+@router.get("/captcha", response_model=ApiResponse, summary="获取验证码", description="生成图形验证码，返回 captcha_id 与验证码图片数据。用于登录流程的人机验证。")
+@router.get("/captcha/generate", response_model=ApiResponse, summary="生成验证码", description="与 /captcha 等价，生成图形验证码。保留别名以兼容前端旧路径。")
 async def get_captcha(request: Request) -> dict:
     try:
         captcha_id, code = captcha_service.generate(ip=get_client_ip(request))
@@ -71,7 +72,7 @@ async def get_captcha(request: Request) -> dict:
         )
 
 
-@router.post("/login", response_model=dict)
+@router.post("/login", response_model=ApiResponse, summary="用户登录", description="通过用户名/密码+验证码进行身份认证，成功后返回 JWT access_token。token 有效期由 ACCESS_TOKEN_EXPIRE_MINUTES 控制。")
 async def login(
     request: Request,
     username: Optional[str] = Form(None),
@@ -154,7 +155,7 @@ async def login(
         )
 
 
-@router.post("/register", response_model=dict)
+@router.post("/register", response_model=ApiResponse, summary="用户注册", description="注册新用户账号。需提供用户名、邮箱、密码，注册成功后可使用 /login 登录。")
 async def register(
     register_data: RegisterRequest,
     db: AsyncSession = Depends(async_get_db)
@@ -208,10 +209,10 @@ async def register(
                 detail="用户名长度需在3-50之间"
             )
         # 密码长度校验
-        if len(password) < 6:
+        if len(password) < 8:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="密码长度不能少于6位"
+                detail="密码长度不能少于8位"
             )
         # 密码哈希处理后存储，禁止明文存储
         new_user = User(
@@ -243,7 +244,7 @@ async def register(
         )
 
 
-@router.get("/me", response_model=dict)
+@router.get("/me", response_model=ApiResponse, summary="获取当前用户信息", description="返回当前登录用户的详细信息（用户名、邮箱、角色等）。需携带 Bearer token。")
 async def get_current_user_info(
     current_user: User = Depends(get_current_user)
 ):

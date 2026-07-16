@@ -33,15 +33,22 @@ from app.models.project import Project
 from app.models.ui_prototype import UIPrototypeProject
 from app.api.v1.endpoints.auth import get_current_user
 from app.crud import ui_prototype as ui_prototype_crud
-from app.api.v1.endpoints.ui_prototype.helpers import _ensure_upload_dir, _build_screen_response, _validate_image_file, UPLOAD_DIR
+from app.api.v1.endpoints.ui_prototype.helpers import (
+    _ensure_upload_dir,
+    _build_screen_response,
+    _validate_image_file,
+    _sanitize_filename_component,
+    UPLOAD_DIR,
+)
 from app.services.ui_spec_parse_pipeline import UISpecParsePipeline
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 from loguru import logger
 
 router = APIRouter(tags=["UI原型管理"])
 
 
-@router.post("/upload", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/upload", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
 async def upload_ui_screens(
     project_id: int = Form(...),
     prototype_name: str = Form(...),
@@ -71,6 +78,11 @@ async def upload_ui_screens(
         saved_files = []
         project_dir = os.path.join(UPLOAD_DIR, str(project_id))
         os.makedirs(project_dir, exist_ok=True)
+        # 规范化为绝对路径，用于后续边界校验
+        project_dir_abs = os.path.abspath(project_dir)
+
+        # P0-1: 对用户输入的 prototype_name 进行 sanitize，杜绝路径遍历
+        safe_prototype_name = _sanitize_filename_component(prototype_name)
 
         invalid_files = []
         for i, file in enumerate(files):
@@ -78,8 +90,14 @@ async def upload_ui_screens(
             ext = (
                 os.path.splitext(file.filename)[1] if file.filename else ".png"
             )
-            filename = f"{prototype_name}_{timestamp}_{i}{ext}"
+            filename = f"{safe_prototype_name}_{timestamp}_{i}{ext}"
             filepath = os.path.join(project_dir, filename)
+            # 防御性兜底：验证最终路径仍在 project_dir 内
+            if not os.path.abspath(filepath).startswith(project_dir_abs + os.sep):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="文件名包含非法字符",
+                )
 
             try:
                 with open(filepath, "wb") as f:
@@ -176,7 +194,7 @@ async def upload_ui_screens(
         )
 
 
-@router.get("/screens/{project_id}", response_model=dict)
+@router.get("/screens/{project_id}", response_model=ApiResponse)
 async def get_ui_screens(
     project_id: int,
     prototype_project_id: Optional[int] = Query(None),
@@ -240,7 +258,7 @@ async def get_ui_screens(
         )
 
 
-@router.get("/screen/{screen_id}", response_model=dict)
+@router.get("/screen/{screen_id}", response_model=ApiResponse)
 async def get_ui_screen_detail(
     screen_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -281,7 +299,7 @@ async def get_ui_screen_detail(
         )
 
 
-@router.delete("/screen/{screen_id}", response_model=dict)
+@router.delete("/screen/{screen_id}", response_model=ApiResponse)
 async def delete_ui_screen(
     screen_id: int,
     db: AsyncSession = Depends(async_get_db),

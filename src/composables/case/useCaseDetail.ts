@@ -4,6 +4,8 @@ import { ElMessage } from 'element-plus'
 import type { TagType } from '@/types/element-plus'
 import { testCaseApi } from '@/api/case'
 import { testCaseViewApi } from '@/api/testCaseView'
+import type { LocatorInfo, PreconditionStep } from '@/api/testCaseView'
+import type { CaseVersionItem } from '@/api/case/types'
 import { downloadFromResponse, parseBlobError } from '@/utils/download'
 import { createQuickVerify } from '@/api/testExecution'
 import type { TestCase } from '@/types/testCase'
@@ -37,7 +39,7 @@ function createCaseDetailContext() {
   const quickVerifyLoading = ref(false)
   const selectedVerifySteps = ref<number[]>([])
   const versionHistoryVisible = ref(false)
-  const versionList = ref<any[]>([])
+  const versionList = ref<CaseVersionItem[]>([])
   const versionLoading = ref(false)
   const versionTotal = ref(0)
   const versionPage = ref(1)
@@ -66,9 +68,10 @@ function createCaseDetailContext() {
       caseItem.value = (await testCaseApi.getCase(caseId.value)) as TestCase
       if (caseItem.value && !caseItem.value.steps) caseItem.value.steps = []
       initEditForm()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string }
       console.error('获取用例详情失败:', error)
-      ElMessage.error(error.response?.data?.detail || error.message || '获取用例详情失败')
+      ElMessage.error(err.response?.data?.detail || err.message || '获取用例详情失败')
     } finally {
       loading.value = false
     }
@@ -183,7 +186,7 @@ function createCaseDetailContext() {
     parsePreconditionLoading.value = true
     try {
       const res = await testCaseViewApi.parsePrecondition(caseId.value)
-      const data = (res as any).data
+      const data = (res as unknown as { data?: unknown }).data
       if (data) {
         const steps = Array.isArray(data) ? data : []
         if (steps.length > 0) {
@@ -193,14 +196,15 @@ function createCaseDetailContext() {
           ElMessage.info('AI未解析出可执行步骤')
         }
       }
-    } catch (e: any) {
-      ElMessage.error(e.response?.data?.detail || 'AI解析失败')
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } }
+      ElMessage.error(err.response?.data?.detail || 'AI解析失败')
     } finally {
       parsePreconditionLoading.value = false
     }
   }
 
-  const savePreconditionSteps = async (steps: any[]) => {
+  const savePreconditionSteps = async (steps: PreconditionStep[]) => {
     if (!caseId.value) return
     try {
       await testCaseViewApi.batchSavePreconditionSteps(caseId.value, { steps })
@@ -230,7 +234,7 @@ function createCaseDetailContext() {
     if (!technicalViewData.value) return
     const steps = [...(technicalViewData.value.precondition_steps || [])]
     steps.splice(index, 1)
-    steps.forEach((s: any, i: number) => {
+    steps.forEach((s: PreconditionStep, i: number) => {
       s.step_number = i + 1
     })
     await savePreconditionSteps(steps)
@@ -254,7 +258,7 @@ function createCaseDetailContext() {
   }
 
   const goBack = () => router.push('/home/case')
-  const getStepRowClass = ({ rowIndex }: { row: any; rowIndex: number }) =>
+  const getStepRowClass = ({ rowIndex }: { row: unknown; rowIndex: number }) =>
     isCorrectionMode.value && rowIndex === correctionStepIndex.value ? 'highlighted-step' : ''
 
   const handleCorrectionParams = async () => {
@@ -262,7 +266,7 @@ function createCaseDetailContext() {
     if (query.correction !== 'true') return
     isCorrectionMode.value = true
     correctionStepIndex.value = Number(query.stepIndex) || -1
-    issueType.value = (query.issueType as any) || 'case_issue'
+    issueType.value = (query.issueType as 'case_issue' | 'product_bug' | 'needs_review') || 'case_issue'
     failureReason.value = query.failureReason
       ? decodeURIComponent(query.failureReason as string)
       : ''
@@ -273,7 +277,7 @@ function createCaseDetailContext() {
     if (issueType.value !== 'product_bug' && caseId.value) {
       try {
         await testCaseApi.startCorrection(caseId.value)
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('设置纠正状态失败:', error)
       }
     }
@@ -300,9 +304,10 @@ function createCaseDetailContext() {
       ElMessage.success('快速验证任务已创建，即将跳转到执行页面')
       quickVerifyVisible.value = false
       router.push('/home/task/execution/' + caseId.value)
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string }
       console.error('创建快速验证任务失败:', error)
-      ElMessage.error(error.response?.data?.detail || '创建快速验证任务失败')
+      ElMessage.error(err.response?.data?.detail || '创建快速验证任务失败')
     } finally {
       quickVerifyLoading.value = false
     }
@@ -320,15 +325,16 @@ function createCaseDetailContext() {
       const res = await testCaseApi.getCaseVersions(caseId.value, versionPage.value, 20)
       versionList.value = res.items || []
       versionTotal.value = res.total || versionList.value.length
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string }
       console.error('获取版本历史失败:', error)
-      ElMessage.error(error.response?.data?.detail || '获取版本历史失败')
+      ElMessage.error(err.response?.data?.detail || '获取版本历史失败')
     } finally {
       versionLoading.value = false
     }
   }
 
-  const handleRollback = async (version: any) => {
+  const handleRollback = async (version: CaseVersionItem) => {
     rollbackLoading.value = true
     try {
       await testCaseApi.rollbackCaseVersion(caseId.value, version.id)
@@ -336,15 +342,16 @@ function createCaseDetailContext() {
       versionHistoryVisible.value = false
       await fetchCaseDetail()
       if (currentView.value === VIEW_TYPES.TECHNICAL) await fetchTechnicalView()
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string }
       console.error('回滚失败:', error)
-      ElMessage.error(error.response?.data?.detail || '回滚失败')
+      ElMessage.error(err.response?.data?.detail || '回滚失败')
     } finally {
       rollbackLoading.value = false
     }
   }
 
-  const openAddLocator = (stepIndex: number, _row: any) => {
+  const openAddLocator = (stepIndex: number, _row: unknown) => {
     addLocatorStepIndex.value = stepIndex
     addLocatorForm.value = { css_selector: '', xpath: '', ai_coordinate: '', locator_type: 'css' }
     addLocatorVisible.value = true
@@ -367,15 +374,16 @@ function createCaseDetailContext() {
         xpath,
         ai_coordinate,
       })
-      if (!step.locator) step.locator = {} as any
-      if (css_selector) (step.locator as any).css_selector = css_selector
-      if (xpath) (step.locator as any).xpath = xpath
+      if (!step.locator) step.locator = {} as LocatorInfo
+      if (css_selector) (step.locator as LocatorInfo).css_selector = css_selector
+      if (xpath) (step.locator as LocatorInfo).xpath = xpath
       step.locator_status = 'recorded'
       ElMessage.success('定位信息添加成功')
       addLocatorVisible.value = false
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string }
       console.error('添加定位失败:', error)
-      ElMessage.error(error.response?.data?.detail || '添加定位失败')
+      ElMessage.error(err.response?.data?.detail || '添加定位失败')
     } finally {
       addLocatorLoading.value = false
     }

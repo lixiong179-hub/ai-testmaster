@@ -12,6 +12,7 @@ from app.models.pipeline import PipelineRun, PipelineStep
 from app.ai.call_log import AICallLog
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 from app.services.metrics_service import _date_trunc_day
 from app.utils.db_time import utcnow
 from app.api.v1.endpoints.pipeline_dashboard._utils import (
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/token-usage", response_model=dict)
+@router.get("/token-usage", response_model=ApiResponse)
 async def get_token_usage(
     project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
@@ -67,7 +68,7 @@ async def get_token_usage(
     return await db.run_sync(_token_usage)
 
 
-@router.get("/run-duration", response_model=dict)
+@router.get("/run-duration", response_model=ApiResponse)
 async def get_run_duration(
     project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
@@ -112,7 +113,7 @@ async def get_run_duration(
     return await db.run_sync(_run_duration)
 
 
-@router.get("/step-latency", response_model=dict)
+@router.get("/step-latency", response_model=ApiResponse)
 async def get_step_latency(
     project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
@@ -156,7 +157,7 @@ async def get_step_latency(
     return await db.run_sync(_step_latency)
 
 
-@router.get("/cache-hit-rate", response_model=dict)
+@router.get("/cache-hit-rate", response_model=ApiResponse)
 async def get_cache_hit_rate(
     project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),

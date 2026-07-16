@@ -18,7 +18,7 @@ export function useTestDataEditor(
   const generating = ref(false)
   const autoGenerating = ref(false)
   const testDataList = ref<(TestData & { isEditing?: boolean; isNew?: boolean })[]>([])
-  const generatedData = ref<Record<string, any>>({})
+  const generatedData = ref<Record<string, string | number | boolean | null>>({})
 
   const fetchTestData = async () => {
     if (!props.stepId) return

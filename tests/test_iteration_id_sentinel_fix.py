@@ -189,25 +189,43 @@ class TestIterationIdMigration:
         self, db: Session, testProject: Project
     ) -> None:
         """测试迁移将 iteration_id=-1 转为 NULL"""
-        # 模拟旧数据：直接插入 iteration_id=-1 的记录
-        # 需要临时禁用外键约束来插入 -1
+        # 模拟旧数据：使用原生 SQL 插入 iteration_id=-1 的记录
+        # 绕过 ORM 的 before_flush 事件保护（_guard_project_file_iteration_consistency）
+        # 旧数据是数据库直接导入的，不经过 ORM，因此原生 SQL 是更真实的模拟
         from sqlalchemy import text
         db.execute(text("SET FOREIGN_KEY_CHECKS=0"))
-        file = ProjectFile(
-            project_id=testProject.id,
-            file_name="legacy_file.txt",
-            file_type="txt",
-            file_url="/tmp/legacy.txt",
-            file_source="file",
-            extract_status="pending",
-            is_active=True,
-            iteration_id=-1,
+        result = db.execute(
+            text(
+                "INSERT INTO project_files "
+                "(project_id, file_name, file_type, file_url, file_source, "
+                "extract_status, is_active, linked_case_count, iteration_id) "
+                "VALUES (:project_id, :file_name, :file_type, :file_url, :file_source, "
+                ":extract_status, :is_active, :linked_case_count, :iteration_id)"
+            ),
+            {
+                "project_id": testProject.id,
+                "file_name": "legacy_file.txt",
+                "file_type": "txt",
+                "file_url": "/tmp/legacy.txt",
+                "file_source": "file",
+                "extract_status": "pending",
+                "is_active": True,
+                "linked_case_count": 0,
+                "iteration_id": -1,
+            },
         )
-        db.add(file)
         db.flush()
         db.execute(text("SET FOREIGN_KEY_CHECKS=1"))
 
-        assert file.iteration_id == -1
+        file_id = result.lastrowid
+        assert file_id is not None
+
+        # 验证旧数据已写入
+        row = db.execute(
+            text("SELECT iteration_id FROM project_files WHERE id = :id"),
+            {"id": file_id},
+        ).fetchone()
+        assert row[0] == -1
 
         # 执行迁移逻辑
         db.execute(
@@ -219,8 +237,11 @@ class TestIterationIdMigration:
         db.flush()
 
         # 验证迁移结果
-        db.refresh(file)
-        assert file.iteration_id is None
+        row = db.execute(
+            text("SELECT iteration_id FROM project_files WHERE id = :id"),
+            {"id": file_id},
+        ).fetchone()
+        assert row[0] is None
 
     def test_migration_preserves_valid_iteration_id(
         self, db: Session, testProject: Project
@@ -258,21 +279,35 @@ class TestIterationIdMigration:
         self, db: Session, testProject: Project
     ) -> None:
         """测试迁移将 iteration_id=0 转为 NULL"""
+        # 模拟旧数据：使用原生 SQL 插入 iteration_id=0 的记录
+        # 绕过 ORM 的 before_flush 事件保护（_guard_project_file_iteration_consistency）
         from sqlalchemy import text
         db.execute(text("SET FOREIGN_KEY_CHECKS=0"))
-        file = ProjectFile(
-            project_id=testProject.id,
-            file_name="zero_file.txt",
-            file_type="txt",
-            file_url="/tmp/zero.txt",
-            file_source="file",
-            extract_status="pending",
-            is_active=True,
-            iteration_id=0,
+        result = db.execute(
+            text(
+                "INSERT INTO project_files "
+                "(project_id, file_name, file_type, file_url, file_source, "
+                "extract_status, is_active, linked_case_count, iteration_id) "
+                "VALUES (:project_id, :file_name, :file_type, :file_url, :file_source, "
+                ":extract_status, :is_active, :linked_case_count, :iteration_id)"
+            ),
+            {
+                "project_id": testProject.id,
+                "file_name": "zero_file.txt",
+                "file_type": "txt",
+                "file_url": "/tmp/zero.txt",
+                "file_source": "file",
+                "extract_status": "pending",
+                "is_active": True,
+                "linked_case_count": 0,
+                "iteration_id": 0,
+            },
         )
-        db.add(file)
         db.flush()
         db.execute(text("SET FOREIGN_KEY_CHECKS=1"))
+
+        file_id = result.lastrowid
+        assert file_id is not None
 
         # 执行迁移逻辑
         db.execute(
@@ -284,8 +319,11 @@ class TestIterationIdMigration:
         db.flush()
 
         # 验证迁移结果
-        db.refresh(file)
-        assert file.iteration_id is None
+        row = db.execute(
+            text("SELECT iteration_id FROM project_files WHERE id = :id"),
+            {"id": file_id},
+        ).fetchone()
+        assert row[0] is None
 
     def test_migration_proto_project_negative_to_null(
         self, db: Session, testProject: Project
