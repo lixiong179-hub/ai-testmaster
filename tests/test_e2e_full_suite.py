@@ -1128,7 +1128,7 @@ class TestTestCaseModule:
     def test_get_test_cases_list(self, admin_headers, admin_owned_project_id):
         """TC-TC-001: 获取测试用例列表 - admin真实项目"""
         response = client.get(
-            f"/api/v1/testCase?project_id={admin_owned_project_id}",
+            f"/api/v1/test-case?project_id={admin_owned_project_id}",
             headers=admin_headers
         )
         assert response.status_code == 200, f"获取测试用例列表失败: {response.text}"
@@ -1140,7 +1140,7 @@ class TestTestCaseModule:
     def test_get_test_cases_pagination(self, admin_headers, admin_owned_project_id):
         """TC-TC-002: 获取测试用例列表 - 分页"""
         response = client.get(
-            f"/api/v1/testCase?project_id={admin_owned_project_id}&page=1&page_size=5",
+            f"/api/v1/test-case?project_id={admin_owned_project_id}&page=1&page_size=5",
             headers=admin_headers
         )
         assert response.status_code == 200
@@ -1151,14 +1151,14 @@ class TestTestCaseModule:
         """TC-TC-003: 获取测试用例详情 - 真实数据"""
         # 先获取列表
         list_resp = client.get(
-            f"/api/v1/testCase?project_id={admin_owned_project_id}&page_size=1",
+            f"/api/v1/test-case?project_id={admin_owned_project_id}&page_size=1",
             headers=admin_headers
         )
         items = list_resp.json()["data"]["items"]
         if items:
             case_id = items[0]["id"]
             response = client.get(
-                f"/api/v1/testCase/{case_id}",
+                f"/api/v1/test-case/{case_id}",
                 headers=admin_headers
             )
             assert response.status_code == 200, f"获取测试用例详情失败: {response.text}"
@@ -1166,7 +1166,7 @@ class TestTestCaseModule:
     def test_get_test_case_detail_nonexistent(self, auth_headers):
         """TC-TC-004: 获取测试用例详情 - 不存在的用例"""
         response = client.get(
-            "/api/v1/testCase/999999",
+            "/api/v1/test-case/999999",
             headers=auth_headers
         )
         assert response.status_code == 404, f"不存在的用例应返回404，实际: {response.status_code}"
@@ -1175,7 +1175,7 @@ class TestTestCaseModule:
         """TC-TC-005: 创建测试用例 - 正常流程"""
         project_id = created_project["project_id"]
         response = client.post(
-            "/api/v1/testCase",
+            "/api/v1/test-case",
             json={
                 "project_id": project_id,
                 "case_no": f"CASE{project_id}-MANUAL001",
@@ -1203,7 +1203,7 @@ class TestTestCaseModule:
         project_id = created_project["project_id"]
         # 先创建
         create_resp = client.post(
-            "/api/v1/testCase",
+            "/api/v1/test-case",
             json={
                 "project_id": project_id,
                 "case_no": f"CASE{project_id}-UPDATE001",
@@ -1222,7 +1222,7 @@ class TestTestCaseModule:
 
         # 更新
         response = client.put(
-            f"/api/v1/testCase/{case_id}",
+            f"/api/v1/test-case/{case_id}",
             json={
                 "title": "更新后的标题",
                 "priority": 1,
@@ -1240,7 +1240,7 @@ class TestTestCaseModule:
         project_id = created_project["project_id"]
         # 先创建
         create_resp = client.post(
-            "/api/v1/testCase",
+            "/api/v1/test-case",
             json={
                 "project_id": project_id,
                 "case_no": f"CASE{project_id}-DELETE001",
@@ -1259,20 +1259,20 @@ class TestTestCaseModule:
 
         # 删除
         response = client.delete(
-            f"/api/v1/testCase/{case_id}",
+            f"/api/v1/test-case/{case_id}",
             headers=auth_headers
         )
         assert response.status_code == 200, f"删除测试用例失败: {response.text}"
 
     def test_get_test_cases_no_auth(self):
         """TC-TC-008: 获取测试用例 - 未认证"""
-        response = client.get("/api/v1/testCase")
+        response = client.get("/api/v1/test-case")
         assert response.status_code in [401, 403], f"未认证应返回401/403，实际: {response.status_code}"
 
     def test_ai_generate_test_case_validation(self, auth_headers):
         """TC-TC-009: AI生成用例 - 描述过短（<10字符）"""
         response = client.post(
-            "/api/v1/testCase/ai-generate",
+            "/api/v1/test-case/ai-generate",
             json={
                 "project_id": 3,
                 "description": "太短"
@@ -1284,7 +1284,7 @@ class TestTestCaseModule:
     def test_ai_generate_test_case_no_project(self, auth_headers):
         """TC-TC-010: AI生成用例 - 不存在的项目"""
         response = client.post(
-            "/api/v1/testCase/ai-generate",
+            "/api/v1/test-case/ai-generate",
             json={
                 "project_id": 999999,
                 "description": "这是一个测试描述，长度超过十个字符"
@@ -1306,7 +1306,7 @@ class TestTestTaskModule:
         case_ids = []
         for i in range(3):
             resp = client.post(
-                "/api/v1/testCase",
+                "/api/v1/test-case",
                 json={
                     "project_id": project_id,
                     "case_no": f"CASE{project_id}-TASK{i:03d}",
@@ -1326,7 +1326,7 @@ class TestTestTaskModule:
 
         # 创建任务
         response = client.post(
-            "/api/v1/test_task",
+            "/api/v1/test-task",
             json={
                 "project_id": project_id,
                 "task_name": f"E2E测试任务_{int(time.time())}",
@@ -1344,7 +1344,7 @@ class TestTestTaskModule:
         """TC-TASK-002: 创建测试任务 - 空用例列表"""
         project_id = created_project["project_id"]
         response = client.post(
-            "/api/v1/test_task",
+            "/api/v1/test-task",
             json={
                 "project_id": project_id,
                 "task_name": f"空任务_{int(time.time())}",
@@ -1357,7 +1357,7 @@ class TestTestTaskModule:
     def test_get_test_tasks_list(self, auth_headers):
         """TC-TASK-003: 获取测试任务列表"""
         response = client.get(
-            "/api/v1/test_task",
+            "/api/v1/test-task",
             headers=auth_headers
         )
         assert response.status_code == 200, f"获取任务列表失败: {response.text}"
@@ -1368,7 +1368,7 @@ class TestTestTaskModule:
         """TC-TASK-004: 获取测试任务列表 - 按项目筛选"""
         project_id = created_project["project_id"]
         response = client.get(
-            f"/api/v1/test_task?project_id={project_id}",
+            f"/api/v1/test-task?project_id={project_id}",
             headers=auth_headers
         )
         assert response.status_code == 200
@@ -1376,7 +1376,7 @@ class TestTestTaskModule:
     def test_get_test_tasks_pagination(self, auth_headers):
         """TC-TASK-005: 获取测试任务列表 - 分页"""
         response = client.get(
-            "/api/v1/test_task?page=1&page_size=5",
+            "/api/v1/test-task?page=1&page_size=5",
             headers=auth_headers
         )
         assert response.status_code == 200
@@ -1386,7 +1386,7 @@ class TestTestTaskModule:
         project_id = created_project["project_id"]
         # 先创建一个任务
         create_resp = client.post(
-            "/api/v1/test_task",
+            "/api/v1/test-task",
             json={
                 "project_id": project_id,
                 "task_name": f"详情测试任务_{int(time.time())}",
@@ -1397,7 +1397,7 @@ class TestTestTaskModule:
         if create_resp.status_code in [200, 201]:
             task_id = create_resp.json()["data"]["task_id"]
             response = client.get(
-                f"/api/v1/test_task/{task_id}",
+                f"/api/v1/test-task/{task_id}",
                 headers=auth_headers
             )
             assert response.status_code == 200, f"获取任务详情失败: {response.text}"
@@ -1405,7 +1405,7 @@ class TestTestTaskModule:
     def test_get_test_task_detail_nonexistent(self, auth_headers):
         """TC-TASK-007: 获取测试任务详情 - 不存在的任务"""
         response = client.get(
-            "/api/v1/test_task/999999",
+            "/api/v1/test-task/999999",
             headers=auth_headers
         )
         assert response.status_code == 404, f"不存在的任务应返回404，实际: {response.status_code}"
@@ -1415,7 +1415,7 @@ class TestTestTaskModule:
         project_id = created_project["project_id"]
         # 先创建任务
         create_resp = client.post(
-            "/api/v1/test_task",
+            "/api/v1/test-task",
             json={
                 "project_id": project_id,
                 "task_name": f"待删除任务_{int(time.time())}",
@@ -1427,7 +1427,7 @@ class TestTestTaskModule:
 
         # 删除
         response = client.delete(
-            f"/api/v1/test_task/{task_id}",
+            f"/api/v1/test-task/{task_id}",
             headers=auth_headers
         )
         assert response.status_code == 200, f"删除任务失败: {response.text}"
@@ -1435,7 +1435,7 @@ class TestTestTaskModule:
     def test_delete_test_task_nonexistent(self, auth_headers):
         """TC-TASK-009: 删除测试任务 - 不存在的任务"""
         response = client.delete(
-            "/api/v1/test_task/999999",
+            "/api/v1/test-task/999999",
             headers=auth_headers
         )
         assert response.status_code == 404, f"不存在的任务应返回404，实际: {response.status_code}"

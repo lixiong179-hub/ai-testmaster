@@ -20,11 +20,12 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.config import settings
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.test_task import TaskStatus, TestTask
 from app.models.user import User
 from app.schemas.quick_test import (
@@ -34,7 +35,7 @@ from app.schemas.quick_test import (
 )
 from app.services.url_driven.quick_launcher import QuickLauncher
 
-router = APIRouter()
+router = APIRouter(tags=["快速测试"])
 
 # 单用户限流参数（SubTask 9.5）：10 次/分钟。
 _LAUNCH_MAX_REQUESTS = 10
@@ -170,7 +171,7 @@ def _require_launch_quota(current_user: User = Depends(get_current_user)) -> Non
 @router.post("/launch", response_model=QuickTestLaunchResponse)
 async def launch_quick_test(
     request: QuickTestLaunchRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
     _quota: None = Depends(_require_launch_quota),
 ) -> QuickTestLaunchResponse:
@@ -178,7 +179,9 @@ async def launch_quick_test(
 
     编排顺序由 QuickLauncher 负责：AutoProjectBuilder → 预创建任务 →
     SiteExplorer → AutoCaseGenerator → TaskAssembler。HttpUrl 在 schema 层
-    已校验 scheme，此处转 str 传入 launcher。
+    已校验 scheme，此处转 str 传入 launcher。QuickLauncher.launch 仍使用
+    sync Session（服务层 sync 化在后续 Task 处理），通过 db.sync_session 透传，
+    保留原有事务隔离语义。
     """
     try:
         launcher = QuickLauncher()
@@ -187,7 +190,7 @@ async def launch_quick_test(
             description=request.description,
             credentials=request.credentials,
             user_id=current_user.id,
-            session=db,
+            session=db.sync_session,
         )
     except HTTPException:
         # 限流等中间件/依赖异常向上透传，不被通用分支吞掉
@@ -211,7 +214,7 @@ async def launch_quick_test(
 @router.get("/{task_id}/status", response_model=QuickTestStatusResponse)
 async def get_quick_test_status(
     task_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> QuickTestStatusResponse:
     """查询快速测试任务进度。
@@ -219,11 +222,13 @@ async def get_quick_test_status(
     仅返回当前用户执行的任务（executor_id 过滤），避免越权查询他人任务。
     参数化查询 TestTask.id，防 SQL 注入。
     """
-    task = (
-        db.query(TestTask)
-        .filter(TestTask.id == task_id, TestTask.executor_id == current_user.id)
-        .first()
+    result = await db.execute(
+        select(TestTask).where(
+            TestTask.id == task_id,
+            TestTask.executor_id == current_user.id,
+        )
     )
+    task = result.scalar_one_or_none()
     if task is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

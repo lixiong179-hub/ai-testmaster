@@ -1,17 +1,22 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.utils.db_time import utcnow
 """
 用例质量报告端点模块
 
 本模块定义用例质量报告的API端点，提供质量统计和质量趋势分析。
 
-路由前缀: /caseQuality（由父模块case_quality.py注册）
+路由前缀: /quality（由父模块case_quality.py注册）
 标签: 用例质量
 
 端点概览:
-    - GET  /project/{project_id}/report     - 获取项目质量报告
-    - GET  /project/{project_id}/trend      - 获取质量趋势数据
-    - GET  /project/{project_id}/statistics - 获取质量统计数据
+    - POST /cases/{case_id}/review                - 审核用例
+    - GET  /cases/{case_id}/review                 - 获取用例审核状态
+    - GET  /projects/{project_id}/pending-reviews  - 获取待审核用例列表
+    - PUT  /cases/{case_id}/edit                   - 编辑用例
+    - PUT  /cases/{case_id}/steps/{step_id}        - 编辑用例步骤
+    - GET  /projects/{project_id}/cost-statistics  - 获取项目成本统计
+    - GET  /projects/{project_id}/cost-report      - 生成项目成本报表
+    - GET  /cases/{case_id}/cost-statistics        - 获取用例成本统计
 
 权限要求: 所有端点需要Bearer令牌认证
 
@@ -21,13 +26,13 @@ from app.utils.db_time import utcnow
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.cost_statistics_service import CostStatisticsService
 from app.models.user import User
-from app.utils.db_time import utcnow
 from app.api.v1.endpoints.case_quality_check import (
     CaseReviewRequest,
     CaseReviewResponse,
@@ -38,33 +43,39 @@ from app.api.v1.endpoints.case_quality_check import (
 router = APIRouter()
 
 
-@router.post("/cases/{case_id}/review", response_model=CaseReviewResponse)
+@router.post("/cases/{case_id}/review")
 async def review_case(
     case_id: int,
     request: CaseReviewRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     from app.models.test_case import TestCase
-
-    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
 
     valid_statuses = ["pending", "approved", "rejected", "needs_optimization"]
     if request.status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"无效的状态值，可选值: {valid_statuses}")
 
     try:
-        test_case.review_status = request.status
-        test_case.review_comment = request.review_comment
-        test_case.reviewed_by = current_user.username if current_user else None
-        test_case.reviewed_at = utcnow()
-        if request.priority:
-            test_case.priority = request.priority
+        def _review(sync_db: Session):
+            test_case = sync_db.query(TestCase).filter(
+                TestCase.id == case_id, TestCase.is_deleted.is_(False)
+            ).first()
+            if not test_case:
+                raise HTTPException(status_code=404, detail="测试用例不存在")
 
-        db.commit()
-        db.refresh(test_case)
+            test_case.review_status = request.status
+            test_case.review_comment = request.review_comment
+            test_case.reviewed_by = current_user.username if current_user else None
+            test_case.reviewed_at = utcnow()
+            if request.priority:
+                test_case.priority = request.priority
+
+            sync_db.commit()
+            sync_db.refresh(test_case)
+            return test_case
+
+        test_case = await db.run_sync(_review)
 
         logger.info(f"用例 {case_id} 审核状态更新为: {request.status}, 审核人: {current_user.username if current_user else 'unknown'}")
 
@@ -76,8 +87,10 @@ async def review_case(
             "reviewed_at": test_case.reviewed_at.isoformat() if test_case.reviewed_at else None,
             "priority": test_case.priority
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"审核用例失败 {case_id}: {e}")
         raise HTTPException(status_code=500, detail="审核失败")
 
@@ -85,24 +98,36 @@ async def review_case(
 @router.get("/cases/{case_id}/review")
 async def get_case_review_status(
     case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     from app.models.test_case import TestCase
 
-    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
+    try:
+        def _get(sync_db: Session):
+            test_case = sync_db.query(TestCase).filter(
+                TestCase.id == case_id, TestCase.is_deleted.is_(False)
+            ).first()
+            return test_case
 
-    return {
-        "case_id": case_id,
-        "case_name": test_case.title,
-        "status": getattr(test_case, 'review_status', 'pending'),
-        "review_comment": getattr(test_case, 'review_comment', None),
-        "reviewed_by": getattr(test_case, 'reviewed_by', None),
-        "reviewed_at": getattr(test_case, 'reviewed_at', None),
-        "priority": getattr(test_case, 'priority', 'medium')
-    }
+        test_case = await db.run_sync(_get)
+        if not test_case:
+            raise HTTPException(status_code=404, detail="测试用例不存在")
+
+        return {
+            "case_id": case_id,
+            "case_name": test_case.title,
+            "status": getattr(test_case, 'review_status', 'pending'),
+            "review_comment": getattr(test_case, 'review_comment', None),
+            "reviewed_by": getattr(test_case, 'reviewed_by', None),
+            "reviewed_at": getattr(test_case, 'reviewed_at', None),
+            "priority": getattr(test_case, 'priority', 'medium')
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取用例审核状态失败 {case_id}: {e}")
+        raise HTTPException(status_code=500, detail="获取审核状态失败")
 
 
 @router.get("/projects/{project_id}/pending-reviews")
@@ -110,74 +135,88 @@ async def get_pending_reviews(
     project_id: int,
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=20, ge=1, le=100, description="每页数量"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     from app.models.test_case import TestCase
 
-    offset = (page - 1) * page_size
+    try:
+        offset = (page - 1) * page_size
 
-    total_count = db.query(TestCase).filter(
-        TestCase.project_id == project_id,
-        TestCase.review_status.in_(["pending", "needs_optimization"]),
-        TestCase.is_deleted.is_(False)
-    ).count()
+        def _query(sync_db: Session):
+            total_count = sync_db.query(TestCase).filter(
+                TestCase.project_id == project_id,
+                TestCase.review_status.in_(["pending", "needs_optimization"]),
+                TestCase.is_deleted.is_(False)
+            ).count()
 
-    cases = db.query(TestCase).filter(
-        TestCase.project_id == project_id,
-        TestCase.review_status.in_(["pending", "needs_optimization"]),
-        TestCase.is_deleted.is_(False)
-    ).offset(offset).limit(page_size).all()
+            cases = sync_db.query(TestCase).filter(
+                TestCase.project_id == project_id,
+                TestCase.review_status.in_(["pending", "needs_optimization"]),
+                TestCase.is_deleted.is_(False)
+            ).offset(offset).limit(page_size).all()
 
-    total_pages = (total_count + page_size - 1) // page_size
+            return total_count, cases
 
-    return {
-        "project_id": project_id,
-        "pending_count": total_count,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": total_pages,
-        "cases": [
-            {
-                "case_id": case.id,
-                "case_name": case.title,
-                "status": getattr(case, 'review_status', 'pending'),
-                "priority": getattr(case, 'priority', 'medium'),
-                "create_time": case.create_time.isoformat() if hasattr(case, 'create_time') and case.create_time else None
-            }
-            for case in cases
-        ]
-    }
+        total_count, cases = await db.run_sync(_query)
+        total_pages = (total_count + page_size - 1) // page_size
+
+        return {
+            "project_id": project_id,
+            "pending_count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "cases": [
+                {
+                    "case_id": case.id,
+                    "case_name": case.title,
+                    "status": getattr(case, 'review_status', 'pending'),
+                    "priority": getattr(case, 'priority', 'medium'),
+                    "create_time": case.create_time.isoformat() if hasattr(case, 'create_time') and case.create_time else None
+                }
+                for case in cases
+            ]
+        }
+    except Exception as e:
+        logger.error(f"获取待审核用例列表失败: {e}")
+        raise HTTPException(status_code=500, detail="获取待审核列表失败")
 
 
 @router.put("/cases/{case_id}/edit")
 async def edit_case(
     case_id: int,
     request: CaseEditRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     from app.models.test_case import TestCase
 
-    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
-
     try:
-        if request.title:
-            test_case.title = request.title
-        if request.description:
-            test_case.expected_result = request.description
-        if request.preconditions:
-            test_case.precondition = request.preconditions
-        if request.expected_result:
-            test_case.expected_result = request.expected_result
-        if request.priority:
-            test_case.priority = request.priority
+        def _edit(sync_db: Session):
+            test_case = sync_db.query(TestCase).filter(
+                TestCase.id == case_id, TestCase.is_deleted.is_(False)
+            ).first()
+            if not test_case:
+                raise HTTPException(status_code=404, detail="测试用例不存在")
 
-        test_case.update_time = utcnow()
-        db.commit()
-        db.refresh(test_case)
+            if request.title:
+                test_case.title = request.title
+            if request.description:
+                test_case.expected_result = request.description
+            if request.preconditions:
+                test_case.precondition = request.preconditions
+            if request.expected_result:
+                test_case.expected_result = request.expected_result
+            if request.priority:
+                test_case.priority = request.priority
+
+            test_case.update_time = utcnow()
+            sync_db.commit()
+            sync_db.refresh(test_case)
+            return test_case
+
+        await db.run_sync(_edit)
 
         logger.info(f"用例 {case_id} 已编辑, 操作人: {current_user.username if current_user else 'unknown'}")
 
@@ -192,8 +231,10 @@ async def edit_case(
                 "priority": request.priority
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"编辑用例失败 {case_id}: {e}")
         raise HTTPException(status_code=500, detail="编辑失败")
 
@@ -203,35 +244,40 @@ async def edit_case_step(
     case_id: int,
     step_id: int,
     request: StepEditRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     from app.models.test_case import TestCase, TestStep
 
-    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
-
-    step = db.query(TestStep).filter(
-        TestStep.id == step_id,
-        TestStep.test_case_id == case_id
-    ).first()
-
-    if not step:
-        raise HTTPException(status_code=404, detail="步骤不存在")
-
     try:
-        if request.action:
-            step.action = request.action
-        if request.target:
-            step.target_element = request.target
-        if request.value:
-            step.input_value = request.value
-        if request.expected_result:
-            step.expected_result = request.expected_result
+        def _edit_step(sync_db: Session):
+            test_case = sync_db.query(TestCase).filter(
+                TestCase.id == case_id, TestCase.is_deleted.is_(False)
+            ).first()
+            if not test_case:
+                raise HTTPException(status_code=404, detail="测试用例不存在")
 
-        db.commit()
-        db.refresh(step)
+            step = sync_db.query(TestStep).filter(
+                TestStep.id == step_id,
+                TestStep.test_case_id == case_id
+            ).first()
+
+            if not step:
+                raise HTTPException(status_code=404, detail="步骤不存在")
+
+            if request.action:
+                step.action = request.action
+            if request.target:
+                step.target_element = request.target
+            if request.value:
+                step.input_value = request.value
+            if request.expected_result:
+                step.expected_result = request.expected_result
+
+            sync_db.commit()
+            sync_db.refresh(step)
+
+        await db.run_sync(_edit_step)
 
         logger.info(f"用例 {case_id} 步骤 {step_id} 已编辑")
 
@@ -240,8 +286,10 @@ async def edit_case_step(
             "step_id": step_id,
             "message": "步骤更新成功"
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"编辑步骤失败 {case_id}/{step_id}: {e}")
         raise HTTPException(status_code=500, detail="编辑失败")
 
@@ -249,13 +297,15 @@ async def edit_case_step(
 @router.get("/projects/{project_id}/cost-statistics")
 async def get_project_cost_statistics(
     project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = CostStatisticsService(db)
-
     try:
-        summary = service.get_cost_summary(project_id)
+        def _get_summary(sync_db: Session):
+            service = CostStatisticsService(sync_db)
+            return service.get_cost_summary(project_id)
+
+        summary = await db.run_sync(_get_summary)
         return summary
     except Exception as e:
         logger.error(f"获取成本统计失败: {e}")
@@ -266,16 +316,18 @@ async def get_project_cost_statistics(
 async def get_project_cost_report(
     project_id: int,
     days: int = Query(default=30, ge=1, le=365),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = CostStatisticsService(db)
-
     try:
         end_date = utcnow()
         start_date = end_date - timedelta(days=days)
 
-        report = service.generate_cost_report(project_id, start_date, end_date)
+        def _gen_report(sync_db: Session):
+            service = CostStatisticsService(sync_db)
+            return service.generate_cost_report(project_id, start_date, end_date)
+
+        report = await db.run_sync(_gen_report)
 
         return {
             "report_id": report.report_id,
@@ -309,13 +361,15 @@ async def get_project_cost_report(
 @router.get("/cases/{case_id}/cost-statistics")
 async def get_case_cost_statistics(
     case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    service = CostStatisticsService(db)
-
     try:
-        stats = service.get_case_cost_statistics(case_id)
+        def _get_case_stats(sync_db: Session):
+            service = CostStatisticsService(sync_db)
+            return service.get_case_cost_statistics(case_id)
+
+        stats = await db.run_sync(_get_case_stats)
         return {
             "case_id": case_id,
             "total_steps": stats.total_steps,

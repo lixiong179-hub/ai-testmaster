@@ -174,8 +174,8 @@ class TestSelfTestSchedulerRefreshJobs:
 class TestSelfTestScheduleAPI:
     """自测定时计划API端点测试"""
 
-    def test_non_self_test_project_cannot_schedule(
-        self, db: Session, testUser: User
+    async def test_non_self_test_project_cannot_schedule(
+        self, async_db, async_test_user
     ) -> None:
         from fastapi import HTTPException
 
@@ -184,29 +184,27 @@ class TestSelfTestScheduleAPI:
 
         project = Project(
             name="normal_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=False,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         body = SelfTestScheduleRequest(schedule="0 2 * * *")
         with pytest.raises(HTTPException) as exc_info:
-            asyncio.get_event_loop().run_until_complete(
-                update_self_test_schedule(
-                    project_id=project.id,
-                    body=body,
-                    db=db,
-                    current_user=testUser,
-                )
+            await update_self_test_schedule(
+                project_id=project.id,
+                body=body,
+                db=async_db,
+                current_user=async_test_user,
             )
         assert exc_info.value.status_code == 400
         assert "仅自测项目" in exc_info.value.detail
 
-    def test_invalid_cron_expression_rejected(
-        self, db: Session, testUser: User
+    async def test_invalid_cron_expression_rejected(
+        self, async_db, async_test_user
     ) -> None:
         from fastapi import HTTPException
 
@@ -215,56 +213,52 @@ class TestSelfTestScheduleAPI:
 
         project = Project(
             name="self_test_invalid_cron",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         body = SelfTestScheduleRequest(schedule="invalid cron")
         with pytest.raises(HTTPException) as exc_info:
-            asyncio.get_event_loop().run_until_complete(
-                update_self_test_schedule(
-                    project_id=project.id,
-                    body=body,
-                    db=db,
-                    current_user=testUser,
-                )
+            await update_self_test_schedule(
+                project_id=project.id,
+                body=body,
+                db=async_db,
+                current_user=async_test_user,
             )
         assert exc_info.value.status_code == 400
         assert "无效的cron表达式" in exc_info.value.detail
 
-    def test_null_schedule_cancels_timer(
-        self, db: Session, testUser: User
+    async def test_null_schedule_cancels_timer(
+        self, async_db, async_test_user
     ) -> None:
         from app.api.v1.endpoints.project_core import update_self_test_schedule
         from app.api.v1.endpoints.project_core import SelfTestScheduleRequest
 
         project = Project(
             name="self_test_cancel_schedule",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
             self_test_schedule="0 2 * * *",
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         body = SelfTestScheduleRequest(schedule=None)
-        result = asyncio.get_event_loop().run_until_complete(
-            update_self_test_schedule(
-                project_id=project.id,
-                body=body,
-                db=db,
-                current_user=testUser,
-            )
+        result = await update_self_test_schedule(
+            project_id=project.id,
+            body=body,
+            db=async_db,
+            current_user=async_test_user,
         )
         assert result["data"]["self_test_schedule"] is None
 
-    def test_nonexistent_project_returns_404(self, db: Session, testUser: User) -> None:
+    async def test_nonexistent_project_returns_404(self, async_db, async_test_user) -> None:
         from fastapi import HTTPException
 
         from app.api.v1.endpoints.project_core import update_self_test_schedule
@@ -272,13 +266,11 @@ class TestSelfTestScheduleAPI:
 
         body = SelfTestScheduleRequest(schedule="0 2 * * *")
         with pytest.raises(HTTPException) as exc_info:
-            asyncio.get_event_loop().run_until_complete(
-                update_self_test_schedule(
-                    project_id=999999,
-                    body=body,
-                    db=db,
-                    current_user=testUser,
-                )
+            await update_self_test_schedule(
+                project_id=999999,
+                body=body,
+                db=async_db,
+                current_user=async_test_user,
             )
         assert exc_info.value.status_code == 404
 

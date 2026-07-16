@@ -1,5 +1,5 @@
 """
-测试用例批量操作端点模块
+测试用例批量操作端点模块（async 版本）
 
 本模块定义测试用例的批量操作API端点，包括批量恢复、批量软删除和批量创建。
 
@@ -13,10 +13,9 @@
 
 权限要求: 所有端点需要Bearer令牌认证
 
-业务说明:
-    - 单次最多操作500个用例
-    - 删除为软删除（is_deleted标记），支持批量恢复
-    - 批量创建在单个数据库事务中完成，全部成功或全部回滚
+迁移说明（P0 服务 async 化）:
+    消除所有 db.run_sync() 包裹，内联 DB 操作改为 select() + await db.execute()。
+    create_steps_and_test_data 已在 test_case_crud.py 中改为 async，此处直接 await 调用。
 """
 from datetime import datetime
 from typing import Optional
@@ -24,14 +23,18 @@ from typing import Optional
 from app.utils.db_time import utcnow
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, field_validator
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.models.test_case import TestCase
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.test_case import TestCaseCreate
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.test_case_crud import merge_test_data_to_steps, create_steps_and_test_data
+from app.api.v1.endpoints.test_case_crud import (
+    merge_test_data_to_steps,
+    create_steps_and_test_data,
+)
 from app.core.exception import create_response
 from loguru import logger
 
@@ -55,22 +58,13 @@ class BatchCreateRequest(BaseModel):
 @router.post("/batch-create")
 async def batch_create_test_cases(
     request: BatchCreateRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     批量创建测试用例（含步骤和测试数据，单事务）
 
     所有用例在同一事务中创建，任一失败则全部回滚，保证数据一致性。
-
-    请求参数(BatchCreateRequest):
-        - cases: TestCaseCreate列表（最多200个）
-    响应格式:
-        - success_count: 成功创建数量
-        - fail_count: 失败数量
-        - created_ids: 成功创建的用例ID列表
-        - errors: 失败详情列表
-    权限要求: 需要Bearer令牌认证
     """
     if not request.cases:
         return create_response(data={
@@ -82,13 +76,14 @@ async def batch_create_test_cases(
             "message": "没有需要创建的用例",
         })
 
-    # 验证所有用例的项目归属
     project_ids = {tc.project_id for tc in request.cases}
-    authorized_projects = db.query(Project.id).filter(
-        Project.id.in_(project_ids),
-        Project.user_id == current_user.id,
-    ).all()
-    authorized_project_ids = {p[0] for p in authorized_projects}
+    auth_result = await db.execute(
+        select(Project.id).where(
+            Project.id.in_(project_ids),
+            Project.user_id == current_user.id,
+        )
+    )
+    authorized_project_ids = set(auth_result.scalars().all())
 
     unauthorized = project_ids - authorized_project_ids
     if unauthorized:
@@ -102,7 +97,6 @@ async def batch_create_test_cases(
         })
 
     created_ids: list[int] = []
-    errors: list[str] = []
 
     try:
         for test_case in request.cases:
@@ -128,13 +122,13 @@ async def batch_create_test_cases(
             )
 
             db.add(new_test_case)
-            db.flush()
+            await db.flush()
 
-            create_steps_and_test_data(test_case, new_test_case.id, db)
+            await create_steps_and_test_data(test_case, new_test_case.id, db)
 
             created_ids.append(new_test_case.id)
 
-        db.commit()
+        await db.commit()
         logger.info(
             f"[批量创建] 用户ID={current_user.id}, 用户名={current_user.username}, "
             f"成功创建{len(created_ids)}个用例, IDs={created_ids}"
@@ -148,7 +142,7 @@ async def batch_create_test_cases(
             "message": f"全部创建成功，共 {len(created_ids)} 条",
         })
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"[批量创建] 事务回滚: {e}")
         return create_response(data={
             "success_count": len(created_ids),
@@ -193,41 +187,37 @@ class BatchDeleteRequest(BaseModel):
 @router.post("/batch-restore")
 async def batch_restore_test_cases(
     request: BatchRestoreRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     批量恢复已删除的测试用例
+
     将已软删除的用例恢复为正常状态，清除删除时间标记。
     单次最多恢复500个用例。
-
-    请求参数(BatchRestoreRequest):
-        - caseIds: 用例ID列表（最多500个）
-    响应格式:
-        - success_count: 成功恢复数量
-        - fail_count: 失败数量
-        - not_found_ids: 未找到的用例ID列表
-    权限要求: 需要Bearer令牌认证，只允许恢复自己项目的用例
     """
     case_ids = request.caseIds
-    success_count = 0
-    fail_count = 0
-    not_found_ids = []
 
-    # 只恢复属于当前用户项目的已删除用例
-    deleted_cases_query = db.query(TestCase).join(Project).filter(
-        TestCase.id.in_(case_ids),
-        TestCase.is_deleted == True,
-        Project.user_id == current_user.id
+    query = (
+        select(TestCase)
+        .join(Project)
+        .where(
+            TestCase.id.in_(case_ids),
+            TestCase.is_deleted.is_(True),
+            Project.user_id == current_user.id,
+        )
     )
     if request.project_id:
-        deleted_cases_query = deleted_cases_query.filter(TestCase.project_id == request.project_id)
+        query = query.where(TestCase.project_id == request.project_id)
 
-    deleted_cases = deleted_cases_query.all()
+    result = await db.execute(query)
+    deleted_cases = result.scalars().all()
 
     existing_ids = {case.id for case in deleted_cases}
-    not_found_ids = [id for id in case_ids if id not in existing_ids]
+    not_found_ids = [cid for cid in case_ids if cid not in existing_ids]
 
+    success_count = 0
+    fail_count = 0
     restored_case_ids = []
     for test_case in deleted_cases:
         try:
@@ -239,7 +229,7 @@ async def batch_restore_test_cases(
             logger.error(f"恢复用例 {test_case.id} 失败: {e}")
             fail_count += 1
 
-    db.commit()
+    await db.commit()
 
     logger.info(
         f"[批量恢复] 用户ID={current_user.id}, 用户名={current_user.username}, "
@@ -260,41 +250,37 @@ async def batch_restore_test_cases(
 @router.post("/batch-delete")
 async def batch_delete_test_cases(
     request: BatchDeleteRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     批量软删除测试用例
+
     将指定用例标记为已删除（is_deleted=True），记录删除时间。
     单次最多删除500个用例。已删除的用例可通过批量恢复接口恢复。
-
-    请求参数(BatchDeleteRequest):
-        - caseIds: 用例ID列表（最多500个）
-    响应格式:
-        - success_count: 成功删除数量
-        - fail_count: 失败数量
-        - not_found_ids: 未找到的用例ID列表
-    权限要求: 需要Bearer令牌认证，只允许删除自己项目的用例
     """
     case_ids = request.caseIds
-    success_count = 0
-    fail_count = 0
-    not_found_ids = []
 
-    # 只删除属于当前用户项目的用例
-    existing_cases_query = db.query(TestCase).join(Project).filter(
-        TestCase.id.in_(case_ids),
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
+    query = (
+        select(TestCase)
+        .join(Project)
+        .where(
+            TestCase.id.in_(case_ids),
+            TestCase.is_deleted.is_(False),
+            Project.user_id == current_user.id,
+        )
     )
     if request.project_id:
-        existing_cases_query = existing_cases_query.filter(TestCase.project_id == request.project_id)
+        query = query.where(TestCase.project_id == request.project_id)
 
-    existing_cases = existing_cases_query.all()
+    result = await db.execute(query)
+    existing_cases = result.scalars().all()
 
     existing_ids = {case.id for case in existing_cases}
-    not_found_ids = [id for id in case_ids if id not in existing_ids]
+    not_found_ids = [cid for cid in case_ids if cid not in existing_ids]
 
+    success_count = 0
+    fail_count = 0
     deleted_case_ids = []
     for test_case in existing_cases:
         try:
@@ -306,7 +292,7 @@ async def batch_delete_test_cases(
             logger.error(f"删除用例 {test_case.id} 失败: {e}")
             fail_count += 1
 
-    db.commit()
+    await db.commit()
 
     logger.info(
         f"[批量删除] 用户ID={current_user.id}, 用户名={current_user.username}, "

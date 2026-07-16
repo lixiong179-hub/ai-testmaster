@@ -1,5 +1,5 @@
 """
-测试用例CRUD端点模块
+测试用例CRUD端点模块（async 版本）
 
 本模块定义测试用例的基础增删改查API端点，包括单条操作。
 
@@ -15,19 +15,18 @@
 
 权限要求: 所有端点需要Bearer令牌认证
 
-业务说明:
-    - 创建用例时同步创建步骤和测试数据记录
-    - 更新用例时若步骤变更，先删除旧步骤再重建
-    - 删除为软删除（is_deleted标记），支持批量恢复
-    - 用例编号自动生成，格式: CASE{project_id}-{时间戳}
+迁移说明（P0 服务 async 化）:
+    消除所有 db.run_sync() 包裹，内联 DB 操作改为 select() + await db.execute()。
+    create_steps_and_test_data 改为 async，供本模块与 test_case_crud_batch 共享。
 """
-from typing import Optional
-from app.utils.db_time import utcnow
 import json
+from typing import Optional
+
+from app.utils.db_time import utcnow
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy import delete, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.schemas.test_case import (
     TestCaseCreate, TestCaseUpdate, TestCaseListResponse,
 )
@@ -53,7 +52,10 @@ def merge_test_data_to_steps(test_case: TestCaseCreate) -> list:
     return steps_list
 
 
-def create_steps_and_test_data(test_case: TestCaseCreate, new_test_case_id: int, db: Session) -> None:
+async def create_steps_and_test_data(
+    test_case: TestCaseCreate, new_test_case_id: int, db: AsyncSession
+) -> None:
+    """创建用例步骤与关联测试数据（async 版本，供 crud 与 batch 端点共享）。"""
     for i, step_data in enumerate(test_case.steps or []):
         step = TestStep(
             test_case_id=new_test_case_id,
@@ -67,7 +69,7 @@ def create_steps_and_test_data(test_case: TestCaseCreate, new_test_case_id: int,
             is_technical_view=1
         )
         db.add(step)
-        db.flush()
+        await db.flush()
 
         step_test_data = step_data.test_data if hasattr(step_data, 'test_data') and step_data.test_data else None
         if step_test_data and isinstance(step_test_data, list):
@@ -106,51 +108,67 @@ def create_steps_and_test_data(test_case: TestCaseCreate, new_test_case_id: int,
 @router.post("/")
 async def create_test_case(
     test_case: TestCaseCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """创建测试用例（含步骤和测试数据，编号自动生成）"""
-    # 验证用户对项目的访问权限
-    project = db.query(Project).filter(
-        Project.id == test_case.project_id,
-        Project.user_id == current_user.id
-    ).first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
+    try:
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == test_case.project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+        project = project_result.scalar_one_or_none()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此项目"
+            )
+
+        case_no = test_case.case_no
+        if not case_no:
+            case_no = await CaseNumberService.generate_async(test_case.project_id, db)
+
+        new_test_case = TestCase(
+            project_id=test_case.project_id,
+            case_no=case_no,
+            module=test_case.module,
+            title=test_case.title,
+            precondition=test_case.precondition,
+            steps_json=merge_test_data_to_steps(test_case),
+            expected_result=test_case.expected_result,
+            priority=test_case.priority,
+            case_type=test_case.case_type,
+            exec_script=test_case.exec_script,
+            generate_status=test_case.generate_status,
+            lifecycle_status=test_case.lifecycle_status,
+            test_point_id=test_case.test_point_id,
+            summary=test_case.summary,
+            summary_model_version=test_case.summary_model_version,
+            parent_case_id=test_case.parent_case_id,
+            ai_change_type=test_case.ai_change_type,
+            test_category=test_case.test_category if test_case.test_category else None,
         )
 
-    new_test_case = TestCase(
-        project_id=test_case.project_id,
-        case_no=test_case.case_no if test_case.case_no else CaseNumberService.generate(test_case.project_id, db),
-        module=test_case.module,
-        title=test_case.title,
-        precondition=test_case.precondition,
-        steps_json=merge_test_data_to_steps(test_case),
-        expected_result=test_case.expected_result,
-        priority=test_case.priority,
-        case_type=test_case.case_type,
-        exec_script=test_case.exec_script,
-        generate_status=test_case.generate_status,
-        lifecycle_status=test_case.lifecycle_status,
-        test_point_id=test_case.test_point_id,
-        summary=test_case.summary,
-        summary_model_version=test_case.summary_model_version,
-        parent_case_id=test_case.parent_case_id,
-        ai_change_type=test_case.ai_change_type,
-        test_category=test_case.test_category if test_case.test_category else None
-    )
+        db.add(new_test_case)
+        await db.flush()
 
-    db.add(new_test_case)
-    db.flush()
+        await create_steps_and_test_data(test_case, new_test_case.id, db)
 
-    create_steps_and_test_data(test_case, new_test_case.id, db)
+        await db.commit()
+        await db.refresh(new_test_case)
 
-    db.commit()
-    db.refresh(new_test_case)
-
-    return create_response(data=build_test_case_response(new_test_case))
+        return create_response(data=build_test_case_response(new_test_case))
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"创建测试用例失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="创建测试用例失败"
+        )
 
 
 @router.get("/")
@@ -168,88 +186,109 @@ async def get_test_cases(
     sort_order: Optional[str] = Query(default="desc", pattern="^(asc|desc)$", description="排序方向"),
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=500, description="每页数量"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """查询测试用例列表（分页，按项目/需求文件筛选，排除已删除，只返回用户有权访问的项目的用例）"""
-    authorized_project_ids_query = db.query(Project.id).filter(
-        Project.user_id == current_user.id
-    )
-
-    query = db.query(TestCase).filter(TestCase.is_deleted.is_(False))
-
-    # 限制只查询用户有权访问的项目
-    query = query.filter(TestCase.project_id.in_(authorized_project_ids_query))
-
-    if project_id:
-        # 额外验证项目ID是否属于当前用户
-        project_access = db.query(Project.id).filter(
-            Project.id == project_id,
+    effective_lifecycle_status = lifecycle_status or status_filter
+    try:
+        authorized_subquery = select(Project.id).where(
             Project.user_id == current_user.id
-        ).first()
-        if not project_access:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限访问此项目"
+        )
+
+        conditions = [
+            TestCase.is_deleted.is_(False),
+            TestCase.project_id.in_(authorized_subquery),
+        ]
+
+        if project_id:
+            project_access_result = await db.execute(
+                select(Project.id).where(
+                    Project.id == project_id,
+                    Project.user_id == current_user.id,
+                )
             )
-        query = query.filter(TestCase.project_id == project_id)
-    if requirement_file_id:
-        query = query.filter(TestCase.requirement_file_id == requirement_file_id)
-    if module:
-        query = query.filter(TestCase.module == module)
-    if priority is not None:
-        query = query.filter(TestCase.priority == priority)
-    if case_type:
-        query = query.filter(TestCase.case_type == case_type)
-    if target_device:
-        if target_device == "general":
-            query = query.filter(TestCase.target_device.is_(None))
-        else:
-            query = query.filter(TestCase.target_device == target_device)
-    if keyword:
-        keyword_like = f"%{keyword.strip()}%"
-        query = query.filter(or_(TestCase.title.like(keyword_like), TestCase.case_no.like(keyword_like), TestCase.module.like(keyword_like)))
-    if status_filter and not lifecycle_status:
-        lifecycle_status = status_filter
-    if lifecycle_status:
-        valid_statuses = {s.value for s in TestCaseLifecycleStatus}
-        statuses = [s.strip() for s in lifecycle_status.split(",") if s.strip()]
-        invalid = [s for s in statuses if s not in valid_statuses]
-        if invalid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"无效的生命周期状态: {', '.join(invalid)}",
+            if not project_access_result.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="无权限访问此项目"
+                )
+            conditions.append(TestCase.project_id == project_id)
+        if requirement_file_id:
+            conditions.append(TestCase.requirement_file_id == requirement_file_id)
+        if module:
+            conditions.append(TestCase.module == module)
+        if priority is not None:
+            conditions.append(TestCase.priority == priority)
+        if case_type:
+            conditions.append(TestCase.case_type == case_type)
+        if target_device:
+            if target_device == "general":
+                conditions.append(TestCase.target_device.is_(None))
+            else:
+                conditions.append(TestCase.target_device == target_device)
+        if keyword:
+            keyword_like = f"%{keyword.strip()}%"
+            conditions.append(
+                or_(
+                    TestCase.title.like(keyword_like),
+                    TestCase.case_no.like(keyword_like),
+                    TestCase.module.like(keyword_like),
+                )
             )
-        if len(statuses) == 1:
-            query = query.filter(TestCase.lifecycle_status == statuses[0])
-        elif statuses:
-            query = query.filter(TestCase.lifecycle_status.in_(statuses))
+        if effective_lifecycle_status:
+            valid_statuses = {s.value for s in TestCaseLifecycleStatus}
+            statuses = [s.strip() for s in effective_lifecycle_status.split(",") if s.strip()]
+            invalid = [s for s in statuses if s not in valid_statuses]
+            if invalid:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"无效的生命周期状态: {', '.join(invalid)}",
+                )
+            if len(statuses) == 1:
+                conditions.append(TestCase.lifecycle_status == statuses[0])
+            elif statuses:
+                conditions.append(TestCase.lifecycle_status.in_(statuses))
 
-    offset = (page - 1) * page_size
+        offset = (page - 1) * page_size
 
-    total = query.count()
-    automated = query.filter(TestCase.case_type.in_(["ui_automation", "api_automation"])).count()
-    manual = query.filter(TestCase.case_type == "manual").count()
-    high_priority = query.filter(TestCase.priority == 1).count()
+        total = (await db.execute(
+            select(func.count()).select_from(TestCase).where(*conditions)
+        )).scalar() or 0
 
-    sort_columns = {
-        "create_time": TestCase.create_time,
-        "update_time": TestCase.update_time,
-        "priority": TestCase.priority,
-        "title": TestCase.title,
-    }
-    sort_column = sort_columns.get(sort_by or "create_time", TestCase.create_time)
-    if sort_order == "asc":
-        query = query.order_by(sort_column.asc())
-    else:
-        query = query.order_by(sort_column.desc())
+        automated_conditions = conditions + [
+            TestCase.case_type.in_(["ui_automation", "api_automation"])
+        ]
+        automated = (await db.execute(
+            select(func.count()).select_from(TestCase).where(*automated_conditions)
+        )).scalar() or 0
 
-    test_cases = query.offset(offset).limit(page_size).all()
+        manual_conditions = conditions + [TestCase.case_type == "manual"]
+        manual = (await db.execute(
+            select(func.count()).select_from(TestCase).where(*manual_conditions)
+        )).scalar() or 0
 
-    items = [build_test_case_response(tc) for tc in test_cases]
+        high_priority_conditions = conditions + [TestCase.priority == 1]
+        high_priority = (await db.execute(
+            select(func.count()).select_from(TestCase).where(*high_priority_conditions)
+        )).scalar() or 0
 
-    return create_response(
-        data=TestCaseListResponse(
+        sort_columns = {
+            "create_time": TestCase.create_time,
+            "update_time": TestCase.update_time,
+            "priority": TestCase.priority,
+            "title": TestCase.title,
+        }
+        sort_column = sort_columns.get(sort_by or "create_time", TestCase.create_time)
+        order_clause = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+
+        result = await db.execute(
+            select(TestCase).where(*conditions).order_by(order_clause).offset(offset).limit(page_size)
+        )
+        test_cases = result.scalars().all()
+        items = [build_test_case_response(tc) for tc in test_cases]
+
+        data = TestCaseListResponse(
             total=total,
             items=items,
             page=page,
@@ -260,55 +299,77 @@ async def get_test_cases(
                 "manual": manual,
                 "high_priority": high_priority,
             }
+        ).model_dump()
+
+        return create_response(data=data)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"查询测试用例列表失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="查询测试用例列表失败"
         )
-    )
 
 
 @router.get("/{test_case_id}")
 async def get_test_case(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取测试用例详情（含步骤和测试数据，只允许访问用户有权访问的项目的用例）"""
-    # 先验证用例所属项目是否属于当前用户
-    test_case = db.query(TestCase).join(Project).filter(
-        TestCase.id == test_case_id,
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
-    ).first()
-    
-    if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
+    try:
+        result = await db.execute(
+            select(TestCase).join(Project).where(
+                TestCase.id == test_case_id,
+                TestCase.is_deleted.is_(False),
+                Project.user_id == current_user.id,
+            )
         )
+        test_case = result.scalar_one_or_none()
 
-    return create_response(data=build_test_case_response(test_case))
+        if not test_case:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="测试用例不存在"
+            )
+
+        return create_response(data=build_test_case_response(test_case))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取测试用例详情失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取测试用例详情失败"
+        )
 
 
 @router.put("/{test_case_id}")
 async def update_test_case(
     test_case_id: int,
     test_case_update: TestCaseUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """更新测试用例（部分更新，步骤变更时重建，只允许操作用户有权访问的项目的用例）"""
-    # 先验证用例所属项目是否属于当前用户
-    test_case = db.query(TestCase).join(Project).filter(
-        TestCase.id == test_case_id,
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
-    ).first()
-    
-    if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
-
     try:
+        result = await db.execute(
+            select(TestCase).join(Project).where(
+                TestCase.id == test_case_id,
+                TestCase.is_deleted.is_(False),
+                Project.user_id == current_user.id,
+            )
+        )
+        test_case = result.scalar_one_or_none()
+
+        if not test_case:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="测试用例不存在"
+            )
+
         update_data = test_case_update.model_dump(exclude_unset=True)
 
         steps_data = None
@@ -320,10 +381,12 @@ async def update_test_case(
         for field, value in update_data.items():
             setattr(test_case, field, value)
 
-        db.flush()
+        await db.flush()
 
         if steps_data is not None:
-            db.query(TestStep).filter(TestStep.test_case_id == test_case_id).delete()
+            await db.execute(
+                delete(TestStep).where(TestStep.test_case_id == test_case_id)
+            )
 
             for i, step_data in enumerate(steps_data):
                 step = TestStep(
@@ -339,12 +402,14 @@ async def update_test_case(
                 )
                 db.add(step)
 
-        db.commit()
-        db.refresh(test_case)
+        await db.commit()
+        await db.refresh(test_case)
 
         return create_response(data=build_test_case_response(test_case))
+    except HTTPException:
+        raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"更新测试用例失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -356,29 +421,44 @@ async def update_test_case(
 async def delete_test_case(
     test_case_id: int,
     project_id: Optional[int] = Query(default=None, description="项目ID"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """软删除测试用例（is_deleted标记，可批量恢复）"""
-    query = db.query(TestCase).join(Project).filter(
-        TestCase.id == test_case_id,
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
-    )
-    if project_id:
-        query = query.filter(TestCase.project_id == project_id)
-
-    test_case = query.first()
-    if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
+    try:
+        query = (
+            select(TestCase)
+            .join(Project)
+            .where(
+                TestCase.id == test_case_id,
+                TestCase.is_deleted.is_(False),
+                Project.user_id == current_user.id,
+            )
         )
+        if project_id:
+            query = query.where(TestCase.project_id == project_id)
 
-    test_case.is_deleted = True
-    test_case.deleted_at = utcnow()
-    db.commit()
+        result = await db.execute(query)
+        test_case = result.scalar_one_or_none()
+        if not test_case:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="测试用例不存在"
+            )
 
-    logger.info(f"[删除用例] 用户ID={current_user.id}, 用户名={current_user.username}, 用例ID={test_case_id}")
+        test_case.is_deleted = True
+        test_case.deleted_at = utcnow()
+        await db.commit()
 
-    return {"message": "测试用例已删除"}
+        logger.info(f"[删除用例] 用户ID={current_user.id}, 用户名={current_user.username}, 用例ID={test_case_id}")
+
+        return {"message": "测试用例已删除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"删除测试用例失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="删除测试用例失败"
+        )

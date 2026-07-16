@@ -41,7 +41,7 @@ def _build_test_case_payload(projectId: int, **overrides) -> dict:
 class TestCreateTestCase:
     def test_create_test_case_normal(self, client, authHeaders, testProject):
         response = client.post(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             json=_build_test_case_payload(testProject.id),
             headers=authHeaders,
         )
@@ -52,7 +52,7 @@ class TestCreateTestCase:
     def test_create_test_case_with_case_no(self, client, authHeaders, testProject):
         caseNo = f"API-CASE-{uuid.uuid4().hex[:8]}"
         response = client.post(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             json=_build_test_case_payload(testProject.id, case_no=caseNo),
             headers=authHeaders,
         )
@@ -67,7 +67,7 @@ class TestCreateTestCase:
             "data_value": "admin",
         }
         response = client.post(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             json=payload,
             headers=authHeaders,
         )
@@ -76,14 +76,14 @@ class TestCreateTestCase:
 
     def test_create_test_case_no_auth(self, client, testProject):
         response = client.post(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             json=_build_test_case_payload(testProject.id),
         )
         assertResponseUnauthorized(response)
 
     def test_create_test_case_with_test_category(self, client, authHeaders, testProject):
         response = client.post(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             json=_build_test_case_payload(testProject.id, test_category="ui_automation"),
             headers=authHeaders,
         )
@@ -93,7 +93,7 @@ class TestCreateTestCase:
     def test_create_test_case_boundary_priority(self, client, authHeaders, testProject):
         for priority in [1, 2, 3]:
             response = client.post(
-                "/api/v1/testCase/",
+                "/api/v1/test-case/",
                 json=_build_test_case_payload(testProject.id, priority=priority),
                 headers=authHeaders,
             )
@@ -104,7 +104,7 @@ class TestCreateTestCase:
 class TestGetTestCases:
     def test_get_test_cases_normal(self, client, authHeaders, testProject):
         response = client.get(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             headers=authHeaders,
         )
         data = assertResponseSuccess(response)
@@ -113,7 +113,7 @@ class TestGetTestCases:
 
     def test_get_test_cases_with_project_filter(self, client, authHeaders, testProject):
         response = client.get(
-            f"/api/v1/testCase/?project_id={testProject.id}",
+            f"/api/v1/test-case/?project_id={testProject.id}",
             headers=authHeaders,
         )
         data = assertResponseSuccess(response)
@@ -121,14 +121,14 @@ class TestGetTestCases:
 
     def test_get_test_cases_pagination(self, client, authHeaders, testProject):
         response = client.get(
-            "/api/v1/testCase/?page=1&page_size=5",
+            "/api/v1/test-case/?page=1&page_size=5",
             headers=authHeaders,
         )
         data = assertResponseSuccess(response)
         assertFieldExists(data, "items")
 
     def test_get_test_cases_no_auth(self, client):
-        response = client.get("/api/v1/testCase/")
+        response = client.get("/api/v1/test-case/")
         assertResponseUnauthorized(response)
 
 
@@ -136,7 +136,7 @@ class TestGetTestCase:
     def test_get_test_case_normal(self, client, authHeaders, db, testProject):
         testCase = createTestTestCase(db=db, projectId=testProject.id, title="api get case")
         response = client.get(
-            f"/api/v1/testCase/{testCase.id}",
+            f"/api/v1/test-case/{testCase.id}",
             headers=authHeaders,
         )
         data = assertResponseSuccess(response)
@@ -144,14 +144,14 @@ class TestGetTestCase:
 
     def test_get_test_case_nonexistent(self, client, authHeaders):
         response = client.get(
-            "/api/v1/testCase/99999",
+            "/api/v1/test-case/99999",
             headers=authHeaders,
         )
         assertResponseError(response, expectedStatus=404)
 
     def test_get_test_case_no_auth(self, client, db, testProject):
         testCase = createTestTestCase(db=db, projectId=testProject.id)
-        response = client.get(f"/api/v1/testCase/{testCase.id}")
+        response = client.get(f"/api/v1/test-case/{testCase.id}")
         assertResponseUnauthorized(response)
 
 
@@ -159,7 +159,7 @@ class TestUpdateTestCase:
     def test_update_test_case_normal(self, client, authHeaders, db, testProject):
         testCase = createTestTestCase(db=db, projectId=testProject.id, title="original title")
         response = client.put(
-            f"/api/v1/testCase/{testCase.id}",
+            f"/api/v1/test-case/{testCase.id}",
             json={"title": "updated title", "priority": 1},
             headers=authHeaders,
         )
@@ -174,7 +174,7 @@ class TestUpdateTestCase:
             {"action": "verify text", "expected_result": "text visible", "action_type": "verify"},
         ]
         response = client.put(
-            f"/api/v1/testCase/{testCase.id}",
+            f"/api/v1/test-case/{testCase.id}",
             json={"steps": newSteps},
             headers=authHeaders,
         )
@@ -183,7 +183,7 @@ class TestUpdateTestCase:
 
     def test_update_test_case_nonexistent(self, client, authHeaders):
         response = client.put(
-            "/api/v1/testCase/99999",
+            "/api/v1/test-case/99999",
             json={"title": "should not update"},
             headers=authHeaders,
         )
@@ -192,7 +192,7 @@ class TestUpdateTestCase:
     def test_update_test_case_no_auth(self, client, db, testProject):
         testCase = createTestTestCase(db=db, projectId=testProject.id)
         response = client.put(
-            f"/api/v1/testCase/{testCase.id}",
+            f"/api/v1/test-case/{testCase.id}",
             json={"title": "should not update"},
         )
         assertResponseUnauthorized(response)
@@ -200,7 +200,7 @@ class TestUpdateTestCase:
     def test_update_test_case_module(self, client, authHeaders, db, testProject):
         testCase = createTestTestCase(db=db, projectId=testProject.id)
         response = client.put(
-            f"/api/v1/testCase/{testCase.id}",
+            f"/api/v1/test-case/{testCase.id}",
             json={"module": "updated_module"},
             headers=authHeaders,
         )
@@ -212,21 +212,21 @@ class TestDeleteTestCase:
     def test_delete_test_case_normal(self, client, authHeaders, db, testProject, testUser):
         testCase = createTestTestCase(db=db, projectId=testProject.id, title="to delete")
         response = client.delete(
-            f"/api/v1/testCase/{testCase.id}",
+            f"/api/v1/test-case/{testCase.id}",
             headers=authHeaders,
         )
         assert response.status_code == 200
 
     def test_delete_test_case_nonexistent(self, client, authHeaders):
         response = client.delete(
-            "/api/v1/testCase/99999",
+            "/api/v1/test-case/99999",
             headers=authHeaders,
         )
         assertResponseError(response, expectedStatus=404)
 
     def test_delete_test_case_no_auth(self, client, db, testProject):
         testCase = createTestTestCase(db=db, projectId=testProject.id)
-        response = client.delete(f"/api/v1/testCase/{testCase.id}")
+        response = client.delete(f"/api/v1/test-case/{testCase.id}")
         assertResponseUnauthorized(response)
 
 
@@ -235,7 +235,7 @@ class TestBatchDeleteTestCases:
         tc1 = createTestTestCase(db=db, projectId=testProject.id)
         tc2 = createTestTestCase(db=db, projectId=testProject.id)
         response = client.post(
-            "/api/v1/testCase/batch-delete",
+            "/api/v1/test-case/batch-delete",
             json={"caseIds": [tc1.id, tc2.id]},
             headers=authHeaders,
         )
@@ -244,7 +244,7 @@ class TestBatchDeleteTestCases:
 
     def test_batch_delete_nonexistent_ids(self, client, authHeaders):
         response = client.post(
-            "/api/v1/testCase/batch-delete",
+            "/api/v1/test-case/batch-delete",
             json={"caseIds": [99998, 99999]},
             headers=authHeaders,
         )
@@ -253,7 +253,7 @@ class TestBatchDeleteTestCases:
 
     def test_batch_delete_empty_list(self, client, authHeaders):
         response = client.post(
-            "/api/v1/testCase/batch-delete",
+            "/api/v1/test-case/batch-delete",
             json={"caseIds": []},
             headers=authHeaders,
         )
@@ -261,7 +261,7 @@ class TestBatchDeleteTestCases:
 
     def test_batch_delete_no_auth(self, client):
         response = client.post(
-            "/api/v1/testCase/batch-delete",
+            "/api/v1/test-case/batch-delete",
             json={"caseIds": [1]},
         )
         assertResponseUnauthorized(response)
@@ -279,7 +279,7 @@ class TestBatchRestoreTestCases:
         )
         db.flush()
         response = client.post(
-            "/api/v1/testCase/batch-restore",
+            "/api/v1/test-case/batch-restore",
             json={"caseIds": [tc1.id, tc2.id]},
             headers=authHeaders,
         )
@@ -289,7 +289,7 @@ class TestBatchRestoreTestCases:
     def test_batch_restore_non_deleted_cases(self, client, authHeaders, db, testProject, testUser):
         tc = createTestTestCase(db=db, projectId=testProject.id)
         response = client.post(
-            "/api/v1/testCase/batch-restore",
+            "/api/v1/test-case/batch-restore",
             json={"caseIds": [tc.id]},
             headers=authHeaders,
         )
@@ -298,7 +298,7 @@ class TestBatchRestoreTestCases:
 
     def test_batch_restore_nonexistent_ids(self, client, authHeaders):
         response = client.post(
-            "/api/v1/testCase/batch-restore",
+            "/api/v1/test-case/batch-restore",
             json={"caseIds": [99998, 99999]},
             headers=authHeaders,
         )
@@ -307,7 +307,7 @@ class TestBatchRestoreTestCases:
 
     def test_batch_restore_empty_list(self, client, authHeaders):
         response = client.post(
-            "/api/v1/testCase/batch-restore",
+            "/api/v1/test-case/batch-restore",
             json={"caseIds": []},
             headers=authHeaders,
         )
@@ -315,7 +315,7 @@ class TestBatchRestoreTestCases:
 
     def test_batch_restore_no_auth(self, client):
         response = client.post(
-            "/api/v1/testCase/batch-restore",
+            "/api/v1/test-case/batch-restore",
             json={"caseIds": [1]},
         )
         assertResponseUnauthorized(response)

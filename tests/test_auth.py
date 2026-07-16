@@ -146,8 +146,8 @@ class TestLoginEndpoint:
 
 class TestRegisterEndpoint:
 
-    def test_register_success(self, client):
-        response = client.post(
+    async def test_register_success(self, async_client):
+        response = await async_client.post(
             "/api/v1/auth/register",
             json={
                 "username": "reg_new_user",
@@ -162,11 +162,11 @@ class TestRegisterEndpoint:
         assert body["data"]["username"] == "reg_new_user"
         assert body["data"]["message"] == "注册成功"
 
-    def test_register_duplicate_username(self, client, testUser):
-        response = client.post(
+    async def test_register_duplicate_username(self, async_client, async_test_user):
+        response = await async_client.post(
             "/api/v1/auth/register",
             json={
-                "username": testUser.username,
+                "username": async_test_user.username,
                 "email": "another_email@test.com",
                 "password": "Pass@123456",
                 "confirm_password": "Pass@123456",
@@ -176,12 +176,12 @@ class TestRegisterEndpoint:
         body = response.json()
         assert "用户名已存在" in body["message"]
 
-    def test_register_duplicate_email(self, client, testUser):
-        response = client.post(
+    async def test_register_duplicate_email(self, async_client, async_test_user):
+        response = await async_client.post(
             "/api/v1/auth/register",
             json={
                 "username": "unique_new_user_xyz",
-                "email": testUser.email,
+                "email": async_test_user.email,
                 "password": "Pass@123456",
                 "confirm_password": "Pass@123456",
             },
@@ -190,8 +190,8 @@ class TestRegisterEndpoint:
         body = response.json()
         assert "邮箱已被注册" in body["message"]
 
-    def test_register_short_password(self, client):
-        response = client.post(
+    async def test_register_short_password(self, async_client):
+        response = await async_client.post(
             "/api/v1/auth/register",
             json={
                 "username": "short_pw_user",
@@ -202,8 +202,8 @@ class TestRegisterEndpoint:
         )
         assert response.status_code == 400
 
-    def test_register_password_mismatch(self, client):
-        response = client.post(
+    async def test_register_password_mismatch(self, async_client):
+        response = await async_client.post(
             "/api/v1/auth/register",
             json={
                 "username": "mismatch_user",
@@ -214,8 +214,8 @@ class TestRegisterEndpoint:
         )
         assert response.status_code == 400
 
-    def test_register_short_username(self, client):
-        response = client.post(
+    async def test_register_short_username(self, async_client):
+        response = await async_client.post(
             "/api/v1/auth/register",
             json={
                 "username": "ab",
@@ -272,16 +272,16 @@ class TestMeEndpoint:
 
 class TestCaptchaEndpoint:
 
-    def test_get_captcha(self, client):
-        response = client.get("/api/v1/auth/captcha")
+    async def test_get_captcha(self, async_client):
+        response = await async_client.get("/api/v1/auth/captcha")
         assert response.status_code == 200
         body = response.json()
         assert body["code"] == 200
         assert "captcha_id" in body["data"]
         assert "code" in body["data"]
 
-    def test_get_captcha_generate_alias(self, client):
-        response = client.get("/api/v1/auth/captcha/generate")
+    async def test_get_captcha_generate_alias(self, async_client):
+        response = await async_client.get("/api/v1/auth/captcha/generate")
         assert response.status_code == 200
         body = response.json()
         assert body["code"] == 200

@@ -10,7 +10,7 @@ export const versionApi = {
     page: number = 1,
     pageSize: number = 20
   ): Promise<CaseVersionPageResponse> => {
-    const response = await request.get(`/api/v1/testCase/${caseId}/versions`, {
+    const response = await request.get(`/api/v1/test-case/${caseId}/versions`, {
       params: { page, page_size: pageSize },
     })
     return extractResponseData<CaseVersionPageResponse>(
@@ -19,7 +19,7 @@ export const versionApi = {
   },
 
   getCaseVersionDetail: async (caseId: number, versionId: number): Promise<CaseVersionDetail> => {
-    const response = await request.get(`/api/v1/testCase/${caseId}/versions/${versionId}`)
+    const response = await request.get(`/api/v1/test-case/${caseId}/versions/${versionId}`)
     return extractResponseData<CaseVersionDetail>(
       response as unknown as ApiResponse<CaseVersionDetail> | CaseVersionDetail
     )
@@ -30,7 +30,7 @@ export const versionApi = {
     fromVersion: number,
     toVersion: number
   ): Promise<CaseVersionCompareResult> => {
-    const response = await request.get(`/api/v1/testCase/${caseId}/versions/compare`, {
+    const response = await request.get(`/api/v1/test-case/${caseId}/versions/compare`, {
       params: { from: fromVersion, to: toVersion },
     })
     return extractResponseData<CaseVersionCompareResult>(
@@ -39,7 +39,7 @@ export const versionApi = {
   },
 
   rollbackCaseVersion: async (caseId: number, versionId: number): Promise<TestCase> => {
-    const response = await request.post(`/api/v1/testCase/${caseId}/versions/${versionId}/restore`)
+    const response = await request.post(`/api/v1/test-case/${caseId}/versions/${versionId}/restore`)
     return extractResponseData<TestCase>(response as unknown as ApiResponse<TestCase> | TestCase)
   },
 }

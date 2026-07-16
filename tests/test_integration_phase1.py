@@ -426,7 +426,7 @@ class TestIntegrationPhase1(unittest.TestCase):
                 data = {'project_id': self.test_project.id}
                 try:
                     response = self.session.post(
-                        f"{API_BASE}/caseMigration/import-excel",
+                        f"{API_BASE}/case-migration/import-excel",
                         files=files,
                         data=data,
                         timeout=30,

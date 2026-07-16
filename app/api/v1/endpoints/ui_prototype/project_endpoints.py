@@ -21,8 +21,9 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Any, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_db
+from app.db.database import async_get_db, get_db
 from app.schemas.ui_prototype import UIPrototypeProjectCreate, FlowDataSaveRequest
 from app.models.user import User
 from app.models.project import Project
@@ -128,37 +129,36 @@ def _build_flow_summary(merged_flow: Any) -> dict[str, Any]:
 )
 async def create_prototype_project(
     project_data: UIPrototypeProjectCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project = (
-            db.query(Project)
-            .filter(
-                Project.id == project_data.project_id,
-                Project.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+        def _create(sync_db: Session):
+            project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == project_data.project_id,
+                    Project.user_id == current_user.id,
+                )
+                .first()
             )
 
-        db_project = ui_prototype_crud.create_ui_prototype_project(
-            db=db,
-            project_id=project_data.project_id,
-            name=project_data.name,
-            description=project_data.description,
-            source=project_data.source,
-            created_by=current_user.id,
-        )
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+                )
 
-        return create_response(
-            data=db_project,
-            msg="创建成功"
-        )
+            return ui_prototype_crud.create_ui_prototype_project(
+                db=sync_db,
+                project_id=project_data.project_id,
+                name=project_data.name,
+                description=project_data.description,
+                source=project_data.source,
+                created_by=current_user.id,
+            )
+
+        data = await db.run_sync(_create)
+        return create_response(data=data, msg="创建成功")
     except HTTPException:
         raise
     except Exception as e:
@@ -178,65 +178,67 @@ async def get_prototype_projects(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     iteration_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project = (
-            db.query(Project)
-            .filter(Project.id == project_id, Project.user_id == current_user.id)
-            .first()
-        )
-
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+        def _list(sync_db: Session):
+            project = (
+                sync_db.query(Project)
+                .filter(Project.id == project_id, Project.user_id == current_user.id)
+                .first()
             )
 
-        skip = (page - 1) * page_size
-        db_projects = ui_prototype_crud.get_ui_prototype_projects_by_project(
-            db=db,
-            project_id=project_id,
-            user_id=current_user.id,
-            skip=skip,
-            limit=page_size,
-            iteration_id=iteration_id,
-        )
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+                )
 
-        total = ui_prototype_crud.get_ui_prototype_projects_count(
-            db=db,
-            project_id=project_id,
-            user_id=current_user.id,
-            iteration_id=iteration_id,
-        )
+            skip = (page - 1) * page_size
+            db_projects = ui_prototype_crud.get_ui_prototype_projects_by_project(
+                db=sync_db,
+                project_id=project_id,
+                user_id=current_user.id,
+                skip=skip,
+                limit=page_size,
+                iteration_id=iteration_id,
+            )
 
-        items = []
-        for p in db_projects:
-            flow_summary = _build_flow_summary(p.merged_flow)
-            items.append({
-                "id": p.id,
-                "project_id": p.project_id,
-                "name": p.name,
-                "description": p.description,
-                "source": p.source,
-                "screen_count": p.screen_count,
-                "parsed_count": p.parsed_count,
-                "parse_status": p.parse_status,
-                "iteration_id": p.iteration_id,
-                "has_flow": flow_summary["has_flow"],
-                "flow_summary": flow_summary,
-                "create_time": p.create_time.isoformat() if p.create_time else None,
-                "update_time": p.update_time.isoformat() if p.update_time else None,
-            })
+            total = ui_prototype_crud.get_ui_prototype_projects_count(
+                db=sync_db,
+                project_id=project_id,
+                user_id=current_user.id,
+                iteration_id=iteration_id,
+            )
 
-        return create_response(
-            data={
+            items = []
+            for p in db_projects:
+                flow_summary = _build_flow_summary(p.merged_flow)
+                items.append({
+                    "id": p.id,
+                    "project_id": p.project_id,
+                    "name": p.name,
+                    "description": p.description,
+                    "source": p.source,
+                    "screen_count": p.screen_count,
+                    "parsed_count": p.parsed_count,
+                    "parse_status": p.parse_status,
+                    "iteration_id": p.iteration_id,
+                    "has_flow": flow_summary["has_flow"],
+                    "flow_summary": flow_summary,
+                    "create_time": p.create_time.isoformat() if p.create_time else None,
+                    "update_time": p.update_time.isoformat() if p.update_time else None,
+                })
+
+            return {
                 "items": items,
                 "total": total,
                 "page": page,
-                "page_size": page_size
+                "page_size": page_size,
             }
-        )
+
+        data = await db.run_sync(_list)
+        return create_response(data=data)
     except HTTPException:
         raise
     except Exception as e:
@@ -250,61 +252,65 @@ async def get_prototype_projects(
 @router.delete("/project/{prototype_project_id}", response_model=dict)
 async def delete_prototype_project(
     prototype_project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        proto_project = (
-            db.query(UIPrototypeProject)
-            .filter(UIPrototypeProject.id == prototype_project_id)
-            .first()
-        )
-
-        if not proto_project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
+        def _delete(sync_db: Session):
+            proto_project = (
+                sync_db.query(UIPrototypeProject)
+                .filter(UIPrototypeProject.id == prototype_project_id)
+                .first()
             )
 
-        db_project = (
-            db.query(Project)
-            .filter(
-                Project.id == proto_project.project_id,
-                Project.user_id == current_user.id,
+            if not proto_project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
+                )
+
+            db_project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == proto_project.project_id,
+                    Project.user_id == current_user.id,
+                )
+                .first()
             )
-            .first()
-        )
 
-        if not db_project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+            if not db_project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+                )
+
+            screens = (
+                sync_db.query(UIPrototypeScreen)
+                .filter(UIPrototypeScreen.prototype_project_id == prototype_project_id)
+                .all()
             )
 
-        screens = (
-            db.query(UIPrototypeScreen)
-            .filter(UIPrototypeScreen.prototype_project_id == prototype_project_id)
-            .all()
-        )
+            deleted_screens = 0
+            for screen in screens:
+                if screen.original_file_path and os.path.exists(
+                    screen.original_file_path
+                ):
+                    try:
+                        os.remove(screen.original_file_path)
+                    except OSError as e:
+                        logger.warning(
+                            f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}"
+                        )
+                sync_db.query(UIScreenTestCaseLink).filter(
+                    UIScreenTestCaseLink.screen_id == screen.id
+                ).delete()
+                sync_db.delete(screen)
+                deleted_screens += 1
 
-        deleted_screens = 0
-        for screen in screens:
-            if screen.original_file_path and os.path.exists(
-                screen.original_file_path
-            ):
-                try:
-                    os.remove(screen.original_file_path)
-                except OSError as e:
-                    logger.warning(
-                        f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}"
-                    )
-            db.query(UIScreenTestCaseLink).filter(
-                UIScreenTestCaseLink.screen_id == screen.id
-            ).delete()
-            db.delete(screen)
-            deleted_screens += 1
+            sync_db.delete(proto_project)
+            sync_db.commit()
 
-        db.delete(proto_project)
-        db.commit()
+            return deleted_screens
 
+        deleted_screens = await db.run_sync(_delete)
         return create_response(
             data={"deleted_screens": deleted_screens},
             msg=f"删除成功，共删除 {deleted_screens} 张图片"
@@ -312,7 +318,7 @@ async def delete_prototype_project(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"删除UI原型项目失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -324,7 +330,7 @@ async def delete_prototype_project(
 async def save_flow_data(
     project_id: int,
     flow_request: FlowDataSaveRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -343,24 +349,28 @@ async def save_flow_data(
                 detail="请求体项目ID与路径项目ID不一致",
             )
 
-        project = (
-            db.query(Project)
-            .filter(Project.id == project_id, Project.user_id == current_user.id)
-            .first()
-        )
-
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+        def _save(sync_db: Session):
+            project = (
+                sync_db.query(Project)
+                .filter(Project.id == project_id, Project.user_id == current_user.id)
+                .first()
             )
 
-        result: ProjectFlowData = save_project_flow_data(
-            db=db,
-            project_id=project_id,
-            flow_data=flow_request.flow_data,
-        )
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+                )
 
-        return create_response(data=_serialize_project_flow_data(result), msg="保存成功")
+            result: ProjectFlowData = save_project_flow_data(
+                db=sync_db,
+                project_id=project_id,
+                flow_data=flow_request.flow_data,
+            )
+
+            return _serialize_project_flow_data(result)
+
+        data = await db.run_sync(_save)
+        return create_response(data=data, msg="保存成功")
     except HTTPException:
         raise
     except Exception as e:
@@ -384,7 +394,7 @@ def _serialize_project_flow_data(pfd: ProjectFlowData) -> dict:
 @router.get("/flow/{project_id}", response_model=dict)
 async def get_flow_data(
     project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -394,24 +404,30 @@ async def get_flow_data(
     若存在已保存数据则返回完整数据，否则返回data=None及提示信息。
     """
     try:
-        project = (
-            db.query(Project)
-            .filter(Project.id == project_id, Project.user_id == current_user.id)
-            .first()
-        )
-
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+        def _get(sync_db: Session):
+            project = (
+                sync_db.query(Project)
+                .filter(Project.id == project_id, Project.user_id == current_user.id)
+                .first()
             )
 
-        result: Optional[ProjectFlowData] = get_project_flow_data(
-            db=db,
-            project_id=project_id,
-        )
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+                )
 
-        if result:
-            return create_response(data=_serialize_project_flow_data(result))
+            result: Optional[ProjectFlowData] = get_project_flow_data(
+                db=sync_db,
+                project_id=project_id,
+            )
+
+            if result:
+                return _serialize_project_flow_data(result)
+            return None
+
+        data = await db.run_sync(_get)
+        if data:
+            return create_response(data=data)
         else:
             return create_response(data=None, msg="暂无保存数据")
     except HTTPException:

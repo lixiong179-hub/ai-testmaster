@@ -5,12 +5,12 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from loguru import logger
 
 from app.ai.client import AIClient
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.pipeline_schemas import PipelineResumeRequest
@@ -49,64 +49,67 @@ def create_ai_client(model_name: Optional[str] = None) -> AIClient:
 async def resume_pipeline(
     run_id: int,
     body: PipelineResumeRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     """恢复暂停的 Pipeline。"""
-    try:
-        from app.services import pipeline_service
-        from app.pipelines.runner import PipelineRunner
-        from app.pipelines.context import PipelineContext
+    def _resume(sync_db):
+        try:
+            from app.services import pipeline_service
+            from app.pipelines.runner import PipelineRunner
+            from app.pipelines.context import PipelineContext
 
-        run = pipeline_service.get_run(db, run_id)
-        if not run:
-            raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
+            run = pipeline_service.get_run(sync_db, run_id)
+            if not run:
+                raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        if run.status != "waiting_for_user":
-            raise HTTPException(
-                status_code=400,
-                detail=f"Pipeline 状态 '{run.status}' 不允许恢复",
+            if run.status != "waiting_for_user":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Pipeline 状态 '{run.status}' 不允许恢复",
+                )
+
+            verify_iteration_access(sync_db, run.iteration_id, current_user)
+
+            pipeline_service.update_run_status(sync_db, run_id, "running")
+
+            ai_client = create_ai_client(None)
+
+            ctx = PipelineContext(
+                db=sync_db,
+                ai_client=ai_client,
+                run=run,
+                iteration_id=run.iteration_id,
+                user_id=current_user.id,
             )
 
-        verify_iteration_access(db, run.iteration_id, current_user)
+            if body.confirmation_payload:
+                ctx.set_confirmation_payload(body.confirmation_payload)
 
-        pipeline_service.update_run_status(db, run_id, "running")
+            from app.pipelines.scenarios import get_scenario_by_version
+            scenario_config = get_scenario_by_version(run.pipeline_version)
+            if not scenario_config:
+                raise HTTPException(status_code=500, detail="无法找到对应的 Pipeline 场景配置")
 
-        ai_client = create_ai_client(None)
+            runner = PipelineRunner(scenario_config["name"], scenario_config["steps"])
+            runner.run(ctx)
 
-        ctx = PipelineContext(
-            db=db,
-            ai_client=ai_client,
-            run=run,
-            iteration_id=run.iteration_id,
-            user_id=current_user.id,
-        )
+            sync_db.commit()
+            sync_db.refresh(run)
 
-        if body.confirmation_payload:
-            ctx.set_confirmation_payload(body.confirmation_payload)
+            return create_response(
+                data={
+                    "run_id": run.id,
+                    "status": run.status,
+                },
+                msg="Pipeline 已恢复",
+            )
 
-        from app.pipelines.scenarios import get_scenario_by_version
-        scenario_config = get_scenario_by_version(run.pipeline_version)
-        if not scenario_config:
-            raise HTTPException(status_code=500, detail="无法找到对应的 Pipeline 场景配置")
+        except HTTPException:
+            raise
+        except Exception as e:
+            sync_db.rollback()
+            logger.error("Pipeline 恢复失败: {}", e)
+            raise HTTPException(status_code=500, detail="Pipeline 恢复失败")
 
-        runner = PipelineRunner(scenario_config["name"], scenario_config["steps"])
-        runner.run(ctx)
-
-        db.commit()
-        db.refresh(run)
-
-        return create_response(
-            data={
-                "run_id": run.id,
-                "status": run.status,
-            },
-            msg="Pipeline 已恢复",
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error("Pipeline 恢复失败: {}", e)
-        raise HTTPException(status_code=500, detail="Pipeline 恢复失败")
+    return await db.run_sync(_resume)

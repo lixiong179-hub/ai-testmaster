@@ -289,7 +289,7 @@ describe('真实服务主流程 E2E', () => {
       if (created.taskId) {
         apiRequestDynamic<unknown>(() => ({
           method: 'DELETE',
-          url: `/api/v1/test_task/${created.taskId}`,
+          url: `/api/v1/test-task/${created.taskId}`,
           qs: { project_id: created.projectId },
         })).then((response) => {
           if (response.status >= 400) cleanupFailures.push(`task:${created.taskId}`)
@@ -488,7 +488,7 @@ describe('真实服务主流程 E2E', () => {
 
     apiRequestDynamic<{ id: number }>(() => ({
       method: 'POST',
-      url: '/api/v1/testCase/',
+      url: '/api/v1/test-case/',
       body: {
         project_id: created.projectId,
         module: 'E2E自测',
@@ -524,7 +524,7 @@ describe('真实服务主流程 E2E', () => {
 
     apiRequestDynamic<TaskCreateData>(() => ({
       method: 'POST',
-      url: '/api/v1/test_task/',
+      url: '/api/v1/test-task/',
       body: {
         project_id: created.projectId,
         task_name: `${e2eName}-真实执行反馈`,
@@ -538,7 +538,7 @@ describe('真实服务主流程 E2E', () => {
 
     apiRequestDynamic<unknown>(() => ({
       method: 'POST',
-      url: `/api/v1/test_task/${created.taskId}/start`,
+      url: `/api/v1/test-task/${created.taskId}/start`,
       qs: { project_id: created.projectId },
       body: { execution_mode: 'smart' },
       timeout: 180000,

@@ -3,7 +3,7 @@ describe('Task 7: 执行过程可视化与视频录制 - 前端传参测试', ()
 
   const visitExecutionPage = (status = 'pending') => {
     cy.loginByApi()
-    cy.intercept('GET', `**/api/v1/test_task/${taskId}*`, {
+    cy.intercept('GET', `**/api/v1/test-task/${taskId}*`, {
       statusCode: 200,
       body: {
         code: 200,
@@ -36,7 +36,7 @@ describe('Task 7: 执行过程可视化与视频录制 - 前端传参测试', ()
         },
       },
     })
-    cy.intercept('GET', '**/api/v1/test_task/*/summary*', {
+    cy.intercept('GET', '**/api/v1/test-task/*/summary*', {
       statusCode: 200,
       body: {
         code: 200,

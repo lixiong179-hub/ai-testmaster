@@ -74,7 +74,8 @@ class TestGetReadDb:
         engine = create_engine("sqlite:///:memory:")
         TestSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-        with patch("app.db.database._session.SecondarySessionLocal", TestSession):
+        # 性能优化：secondary 引擎懒加载，测试改为 patch 工厂函数
+        with patch("app.db.database._session.get_secondary_session_local", return_value=TestSession):
             gen = get_read_db()
             db = next(gen)
             assert db is not None
@@ -86,8 +87,9 @@ class TestGetReadDb:
 
     def test_get_read_db_exception_rollback(self):
         mock_session = MagicMock()
+        mock_session_local = MagicMock(return_value=mock_session)
 
-        with patch("app.db.database._session.SecondarySessionLocal", return_value=mock_session):
+        with patch("app.db.database._session.get_secondary_session_local", return_value=mock_session_local):
             gen = get_read_db()
             db = next(gen)
             try:
@@ -122,16 +124,19 @@ class TestGetDbContext:
 class TestGetReadDbContext:
     def test_context_manager_success(self):
         mock_session = MagicMock()
+        mock_session_local = MagicMock(return_value=mock_session)
 
-        with patch("app.db.database._session.SecondarySessionLocal", return_value=mock_session):
+        # 性能优化：secondary 引擎懒加载，测试改为 patch 工厂函数
+        with patch("app.db.database._session.get_secondary_session_local", return_value=mock_session_local):
             with get_read_db_context() as db:
                 assert db is not None
             mock_session.close.assert_called_once()
 
     def test_context_manager_exception(self):
         mock_session = MagicMock()
+        mock_session_local = MagicMock(return_value=mock_session)
 
-        with patch("app.db.database._session.SecondarySessionLocal", return_value=mock_session):
+        with patch("app.db.database._session.get_secondary_session_local", return_value=mock_session_local):
             with pytest.raises(RuntimeError):
                 with get_read_db_context() as db:
                     raise RuntimeError("read context error")
@@ -208,3 +213,60 @@ class TestModuleLevelObjects:
 
     def test_secondary_session_local_exists(self):
         assert SecondarySessionLocal is not None
+
+
+# ==================== ModelBase 行为回归测试 ====================
+# 变更 1 消除了 _engine.py 的 Base.__init__ 猴子补丁，改为通过
+# declarative_base(cls=ModelBase, constructor=ModelBase.__init__) 注入。
+# 以下测试锁定 ModelBase 的四项构造期契约，防止未来重构破坏隐式约定。
+
+from sqlalchemy import Column as _MbColumn, Integer as _MbInteger, String as _MbString, Boolean as _MbBoolean, DateTime as _MbDateTime
+from app.utils.db_time import utcnow as _mb_utcnow
+
+
+class _ModelBaseDemo(Base):
+    """ModelBase 行为验证专用模型。
+
+    独立表名，不与业务表冲突；仅在测试中实例化，不持久化。
+    """
+    __tablename__ = "_test_modelbase_demo"
+    __test__ = False
+
+    id = _MbColumn(_MbInteger, primary_key=True)
+    name = _MbColumn(_MbString(50), nullable=False)
+    is_active = _MbColumn(_MbBoolean, default=False, nullable=False)
+    status = _MbColumn(_MbString(20), default="pending", nullable=False)
+    created_at = _MbColumn(_MbDateTime, default=_mb_utcnow)
+
+
+class TestModelBase:
+    """锁定 ModelBase 构造期行为，为变更 1（消除 Base.__init__ 猴子补丁）提供回归保护。
+
+    覆盖四项契约：
+    1. 非 callable 列默认值在实例化后立即可读（不等待 flush）。
+    2. callable 列默认值不在实例化时预填（由 SQLAlchemy 在 flush 时触发）。
+    3. 非列名 kwargs 通过 setattr 设置到实例，兼容历史调用约定。
+    4. 列名 kwargs 正常透传到 SQLAlchemy _declarative_constructor。
+    """
+
+    def test_non_callable_default_is_prefilled(self):
+        """非 callable 列默认值在实例化后立即可读，业务代码可在 add 前读取。"""
+        obj = _ModelBaseDemo(name="demo")
+        assert obj.is_active is False
+        assert obj.status == "pending"
+
+    def test_callable_default_not_prefilled(self):
+        """callable 列默认值不在实例化时预填，由 SQLAlchemy 在 flush 时触发。"""
+        obj = _ModelBaseDemo(name="demo")
+        assert obj.created_at is None
+
+    def test_extra_kwargs_set_via_setattr(self):
+        """非列名 kwargs 被 setattr 设置到实例，兼容历史调用约定。"""
+        obj = _ModelBaseDemo(name="demo", transient_flag="abc")
+        assert obj.transient_flag == "abc"
+
+    def test_column_kwargs_passed_through(self):
+        """列名 kwargs 正常透传到 SQLAlchemy _declarative_constructor。"""
+        obj = _ModelBaseDemo(name="demo", status="approved")
+        assert obj.name == "demo"
+        assert obj.status == "approved"

@@ -20,10 +20,11 @@ from typing import List, Optional
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 from loguru import logger
 
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.case_quality import CaseQualityAnalyzer
 from app.models.user import User
@@ -149,10 +150,13 @@ class StepEditRequest(BaseModel):
 @router.get("/cases/{case_id}/quality", response_model=QualityReportSchema)
 async def analyze_case_quality(
     case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    analyzer = CaseQualityAnalyzer(db)
+    def _create_analyzer(sync_db: Session):
+        return CaseQualityAnalyzer(sync_db)
+
+    analyzer = await db.run_sync(_create_analyzer)
 
     try:
         report = await analyzer.analyze_case_quality(case_id)
@@ -167,10 +171,13 @@ async def analyze_case_quality(
 @router.get("/projects/{project_id}/quality", response_model=ProjectQualitySummarySchema)
 async def analyze_project_quality(
     project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    analyzer = CaseQualityAnalyzer(db)
+    def _create_analyzer(sync_db: Session):
+        return CaseQualityAnalyzer(sync_db)
+
+    analyzer = await db.run_sync(_create_analyzer)
 
     try:
         summary = await analyzer.analyze_project_quality(project_id)
@@ -184,21 +191,26 @@ async def analyze_project_quality(
 async def get_case_quality_trend(
     case_id: int,
     days: int = Query(default=30, ge=1, le=365),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    from app.models.test_case import TestCase
-    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
+    def _prepare(sync_db: Session):
+        from app.models.test_case import TestCase
+        test_case = sync_db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
+        if not test_case:
+            return None, None
+        analyzer = CaseQualityAnalyzer(sync_db)
+        return test_case.project_id, analyzer
+
+    project_id, analyzer = await db.run_sync(_prepare)
+    if project_id is None:
         raise HTTPException(status_code=404, detail="测试用例不存在")
 
-    analyzer = CaseQualityAnalyzer(db)
-
     try:
-        trend = await analyzer.get_quality_trend(test_case.project_id, days)
+        trend = await analyzer.get_quality_trend(project_id, days)
         return {
             "case_id": case_id,
-            "project_id": test_case.project_id,
+            "project_id": project_id,
             "days": days,
             "trend": trend
         }
@@ -210,58 +222,64 @@ async def get_case_quality_trend(
 @router.post("/cases/{case_id}/optimize-locators")
 async def optimize_case_locators(
     case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    from app.models.test_case import TestCase, TestStep
-    from app.models.element_locator import ElementLocator
+    def _optimize(sync_db: Session):
+        from app.models.test_case import TestCase, TestStep
+        from app.models.element_locator import ElementLocator
 
-    test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
+        test_case = sync_db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
+        if not test_case:
+            raise HTTPException(status_code=404, detail="测试用例不存在")
 
-    steps = db.query(TestStep).filter(
-        TestStep.test_case_id == case_id
-    ).order_by(TestStep.step_number).all()
+        steps = sync_db.query(TestStep).filter(
+            TestStep.test_case_id == case_id
+        ).order_by(TestStep.step_number).all()
 
-    analyzer = CaseQualityAnalyzer(db)
-    coverage = analyzer._analyze_coverage(
-        steps, project_id=test_case.project_id, test_case=test_case
-    )
+        analyzer = CaseQualityAnalyzer(sync_db)
+        coverage = analyzer._analyze_coverage(
+            steps, project_id=test_case.project_id, test_case=test_case
+        )
 
-    steps_without_locator = []
-    for step in steps:
-        step_id = step.id if hasattr(step, 'id') else None
-        if step_id:
-            locator = db.query(ElementLocator).filter(
-                ElementLocator.step_id == step_id
-            ).first()
-            if not locator:
-                steps_without_locator.append({
-                    "step_id": step_id,
-                    "action": step.action if hasattr(step, 'action') else str(step),
-                    "target_element": step.target_element if hasattr(step, 'target_element') else ""
-                })
+        steps_without_locator = []
+        for step in steps:
+            step_id = step.id if hasattr(step, 'id') else None
+            if step_id:
+                locator = sync_db.query(ElementLocator).filter(
+                    ElementLocator.step_id == step_id
+                ).first()
+                if not locator:
+                    steps_without_locator.append({
+                        "step_id": step_id,
+                        "action": step.action if hasattr(step, 'action') else str(step),
+                        "target_element": step.target_element if hasattr(step, 'target_element') else ""
+                    })
 
-    return {
-        "case_id": case_id,
-        "current_coverage_rate": coverage.coverage_rate,
-        "total_elements": coverage.total_elements,
-        "covered_elements": coverage.covered_elements,
-        "steps_without_locator": len(steps_without_locator),
-        "steps_to_optimize": steps_without_locator,
-        "potential_savings": len(steps_without_locator) * 0.8,
-        "message": f"发现{len(steps_without_locator)}个步骤缺少元素定位，补充后可节省{len(steps_without_locator) * 0.8:.1f}单位成本"
-    }
+        return {
+            "case_id": case_id,
+            "current_coverage_rate": coverage.coverage_rate,
+            "total_elements": coverage.total_elements,
+            "covered_elements": coverage.covered_elements,
+            "steps_without_locator": len(steps_without_locator),
+            "steps_to_optimize": steps_without_locator,
+            "potential_savings": len(steps_without_locator) * 0.8,
+            "message": f"发现{len(steps_without_locator)}个步骤缺少元素定位，补充后可节省{len(steps_without_locator) * 0.8:.1f}单位成本"
+        }
+
+    return await db.run_sync(_optimize)
 
 
 @router.post("/batch-analyze")
 async def batch_analyze_cases(
     case_ids: List[int],
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    analyzer = CaseQualityAnalyzer(db)
+    def _create_analyzer(sync_db: Session):
+        return CaseQualityAnalyzer(sync_db)
+
+    analyzer = await db.run_sync(_create_analyzer)
 
     results = []
     for case_id in case_ids:

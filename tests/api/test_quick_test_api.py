@@ -1,4 +1,4 @@
-"""快速测试 API 端点集成测试（SubTask 9.7）。
+"""快速测试 API 端点集成测试（async 版本，SubTask 9.7）。
 
 覆盖范围：
 - POST /api/v1/quick-test/launch：启动成功、未鉴权 401、非法 URL 422、
@@ -8,8 +8,8 @@
 - 辅助函数：_derive_stage 全状态/进度分支、_build_status_response 边界、
   _PerUserRateLimiter acquire/隔离/清理/reset。
 
-测试策略：TestClient + 真实测试库（conftest 的 client/db/testUser/testProject/
-authHeaders fixtures），mock QuickLauncher（monkeypatch 端点模块符号）避免真实
+测试策略：async httpx.AsyncClient + 真实测试库（tests/api/conftest.py 的
+async fixture），mock QuickLauncher（monkeypatch 端点模块符号）避免真实
 浏览器探索与 AI 调用。限流器每个用例前后 reset，避免跨用例计数污染。
 """
 from datetime import datetime
@@ -66,8 +66,8 @@ def _successResponse():
     )
 
 
-def _makeTask(db, *, executor_id, project_id, status=TaskStatus.RUNNING,
-              progress=50, case_ids=None, start_time=None):
+async def _makeTask(async_db, *, executor_id, project_id, status=TaskStatus.RUNNING,
+                    progress=50, case_ids=None, start_time=None):
     """在测试库创建 TestTask 并 flush 取 id。"""
     ids = [1, 2] if case_ids is None else case_ids
     task = TestTask(
@@ -80,19 +80,19 @@ def _makeTask(db, *, executor_id, project_id, status=TaskStatus.RUNNING,
         progress=progress,
         start_time=start_time,
     )
-    db.add(task)
-    db.flush()
+    async_db.add(task)
+    await async_db.flush()
     return task
 
 
 class TestLaunch:
-    def test_launch_success(self, client, authHeaders, monkeypatch):
+    async def test_launch_success(self, async_auth_client, monkeypatch):
         _patchLauncher(monkeypatch, lambda *a: _successResponse())
-        resp = client.post(LAUNCH_URL, json={
+        resp = await async_auth_client.post(LAUNCH_URL, json={
             "url": "https://demo.playwright.dev/todomvc",
             "description": "重点测登录",
             "credentials": {"username": "u", "password": "p"},
-        }, headers=authHeaders)
+        })
         assert resp.status_code == 200
         data = resp.json()
         assert data == {
@@ -100,50 +100,50 @@ class TestLaunch:
             "estimated_duration_sec": 60, "websocket_channel": "quick_test:1",
         }
 
-    def test_launch_unauthorized(self, client):
-        resp = client.post(LAUNCH_URL, json={"url": "https://example.com"})
+    async def test_launch_unauthorized(self, async_client):
+        resp = await async_client.post(LAUNCH_URL, json={"url": "https://example.com"})
         assert resp.status_code == 401
 
-    def test_launch_invalid_url_returns_400(self, client, authHeaders, monkeypatch):
+    async def test_launch_invalid_url_returns_400(self, async_auth_client, monkeypatch):
         # spec 场景描述为 422，但项目全局 request_validation_exception_handler
         # 将 Pydantic schema 层校验错误统一转为 400（RESPONSE_CODE["VALIDATION_ERROR"]），
         # 此处遵循项目既有约定，422 偏差在完成报告中标注。
         _patchLauncher(monkeypatch, lambda *a: _successResponse())
-        resp = client.post(LAUNCH_URL, json={"url": "not-a-url"}, headers=authHeaders)
+        resp = await async_auth_client.post(LAUNCH_URL, json={"url": "not-a-url"})
         assert resp.status_code == 400
         body = resp.json()
         assert body["code"] == 400
         assert "errors" in body["data"]
 
-    def test_launch_value_error_returns_422(self, client, authHeaders, monkeypatch):
+    async def test_launch_value_error_returns_422(self, async_auth_client, monkeypatch):
         # 端点显式将 ValueError 转为 HTTPException(422)，http_exception_handler
         # 保留 status_code=422 并用统一响应体包装（msg 字段承载 detail）。
         def _raiseValueError(*a):
             raise ValueError("invalid url scheme")
         _patchLauncher(monkeypatch, _raiseValueError)
-        resp = client.post(LAUNCH_URL, json={"url": "https://example.com"}, headers=authHeaders)
+        resp = await async_auth_client.post(LAUNCH_URL, json={"url": "https://example.com"})
         assert resp.status_code == 422
         assert "invalid url scheme" in resp.json()["msg"]
 
-    def test_launch_service_error_returns_503(self, client, authHeaders, monkeypatch):
+    async def test_launch_service_error_returns_503(self, async_auth_client, monkeypatch):
         def _raiseRuntime(*a):
             raise RuntimeError("browser crashed")
         _patchLauncher(monkeypatch, _raiseRuntime)
-        resp = client.post(LAUNCH_URL, json={"url": "https://example.com"}, headers=authHeaders)
+        resp = await async_auth_client.post(LAUNCH_URL, json={"url": "https://example.com"})
         assert resp.status_code == 503
 
-    def test_launch_http_exception_passthrough(self, client, authHeaders, monkeypatch):
+    async def test_launch_http_exception_passthrough(self, async_auth_client, monkeypatch):
         # 编排层抛 HTTPException 时应原样透传，不被通用 503 分支吞掉
         def _raiseHttp(*a):
             raise HTTPException(status_code=400, detail="bad request")
         _patchLauncher(monkeypatch, _raiseHttp)
-        resp = client.post(LAUNCH_URL, json={"url": "https://example.com"}, headers=authHeaders)
+        resp = await async_auth_client.post(LAUNCH_URL, json={"url": "https://example.com"})
         assert resp.status_code == 400
 
-    def test_launch_rate_limit(self, client, authHeaders, monkeypatch):
+    async def test_launch_rate_limit(self, async_auth_client, monkeypatch):
         _patchLauncher(monkeypatch, lambda *a: _successResponse())
         codes = [
-            client.post(LAUNCH_URL, json={"url": "https://example.com"}, headers=authHeaders).status_code
+            (await async_auth_client.post(LAUNCH_URL, json={"url": "https://example.com"})).status_code
             for _ in range(11)
         ]
         assert codes[:10] == [200] * 10
@@ -151,10 +151,10 @@ class TestLaunch:
 
 
 class TestStatus:
-    def test_status_success_running(self, client, authHeaders, db, testUser, testProject):
-        task = _makeTask(db, executor_id=testUser.id, project_id=testProject.id,
-                         status=TaskStatus.RUNNING, progress=50, case_ids=[1, 2, 3])
-        resp = client.get(STATUS_URL.format(task_id=task.id), headers=authHeaders)
+    async def test_status_success_running(self, async_auth_client, async_db, async_test_user, async_test_project):
+        task = await _makeTask(async_db, executor_id=async_test_user.id, project_id=async_test_project.id,
+                              status=TaskStatus.RUNNING, progress=50, case_ids=[1, 2, 3])
+        resp = await async_auth_client.get(STATUS_URL.format(task_id=task.id))
         assert resp.status_code == 200
         data = resp.json()
         assert data["task_id"] == task.id
@@ -165,41 +165,41 @@ class TestStatus:
         assert data["websocket_channel"] == f"quick_test:{task.id}"
         assert data["started_at"] is None
 
-    def test_status_not_found(self, client, authHeaders):
-        resp = client.get(STATUS_URL.format(task_id=999999), headers=authHeaders)
+    async def test_status_not_found(self, async_auth_client):
+        resp = await async_auth_client.get(STATUS_URL.format(task_id=999999))
         assert resp.status_code == 404
 
-    def test_status_unauthorized(self, client):
-        resp = client.get(STATUS_URL.format(task_id=1))
+    async def test_status_unauthorized(self, async_client):
+        resp = await async_client.get(STATUS_URL.format(task_id=1))
         assert resp.status_code == 401
 
-    def test_status_other_user_task_returns_404(self, client, authHeaders, db, testUser, testProject):
+    async def test_status_other_user_task_returns_404(self, async_auth_client, async_db, async_test_project):
         other = User(
             username="qt_other", email="qt_other@test.com",
             password_hash=get_password_hash("x"), is_active=True,
         )
-        db.add(other)
-        db.flush()
-        task = _makeTask(db, executor_id=other.id, project_id=testProject.id)
-        resp = client.get(STATUS_URL.format(task_id=task.id), headers=authHeaders)
+        async_db.add(other)
+        await async_db.flush()
+        task = await _makeTask(async_db, executor_id=other.id, project_id=async_test_project.id)
+        resp = await async_auth_client.get(STATUS_URL.format(task_id=task.id))
         assert resp.status_code == 404
 
-    def test_status_pending_empty_cases(self, client, authHeaders, db, testUser, testProject):
-        task = _makeTask(db, executor_id=testUser.id, project_id=testProject.id,
-                        status=TaskStatus.PENDING, progress=0, case_ids=[])
-        resp = client.get(STATUS_URL.format(task_id=task.id), headers=authHeaders)
+    async def test_status_pending_empty_cases(self, async_auth_client, async_db, async_test_user, async_test_project):
+        task = await _makeTask(async_db, executor_id=async_test_user.id, project_id=async_test_project.id,
+                               status=TaskStatus.PENDING, progress=0, case_ids=[])
+        resp = await async_auth_client.get(STATUS_URL.format(task_id=task.id))
         assert resp.status_code == 200
         data = resp.json()
         assert data["case_count"] == 0
         assert data["current_stage"] == "pending"
         assert data["status"] == "等待执行"
 
-    def test_status_completed_with_start_time(self, client, authHeaders, db, testUser, testProject):
+    async def test_status_completed_with_start_time(self, async_auth_client, async_db, async_test_user, async_test_project):
         started = datetime(2026, 6, 27, 10, 30, 0)
-        task = _makeTask(db, executor_id=testUser.id, project_id=testProject.id,
-                        status=TaskStatus.COMPLETED, progress=100, case_ids=[1],
-                        start_time=started)
-        resp = client.get(STATUS_URL.format(task_id=task.id), headers=authHeaders)
+        task = await _makeTask(async_db, executor_id=async_test_user.id, project_id=async_test_project.id,
+                               status=TaskStatus.COMPLETED, progress=100, case_ids=[1],
+                               start_time=started)
+        resp = await async_auth_client.get(STATUS_URL.format(task_id=task.id))
         assert resp.status_code == 200
         data = resp.json()
         assert data["current_stage"] == "completed"

@@ -41,14 +41,16 @@ flowchart TD
     end
 
     subgraph DataLayer[数据层]
-        MySQL[MySQL主从同步]
+        MySQL[MySQL 8.0单机]
         Redis[Redis缓存]
-        MinIO[MinIO对象存储]
+        %% 规划: MinIO对象存储
+        LocalStorage[本地文件存储]
     end
 
     subgraph InfrastructureLayer[基础设施层]
         Docker[Docker容器]
-        K8s[Kubernetes编排]
+        %% 规划: Kubernetes集群编排
+        DockerCompose[Docker Compose单机]
         Prometheus[Prometheus监控]
         Grafana[Grafana可视化]
         LogService[日志服务]
@@ -77,7 +79,7 @@ flowchart TD
 
 ### 1.2 架构设计原则
 
-- **高可用性**：采用Nginx负载均衡、MySQL主从同步、Kubernetes编排等技术，确保系统24/7稳定运行
+- **高可用性**：采用Nginx负载均衡、单机MySQL、Docker Compose编排等技术，确保系统稳定运行（MySQL主从同步、Kubernetes编排为规划中）
 - **高扩展性**：服务化架构设计，支持水平扩展，应对业务增长
 - **易维护性**：模块化设计，代码结构清晰，文档完善，便于维护和升级
 - **安全合规**：符合ISO27001标准，实现数据加密、访问控制、操作审计等安全措施
@@ -95,15 +97,16 @@ flowchart TD
 | 后端 | FastAPI | 0.104 | Web框架 |
 | 后端 | Uvicorn | 0.24 | ASGI服务器 |
 | 后端 | SQLAlchemy | 2.0 | ORM框架 |
+| 后端 | APScheduler | 3.10.4 | 定时任务调度 |
+| 后端 | prometheus-fastapi-instrumentator | 7.0.0 | 指标采集 |
 | 自动化层 | Selenium | 4.15 | Web自动化测试 |
 | 自动化层 | Appium | 2.5 | 移动自动化测试 |
 | 自动化层 | pytest | 7.4 | 测试框架 |
 | 自动化层 | Allure | 2.24 | 测试报告 |
 | AI层 | DeepSeek | deepseek-chat | AI模型 |
-| AI层 | LangChain | 0.1 | 提示词工程 |
 | 数据层 | MySQL | 8.0 | 关系型数据库 |
 | 数据层 | Redis | 7.0 | 缓存 |
-| 数据层 | MinIO | - | 对象存储 |
+| 数据层 | 本地文件存储 | - | 文件存储（规划MinIO） |
 | 基础设施 | Docker | 25.0 | 容器化 |
 | 基础设施 | Nginx | 1.25 | 负载均衡 |
 | 基础设施 | Prometheus | 2.45 | 监控 |
@@ -201,7 +204,7 @@ erDiagram
 - **响应时间**：单接口响应时间≤200ms
 - **并发能力**：支持100个并发测试任务
 - **查询性能**：万级用例查询响应时间≤1s
-- **AI处理**：测试用例生成响应时间≤5s，失败分析响应时间≤3s
+- **AI处理**：测试用例生成响应时间缓存命中≤5s，冷调用≤30s（受 deepseek-v4-flash 推理模型 reasoning_tokens 消耗影响）；失败分析响应时间≤3s
 
 ### 4.2 安全
 - **合规标准**：符合ISO27001信息安全管理体系标准
@@ -214,16 +217,16 @@ erDiagram
 ### 4.3 部署
 - **部署模式**：支持公有云、私有化部署
 - **容器化**：使用Docker容器化部署
-- **编排方案**：提供Docker Compose（单机）和Kubernetes（集群）两种部署方案
+- **编排方案**：当前提供Docker Compose（单机）部署方案，Kubernetes（集群）为规划中未实现
 - **CI/CD**：支持持续集成/持续部署
-- **监控**：集成Prometheus + Grafana监控体系
+- **监控**：集成Prometheus + Grafana监控体系（通过docker-compose --profile monitoring可选启用）
 - **日志**：集中式日志管理，支持日志分析和告警
 
 ### 4.4 可靠性
 - **可用性**：系统可用性≥99.9%
 - **容错**：实现服务降级、熔断机制
 - **备份**：定期数据备份，支持灾难恢复
-- **故障转移**：MySQL主从复制，支持自动故障转移
+- **故障转移**：当前为单机MySQL 8.0，MySQL主从复制为规划中未实现
 
 ### 4.5 可维护性
 - **代码规范**：遵循PEP8（Python）和ESLint（前端）代码规范

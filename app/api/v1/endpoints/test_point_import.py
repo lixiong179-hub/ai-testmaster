@@ -19,7 +19,8 @@
 import os
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.schemas.test_point import (
     TestPointXmindPreviewItem,
     TestPointXmindPreviewResponse,
@@ -60,7 +61,7 @@ async def import_xmind(
     project_id: int = Form(..., description="项目ID"),
     preview: bool = Form(False, description="是否预览模式"),
     ai_enhance: bool = Form(False, description="是否AI增强模式"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     """导入 XMind 测试点文件。
@@ -82,7 +83,10 @@ async def import_xmind(
         预览模式返回 TestPointXmindPreviewResponse，
         导入模式返回 TestPointXmindImportResponse。
     """
-    check_project_permission(db, project_id, current_user.id)
+    def _check_permission(sync_db: Session) -> None:
+        check_project_permission(sync_db, project_id, current_user.id)
+
+    await db.run_sync(_check_permission)
 
     validate_file(file)
 
@@ -153,29 +157,36 @@ async def import_xmind(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail="AI增强解析返回空结果，请检查文件内容或关闭AI增强模式使用普通导入",
                 )
-            return handle_ai_enhanced_import(
-                db=db,
-                project_id=project_id,
-                current_username=current_user.username,
-                ai_cases=ai_cases,
-                preview=preview,
-                ai_timeout=False,
-                total_paths=total_paths,
-            )
+
+            def _ai_import(sync_db: Session):
+                return handle_ai_enhanced_import(
+                    db=sync_db,
+                    project_id=project_id,
+                    current_username=current_user.username,
+                    ai_cases=ai_cases,
+                    preview=preview,
+                    ai_timeout=False,
+                    total_paths=total_paths,
+                )
+
+            return await db.run_sync(_ai_import)
 
         parsed_points = parser.parse(tmp_path)
         case_parser = XmindCaseParser()
         parsed_cases = case_parser.parse(tmp_path)
 
         if should_treat_as_case_tree(parsed_cases):
-            return handle_case_style_import(
-                db=db,
-                project_id=project_id,
-                current_username=current_user.username,
-                parsed_cases=parsed_cases,
-                preview=preview,
-                ai_timeout=False,
-            )
+            def _case_import(sync_db: Session):
+                return handle_case_style_import(
+                    db=sync_db,
+                    project_id=project_id,
+                    current_username=current_user.username,
+                    parsed_cases=parsed_cases,
+                    preview=preview,
+                    ai_timeout=False,
+                )
+
+            return await db.run_sync(_case_import)
 
         if not parsed_points:
             raise HTTPException(
@@ -208,12 +219,15 @@ async def import_xmind(
                 ai_timeout=False,
             )
 
-        saved = batch_create_test_points(
-            db=db,
-            project_id=project_id,
-            test_points_data=valid_points,
-            created_by=current_user.username,
-        )
+        def _batch_create(sync_db: Session):
+            return batch_create_test_points(
+                db=sync_db,
+                project_id=project_id,
+                test_points_data=valid_points,
+                created_by=current_user.username,
+            )
+
+        saved = await db.run_sync(_batch_create)
         logger.info(
             f"XMind 导入完成: project_id={project_id}, "
             f"saved={len(saved)}, skipped={skipped_count}"

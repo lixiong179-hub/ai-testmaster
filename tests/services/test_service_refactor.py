@@ -17,7 +17,7 @@ class TestServiceImports:
     def test_case_generation_imports(self):
         """test_case_generation新包导入验证（legacy case_generation子包已删除）"""
         from app.services.test_case_generation import TestCaseGenerationService
-        from app.services.test_case_generation.base_mixin import ContentSanitizer
+        from app.services.test_case_generation.helpers import ContentSanitizer
         assert TestCaseGenerationService is not None
         assert ContentSanitizer is not None
 

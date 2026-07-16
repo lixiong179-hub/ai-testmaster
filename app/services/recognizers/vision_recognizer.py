@@ -155,10 +155,11 @@ class VisionRecognizer(ElementRecognizer):
         result = {}
         for key in ["x", "y", "width", "height"]:
             val = element_info.get(key, 0)
-            if val is None:
-                val = 0
+            # 先解包列表，再做 None 兜底；否则 [None] 会变成 None 而非 0
             if isinstance(val, list):
                 val = val[0] if val else 0
+            if val is None:
+                val = 0
             result[key] = val
         return result
 

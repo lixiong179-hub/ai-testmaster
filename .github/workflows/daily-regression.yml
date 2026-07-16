@@ -44,6 +44,14 @@ jobs:
         run: |
           alembic upgrade head
 
+      - name: Verify migration rollback (full round-trip)
+        env:
+          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+          TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+        run: |
+          python scripts/verify_migrations.py --check-downgrade
+          python scripts/verify_migrations.py --full
+
       - name: Prepare test data
         env:
           TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test

@@ -4,22 +4,23 @@
     GET /{test_case_id}/lineage - 返回血缘树（祖先 + 后代）
 """
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.api.v1.endpoints.auth import get_current_user
+from app.models.user import User
 from app.services.lineage_service import get_lineage, LineageResult
 
 router = APIRouter()
 
 
 @router.get("/{test_case_id}/lineage", response_model=LineageResult)
-def get_case_lineage(
+async def get_case_lineage(
     test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user),
+) -> LineageResult:
     """获取用例血缘树
 
     Args:
@@ -28,7 +29,9 @@ def get_case_lineage(
     Returns:
         血缘树数据，包含祖先链、后代子树、链长度和警告信息
     """
-    result: Optional[LineageResult] = get_lineage(db, test_case_id)
+    def _get_lineage(sync_db) -> Optional[LineageResult]:
+        return get_lineage(sync_db, test_case_id)
+    result: Optional[LineageResult] = await db.run_sync(_get_lineage)
     if result is None:
         raise HTTPException(status_code=404, detail=f"TestCase {test_case_id} not found")
     return result

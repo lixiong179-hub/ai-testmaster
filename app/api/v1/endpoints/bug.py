@@ -33,7 +33,7 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.core.exception import create_response
 
-router = APIRouter()
+router = APIRouter(tags=["Bug缺陷管理"])
 
 
 @router.get("/list", response_model=dict)

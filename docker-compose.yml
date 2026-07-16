@@ -83,6 +83,7 @@ services:
       - BROWSERBASE_PROJECT_ID=${BROWSERBASE_PROJECT_ID:-}
       # CORS
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost}
+      - CORS_ALLOW_HEADERS=${CORS_ALLOW_HEADERS:-Authorization,Content-Type,Accept,Origin,X-Requested-With,X-CSRF-Token,X-Request-ID}
       # 日志
       - LOG_LEVEL=${LOG_LEVEL:-WARNING}
     depends_on:
@@ -106,7 +107,41 @@ services:
       - backend
     restart: unless-stopped
 
+  # -------------------- Prometheus 监控（可选，需 --profile monitoring 启用）--------------------
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    depends_on:
+      - backend
+    profiles: [monitoring]
+    restart: unless-stopped
+
+  # -------------------- Grafana 可视化（可选，需 --profile monitoring 启用）--------------------
+  grafana:
+    image: grafana/grafana:10.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    profiles: [monitoring]
+    restart: unless-stopped
+
 volumes:
   mysql_data:
   redis_data:
   upload_data:
+  prometheus_data:
+  grafana_data:

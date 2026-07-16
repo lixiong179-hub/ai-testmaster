@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.user import User
 from app.models.test_case import TestCase, TestStep
 from app.models.test_result import TestResult
@@ -23,7 +24,7 @@ router = APIRouter()
 @router.get("/replay/{execution_id}")
 async def get_replay_session(
     execution_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -41,7 +42,7 @@ async def get_replay_session(
 async def set_replay_speed(
     execution_id: str,
     data: SpeedReplayRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -57,30 +58,33 @@ async def set_replay_speed(
 @router.post("/results/{result_id}/analyze-failure")
 async def analyze_failure(
     result_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    try:
-        result = db.query(TestResult).filter(TestResult.id == result_id).first()
-        if not result:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="执行结果不存在")
+    def _analyze(sync_db):
+        try:
+            result = sync_db.query(TestResult).filter(TestResult.id == result_id).first()
+            if not result:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="执行结果不存在")
 
-        if result.exec_status != ExecStatus.FAILED:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="只有执行失败的结果才能进行失败分析")
+            if result.exec_status != ExecStatus.FAILED:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="只有执行失败的结果才能进行失败分析")
 
-        test_case = db.query(TestCase).filter(TestCase.id == result.case_id, TestCase.is_deleted.is_(False)).first()
-        if not test_case:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="关联的测试用例不存在")
+            test_case = sync_db.query(TestCase).filter(TestCase.id == result.case_id, TestCase.is_deleted.is_(False)).first()
+            if not test_case:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="关联的测试用例不存在")
 
-        analysis = _perform_failure_analysis(result, test_case, db)
-        hidden_fields = _get_hidden_fields(db, test_case.project_id)
-        analysis = _filter_by_visibility(analysis, hidden_fields)
-        return create_response(data=analysis, msg="失败原因分析完成")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"分析失败原因异常: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="分析失败原因异常")
+            analysis = _perform_failure_analysis(result, test_case, sync_db)
+            hidden_fields = _get_hidden_fields(sync_db, test_case.project_id)
+            analysis = _filter_by_visibility(analysis, hidden_fields)
+            return create_response(data=analysis, msg="失败原因分析完成")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"分析失败原因异常: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="分析失败原因异常")
+
+    return await db.run_sync(_analyze)
 
 
 def _perform_failure_analysis(result: TestResult, test_case: TestCase, db: Session) -> dict:
@@ -231,37 +235,40 @@ def _auto_create_bug_for_self_test(
 async def create_quick_verify_task(
     case_id: int = Body(..., embed=True),
     step_indices: list[int] = Body(default=[], embed=True),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    try:
-        test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-        if not test_case:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
+    def _create(sync_db):
+        try:
+            test_case = sync_db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
+            if not test_case:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
-        if not step_indices:
-            steps = db.query(TestStep).filter(
-                TestStep.test_case_id == case_id
-            ).order_by(TestStep.step_number).all()
-            step_indices = [s.step_number for s in steps]
+            if not step_indices:
+                steps = sync_db.query(TestStep).filter(
+                    TestStep.test_case_id == case_id
+                ).order_by(TestStep.step_number).all()
+                step_indices = [s.step_number for s in steps]
 
-        task_data = {
-            "name": f"快速验证 - {test_case.title}",
-            "case_id": case_id, "case_ids": [case_id],
-            "task_type": "quick_verify", "step_indices": step_indices,
-            "created_by": current_user.username if current_user else "system",
-            "description": f"用例纠正后快速验证，用例ID: {case_id}，验证步骤: {step_indices}"
-        }
+            task_data = {
+                "name": f"快速验证 - {test_case.title}",
+                "case_id": case_id, "case_ids": [case_id],
+                "task_type": "quick_verify", "step_indices": step_indices,
+                "created_by": current_user.username if current_user else "system",
+                "description": f"用例纠正后快速验证，用例ID: {case_id}，验证步骤: {step_indices}"
+            }
 
-        if test_case.correction_status:
-            test_case.correction_status = "verifying"
-            db.commit()
+            if test_case.correction_status:
+                test_case.correction_status = "verifying"
+                sync_db.commit()
 
-        logger.info(f"创建快速验证任务: 用例ID={case_id}, 步骤={step_indices}, 操作人={current_user.username if current_user else 'system'}")
-        return create_response(data=task_data, message="快速验证任务已创建")
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"创建快速验证任务失败: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建快速验证任务失败")
+            logger.info(f"创建快速验证任务: 用例ID={case_id}, 步骤={step_indices}, 操作人={current_user.username if current_user else 'system'}")
+            return create_response(data=task_data, message="快速验证任务已创建")
+        except HTTPException:
+            raise
+        except Exception as e:
+            sync_db.rollback()
+            logger.error(f"创建快速验证任务失败: {e}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建快速验证任务失败")
+
+    return await db.run_sync(_create)

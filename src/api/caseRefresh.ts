@@ -11,7 +11,7 @@ export const listRefreshSuggestions = (
     if (suggestionStatus) params.suggestion_status = suggestionStatus
     if (reviewStatus) params.review_status = reviewStatus
     return request.get(
-        `/api/v1/caseRefresh/projects/${projectId}/refresh-suggestions`,
+        `/api/v1/case-refresh/projects/${projectId}/refresh-suggestions`,
         { params }
     )
 }
@@ -22,20 +22,20 @@ export const reviewRefreshSuggestion = (
     rejectReason?: string
 ) => {
     return request.post(
-        `/api/v1/caseRefresh/refresh-suggestions/${suggestionId}/review`,
+        `/api/v1/case-refresh/refresh-suggestions/${suggestionId}/review`,
         { action, reject_reason: rejectReason }
     )
 }
 
 export const scanStaleCases = (projectId: number) => {
     return request.post(
-        `/api/v1/caseRefresh/projects/${projectId}/scan-stale-cases`
+        `/api/v1/case-refresh/projects/${projectId}/scan-stale-cases`
     )
 }
 
 export const autoRefreshCases = (projectId: number, maxCases: number = 10) => {
     return request.post(
-        `/api/v1/caseRefresh/projects/${projectId}/auto-refresh`,
+        `/api/v1/case-refresh/projects/${projectId}/auto-refresh`,
         null,
         { params: { max_cases: maxCases } }
     )
@@ -43,6 +43,6 @@ export const autoRefreshCases = (projectId: number, maxCases: number = 10) => {
 
 export const getRefreshSuggestionsStats = (projectId: number) => {
     return request.get(
-        `/api/v1/caseRefresh/projects/${projectId}/refresh-suggestions/stats`
+        `/api/v1/case-refresh/projects/${projectId}/refresh-suggestions/stats`
     )
 }

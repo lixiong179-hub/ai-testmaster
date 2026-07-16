@@ -20,13 +20,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.schemas.test_report import TestReportResponse, TestReportList, ReportGenerateRequest, ReportExportRequest
 from app.crud.test_report import get_test_reports, get_test_report_by_id, delete_test_report as crud_delete_report
 from app.services.report_service import ReportService
 from app.utils.report_utils import ReportUtils
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
+from app.models.project import Project
 from typing import Optional
 from loguru import logger
 
@@ -35,32 +37,33 @@ router = APIRouter(prefix="/report", tags=["测试报告管理"])
 @router.post("/generate", response_model=TestReportResponse)
 async def generate_test_report(
     request: ReportGenerateRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """生成测试报告"""
-    try:
-        # 检查项目权限
-        from app.models.project import Project
-        project = db.query(Project).filter(
+    def _generate(sync_db: Session):
+        project = sync_db.query(Project).filter(
             Project.id == request.project_id,
             Project.user_id == current_user.id
         ).first()
-        
+
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="无权限操作此项目"
             )
-        
+
         report = ReportService.generate_report(
-            db=db,
+            db=sync_db,
             project_id=request.project_id,
             test_task_id=request.test_task_id,
             name=request.name,
             description=request.description
         )
         return report
+
+    try:
+        return await db.run_sync(_generate)
     except HTTPException:
         raise
     except Exception as e:
@@ -75,38 +78,39 @@ async def get_test_reports_list(
     project_id: Optional[int] = Query(None, description="项目ID，不传则返回所有报告"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取测试报告列表"""
-    try:
+    def _list(sync_db: Session):
+        from app.models.report import TestReport as TestReportModel
+
         # 多项目隔离：查询时根据project_id过滤，如果不传则查询用户所有项目的报告
         if project_id:
-            reports = get_test_reports(db, project_id, skip=(page-1)*page_size, limit=page_size)
-            total = len(get_test_reports(db, project_id))
+            reports = get_test_reports(sync_db, project_id, skip=(page-1)*page_size, limit=page_size)
+            total = len(get_test_reports(sync_db, project_id))
         else:
-            # 获取用户所有项目的报告
-            from app.models.project import Project
-            from app.models.report import TestReport as TestReportModel
-            
-            user_projects = db.query(Project.id).filter(Project.user_id == current_user.id).all()
+            user_projects = sync_db.query(Project.id).filter(Project.user_id == current_user.id).all()
             project_ids = [p.id for p in user_projects]
-            
+
             if project_ids:
-                reports = db.query(TestReportModel).filter(
+                reports = sync_db.query(TestReportModel).filter(
                     TestReportModel.project_id.in_(project_ids)
                 ).offset((page-1)*page_size).limit(page_size).all()
-                total = db.query(TestReportModel).filter(
+                total = sync_db.query(TestReportModel).filter(
                     TestReportModel.project_id.in_(project_ids)
                 ).count()
             else:
                 reports = []
                 total = 0
-        
+
         return TestReportList(
             reports=[TestReportResponse.model_validate(report) for report in reports],
             total=total
         )
+
+    try:
+        return await db.run_sync(_list)
     except Exception:
         # 兜底逻辑：返回空列表
         return TestReportList(
@@ -118,68 +122,71 @@ async def get_test_reports_list(
 async def get_test_report_detail(
     report_id: int,
     project_id: int = Query(..., description="项目ID"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取测试报告详情"""
-    # 检查项目权限
-    from app.models.project import Project
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.user_id == current_user.id
-    ).first()
-    
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
-        )
-    
-    # 多项目隔离：查询时必带project_id过滤
-    report = get_test_report_by_id(db, report_id, project_id)
-    if not report:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试报告不存在"
-        )
-    return TestReportResponse.model_validate(report)
+    def _detail(sync_db: Session):
+        project = sync_db.query(Project).filter(
+            Project.id == project_id,
+            Project.user_id == current_user.id
+        ).first()
+
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此项目"
+            )
+
+        # 多项目隔离：查询时必带project_id过滤
+        report = get_test_report_by_id(sync_db, report_id, project_id)
+        if not report:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="测试报告不存在"
+            )
+        return TestReportResponse.model_validate(report)
+
+    return await db.run_sync(_detail)
 
 @router.post("/{report_id}/export")
 async def export_test_report(
     report_id: int,
     request: ReportExportRequest,
     project_id: int = Query(..., description="项目ID"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """导出测试报告"""
-    # 检查项目权限
-    from app.models.project import Project
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.user_id == current_user.id
-    ).first()
-    
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
-        )
-    
-    # 多项目隔离：导出时必带project_id过滤
-    report = get_test_report_by_id(db, report_id, project_id)
-    if not report:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试报告不存在"
-        )
-    
-    if not report.content:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="报告内容为空，无法导出"
-        )
-    
+    def _prepare(sync_db: Session):
+        project = sync_db.query(Project).filter(
+            Project.id == project_id,
+            Project.user_id == current_user.id
+        ).first()
+
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此项目"
+            )
+
+        # 多项目隔离：导出时必带project_id过滤
+        report = get_test_report_by_id(sync_db, report_id, project_id)
+        if not report:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="测试报告不存在"
+            )
+
+        if not report.content:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="报告内容为空，无法导出"
+            )
+        return report
+
+    report = await db.run_sync(_prepare)
+
     try:
         # 导出报告
         content, content_type, filename = ReportUtils.export_report(
@@ -187,7 +194,7 @@ async def export_test_report(
             report_name=report.name,
             format=request.format
         )
-        
+
         return Response(
             content=content,
             media_type=content_type,
@@ -208,28 +215,29 @@ async def export_test_report(
 async def delete_test_report(
     report_id: int,
     project_id: int = Query(..., description="项目ID"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """删除测试报告"""
-    # 检查项目权限
-    from app.models.project import Project
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.user_id == current_user.id
-    ).first()
-    
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
-        )
-    
-    # 多项目隔离：删除时必带project_id过滤
-    success = crud_delete_report(db, report_id, project_id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试报告不存在"
-        )
+    def _delete(sync_db: Session):
+        project = sync_db.query(Project).filter(
+            Project.id == project_id,
+            Project.user_id == current_user.id
+        ).first()
+
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此项目"
+            )
+
+        # 多项目隔离：删除时必带project_id过滤
+        success = crud_delete_report(sync_db, report_id, project_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="测试报告不存在"
+            )
+
+    await db.run_sync(_delete)
     return {"message": "测试报告删除成功"}

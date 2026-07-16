@@ -29,7 +29,8 @@ from fastapi import (
 )
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
@@ -90,24 +91,27 @@ async def upload_file(
     resource_type: str = Form("other"),
     description: str = Form(""),
     iteration_id: Optional[int] = Form(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     saved_file_path = None
     try:
-        project = (
-            db.query(Project)
-            .filter(
-                Project.id == project_id, Project.user_id == current_user.id
+        def _check_project(sync_db: Session) -> Project:
+            project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == project_id, Project.user_id == current_user.id
+                )
+                .first()
             )
-            .first()
-        )
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="无权限操作此项目",
+                )
+            return project
 
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目",
-            )
+        await db.run_sync(_check_project)
 
         file_ext = validate_file_format(file.filename)
         if not file_ext:
@@ -162,18 +166,22 @@ async def upload_file(
         file_size = get_file_size(file_path)
 
         db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
-        new_file = file_crud.create_project_file(
-            db=db,
-            project_id=project_id,
-            file_name=file.filename,
-            file_type=file_ext,
-            file_url=file_path,
-            file_source="file",
-            size=file_size,
-            resource_type=resource_type,
-            description=description,
-            iteration_id=db_iteration_id,
-        )
+
+        def _create_file(sync_db: Session) -> ProjectFile:
+            return file_crud.create_project_file(
+                db=sync_db,
+                project_id=project_id,
+                file_name=file.filename,
+                file_type=file_ext,
+                file_url=file_path,
+                file_source="file",
+                size=file_size,
+                resource_type=resource_type,
+                description=description,
+                iteration_id=db_iteration_id,
+            )
+
+        new_file = await db.run_sync(_create_file)
 
         return {
             "code": 200,
@@ -195,7 +203,7 @@ async def upload_file(
 @router.post("/submit-url", response_model=dict)
 async def submit_url(
     url_request: UrlSubmitRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     raise HTTPException(
@@ -206,7 +214,7 @@ async def submit_url(
 @router.post("/update-sort")
 async def update_file_sort(
     file_ids: List[int] = Body(..., description="文件ID列表（按新顺序排列）"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -219,27 +227,34 @@ async def update_file_sort(
             )
 
         unique_file_ids = list(dict.fromkeys(file_ids))
-        user_project_ids = set(
-            proj.id
-            for proj in db.query(Project.id)
-            .filter(Project.user_id == current_user.id)
-            .all()
-        )
 
-        updated_count = 0
-        for index, file_id in enumerate(unique_file_ids):
-            file_record = (
-                db.query(ProjectFile)
-                .filter(
-                    ProjectFile.id == file_id,
-                    ProjectFile.is_active.is_(True),
-                )
-                .first()
+        def _update_sort(sync_db: Session) -> int:
+            user_project_ids = set(
+                proj.id
+                for proj in sync_db.query(Project.id)
+                .filter(Project.user_id == current_user.id)
+                .all()
             )
 
-            if file_record and file_record.project_id in user_project_ids:
-                file_record.sort_order = index + 1
-                updated_count += 1
+            updated_count = 0
+            for index, file_id in enumerate(unique_file_ids):
+                file_record = (
+                    sync_db.query(ProjectFile)
+                    .filter(
+                        ProjectFile.id == file_id,
+                        ProjectFile.is_active.is_(True),
+                    )
+                    .first()
+                )
+
+                if file_record and file_record.project_id in user_project_ids:
+                    file_record.sort_order = index + 1
+                    updated_count += 1
+
+            sync_db.commit()
+            return updated_count
+
+        updated_count = await db.run_sync(_update_sort)
 
         logger.info(
             (
@@ -247,8 +262,6 @@ async def update_file_sort(
                 f"更新{updated_count}/{len(unique_file_ids)}个"
             )
         )
-
-        db.commit()
 
         return {
             "code": 200,
@@ -258,6 +271,6 @@ async def update_file_sort(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"更新排序失败: {e}")
         raise HTTPException(status_code=500, detail="更新排序失败")

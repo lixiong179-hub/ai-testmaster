@@ -12,11 +12,11 @@
 权限要求: Bearer令牌认证 + Pipeline admin 角色
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional, Any
 from datetime import datetime
 
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.user import User
 from app.services import audit_service
 from app.core.exception import create_response
@@ -30,8 +30,8 @@ def _get_current_user():
     return get_current_user
 
 
-def _require_admin(db: Session, user_id: int):
-    """验证当前用户是否为 Pipeline 管理员"""
+def _require_admin(db: AsyncSession, user_id: int) -> None:
+    """验证当前用户是否为 Pipeline 管理员（在 run_sync 上下文内调用）。"""
     from app.services.pipeline_permission_service import check_pipeline_permission
     if not check_pipeline_permission(db, user_id, "config", "read", "all"):
         raise HTTPException(
@@ -50,34 +50,38 @@ async def get_audit_logs(
     until: Optional[datetime] = Query(None, description="截止时间（含）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(_get_current_user),
-):
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(_get_current_user()),
+) -> dict[str, Any]:
     """查询审计日志（管理员权限）"""
     try:
-        _require_admin(db=db, user_id=current_user.id)
-
         offset = (page - 1) * page_size
-        logs = audit_service.query_logs(
-            db=db,
-            target_kind=target_kind,
-            target_id=target_id,
-            actor_id=actor_id,
-            action=action,
-            since=since,
-            until=until,
-            limit=page_size,
-            offset=offset,
-        )
-        total = audit_service.count_logs(
-            db=db,
-            target_kind=target_kind,
-            target_id=target_id,
-            actor_id=actor_id,
-            action=action,
-            since=since,
-            until=until,
-        )
+
+        def _query(sync_db):
+            _require_admin(db=sync_db, user_id=current_user.id)
+            logs = audit_service.query_logs(
+                db=sync_db,
+                target_kind=target_kind,
+                target_id=target_id,
+                actor_id=actor_id,
+                action=action,
+                since=since,
+                until=until,
+                limit=page_size,
+                offset=offset,
+            )
+            total = audit_service.count_logs(
+                db=sync_db,
+                target_kind=target_kind,
+                target_id=target_id,
+                actor_id=actor_id,
+                action=action,
+                since=since,
+                until=until,
+            )
+            return logs, total
+
+        logs, total = await db.run_sync(_query)
 
         items = [
             {

@@ -30,7 +30,7 @@ from app.schemas.quality_rule import (
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 
-router = APIRouter()
+router = APIRouter(tags=["质量规则"])
 
 
 @router.get(

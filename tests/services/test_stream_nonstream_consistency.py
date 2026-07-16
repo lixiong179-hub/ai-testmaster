@@ -26,6 +26,7 @@ from app.services.case_quality.quality_feedback_loop import (
     run_quality_feedback_loop,
 )
 from app.services.test_case_generation import TestCaseGenerationService
+from app.services.test_case_generation.ai_generator import AiGenerator
 
 
 def _make_valid_case(**overrides: Any) -> Dict[str, Any]:
@@ -110,7 +111,7 @@ class TestStreamNonstreamSharedFeedbackLoop:
         传入 build_quality_feedback_text 作为 feedback_builder（spec 19.4 路径一致性）。
         """
         good_case = _make_valid_case()
-        service = TestCaseGenerationService.__new__(TestCaseGenerationService)
+        service = AiGenerator.__new__(AiGenerator)
         service._generation_cache = {}
 
         calls, spy_loop = _build_spy()
@@ -131,7 +132,7 @@ class TestStreamNonstreamSharedFeedbackLoop:
 
         with patch.object(feedback_loop_module, "run_quality_feedback_loop", spy_loop), \
                 patch.object(service, "_call_ai_and_parse", mock_call_ai), \
-                patch("app.services.test_case_generation.ai_mixin.PromptBuilder.build_linear_prompt",
+                patch("app.services.test_case_generation.ai_generator.PromptBuilder.build_linear_prompt",
                       return_value="mocked prompt"):
             final_case = await service._generate_case_with_ai(context)
 

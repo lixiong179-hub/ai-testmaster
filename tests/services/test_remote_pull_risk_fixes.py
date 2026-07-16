@@ -140,15 +140,19 @@ def _valid_generated_case(precondition: str) -> dict:
 def test_generation_quality_gate_rejects_short_precondition() -> None:
     case = _valid_generated_case("账号已登录")
 
-    issues = GenerationService._quality_gate_issues(case, 80.0)
+    issues, status = GenerationService._quality_gate_issues(case, 80.0)
 
+    assert status == "rejected"
     assert any("precondition is too short" in issue for issue in issues)
 
 
 def test_generation_quality_gate_accepts_high_quality_case() -> None:
     case = _valid_generated_case("账号已登录，设备网络正常，已配置可用教材和单词数据")
 
-    assert GenerationService._quality_gate_issues(case, 100.0) == []
+    issues, status = GenerationService._quality_gate_issues(case, 100.0)
+
+    assert issues == []
+    assert status == "passed"
 
 
 def test_generation_quality_gate_rejects_mixed_click_input_step() -> None:
@@ -160,7 +164,7 @@ def test_generation_quality_gate_rejects_mixed_click_input_step() -> None:
     case = _valid_generated_case("账号已登录，设备网络正常，已配置可用教材和单词数据")
     case["steps"][1]["action"] = "点击修改按钮后输入正确拼写并点击确认"
 
-    issues = GenerationService._quality_gate_issues(case, 80.0)
+    issues, _ = GenerationService._quality_gate_issues(case, 80.0)
 
     # 当前无"混合点击和输入操作"校验器，不应产生该类 issue
     assert not any("混合点击和输入操作" in issue for issue in issues)
@@ -175,7 +179,7 @@ def test_generation_quality_gate_rejects_referenced_step() -> None:
     case = _valid_generated_case("账号已登录，设备网络正常，已配置可用教材和单词数据")
     case["steps"][0]["action"] = "参见正向用例步骤1-4进入检查界面"
 
-    issues = GenerationService._quality_gate_issues(case, 80.0)
+    issues, _ = GenerationService._quality_gate_issues(case, 80.0)
 
     # 当前无"引用其他步骤或用例"校验器，不应产生该类 issue
     assert not any("引用其他步骤或用例" in issue for issue in issues)
@@ -195,7 +199,10 @@ def test_generation_quality_gate_accepts_ui_elements_in_context() -> None:
         },
     }]
 
-    assert GenerationService._quality_gate_issues(case, 100.0, ui_specs=ui_specs) == []
+    issues, status = GenerationService._quality_gate_issues(case, 100.0, ui_specs=ui_specs)
+
+    assert issues == []
+    assert status == "passed"
 
 
 def test_generation_quality_gate_rejects_ui_element_missing_from_context() -> None:
@@ -206,8 +213,9 @@ def test_generation_quality_gate_rejects_ui_element_missing_from_context() -> No
         "ui_spec": {"elements": [{"type": "button", "label": "AI单词听写入口"}]},
     }]
 
-    issues = GenerationService._quality_gate_issues(case, 100.0, ui_specs=ui_specs)
+    issues, status = GenerationService._quality_gate_issues(case, 100.0, ui_specs=ui_specs)
 
+    assert status == "rejected"
     assert any("UI元素命中率" in issue and "不存在按钮" in issue for issue in issues)
 
 

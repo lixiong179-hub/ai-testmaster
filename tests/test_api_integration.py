@@ -288,7 +288,7 @@ class TestProjectAPI:
 class TestTestCaseAPI:
     def test_create_test_case_normal(self, client, authHeaders, testProject):
         response = client.post(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             json={
                 "project_id": testProject.id,
                 "title": f"api_case_{uuid.uuid4().hex[:8]}",
@@ -312,7 +312,7 @@ class TestTestCaseAPI:
 
     def test_create_test_case_minimal(self, client, authHeaders, testProject):
         response = client.post(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             json={
                 "project_id": testProject.id,
                 "title": f"api_min_{uuid.uuid4().hex[:8]}",
@@ -323,7 +323,7 @@ class TestTestCaseAPI:
 
     def test_create_test_case_with_test_data(self, client, authHeaders, testProject):
         response = client.post(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             json={
                 "project_id": testProject.id,
                 "title": f"api_td_{uuid.uuid4().hex[:8]}",
@@ -351,7 +351,7 @@ class TestTestCaseAPI:
 
     def test_create_test_case_no_auth(self, client, testProject):
         response = client.post(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             json={
                 "project_id": testProject.id,
                 "title": "no auth case",
@@ -375,7 +375,7 @@ class TestTestCaseAPI:
                 case_type="UI",
             )
         response = client.get(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             params={"project_id": testProject.id},
             headers=authHeaders,
         )
@@ -399,7 +399,7 @@ class TestTestCaseAPI:
                 case_type="UI",
             )
         response = client.get(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             params={"project_id": testProject.id, "page": 1, "page_size": 2},
             headers=authHeaders,
         )
@@ -408,7 +408,7 @@ class TestTestCaseAPI:
 
     def test_get_test_cases_empty(self, client, authHeaders):
         response = client.get(
-            "/api/v1/testCase/",
+            "/api/v1/test-case/",
             params={"project_id": 99999},
             headers=authHeaders,
         )
@@ -430,14 +430,14 @@ class TestTestCaseAPI:
             case_type="UI",
         )
         response = client.get(
-            f"/api/v1/testCase/{case.id}",
+            f"/api/v1/test-case/{case.id}",
             headers=authHeaders,
         )
         data = assertResponseSuccess(response)
 
     def test_get_test_case_nonexistent(self, client, authHeaders):
         response = client.get(
-            "/api/v1/testCase/99999",
+            "/api/v1/test-case/99999",
             headers=authHeaders,
         )
         assert response.status_code == 404
@@ -457,7 +457,7 @@ class TestTestCaseAPI:
             case_type="UI",
         )
         response = client.put(
-            f"/api/v1/testCase/{case.id}",
+            f"/api/v1/test-case/{case.id}",
             json={"title": "updated title", "priority": 1},
             headers=authHeaders,
         )
@@ -465,7 +465,7 @@ class TestTestCaseAPI:
 
     def test_update_test_case_nonexistent(self, client, authHeaders):
         response = client.put(
-            "/api/v1/testCase/99999",
+            "/api/v1/test-case/99999",
             json={"title": "should not update"},
             headers=authHeaders,
         )
@@ -486,14 +486,14 @@ class TestTestCaseAPI:
             case_type="UI",
         )
         response = client.delete(
-            f"/api/v1/testCase/{case.id}",
+            f"/api/v1/test-case/{case.id}",
             headers=authHeaders,
         )
         assert response.status_code == 200
 
     def test_delete_test_case_nonexistent(self, client, authHeaders):
         response = client.delete(
-            "/api/v1/testCase/99999",
+            "/api/v1/test-case/99999",
             headers=authHeaders,
         )
         assert response.status_code == 404
@@ -525,7 +525,7 @@ class TestTestCaseAPI:
             case_type="UI",
         )
         response = client.post(
-            "/api/v1/testCase/batch-delete",
+            "/api/v1/test-case/batch-delete",
             json={"caseIds": [case1.id, case2.id]},
             headers=authHeaders,
         )
@@ -534,7 +534,7 @@ class TestTestCaseAPI:
 
     def test_batch_delete_empty_list(self, client, authHeaders):
         response = client.post(
-            "/api/v1/testCase/batch-delete",
+            "/api/v1/test-case/batch-delete",
             json={"caseIds": []},
             headers=authHeaders,
         )
@@ -542,7 +542,7 @@ class TestTestCaseAPI:
 
     def test_batch_delete_nonexistent_ids(self, client, authHeaders):
         response = client.post(
-            "/api/v1/testCase/batch-delete",
+            "/api/v1/test-case/batch-delete",
             json={"caseIds": [99998, 99999]},
             headers=authHeaders,
         )
@@ -567,7 +567,7 @@ class TestTestCaseAPI:
         db.query(TestCase).filter(TestCase.id == case.id).update({"is_deleted": True})
         db.commit()
         response = client.post(
-            "/api/v1/testCase/batch-restore",
+            "/api/v1/test-case/batch-restore",
             json={"caseIds": [case.id]},
             headers=authHeaders,
         )

@@ -4,11 +4,12 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.generation_batch import GenerationBatch, GenerationBatchSave
 from app.models.project import Project, ProjectFile
 from app.models.test_case import TestCase, TestStep
@@ -24,8 +25,9 @@ from app.schemas.generation_batch import (
     GenerationBatchUpdate,
 )
 from app.utils.db_time import utcnow
+from app.schemas.common import ApiResponse
 
-router = APIRouter()
+router = APIRouter(tags=["生成批次"])
 
 VALID_TRANSITIONS: dict[str, set[str]] = {
     "created": {"context_ready", "failed"},
@@ -78,15 +80,19 @@ def _batch_to_response(batch: GenerationBatch) -> dict:
     ).model_dump()
 
 
-@router.post("")
-def create_generation_batch(
+@router.post("", response_model=ApiResponse)
+async def create_generation_batch(
     body: GenerationBatchCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    project = db.query(Project).filter(
-        Project.id == body.project_id, Project.user_id == current_user.id
-    ).first()
+    """创建生成批次。"""
+    project_result = await db.execute(
+        select(Project).where(
+            Project.id == body.project_id, Project.user_id == current_user.id
+        )
+    )
+    project = project_result.scalar_one_or_none()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
@@ -107,18 +113,22 @@ def create_generation_batch(
         client_request_id=body.client_request_id,
     )
     db.add(batch)
-    db.commit()
-    db.refresh(batch)
+    await db.commit()
+    await db.refresh(batch)
     return create_response(data=_batch_to_response(batch))
 
 
-@router.get("/{batch_id}")
-def get_generation_batch(
+@router.get("/{batch_id}", response_model=ApiResponse)
+async def get_generation_batch(
     batch_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    batch = db.query(GenerationBatch).filter(GenerationBatch.id == batch_id).first()
+    """获取生成批次详情。"""
+    batch_result = await db.execute(
+        select(GenerationBatch).where(GenerationBatch.id == batch_id)
+    )
+    batch = batch_result.scalar_one_or_none()
     if not batch:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="批次不存在"
@@ -130,14 +140,18 @@ def get_generation_batch(
     return create_response(data=_batch_to_response(batch))
 
 
-@router.patch("/{batch_id}")
-def update_generation_batch(
+@router.patch("/{batch_id}", response_model=ApiResponse)
+async def update_generation_batch(
     batch_id: int,
     body: GenerationBatchUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    batch = db.query(GenerationBatch).filter(GenerationBatch.id == batch_id).first()
+    """更新生成批次状态与上下文统计。"""
+    batch_result = await db.execute(
+        select(GenerationBatch).where(GenerationBatch.id == batch_id)
+    )
+    batch = batch_result.scalar_one_or_none()
     if not batch:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="批次不存在"
@@ -161,19 +175,69 @@ def update_generation_batch(
         batch.quality_summary_json = body.quality_summary
 
     batch.updated_at = utcnow()
-    db.commit()
-    db.refresh(batch)
+    await db.commit()
+    await db.refresh(batch)
     return create_response(data=_batch_to_response(batch))
 
 
-@router.post("/{batch_id}/save")
-def save_generation_batch(
+async def _create_case_version_snapshot(
+    db: AsyncSession,
+    case_id: int,
+    change_type: str,
+    operator_id: int,
+    change_description: str,
+    changed_fields: dict | None = None,
+) -> None:
+    """创建用例版本快照（sync 依赖通过 run_sync 桥接）。
+
+    跳过自动版本快照事件，由 CaseVersionService 手动创建。
+    """
+    from app.models.test_case import skip_version_snapshot, resume_version_snapshot
+    from app.services.case_version_service import CaseVersionService
+
+    skip_version_snapshot()
+    try:
+        def _sync_snapshot(sync_db):
+            return CaseVersionService.create_snapshot(
+                db=sync_db,
+                test_case_id=case_id,
+                change_type=change_type,
+                operator_id=operator_id,
+                change_description=change_description,
+                changed_fields=changed_fields,
+            )
+        await db.run_sync(_sync_snapshot)
+    finally:
+        resume_version_snapshot()
+
+
+async def _deprecate_case(
+    db: AsyncSession, case_id: int, actor_id: int, reason: str
+) -> None:
+    """通过 lifecycle_service 标记用例为 deprecated（sync 依赖通过 run_sync 桥接）。"""
+    def _sync_lifecycle(sync_db):
+        lifecycle_transition(
+            db=sync_db,
+            case_id=case_id,
+            to_status="deprecated",
+            actor_id=actor_id,
+            reason=reason,
+        )
+    await db.run_sync(_sync_lifecycle)
+
+
+@router.post("/{batch_id}/save", response_model=ApiResponse)
+async def save_generation_batch(
     batch_id: int,
     body: GenerationBatchSaveRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    batch = db.query(GenerationBatch).filter(GenerationBatch.id == batch_id).first()
+    """保存批次预览用例（支持新增/更新/废弃，幂等键防重）。"""
+    batch_result = await db.execute(
+        select(GenerationBatch).where(GenerationBatch.id == batch_id)
+    )
+    batch = batch_result.scalar_one_or_none()
     if not batch:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="批次不存在"
@@ -183,13 +247,19 @@ def save_generation_batch(
             status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此批次"
         )
 
-    existing_save = db.query(GenerationBatchSave).filter(
-        GenerationBatchSave.batch_id == batch_id,
-        GenerationBatchSave.idempotency_key == body.idempotency_key,
-    ).first()
+    existing_save_result = await db.execute(
+        select(GenerationBatchSave).where(
+            GenerationBatchSave.batch_id == batch_id,
+            GenerationBatchSave.idempotency_key == body.idempotency_key,
+        )
+    )
+    existing_save = existing_save_result.scalar_one_or_none()
     if existing_save:
         new_hash = hashlib.sha256(
-            json.dumps({"save_mode": body.save_mode, "cases": body.cases}, default=str, ensure_ascii=False).encode()
+            json.dumps(
+                {"save_mode": body.save_mode, "cases": body.cases},
+                default=str, ensure_ascii=False,
+            ).encode()
         ).hexdigest()
         if existing_save.request_hash and existing_save.request_hash != new_hash:
             raise HTTPException(
@@ -200,10 +270,13 @@ def save_generation_batch(
 
     _validate_status_transition(batch.status, "saving")
     batch.status = "saving"
-    db.flush()
+    await db.flush()
 
     request_hash = hashlib.sha256(
-        json.dumps({"save_mode": body.save_mode, "cases": body.cases}, default=str, ensure_ascii=False).encode()
+        json.dumps(
+            {"save_mode": body.save_mode, "cases": body.cases},
+            default=str, ensure_ascii=False,
+        ).encode()
     ).hexdigest()
 
     saved_case_ids: list[int] = []
@@ -236,12 +309,14 @@ def save_generation_batch(
         if isinstance(rid, int):
             all_req_file_ids.add(rid)
     if all_req_file_ids:
-        valid_files = db.query(ProjectFile.id).filter(
-            ProjectFile.id.in_(all_req_file_ids),
-            ProjectFile.project_id == batch.project_id,
-            ProjectFile.resource_type == "requirement",
-        ).all()
-        valid_ids = {f.id for f in valid_files}
+        valid_files_result = await db.execute(
+            select(ProjectFile.id).where(
+                ProjectFile.id.in_(all_req_file_ids),
+                ProjectFile.project_id == batch.project_id,
+                ProjectFile.resource_type == "requirement",
+            )
+        )
+        valid_ids = set(valid_files_result.scalars().all())
         invalid_ids = all_req_file_ids - valid_ids
         if invalid_ids:
             raise HTTPException(
@@ -251,46 +326,130 @@ def save_generation_batch(
 
     for idx, case_payload in enumerate(cases_to_save):
         try:
-            savepoint = db.begin_nested()
+            async with db.begin_nested():
+                if case_payload.update_action == "update_existing" and case_payload.history_case_id:
+                    existing_case_result = await db.execute(
+                        select(TestCase).where(
+                            TestCase.id == case_payload.history_case_id,
+                            TestCase.project_id == batch.project_id,
+                            TestCase.is_deleted.is_(False),
+                        )
+                    )
+                    existing_case = existing_case_result.scalar_one_or_none()
+                    if not existing_case:
+                        raise ValueError(
+                            f"用例ID={case_payload.history_case_id}不存在或不属于当前项目"
+                        )
 
-            if case_payload.update_action == "update_existing" and case_payload.history_case_id:
-                existing_case = db.query(TestCase).filter(
-                    TestCase.id == case_payload.history_case_id,
-                    TestCase.project_id == batch.project_id,
-                    TestCase.is_deleted.is_(False),
-                ).first()
-                if not existing_case:
-                    raise ValueError(f"用例ID={case_payload.history_case_id}不存在或不属于当前项目")
-
-                # 跳过自动版本快照，由 CaseVersionService 手动创建
-                from app.models.test_case import skip_version_snapshot, resume_version_snapshot
-                skip_version_snapshot()
-                try:
-                    from app.services.case_version_service import CaseVersionService
-                    CaseVersionService.create_snapshot(
+                    await _create_case_version_snapshot(
                         db=db,
-                        test_case_id=existing_case.id,
+                        case_id=existing_case.id,
                         change_type="update",
                         operator_id=batch.user_id,
                         change_description=f"历史资产更新批次 {batch.batch_no} 触发更新",
                         changed_fields=case_payload.diff_fields if case_payload.diff_fields else None,
                     )
-                finally:
-                    resume_version_snapshot()
 
-                existing_case.title = case_payload.title
-                existing_case.module = case_payload.module or existing_case.module
-                existing_case.precondition = case_payload.precondition or existing_case.precondition
-                existing_case.expected_result = case_payload.expected_result or existing_case.expected_result
-                if case_payload.priority:
-                    existing_case.priority = case_payload.priority
-                if case_payload.steps:
+                    existing_case.title = case_payload.title
+                    existing_case.module = case_payload.module or existing_case.module
+                    existing_case.precondition = case_payload.precondition or existing_case.precondition
+                    existing_case.expected_result = case_payload.expected_result or existing_case.expected_result
+                    if case_payload.priority:
+                        existing_case.priority = case_payload.priority
+                    if case_payload.steps:
+                        steps_list = [step.model_dump() for step in case_payload.steps]
+                        existing_case.steps_json = steps_list
+                        await db.execute(
+                            delete(TestStep).where(TestStep.test_case_id == existing_case.id)
+                        )
+                        for step_idx, step_data in enumerate(case_payload.steps):
+                            test_step = TestStep(
+                                test_case_id=existing_case.id,
+                                step_number=step_idx + 1,
+                                action=step_data.action or "",
+                                expected_result=step_data.expected_result or "",
+                                action_type=step_data.action_type,
+                                input_value=step_data.input_value,
+                                target_element=step_data.target_element,
+                                is_business_view=1,
+                                is_technical_view=1,
+                            )
+                            db.add(test_step)
+
+                    await db.flush()
+                    saved_case_ids.append(existing_case.id)
+                elif case_payload.update_action == "deprecate" and case_payload.history_case_id:
+                    existing_case_result = await db.execute(
+                        select(TestCase).where(
+                            TestCase.id == case_payload.history_case_id,
+                            TestCase.project_id == batch.project_id,
+                            TestCase.is_deleted.is_(False),
+                        )
+                    )
+                    existing_case = existing_case_result.scalar_one_or_none()
+                    if not existing_case:
+                        raise ValueError(
+                            f"用例ID={case_payload.history_case_id}不存在或不属于当前项目"
+                        )
+
+                    await _create_case_version_snapshot(
+                        db=db,
+                        case_id=existing_case.id,
+                        change_type="update",
+                        operator_id=batch.user_id,
+                        change_description=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
+                        changed_fields={"lifecycle_status": {"old": existing_case.lifecycle_status, "new": "deprecated"}},
+                    )
+                    await db.flush()
+
+                    await _deprecate_case(
+                        db=db,
+                        case_id=existing_case.id,
+                        actor_id=batch.user_id,
+                        reason=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
+                    )
+                    await db.flush()
+                    saved_case_ids.append(existing_case.id)
+                else:
+                    req_file_id = case_payload.requirement_file_id
+                    if req_file_id is None and case_payload.source_refs:
+                        refs = case_payload.source_refs
+                        if "requirement_file_id" in refs:
+                            req_file_id = refs["requirement_file_id"]
+                        elif "requirement_file_ids" in refs and isinstance(refs["requirement_file_ids"], list) and refs["requirement_file_ids"]:
+                            req_file_id = refs["requirement_file_ids"][0]
+                    if req_file_id is None:
+                        req_ids = batch.requirement_file_ids_json or []
+                        if req_ids:
+                            req_file_id = req_ids[0]
+
                     steps_list = [step.model_dump() for step in case_payload.steps]
-                    existing_case.steps_json = steps_list
-                    db.query(TestStep).filter(TestStep.test_case_id == existing_case.id).delete()
+                    test_category = case_payload.case_category or ""
+
+                    case_no = await CaseNumberService.generate_async(batch.project_id, db)
+
+                    new_case = TestCase(
+                        case_no=case_no,
+                        project_id=batch.project_id,
+                        requirement_file_id=req_file_id,
+                        test_point_id=case_payload.source_test_point_id,
+                        module=case_payload.module or "",
+                        title=case_payload.title,
+                        precondition=case_payload.precondition or "",
+                        steps_json=steps_list,
+                        expected_result=case_payload.expected_result or "",
+                        priority=case_payload.priority,
+                        case_type=case_payload.case_type or "manual",
+                        test_category=test_category,
+                        generate_status=1,
+                        lifecycle_status=lifecycle_status,
+                    )
+                    db.add(new_case)
+                    await db.flush()
+
                     for step_idx, step_data in enumerate(case_payload.steps):
                         test_step = TestStep(
-                            test_case_id=existing_case.id,
+                            test_case_id=new_case.id,
                             step_number=step_idx + 1,
                             action=step_data.action or "",
                             expected_result=step_data.expected_result or "",
@@ -302,104 +461,9 @@ def save_generation_batch(
                         )
                         db.add(test_step)
 
-                db.flush()
-                savepoint.commit()
-                saved_case_ids.append(existing_case.id)
-                continue
-
-            if case_payload.update_action == "deprecate" and case_payload.history_case_id:
-                existing_case = db.query(TestCase).filter(
-                    TestCase.id == case_payload.history_case_id,
-                    TestCase.project_id == batch.project_id,
-                    TestCase.is_deleted.is_(False),
-                ).first()
-                if not existing_case:
-                    raise ValueError(f"用例ID={case_payload.history_case_id}不存在或不属于当前项目")
-
-                # 跳过自动版本快照，由 CaseVersionService 手动创建
-                from app.models.test_case import skip_version_snapshot, resume_version_snapshot
-                skip_version_snapshot()
-                try:
-                    from app.services.case_version_service import CaseVersionService
-                    CaseVersionService.create_snapshot(
-                        db=db,
-                        test_case_id=existing_case.id,
-                        change_type="update",
-                        operator_id=batch.user_id,
-                        change_description=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
-                        changed_fields={"lifecycle_status": {"old": existing_case.lifecycle_status, "new": "deprecated"}},
-                    )
-                finally:
-                    resume_version_snapshot()
-                db.flush()
-
-                lifecycle_transition(
-                    db=db,
-                    case_id=existing_case.id,
-                    to_status="deprecated",
-                    actor_id=batch.user_id,
-                    reason=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
-                )
-                db.flush()
-                savepoint.commit()
-                saved_case_ids.append(existing_case.id)
-                continue
-
-            req_file_id = case_payload.requirement_file_id
-            if req_file_id is None and case_payload.source_refs:
-                refs = case_payload.source_refs
-                if "requirement_file_id" in refs:
-                    req_file_id = refs["requirement_file_id"]
-                elif "requirement_file_ids" in refs and isinstance(refs["requirement_file_ids"], list) and refs["requirement_file_ids"]:
-                    req_file_id = refs["requirement_file_ids"][0]
-            if req_file_id is None:
-                req_ids = batch.requirement_file_ids_json or []
-                if req_ids:
-                    req_file_id = req_ids[0]
-
-            steps_list = [step.model_dump() for step in case_payload.steps]
-            test_category = case_payload.case_category or ""
-
-            case_no = CaseNumberService.generate(batch.project_id, db)
-
-            new_case = TestCase(
-                case_no=case_no,
-                project_id=batch.project_id,
-                requirement_file_id=req_file_id,
-                test_point_id=case_payload.source_test_point_id,
-                module=case_payload.module or "",
-                title=case_payload.title,
-                precondition=case_payload.precondition or "",
-                steps_json=steps_list,
-                expected_result=case_payload.expected_result or "",
-                priority=case_payload.priority,
-                case_type=case_payload.case_type or "manual",
-                test_category=test_category,
-                generate_status=1,
-                lifecycle_status=lifecycle_status,
-            )
-            db.add(new_case)
-            db.flush()
-
-            for step_idx, step_data in enumerate(case_payload.steps):
-                test_step = TestStep(
-                    test_case_id=new_case.id,
-                    step_number=step_idx + 1,
-                    action=step_data.action or "",
-                    expected_result=step_data.expected_result or "",
-                    action_type=step_data.action_type,
-                    input_value=step_data.input_value,
-                    target_element=step_data.target_element,
-                    is_business_view=1,
-                    is_technical_view=1,
-                )
-                db.add(test_step)
-
-            db.flush()
-            savepoint.commit()
-            saved_case_ids.append(new_case.id)
+                    await db.flush()
+                    saved_case_ids.append(new_case.id)
         except Exception as e:
-            savepoint.rollback()
             logger.warning(f"batch save 单条用例保存失败: {e}")
             failures.append(BatchSaveFailureItem(
                 client_id=case_payload.client_id,
@@ -440,6 +504,6 @@ def save_generation_batch(
         result_json=save_result,
     )
     db.add(batch_save_record)
-    db.commit()
+    await db.commit()
 
     return create_response(data=save_result)

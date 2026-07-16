@@ -20,8 +20,9 @@ import json
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.models.test_case import TestCase, TestStep
 from app.models.element_locator import ElementLocator
 from app.models.user import User
@@ -38,12 +39,13 @@ router = APIRouter()
 @router.get("/{test_case_id}/technical-view")
 async def get_test_case_technical_view(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(require_technical_view)
 ):
     try:
-        service = TestCaseViewService(db)
-        technical_view = service.get_technical_view(test_case_id)
+        def _get_view(sync_db):
+            return TestCaseViewService(sync_db).get_technical_view(test_case_id)
+        technical_view = await db.run_sync(_get_view)
         if not technical_view:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
         return create_response(data=technical_view)
@@ -57,12 +59,13 @@ async def get_test_case_technical_view(
 @router.get("/{test_case_id}/business-view")
 async def get_test_case_business_view(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        service = TestCaseViewService(db)
-        business_view = service.get_business_view(test_case_id)
+        def _get_view(sync_db):
+            return TestCaseViewService(sync_db).get_business_view(test_case_id)
+        business_view = await db.run_sync(_get_view)
         if not business_view:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
         return create_response(data=business_view.to_dict())
@@ -76,12 +79,13 @@ async def get_test_case_business_view(
 @router.get("/{test_case_id}/locator-coverage")
 async def get_locator_coverage(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        service = TestCaseViewService(db)
-        coverage = service.get_locator_coverage(test_case_id)
+        def _get_coverage(sync_db):
+            return TestCaseViewService(sync_db).get_locator_coverage(test_case_id)
+        coverage = await db.run_sync(_get_coverage)
         return create_response(data=coverage)
     except Exception as e:
         logger.error(f"获取定位覆盖率失败: {e}")
@@ -91,12 +95,13 @@ async def get_locator_coverage(
 @router.get("/{test_case_id}/view-statistics")
 async def get_view_statistics(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        service = TestCaseViewService(db)
-        statistics = service.get_view_statistics(test_case_id)
+        def _get_statistics(sync_db):
+            return TestCaseViewService(sync_db).get_view_statistics(test_case_id)
+        statistics = await db.run_sync(_get_statistics)
         return create_response(data=statistics)
     except Exception as e:
         logger.error(f"获取视图统计失败: {e}")
@@ -119,12 +124,15 @@ class BatchViewConfigRequest(BaseModel):
 async def batch_update_view_config(
     test_case_id: int,
     config: BatchViewConfigRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        service = TestCaseViewService(db)
-        updated_count = service.batch_update_view_config(test_case_id, config.view_type, config.visible)
+        def _update(sync_db):
+            return TestCaseViewService(sync_db).batch_update_view_config(
+                test_case_id, config.view_type, config.visible
+            )
+        updated_count = await db.run_sync(_update)
         return create_response(data={"updated_count": updated_count})
     except Exception as e:
         logger.error(f"批量更新视图配置失败: {e}")
@@ -140,12 +148,15 @@ class StepViewConfigRequest(BaseModel):
 async def update_step_view_config(
     step_id: int,
     config: StepViewConfigRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        service = TestCaseViewService(db)
-        success = service.update_step_view_config(step_id, config.is_business_view, config.is_technical_view)
+        def _update(sync_db):
+            return TestCaseViewService(sync_db).update_step_view_config(
+                step_id, config.is_business_view, config.is_technical_view
+            )
+        success = await db.run_sync(_update)
         return create_response(data={"success": success})
     except Exception as e:
         logger.error(f"更新步骤视图配置失败: {e}")
@@ -158,10 +169,11 @@ async def add_step_locator(
     css_selector: Optional[str] = None,
     xpath: Optional[str] = None,
     element_type: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(require_technical_view)
 ):
-    step = db.query(TestStep).filter(TestStep.id == step_id).first()
+    result = await db.execute(select(TestStep).where(TestStep.id == step_id))
+    step = result.scalar_one_or_none()
     if not step:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试步骤不存在")
 
@@ -169,7 +181,10 @@ async def add_step_locator(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请提供CSS选择器或XPath至少一种定位方式")
 
     try:
-        existing_locator = db.query(ElementLocator).filter(ElementLocator.step_id == step_id).first()
+        result = await db.execute(
+            select(ElementLocator).where(ElementLocator.step_id == step_id)
+        )
+        existing_locator = result.scalar_one_or_none()
 
         if existing_locator:
             if css_selector:
@@ -179,11 +194,11 @@ async def add_step_locator(
             if element_type:
                 existing_locator.element_type = element_type
             existing_locator.updated_at = utcnow()
-            db.commit()
-            db.refresh(existing_locator)
+            await db.commit()
+            await db.refresh(existing_locator)
             step.has_locator = 1
             step.locator_status = "recorded"
-            db.commit()
+            await db.commit()
             return {
                 "locator_id": existing_locator.id,
                 "message": "定位信息更新成功",
@@ -200,10 +215,10 @@ async def add_step_locator(
                 source="manual"
             )
             db.add(new_locator)
-            db.flush()
+            await db.flush()
             step.has_locator = 1
             step.locator_status = "recorded"
-            db.commit()
+            await db.commit()
             return {
                 "locator_id": new_locator.id,
                 "message": "定位信息添加成功",
@@ -211,7 +226,7 @@ async def add_step_locator(
                 "xpath": new_locator.xpath
             }
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"添加定位信息失败: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="添加定位信息失败")
 
@@ -233,12 +248,16 @@ class TechnicalViewEditRequest(BaseModel):
 async def update_technical_view(
     test_case_id: int,
     request: TechnicalViewEditRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(require_technical_view)
 ):
-    test_case = db.query(TestCase).filter(
-        TestCase.id == test_case_id, TestCase.is_deleted.is_(False)
-    ).first()
+    result = await db.execute(
+        select(TestCase).where(
+            TestCase.id == test_case_id,
+            TestCase.is_deleted.is_(False)
+        )
+    )
+    test_case = result.scalar_one_or_none()
     if not test_case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
@@ -251,10 +270,13 @@ async def update_technical_view(
             for updated_step in request.steps:
                 step_id = updated_step.get('step_number')
                 if step_id:
-                    db_step = db.query(TestStep).filter(
-                        TestStep.test_case_id == test_case_id,
-                        TestStep.step_number == step_id
-                    ).first()
+                    step_result = await db.execute(
+                        select(TestStep).where(
+                            TestStep.test_case_id == test_case_id,
+                            TestStep.step_number == step_id
+                        )
+                    )
+                    db_step = step_result.scalar_one_or_none()
                     if db_step:
                         if 'action_type' in updated_step:
                             db_step.action_type = updated_step['action_type']
@@ -273,12 +295,18 @@ async def update_technical_view(
 
         if request.locators is not None:
             for step_number, locator_data in request.locators.items():
-                db_step = db.query(TestStep).filter(
-                    TestStep.test_case_id == test_case_id,
-                    TestStep.step_number == int(step_number)
-                ).first()
+                step_result = await db.execute(
+                    select(TestStep).where(
+                        TestStep.test_case_id == test_case_id,
+                        TestStep.step_number == int(step_number)
+                    )
+                )
+                db_step = step_result.scalar_one_or_none()
                 if db_step:
-                    existing_locator = db.query(ElementLocator).filter(ElementLocator.step_id == db_step.id).first()
+                    loc_result = await db.execute(
+                        select(ElementLocator).where(ElementLocator.step_id == db_step.id)
+                    )
+                    existing_locator = loc_result.scalar_one_or_none()
                     if existing_locator:
                         if 'css_selector' in locator_data:
                             existing_locator.css_selector = locator_data['css_selector']
@@ -300,16 +328,17 @@ async def update_technical_view(
                     db_step.has_locator = 1
                     db_step.locator_status = "recorded"
 
-        db.commit()
-        db.refresh(test_case)
+        await db.commit()
+        await db.refresh(test_case)
         logger.info(f"[技术视图编辑] 用户ID={current_user.id}, 用例ID={test_case_id}")
 
-        service = TestCaseViewService(db)
-        technical_view = service.get_technical_view(test_case_id)
+        def _get_view(sync_db):
+            return TestCaseViewService(sync_db).get_technical_view(test_case_id)
+        technical_view = await db.run_sync(_get_view)
         return create_response(data=technical_view)
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"更新技术视图失败: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新技术视图失败")

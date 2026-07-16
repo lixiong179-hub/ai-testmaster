@@ -13,8 +13,9 @@
 权限要求: 所有端点需要Bearer令牌认证
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
 from app.models.enums import ExecStatus
@@ -30,7 +31,7 @@ router = APIRouter()
 
 
 def _verify_task_access(
-    db: Session, task: TestTask, current_user: User
+    db, task: TestTask, current_user: User
 ) -> None:
     project = db.query(Project).filter(
         Project.id == task.project_id,
@@ -46,62 +47,74 @@ def _verify_task_access(
 @router.post("/{task_id}/run")
 async def run_test_task(
     task_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """执行测试任务"""
-    task = db.query(TestTask).filter(TestTask.id == task_id).first()
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试任务不存在"
-        )
+    def _prepare(sync_db):
+        task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="测试任务不存在"
+            )
+        _verify_task_access(sync_db, task, current_user)
+        return task
 
-    _verify_task_access(db, task, current_user)
+    task = await db.run_sync(_prepare)
 
-    # 创建测试执行器
-    executor = TestExecutionEngineV2(db)
-
-    # 执行测试任务
+    # TestExecutionEngineV2 内部使用 sync Session API，需独立 sync 会话
+    # 性能优化：将 async service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
+    from app.utils.async_sync_bridge import run_async_coro_in_thread
+    sync_db = PrimarySessionLocal()
     try:
-        executed_task = await executor.execute_test_task(task_id)
+        executor = TestExecutionEngineV2(sync_db)
+        try:
+            executed_task = await run_async_coro_in_thread(
+                executor.execute_test_task(task_id)
+            )
 
-        summary = executor.get_task_execution_summary(task_id)
+            # sync 调用（get_task_execution_summary / get_project_config）通过 to_thread 释放事件循环
+            summary = await asyncio.to_thread(executor.get_task_execution_summary, task_id)
 
-        vis_service = VisibilityConfigService()
-        config = vis_service.get_project_config(db, task.project_id)
-        hidden_fields = config.hidden_fields or []
-        if hidden_fields:
-            summary = {k: v for k, v in summary.items() if k not in hidden_fields}
+            vis_service = VisibilityConfigService()
+            config = await asyncio.to_thread(
+                vis_service.get_project_config, sync_db, task.project_id
+            )
+            hidden_fields = config.hidden_fields or []
+            if hidden_fields:
+                summary = {k: v for k, v in summary.items() if k not in hidden_fields}
 
-        return {
-            "task": executed_task,
-            "summary": summary
-        }
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="执行测试任务失败"
-        )
+            return {
+                "task": executed_task,
+                "summary": summary
+            }
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="执行测试任务失败"
+            )
+    finally:
+        sync_db.close()
 
 
 @router.get("/{task_id}/summary")
 async def get_task_summary(
     task_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取任务执行摘要"""
-    try:
+    def _summary(sync_db):
         from sqlalchemy import case, func
 
-        task = db.query(TestTask).filter(TestTask.id == task_id).first()
+        task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail="任务不存在")
 
-        _verify_task_access(db, task, current_user)
+        _verify_task_access(sync_db, task, current_user)
 
-        stats = db.query(
+        stats = sync_db.query(
             func.count(TestResult.id).label('total'),
             func.sum(case((TestResult.exec_status == ExecStatus.PASSED, 1), else_=0)).label('success'),
             func.sum(case((TestResult.exec_status == ExecStatus.FAILED, 1), else_=0)).label('failed'),
@@ -123,6 +136,9 @@ async def get_task_summary(
             "end_time": task.end_time.isoformat() if task.end_time else None,
         }
         return create_response(data=summary)
+
+    try:
+        return await db.run_sync(_summary)
     except HTTPException:
         raise
     except Exception as e:

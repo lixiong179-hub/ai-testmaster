@@ -16,14 +16,15 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.project import Project
 from app.models.user import User
-from app.services.ab_test_service import ABTestService, VALID_METRIC_NAMES
+from app.services.ab_test_service import ABTestService
 
 router = APIRouter(tags=["A/B测试"])
 
@@ -37,8 +38,15 @@ class MetricCreateRequest(BaseModel):
     detail: Optional[Dict[str, Any]] = Field(None, description="指标详情JSON")
 
 
-def _verify_project_ownership(project_id: int, current_user: User, db: Session) -> Project:
-    project = db.query(Project).filter(Project.id == project_id).first()
+async def _verify_project_ownership(
+    project_id: int,
+    current_user: User,
+    db: AsyncSession,
+) -> Project:
+    """校验项目归属权：项目必须存在且属于当前用户"""
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
     if project.user_id != current_user.id:
@@ -46,18 +54,26 @@ def _verify_project_ownership(project_id: int, current_user: User, db: Session) 
     return project
 
 
+async def _get_user_project_ids(db: AsyncSession, user_id: int) -> List[int]:
+    """获取用户拥有的所有项目ID"""
+    rows = (
+        await db.execute(select(Project.id).where(Project.user_id == user_id))
+    ).all()
+    return [row[0] for row in rows if row[0] is not None]
+
+
 @router.post("/experiments/{experiment_id}/metrics", response_model=dict)
 async def record_metric(
     experiment_id: str,
     body: MetricCreateRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     if body.project_id is not None:
-        _verify_project_ownership(body.project_id, current_user, db)
+        await _verify_project_ownership(body.project_id, current_user, db)
     try:
         service = ABTestService(db)
-        row = service.record_metric(
+        row = await service.record_metric_async(
             experiment_id=experiment_id,
             variant=body.variant,
             metric_name=body.metric_name,
@@ -66,7 +82,7 @@ async def record_metric(
             test_point_id=body.test_point_id,
             detail=body.detail,
         )
-        db.commit()
+        await db.commit()
         return create_response(
             data={
                 "id": row.id,
@@ -93,17 +109,15 @@ async def record_metric(
 @router.get("/experiments/{experiment_id}/summary", response_model=dict)
 async def get_experiment_summary(
     experiment_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     try:
-        user_project_ids = [
-            row[0] for row in db.query(Project.id).filter(
-                Project.user_id == current_user.id,
-            ).all() if row[0] is not None
-        ]
+        user_project_ids = await _get_user_project_ids(db, current_user.id)
         service = ABTestService(db)
-        summary = service.get_experiment_summary(experiment_id, project_ids=user_project_ids)
+        summary = await service.get_experiment_summary_async(
+            experiment_id, project_ids=user_project_ids,
+        )
         return create_response(data=summary, msg="获取实验汇总成功")
     except Exception as exc:
         raise HTTPException(
@@ -114,17 +128,15 @@ async def get_experiment_summary(
 
 @router.get("/experiments", response_model=dict)
 async def list_experiments(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     try:
-        user_project_ids = [
-            row[0] for row in db.query(Project.id).filter(
-                Project.user_id == current_user.id,
-            ).all() if row[0] is not None
-        ]
+        user_project_ids = await _get_user_project_ids(db, current_user.id)
         service = ABTestService(db)
-        experiments: List[Dict[str, Any]] = service.list_experiments(project_ids=user_project_ids)
+        experiments: List[Dict[str, Any]] = await service.list_experiments_async(
+            project_ids=user_project_ids,
+        )
         return create_response(data=experiments, msg="获取实验列表成功")
     except Exception as exc:
         raise HTTPException(

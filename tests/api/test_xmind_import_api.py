@@ -52,7 +52,7 @@ def _build_content_xml(topics_xml: str) -> str:
 </xmap-content>"""
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def client():
     return TestClient(app)
 

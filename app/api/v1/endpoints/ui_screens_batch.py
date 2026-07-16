@@ -27,10 +27,11 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.project import Project
 from app.models.ui_prototype import UIPrototypeScreen
 from app.models.user import User
@@ -135,7 +136,7 @@ def _build_data_url(screen: UIPrototypeScreen) -> str | None:
 @router.get("/batch", response_model=dict)
 async def batch_get_ui_screens(
     ids: str = Query(..., description="逗号分隔的UI屏幕ID列表，如 1,2,3，最多100个"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     """批量获取UI屏幕截图预览 data URL 映射。
@@ -164,17 +165,20 @@ async def batch_get_ui_screens(
     try:
         parsed_ids = _parse_screen_ids(ids)
 
-        # 参数化批量查询：join Project 校验权限，使用 in_ 列表传参杜绝 SQL 注入
-        # 单次查询返回所有所需屏幕，杜绝循环内执行 SQL 的 N+1 问题
-        screens = (
-            db.query(UIPrototypeScreen)
-            .join(Project, UIPrototypeScreen.project_id == Project.id)
-            .filter(
-                UIPrototypeScreen.id.in_(parsed_ids),
-                Project.user_id == current_user.id,
+        def _query_screens(sync_db: Session) -> list:
+            # 参数化批量查询：join Project 校验权限，使用 in_ 列表传参杜绝 SQL 注入
+            # 单次查询返回所有所需屏幕，杜绝循环内执行 SQL 的 N+1 问题
+            return (
+                sync_db.query(UIPrototypeScreen)
+                .join(Project, UIPrototypeScreen.project_id == Project.id)
+                .filter(
+                    UIPrototypeScreen.id.in_(parsed_ids),
+                    Project.user_id == current_user.id,
+                )
+                .all()
             )
-            .all()
-        )
+
+        screens = await db.run_sync(_query_screens)
 
         result: dict[str, str] = {}
         for screen in screens:

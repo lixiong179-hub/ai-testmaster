@@ -27,7 +27,8 @@ from fastapi import (
 )
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
@@ -65,7 +66,7 @@ async def batch_upload_files(
     description: str = Form(""),
     name: str = Form(""),
     iteration_id: Optional[int] = Form(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -76,19 +77,22 @@ async def batch_upload_files(
                 detail=f"无效的资源类型，允许值: {', '.join(valid_resource_types)}",
             )
 
-        project = (
-            db.query(Project)
-            .filter(
-                Project.id == project_id, Project.user_id == current_user.id
+        def _check_project(sync_db: Session) -> Project:
+            project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == project_id, Project.user_id == current_user.id
+                )
+                .first()
             )
-            .first()
-        )
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="无权限操作此项目",
+                )
+            return project
 
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目",
-            )
+        await db.run_sync(_check_project)
 
         if not files or len(files) == 0:
             raise HTTPException(status_code=400, detail="请选择至少一个文件")
@@ -192,17 +196,20 @@ async def batch_upload_files(
                     with open(zip_path, "wb") as f:
                         f.write(contents)
 
-                    zip_uploaded, zip_failed = _extract_images_from_zip(
-                        zip_path=zip_path,
-                        project_upload_dir=project_upload_dir,
-                        project_id=project_id,
-                        resource_type=file_resource_type,
-                        description=description,
-                        db=db,
-                        zip_filename=file.filename,
-                        name=name,
-                        iteration_id=iteration_id,
-                    )
+                    def _extract_zip(sync_db: Session) -> tuple:
+                        return _extract_images_from_zip(
+                            zip_path=zip_path,
+                            project_upload_dir=project_upload_dir,
+                            project_id=project_id,
+                            resource_type=file_resource_type,
+                            description=description,
+                            db=sync_db,
+                            zip_filename=file.filename,
+                            name=name,
+                            iteration_id=iteration_id,
+                        )
+
+                    zip_uploaded, zip_failed = await db.run_sync(_extract_zip)
 
                     uploaded_files.extend(zip_uploaded)
                     failed_files.extend(zip_failed)
@@ -228,18 +235,22 @@ async def batch_upload_files(
                     display_name = file.filename
 
                 db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
-                new_file = file_crud.create_project_file(
-                    db=db,
-                    project_id=project_id,
-                    file_name=display_name,
-                    file_type=file_ext,
-                    file_url=file_path,
-                    file_source="file",
-                    size=file_size,
-                    resource_type=file_resource_type,
-                    description=description,
-                    iteration_id=db_iteration_id,
-                )
+
+                def _create_file(sync_db: Session):
+                    return file_crud.create_project_file(
+                        db=sync_db,
+                        project_id=project_id,
+                        file_name=display_name,
+                        file_type=file_ext,
+                        file_url=file_path,
+                        file_source="file",
+                        size=file_size,
+                        resource_type=file_resource_type,
+                        description=description,
+                        iteration_id=db_iteration_id,
+                    )
+
+                new_file = await db.run_sync(_create_file)
 
                 uploaded_files.append(_file_to_dict(new_file))
                 file_index += 1

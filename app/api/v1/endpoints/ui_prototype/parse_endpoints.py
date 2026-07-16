@@ -23,9 +23,10 @@ import traceback
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from app.db.database import get_db, get_db_context
+from app.db.database import async_get_db, get_db_context
 from app.schemas.ui_prototype import (
     UIScreenParseRequest,
     UIFlowGenerateRequest,
@@ -45,7 +46,7 @@ router = APIRouter(tags=["UI原型管理"])
 @router.post("/parse", response_model=dict)
 async def parse_ui_screens(
     parse_request: UIScreenParseRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     logger.info(
@@ -58,48 +59,51 @@ async def parse_ui_screens(
                 detail="请选择要解析的屏幕",
             )
 
-        # 一次性批量查询所有屏幕，防止N+1及越权风险
-        screens = (
-            db.query(UIPrototypeScreen)
-            .filter(UIPrototypeScreen.id.in_(parse_request.screen_ids))
-            .all()
-        )
-        # 校验所有 screen_id 均存在
-        found_ids = {s.id for s in screens}
-        missing_ids = set(parse_request.screen_ids) - found_ids
-        if missing_ids:
-            logger.warning(f"屏幕不存在: {missing_ids}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"屏幕不存在: {missing_ids}",
+        def _validate(sync_db: Session):
+            # 一次性批量查询所有屏幕，防止N+1及越权风险
+            screens = (
+                sync_db.query(UIPrototypeScreen)
+                .filter(UIPrototypeScreen.id.in_(parse_request.screen_ids))
+                .all()
             )
-        # 强约束：所有 screen 必须属于同一项目，避免跨项目调用导致 pipeline 上下文混乱
-        screen_project_ids = {s.project_id for s in screens}
-        if len(screen_project_ids) > 1:
-            logger.warning(
-                f"screen_ids 跨多个项目: project_ids={screen_project_ids}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="screen_ids 必须属于同一项目",
-            )
-        # 一次性校验所有屏幕均属于当前用户拥有的项目
-        authorized_project_ids = {
-            pid for (pid,) in db.query(Project.id)
-            .filter(Project.id.in_(screen_project_ids), Project.user_id == current_user.id)
-            .all()
-        }
-        unauthorized_project_ids = screen_project_ids - authorized_project_ids
-        if unauthorized_project_ids:
-            logger.warning(
-                f"用户 user_id={current_user.id} 无权限操作项目 project_ids={unauthorized_project_ids}"
-            )
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目",
-            )
+            # 校验所有 screen_id 均存在
+            found_ids = {s.id for s in screens}
+            missing_ids = set(parse_request.screen_ids) - found_ids
+            if missing_ids:
+                logger.warning(f"屏幕不存在: {missing_ids}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"屏幕不存在: {missing_ids}",
+                )
+            # 强约束：所有 screen 必须属于同一项目，避免跨项目调用导致 pipeline 上下文混乱
+            screen_project_ids = {s.project_id for s in screens}
+            if len(screen_project_ids) > 1:
+                logger.warning(
+                    f"screen_ids 跨多个项目: project_ids={screen_project_ids}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="screen_ids 必须属于同一项目",
+                )
+            # 一次性校验所有屏幕均属于当前用户拥有的项目
+            authorized_project_ids = {
+                pid for (pid,) in sync_db.query(Project.id)
+                .filter(Project.id.in_(screen_project_ids), Project.user_id == current_user.id)
+                .all()
+            }
+            unauthorized_project_ids = screen_project_ids - authorized_project_ids
+            if unauthorized_project_ids:
+                logger.warning(
+                    f"用户 user_id={current_user.id} 无权限操作项目 project_ids={unauthorized_project_ids}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="无权限操作此项目",
+                )
 
-        target_project_id = next(iter(screen_project_ids))
+            return next(iter(screen_project_ids))
+
+        target_project_id = await db.run_sync(_validate)
 
         # 后台执行解析，使用独立数据库会话，避免请求会话被关闭
         # 不在此处预设 running 状态，由 pipeline.parse_screen() 逐屏设置，保证进度条渐进推进
@@ -162,35 +166,40 @@ async def parse_ui_screens(
 async def parse_prototype_project(
     prototype_project_id: int,
     parse_mode: Optional[str] = Query("text"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        prototype_project = (
-            db.query(UIPrototypeProject)
-            .filter(UIPrototypeProject.id == prototype_project_id)
-            .first()
-        )
-
-        if not prototype_project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
+        def _validate(sync_db: Session):
+            prototype_project = (
+                sync_db.query(UIPrototypeProject)
+                .filter(UIPrototypeProject.id == prototype_project_id)
+                .first()
             )
 
-        db_project = (
-            db.query(Project)
-            .filter(
-                Project.id == prototype_project.project_id,
-                Project.user_id == current_user.id,
-            )
-            .first()
-        )
+            if not prototype_project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
+                )
 
-        if not db_project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目或项目不存在",
+            db_project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == prototype_project.project_id,
+                    Project.user_id == current_user.id,
+                )
+                .first()
             )
+
+            if not db_project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="无权限操作此项目或项目不存在",
+                )
+
+            return db_project.id
+
+        project_id = await db.run_sync(_validate)
 
         # 后台执行解析，使用独立数据库会话
         # 不在此处预设 running 状态，由 pipeline 逐屏设置，保证进度条渐进推进
@@ -198,7 +207,7 @@ async def parse_prototype_project(
             try:
                 with get_db_context() as bg_db:
                     pipeline = UISpecParsePipeline(
-                        bg_db, db_project.id, current_user.id, UPLOAD_DIR,
+                        bg_db, project_id, current_user.id, UPLOAD_DIR,
                         parse_mode=parse_mode
                     )
                     result = await pipeline.parse_prototype_project(prototype_project_id)
@@ -215,7 +224,7 @@ async def parse_prototype_project(
                         for status_to_mark in ("running", "pending"):
                             stuck_screens = ui_prototype_crud.get_ui_screens_by_project(
                                 db=bg_db,
-                                project_id=db_project.id,
+                                project_id=project_id,
                                 user_id=current_user.id,
                                 prototype_project_id=prototype_project_id,
                                 parse_status=status_to_mark
@@ -251,7 +260,7 @@ async def parse_prototype_project(
 @router.post("/flow/generate", response_model=dict)
 async def generate_page_flow(
     flow_request: UIFlowGenerateRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -262,35 +271,38 @@ async def generate_page_flow(
                 detail="缺少原型项目ID",
             )
 
-        prototype_project = (
-            db.query(UIPrototypeProject)
-            .filter(UIPrototypeProject.id == prototype_project_id)
-            .first()
-        )
-
-        if not prototype_project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
+        def _validate_and_create(sync_db: Session):
+            prototype_project = (
+                sync_db.query(UIPrototypeProject)
+                .filter(UIPrototypeProject.id == prototype_project_id)
+                .first()
             )
 
-        db_project = (
-            db.query(Project)
-            .filter(
-                Project.id == prototype_project.project_id,
-                Project.user_id == current_user.id,
-            )
-            .first()
-        )
+            if not prototype_project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
+                )
 
-        if not db_project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目或项目不存在",
+            db_project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == prototype_project.project_id,
+                    Project.user_id == current_user.id,
+                )
+                .first()
             )
 
-        pipeline = UISpecParsePipeline(
-            db, db_project.id, current_user.id, UPLOAD_DIR
-        )
+            if not db_project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="无权限操作此项目或项目不存在",
+                )
+
+            return UISpecParsePipeline(
+                sync_db, db_project.id, current_user.id, UPLOAD_DIR
+            )
+
+        pipeline = await db.run_sync(_validate_and_create)
         success, message = await pipeline.generate_flow(
             prototype_project_id
         )
@@ -313,26 +325,28 @@ async def generate_page_flow(
 async def get_ui_specs_for_case_generation(
     project_id: int,
     prototype_project_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project = (
-            db.query(Project)
-            .filter(Project.id == project_id, Project.user_id == current_user.id)
-            .first()
-        )
-
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+        def _get_specs(sync_db: Session):
+            project = (
+                sync_db.query(Project)
+                .filter(Project.id == project_id, Project.user_id == current_user.id)
+                .first()
             )
 
-        pipeline = UISpecParsePipeline(db, project_id, current_user.id, UPLOAD_DIR)
-        specs = pipeline.get_parsed_ui_spec_for_case_generation(
-            prototype_project_id
-        )
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+                )
 
+            pipeline = UISpecParsePipeline(sync_db, project_id, current_user.id, UPLOAD_DIR)
+            return pipeline.get_parsed_ui_spec_for_case_generation(
+                prototype_project_id
+            )
+
+        specs = await db.run_sync(_get_specs)
         return create_response(
             data={"items": specs, "total": len(specs)},
             msg=f"获取成功，共{len(specs)}个屏幕"

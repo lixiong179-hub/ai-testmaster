@@ -12,10 +12,11 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.user import User
 from app.models.prompt_template import PromptTemplate
 from app.schemas.prompt_template import (
@@ -37,29 +38,30 @@ router = APIRouter(tags=["Prompt模板"])
 
 
 @router.get("/", response_model=PromptTemplateListResponse)
-def list_prompt_templates(
+async def list_prompt_templates(
     prompt_key: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> PromptTemplateListResponse:
     """获取 Prompt 模板列表，支持按 prompt_key 筛选。"""
-    query = db.query(PromptTemplate)
+    stmt = select(PromptTemplate)
     if prompt_key:
-        query = query.filter(PromptTemplate.prompt_key == prompt_key)
-    items = query.order_by(PromptTemplate.prompt_key, PromptTemplate.prompt_version.asc()).all()
+        stmt = stmt.where(PromptTemplate.prompt_key == prompt_key)
+    stmt = stmt.order_by(PromptTemplate.prompt_key, PromptTemplate.prompt_version.asc())
+    items = list((await db.execute(stmt)).scalars().all())
     return PromptTemplateListResponse(items=items, total=len(items))
 
 
 @router.post("/", response_model=PromptTemplateResponse, status_code=status.HTTP_201_CREATED)
-def register_prompt_template(
+async def register_prompt_template(
     data: PromptTemplateCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(_require_admin),
 ) -> PromptTemplateResponse:
     """注册 Prompt 新版本"""
     registry = PromptRegistry(db)
     try:
-        template = registry.register_prompt(
+        template = await registry.register_prompt_async(
             key=data.prompt_key,
             content=data.content,
             description=data.description,
@@ -73,16 +75,16 @@ def register_prompt_template(
 
 
 @router.post("/{key}/set-default", response_model=PromptTemplateResponse)
-def set_default_prompt(
+async def set_default_prompt(
     key: str,
     data: SetDefaultRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(_require_admin),
 ) -> PromptTemplateResponse:
     """将指定版本设为默认版本"""
     registry = PromptRegistry(db)
     try:
-        template = registry.set_default(key=key, version=data.version)
+        template = await registry.set_default_async(key=key, version=data.version)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -92,16 +94,16 @@ def set_default_prompt(
 
 
 @router.post("/{key}/rollback", response_model=PromptTemplateResponse)
-def rollback_prompt(
+async def rollback_prompt(
     key: str,
     data: RollbackRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(_require_admin),
 ) -> PromptTemplateResponse:
     """回滚到指定版本"""
     registry = PromptRegistry(db)
     try:
-        template = registry.rollback(key=key, target_version=data.target_version)
+        template = await registry.rollback_async(key=key, target_version=data.target_version)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

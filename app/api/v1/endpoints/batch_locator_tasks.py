@@ -14,8 +14,8 @@
 权限要求: 所有端点需要Bearer令牌认证
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.batch_locator_service import BatchLocatorService
@@ -27,7 +27,7 @@ router = APIRouter()
 @router.get("/batch-record-report/{task_id}")
 async def get_batch_record_report(
     task_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取批量定位报告"""
@@ -46,7 +46,7 @@ async def get_batch_record_report(
 @router.post("/batch-record-cancel/{task_id}")
 async def cancel_batch_record(
     task_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """取消批量定位任务"""
@@ -68,7 +68,7 @@ async def get_batch_tasks(
     status_filter: str = Query(None, description="状态过滤"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取批量定位任务列表"""

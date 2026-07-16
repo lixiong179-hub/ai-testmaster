@@ -46,9 +46,16 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = ""
     DATABASE_URL_SLAVE: Optional[str] = None
+    # 兼容旧配置：DB_POOL_SIZE/DB_MAX_OVERFLOW 仍生效，作为 async 引擎默认值
     DB_POOL_SIZE: int = 20
     DB_POOL_TIMEOUT: int = 30
     DB_MAX_OVERFLOW: int = 10
+    # 性能优化：同步引擎实际负载低（仅遗留端点与 CLI 使用），独立下调避免连接池翻倍
+    DB_SYNC_POOL_SIZE: int = 5
+    DB_SYNC_MAX_OVERFLOW: int = 5
+    # 异步引擎为 ASGI 主路径，显式配置便于调优
+    DB_ASYNC_POOL_SIZE: int = 20
+    DB_ASYNC_MAX_OVERFLOW: int = 10
 
     REDIS_URL: str = "redis://localhost:6379/0"
     REDIS_MAX_CONNECTIONS: int = 50
@@ -91,6 +98,10 @@ class Settings(BaseSettings):
     AI_CASE_GENERATION_CONCURRENCY: int = 3
     AI_CASE_GENERATION_MAX_TOKENS: int = 4096
     AI_CASE_GENERATION_MAX_TOKENS_FULL: int = 8192
+    # 性能优化：单次 AI 调用硬超时，避免 75s+ 长尾阻塞 worker
+    AI_CALL_TIMEOUT_SECONDS: int = 30
+    # 质量反馈循环最大重生成轮数：推理模型下每轮 25-55s，3 轮可能 200s+，收敛到 1 轮
+    AI_QUALITY_FEEDBACK_MAX_ROUNDS: int = 1
     UI_PARSE_CONCURRENCY: int = 3
     PIPELINE_PAUSE_TIMEOUT_DAYS: int = 7
 
@@ -181,18 +192,12 @@ class Settings(BaseSettings):
     # 与 AI_MAX_TOKENS 全局默认解耦，独立调整不影响其他 AI 路径。
     URL_QUICK_TEST_AI_MAX_TOKENS: int = 4096
 
-    CELERY_BROKER_URL: str = ""
-    CELERY_RESULT_BACKEND: str = ""
-    CELERY_TASK_SERIALIZER: str = "json"
-    CELERY_RESULT_SERIALIZER: str = "json"
-    CELERY_ACCEPT_CONTENT: str = "json"
-    CELERY_TIMEZONE: str = "Asia/Shanghai"
-    CELERY_ENABLE_UTC: bool = False
-
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_ALLOW_METHODS: str = "GET,POST,PUT,DELETE,OPTIONS"
-    CORS_ALLOW_HEADERS: str = "*"
+    # 安全收紧：显式允许的请求头白名单，禁止 "*" 通配符以缩小 CSRF/请求走私攻击面。
+    # 如需扩展，通过环境变量 CORS_ALLOW_HEADERS 追加（逗号分隔）。
+    CORS_ALLOW_HEADERS: str = "Authorization,Content-Type,Accept,Origin,X-Requested-With,X-CSRF-Token,X-Request-ID"
 
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -221,11 +226,6 @@ class Settings(BaseSettings):
     def cors_allow_headers_list(self) -> List[str]:
         """获取CORS允许的请求头列表。"""
         return parse_list(self.CORS_ALLOW_HEADERS)
-
-    @property
-    def celery_accept_content_list(self) -> List[str]:
-        """获取Celery接受的内容类型列表。"""
-        return parse_list(self.CELERY_ACCEPT_CONTENT)
 
     def _ensure_secret_keys(self) -> None:
         """确保必要的安全密钥已设置，委托给 key_management.ensure_secret_keys。"""

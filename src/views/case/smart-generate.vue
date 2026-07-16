@@ -1323,7 +1323,7 @@ async function loadSystemCases() {
   try {
     systemCases.value = extractListData(
       await request.get(
-        `/api/v1/testCase/?project_id=${store.selectedProjectId}&page=1&page_size=200`
+        `/api/v1/test-case/?project_id=${store.selectedProjectId}&page=1&page_size=200`
       )
     ) as { id: number; title: string; module: string; case_type: string }[]
   } catch {

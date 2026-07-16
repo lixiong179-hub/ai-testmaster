@@ -118,27 +118,36 @@ async def run_quality_feedback_loop(
     case: Dict[str, Any],
     regen_fn: AsyncRegenFn,
     feedback_builder: Optional[FeedbackBuilder] = None,
-    max_rounds: int = 3,
+    max_rounds: Optional[int] = None,
     on_round: Optional[RoundCallback] = None,
 ) -> Tuple[Dict[str, Any], str, List[str]]:
     """执行质量反馈闭环（最多 max_rounds 轮，含首轮校验）。
 
     首轮直接校验输入 case；不通过则通过 regen_fn 重生成，每轮注入
-    quality_feedback + quality_signals。只 rejected 阻断，其他状态返回。
+    quality_feedback + quality_signals。只 rejected 阻塞，其他状态返回。
     流式端点通过 on_round 回调收集 SSE regen 事件。
+
+    性能优化：max_rounds 默认从 3 收敛到 settings.AI_QUALITY_FEEDBACK_MAX_ROUNDS
+    （默认 1）。推理模型下每轮 25-55s，3 轮可能 200s+；1 轮重生成已能修复
+    大部分质量问题，仍 rejected 由上层 batch_orchestrator 跳过该用例。
 
     Args:
         case: 首轮生成的用例 dict。
         regen_fn: 重生成 async 函数，接收 extra_context dict（含
             quality_feedback 与 quality_signals），返回新用例 dict 或 None。
         feedback_builder: 反馈文本构建器，默认使用 build_quality_feedback_text。
-        max_rounds: 最大轮次（含首轮校验），默认 3。
+        max_rounds: 最大轮次（含首轮校验），None 时取 settings.AI_QUALITY_FEEDBACK_MAX_ROUNDS + 1。
         on_round: 可选轮次回调，每轮校验后调用，供流式端点收集 SSE 事件。
 
     Returns:
         (最终用例, 最终状态, 最终问题列表)。
     """
+    from app.core.config import settings
     from app.services.case_quality.quality_scoring_service import QualityScoringService
+
+    # 性能优化：默认轮数从配置读取，避免硬编码 3 导致 200s+ 长尾
+    if max_rounds is None:
+        max_rounds = settings.AI_QUALITY_FEEDBACK_MAX_ROUNDS + 1  # 含首轮校验
 
     builder = feedback_builder or build_quality_feedback_text
 

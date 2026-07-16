@@ -23,9 +23,10 @@ from typing import Optional
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
-from sqlalchemy.orm import Session
-from app.db.database import get_db
-from app.models.test_case import TestCase
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
+from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
 from app.models.user import User
 from app.models.enums import TestCaseLifecycleStatus
 from app.api.v1.endpoints.auth import get_current_user
@@ -69,10 +70,28 @@ class WorkflowTransitionRequest(BaseModel):
         return v
 
 
+async def _get_test_case(test_case_id: int, db: AsyncSession) -> TestCase:
+    """按 ID 查询未删除的测试用例，不存在则抛 404"""
+    test_case = (
+        await db.execute(
+            select(TestCase).where(
+                TestCase.id == test_case_id,
+                TestCase.is_deleted.is_(False),
+            )
+        )
+    ).scalar_one_or_none()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+    return test_case
+
+
 @router.get("/{test_case_id}/workflow")
 async def get_test_case_workflow(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -89,12 +108,7 @@ async def get_test_case_workflow(
 
     权限要求: 需要Bearer令牌认证
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+    test_case = await _get_test_case(test_case_id, db)
 
     current_status = getattr(test_case, 'lifecycle_status', 'draft') or 'draft'
     allowed_transitions = WORKFLOW_TRANSITIONS.get(current_status, [])
@@ -115,7 +129,7 @@ async def get_test_case_workflow(
 async def transition_test_case_workflow(
     test_case_id: int,
     request: WorkflowTransitionRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -137,12 +151,7 @@ async def transition_test_case_workflow(
         HTTPException 400: 不允许的状态转换
         HTTPException 404: 测试用例不存在
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+    test_case = await _get_test_case(test_case_id, db)
 
     current_status = getattr(test_case, 'lifecycle_status', 'draft') or 'draft'
     allowed_transitions = WORKFLOW_TRANSITIONS.get(current_status, [])
@@ -155,8 +164,12 @@ async def transition_test_case_workflow(
 
     try:
         old_status = current_status
-        test_case.lifecycle_status = request.target_status
-        db.commit()
+        enable_lifecycle_transition()
+        try:
+            test_case.lifecycle_status = request.target_status
+            await db.commit()
+        finally:
+            disable_lifecycle_transition()
 
         logger.info(
             f"[工作流转换] 用户ID={current_user.id}, 用例ID={test_case_id}, "
@@ -181,7 +194,7 @@ async def transition_test_case_workflow(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"工作流状态转换失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -210,7 +223,7 @@ CORRECTION_STATUS_LABELS = {
 @router.get("/{test_case_id}/correction-status")
 async def get_correction_status(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -226,9 +239,7 @@ async def get_correction_status(
     Raises:
         HTTPException 404: 测试用例不存在
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
+    test_case = await _get_test_case(test_case_id, db)
 
     current_status = getattr(test_case, 'correction_status', None)
     allowed = CORRECTION_STATUS_TRANSITIONS.get(current_status, [])
@@ -247,7 +258,7 @@ async def get_correction_status(
 @router.post("/{test_case_id}/start-correction")
 async def start_correction(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -265,9 +276,7 @@ async def start_correction(
         HTTPException 400: 当前状态不允许开始纠正
         HTTPException 404: 测试用例不存在
     """
-    test_case = db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
-    if not test_case:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
+    test_case = await _get_test_case(test_case_id, db)
 
     current_status = getattr(test_case, 'correction_status', None)
     if current_status not in [None, 'failed_correction', 'correcting']:
@@ -278,7 +287,7 @@ async def start_correction(
 
     try:
         test_case.correction_status = 'correcting'
-        db.commit()
+        await db.commit()
 
         logger.info(f"[纠正开始] 用户ID={current_user.id}, 用例ID={test_case_id}")
 
@@ -289,7 +298,7 @@ async def start_correction(
             "message": "已进入纠正模式"
         })
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"开始纠正失败: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="开始纠正失败")
 
@@ -297,7 +306,7 @@ async def start_correction(
 @router.post("/{test_case_id}/submit-verification")
 async def submit_verification(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -314,12 +323,7 @@ async def submit_verification(
         HTTPException 400: 当前状态非"纠正中"
         HTTPException 404: 测试用例不存在
     """
-    test_case = db.query(TestCase).filter(
-        TestCase.id == test_case_id,
-        TestCase.is_deleted.is_(False)
-    ).first()
-    if not test_case:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
+    test_case = await _get_test_case(test_case_id, db)
 
     current_status = getattr(test_case, 'correction_status', None)
     if current_status != 'correcting':
@@ -330,7 +334,7 @@ async def submit_verification(
 
     try:
         test_case.correction_status = 'verifying'
-        db.commit()
+        await db.commit()
 
         logger.info(f"[提交验证] 用户ID={current_user.id}, 用例ID={test_case_id}")
 
@@ -341,6 +345,6 @@ async def submit_verification(
             "message": "已提交验证"
         })
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"提交验证失败: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="提交验证失败")

@@ -5,20 +5,36 @@ Pipeline 监控指标服务模块
 对应 plan §8 FMEA 表中 F1/F2/F3/F5/F9/F11/F12/F13/F14/F15 各项。
 
 核心函数概览：
-    - record_metric   : 记录单条监控指标
-    - record_metrics  : 批量记录监控指标
-    - query_metrics   : 聚合查询指标（按 metric_name 分组统计）
-    - get_metric_timeseries : 时序查询指标（用于仪表盘绘图）
+    - record_metric         : 记录单条监控指标（sync，fire-and-forget）
+    - record_metrics        : 批量记录监控指标（sync）
+    - query_metrics         : 聚合查询指标（async，按 metric_name 分组统计）
+    - get_metric_timeseries : 时序查询指标（async，用于仪表盘绘图）
+    - get_dashboard_summary : 仪表盘摘要（async）
 
 依赖关系：
     - app.models.pipeline_metric : PipelineMetric, VALID_METRIC_NAMES
+
+迁移说明（任务1 续作 - 服务层混合迁移）:
+    record_metric / record_metrics 保持 sync — 它们以 fire-and-forget 方式被 9+
+    sync 调用点（pipelines/runner、ai/fallback_client、services/audit_service、
+    endpoints/review_inbox 等）调用，强行 async 化会导致调用链级联改造。
+    record_metric 内部使用独立 Session（get_db_context）提交，不随主事务回滚。
+
+    query_metrics / get_metric_timeseries / get_dashboard_summary 改为 async —
+    它们仅被 pipeline_metrics 端点调用，端点同步迁至 async。
+
+    _build_filters / _get_dialect_name / _date_trunc_day / _date_trunc_hour 保持
+    sync 纯函数 — _date_trunc_* 还被 pipeline_dashboard/_overview.py 和
+    _trends.py 的同步端点直接调用。db.bind.dialect.name 对 Session 和
+    AsyncSession 均有效，故 _date_trunc_* 兼容两种 Session 类型。
 """
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from loguru import logger
 
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.pipeline_metric import PipelineMetric, VALID_METRIC_NAMES, FMEA_METRICS
 
@@ -107,8 +123,8 @@ def record_metrics(
     return results
 
 
-def query_metrics(
-    db: Session,
+async def query_metrics(
+    db: AsyncSession,
     *,
     metric_name: Optional[str] = None,
     project_id: Optional[int] = None,
@@ -120,7 +136,7 @@ def query_metrics(
     """聚合查询指标（按 metric_name 分组统计 count/sum/avg）。
 
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话。
         metric_name: 按指标名过滤（可选）。
         project_id: 按项目过滤（可选）。
         iteration_id: 按迭代过滤（可选）。
@@ -140,17 +156,17 @@ def query_metrics(
         until=until,
     )
 
-    rows = (
-        db.query(
+    stmt = (
+        select(
             PipelineMetric.metric_name,
             func.count(PipelineMetric.id).label("count"),
             func.coalesce(func.sum(PipelineMetric.value), 0).label("total"),
             func.coalesce(func.avg(PipelineMetric.value), 0).label("avg_value"),
         )
-        .filter(and_(*filters) if filters else True)
+        .where(and_(*filters) if filters else True)
         .group_by(PipelineMetric.metric_name)
-        .all()
     )
+    rows = (await db.execute(stmt)).all()
 
     results = []
     for row in rows:
@@ -166,8 +182,8 @@ def query_metrics(
     return results
 
 
-def get_metric_timeseries(
-    db: Session,
+async def get_metric_timeseries(
+    db: AsyncSession,
     metric_name: str,
     *,
     project_id: Optional[int] = None,
@@ -178,7 +194,7 @@ def get_metric_timeseries(
     """时序查询指标（按天/小时聚合，用于仪表盘绘图）。
 
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话。
         metric_name: 指标名。
         project_id: 按项目过滤（可选）。
         since: 起始时间（含）。
@@ -200,17 +216,17 @@ def get_metric_timeseries(
     else:
         date_expr = _date_trunc_day(PipelineMetric.created_at, db)
 
-    rows = (
-        db.query(
+    stmt = (
+        select(
             date_expr.label("time_bucket"),
             func.count(PipelineMetric.id).label("count"),
             func.coalesce(func.sum(PipelineMetric.value), 0).label("total"),
         )
-        .filter(and_(*filters) if filters else True)
+        .where(and_(*filters) if filters else True)
         .group_by("time_bucket")
         .order_by("time_bucket")
-        .all()
     )
+    rows = (await db.execute(stmt)).all()
 
     return [
         {
@@ -222,8 +238,8 @@ def get_metric_timeseries(
     ]
 
 
-def get_dashboard_summary(
-    db: Session,
+async def get_dashboard_summary(
+    db: AsyncSession,
     *,
     project_id: Optional[int] = None,
     since: Optional[datetime] = None,
@@ -231,14 +247,14 @@ def get_dashboard_summary(
     """获取仪表盘摘要（所有 FMEA 指标的当前值）。
 
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话。
         project_id: 按项目过滤（可选）。
         since: 起始时间（含）。
 
     Returns:
         摘要字典，含 metrics 列表和 generated_at 时间戳。
     """
-    aggregated = query_metrics(
+    aggregated = await query_metrics(
         db, project_id=project_id, since=since,
     )
 
@@ -290,24 +306,27 @@ def _build_filters(
     return filters
 
 
-def _get_dialect_name(db: Session) -> str:
-    """获取当前数据库方言名称。"""
+def _get_dialect_name(db: "Session | AsyncSession") -> str:
+    """获取当前数据库方言名称。
+
+    兼容 sync Session 与 AsyncSession — 两者均暴露 .bind.dialect.name。
+    """
     try:
         return db.bind.dialect.name
     except Exception:
         return "mysql"
 
 
-def _date_trunc_day(column, db: Session):
-    """按天截断日期（跨数据库兼容）。"""
+def _date_trunc_day(column, db: "Session | AsyncSession"):
+    """按天截断日期（跨数据库兼容，兼容 sync/async Session）。"""
     dialect = _get_dialect_name(db)
     if dialect == "sqlite":
         return func.strftime("%Y-%m-%d", column)
     return func.date_format(column, "%Y-%m-%d")
 
 
-def _date_trunc_hour(column, db: Session):
-    """按小时截断日期（跨数据库兼容）。"""
+def _date_trunc_hour(column, db: "Session | AsyncSession"):
+    """按小时截断日期（跨数据库兼容，兼容 sync/async Session）。"""
     dialect = _get_dialect_name(db)
     if dialect == "sqlite":
         return func.strftime("%Y-%m-%d %H:00", column)

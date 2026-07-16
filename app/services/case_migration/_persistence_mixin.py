@@ -1,11 +1,13 @@
 """跨设备迁移持久化子 Mixin - 用例克隆/创建/查询。
 
 将 DB 操作集中到独立子 Mixin，便于事务边界与 lifecycle 切换的管理。
-本 Mixin 不持有独立的 __init__，依赖聚合类提供 self.db。
+本 Mixin 不持有独立的 __init__，依赖聚合类提供 self.db（AsyncSession）。
 """
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.test_case import (
     TestCase,
@@ -20,28 +22,30 @@ class CaseMigrationPersistenceMixin:
     """跨设备迁移持久化子 Mixin。
 
     提供源用例查询、目标项目查询、用例克隆、迁移用例批量创建等方法；
-    依赖聚合类提供 ``self.db``。
+    依赖聚合类提供 ``self.db``（AsyncSession）。
     """
 
-    def _get_source_case(self, case_id: int) -> Optional[TestCase]:
+    db: AsyncSession
+
+    async def _get_source_case(self, case_id: int) -> Optional[TestCase]:
         try:
-            return (
-                self.db.query(TestCase)
-                .filter(TestCase.id == case_id, TestCase.is_deleted.is_(False))
-                .first()
+            stmt = select(TestCase).where(
+                TestCase.id == case_id, TestCase.is_deleted.is_(False)
             )
+            return (await self.db.execute(stmt)).scalar_one_or_none()
         except Exception as e:
             logger.error(f"查询源用例失败: {e}")
             return None
 
-    def _get_target_project(self, project_id: int) -> Optional[Project]:
+    async def _get_target_project(self, project_id: int) -> Optional[Project]:
         try:
-            return self.db.query(Project).filter(Project.id == project_id).first()
+            stmt = select(Project).where(Project.id == project_id)
+            return (await self.db.execute(stmt)).scalar_one_or_none()
         except Exception as e:
             logger.error(f"查询目标项目失败: {e}")
             return None
 
-    def _clone_case(
+    async def _clone_case(
         self,
         source_case: TestCase,
         target_device: str,
@@ -53,7 +57,9 @@ class CaseMigrationPersistenceMixin:
         try:
             new_case = TestCase(
                 project_id=target_project_id,
-                case_no=CaseNumberService.generate(target_project_id, self.db),
+                case_no=await CaseNumberService.generate_async(
+                    target_project_id, self.db
+                ),
                 module=source_case.module,
                 title=source_case.title,
                 precondition=source_case.precondition,
@@ -69,9 +75,9 @@ class CaseMigrationPersistenceMixin:
                 lifecycle_status="draft",
             )
             self.db.add(new_case)
-            self.db.flush()
-            self.db.commit()
-            self.db.refresh(new_case)
+            await self.db.flush()
+            await self.db.commit()
+            await self.db.refresh(new_case)
             logger.info(f"用例克隆成功: {source_case.id} -> {new_case.id}")
             return {
                 "success": True,
@@ -80,13 +86,13 @@ class CaseMigrationPersistenceMixin:
                 "batch_id": batch_id,
             }
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             logger.error(f"用例克隆失败: {e}")
             return {"success": False, "error": f"克隆失败: {e}"}
         finally:
             disable_lifecycle_transition()
 
-    def _create_migrated_cases(
+    async def _create_migrated_cases(
         self,
         migration_result: Dict[str, Any],
         source_case: TestCase,
@@ -102,7 +108,9 @@ class CaseMigrationPersistenceMixin:
         if not adapted_cases:
             logger.error(f"AI返回adapted_cases为空，migration_type={migration_type}")
             return []
-        case_nos = CaseNumberService.generate_batch(target_project_id, len(adapted_cases), self.db)
+        case_nos = await CaseNumberService.generate_batch_async(
+            target_project_id, len(adapted_cases), self.db
+        )
         created: List[TestCase] = []
         enable_lifecycle_transition()
         try:
@@ -130,11 +138,11 @@ class CaseMigrationPersistenceMixin:
                     lifecycle_status="draft",
                 )
                 self.db.add(new_case)
-                self.db.flush()
+                await self.db.flush()
                 created.append(new_case)
-            self.db.commit()
+            await self.db.commit()
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             created = []
             logger.error(f"创建迁移用例失败，已回滚: {e}")
         finally:

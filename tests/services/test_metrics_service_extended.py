@@ -1,4 +1,14 @@
+"""metrics_service 扩展测试 — sync record_* + async query_* 混合。
+
+迁移说明:
+    record_metric / record_metrics 保持 sync（fire-and-forget，使用独立 Session）。
+    query_metrics / get_metric_timeseries / get_dashboard_summary 已迁至 async，
+    对应测试改为 async def + async_db fixture。_build_filters / _get_dialect_name
+    保持 sync 纯函数，对应测试不变。
+"""
 import pytest
+from datetime import datetime
+
 from app.services.metrics_service import (
     record_metric,
     record_metrics,
@@ -12,6 +22,8 @@ from app.models.pipeline_metric import PipelineMetric, VALID_METRIC_NAMES, FMEA_
 
 
 class TestRecordMetric:
+    """record_metric sync 测试（使用独立 Session，fire-and-forget）。"""
+
     def test_invalid_metric_name_raises(self):
         with pytest.raises(ValueError, match="Invalid metric name"):
             record_metric("invalid_metric_name")
@@ -58,16 +70,18 @@ class TestRecordMetrics:
 
 
 class TestQueryMetrics:
-    def test_query_returns_list(self, db):
-        result = query_metrics(db)
+    """query_metrics async 测试。"""
+
+    async def test_query_returns_list(self, async_db):
+        result = await query_metrics(async_db)
         assert isinstance(result, list)
 
-    def test_query_with_filters(self, db):
-        result = query_metrics(db, metric_name="low_confidence_pause")
+    async def test_query_with_filters(self, async_db):
+        result = await query_metrics(async_db, metric_name="low_confidence_pause")
         assert isinstance(result, list)
 
-    def test_query_by_project(self, db):
-        result = query_metrics(db, project_id=99999)
+    async def test_query_by_project(self, async_db):
+        result = await query_metrics(async_db, project_id=99999)
         assert isinstance(result, list)
         assert len(result) == 0
 
@@ -78,7 +92,6 @@ class TestBuildFilters:
         assert filters == []
 
     def test_all_filters(self):
-        from datetime import datetime
         now = datetime.now()
         filters = _build_filters(
             metric_name="low_confidence_pause",
@@ -98,18 +111,22 @@ class TestGetDialectName:
 
 
 class TestGetMetricTimeseries:
-    def test_returns_list(self, db):
-        result = get_metric_timeseries(db, "low_confidence_pause")
+    """get_metric_timeseries async 测试。"""
+
+    async def test_returns_list(self, async_db):
+        result = await get_metric_timeseries(async_db, "low_confidence_pause")
         assert isinstance(result, list)
 
-    def test_hour_interval(self, db):
-        result = get_metric_timeseries(db, "low_confidence_pause", interval="hour")
+    async def test_hour_interval(self, async_db):
+        result = await get_metric_timeseries(async_db, "low_confidence_pause", interval="hour")
         assert isinstance(result, list)
 
 
 class TestGetDashboardSummary:
-    def test_summary_structure(self, db):
-        result = get_dashboard_summary(db)
+    """get_dashboard_summary async 测试。"""
+
+    async def test_summary_structure(self, async_db):
+        result = await get_dashboard_summary(async_db)
         assert "metrics" in result
         assert "total_metric_types" in result
         assert "active_metric_types" in result
