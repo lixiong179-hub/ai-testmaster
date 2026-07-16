@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.test_case_ai import (
@@ -29,7 +30,7 @@ from app.api.v1.endpoints.test_case_ai import (
     _build_linear_prompt_data,
     _format_case_response,
 )
-from app.db.database import get_db
+from app.db.database import PrimarySessionLocal, async_get_db
 from app.models.project import Project
 from app.models.user import User
 from app.services.case_quality.quality_feedback_loop import (
@@ -93,7 +94,7 @@ async def _run_quality_feedback_for_cases(
 @router.post("/ai-enhanced-generate/stream")
 async def ai_enhanced_generate_stream(
     request: AIGenerateEnhancedRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """AI增强模式生成测试用例（SSE流式）。
@@ -104,13 +105,17 @@ async def ai_enhanced_generate_stream(
     project_id = request.project_id
     description = request.description
 
-    project = db.query(Project).filter(
-        Project.id == project_id, Project.user_id == current_user.id
-    ).first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在"
-        )
+    def _check_project(sync_db: Session) -> Project:
+        project = sync_db.query(Project).filter(
+            Project.id == project_id, Project.user_id == current_user.id
+        ).first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在"
+            )
+        return project
+
+    await db.run_sync(_check_project)
 
     if not description or len(description.strip()) < 5:
         raise HTTPException(
@@ -119,6 +124,7 @@ async def ai_enhanced_generate_stream(
         )
 
     async def event_generator():
+        stream_db = PrimarySessionLocal()
         try:
             # 先构建context，提取context_stats和warnings用于首帧推送
             context = dict(request.context or {})
@@ -128,9 +134,9 @@ async def ai_enhanced_generate_stream(
             warnings = context.get("warnings", [])
             evidence_refs = context.get("evidence_refs", {})
 
-            # 构建审计增强 metadata
+            # 构建审计增强 metadata：使用独立 sync session，避免跨 greenlet 访问
             ai_metadata: Dict[str, Any] = {
-                "db": db,
+                "db": stream_db,
                 "scenario_type": context.get("scenario_type"),
                 "generation_strategy": context.get("generation_strategy"),
             }
@@ -225,6 +231,8 @@ async def ai_enhanced_generate_stream(
         except Exception as e:
             logger.error(f"AI增强模式流式生成失败: {e}")
             yield f"data: {json.dumps({'code': 500, 'message': f'生成失败: {str(e)}', 'data': None}, ensure_ascii=False)}\n\n"
+        finally:
+            stream_db.close()
 
     return StreamingResponse(
         event_generator(),
@@ -243,7 +251,7 @@ async def ai_enhanced_generate_stream(
 @router.post("/batch-generate/stream")
 async def batch_generate_test_cases_stream(
     request: BatchGenerateRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """流式批量生成测试用例。
@@ -251,42 +259,55 @@ async def batch_generate_test_cases_stream(
     以SSE方式流式返回AI批量生成的测试用例，
     每生成一条用例即推送一条事件，前端可实时展示生成进度。
     """
-    project = db.query(Project).filter(
-        Project.id == request.project_id, Project.user_id == current_user.id
-    ).first()
+    def _check_project(sync_db: Session) -> None:
+        project = sync_db.query(Project).filter(
+            Project.id == request.project_id, Project.user_id == current_user.id
+        ).first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+            )
 
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-        )
+    await db.run_sync(_check_project)
 
     from app.services.test_case_generation import TestCaseGenerationService
+    from app.utils.async_sync_bridge import iter_async_gen_in_thread
 
     async def generate_progress() -> Any:
-        service = TestCaseGenerationService(db)
+        stream_db = PrimarySessionLocal()
         try:
-            async for progress in service.generate_test_cases_batch(
-                project_id=request.project_id,
-                user_id=current_user.id,
-                test_point_ids=request.test_point_ids,
-                requirement_file_ids=request.requirement_file_ids,
-                ui_file_ids=request.ui_file_ids,
-                ui_screen_ids=request.ui_screen_ids,
-                test_point_page=request.test_point_page,
-                test_point_page_size=request.test_point_page_size,
-                case_type=request.case_type,
-            ):
-                yield f"data: {json.dumps(progress)}\n\n"
-        except Exception as e:
-            logger.error(f"批量生成测试用例失败: {e}")
-            error_progress = {
-                "progress": 100,
-                "message": f"生成失败: {str(e)}",
-                "status": "error",
-            }
-            yield f"data: {json.dumps(error_progress)}\n\n"
+            service = TestCaseGenerationService(stream_db)
+            try:
+                # 性能优化：将 async generator 放到独立线程执行，
+                # 避免 service 内部 sync_db.query() 阻塞主事件循环。
+                # 通过队列桥接，主事件循环仍能并发处理其他请求。
+                def _agen_factory():
+                    return service.generate_test_cases_batch(
+                        project_id=request.project_id,
+                        user_id=current_user.id,
+                        test_point_ids=request.test_point_ids,
+                        requirement_file_ids=request.requirement_file_ids,
+                        ui_file_ids=request.ui_file_ids,
+                        ui_screen_ids=request.ui_screen_ids,
+                        test_point_page=request.test_point_page,
+                        test_point_page_size=request.test_point_page_size,
+                        case_type=request.case_type,
+                    )
+
+                async for progress in iter_async_gen_in_thread(_agen_factory):
+                    yield f"data: {json.dumps(progress)}\n\n"
+            except Exception as e:
+                logger.error(f"批量生成测试用例失败: {e}")
+                error_progress = {
+                    "progress": 100,
+                    "message": f"生成失败: {str(e)}",
+                    "status": "error",
+                }
+                yield f"data: {json.dumps(error_progress)}\n\n"
+            finally:
+                yield "data: [DONE]\n\n"
         finally:
-            yield "data: [DONE]\n\n"
+            stream_db.close()
 
     return StreamingResponse(
         generate_progress(), media_type="text/event-stream"

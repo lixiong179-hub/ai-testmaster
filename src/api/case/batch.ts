@@ -23,14 +23,14 @@ interface BatchRestoreResult {
 
 export const batchApi = {
   batchCreateCases: async (data: BatchCreateRequest): Promise<BatchCreateResponse> => {
-    const response = await request.post('/api/v1/testCase/batch-create', data)
+    const response = await request.post('/api/v1/test-case/batch-create', data)
     return extractResponseData<BatchCreateResponse>(
       response as unknown as ApiResponse<BatchCreateResponse> | BatchCreateResponse
     )
   },
 
   batchDeleteCases: async (caseIds: number[], projectId?: number): Promise<BatchDeleteResult> => {
-    const response = await request.post('/api/v1/testCase/batch-delete', {
+    const response = await request.post('/api/v1/test-case/batch-delete', {
       ...(projectId ? { project_id: projectId } : {}),
       caseIds,
     })
@@ -44,7 +44,7 @@ export const batchApi = {
   },
 
   batchRestoreCases: async (caseIds: number[], projectId?: number): Promise<BatchRestoreResult> => {
-    const response = await request.post('/api/v1/testCase/batch-restore', {
+    const response = await request.post('/api/v1/test-case/batch-restore', {
       ...(projectId ? { project_id: projectId } : {}),
       caseIds,
     })
@@ -56,7 +56,7 @@ export const batchApi = {
   importCases: async (file: File): Promise<ImportResult> => {
     const formData = new FormData()
     formData.append('file', file)
-    const response = await request.post('/api/v1/testCase/import', formData)
+    const response = await request.post('/api/v1/test-case/import', formData)
     return extractResponseData<ImportResult>(
       response as unknown as ApiResponse<ImportResult> | ImportResult
     )

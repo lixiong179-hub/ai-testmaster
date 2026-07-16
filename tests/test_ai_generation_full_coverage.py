@@ -66,7 +66,7 @@ from app.utils.ai_client_enhanced import (
 )
 from app.core.constants import TestCasePriority, normalize_priority as _normalize_priority
 from app.services.test_case_generation.ai_response_parser import parse_ai_response
-from app.services.test_case_generation.base_mixin import ContentSanitizer
+from app.services.test_case_generation.helpers import ContentSanitizer
 
 
 os.environ.setdefault("ENVIRONMENT", "test")
@@ -790,21 +790,21 @@ class TestGetAIClientBranches:
 class TestAIGenerateAPIEndpointBranches:
 
     def test_ai_generate_project_not_found(self, auth_client):
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": 999999,
             "description": "\u8fd9\u662f\u4e00\u4e2a\u6d4b\u8bd5\u63cf\u8ff0\u5185\u5bb9\u957f\u5ea6\u8db3\u591f",
         })
         assert resp.status_code in (401, 403, 404)
 
     def test_ai_generate_description_too_short(self, auth_client, real_project):
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u592a\u77ed",
         })
         assert resp.status_code in (400, 422)
 
     def test_ai_generate_description_too_long(self, auth_client, real_project):
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "x" * 10001,
         })
@@ -822,7 +822,7 @@ class TestAIGenerateAPIEndpointBranches:
             "priority": "high",
             "case_type": "ui_automation",
         }
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u7528\u6237\u767b\u5f55\u529f\u80fd\u662f\u5426\u6b63\u5e38\u5de5\u4f5c",
         })
@@ -833,7 +833,7 @@ class TestAIGenerateAPIEndpointBranches:
     @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_auth_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AIAuthenticationError()
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u7528\u6237\u767b\u5f55\u529f\u80fd\u662f\u5426\u6b63\u5e38\u5de5\u4f5c",
         })
@@ -842,7 +842,7 @@ class TestAIGenerateAPIEndpointBranches:
     @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_rate_limit_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AIRateLimitError()
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u7528\u6237\u767b\u5f55\u529f\u80fd\u662f\u5426\u6b63\u5e38\u5de5\u4f5c",
         })
@@ -851,7 +851,7 @@ class TestAIGenerateAPIEndpointBranches:
     @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_timeout_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AITimeoutError()
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u7528\u6237\u767b\u5f55\u529f\u80fd\u662f\u5426\u6b63\u5e38\u5de5\u4f5c",
         })
@@ -860,7 +860,7 @@ class TestAIGenerateAPIEndpointBranches:
     @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_format_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AIResponseFormatError()
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u7528\u6237\u767b\u5f55\u529f\u80fd\u662f\u5426\u6b63\u5e38\u5de5\u4f5c",
         })
@@ -869,7 +869,7 @@ class TestAIGenerateAPIEndpointBranches:
     @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_service_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = AIServiceError("\u670d\u52a1\u4e0d\u53ef\u7528")
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u7528\u6237\u767b\u5f55\u529f\u80fd\u662f\u5426\u6b63\u5e38\u5de5\u4f5c",
         })
@@ -878,7 +878,7 @@ class TestAIGenerateAPIEndpointBranches:
     @patch("app.api.v1.endpoints.test_case_ai_generate._generate.generate_test_case")
     def test_ai_generate_unknown_error(self, mock_gen, auth_client, real_project):
         mock_gen.side_effect = RuntimeError("\u672a\u77e5\u9519\u8bef")
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u7528\u6237\u767b\u5f55\u529f\u80fd\u662f\u5426\u6b63\u5e38\u5de5\u4f5c",
         })
@@ -897,7 +897,7 @@ class TestAIEnhancedGenerateBranches:
             "priority": "P2",
             "case_type": "ui_automation",
         }
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u7ebf\u6027\u6a21\u5f0f\u751f\u6210\u7528\u4f8b",
             "mode": "linear",
@@ -921,7 +921,7 @@ class TestAIEnhancedGenerateBranches:
             "priority": "P0",
             "case_type": "ui_automation",
         }
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u6d41\u7a0b\u56fe\u6a21\u5f0f\u751f\u6210\u7528\u4f8b",
             "mode": "graph",
@@ -947,7 +947,7 @@ class TestAIEnhancedGenerateBranches:
             "priority": "medium",
             "case_type": "manual",
         }
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate", json={
             "project_id": real_project.id,
             "description": "\u9a8c\u8bc1\u57fa\u7840\u6a21\u5f0f\u751f\u6210\u7528\u4f8b",
             "enhanced_mode": False,
@@ -956,14 +956,14 @@ class TestAIEnhancedGenerateBranches:
         assert resp.status_code == 200
 
     def test_enhanced_empty_description(self, auth_client, real_project):
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate", json={
             "project_id": real_project.id,
             "description": "",
         })
         assert resp.status_code in (400, 422)
 
     def test_enhanced_invalid_case_type(self, auth_client, real_project):
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate", json={
             "project_id": real_project.id,
             "description": "\u6d4b\u8bd5\u63cf\u8ff0\u5185\u5bb9",
             "case_type": "invalid_type",
@@ -971,7 +971,7 @@ class TestAIEnhancedGenerateBranches:
         assert resp.status_code in (400, 422)
 
     def test_enhanced_invalid_exec_mode(self, auth_client, real_project):
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate", json={
             "project_id": real_project.id,
             "description": "\u6d4b\u8bd5\u63cf\u8ff0\u5185\u5bb9",
             "exec_mode": "invalid_mode",
@@ -982,19 +982,19 @@ class TestAIEnhancedGenerateBranches:
 class TestGenerateContextAPIBranches:
 
     def test_context_project_not_found(self, auth_client):
-        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+        resp = auth_client.post("/api/v1/test-case/generate-context", json={
             "project_id": 999999,
         })
         assert resp.status_code in (401, 403, 404)
 
     def test_context_invalid_project_id(self, auth_client):
-        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+        resp = auth_client.post("/api/v1/test-case/generate-context", json={
             "project_id": 0,
         })
         assert resp.status_code in (400, 422)
 
     def test_context_with_test_points(self, auth_client, real_project, real_test_points):
-        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+        resp = auth_client.post("/api/v1/test-case/generate-context", json={
             "project_id": real_project.id,
             "test_point_ids": [tp.id for tp in real_test_points[:3]],
         })
@@ -1004,7 +1004,7 @@ class TestGenerateContextAPIBranches:
         assert data["data"]["test_point_count"] >= 1
 
     def test_context_auto_load_all_test_points(self, auth_client, real_project, real_test_points):
-        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+        resp = auth_client.post("/api/v1/test-case/generate-context", json={
             "project_id": real_project.id,
         })
         assert resp.status_code == 200
@@ -1012,7 +1012,7 @@ class TestGenerateContextAPIBranches:
         assert data["data"]["test_point_count"] >= 1
 
     def test_context_with_empty_history_cases(self, auth_client, real_project, real_test_points):
-        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+        resp = auth_client.post("/api/v1/test-case/generate-context", json={
             "project_id": real_project.id,
             "history_case_ids": [],
         })
@@ -1038,7 +1038,7 @@ class TestGenerateContextAPIBranches:
         db.add(unrelated)
         db.flush()
 
-        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+        resp = auth_client.post("/api/v1/test-case/generate-context", json={
             "project_id": real_project.id,
         })
 
@@ -1088,7 +1088,7 @@ class TestGenerateContextAPIBranches:
         db.add(deleted_case)
         db.flush()
 
-        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+        resp = auth_client.post("/api/v1/test-case/generate-context", json={
             "project_id": real_project.id,
         })
         assert resp.status_code == 200
@@ -1100,7 +1100,7 @@ class TestGenerateContextAPIBranches:
         filtered_warnings = [c for c in warning_codes if c in ("HISTORY_LOW_TRUST_FILTERED", "HISTORY_POTENTIALLY_STALE")]
         assert len(filtered_warnings) > 0
 
-        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+        resp = auth_client.post("/api/v1/test-case/generate-context", json={
             "project_id": real_project.id,
             "history_case_ids": [history_cases[0].id, history_cases[3].id],
         })
@@ -1113,20 +1113,20 @@ class TestGenerateContextAPIBranches:
 class TestGenerateSingleAPIBranches:
 
     def test_single_project_not_found(self, auth_client):
-        resp = auth_client.post("/api/v1/testCase/generate-single", json={
+        resp = auth_client.post("/api/v1/test-case/generate-single", json={
             "project_id": 999999,
             "test_point_id": 1,
         })
         assert resp.status_code in (401, 403, 404)
 
     def test_single_invalid_test_point_id(self, auth_client, real_project):
-        resp = auth_client.post("/api/v1/testCase/generate-single", json={
+        resp = auth_client.post("/api/v1/test-case/generate-single", json={
             "project_id": real_project.id,
             "test_point_id": 0,
         })
         assert resp.status_code in (400, 422)
 
-    @patch("app.services.test_case_generation.ai_mixin.TestCaseGenerationAiMixin._generate_case_with_ai")
+    @patch("app.services.test_case_generation.ai_generator.AiGenerator._generate_case_with_ai")
     def test_single_success(self, mock_gen, auth_client, real_project, real_test_points):
         mock_gen.return_value = {
             "title": "\u5df2\u767b\u5f55\u7528\u6237\u5355\u70b9\u6253\u5f00\u5217\u8868\u5e76\u67e5\u770b\u72b6\u6001",
@@ -1140,7 +1140,7 @@ class TestGenerateSingleAPIBranches:
             "test_category": "ui_automation",
             "case_category": "positive",
         }
-        resp = auth_client.post("/api/v1/testCase/generate-single", json={
+        resp = auth_client.post("/api/v1/test-case/generate-single", json={
             "project_id": real_project.id,
             "test_point_id": real_test_points[0].id,
         })
@@ -1149,7 +1149,7 @@ class TestGenerateSingleAPIBranches:
         assert data["code"] in (0, 200)
 
     def test_single_test_point_not_found(self, auth_client, real_project):
-        resp = auth_client.post("/api/v1/testCase/generate-single", json={
+        resp = auth_client.post("/api/v1/test-case/generate-single", json={
             "project_id": real_project.id,
             "test_point_id": 999999,
         })
@@ -1159,7 +1159,7 @@ class TestGenerateSingleAPIBranches:
 class TestPreconditionAPIBranches:
 
     def test_get_precondition_steps_not_found(self, auth_client):
-        resp = auth_client.get("/api/v1/testCase/999999/precondition-steps")
+        resp = auth_client.get("/api/v1/test-case/999999/precondition-steps")
         assert resp.status_code in (401, 404, 500)
 
     def test_parse_precondition_empty(self, auth_client, db, real_project):
@@ -1177,7 +1177,7 @@ class TestPreconditionAPIBranches:
         )
         db.add(tc)
         db.flush()
-        resp = auth_client.post(f"/api/v1/testCase/{tc.id}/parse-precondition")
+        resp = auth_client.post(f"/api/v1/test-case/{tc.id}/parse-precondition")
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] in (0, 200)
@@ -1202,7 +1202,7 @@ class TestPreconditionAPIBranches:
             {"step_number": 1, "action": "\u6253\u5f00\u6d4f\u89c8\u5668", "expected_result": "\u6d4f\u89c8\u5668\u6253\u5f00", "action_type": "navigate"},
             {"step_number": 2, "action": "\u8f93\u5165\u7528\u6237\u540d", "expected_result": "\u7528\u6237\u540d\u8f93\u5165\u5b8c\u6210", "action_type": "input"},
         ]
-        resp = auth_client.post(f"/api/v1/testCase/{tc.id}/parse-precondition")
+        resp = auth_client.post(f"/api/v1/test-case/{tc.id}/parse-precondition")
         assert resp.status_code in (200, 500)
 
     def test_batch_save_precondition_steps(self, auth_client, db, real_project):
@@ -1220,7 +1220,7 @@ class TestPreconditionAPIBranches:
         )
         db.add(tc)
         db.flush()
-        resp = auth_client.put(f"/api/v1/testCase/{tc.id}/precondition-steps", json={
+        resp = auth_client.put(f"/api/v1/test-case/{tc.id}/precondition-steps", json={
             "steps": [
                 {"step_number": 1, "action": "\u6253\u5f00\u9875\u9762", "expected_result": "\u9875\u9762\u6253\u5f00"},
                 {"step_number": 2, "action": "\u8f93\u5165\u6570\u636e", "expected_result": "\u6570\u636e\u8f93\u5165"},
@@ -1232,7 +1232,7 @@ class TestPreconditionAPIBranches:
 class TestPreviewGraphPromptBranches:
 
     def test_preview_success(self, auth_client):
-        resp = auth_client.post("/api/v1/testCase/preview-graph-prompt", json={
+        resp = auth_client.post("/api/v1/test-case/preview-graph-prompt", json={
             "flow_sort_data": {
                 "nodes": [
                     {"screen_id": 1, "screen_order": 1, "flow_type": "main", "screen_name": "\u5f00\u59cb\u9875"},
@@ -1258,7 +1258,7 @@ class TestPreviewGraphPromptBranches:
         assert data["exception_count"] == 1
 
     def test_preview_with_branch_and_bypass(self, auth_client):
-        resp = auth_client.post("/api/v1/testCase/preview-graph-prompt", json={
+        resp = auth_client.post("/api/v1/test-case/preview-graph-prompt", json={
             "flow_sort_data": {
                 "nodes": [
                     {"screen_id": 1, "screen_order": 1, "flow_type": "main", "screen_name": "\u4e3b\u5e72\u9875"},
@@ -1280,7 +1280,7 @@ class TestPreviewGraphPromptBranches:
 
     def test_preview_too_many_nodes(self, auth_client):
         nodes = [{"screen_id": i + 1, "screen_order": i + 1, "flow_type": "main", "screen_name": f"\u8282\u70b9{i}"} for i in range(101)]
-        resp = auth_client.post("/api/v1/testCase/preview-graph-prompt", json={
+        resp = auth_client.post("/api/v1/test-case/preview-graph-prompt", json={
             "flow_sort_data": {
                 "nodes": nodes,
                 "edges": [],
@@ -1569,7 +1569,7 @@ class TestRealDataE2E:
         assert "\u767b\u5f55\u6a21\u5757" in modules
 
     def test_real_project_generate_context_api(self, auth_client, real_project, real_test_points):
-        resp = auth_client.post("/api/v1/testCase/generate-context", json={
+        resp = auth_client.post("/api/v1/test-case/generate-context", json={
             "project_id": real_project.id,
             "test_point_ids": [real_test_points[0].id, real_test_points[1].id],
         })
@@ -1603,7 +1603,7 @@ class TestStreamEndpointBranches:
             "priority": "medium",
             "case_type": "manual",
         }
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate/stream", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate/stream", json={
             "project_id": real_project.id,
             "description": "\u6d41\u5f0f\u57fa\u7840\u6a21\u5f0f\u6d4b\u8bd5\u63cf\u8ff0",
             "enhanced_mode": False,
@@ -1621,7 +1621,7 @@ class TestStreamEndpointBranches:
             "priority": "P2",
             "case_type": "ui_automation",
         }
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate/stream", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate/stream", json={
             "project_id": real_project.id,
             "description": "\u6d41\u5f0f\u589e\u5f3a\u7ebf\u6027\u6a21\u5f0f\u6d4b\u8bd5\u63cf\u8ff0",
             "enhanced_mode": True,
@@ -1630,14 +1630,14 @@ class TestStreamEndpointBranches:
         assert resp.status_code == 200
 
     def test_stream_project_not_found(self, auth_client):
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate/stream", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate/stream", json={
             "project_id": 999999,
             "description": "\u6d4b\u8bd5\u63cf\u8ff0\u5185\u5bb9",
         })
         assert resp.status_code in (401, 403, 404)
 
     def test_stream_empty_description(self, auth_client, real_project):
-        resp = auth_client.post("/api/v1/testCase/ai-enhanced-generate/stream", json={
+        resp = auth_client.post("/api/v1/test-case/ai-enhanced-generate/stream", json={
             "project_id": real_project.id,
             "description": "",
         })
@@ -1647,7 +1647,7 @@ class TestStreamEndpointBranches:
 class TestAuthPermissionBranches:
 
     def test_no_auth_header(self, client, real_project):
-        resp = client.post("/api/v1/testCase/ai-generate", json={
+        resp = client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u6d4b\u8bd5\u63cf\u8ff0\u5185\u5bb9\u957f\u5ea6\u8db3\u591f",
         })
@@ -1655,7 +1655,7 @@ class TestAuthPermissionBranches:
 
     def test_invalid_token(self, client, real_project):
         client.headers.update({"Authorization": "Bearer invalid_token_here"})
-        resp = client.post("/api/v1/testCase/ai-generate", json={
+        resp = client.post("/api/v1/test-case/ai-generate", json={
             "project_id": real_project.id,
             "description": "\u6d4b\u8bd5\u63cf\u8ff0\u5185\u5bb9\u957f\u5ea6\u8db3\u591f",
         })
@@ -1678,7 +1678,7 @@ class TestAuthPermissionBranches:
         )
         db.add(other_project)
         db.flush()
-        resp = auth_client.post("/api/v1/testCase/ai-generate", json={
+        resp = auth_client.post("/api/v1/test-case/ai-generate", json={
             "project_id": other_project.id,
             "description": "\u5c1d\u8bd5\u8bbf\u95ee\u5176\u4ed6\u7528\u6237\u9879\u76ee",
         })

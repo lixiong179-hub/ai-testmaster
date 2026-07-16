@@ -22,8 +22,8 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.batch_locator_service import BatchLocatorService
@@ -87,7 +87,7 @@ class BatchRecordStatusResponse(BaseModel):
 @router.post("/batch-record")
 async def start_batch_record(
     request: BatchRecordRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """启动批量定位录制"""
@@ -126,7 +126,7 @@ async def start_batch_record(
 @router.get("/batch-record-status/{task_id}")
 async def get_batch_record_status(
     task_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取批量录制状态"""

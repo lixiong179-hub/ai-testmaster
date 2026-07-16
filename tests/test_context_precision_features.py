@@ -2,10 +2,8 @@ import pytest
 from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone, timedelta
 
-from app.services.test_case_generation.base_mixin import (
-    TestCaseGenerationBaseMixin,
-    _warning,
-)
+from app.services.test_case_generation.context_builder import ContextBuilder as TestCaseGenerationBaseMixin
+from app.services.test_case_generation.helpers import _warning
 
 
 class TestCompletenessScore:

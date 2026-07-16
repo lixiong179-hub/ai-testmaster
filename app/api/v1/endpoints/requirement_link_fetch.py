@@ -20,9 +20,10 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
 from app.utils.db_time import utcnow
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.schemas.requirement_link import FetchContentRequest, FetchContentResponse
 from app.models.user import User
 from app.models.project import Project
@@ -37,17 +38,17 @@ router = APIRouter()
 @router.post("/fetch-content", response_model=FetchContentResponse)
 async def fetch_link_content(
     request: FetchContentRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    try:
-        link = requirement_link_crud.get_requirement_link_by_id(db, request.link_id)
+    def _fetch(sync_db: Session):
+        link = requirement_link_crud.get_requirement_link_by_id(sync_db, request.link_id)
         if not link:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="需求链接不存在"
             )
-        project = db.query(Project).filter(
+        project = sync_db.query(Project).filter(
             Project.id == link.project_id,
             Project.user_id == current_user.id
         ).first()
@@ -74,7 +75,7 @@ async def fetch_link_content(
             )
             if success:
                 content = json.dumps(result, ensure_ascii=False) if isinstance(result, dict) else str(result)
-                requirement_link_crud.update_link_cache(db, link.id, content, "success")
+                requirement_link_crud.update_link_cache(sync_db, link.id, content, "success")
                 return FetchContentResponse(
                     success=True,
                     content=content,
@@ -83,7 +84,7 @@ async def fetch_link_content(
                     cached=False
                 )
             else:
-                requirement_link_crud.update_link_cache(db, link.id, "", "failed")
+                requirement_link_crud.update_link_cache(sync_db, link.id, "", "failed")
                 return FetchContentResponse(
                     success=False,
                     content=None,
@@ -98,7 +99,7 @@ async def fetch_link_content(
                 auth_config=link.auth_config
             )
             if success:
-                requirement_link_crud.update_link_cache(db, link.id, content, "success")
+                requirement_link_crud.update_link_cache(sync_db, link.id, content, "success")
                 return FetchContentResponse(
                     success=True,
                     content=content,
@@ -107,7 +108,7 @@ async def fetch_link_content(
                     cached=False
                 )
             else:
-                requirement_link_crud.update_link_cache(db, link.id, "", "failed")
+                requirement_link_crud.update_link_cache(sync_db, link.id, "", "failed")
                 return FetchContentResponse(
                     success=False,
                     content=None,
@@ -115,6 +116,9 @@ async def fetch_link_content(
                     message=message,
                     cached=False
                 )
+
+    try:
+        return await db.run_sync(_fetch)
     except HTTPException:
         raise
     except Exception as e:
@@ -135,7 +139,7 @@ async def validate_link_access(
     api_key: Optional[str] = Query(None, description="API Key"),
     api_key_header: Optional[str] = Query(None, description="API Key Header"),
     cookie: Optional[str] = Query(None, description="Cookie"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:

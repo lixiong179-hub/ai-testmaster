@@ -95,4 +95,4 @@ class BaseValidator(ABC):
         Returns:
             ValidationResult: 校验结果
         """
-        raise NotImplementedError
+        ...

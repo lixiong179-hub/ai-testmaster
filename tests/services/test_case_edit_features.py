@@ -5,7 +5,7 @@
 1. _normalize_new_format() - 新格式(steps+expected_results分离)标准化
 2. _normalize_old_format() - 旧格式优先级转换(1/2/3 -> P0/P2/P3)
 3. TestCaseUpdate schema - steps/module字段校验
-4. PUT /api/v1/testCase/{id} - steps_json更新逻辑
+4. PUT /api/v1/test-case/{id} - steps_json更新逻辑
 5. execution.py targetEnv白名单校验
 
 使用真实MySQL数据库，不使用Mock
@@ -344,7 +344,7 @@ def test_project_id(client, auth_headers):
 @pytest.fixture(scope="function")
 def existing_case_id(client, auth_headers, test_project_id):
     """创建一个已存在的测试用例用于更新测试"""
-    create_resp = client.post("/api/v1/testCase",
+    create_resp = client.post("/api/v1/test-case",
                                json={
                                    "project_id": test_project_id,
                                    "title": "待更新的测试用例",
@@ -367,11 +367,11 @@ def existing_case_id(client, auth_headers, test_project_id):
 
 
 class TestUpdateTestCaseAPI:
-    """PUT /api/v1/testCase/{id} 接口测试"""
+    """PUT /api/v1/test-case/{id} 接口测试"""
 
     def test_update_title_only(self, client, auth_headers, existing_case_id):
         """只更新标题"""
-        resp = client.put(f"/api/v1/testCase/{existing_case_id}",
+        resp = client.put(f"/api/v1/test-case/{existing_case_id}",
                           json={"title": "更新后的标题"},
                           headers=auth_headers)
         assert resp.status_code == 200
@@ -386,7 +386,7 @@ class TestUpdateTestCaseAPI:
             {"step": 3, "action": "验证保存", "param": "数据持久化"}
         ]
 
-        resp = client.put(f"/api/v1/testCase/{existing_case_id}",
+        resp = client.put(f"/api/v1/test-case/{existing_case_id}",
                           json={
                               "title": "带步骤更新的用例",
                               "module": "表单模块",
@@ -399,7 +399,7 @@ class TestUpdateTestCaseAPI:
         assert resp.status_code == 200
 
         # 验证GET返回的数据包含更新后的步骤
-        get_resp = client.get(f"/api/v1/testCase/{existing_case_id}", headers=auth_headers)
+        get_resp = client.get(f"/api/v1/test-case/{existing_case_id}", headers=auth_headers)
         assert get_resp.status_code == 200
         updated_case = get_resp.json()["data"]
         assert updated_case["title"] == "带步骤更新的用例"
@@ -408,20 +408,20 @@ class TestUpdateTestCaseAPI:
 
     def test_update_clears_steps_with_empty_array(self, client, auth_headers, existing_case_id):
         """发送空数组应清空原有步骤"""
-        resp = client.put(f"/api/v1/testCase/{existing_case_id}",
+        resp = client.put(f"/api/v1/test-case/{existing_case_id}",
                           json={"steps": []},
                           headers=auth_headers)
         assert resp.status_code == 200
 
     def test_update_nonexistent_case_returns_404(self, client, auth_headers):
         """更新不存在的用例返回404"""
-        resp = client.put("/api/v1/testCase/99999999",
+        resp = client.put("/api/v1/test-case/99999999",
                           json={"title": "不存在"},
                           headers=auth_headers)
         assert resp.status_code == 404
 
     def test_update_without_auth_returns_401(self, client, existing_case_id):
         """未认证返回401"""
-        resp = client.put(f"/api/v1/testCase/{existing_case_id}",
+        resp = client.put(f"/api/v1/test-case/{existing_case_id}",
                           json={"title": "未认证"})
         assert resp.status_code == 401

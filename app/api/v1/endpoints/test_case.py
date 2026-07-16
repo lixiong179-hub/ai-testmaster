@@ -3,7 +3,7 @@
 
 本模块为测试用例功能的聚合入口，将用例相关的所有子模块统一注册到同一路由前缀下。
 
-路由前缀: /testCase
+路由前缀: /test-case
 标签: 测试用例管理
 
 子模块概览:
@@ -28,7 +28,7 @@ from app.api.v1.endpoints.test_case_ai_stream import router as ai_stream_router
 from app.api.v1.endpoints.test_case_lineage import router as lineage_router
 
 # 测试用例管理路由，包含CRUD、工作流、版本、AI生成等子模块
-router = APIRouter(prefix="/testCase", tags=["测试用例管理"])
+router = APIRouter(prefix="/test-case", tags=["测试用例管理"])
 
 # 注册各子模块路由
 router.include_router(crud_router)

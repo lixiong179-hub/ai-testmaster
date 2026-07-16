@@ -152,45 +152,39 @@ class TestCreateSelfTestProject:
 class TestSelfTestProjectDeleteProtection:
     """自测项目删除保护测试"""
 
-    def test_self_test_project_cannot_be_deleted(self, db: Session, testUser: User) -> None:
+    async def test_self_test_project_cannot_be_deleted(self, async_db, async_test_user) -> None:
         project = Project(
             name=SELF_TEST_PROJECT_NAME,
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         from fastapi import HTTPException
         from app.api.v1.endpoints.project_core import delete_project
 
         with pytest.raises(HTTPException) as exc_info:
-            import asyncio
-            asyncio.get_event_loop().run_until_complete(
-                delete_project(project.id, db=db, current_user=testUser)
-            )
+            await delete_project(project.id, db=async_db, current_user=async_test_user)
         assert exc_info.value.status_code == 403
         assert "自测项目不可删除" in exc_info.value.detail
 
-    def test_normal_project_can_be_deleted(self, db: Session, testUser: User) -> None:
+    async def test_normal_project_can_be_deleted(self, async_db, async_test_user) -> None:
         project = Project(
             name="deletable_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=False,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         from app.api.v1.endpoints.project_core import delete_project
-        import asyncio
 
-        result = asyncio.get_event_loop().run_until_complete(
-            delete_project(project.id, db=db, current_user=testUser)
-        )
+        result = await delete_project(project.id, db=async_db, current_user=async_test_user)
         assert result["msg"] == "删除成功"
 
 

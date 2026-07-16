@@ -270,7 +270,7 @@ class TestAITestCaseMixinValidateAndNormalize:
 class TestAiMixinGenerateTestCaseForPoint:
 
     async def test_no_ui_description_manual_category(self):
-        from app.services.test_case_generation.ai_mixin import TestCaseGenerationAiMixin
+        from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
         mixin = TestCaseGenerationAiMixin()
         mixin._generate_case_with_ai = AsyncMock(return_value={"title": "T"})
         await mixin.generate_test_case_for_point(
@@ -284,7 +284,7 @@ class TestAiMixinGenerateTestCaseForPoint:
         assert call_args["case_type"] == "manual"
 
     async def test_ui_with_interactive_elements(self):
-        from app.services.test_case_generation.ai_mixin import TestCaseGenerationAiMixin
+        from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
         mixin = TestCaseGenerationAiMixin()
         mixin._generate_case_with_ai = AsyncMock(return_value={"title": "T"})
         await mixin.generate_test_case_for_point(
@@ -297,7 +297,7 @@ class TestAiMixinGenerateTestCaseForPoint:
         assert call_args["case_type"] == "ui_automation"
 
     async def test_ui_without_interactive_elements(self):
-        from app.services.test_case_generation.ai_mixin import TestCaseGenerationAiMixin
+        from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
         mixin = TestCaseGenerationAiMixin()
         mixin._generate_case_with_ai = AsyncMock(return_value={"title": "T"})
         await mixin.generate_test_case_for_point(
@@ -310,7 +310,7 @@ class TestAiMixinGenerateTestCaseForPoint:
         assert call_args["case_type"] == "manual"
 
     async def test_case_type_override(self):
-        from app.services.test_case_generation.ai_mixin import TestCaseGenerationAiMixin
+        from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
         mixin = TestCaseGenerationAiMixin()
         mixin._generate_case_with_ai = AsyncMock(return_value={"title": "T"})
         await mixin.generate_test_case_for_point(
@@ -323,7 +323,7 @@ class TestAiMixinGenerateTestCaseForPoint:
         assert call_args["case_type"] == "api_automation"
 
     def test_build_ui_description_with_summary_fallback(self):
-        from app.services.test_case_generation.ai_mixin import TestCaseGenerationAiMixin
+        from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
         mixin = TestCaseGenerationAiMixin()
         result = mixin._build_ui_description([
             {"description": "", "summary": "\u5907\u7528\u63cf\u8ff0"},
@@ -336,9 +336,8 @@ class TestAiMixinGenerateTestCaseForPoint:
 class TestValidateMixinSaveTestCase:
 
     async def test_save_with_steps_and_test_data(self, db, real_project):
-        from app.services.test_case_generation.validate_mixin import TestCaseGenerationValidateMixin
-        mixin = TestCaseGenerationValidateMixin()
-        mixin.db = db
+        from app.services.test_case_generation.validator import CaseValidator as TestCaseGenerationValidateMixin
+        mixin = TestCaseGenerationValidateMixin(db)
         generated_case = {
             "title": "\u5df2\u767b\u5f55\u7528\u6237\u5728\u8868\u5355\u9875\u586b\u5199\u6570\u636e\u5e76\u4fdd\u5b58", "module": "\u6d4b\u8bd5\u6a21\u5757",
             "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u5df2\u6253\u5f00\u6570\u636e\u5f55\u5165\u9875\u9762",
@@ -352,16 +351,15 @@ class TestValidateMixinSaveTestCase:
             "test_data": [{"key": "value"}],
         }
         test_point = {"id": None, "module": "\u6d4b\u8bd5\u6a21\u5757", "point": "P"}
-        with patch("app.services.test_case_generation.validate_mixin.settings") as mock_settings:
+        with patch("app.services.test_case_generation.validator.settings") as mock_settings:
             mock_settings.AUTO_PARSE_PRECONDITION = False
             case = await mixin._save_test_case(real_project.id, generated_case, test_point)
         assert case.id is not None
         assert case.title == "\u5df2\u767b\u5f55\u7528\u6237\u5728\u8868\u5355\u9875\u586b\u5199\u6570\u636e\u5e76\u4fdd\u5b58"
 
     async def test_save_with_auto_parse_precondition(self, db, real_project):
-        from app.services.test_case_generation.validate_mixin import TestCaseGenerationValidateMixin
-        mixin = TestCaseGenerationValidateMixin()
-        mixin.db = db
+        from app.services.test_case_generation.validator import CaseValidator as TestCaseGenerationValidateMixin
+        mixin = TestCaseGenerationValidateMixin(db)
         generated_case = {
             "title": "\u5df2\u767b\u5f55\u7528\u6237\u6253\u5f00\u524d\u7f6e\u914d\u7f6e\u9875\u5e76\u6821\u9a8c\u8868\u5355", "module": "\u6d4b\u8bd5\u6a21\u5757",
             "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u7528\u6237\u5177\u5907\u524d\u7f6e\u914d\u7f6e\u9875\u8bbf\u95ee\u6743\u9650",
@@ -374,7 +372,7 @@ class TestValidateMixinSaveTestCase:
             "case_category": "positive",
         }
         test_point = {"id": None, "module": "\u6d4b\u8bd5\u6a21\u5757"}
-        with patch("app.services.test_case_generation.validate_mixin.settings") as mock_settings, \
+        with patch("app.services.test_case_generation.validator.settings") as mock_settings, \
              patch("app.utils.ai_client.parse_precondition_to_steps", new_callable=AsyncMock) as mock_parse:
             mock_settings.AUTO_PARSE_PRECONDITION = True
             mock_parse.return_value = [
@@ -384,9 +382,8 @@ class TestValidateMixinSaveTestCase:
         assert case.id is not None
 
     async def test_save_auto_parse_exception_handled(self, db, real_project):
-        from app.services.test_case_generation.validate_mixin import TestCaseGenerationValidateMixin
-        mixin = TestCaseGenerationValidateMixin()
-        mixin.db = db
+        from app.services.test_case_generation.validator import CaseValidator as TestCaseGenerationValidateMixin
+        mixin = TestCaseGenerationValidateMixin(db)
         generated_case = {
             "title": "\u5df2\u767b\u5f55\u7528\u6237\u6253\u5f00\u5f02\u5e38\u5904\u7406\u9875\u5e76\u67e5\u770b\u72b6\u6001", "module": "\u6d4b\u8bd5\u6a21\u5757",
             "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u7528\u6237\u5177\u5907\u5f02\u5e38\u5904\u7406\u9875\u8bbf\u95ee\u6743\u9650",
@@ -399,7 +396,7 @@ class TestValidateMixinSaveTestCase:
             "case_category": "positive",
         }
         test_point = {"id": None, "module": "\u6d4b\u8bd5\u6a21\u5757"}
-        with patch("app.services.test_case_generation.validate_mixin.settings") as mock_settings, \
+        with patch("app.services.test_case_generation.validator.settings") as mock_settings, \
              patch("app.utils.ai_client.parse_precondition_to_steps", new_callable=AsyncMock) as mock_parse:
             mock_settings.AUTO_PARSE_PRECONDITION = True
             mock_parse.side_effect = Exception("parse error")
@@ -409,10 +406,19 @@ class TestValidateMixinSaveTestCase:
 
 class TestBatchMixin:
 
+    def _make_orchestrator(self):
+        """构造带 mock 组件的 BatchOrchestrator（组合模式测试辅助）。"""
+        from app.services.test_case_generation.batch_orchestrator import BatchOrchestrator
+        return BatchOrchestrator(
+            db=MagicMock(),
+            context_builder=MagicMock(),
+            ai_generator=MagicMock(),
+            validator=MagicMock(),
+        )
+
     async def test_no_test_points_returns_warning(self):
-        from app.services.test_case_generation.batch_mixin import TestCaseGenerationBatchMixin
-        mixin = TestCaseGenerationBatchMixin()
-        mixin.get_context_for_generation = AsyncMock(return_value={
+        mixin = self._make_orchestrator()
+        mixin._context_builder.get_context_for_generation = AsyncMock(return_value={
             "test_points": [], "warnings": [], "pagination": {}
         })
         results = []
@@ -421,15 +427,19 @@ class TestBatchMixin:
         assert any(r.get("status") == "warning" and r.get("progress") == 100 for r in results)
 
     async def test_with_warnings_yields_warning_events(self):
-        from app.services.test_case_generation.batch_mixin import TestCaseGenerationBatchMixin
-        mixin = TestCaseGenerationBatchMixin()
-        mixin.get_context_for_generation = AsyncMock(return_value={
+        mixin = self._make_orchestrator()
+        mixin._context_builder.get_context_for_generation = AsyncMock(return_value={
             "test_points": [{"id": 1, "module": "M", "point": "P"}],
             "warnings": ["\u8b66\u544a1", "\u8b66\u544a2", "\u8b66\u544a3", "\u8b66\u544a4"],
             "pagination": {},
         })
-        mixin.generate_test_case_for_point = AsyncMock(return_value={"title": "T", "steps": []})
-        mixin._save_test_case = AsyncMock(return_value=MagicMock(id=1, title="T", module="M"))
+        mixin._ai_generator.generate_test_case_for_point = AsyncMock(return_value={"title": "T", "steps": []})
+        # 原始测试中 TestCaseGenerationBatchMixin 未继承 BaseMixin，_build_ui_description
+        # 自然抛 AttributeError 被 _enhance_coverage_for_point 的 except 捕获而跳过补全。
+        # 组合模式下 _ai_generator 为 MagicMock 不会抛错，需显式模拟 AttributeError
+        # 以保持原测试语义（不触发真实 AI 补全调用）。
+        mixin._ai_generator._build_ui_description = MagicMock(side_effect=AttributeError("not available"))
+        mixin._validator._save_test_case = AsyncMock(return_value=MagicMock(id=1, title="T", module="M"))
         results = []
         async for item in mixin.generate_test_cases_batch(project_id=1, user_id=1):
             results.append(item)
@@ -437,17 +447,21 @@ class TestBatchMixin:
         assert len(warning_events) == 3
 
     async def test_partial_failure_yields_partial_status(self):
-        from app.services.test_case_generation.batch_mixin import TestCaseGenerationBatchMixin
-        mixin = TestCaseGenerationBatchMixin()
-        mixin.get_context_for_generation = AsyncMock(return_value={
+        mixin = self._make_orchestrator()
+        mixin._context_builder.get_context_for_generation = AsyncMock(return_value={
             "test_points": [{"id": 1, "module": "M", "point": "P1"}, {"id": 2, "module": "M", "point": "P2"}],
             "warnings": [], "pagination": {},
         })
-        mixin.generate_test_case_for_point = AsyncMock(side_effect=[
+        mixin._ai_generator.generate_test_case_for_point = AsyncMock(side_effect=[
             {"title": "T1", "steps": []},
             Exception("AI\u5931\u8d25"),
         ])
-        mixin._save_test_case = AsyncMock(return_value=MagicMock(id=1, title="T1", module="M"))
+        # 原始测试中 TestCaseGenerationBatchMixin 未继承 BaseMixin，_build_ui_description
+        # 自然抛 AttributeError 被 _enhance_coverage_for_point 的 except 捕获而跳过补全。
+        # 组合模式下 _ai_generator 为 MagicMock 不会抛错，需显式模拟 AttributeError
+        # 以保持原测试语义（不触发真实 AI 补全调用）。
+        mixin._ai_generator._build_ui_description = MagicMock(side_effect=AttributeError("not available"))
+        mixin._validator._save_test_case = AsyncMock(return_value=MagicMock(id=1, title="T1", module="M"))
         results = []
         async for item in mixin.generate_test_cases_batch(project_id=1, user_id=1):
             results.append(item)
@@ -456,14 +470,18 @@ class TestBatchMixin:
         assert final["failed"] == 1
 
     async def test_all_success_yields_success_status(self):
-        from app.services.test_case_generation.batch_mixin import TestCaseGenerationBatchMixin
-        mixin = TestCaseGenerationBatchMixin()
-        mixin.get_context_for_generation = AsyncMock(return_value={
+        mixin = self._make_orchestrator()
+        mixin._context_builder.get_context_for_generation = AsyncMock(return_value={
             "test_points": [{"id": 1, "module": "M", "point": "P"}],
             "warnings": [], "pagination": {},
         })
-        mixin.generate_test_case_for_point = AsyncMock(return_value={"title": "T", "steps": []})
-        mixin._save_test_case = AsyncMock(return_value=MagicMock(id=1, title="T", module="M"))
+        mixin._ai_generator.generate_test_case_for_point = AsyncMock(return_value={"title": "T", "steps": []})
+        # 原始测试中 TestCaseGenerationBatchMixin 未继承 BaseMixin，_build_ui_description
+        # 自然抛 AttributeError 被 _enhance_coverage_for_point 的 except 捕获而跳过补全。
+        # 组合模式下 _ai_generator 为 MagicMock 不会抛错，需显式模拟 AttributeError
+        # 以保持原测试语义（不触发真实 AI 补全调用）。
+        mixin._ai_generator._build_ui_description = MagicMock(side_effect=AttributeError("not available"))
+        mixin._validator._save_test_case = AsyncMock(return_value=MagicMock(id=1, title="T", module="M"))
         results = []
         async for item in mixin.generate_test_cases_batch(project_id=1, user_id=1):
             results.append(item)

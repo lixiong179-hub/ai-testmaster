@@ -24,7 +24,8 @@ from fastapi import (
 from fastapi.responses import FileResponse
 from typing import Optional
 from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
@@ -198,25 +199,35 @@ def _extract_images_from_zip(
 @router.post("/extract-content", response_model=dict)
 async def extract_file_content(
     extract_request: FileExtractRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project = (
-            db.query(Project)
-            .filter(
-                Project.id == extract_request.project_id,
-                Project.user_id == current_user.id,
+        def _check_and_extract(sync_db: Session) -> dict:
+            project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == extract_request.project_id,
+                    Project.user_id == current_user.id,
+                )
+                .first()
             )
-            .first()
-        )
 
-        if not project:
-            raise HTTPException(status_code=403, detail="无权限操作此项目")
+            if not project:
+                raise HTTPException(status_code=403, detail="无权限操作此项目")
 
-        results = await batch_extract_files(
-            extract_request.file_ids, db, extract_request.force_refresh
-        )
+            import asyncio
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(
+                    batch_extract_files(
+                        extract_request.file_ids, sync_db, extract_request.force_refresh
+                    )
+                )
+            finally:
+                loop.close()
+
+        results = await db.run_sync(_check_and_extract)
 
         return {"code": 200, "message": "提取任务已启动", "data": results}
     except HTTPException:
@@ -231,61 +242,69 @@ async def extract_file_content(
 @router.get("/preview/{file_id}")
 async def preview_file(
     file_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    file_record = (
-        db.query(ProjectFile).filter(ProjectFile.id == file_id).first()
-    )
-    if not file_record:
-        raise HTTPException(status_code=404, detail="文件不存在")
-
-    project = (
-        db.query(Project)
-        .filter(
-            Project.id == file_record.project_id,
-            Project.user_id == current_user.id,
+    def _get_file(sync_db: Session) -> str:
+        file_record = (
+            sync_db.query(ProjectFile).filter(ProjectFile.id == file_id).first()
         )
-        .first()
-    )
-    if not project:
-        raise HTTPException(status_code=403, detail="无权访问此文件")
+        if not file_record:
+            raise HTTPException(status_code=404, detail="文件不存在")
 
-    file_path = file_record.file_url
-    if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="文件不存在")
+        project = (
+            sync_db.query(Project)
+            .filter(
+                Project.id == file_record.project_id,
+                Project.user_id == current_user.id,
+            )
+            .first()
+        )
+        if not project:
+            raise HTTPException(status_code=403, detail="无权访问此文件")
 
+        file_path = file_record.file_url
+        if not file_path or not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="文件不存在")
+
+        return file_path
+
+    file_path = await db.run_sync(_get_file)
     return FileResponse(path=file_path)
 
 
 @router.get("/preview-screen/{screen_id}")
 async def preview_screen(
     screen_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.models.ui_prototype import UIPrototypeScreen
+    def _get_screen_file(sync_db: Session) -> str:
+        from app.models.ui_prototype import UIPrototypeScreen
 
-    screen = (
-        db.query(UIPrototypeScreen)
-        .filter(UIPrototypeScreen.id == screen_id)
-        .first()
-    )
-    if not screen:
-        raise HTTPException(status_code=404, detail="屏幕不存在")
-
-    project = (
-        db.query(Project)
-        .filter(
-            Project.id == screen.project_id, Project.user_id == current_user.id
+        screen = (
+            sync_db.query(UIPrototypeScreen)
+            .filter(UIPrototypeScreen.id == screen_id)
+            .first()
         )
-        .first()
-    )
-    if not project:
-        raise HTTPException(status_code=403, detail="无权访问此文件")
+        if not screen:
+            raise HTTPException(status_code=404, detail="屏幕不存在")
 
-    file_path = screen.original_file_path
-    if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="文件不存在")
+        project = (
+            sync_db.query(Project)
+            .filter(
+                Project.id == screen.project_id, Project.user_id == current_user.id
+            )
+            .first()
+        )
+        if not project:
+            raise HTTPException(status_code=403, detail="无权访问此文件")
 
+        file_path = screen.original_file_path
+        if not file_path or not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="文件不存在")
+
+        return file_path
+
+    file_path = await db.run_sync(_get_screen_file)
     return FileResponse(path=file_path)

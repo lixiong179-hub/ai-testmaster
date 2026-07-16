@@ -28,7 +28,8 @@ from fastapi import (
 )
 from typing import Optional
 from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.models.project import Project, ProjectFile
 from app.models.iteration import Iteration
 from app.api.v1.endpoints.auth import get_current_user
@@ -44,36 +45,39 @@ router = APIRouter()
 async def get_all_files(
     resource_type: str = None,
     iteration_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        user_projects = (
-            db.query(Project).filter(Project.user_id == current_user.id).all()
-        )
+        def _query_files(sync_db: Session) -> list:
+            user_projects = (
+                sync_db.query(Project).filter(Project.user_id == current_user.id).all()
+            )
 
-        project_ids = [project.id for project in user_projects]
+            project_ids = [project.id for project in user_projects]
 
-        query = db.query(ProjectFile).filter(
-            ProjectFile.project_id.in_(project_ids),
-            ProjectFile.is_active.is_(True),
-        )
+            query = sync_db.query(ProjectFile).filter(
+                ProjectFile.project_id.in_(project_ids),
+                ProjectFile.is_active.is_(True),
+            )
 
-        if resource_type:
-            query = query.filter(ProjectFile.resource_type == resource_type)
+            if resource_type:
+                query = query.filter(ProjectFile.resource_type == resource_type)
 
-        if iteration_id is not None:
-            if iteration_id <= 0:
-                # <=0 统一视为"未关联迭代"，查询 IS NULL
-                query = query.filter(ProjectFile.iteration_id.is_(None))
-            else:
-                query = query.filter(ProjectFile.iteration_id == iteration_id)
+            if iteration_id is not None:
+                if iteration_id <= 0:
+                    # <=0 统一视为"未关联迭代"，查询 IS NULL
+                    query = query.filter(ProjectFile.iteration_id.is_(None))
+                else:
+                    query = query.filter(ProjectFile.iteration_id == iteration_id)
 
-        files = query.order_by(
-            ProjectFile.resource_type.asc(),
-            ProjectFile.sort_order.asc(),
-            ProjectFile.upload_time.desc(),
-        ).all()
+            return query.order_by(
+                ProjectFile.resource_type.asc(),
+                ProjectFile.sort_order.asc(),
+                ProjectFile.upload_time.desc(),
+            ).all()
+
+        files = await db.run_sync(_query_files)
 
         return {
             "code": 200,
@@ -95,44 +99,47 @@ async def get_file_list(
     project_id: int,
     resource_type: str = None,
     iteration_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project = (
-            db.query(Project)
-            .filter(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
-            .first()
-        )
-
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目",
+        def _query_files(sync_db: Session) -> list:
+            project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == project_id, Project.user_id == current_user.id
+                )
+                .first()
             )
 
-        query = db.query(ProjectFile).filter(
-            ProjectFile.project_id == project_id,
-            ProjectFile.is_active.is_(True),
-        )
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="无权限操作此项目",
+                )
 
-        if resource_type:
-            query = query.filter(ProjectFile.resource_type == resource_type)
+            query = sync_db.query(ProjectFile).filter(
+                ProjectFile.project_id == project_id,
+                ProjectFile.is_active.is_(True),
+            )
 
-        if iteration_id is not None:
-            if iteration_id <= 0:
-                # <=0 统一视为"未关联迭代"，查询 IS NULL
-                query = query.filter(ProjectFile.iteration_id.is_(None))
-            else:
-                query = query.filter(ProjectFile.iteration_id == iteration_id)
+            if resource_type:
+                query = query.filter(ProjectFile.resource_type == resource_type)
 
-        files = query.order_by(
-            ProjectFile.resource_type.asc(),
-            ProjectFile.sort_order.asc(),
-            ProjectFile.upload_time.desc(),
-        ).all()
+            if iteration_id is not None:
+                if iteration_id <= 0:
+                    # <=0 统一视为"未关联迭代"，查询 IS NULL
+                    query = query.filter(ProjectFile.iteration_id.is_(None))
+                else:
+                    query = query.filter(ProjectFile.iteration_id == iteration_id)
+
+            return query.order_by(
+                ProjectFile.resource_type.asc(),
+                ProjectFile.sort_order.asc(),
+                ProjectFile.upload_time.desc(),
+            ).all()
+
+        files = await db.run_sync(_query_files)
 
         return {
             "code": 200,
@@ -155,65 +162,69 @@ async def get_file_list(
 async def update_file(
     file_id: int,
     update_data: FileUpdateRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        file = db.query(ProjectFile).filter(ProjectFile.id == file_id).first()
-        if not file:
-            raise HTTPException(status_code=404, detail="文件不存在")
+        def _update(sync_db: Session) -> ProjectFile:
+            file = sync_db.query(ProjectFile).filter(ProjectFile.id == file_id).first()
+            if not file:
+                raise HTTPException(status_code=404, detail="文件不存在")
 
-        project = (
-            db.query(Project)
-            .filter(
-                Project.id == file.project_id,
-                Project.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not project:
-            raise HTTPException(status_code=403, detail="无权限操作此项目")
-
-        if update_data.resource_type:
-            file.resource_type = (
-                update_data.resource_type.value
-                if hasattr(update_data.resource_type, "value")
-                else update_data.resource_type
-            )
-
-        if update_data.description is not None:
-            file.description = update_data.description
-
-        if update_data.is_active is not None:
-            file.is_active = update_data.is_active
-
-        if update_data.iteration_id is not None:
-            iteration_value = (
-                update_data.iteration_id
-                if update_data.iteration_id > 0
-                else None
-            )
-
-            if iteration_value:
-                iteration = (
-                    db.query(Iteration)
-                    .filter(
-                        Iteration.id == iteration_value,
-                        Iteration.project_id == file.project_id,
-                    )
-                    .first()
+            project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == file.project_id,
+                    Project.user_id == current_user.id,
                 )
-                if not iteration:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"迭代 ID {iteration_value} 不存在或不属于此项目",
+                .first()
+            )
+
+            if not project:
+                raise HTTPException(status_code=403, detail="无权限操作此项目")
+
+            if update_data.resource_type:
+                file.resource_type = (
+                    update_data.resource_type.value
+                    if hasattr(update_data.resource_type, "value")
+                    else update_data.resource_type
+                )
+
+            if update_data.description is not None:
+                file.description = update_data.description
+
+            if update_data.is_active is not None:
+                file.is_active = update_data.is_active
+
+            if update_data.iteration_id is not None:
+                iteration_value = (
+                    update_data.iteration_id
+                    if update_data.iteration_id > 0
+                    else None
+                )
+
+                if iteration_value:
+                    iteration = (
+                        sync_db.query(Iteration)
+                        .filter(
+                            Iteration.id == iteration_value,
+                            Iteration.project_id == file.project_id,
+                        )
+                        .first()
                     )
+                    if not iteration:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"迭代 ID {iteration_value} 不存在或不属于此项目",
+                        )
 
-            file.iteration_id = iteration_value
+                file.iteration_id = iteration_value
 
-        db.commit()
-        db.refresh(file)
+            sync_db.commit()
+            sync_db.refresh(file)
+            return file
+
+        file = await db.run_sync(_update)
 
         return {
             "code": 200,
@@ -223,7 +234,7 @@ async def update_file(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"更新文件失败: {e}")
         raise HTTPException(status_code=500, detail="更新文件失败")
 
@@ -232,39 +243,42 @@ async def update_file(
 async def delete_file(
     file_id: int,
     project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project = (
-            db.query(Project)
-            .filter(
-                Project.id == project_id, Project.user_id == current_user.id
-            )
-            .first()
-        )
-
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目",
+        def _delete(sync_db: Session) -> None:
+            project = (
+                sync_db.query(Project)
+                .filter(
+                    Project.id == project_id, Project.user_id == current_user.id
+                )
+                .first()
             )
 
-        file = (
-            db.query(ProjectFile)
-            .filter(
-                ProjectFile.id == file_id, ProjectFile.project_id == project_id
-            )
-            .first()
-        )
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="无权限操作此项目",
+                )
 
-        if not file:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在"
+            file = (
+                sync_db.query(ProjectFile)
+                .filter(
+                    ProjectFile.id == file_id, ProjectFile.project_id == project_id
+                )
+                .first()
             )
 
-        file.is_active = False
-        db.commit()
+            if not file:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在"
+                )
+
+            file.is_active = False
+            sync_db.commit()
+
+        await db.run_sync(_delete)
 
         return {"code": 200, "message": "删除成功", "data": {}}
     except HTTPException:

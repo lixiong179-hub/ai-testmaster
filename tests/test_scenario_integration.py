@@ -33,7 +33,7 @@ class TestScenario1HistoryCaseCorruptionGovernance:
         assert "pending_review" in filtered
 
     def test_enrich_context_filters_low_and_medium_trust(self):
-        from app.services.test_case_generation.base_mixin import TestCaseGenerationBaseMixin
+        from app.services.test_case_generation.context_builder import ContextBuilder as TestCaseGenerationBaseMixin
 
         mixin = TestCaseGenerationBaseMixin.__new__(TestCaseGenerationBaseMixin)
         mixin.db = MagicMock()
@@ -94,7 +94,7 @@ class TestScenario1HistoryCaseCorruptionGovernance:
             "Filtered cases should produce warnings"
 
     def test_history_case_ids_empty_list_skips_query(self):
-        from app.services.test_case_generation.base_mixin import TestCaseGenerationBaseMixin
+        from app.services.test_case_generation.context_builder import ContextBuilder as TestCaseGenerationBaseMixin
 
         mixin = TestCaseGenerationBaseMixin.__new__(TestCaseGenerationBaseMixin)
         mixin.db = MagicMock()
@@ -188,7 +188,7 @@ class TestScenario3CompletenessScoreWithNavigationFlow:
     """场景3: 上下文精准加载+完整性评分"""
 
     def _make_mixin(self):
-        from app.services.test_case_generation.base_mixin import TestCaseGenerationBaseMixin
+        from app.services.test_case_generation.context_builder import ContextBuilder as TestCaseGenerationBaseMixin
         mixin = TestCaseGenerationBaseMixin.__new__(TestCaseGenerationBaseMixin)
         mixin.db = MagicMock()
         mock_project = MagicMock()
@@ -305,8 +305,7 @@ class TestScenario6SSEFirstFramePush:
         import asyncio
         from app.services.test_case_generation import TestCaseGenerationService
 
-        mixin = TestCaseGenerationService.__new__(TestCaseGenerationService)
-        mixin.db = MagicMock()
+        service = TestCaseGenerationService(MagicMock())
 
         context = {
             "context_stats": {"completeness_score": 85},
@@ -318,9 +317,9 @@ class TestScenario6SSEFirstFramePush:
             },
         }
 
-        with patch.object(mixin, 'get_context_for_generation', return_value=context):
-            with patch.object(mixin, 'enrich_context_with_trust_and_scoring'):
-                gen = mixin.generate_test_cases_batch(
+        with patch.object(service._context_builder, 'get_context_for_generation', return_value=context):
+            with patch.object(service._context_builder, 'enrich_context_with_trust_and_scoring'):
+                gen = service.generate_test_cases_batch(
                     project_id=1, user_id=1, test_point_ids=[1],
                 )
                 first_frame = asyncio.get_event_loop().run_until_complete(gen.__anext__())

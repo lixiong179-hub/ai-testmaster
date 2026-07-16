@@ -3,11 +3,18 @@ A/B测试指标服务
 
 提供A/B实验指标的记录、汇总统计和实验列表查询能力。
 汇总统计按变体分组计算均值、标准差和样本数，用于对比实验效果。
+
+服务层采用 hybrid 模式：
+    - sync 方法（record_metric / get_experiment_summary / list_experiments）
+      保留给 fire-and-forget 调用方（_history_scoring_mixin 使用
+      PrimarySessionLocal() 独立 sync 会话写入指标）
+    - async 方法（*_async）供 ab_test endpoint 在 AsyncSession 上下文调用
 """
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
-from sqlalchemy import func
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.models.ab_test_metric import ABTestMetric
@@ -27,9 +34,16 @@ VALID_METRIC_NAMES: set[str] = {
 
 
 class ABTestService:
-    """A/B测试指标服务，封装指标记录与统计查询逻辑"""
+    """A/B测试指标服务，封装指标记录与统计查询逻辑
 
-    def __init__(self, db: Session) -> None:
+    服务层采用 hybrid 模式：
+        - sync 方法（record_metric / get_experiment_summary / list_experiments）
+          保留给 fire-and-forget 调用方（_history_scoring_mixin 使用
+          PrimarySessionLocal() 独立 sync 会话写入指标）
+        - async 方法（*_async）供 ab_test endpoint 在 AsyncSession 上下文调用
+    """
+
+    def __init__(self, db: Union[Session, AsyncSession]) -> None:
         self.db = db
 
     def record_metric(
@@ -152,6 +166,130 @@ class ABTestService:
         if project_ids is not None:
             query = query.filter(ABTestMetric.project_id.in_(project_ids))
         results = query.group_by(ABTestMetric.experiment_id).order_by(ABTestMetric.experiment_id).all()
+        return [
+            {"experiment_id": row.experiment_id, "sample_count": row.sample_count}
+            for row in results
+        ]
+
+    async def record_metric_async(
+        self,
+        experiment_id: str,
+        variant: str,
+        metric_name: str,
+        metric_value: float,
+        project_id: Optional[int] = None,
+        test_point_id: Optional[int] = None,
+        detail: Optional[Dict[str, Any]] = None,
+    ) -> ABTestMetric:
+        """记录一条A/B测试指标数据（async 版本）
+
+        Args:
+            experiment_id: 实验标识
+            variant: 变体标识（control/treatment）
+            metric_name: 指标名称，必须在VALID_METRIC_NAMES白名单内
+            metric_value: 指标值
+            project_id: 项目ID（可选）
+            test_point_id: 测试点ID（可选）
+            detail: 指标详情JSON（可选）
+
+        Returns:
+            ABTestMetric: 已持久化的指标记录
+
+        Raises:
+            ValueError: metric_name不在合法白名单内
+        """
+        if metric_name not in VALID_METRIC_NAMES:
+            raise ValueError(
+                f"非法指标名称: {metric_name}，合法值为: {sorted(VALID_METRIC_NAMES)}"
+            )
+        row = ABTestMetric(
+            experiment_id=experiment_id,
+            variant=variant,
+            project_id=project_id,
+            test_point_id=test_point_id,
+            metric_name=metric_name,
+            metric_value=metric_value,
+            detail=detail,
+        )
+        self.db.add(row)
+        await self.db.flush()
+        # created_at 为 DB 默认值，async 上下文需 refresh 避免懒加载触发 MissingGreenlet
+        await self.db.refresh(row)
+        return row
+
+    async def get_experiment_summary_async(
+        self,
+        experiment_id: str,
+        project_ids: Optional[List[int]] = None,
+    ) -> Dict[str, Any]:
+        """获取实验汇总统计（async 版本），逻辑与 sync 版本一致
+
+        Args:
+            experiment_id: 实验标识
+            project_ids: 允许查看的项目ID列表，None表示不过滤
+
+        Returns:
+            包含experiment_id和variants统计字典的结果
+        """
+        stmt = select(ABTestMetric).where(
+            ABTestMetric.experiment_id == experiment_id,
+        )
+        if project_ids is not None:
+            stmt = stmt.where(ABTestMetric.project_id.in_(project_ids))
+        rows: List[ABTestMetric] = list((await self.db.execute(stmt)).scalars().all())
+        if not rows:
+            return {"experiment_id": experiment_id, "variants": {}}
+
+        grouped: Dict[str, Dict[str, List[float]]] = {}
+        for row in rows:
+            variant_key = row.variant
+            if variant_key not in grouped:
+                grouped[variant_key] = {}
+            if row.metric_name not in grouped[variant_key]:
+                grouped[variant_key][row.metric_name] = []
+            grouped[variant_key][row.metric_name].append(row.metric_value)
+
+        variants: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        for variant_key, metrics in grouped.items():
+            variant_stats: Dict[str, Dict[str, Any]] = {}
+            for name, values in metrics.items():
+                count = len(values)
+                mean_val = sum(values) / count if count > 0 else 0.0
+                variance = (
+                    sum((v - mean_val) ** 2 for v in values) / count
+                    if count > 0
+                    else 0.0
+                )
+                std_dev = math.sqrt(variance)
+                variant_stats[name] = {
+                    "mean": round(mean_val, 6),
+                    "std_dev": round(std_dev, 6),
+                    "sample_count": count,
+                }
+            variants[variant_key] = variant_stats
+
+        return {"experiment_id": experiment_id, "variants": variants}
+
+    async def list_experiments_async(
+        self,
+        project_ids: Optional[List[int]] = None,
+    ) -> List[Dict[str, Any]]:
+        """列出所有实验ID及其样本数（async 版本）
+
+        Args:
+            project_ids: 允许查看的项目ID列表，None表示不过滤
+
+        Returns:
+            实验列表，每个元素包含experiment_id和sample_count
+        """
+        stmt = select(
+            ABTestMetric.experiment_id,
+            func.count(ABTestMetric.id).label("sample_count"),
+        )
+        if project_ids is not None:
+            stmt = stmt.where(ABTestMetric.project_id.in_(project_ids))
+        stmt = stmt.group_by(ABTestMetric.experiment_id).order_by(ABTestMetric.experiment_id)
+        results = (await self.db.execute(stmt)).all()
         return [
             {"experiment_id": row.experiment_id, "sample_count": row.sample_count}
             for row in results

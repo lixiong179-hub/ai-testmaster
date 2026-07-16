@@ -17,10 +17,12 @@ from app.utils.ai_client_parser import parse_ai_json_object
 class MigrationAIClient(Protocol):
     """跨设备迁移所需的 AI 客户端协议。
 
-    实现方必须提供 ``chat`` 方法，接受 prompt 字符串并返回文本响应。
+    优先实现标准 ``AIClient.complete()`` 方法（返回 ``AIResponse``，取 ``.content``）；
+    兼容旧 ``chat()`` 方法（返回 ``str``），仅供测试 MockAIClient 使用。
+    ``_call_ai`` 通过 duck-typing 自动选择可用接口。
     """
 
-    def chat(self, prompt: str) -> str: ...
+    def complete(self, prompt: str) -> Any: ...
 
 
 class CaseMigrationAiMixin:
@@ -66,7 +68,7 @@ class CaseMigrationAiMixin:
             "errors": [],
         }
 
-    def _ai_migrate_case(
+    async def _ai_migrate_case(
         self,
         source_case: TestCase,
         source_data: Dict[str, Any],
@@ -91,15 +93,15 @@ class CaseMigrationAiMixin:
             if not migration_result:
                 return {"success": False, "error": "AI返回格式解析失败"}
         except RuntimeError as e:
-            self.db.rollback()
+            await self.db.rollback()
             logger.error(f"AI迁移遇到系统约束错误: {e}")
             raise
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             logger.error(f"AI迁移Prompt构建或调用失败: {e}")
             return {"success": False, "error": f"AI迁移失败: {e}"}
 
-        created_cases = self._create_migrated_cases(
+        created_cases = await self._create_migrated_cases(
             migration_result, source_case, target_device,
             target_project_id, batch_id,
         )
@@ -124,18 +126,27 @@ class CaseMigrationAiMixin:
         }
 
     def _call_ai(self, ai_client: Any, prompt: str) -> Optional[str]:
+        """调用 AI 客户端获取响应文本。
+
+        优先使用标准 AIClient.complete() 接口（返回 AIResponse，取 .content），
+        兼容旧 chat() 接口（返回 str，供测试 MockAIClient 使用），
+        最后回退到可调用对象。所有分支统一返回 str 或 None。
+        """
         try:
-            if isinstance(ai_client, MigrationAIClient):
+            if hasattr(ai_client, "complete"):
+                response = ai_client.complete(prompt)
+                return response.content if response else None
+            if hasattr(ai_client, "chat"):
                 response = ai_client.chat(prompt)
-            elif callable(ai_client):
+                return str(response) if response else None
+            if callable(ai_client):
                 response = ai_client(prompt)
-            else:
-                logger.error(
-                    "AI客户端未实现 MigrationAIClient 协议且不可调用，"
-                    "类型: %s", type(ai_client).__name__
-                )
-                return None
-            return str(response) if response else None
+                return str(response) if response else None
+            logger.error(
+                "AI客户端未实现 complete/chat 方法且不可调用，"
+                "类型: %s", type(ai_client).__name__
+            )
+            return None
         except Exception as e:
             logger.error(f"AI调用异常: {e}")
             return None

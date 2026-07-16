@@ -111,12 +111,12 @@ export interface PreconditionStepsResponse {
 
 export const testCaseViewApi = {
   getTechnicalView: async (caseId: number): Promise<TechnicalView> => {
-    const response = await axios.get(`/api/v1/testCase/${caseId}/technical-view`)
+    const response = await axios.get(`/api/v1/test-case/${caseId}/technical-view`)
     return response.data
   },
 
   getLocatorCoverage: async (caseId: number): Promise<LocatorCoverage> => {
-    const response = await axios.get(`/api/v1/testCase/${caseId}/locator-coverage`)
+    const response = await axios.get(`/api/v1/test-case/${caseId}/locator-coverage`)
     return response.data
   },
 
@@ -127,7 +127,7 @@ export const testCaseViewApi = {
       is_technical_view?: number
     }
   ): Promise<{ success: boolean }> => {
-    const response = await axios.put(`/api/v1/testCase/steps/${stepId}/view-config`, config)
+    const response = await axios.put(`/api/v1/test-case/steps/${stepId}/view-config`, config)
     return response.data
   },
 
@@ -136,7 +136,7 @@ export const testCaseViewApi = {
     viewType: 'business' | 'technical',
     visible: boolean
   ): Promise<{ updated_count: number }> => {
-    const response = await axios.put(`/api/v1/testCase/${caseId}/batch-view-config`, {
+    const response = await axios.put(`/api/v1/test-case/${caseId}/batch-view-config`, {
       view_type: viewType,
       visible,
     })
@@ -148,7 +148,7 @@ export const testCaseViewApi = {
    * 返回完整 AxiosResponse 以便读取 Content-Disposition 等响应头。
    */
   exportToExcel: async (caseId: number) => {
-    return await axios.post(`/api/v1/testCase/${caseId}/export-excel`, {}, { responseType: 'blob' })
+    return await axios.post(`/api/v1/test-case/${caseId}/export-excel`, {}, { responseType: 'blob' })
   },
 
   /**
@@ -157,34 +157,34 @@ export const testCaseViewApi = {
    */
   exportToFunctionalExcel: async (caseIds: number[]) => {
     return await axios.post(
-      '/api/v1/testCase/export-functional-excel',
+      '/api/v1/test-case/export-functional-excel',
       { case_ids: caseIds },
       { responseType: 'blob' }
     )
   },
 
   exportToMarkdown: async (caseId: number): Promise<string> => {
-    const response = await axios.get(`/api/v1/testCase/${caseId}/export-markdown`)
+    const response = await axios.get(`/api/v1/test-case/${caseId}/export-markdown`)
     return response.data
   },
 
   exportToHtml: async (caseId: number): Promise<string> => {
-    const response = await axios.get(`/api/v1/testCase/${caseId}/export-html`)
+    const response = await axios.get(`/api/v1/test-case/${caseId}/export-html`)
     return response.data
   },
 
   exportToPython: async (caseId: number): Promise<string> => {
-    const response = await axios.get(`/api/v1/testCase/${caseId}/export-python`)
+    const response = await axios.get(`/api/v1/test-case/${caseId}/export-python`)
     return response.data
   },
 
   exportToJson: async (caseId: number): Promise<ExportJsonResponse> => {
-    const response = await axios.get(`/api/v1/testCase/${caseId}/export-json`)
+    const response = await axios.get(`/api/v1/test-case/${caseId}/export-json`)
     return response.data
   },
 
   getViewStatistics: async (caseId: number): Promise<ViewStatistics> => {
-    const response = await axios.get(`/api/v1/testCase/${caseId}/view-statistics`)
+    const response = await axios.get(`/api/v1/test-case/${caseId}/view-statistics`)
     return response.data
   },
 
@@ -201,12 +201,12 @@ export const testCaseViewApi = {
     css_selector?: string
     xpath?: string
   }> => {
-    const response = await axios.post(`/api/v1/testCase/steps/${stepId}/locator`, locator)
+    const response = await axios.post(`/api/v1/test-case/steps/${stepId}/locator`, locator)
     return response.data
   },
 
   parsePrecondition: async (caseId: number): Promise<ParsePreconditionResponse> => {
-    const response = await axios.post(`/api/v1/testCase/${caseId}/parse-precondition`)
+    const response = await axios.post(`/api/v1/test-case/${caseId}/parse-precondition`)
     return response.data
   },
 
@@ -214,12 +214,12 @@ export const testCaseViewApi = {
     caseId: number,
     data: { steps: PreconditionStep[] }
   ): Promise<PreconditionStepsSaveResponse> => {
-    const response = await axios.put(`/api/v1/testCase/${caseId}/precondition-steps`, data)
+    const response = await axios.put(`/api/v1/test-case/${caseId}/precondition-steps`, data)
     return response.data
   },
 
   getPreconditionSteps: async (caseId: number): Promise<PreconditionStepsResponse> => {
-    const response = await axios.get(`/api/v1/testCase/${caseId}/precondition-steps`)
+    const response = await axios.get(`/api/v1/test-case/${caseId}/precondition-steps`)
     return response.data
   },
 

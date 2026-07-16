@@ -54,7 +54,7 @@ export const stopTestExecution = (taskId: number) => {
  * 后端无独立status端点，通过任务详情获取状态
  */
 export const getExecutionStatus = (taskId: number) => {
-  return request.get(`/api/v1/test_task/${taskId}`)
+  return request.get(`/api/v1/test-task/${taskId}`)
 }
 
 /**
@@ -68,7 +68,7 @@ export const getExecutionLogs = (
     limit?: number
   }
 ) => {
-  return request.get(`/api/v1/test_task/${taskId}/summary`, { params })
+  return request.get(`/api/v1/test-task/${taskId}/summary`, { params })
 }
 
 /**

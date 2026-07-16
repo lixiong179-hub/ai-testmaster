@@ -12,13 +12,16 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.background import BackgroundTask
 
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.test_case import TestCase
+from app.models.project import Project
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
+from app.services.test_case_view_service import TestCaseViewService
 from app.core.exception import create_response
 from loguru import logger
 
@@ -33,6 +36,15 @@ def _build_excel_filename(prefix: str) -> str:
     """生成下载用Excel文件名（含UTF-8编码的Content-Disposition）。"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{prefix}_{timestamp}.xlsx"
+
+
+def _safe_cleanup_tmp(file_path: str) -> None:
+    """安全清理临时文件，失败时仅记录日志不抛异常。"""
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as exc:
+        logger.warning(f"清理临时文件失败: {file_path}, {exc}")
 
 
 def _excel_file_response(
@@ -51,57 +63,55 @@ def _excel_file_response(
         "Content-Disposition": (
             f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quoted}"
         ),
-        # CORS 暴露：让前端 axios 能读到自定义响应头
         "Access-Control-Expose-Headers": "Content-Disposition, X-Export-Skipped-Count",
     }
     if extra_headers:
         headers.update(extra_headers)
 
-    def _cleanup() -> None:
-        try:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(f"清理临时Excel文件失败: {file_path}, {exc}")
-
     return FileResponse(
         path=file_path,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers=headers,
-        background=BackgroundTask(_cleanup),
+        background=BackgroundTask(lambda: _safe_cleanup_tmp(file_path)),
     )
 
 
-@router.get("/{test_case_id}/export-markdown")
-async def export_markdown(
-    test_case_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    导出Markdown格式
-    将指定测试用例导出为Markdown格式文本。
-    路径参数:
-        - test_case_id: 测试用例ID
-    权限要求: 需要Bearer令牌认证
-    """
-    from app.models.project import Project
-    test_case = db.query(TestCase).join(Project).filter(
-        TestCase.id == test_case_id,
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
-    ).first()
+async def _get_owned_test_case(
+    db: AsyncSession, test_case_id: int, user_id: int
+) -> TestCase:
+    """查询当前用户拥有的未删除测试用例，不存在则抛 404。"""
+    result = await db.execute(
+        select(TestCase).join(Project).where(
+            TestCase.id == test_case_id,
+            TestCase.is_deleted.is_(False),
+            Project.user_id == user_id,
+        )
+    )
+    test_case = result.scalar_one_or_none()
     if not test_case:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="测试用例不存在"
         )
+    return test_case
+
+
+@router.get("/{test_case_id}/export-markdown")
+async def export_markdown(
+    test_case_id: int,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """导出Markdown格式"""
+    await _get_owned_test_case(db, test_case_id, current_user.id)
 
     try:
-        from app.services.test_case_view_service import TestCaseViewService
-        service = TestCaseViewService(db)
-        markdown = service.export_business_view_to_markdown(test_case_id)
+        def _export(sync_db):
+            return TestCaseViewService(sync_db).export_business_view_to_markdown(test_case_id)
+        markdown = await db.run_sync(_export)
         return create_response(data={"content": markdown})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"导出Markdown失败: {e}")
         raise HTTPException(
@@ -113,33 +123,19 @@ async def export_markdown(
 @router.get("/{test_case_id}/export-html")
 async def export_html(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    导出HTML格式
-    将指定测试用例导出为HTML格式文本。
-    路径参数:
-        - test_case_id: 测试用例ID
-    权限要求: 需要Bearer令牌认证
-    """
-    from app.models.project import Project
-    test_case = db.query(TestCase).join(Project).filter(
-        TestCase.id == test_case_id,
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
-    ).first()
-    if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+    """导出HTML格式"""
+    await _get_owned_test_case(db, test_case_id, current_user.id)
 
     try:
-        from app.services.test_case_view_service import TestCaseViewService
-        service = TestCaseViewService(db)
-        html = service.export_business_view_to_html(test_case_id)
+        def _export(sync_db):
+            return TestCaseViewService(sync_db).export_business_view_to_html(test_case_id)
+        html = await db.run_sync(_export)
         return create_response(data={"content": html})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"导出HTML失败: {e}")
         raise HTTPException(
@@ -151,33 +147,19 @@ async def export_html(
 @router.get("/{test_case_id}/export-python")
 async def export_python(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    导出Python自动化脚本
-    将指定测试用例导出为Python自动化测试脚本。
-    路径参数:
-        - test_case_id: 测试用例ID
-    权限要求: 需要Bearer令牌认证
-    """
-    from app.models.project import Project
-    test_case = db.query(TestCase).join(Project).filter(
-        TestCase.id == test_case_id,
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
-    ).first()
-    if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+    """导出Python自动化脚本"""
+    await _get_owned_test_case(db, test_case_id, current_user.id)
 
     try:
-        from app.services.test_case_view_service import TestCaseViewService
-        service = TestCaseViewService(db)
-        python_code = service.export_technical_view_to_python(test_case_id)
+        def _export(sync_db):
+            return TestCaseViewService(sync_db).export_technical_view_to_python(test_case_id)
+        python_code = await db.run_sync(_export)
         return create_response(data={"content": python_code})
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"导出Python失败: {e}")
         raise HTTPException(
@@ -189,33 +171,19 @@ async def export_python(
 @router.get("/{test_case_id}/export-json")
 async def export_json(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    导出JSON格式
-    将指定测试用例的技术视图导出为JSON格式。
-    路径参数:
-        - test_case_id: 测试用例ID
-    权限要求: 需要Bearer令牌认证
-    """
-    from app.models.project import Project
-    test_case = db.query(TestCase).join(Project).filter(
-        TestCase.id == test_case_id,
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
-    ).first()
-    if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+    """导出JSON格式"""
+    await _get_owned_test_case(db, test_case_id, current_user.id)
 
     try:
-        from app.services.test_case_view_service import TestCaseViewService
-        service = TestCaseViewService(db)
-        json_data = service.export_technical_view_to_json(test_case_id)
+        def _export(sync_db):
+            return TestCaseViewService(sync_db).export_technical_view_to_json(test_case_id)
+        json_data = await db.run_sync(_export)
         return create_response(data=json_data)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"导出JSON失败: {e}")
         raise HTTPException(
@@ -227,34 +195,18 @@ async def export_json(
 @router.post("/{test_case_id}/export-excel")
 async def export_excel(
     test_case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    导出单条测试用例为标准Excel（双Sheet：用例信息 + 测试步骤，包含定位信息）。
-    路径参数:
-        - test_case_id: 测试用例ID
-    权限要求: 需要Bearer令牌认证
-    """
-    from app.models.project import Project
-    from app.services.test_case_view_service import TestCaseViewService
-
-    test_case = db.query(TestCase).join(Project).filter(
-        TestCase.id == test_case_id,
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
-    ).first()
-    if not test_case:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试用例不存在"
-        )
+    """导出单条测试用例为标准Excel（双Sheet：用例信息 + 测试步骤，包含定位信息）。"""
+    test_case = await _get_owned_test_case(db, test_case_id, current_user.id)
 
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
     tmp.close()
     try:
-        service = TestCaseViewService(db)
-        ok = service.export_to_excel(test_case_id, tmp.name)
+        def _export(sync_db):
+            return TestCaseViewService(sync_db).export_to_excel(test_case_id, tmp.name)
+        ok = await db.run_sync(_export)
         if not ok:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -267,13 +219,11 @@ async def export_excel(
         download_name = _build_excel_filename(safe_title)
         return _excel_file_response(tmp.name, download_name)
     except HTTPException:
-        if os.path.exists(tmp.name):
-            os.remove(tmp.name)
+        _safe_cleanup_tmp(tmp.name)
         raise
     except Exception as e:
         logger.error(f"导出Excel失败: {e}")
-        if os.path.exists(tmp.name):
-            os.remove(tmp.name)
+        _safe_cleanup_tmp(tmp.name)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="导出Excel失败"
@@ -283,45 +233,39 @@ async def export_excel(
 @router.post("/export-functional-excel")
 async def export_functional_excel(
     payload: FunctionalExcelExportRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    批量导出测试用例为功能用例Excel（单Sheet，按模块分组，面向第三方公司）。
-    请求体:
-        - case_ids: 用例ID列表
-    权限要求: 需要Bearer令牌认证；仅导出当前用户拥有项目下的用例。
-    """
-    from app.models.project import Project
-    from app.services.test_case_view_service import TestCaseViewService
-
+    """批量导出测试用例为功能用例Excel（单Sheet，按模块分组，面向第三方公司）。"""
     if not payload.case_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="请选择要导出的用例"
         )
 
-    owned_rows = db.query(TestCase.id).join(Project).filter(
-        TestCase.id.in_(payload.case_ids),
-        TestCase.is_deleted.is_(False),
-        Project.user_id == current_user.id
-    ).all()
-    owned_ids = {row[0] for row in owned_rows}
+    result = await db.execute(
+        select(TestCase.id).join(Project).where(
+            TestCase.id.in_(payload.case_ids),
+            TestCase.is_deleted.is_(False),
+            Project.user_id == current_user.id,
+        )
+    )
+    owned_ids = set(result.scalars().all())
     if not owned_ids:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="未找到可导出的测试用例"
         )
 
-    # 保留前端传入顺序，仅过滤出有权限的部分
     ordered_ids = [cid for cid in payload.case_ids if cid in owned_ids]
     skipped_count = len(payload.case_ids) - len(ordered_ids)
 
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
     tmp.close()
     try:
-        service = TestCaseViewService(db)
-        ok = service.export_to_functional_excel(ordered_ids, tmp.name)
+        def _export(sync_db):
+            return TestCaseViewService(sync_db).export_to_functional_excel(ordered_ids, tmp.name)
+        ok = await db.run_sync(_export)
         if not ok:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -332,13 +276,11 @@ async def export_functional_excel(
         extra_headers = {"X-Export-Skipped-Count": str(skipped_count)} if skipped_count else None
         return _excel_file_response(tmp.name, download_name, extra_headers=extra_headers)
     except HTTPException:
-        if os.path.exists(tmp.name):
-            os.remove(tmp.name)
+        _safe_cleanup_tmp(tmp.name)
         raise
     except Exception as e:
         logger.error(f"导出功能用例Excel失败: {e}")
-        if os.path.exists(tmp.name):
-            os.remove(tmp.name)
+        _safe_cleanup_tmp(tmp.name)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="导出功能用例Excel失败"

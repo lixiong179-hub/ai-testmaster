@@ -65,13 +65,13 @@ gunicorn -c gunicorn.conf.py app.main:app
 │   │   ├── config.py       # 配置文件
 │   │   └── exception.py    # 异常处理
 │   ├── crud/               # 数据库CRUD封装
-│   ├── db/                 # 数据库连接（主从同步）
+│   ├── db/                 # 数据库连接
 │   │   └── database.py     # 数据库连接管理
 │   ├── models/             # SQLAlchemy数据模型
 │   ├── schemas/            # Pydantic请求/响应校验
 │   │   └── auth.py         # 认证相关模型
 │   ├── services/           # 业务逻辑层
-│   ├── tasks/              # Celery异步任务
+│   ├── tasks/              # 定时任务与自测调度
 │   ├── utils/              # 工具类（加密/日志/AI调用）
 │   │   └── jwt_utils.py    # JWT认证工具
 │   └── main.py             # 入口文件
@@ -99,7 +99,6 @@ gunicorn -c gunicorn.conf.py app.main:app
 - 全局异常捕获
 
 ### 3. 数据库连接
-- 主从同步支持
 - 读写分离
 - 连接池管理
 - 自动重试机制
@@ -146,7 +145,7 @@ curl -X POST "http://localhost:8000/api/v1/auth/login" \
 - **ORM**: SQLAlchemy 2.0.23
 - **数据验证**: Pydantic 2.5.0
 - **认证**: python-jose + bcrypt
-- **异步任务**: Celery 5.3.4
+- **定时任务**: APScheduler 3.10.4
 - **缓存**: Redis 7.0
 - **数据库**: MySQL 8.0
 - **测试**: pytest + pytest-cov

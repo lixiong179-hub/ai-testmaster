@@ -23,10 +23,11 @@ from typing import Optional
     - 支持公开/私有/团队三种可见性级别
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.visibility_config_service import (
@@ -58,27 +59,33 @@ class VisibilityConfigRequest(BaseModel):
 async def get_visibility_config(
     level: str = Query(..., description="配置级别: global, task, case"),
     id: Optional[int] = Query(None, description="任务ID或用例ID"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取可见模式配置"""
     service = get_visibility_config_service()
-    
+
     if level == "global":
         config = service.get_global_config()
     elif level == "task":
         from app.models.test_task import TestTask
-        task = db.query(TestTask).filter(TestTask.id == id).first() if id else None
+        task = None
+        if id is not None:
+            result = await db.execute(select(TestTask).where(TestTask.id == id))
+            task = result.scalar_one_or_none()
         config = service.get_task_config(task) if task else service.get_global_config()
     elif level == "case":
         from app.models.test_case import TestCase
-        from app.models.test_task import TestTask
-        case = db.query(TestCase).filter(TestCase.id == id, TestCase.is_deleted.is_(False)).first() if id else None
-        task = None
-        config = service.get_case_config(case, task) if case else service.get_global_config()
+        case = None
+        if id is not None:
+            result = await db.execute(
+                select(TestCase).where(TestCase.id == id, TestCase.is_deleted.is_(False))
+            )
+            case = result.scalar_one_or_none()
+        config = service.get_case_config(case, None) if case else service.get_global_config()
     else:
         config = service.get_global_config()
-    
+
     return {
         "code": 200,
         "message": "success",
@@ -89,12 +96,12 @@ async def get_visibility_config(
 @router.put("/config")
 async def update_visibility_config(
     request: VisibilityConfigRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """更新可见模式配置"""
     service = get_visibility_config_service()
-    
+
     # 构建配置对象
     config_dict = {
         "headless": request.headless,
@@ -109,9 +116,9 @@ async def update_visibility_config(
         "highlight_elements": request.highlight_elements,
         "show_ai_analysis": request.show_ai_analysis
     }
-    
+
     new_config = VisibilityConfig(**config_dict)
-    
+
     # 验证配置
     is_valid, error_msg = service.validate_config(new_config)
     if not is_valid:
@@ -119,13 +126,14 @@ async def update_visibility_config(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=error_msg
         )
-    
+
     # 根据级别更新配置
     if request.level == "global":
         service.set_global_config(new_config)
     elif request.level == "task" and request.id:
         from app.models.test_task import TestTask
-        task = db.query(TestTask).filter(TestTask.id == request.id).first()
+        result = await db.execute(select(TestTask).where(TestTask.id == request.id))
+        task = result.scalar_one_or_none()
         if task:
             service.update_task_config(task, new_config)
         else:
@@ -135,7 +143,10 @@ async def update_visibility_config(
             )
     elif request.level == "case" and request.id:
         from app.models.test_case import TestCase
-        case = db.query(TestCase).filter(TestCase.id == request.id, TestCase.is_deleted.is_(False)).first()
+        result = await db.execute(
+            select(TestCase).where(TestCase.id == request.id, TestCase.is_deleted.is_(False))
+        )
+        case = result.scalar_one_or_none()
         if case:
             service.update_case_config(case, new_config)
         else:
@@ -143,7 +154,7 @@ async def update_visibility_config(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="用例不存在"
             )
-    
+
     return {
         "code": 200,
         "message": "配置已保存",

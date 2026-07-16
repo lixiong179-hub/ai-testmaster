@@ -17,7 +17,7 @@ from app.services.quality.grade import (
     GRADE_STATUS_TO_LETTER,
     grade_status_to_letter,
 )
-from app.services.test_case_generation.validate_mixin import TestCaseGenerationValidateMixin
+from app.services.test_case_generation.validator import CaseValidator as TestCaseGenerationValidateMixin
 
 
 # ── grade_status_to_letter 单元测试 ──

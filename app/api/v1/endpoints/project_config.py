@@ -20,8 +20,9 @@
     - 设备配置以JSON格式存储
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.schemas.project import TestObjectInfoUpdate, ProjectConfigUpdate
 from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
@@ -84,7 +85,7 @@ def _parse_device_config(project: Project) -> dict | None:
 @router.get("/{project_id}/config", response_model=dict)
 async def get_project_config(
     project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -106,10 +107,13 @@ async def get_project_config(
         HTTPException 403: 无权限操作此项目
     """
     try:
-        project = db.query(Project).filter(
-            Project.id == project_id,
-            Project.user_id == current_user.id
-        ).first()
+        result = await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.user_id == current_user.id
+            )
+        )
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
         return create_response(
@@ -131,7 +135,7 @@ async def get_project_config(
 async def update_project_config(
     project_id: int,
     config_data: ProjectConfigUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -154,10 +158,13 @@ async def update_project_config(
         HTTPException 403: 无权限操作此项目
     """
     try:
-        project = db.query(Project).filter(
-            Project.id == project_id,
-            Project.user_id == current_user.id
-        ).first()
+        result = await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.user_id == current_user.id
+            )
+        )
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
         if config_data.project_type is not None:
@@ -187,8 +194,8 @@ async def update_project_config(
                 project.device_config = json.dumps(device_config)
             else:
                 project.device_config = None
-        db.commit()
-        db.refresh(project)
+        await db.commit()
+        await db.refresh(project)
         return create_response(
             data={
                 "project_type": project.project_type,
@@ -200,7 +207,7 @@ async def update_project_config(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"更新项目配置失败: {e}")
         raise HTTPException(status_code=500, detail="更新项目配置失败，请检查参数")
 
@@ -208,7 +215,7 @@ async def update_project_config(
 @router.get("/{project_id}/test-object", response_model=dict)
 async def get_test_object(
     project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -230,10 +237,13 @@ async def get_test_object(
         HTTPException 403: 无权限操作此项目
     """
     try:
-        project = db.query(Project).filter(
-            Project.id == project_id,
-            Project.user_id == current_user.id
-        ).first()
+        result = await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.user_id == current_user.id
+            )
+        )
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
         # 从Web环境配置中提取测试环境信息
@@ -274,7 +284,7 @@ async def get_test_object(
 async def update_test_object(
     project_id: int,
     obj_data: TestObjectInfoUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -298,10 +308,13 @@ async def update_test_object(
         HTTPException 403: 无权限操作此项目
     """
     try:
-        project = db.query(Project).filter(
-            Project.id == project_id,
-            Project.user_id == current_user.id
-        ).first()
+        result = await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.user_id == current_user.id
+            )
+        )
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
         if obj_data.type:
@@ -344,12 +357,12 @@ async def update_test_object(
             dev_cfg = _parse_device_config(project) or {}
             dev_cfg['app_activity'] = obj_data.app_activity
             project.device_config = json.dumps(dev_cfg)
-        db.commit()
-        db.refresh(project)
+        await db.commit()
+        await db.refresh(project)
         return create_response(data={"id": project.id}, msg="更新成功")
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"更新被测对象失败: {e}")
         raise HTTPException(status_code=500, detail="更新被测对象失败")

@@ -26,7 +26,7 @@ const testTaskApi = {
     description?: string
     case_ids: number[]
   }) => {
-    return request.post('/api/v1/test_task/', {
+    return request.post('/api/v1/test-task/', {
       project_id: data.project_id,
       task_name: data.task_name,
       description: data.description || '',
@@ -42,12 +42,12 @@ const testTaskApi = {
     page?: number
     page_size?: number
   }) => {
-    return request.get('/api/v1/test_task/', { params })
+    return request.get('/api/v1/test-task/', { params })
   },
 
   // 获取任务详情
   getTaskDetail: (taskId: number, projectId?: number) => {
-    return request.get(`/api/v1/test_task/${taskId}`, {
+    return request.get(`/api/v1/test-task/${taskId}`, {
       params: projectId ? { project_id: projectId } : {},
     })
   },
@@ -60,7 +60,7 @@ const testTaskApi = {
     mobileDeviceId?: string
   ) => {
     return request.post(
-      `/api/v1/test_task/${taskId}/start`,
+      `/api/v1/test-task/${taskId}/start`,
       {
         execution_mode: executionMode,
         mobile_device_id: mobileDeviceId,
@@ -80,37 +80,37 @@ const testTaskApi = {
   },
 
   // 获取任务执行结果
-  // 后端：GET /api/v1/test_task/{task_id}
+  // 后端：GET /api/v1/test-task/{task_id}
   getTaskResults: (taskId: number, projectId?: number) => {
-    return request.get(`/api/v1/test_task/${taskId}`, {
+    return request.get(`/api/v1/test-task/${taskId}`, {
       params: projectId ? { project_id: projectId } : {},
     })
   },
 
   // 执行任务
   runTask: (taskId: number, projectId?: number) => {
-    return request.post(`/api/v1/test_task/${taskId}/run`, null, {
+    return request.post(`/api/v1/test-task/${taskId}/run`, null, {
       params: projectId ? { project_id: projectId } : {},
     })
   },
 
   // 获取任务执行摘要
   getTaskSummary: (taskId: number, projectId?: number) => {
-    return request.get(`/api/v1/test_task/${taskId}/summary`, {
+    return request.get(`/api/v1/test-task/${taskId}/summary`, {
       params: projectId ? { project_id: projectId } : {},
     })
   },
 
   // 删除任务
   deleteTask: (taskId: number, projectId?: number) => {
-    return request.delete(`/api/v1/test_task/${taskId}`, {
+    return request.delete(`/api/v1/test-task/${taskId}`, {
       params: projectId ? { project_id: projectId } : {},
     })
   },
 
   // 获取项目下的测试用例（用于任务创建时选择）
   getProjectCases: (projectId: number, params?: { page?: number; page_size?: number }) => {
-    return request.get('/api/v1/testCase/', {
+    return request.get('/api/v1/test-case/', {
       params: { project_id: projectId, page: 1, page_size: 100, ...params },
     })
   },

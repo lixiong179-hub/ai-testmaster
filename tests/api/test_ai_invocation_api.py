@@ -2,11 +2,17 @@
 AI 调用审计增强 API 测试
 
 测试范围：
-    - AICallLog 新增字段写入
-    - AIErrorCode 枚举值
-    - 成本聚合查询 API
-    - 调用记录列表 API
-    - record_call 向后兼容性
+    - AICallLog 新增字段写入（同步，使用 record_call，不调用端点）
+    - AIErrorCode 枚举值（纯枚举测试）
+    - 成本聚合查询 API /stats（async endpoint + async client）
+    - 调用记录列表 API /list（async endpoint + async client）
+
+迁移说明（任务1 续作 - 端测双迁）:
+    endpoint 已迁至 async（AsyncSession + async_get_db），原 sync TestClient
+    与 async DB 依赖不兼容，故 TestAIInvocationStatsAPI / TestAIInvocationListAPI
+    同步改写为 httpx.AsyncClient 模式，使用 tests/api/conftest.py 提供的
+    async_db / async_auth_client / async_test_project fixture。
+    TestAIErrorCode / TestAICallLogNewFields 不调用端点，保持同步。
 """
 import pytest
 from app.ai.call_log import AICallLog, record_call
@@ -34,7 +40,11 @@ class TestAIErrorCode:
 
 
 class TestAICallLogNewFields:
-    """AICallLog 新增字段写入测试"""
+    """AICallLog 新增字段写入测试
+
+    说明：不调用 endpoint，使用同步 db fixture + record_call。
+    record_call 内部使用 sync Session，与本测试同步，无需改写为 async。
+    """
 
     def test_record_call_with_new_fields(self, db, testProject):
         batch = GenerationBatch(
@@ -132,65 +142,119 @@ class TestAICallLogNewFields:
         assert log.scenario_type == "A1_REQUIREMENT_TESTPOINT_UI"
 
 
-class TestAIInvocationStatsAPI:
-    """成本聚合查询 API 测试"""
+async def _create_batch(
+    db,
+    *,
+    project_id: int,
+    user_id: int,
+    batch_no: str,
+    scenario_type: str = "B1_REQUIREMENT_TESTPOINT",
+    generation_strategy: str = "REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
+) -> GenerationBatch:
+    """辅助：在 async_db 中创建一条 GenerationBatch 记录。"""
+    batch = GenerationBatch(
+        batch_no=batch_no,
+        project_id=project_id,
+        user_id=user_id,
+        entry_type="NEW_FEATURE_GENERATION",
+        scenario_type=scenario_type,
+        generation_strategy=generation_strategy,
+        status="saved",
+    )
+    db.add(batch)
+    await db.flush()
+    return batch
 
-    def test_stats_no_auth(self, client):
-        resp = client.get("/api/v1/ai-invocation/stats", params={"project_id": 1})
+
+async def _create_call_log(
+    db,
+    *,
+    batch_id: int,
+    model: str = "deepseek-v4",
+    prompt_tokens: int = 100,
+    completion_tokens: int = 50,
+    cost_usd: float = 0.001,
+    latency_ms: int = 200,
+    scenario_type: str | None = "B1_REQUIREMENT_TESTPOINT",
+    generation_strategy: str = "REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
+    prompt_key: str | None = None,
+    prompt_version: int | None = None,
+    prompt_hash: str | None = None,
+    error_code: str | None = None,
+) -> AICallLog:
+    """辅助：在 async_db 中创建一条 AICallLog 记录。"""
+    log = AICallLog(
+        model=model,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        cost_usd=cost_usd,
+        latency_ms=latency_ms,
+        generation_batch_id=batch_id,
+        scenario_type=scenario_type,
+        generation_strategy=generation_strategy,
+        prompt_key=prompt_key,
+        prompt_version=prompt_version,
+        prompt_hash=prompt_hash,
+        error_code=error_code,
+    )
+    db.add(log)
+    await db.flush()
+    return log
+
+
+class TestAIInvocationStatsAPI:
+    """成本聚合查询 API 测试（async endpoint）"""
+
+    async def test_stats_no_auth(self, async_client):
+        """未认证返回 401"""
+        resp = await async_client.get(
+            "/api/v1/ai-invocation/stats", params={"project_id": 1}
+        )
         assert resp.status_code in (401, 403)
 
-    def test_stats_empty_result(self, db, client, authHeaders, testProject):
-        resp = client.get(
+    async def test_stats_empty_result(
+        self, async_auth_client, async_test_project
+    ):
+        """无数据时返回空 items 列表"""
+        resp = await async_auth_client.get(
             "/api/v1/ai-invocation/stats",
-            params={"project_id": testProject.id, "group_by": "model"},
-            headers=authHeaders,
+            params={"project_id": async_test_project.id, "group_by": "model"},
         )
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert isinstance(data["items"], list)
         assert len(data["items"]) == 0
 
-    def test_stats_with_data_group_by_model(self, db, client, authHeaders, testProject):
-        batch = GenerationBatch(
+    async def test_stats_with_data_group_by_model(
+        self, async_auth_client, async_db, async_test_project, async_test_user
+    ):
+        """按 model 聚合，验证 total_calls 与 tokens 求和"""
+        batch = await _create_batch(
+            async_db,
+            project_id=async_test_project.id,
+            user_id=async_test_user.id,
             batch_no="GB-STATS-MODEL",
-            project_id=testProject.id,
-            user_id=testProject.user_id,
-            entry_type="NEW_FEATURE_GENERATION",
-            scenario_type="B1_REQUIREMENT_TESTPOINT",
-            generation_strategy="REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
-            status="saved",
         )
-        db.add(batch)
-        db.flush()
-
-        log1 = AICallLog(
-            model="deepseek-v4",
+        await _create_call_log(
+            async_db,
+            batch_id=batch.id,
             prompt_tokens=100,
             completion_tokens=50,
             cost_usd=0.001,
             latency_ms=200,
-            generation_batch_id=batch.id,
-            scenario_type="B1_REQUIREMENT_TESTPOINT",
-            generation_strategy="REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
         )
-        log2 = AICallLog(
-            model="deepseek-v4",
+        await _create_call_log(
+            async_db,
+            batch_id=batch.id,
             prompt_tokens=200,
             completion_tokens=100,
             cost_usd=0.002,
             latency_ms=300,
-            generation_batch_id=batch.id,
-            scenario_type="B1_REQUIREMENT_TESTPOINT",
-            generation_strategy="REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
         )
-        db.add(log1)
-        db.add(log2)
-        db.flush()
 
-        resp = client.get(
+        resp = await async_auth_client.get(
             "/api/v1/ai-invocation/stats",
-            params={"project_id": testProject.id, "group_by": "model"},
-            headers=authHeaders,
+            params={"project_id": async_test_project.id, "group_by": "model"},
         )
         assert resp.status_code == 200
         items = resp.json()["data"]["items"]
@@ -201,41 +265,38 @@ class TestAIInvocationStatsAPI:
         assert model_row["total_prompt_tokens"] == 300
         assert model_row["total_completion_tokens"] == 150
 
-    def test_stats_group_by_strategy(self, db, client, authHeaders, testProject):
-        batch = GenerationBatch(
+    async def test_stats_group_by_strategy(
+        self, async_auth_client, async_db, async_test_project, async_test_user
+    ):
+        """按 strategy 聚合"""
+        batch = await _create_batch(
+            async_db,
+            project_id=async_test_project.id,
+            user_id=async_test_user.id,
             batch_no="GB-STATS-STRAT",
-            project_id=testProject.id,
-            user_id=testProject.user_id,
-            entry_type="NEW_FEATURE_GENERATION",
-            scenario_type="B1_REQUIREMENT_TESTPOINT",
-            generation_strategy="REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
-            status="saved",
         )
-        db.add(batch)
-        db.flush()
-
-        log = AICallLog(
-            model="deepseek-v4",
+        await _create_call_log(
+            async_db,
+            batch_id=batch.id,
             prompt_tokens=100,
             completion_tokens=50,
             cost_usd=0.001,
             latency_ms=200,
-            generation_batch_id=batch.id,
-            generation_strategy="REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
         )
-        db.add(log)
-        db.flush()
 
-        resp = client.get(
+        resp = await async_auth_client.get(
             "/api/v1/ai-invocation/stats",
-            params={"project_id": testProject.id, "group_by": "strategy"},
-            headers=authHeaders,
+            params={"project_id": async_test_project.id, "group_by": "strategy"},
         )
         assert resp.status_code == 200
         items = resp.json()["data"]["items"]
         assert len(items) >= 1
         strat_row = next(
-            (r for r in items if r["group_key"] == "REQUIREMENT_TESTPOINT_STANDARD_GENERATION"),
+            (
+                r
+                for r in items
+                if r["group_key"] == "REQUIREMENT_TESTPOINT_STANDARD_GENERATION"
+            ),
             None,
         )
         assert strat_row is not None
@@ -243,56 +304,47 @@ class TestAIInvocationStatsAPI:
 
 
 class TestAIInvocationListAPI:
-    """调用记录列表 API 测试"""
+    """调用记录列表 API 测试（async endpoint）"""
 
-    def test_list_no_auth(self, client):
-        resp = client.get("/api/v1/ai-invocation/list")
+    async def test_list_no_auth(self, async_client):
+        """未认证返回 401"""
+        resp = await async_client.get("/api/v1/ai-invocation/list")
         assert resp.status_code in (401, 403)
 
-    def test_list_no_filter_returns_empty(self, client, authHeaders):
-        resp = client.get(
-            "/api/v1/ai-invocation/list",
-            headers=authHeaders,
-        )
+    async def test_list_no_filter_returns_empty(self, async_auth_client):
+        """无筛选条件返回空列表，避免全表扫描"""
+        resp = await async_auth_client.get("/api/v1/ai-invocation/list")
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["items"] == []
         assert data["total"] == 0
 
-    def test_list_by_batch_id(self, db, client, authHeaders, testProject):
-        batch = GenerationBatch(
+    async def test_list_by_batch_id(
+        self, async_auth_client, async_db, async_test_project, async_test_user
+    ):
+        """按 batch_id 筛选，验证新字段透传"""
+        batch = await _create_batch(
+            async_db,
+            project_id=async_test_project.id,
+            user_id=async_test_user.id,
             batch_no="GB-LIST-BATCH",
-            project_id=testProject.id,
-            user_id=testProject.user_id,
-            entry_type="NEW_FEATURE_GENERATION",
-            scenario_type="B1_REQUIREMENT_TESTPOINT",
-            generation_strategy="REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
-            status="saved",
         )
-        db.add(batch)
-        db.flush()
-
-        log = AICallLog(
-            model="deepseek-v4",
+        await _create_call_log(
+            async_db,
+            batch_id=batch.id,
             prompt_tokens=100,
             completion_tokens=50,
             cost_usd=0.001,
             latency_ms=200,
-            generation_batch_id=batch.id,
-            scenario_type="B1_REQUIREMENT_TESTPOINT",
-            generation_strategy="REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
             prompt_key="test_gen",
             prompt_version=1,
             prompt_hash="sha256abc",
             error_code=AIErrorCode.AI_RATE_LIMIT,
         )
-        db.add(log)
-        db.flush()
 
-        resp = client.get(
+        resp = await async_auth_client.get(
             "/api/v1/ai-invocation/list",
             params={"batch_id": batch.id},
-            headers=authHeaders,
         )
         assert resp.status_code == 200
         data = resp.json()["data"]
@@ -301,74 +353,64 @@ class TestAIInvocationListAPI:
         assert item["model"] == "deepseek-v4"
         assert item["generation_batch_id"] == batch.id
         assert item["scenario_type"] == "B1_REQUIREMENT_TESTPOINT"
-        assert item["generation_strategy"] == "REQUIREMENT_TESTPOINT_STANDARD_GENERATION"
+        assert (
+            item["generation_strategy"] == "REQUIREMENT_TESTPOINT_STANDARD_GENERATION"
+        )
         assert item["prompt_key"] == "test_gen"
         assert item["prompt_version"] == 1
         assert item["prompt_hash"] == "sha256abc"
         assert item["error_code"] == "AI_RATE_LIMIT"
 
-    def test_list_by_project_id(self, db, client, authHeaders, testProject):
-        batch = GenerationBatch(
+    async def test_list_by_project_id(
+        self, async_auth_client, async_db, async_test_project, async_test_user
+    ):
+        """按 project_id 筛选（通过 generation_batch 间接关联）"""
+        batch = await _create_batch(
+            async_db,
+            project_id=async_test_project.id,
+            user_id=async_test_user.id,
             batch_no="GB-LIST-PROJ",
-            project_id=testProject.id,
-            user_id=testProject.user_id,
-            entry_type="NEW_FEATURE_GENERATION",
-            scenario_type="B1_REQUIREMENT_TESTPOINT",
-            generation_strategy="REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
-            status="saved",
         )
-        db.add(batch)
-        db.flush()
-
-        log = AICallLog(
-            model="deepseek-v4",
+        await _create_call_log(
+            async_db,
+            batch_id=batch.id,
             prompt_tokens=100,
             completion_tokens=50,
             cost_usd=0.001,
             latency_ms=200,
-            generation_batch_id=batch.id,
         )
-        db.add(log)
-        db.flush()
 
-        resp = client.get(
+        resp = await async_auth_client.get(
             "/api/v1/ai-invocation/list",
-            params={"project_id": testProject.id},
-            headers=authHeaders,
+            params={"project_id": async_test_project.id},
         )
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["total"] >= 1
 
-    def test_list_pagination(self, db, client, authHeaders, testProject):
-        batch = GenerationBatch(
+    async def test_list_pagination(
+        self, async_auth_client, async_db, async_test_project, async_test_user
+    ):
+        """分页查询，page=1, page_size=2 返回 2 条且 total>=5"""
+        batch = await _create_batch(
+            async_db,
+            project_id=async_test_project.id,
+            user_id=async_test_user.id,
             batch_no="GB-LIST-PAGE",
-            project_id=testProject.id,
-            user_id=testProject.user_id,
-            entry_type="NEW_FEATURE_GENERATION",
-            scenario_type="B1_REQUIREMENT_TESTPOINT",
-            generation_strategy="REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
-            status="saved",
         )
-        db.add(batch)
-        db.flush()
-
         for i in range(5):
-            log = AICallLog(
-                model="deepseek-v4",
+            await _create_call_log(
+                async_db,
+                batch_id=batch.id,
                 prompt_tokens=100 + i,
                 completion_tokens=50,
                 cost_usd=0.001,
                 latency_ms=200,
-                generation_batch_id=batch.id,
             )
-            db.add(log)
-        db.flush()
 
-        resp = client.get(
+        resp = await async_auth_client.get(
             "/api/v1/ai-invocation/list",
             params={"batch_id": batch.id, "page": 1, "page_size": 2},
-            headers=authHeaders,
         )
         assert resp.status_code == 200
         data = resp.json()["data"]

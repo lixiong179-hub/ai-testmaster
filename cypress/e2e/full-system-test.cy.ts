@@ -132,7 +132,7 @@ describe('AI TestMaster 全流程系统测试', () => {
 
   describe('步骤3: 项目1资源与测试资产契约', () => {
     it('项目1应该能创建测试用例并按项目查询', () => {
-      apiRequest<TestCaseCreateData>('POST', '/api/v1/testCase/', {
+      apiRequest<TestCaseCreateData>('POST', '/api/v1/test-case/', {
         body: {
           project_id: project1Id,
           module: '系统测试',
@@ -158,7 +158,7 @@ describe('AI TestMaster 全流程系统测试', () => {
         expect(caseId).to.be.greaterThan(0)
       })
 
-      apiRequest<{ items: TestCaseCreateData[] }>('GET', '/api/v1/testCase/', {
+      apiRequest<{ items: TestCaseCreateData[] }>('GET', '/api/v1/test-case/', {
         qs: { project_id: project1Id, page: 1, page_size: 50 },
       }).then((response) => {
         const data = expectApiSuccess<{ items: TestCaseCreateData[] }>(response)
@@ -170,7 +170,7 @@ describe('AI TestMaster 全流程系统测试', () => {
     })
 
     it('项目1应该能创建测试任务并绑定用例', () => {
-      apiRequest<TaskCreateData>('POST', '/api/v1/test_task/', {
+      apiRequest<TaskCreateData>('POST', '/api/v1/test-task/', {
         body: {
           project_id: project1Id,
           task_name: taskName,
@@ -194,7 +194,7 @@ describe('AI TestMaster 全流程系统测试', () => {
             case_ids?: number[]
           }
           results: unknown[]
-        }>('GET', `/api/v1/test_task/${taskId}`, {
+        }>('GET', `/api/v1/test-task/${taskId}`, {
           qs: { project_id: project1Id },
         })
       ).then((response) => {
@@ -235,7 +235,7 @@ describe('AI TestMaster 全流程系统测试', () => {
     })
 
     it('项目2不应看到项目1的测试用例', () => {
-      apiRequest<{ items: TestCaseCreateData[] }>('GET', '/api/v1/testCase/', {
+      apiRequest<{ items: TestCaseCreateData[] }>('GET', '/api/v1/test-case/', {
         qs: { project_id: project2Id, page: 1, page_size: 50 },
       }).then((response) => {
         const data = expectApiSuccess<{ items: TestCaseCreateData[] }>(response)

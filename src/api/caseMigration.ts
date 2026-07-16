@@ -69,7 +69,7 @@ export const caseMigrationApi = {
     formData.append('file', payload.file)
     formData.append('project_id', String(payload.projectId))
     formData.append('target_device', payload.targetDevice)
-    const response = await request.post('/api/v1/caseMigration/import-excel', formData)
+    const response = await request.post('/api/v1/case-migration/import-excel', formData)
     return (response.data || response) as ExcelImportResponse
   },
 
@@ -80,7 +80,7 @@ export const caseMigrationApi = {
     targetProjectId: number
     targetUiSpecs: string
   }): Promise<MigrationPreviewResponse> => {
-    const response = await request.post('/api/v1/caseMigration/preview-batch', {
+    const response = await request.post('/api/v1/case-migration/preview-batch', {
       source_case_ids: payload.sourceCaseIds,
       source_device: payload.sourceDevice,
       target_device: payload.targetDevice,
@@ -96,7 +96,7 @@ export const caseMigrationApi = {
     targetDevice: DeviceType
     items: MigrationPreviewItem[]
   }): Promise<MigrationCommitResponse> => {
-    const response = await request.post('/api/v1/caseMigration/commit-batch', {
+    const response = await request.post('/api/v1/case-migration/commit-batch', {
       batch_id: payload.batchId,
       target_project_id: payload.targetProjectId,
       target_device: payload.targetDevice,
@@ -106,12 +106,12 @@ export const caseMigrationApi = {
   },
 
   getBatch: async (batchId: string): Promise<MigrationBatchResponse> => {
-    const response = await request.get(`/api/v1/caseMigration/batches/${batchId}`)
+    const response = await request.get(`/api/v1/case-migration/batches/${batchId}`)
     return (response.data || response) as MigrationBatchResponse
   },
 
   rollbackBatch: async (batchId: string): Promise<MigrationBatchResponse> => {
-    const response = await request.post(`/api/v1/caseMigration/batches/${batchId}/rollback`)
+    const response = await request.post(`/api/v1/case-migration/batches/${batchId}/rollback`)
     return (response.data || response) as MigrationBatchResponse
   },
 }

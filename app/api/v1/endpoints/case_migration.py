@@ -5,19 +5,21 @@ import threading
 from typing import Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.models.project import Project
 from app.core.exception import create_response
 from app.core.config import settings
+from app.schemas.common import ApiResponse
 from app.services.case_migration import CaseMigrationService
 from app.services.test_case_view import TestCaseViewService
 
-router = APIRouter(prefix="/caseMigration", tags=["跨设备用例迁移"])
+router = APIRouter(prefix="/case-migration", tags=["跨设备用例迁移"])
 
 VALID_DEVICES = {"tablet", "phone", "desktop", "web"}
 
@@ -41,6 +43,11 @@ _ai_client_lock = threading.Lock()
 
 
 def _get_ai_client():
+    """获取 AI 客户端单例。
+
+    使用 app.ai.openai_client.OpenAIClient（实现 AIClient Protocol 的 complete 方法）。
+    通过 settings 配置 API 密钥与端点，实例化本身不发起网络请求（懒加载）。
+    """
     global _ai_client_instance
     if _ai_client_instance is not None:
         return _ai_client_instance
@@ -48,18 +55,12 @@ def _get_ai_client():
         if _ai_client_instance is not None:
             return _ai_client_instance
         try:
-            from app.ai.deepseek_client import DeepSeekClient
-            _ai_client_instance = DeepSeekClient()
+            from app.ai.openai_client import OpenAIClient
+            _ai_client_instance = OpenAIClient()
             return _ai_client_instance
-        except Exception:
-            logger.warning("DeepSeekClient不可用，尝试其他AI客户端")
-        try:
-            from app.ai.call_log import get_ai_client
-            _ai_client_instance = get_ai_client()
-            return _ai_client_instance
-        except Exception:
-            logger.error("无可用的AI客户端")
-        return None
+        except Exception as exc:
+            logger.error(f"OpenAIClient 初始化失败: {exc}")
+            return None
 
 
 def _validate_device_pair(source_device: str, target_device: str) -> None:
@@ -80,11 +81,14 @@ def _validate_device_pair(source_device: str, target_device: str) -> None:
         )
 
 
-def _verify_target_project(db: Session, target_project_id: int, current_user: User) -> None:
-    target_project = db.query(Project).filter(
+async def _verify_target_project(
+    db: AsyncSession, target_project_id: int, current_user: User
+) -> None:
+    stmt = select(Project).where(
         Project.id == target_project_id,
         Project.user_id == current_user.id,
-    ).first()
+    )
+    target_project = (await db.execute(stmt)).scalar_one_or_none()
     if not target_project:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -101,10 +105,10 @@ def _remove_temp_file(path: str) -> None:
         logger.warning(f"临时文件清理失败: {path}, error={exc}")
 
 
-@router.post("/normalize-excel", summary="Excel格式规范化预处理")
+@router.post("/normalize-excel", response_model=ApiResponse, summary="Excel格式规范化预处理")
 async def normalize_excel(
     file: UploadFile = File(..., description="Excel文件"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     if not file.filename or not file.filename.endswith((".xlsx", ".xls")):
@@ -123,8 +127,11 @@ async def normalize_excel(
                 )
             tmp.write(content)
             temp_path = tmp.name
-        service = TestCaseViewService(db)
-        result = service.normalize_excel(temp_path)
+
+        def _normalize(sync_db):
+            service = TestCaseViewService(sync_db)
+            return service.normalize_excel(temp_path)
+        result = await db.run_sync(_normalize)
         return create_response(data=result)
     except Exception as e:
         logger.error(f"Excel规范化检测失败: {e}")
@@ -136,13 +143,13 @@ async def normalize_excel(
         _remove_temp_file(temp_path)
 
 
-@router.post("/import-excel", summary="导入Excel用例（支持设备类型标记）")
+@router.post("/import-excel", response_model=ApiResponse, summary="导入Excel用例（支持设备类型标记）")
 async def import_excel(
     file: UploadFile = File(..., description="Excel文件"),
     project_id: int = Form(..., description="项目ID"),
     target_device: Optional[str] = Form(None, description="目标设备类型：tablet/phone/desktop/web"),
     iteration_id: Optional[int] = Form(None, description="迭代ID"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     if not file.filename or not file.filename.endswith((".xlsx", ".xls")):
@@ -166,26 +173,31 @@ async def import_excel(
                 )
             tmp.write(content)
             temp_path = tmp.name
-        service = TestCaseViewService(db)
-        functional_result = service.validate_functional_excel(temp_path)
-        standard_result = None
-        if functional_result.get("valid"):
-            imported_ids = service.import_functional_excel(
-                temp_path, project_id, target_device=target_device, iteration_id=iteration_id,
-            )
-        else:
-            standard_result = service.validate_excel_format(temp_path)
-            if standard_result.get("valid"):
-                case_id = service.import_from_excel(
+
+        def _import(sync_db):
+            service = TestCaseViewService(sync_db)
+            functional_result = service.validate_functional_excel(temp_path)
+            imported_ids: list = []
+            if functional_result.get("valid"):
+                imported_ids = service.import_functional_excel(
                     temp_path, project_id, target_device=target_device, iteration_id=iteration_id,
                 )
-                imported_ids = [case_id] if case_id else []
             else:
-                all_errors = functional_result.get("errors", []) + standard_result.get("errors", [])
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Excel格式验证失败: {all_errors}",
-                )
+                standard_result = service.validate_excel_format(temp_path)
+                if standard_result.get("valid"):
+                    case_id = service.import_from_excel(
+                        temp_path, project_id, target_device=target_device, iteration_id=iteration_id,
+                    )
+                    imported_ids = [case_id] if case_id else []
+                else:
+                    all_errors = functional_result.get("errors", []) + standard_result.get("errors", [])
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Excel格式验证失败: {all_errors}",
+                    )
+            return imported_ids
+
+        imported_ids = await db.run_sync(_import)
         if not imported_ids:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -207,21 +219,21 @@ async def import_excel(
         _remove_temp_file(temp_path)
 
 
-@router.post("/migrate-single", summary="单条用例跨设备迁移")
+@router.post("/migrate-single", response_model=ApiResponse, summary="单条用例跨设备迁移")
 async def migrate_single_case(
     source_case_id: int = Form(..., description="源用例ID"),
     target_device: str = Form(..., description="目标设备类型：tablet/phone/desktop/web"),
     target_project_id: int = Form(..., description="目标项目ID"),
     source_device: str = Form("tablet", description="源设备类型"),
     target_ui_specs: Optional[str] = Form(None, description="目标设备UI规格描述"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     _validate_device_pair(source_device, target_device)
-    _verify_target_project(db, target_project_id, current_user)
+    await _verify_target_project(db, target_project_id, current_user)
     try:
         service = CaseMigrationService(db)
-        result = service.migrate_single_case(
+        result = await service.migrate_single_case(
             source_case_id=source_case_id,
             target_device=target_device,
             target_project_id=target_project_id,
@@ -245,16 +257,16 @@ async def migrate_single_case(
         )
 
 
-@router.post("/preview-batch", summary="批量用例跨设备迁移预览")
+@router.post("/preview-batch", response_model=ApiResponse, summary="批量用例跨设备迁移预览")
 async def preview_batch_migration(
     body: BatchMigrationPreviewRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     _validate_device_pair(body.source_device, body.target_device)
-    _verify_target_project(db, body.target_project_id, current_user)
+    await _verify_target_project(db, body.target_project_id, current_user)
     service = CaseMigrationService(db)
-    result = service.preview_batch(
+    result = await service.preview_batch(
         source_case_ids=body.source_case_ids,
         target_device=body.target_device,
         target_project_id=body.target_project_id,
@@ -265,13 +277,13 @@ async def preview_batch_migration(
     return create_response(data=result)
 
 
-@router.post("/commit-batch", summary="确认批量迁移并入库")
+@router.post("/commit-batch", response_model=ApiResponse, summary="确认批量迁移并入库")
 async def commit_batch_migration(
     body: BatchMigrationCommitRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    _verify_target_project(db, body.target_project_id, current_user)
+    await _verify_target_project(db, body.target_project_id, current_user)
     if body.target_device not in VALID_DEVICES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -282,7 +294,7 @@ async def commit_batch_migration(
         normalized = dict(item)
         normalized["batch_id"] = body.batch_id
         items.append(normalized)
-    result = CaseMigrationService(db).commit_batch(
+    result = await CaseMigrationService(db).commit_batch(
         preview_items=items,
         target_project_id=body.target_project_id,
         target_device=body.target_device,
@@ -290,21 +302,21 @@ async def commit_batch_migration(
     return create_response(data=result)
 
 
-@router.get("/batches/{batch_id}", summary="查询迁移批次")
+@router.get("/batches/{batch_id}", response_model=ApiResponse, summary="查询迁移批次")
 async def get_migration_batch(
     batch_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    result = CaseMigrationService(db).get_batch_cases(batch_id)
+    result = await CaseMigrationService(db).get_batch_cases(batch_id)
     return create_response(data=result)
 
 
-@router.post("/batches/{batch_id}/rollback", summary="回滚迁移批次")
+@router.post("/batches/{batch_id}/rollback", response_model=ApiResponse, summary="回滚迁移批次")
 async def rollback_migration_batch(
     batch_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    result = CaseMigrationService(db).rollback_batch(batch_id)
+    result = await CaseMigrationService(db).rollback_batch(batch_id)
     return create_response(data=result)

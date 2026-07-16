@@ -31,9 +31,11 @@ requests==2.32.5
 openai==2.33.0
 
 # ==================== Task Queue ====================
-celery==5.6.3
 redis==5.0.1
 APScheduler==3.10.4
+
+# ==================== Monitoring ====================
+prometheus-fastapi-instrumentator==7.0.0
 
 # ==================== Browser Automation ====================
 playwright==1.58.0

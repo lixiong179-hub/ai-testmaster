@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database._engine import (
     PrimarySessionLocal,
-    SecondarySessionLocal,
     AsyncPrimarySessionLocal,
-    AsyncSecondarySessionLocal,
+    get_secondary_session_local,
+    get_async_secondary_session_local,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,13 @@ def get_db() -> Generator:
 
 
 def get_read_db() -> Generator:
-    db = SecondarySessionLocal()
+    """只读会话依赖，绑定到从库引擎。
+
+    性能优化：未配置 DATABASE_URL_SLAVE 时退化为 PrimarySessionLocal，
+    不再无谓创建独立连接池。
+    """
+    session_local = get_secondary_session_local()
+    db = session_local()
     try:
         yield db
     except Exception as e:
@@ -55,7 +61,8 @@ def get_db_context() -> Generator[Session, None, None]:
 
 @contextmanager
 def get_read_db_context() -> Generator[Session, None, None]:
-    db = SecondarySessionLocal()
+    session_local = get_secondary_session_local()
+    db = session_local()
     try:
         yield db
     except Exception as e:
@@ -98,8 +105,12 @@ async def async_get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def async_get_read_db() -> AsyncGenerator[AsyncSession, None]:
-    """异步只读会话依赖，绑定到从库引擎。"""
-    async with AsyncSecondarySessionLocal() as db:
+    """异步只读会话依赖，绑定到从库引擎。
+
+    性能优化：未配置 DATABASE_URL_SLAVE 时退化为 AsyncPrimarySessionLocal。
+    """
+    session_local = get_async_secondary_session_local()
+    async with session_local() as db:
         try:
             yield db
         except Exception as e:
@@ -127,7 +138,8 @@ async def async_get_db_context() -> AsyncGenerator[AsyncSession, None]:
 @asynccontextmanager
 async def async_get_read_db_context() -> AsyncGenerator[AsyncSession, None]:
     """异步只读上下文管理器。"""
-    async with AsyncSecondarySessionLocal() as db:
+    session_local = get_async_secondary_session_local()
+    async with session_local() as db:
         try:
             yield db
         except Exception as e:

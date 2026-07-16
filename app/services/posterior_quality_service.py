@@ -68,9 +68,9 @@ def compute_posterior_quality(db: Session, project_id: int) -> Dict[str, Any]:
         .first()
     )
 
-    total_reviewed = review_stats.total_reviewed or 0
-    approved_count = review_stats.approved_count or 0
-    rejected_count = review_stats.rejected_count or 0
+    total_reviewed = int(review_stats.total_reviewed or 0)
+    approved_count = int(review_stats.approved_count or 0)
+    rejected_count = int(review_stats.rejected_count or 0)
 
     review_pass_rate = (approved_count / total_reviewed) if total_reviewed > 0 else 0.0
     review_rejection_rate = (rejected_count / total_reviewed) if total_reviewed > 0 else 0.0
@@ -95,8 +95,8 @@ def compute_posterior_quality(db: Session, project_id: int) -> Dict[str, Any]:
         .first()
     )
 
-    total_executed = execution_stats.total_executed or 0
-    passed_count = execution_stats.passed_count or 0
+    total_executed = int(execution_stats.total_executed or 0)
+    passed_count = int(execution_stats.passed_count or 0)
 
     execution_pass_rate = (passed_count / total_executed) if total_executed > 0 else 0.0
 
@@ -116,8 +116,8 @@ def compute_posterior_quality(db: Session, project_id: int) -> Dict[str, Any]:
         .first()
     )
 
-    total_cases = modification_stats.total_cases or 0
-    modified_count = modification_stats.modified_count or 0
+    total_cases = int(modification_stats.total_cases or 0)
+    modified_count = int(modification_stats.modified_count or 0)
 
     modification_rate = (modified_count / total_cases) if total_cases > 0 else 0.0
 

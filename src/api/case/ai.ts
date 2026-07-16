@@ -12,14 +12,14 @@ import { extractResponseData } from './types'
 
 export const aiApi = {
   aiGenerateCase: async (data: TestCaseAIGenerate): Promise<TestCase> => {
-    const response = await request.post('/api/v1/testCase/ai-generate', data)
+    const response = await request.post('/api/v1/test-case/ai-generate', data)
     return extractResponseData<TestCase>(response as unknown as ApiResponse<TestCase> | TestCase)
   },
 
   aiGenerateCaseEnhanced: async (
     data: TestCaseAIEnhancedRequest
   ): Promise<AIEnhancedGenerateResult> => {
-    const response = await request.post('/api/v1/testCase/ai-enhanced-generate', data)
+    const response = await request.post('/api/v1/test-case/ai-enhanced-generate', data)
     const dataResult = extractResponseData<AIEnhancedGenerateResponse[] | AIEnhancedGenerateResult>(
       response as unknown as
         | ApiResponse<AIEnhancedGenerateResponse[] | AIEnhancedGenerateResult>
@@ -30,17 +30,17 @@ export const aiApi = {
   },
 
   getLineage: async (caseId: number): Promise<LineageResponse> => {
-    const response = await request.get(`/api/v1/testCase/${caseId}/lineage`)
+    const response = await request.get(`/api/v1/test-case/${caseId}/lineage`)
     return extractResponseData<LineageResponse>(
       response as unknown as ApiResponse<LineageResponse> | LineageResponse
     )
   },
 
   generateContext: async (data: Record<string, unknown>) => {
-    return request.post('/api/v1/testCase/generate-context', data)
+    return request.post('/api/v1/test-case/generate-context', data)
   },
 
   previewGraphPrompt: async (data: Record<string, unknown>) => {
-    return request.post('/api/v1/testCase/preview-graph-prompt', data)
+    return request.post('/api/v1/test-case/preview-graph-prompt', data)
   },
 }

@@ -21,8 +21,9 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from app.db.database import get_db
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.database import async_get_db
 from app.schemas.project import (
     ProjectCreate,
 )
@@ -46,31 +47,15 @@ class SelfTestScheduleRequest(BaseModel):
 @router.post("/create", response_model=dict)
 async def create_project(
     project: ProjectCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    创建项目
-
-    创建新项目，支持配置Web环境参数和设备信息。
-    Web环境密码自动加密存储，项目初始状态为1（活跃）。
-
-    请求参数(ProjectCreate):
-        - name: 项目名称（必填，需唯一）
-        - description: 项目描述
-        - project_type: 项目类型（web/app等）
-        - web_env_configs: Web环境配置（test/staging/prod）
-        - device_config: 设备配置
-
-    权限要求: 需要Bearer令牌认证
-
-    Raises:
-        HTTPException 400: 项目名称已存在
-        HTTPException 500: 创建失败
-    """
+    """创建项目"""
     try:
-        # 校验项目名称唯一性
-        if db.query(Project).filter(Project.name == project.name).first():
+        result = await db.execute(
+            select(Project).where(Project.name == project.name)
+        )
+        if result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="项目名称已存在"
@@ -82,7 +67,6 @@ async def create_project(
             status=1,
             project_type=project.project_type
         )
-        # 处理Web环境配置，密码字段加密存储
         if project.web_env_configs:
             web_configs = {}
             for env_name in ['test', 'staging', 'prod']:
@@ -101,12 +85,11 @@ async def create_project(
                     }
             if web_configs:
                 new_project.web_env_configs = json.dumps(web_configs)
-        # 处理设备配置，序列化为JSON存储
         if project.device_config:
             new_project.device_config = json.dumps(project.device_config.model_dump(exclude_none=True))
         db.add(new_project)
-        db.commit()
-        db.refresh(new_project)
+        await db.commit()
+        await db.refresh(new_project)
         return create_response(
             data={
                 "project_id": new_project.id,
@@ -120,7 +103,7 @@ async def create_project(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"创建项目失败: {e}")
         raise HTTPException(status_code=500, detail="创建项目失败")
 
@@ -129,30 +112,24 @@ async def create_project(
 async def get_projects(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=1000, description="每页数量"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    获取项目列表
-
-    分页查询当前用户拥有的所有项目，按创建时间排序。
-
-    请求参数:
-        - page: 页码（默认1）
-        - page_size: 每页数量（默认10，最大1000）
-
-    响应格式:
-        - items: 项目列表
-        - total: 总数
-        - page/page_size: 分页信息
-
-    权限要求: 需要Bearer令牌认证
-    """
+    """获取项目列表（分页）"""
     try:
         offset = (page - 1) * page_size
-        # 仅查询当前用户拥有的项目，实现数据隔离
-        projects = db.query(Project).filter(Project.user_id == current_user.id).offset(offset).limit(page_size).all()
-        total = db.query(Project).filter(Project.user_id == current_user.id).count()
+        result = await db.execute(
+            select(Project)
+            .where(Project.user_id == current_user.id)
+            .offset(offset)
+            .limit(page_size)
+        )
+        projects = result.scalars().all()
+        count_result = await db.execute(
+            select(func.count()).select_from(Project)
+            .where(Project.user_id == current_user.id)
+        )
+        total = count_result.scalar() or 0
         project_list = [{
             "id": p.id,
             "name": p.name,
@@ -173,41 +150,29 @@ async def get_projects(
 @router.get("/{project_id}", response_model=dict)
 async def get_project(
     project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    获取项目详情
-
-    查询指定项目的完整信息，包括关联文件列表、Web环境配置和设备配置。
-    Web环境密码字段脱敏后返回，不暴露原始密码。
-
-    路径参数:
-        - project_id: 项目ID
-
-    响应格式:
-        - 项目基本信息 + files列表 + web_env_configs + device_config
-
-    权限要求: 需要Bearer令牌认证，且仅能查看自己拥有的项目
-
-    Raises:
-        HTTPException 403: 无权限操作此项目
-    """
+    """获取项目详情（含关联文件列表，Web环境密码脱敏）"""
     try:
-        project = db.query(Project).filter(
-            Project.id == project_id,
-            Project.user_id == current_user.id
-        ).first()
+        result = await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.user_id == current_user.id
+            )
+        )
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
-        # 获取项目关联的文件列表
-        files = get_project_files(db, project_id)
+
+        def _get_files(sync_db):
+            return get_project_files(sync_db, project_id)
+        files = await db.run_sync(_get_files)
         file_list = [{
             "id": f.id, "file_name": f.file_name, "file_type": f.file_type,
             "file_url": f.file_url, "file_source": f.file_source,
             "size": f.size, "upload_time": f.upload_time
         } for f in files]
-        # 解析Web环境配置，密码字段脱敏
         web_env_configs = None
         if project.web_env_configs:
             try:
@@ -217,7 +182,6 @@ async def get_project(
                         web_env_configs[env_name]['password'] = mask_password(web_env_configs[env_name]['password'])
             except json.JSONDecodeError:
                 web_env_configs = None
-        # 解析设备配置
         device_config = None
         if project.device_config:
             try:
@@ -240,7 +204,7 @@ async def get_project(
         raise HTTPException(status_code=500, detail="获取项目详情失败")
 
 
-def _delete_project_core_assets(db: Session, project_id: int) -> None:
+def _delete_project_core_assets(db, project_id: int) -> None:
     """删除项目核心资产，避免数据库未启用级联时项目物理删除失败。"""
     from app.models.test_case import TestCase
     from app.models.test_result import TestResult
@@ -252,10 +216,7 @@ def _delete_project_core_assets(db: Session, project_id: int) -> None:
     for task in db.query(TestTask).filter(TestTask.project_id == project_id).all():
         db.delete(task)
 
-    # 先批量删除用例版本记录：TestCaseVersion.test_case_id 为 NOT NULL，
-    # ORM relationship 在删用例时会尝试置空该字段触发 IntegrityError，
-    # 需在删用例前清理版本记录并同步 session
-    case_ids = [tc.id for tc in db.query(TestCase).filter(TestCase.project_id == project_id).all()]
+    case_ids = [row[0] for row in db.query(TestCase.id).filter(TestCase.project_id == project_id).all()]
     if case_ids:
         db.query(TestCaseVersion).filter(
             TestCaseVersion.test_case_id.in_(case_ids)
@@ -268,39 +229,33 @@ def _delete_project_core_assets(db: Session, project_id: int) -> None:
 @router.delete("/{project_id}", response_model=dict)
 async def delete_project(
     project_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    删除项目
-
-    物理删除指定项目及其所有数据。此操作不可逆。
-
-    路径参数:
-        - project_id: 项目ID
-
-    权限要求: 需要Bearer令牌认证，且仅能删除自己拥有的项目
-
-    Raises:
-        HTTPException 403: 无权限操作此项目
-    """
+    """删除项目（物理删除，不可逆）"""
     try:
-        project = db.query(Project).filter(
-            Project.id == project_id,
-            Project.user_id == current_user.id
-        ).first()
+        result = await db.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.user_id == current_user.id
+            )
+        )
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
         if getattr(project, "is_self_test", False):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="自测项目不可删除")
-        _delete_project_core_assets(db, project_id)
-        db.delete(project)
-        db.commit()
+
+        def _delete_assets(sync_db):
+            _delete_project_core_assets(sync_db, project_id)
+        await db.run_sync(_delete_assets)
+        await db.delete(project)
+        await db.commit()
         return create_response(data={}, msg="删除成功")
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"删除项目失败: {e}")
         raise HTTPException(status_code=500, detail="删除项目失败")
 
@@ -309,13 +264,16 @@ async def delete_project(
 async def update_self_test_schedule(
     project_id: int,
     body: SelfTestScheduleRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.user_id == current_user.id,
-    ).first()
+    result = await db.execute(
+        select(Project).where(
+            Project.id == project_id,
+            Project.user_id == current_user.id,
+        )
+    )
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
     if not project.is_self_test:
@@ -328,8 +286,8 @@ async def update_self_test_schedule(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效的cron表达式")
 
     project.self_test_schedule = body.schedule
-    db.commit()
-    db.refresh(project)
+    await db.commit()
+    await db.refresh(project)
 
     return create_response(
         data={"project_id": project.id, "self_test_schedule": project.self_test_schedule},

@@ -2,13 +2,19 @@ import os
 import warnings
 import asyncio
 import pytest
+import pytest_asyncio
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from httpx import AsyncClient, ASGITransport
 
 from app.core.config import settings
-from app.db.database import Base, get_db
+from app.db.database import Base, get_db, async_get_db
+from app.db.database._engine import _to_async_url
 from app.db.smart_sync import DatabaseSyncTool
 from app.utils.jwt_utils import create_access_token, get_password_hash
+from app.models.user import User, Role, user_role
+from app.models.project import Project
 import app.models  # noqa: F401 — ensure all models registered before create_all
 
 os.environ.setdefault("ENVIRONMENT", "test")
@@ -265,3 +271,176 @@ def test_iteration(db, testProject):
         db.flush()
     except Exception:
         db.rollback()
+
+
+# ============================================================================
+# Async fixture（供 tests/ 根目录的 async endpoint 测试使用）
+# 与 tests/api/conftest.py 的 async fixture 同源，复用 testEngine 已建表
+# ============================================================================
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_db(testEngine):
+    """异步测试会话 — 事务隔离策略与 sync db fixture 对齐。
+
+    1. 外层事务包裹整个测试，结束 rollback 不落库
+    2. session.commit 改写为 flush，使 endpoint 内的 commit 不破坏隔离
+    3. savepoint 自动重启，兼容显式 begin_nested
+    """
+    async_engine = create_async_engine(
+        _to_async_url(_TEST_DB_URL),
+        pool_size=5,
+        max_overflow=5,
+        pool_pre_ping=True,
+    )
+
+    async with async_engine.connect() as conn:
+        await conn.begin()
+        async with AsyncSession(bind=conn, expire_on_commit=False) as session:
+            session.commit = session.flush
+
+            _savepoint = {"ref": None}
+
+            @event.listens_for(session.sync_session, "after_transaction_end")
+            def restart_savepoint(sess, trans):
+                if trans.nested and not trans._parent.nested:
+                    _savepoint["ref"] = sess.begin_nested()
+
+            _savepoint["ref"] = session.sync_session.begin_nested()
+
+            yield session
+
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="transaction already deassociated"
+                )
+                await session.rollback()
+
+    await async_engine.dispose()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_test_user(async_db):
+    """创建测试用户（在 async_db 事务内），selectinload 预加载 roles。"""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    user = User(
+        username="async_test_user",
+        email="async_test@test.com",
+        password_hash=get_password_hash("Test@123456"),
+        is_active=True,
+        is_superuser=False,
+    )
+    async_db.add(user)
+    await async_db.flush()
+    result = await async_db.execute(
+        select(User).options(selectinload(User.roles)).where(User.id == user.id)
+    )
+    return result.scalar_one()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_admin_user(async_db):
+    """创建带 admin 角色的测试用户（用于 _require_admin 场景）。"""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    user = User(
+        username="async_admin_user",
+        email="async_admin@test.com",
+        password_hash=get_password_hash("Admin@123456"),
+        is_active=True,
+        is_superuser=False,
+    )
+    async_db.add(user)
+    await async_db.flush()
+
+    admin_role = (
+        await async_db.execute(select(Role).where(Role.name == "admin"))
+    ).scalar_one_or_none()
+    if not admin_role:
+        admin_role = Role(name="admin", desc="管理员角色", permissions=["*"])
+        async_db.add(admin_role)
+        await async_db.flush()
+    await async_db.execute(
+        user_role.insert().values(user_id=user.id, role_id=admin_role.id)
+    )
+    await async_db.flush()
+
+    result = await async_db.execute(
+        select(User).options(selectinload(User.roles)).where(User.id == user.id)
+    )
+    return result.scalar_one()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_test_project(async_db, async_test_user):
+    """创建测试项目。"""
+    project = Project(
+        name="async_test_project",
+        user_id=async_test_user.id,
+        description="async test project",
+        status=1,
+        project_type="web",
+    )
+    async_db.add(project)
+    await async_db.flush()
+    return project
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_client(async_db):
+    """异步 HTTP 客户端 — 仅 override async_get_db（未认证场景）。"""
+    from app.main import app
+
+    async def override_async_get_db():
+        yield async_db
+
+    app.dependency_overrides[async_get_db] = override_async_get_db
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+    app.dependency_overrides.pop(async_get_db, None)
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_auth_client(async_db, async_test_user):
+    """异步 HTTP 客户端 — override async_get_db + get_current_user（普通用户）。"""
+    from app.main import app
+    from app.api.v1.endpoints.auth_deps import get_current_user
+
+    async def override_async_get_db():
+        yield async_db
+
+    async def override_get_current_user():
+        return async_test_user
+
+    app.dependency_overrides[async_get_db] = override_async_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+    app.dependency_overrides.pop(async_get_db, None)
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_admin_client(async_db, async_admin_user):
+    """异步 HTTP 客户端 — override async_get_db + get_current_user（admin 用户）。"""
+    from app.main import app
+    from app.api.v1.endpoints.auth_deps import get_current_user
+
+    async def override_async_get_db():
+        yield async_db
+
+    async def override_get_current_user():
+        return async_admin_user
+
+    app.dependency_overrides[async_get_db] = override_async_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+    app.dependency_overrides.pop(async_get_db, None)
+    app.dependency_overrides.pop(get_current_user, None)

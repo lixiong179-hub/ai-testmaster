@@ -197,7 +197,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('获取测试用例列表接口应该返回200', () => {
       cy.request({
         method: 'GET',
-        url: 'http://127.0.0.1:8000/api/v1/testCase/',
+        url: 'http://127.0.0.1:8000/api/v1/test-case/',
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
@@ -247,7 +247,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('创建测试任务接口应该返回200', () => {
       cy.request({
         method: 'POST',
-        url: 'http://127.0.0.1:8000/api/v1/test_task/',
+        url: 'http://127.0.0.1:8000/api/v1/test-task/',
         headers: {
           Authorization: `Bearer ${authToken}`,
           'Content-Type': 'application/json',
@@ -266,7 +266,7 @@ describe('AI TestMaster API 接口测试', () => {
     it('获取测试任务列表接口应该返回200', () => {
       cy.request({
         method: 'GET',
-        url: 'http://127.0.0.1:8000/api/v1/test_task/',
+        url: 'http://127.0.0.1:8000/api/v1/test-task/',
         headers: {
           Authorization: `Bearer ${authToken}`,
         },

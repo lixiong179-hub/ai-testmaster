@@ -31,6 +31,6 @@ class TestSSEEvent:
 
 
 class TestImportStreamAPI:
-    def test_without_auth(self, client):
-        resp = client.post("/api/v1/test-point/import-stream")
+    async def test_without_auth(self, async_client):
+        resp = await async_client.post("/api/v1/test-point/import-stream")
         assert resp.status_code in (401, 403, 404, 405, 422)

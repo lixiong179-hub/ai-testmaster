@@ -16,6 +16,25 @@ _DEFAULT_PATTERNS = [
 ]
 
 
+def _log_key_source(key_name: str, source: str, auto_generated: bool = False) -> None:
+    """记录密钥来源审计日志。
+
+    Args:
+        key_name: 密钥配置项名称（如 JWT_SECRET_KEY）
+        source: 密钥来源，取值为 env / cache / auto-generated
+        auto_generated: 是否为本次自动生成，True 时使用 WARNING 级别并标记 AUTO_GENERATED
+
+    日志格式：[KEY_AUDIT] key=<KEY_NAME> source=<source> [AUTO_GENERATED]
+    注意：不记录密钥值本身，避免日志泄露。
+    """
+    if auto_generated:
+        _logger.warning(
+            f"[KEY_AUDIT] key={key_name} source={source} AUTO_GENERATED"
+        )
+    else:
+        _logger.info(f"[KEY_AUDIT] key={key_name} source={source}")
+
+
 def generate_secret_key() -> str:
     """生成URL安全的高熵随机密钥（256位，43字符）。"""
     return secrets.token_urlsafe(32)
@@ -109,44 +128,69 @@ def ensure_secret_keys(settings_instance) -> None:
                 UserWarning
             )
 
-    if not settings_instance.JWT_SECRET_KEY:
+    if settings_instance.JWT_SECRET_KEY:
+        _log_key_source("JWT_SECRET_KEY", "env")
+    else:
         settings_instance.JWT_SECRET_KEY = load_cached_key("jwt_secret_key", _key_cache_file)
-    if not settings_instance.JWT_SECRET_KEY:
-        if settings_instance.ENVIRONMENT == "prod":
-            raise ValueError(
-                "生产环境未设置JWT_SECRET_KEY，禁止自动生成！"
-                "请通过环境变量 JWT_SECRET_KEY 设置强随机密钥。"
-                "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
-            )
-        settings_instance.JWT_SECRET_KEY = generate_secret_key()
-        save_cached_key("jwt_secret_key", settings_instance.JWT_SECRET_KEY, _key_cache_file)
+        if settings_instance.JWT_SECRET_KEY:
+            _log_key_source("JWT_SECRET_KEY", "cache")
+        else:
+            if settings_instance.ENVIRONMENT == "prod":
+                raise ValueError(
+                    "生产环境未设置JWT_SECRET_KEY，禁止自动生成！"
+                    "请通过环境变量 JWT_SECRET_KEY 设置强随机密钥。"
+                    "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                )
+            settings_instance.JWT_SECRET_KEY = generate_secret_key()
+            save_cached_key("jwt_secret_key", settings_instance.JWT_SECRET_KEY, _key_cache_file)
+            _log_key_source("JWT_SECRET_KEY", "auto-generated", auto_generated=True)
 
-    if not settings_instance.ENCRYPTION_KEY:
+    if settings_instance.ENCRYPTION_KEY:
+        _log_key_source("ENCRYPTION_KEY", "env")
+    else:
         settings_instance.ENCRYPTION_KEY = load_cached_key("encryption_key", _key_cache_file)
-    if not settings_instance.ENCRYPTION_KEY:
-        if settings_instance.ENVIRONMENT == "prod":
-            raise ValueError(
-                "生产环境未设置ENCRYPTION_KEY，禁止自动生成！"
-                "请通过环境变量 ENCRYPTION_KEY 设置加密密钥。"
-                "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
-            )
-        settings_instance.ENCRYPTION_KEY = generate_secret_key()
-        save_cached_key("encryption_key", settings_instance.ENCRYPTION_KEY, _key_cache_file)
+        if settings_instance.ENCRYPTION_KEY:
+            _log_key_source("ENCRYPTION_KEY", "cache")
+        else:
+            if settings_instance.ENVIRONMENT == "prod":
+                raise ValueError(
+                    "生产环境未设置ENCRYPTION_KEY，禁止自动生成！"
+                    "请通过环境变量 ENCRYPTION_KEY 设置加密密钥。"
+                    "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                )
+            settings_instance.ENCRYPTION_KEY = generate_secret_key()
+            save_cached_key("encryption_key", settings_instance.ENCRYPTION_KEY, _key_cache_file)
+            _log_key_source("ENCRYPTION_KEY", "auto-generated", auto_generated=True)
 
-    if not settings_instance.ENCRYPTION_SALT:
+    if settings_instance.ENCRYPTION_SALT:
+        _log_key_source("ENCRYPTION_SALT", "env")
+    else:
         settings_instance.ENCRYPTION_SALT = load_cached_key("encryption_salt", _key_cache_file)
-    if not settings_instance.ENCRYPTION_SALT:
-        if settings_instance.ENVIRONMENT == "prod":
-            raise ValueError(
-                "生产环境未设置ENCRYPTION_SALT，禁止自动生成！"
-                "请通过环境变量 ENCRYPTION_SALT 设置加密盐值。"
-                "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
-            )
-        settings_instance.ENCRYPTION_SALT = generate_secret_key()
-        save_cached_key("encryption_salt", settings_instance.ENCRYPTION_SALT, _key_cache_file)
+        if settings_instance.ENCRYPTION_SALT:
+            _log_key_source("ENCRYPTION_SALT", "cache")
+        else:
+            if settings_instance.ENVIRONMENT == "prod":
+                raise ValueError(
+                    "生产环境未设置ENCRYPTION_SALT，禁止自动生成！"
+                    "请通过环境变量 ENCRYPTION_SALT 设置加密盐值。"
+                    "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                )
+            settings_instance.ENCRYPTION_SALT = generate_secret_key()
+            save_cached_key("encryption_salt", settings_instance.ENCRYPTION_SALT, _key_cache_file)
+            _log_key_source("ENCRYPTION_SALT", "auto-generated", auto_generated=True)
 
     if settings_instance.ENVIRONMENT == "prod" and (not settings_instance.CORS_ORIGINS or settings_instance.CORS_ORIGINS == "*"):
         raise ValueError(
             "生产环境必须配置 CORS_ORIGINS！禁止使用 '*' 通配符。"
             "请在 .env 中设置允许的域名，例如: CORS_ORIGINS=https://yourdomain.com"
+        )
+
+    if settings_instance.ENVIRONMENT == "prod" and (
+        not settings_instance.CORS_ALLOW_HEADERS
+        or settings_instance.CORS_ALLOW_HEADERS.strip() == "*"
+    ):
+        raise ValueError(
+            "生产环境必须配置 CORS_ALLOW_HEADERS！禁止使用 '*' 通配符。"
+            "请在 .env 中设置允许的请求头白名单，"
+            "例如: CORS_ALLOW_HEADERS=Authorization,Content-Type,Accept,Origin"
         )

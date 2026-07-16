@@ -46,38 +46,36 @@ class TestParseWebEnvConfigs:
 
 
 class TestProjectConfigAPI:
-    def test_get_config_without_auth(self, client):
-        resp = client.get("/api/v1/project/1/config")
+    async def test_get_config_without_auth(self, async_client):
+        resp = await async_client.get("/api/v1/project/1/config")
         assert resp.status_code in (401, 403, 404)
 
-    def test_update_config_without_auth(self, client):
-        resp = client.put(
+    async def test_update_config_without_auth(self, async_client):
+        resp = await async_client.put(
             "/api/v1/project/1/config",
             json={"web_env_configs": "{}"},
         )
         assert resp.status_code in (401, 403, 404)
 
-    def test_get_test_object_without_auth(self, client):
-        resp = client.get("/api/v1/project/1/test-object")
+    async def test_get_test_object_without_auth(self, async_client):
+        resp = await async_client.get("/api/v1/project/1/test-object")
         assert resp.status_code in (401, 403, 404)
 
-    def test_update_test_object_without_auth(self, client):
-        resp = client.put(
+    async def test_update_test_object_without_auth(self, async_client):
+        resp = await async_client.put(
             "/api/v1/project/1/test-object",
             json={"app_name": "测试应用"},
         )
         assert resp.status_code in (401, 403, 404)
 
-    def test_get_config_nonexistent(self, client, authHeaders):
-        resp = client.get(
+    async def test_get_config_nonexistent(self, async_auth_client):
+        resp = await async_auth_client.get(
             "/api/v1/project/99999/config",
-            headers=authHeaders,
         )
         assert resp.status_code in (403, 404, 500)
 
-    def test_get_test_object_nonexistent(self, client, authHeaders):
-        resp = client.get(
+    async def test_get_test_object_nonexistent(self, async_auth_client):
+        resp = await async_auth_client.get(
             "/api/v1/project/99999/test-object",
-            headers=authHeaders,
         )
         assert resp.status_code in (403, 404, 500)

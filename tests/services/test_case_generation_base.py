@@ -1,5 +1,5 @@
 import pytest
-from app.services.test_case_generation.base_mixin import (
+from app.services.test_case_generation.helpers import (
     ContentSanitizer,
     DEFAULT_TEST_POINT_PAGE_SIZE,
     MAX_TEST_POINT_PAGE_SIZE,

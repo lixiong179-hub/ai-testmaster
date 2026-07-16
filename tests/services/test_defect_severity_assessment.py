@@ -683,151 +683,87 @@ class TestSchedulerHandleStepFailure:
 
 
 class TestBugListUxCategoryFilter:
-    """Bug 列表 API ux_category 筛选测试"""
+    """Bug 列表 API ux_category 筛选测试（async 端测双迁）
 
-    def test_list_bugs_with_ux_category_filter(
-        self, db: Session, selfTestProject: Project, bugTestUser: User
+    原 sync TestClient + override get_db 与 async_get_db 不兼容（aiomysql ping
+    因 transport._loop=None 失败），改为 httpx.AsyncClient + async_db + override
+    async_get_db + get_current_user 模式。详见 tests/services/conftest.py。
+    """
+
+    async def test_list_bugs_with_ux_category_filter(
+        self, async_db, async_test_project, async_test_user, async_auth_client
     ) -> None:
         """测试 ux_category 筛选功能"""
-        from fastapi.testclient import TestClient
-        from app.main import app
-        from app.db.database import get_db
-        from app.utils.jwt_utils import create_access_token
-
-        # 创建不同 ux_category 的 Bug（使用唯一编号避免冲突）
         import uuid
         unique_suffix = uuid.uuid4().hex[:8]
         bug1 = Bug(
             bug_no=f"BUG-FILTER-SEC-{unique_suffix}",
-            project_id=selfTestProject.id,
+            project_id=async_test_project.id,
             title="安全缺陷",
             description="安全缺陷描述",
             severity=1,
             priority=1,
             source="self_test",
             ux_category="security",
-            reporter_id=bugTestUser.id,
+            reporter_id=async_test_user.id,
         )
         bug2 = Bug(
             bug_no=f"BUG-FILTER-LOAD-{unique_suffix}",
-            project_id=selfTestProject.id,
+            project_id=async_test_project.id,
             title="加载体验缺陷",
             description="加载体验描述",
             severity=3,
             priority=2,
             source="self_test",
             ux_category="loading_experience",
-            reporter_id=bugTestUser.id,
+            reporter_id=async_test_user.id,
         )
-        db.add(bug1)
-        db.add(bug2)
-        db.flush()
+        async_db.add(bug1)
+        async_db.add(bug2)
+        await async_db.flush()
 
-        # 生成认证 token
-        token = create_access_token(
-            {"sub": str(bugTestUser.id), "username": bugTestUser.username}
+        # 筛选 security
+        resp = await async_auth_client.get(
+            "/api/v1/bugs/list",
+            params={"project_id": async_test_project.id, "ux_category": "security"},
         )
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        security_bugs = [b for b in data["items"] if b["ux_category"] == "security"]
+        assert len(security_bugs) >= 1
 
-        def overrideGetDb():
-            try:
-                yield db
-            finally:
-                pass
+        # 筛选 loading_experience
+        resp2 = await async_auth_client.get(
+            "/api/v1/bugs/list",
+            params={"project_id": async_test_project.id, "ux_category": "loading_experience"},
+        )
+        assert resp2.status_code == 200
+        data2 = resp2.json()["data"]
+        loading_bugs = [b for b in data2["items"] if b["ux_category"] == "loading_experience"]
+        assert len(loading_bugs) >= 1
 
-        app.dependency_overrides[get_db] = overrideGetDb
-
-        try:
-            with TestClient(app) as client:
-                # 筛选 security
-                resp = client.get(
-                    "/api/v1/bugs/list",
-                    params={"project_id": selfTestProject.id, "ux_category": "security"},
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                assert resp.status_code == 200
-                data = resp.json()["data"]
-                security_bugs = [b for b in data["items"] if b["ux_category"] == "security"]
-                assert len(security_bugs) >= 1
-
-                # 筛选 loading_experience
-                resp2 = client.get(
-                    "/api/v1/bugs/list",
-                    params={"project_id": selfTestProject.id, "ux_category": "loading_experience"},
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                assert resp2.status_code == 200
-                data2 = resp2.json()["data"]
-                loading_bugs = [b for b in data2["items"] if b["ux_category"] == "loading_experience"]
-                assert len(loading_bugs) >= 1
-        finally:
-            app.dependency_overrides.pop(get_db, None)
-
-    def test_list_bugs_invalid_ux_category(
-        self, db: Session, selfTestProject: Project, bugTestUser: User
+    async def test_list_bugs_invalid_ux_category(
+        self, async_db, async_test_project, async_test_user, async_auth_client
     ) -> None:
         """测试非法 ux_category 返回 400"""
-        from fastapi.testclient import TestClient
-        from app.main import app
-        from app.db.database import get_db
-        from app.utils.jwt_utils import create_access_token
-
-        token = create_access_token(
-            {"sub": str(bugTestUser.id), "username": bugTestUser.username}
+        resp = await async_auth_client.get(
+            "/api/v1/bugs/list",
+            params={"project_id": async_test_project.id, "ux_category": "invalid_category"},
         )
+        assert resp.status_code == 400
 
-        def overrideGetDb():
-            try:
-                yield db
-            finally:
-                pass
-
-        app.dependency_overrides[get_db] = overrideGetDb
-
-        try:
-            with TestClient(app) as client:
-                resp = client.get(
-                    "/api/v1/bugs/list",
-                    params={"project_id": selfTestProject.id, "ux_category": "invalid_category"},
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                assert resp.status_code == 400
-        finally:
-            app.dependency_overrides.pop(get_db, None)
-
-    def test_list_bugs_without_ux_category_filter(
-        self, db: Session, selfTestProject: Project, bugTestUser: User
+    async def test_list_bugs_without_ux_category_filter(
+        self, async_db, async_test_project, async_test_user, async_auth_client
     ) -> None:
         """测试不传 ux_category 时返回全部 Bug"""
-        from fastapi.testclient import TestClient
-        from app.main import app
-        from app.db.database import get_db
-        from app.utils.jwt_utils import create_access_token
-
-        token = create_access_token(
-            {"sub": str(bugTestUser.id), "username": bugTestUser.username}
+        resp = await async_auth_client.get(
+            "/api/v1/bugs/list",
+            params={"project_id": async_test_project.id},
         )
-
-        def overrideGetDb():
-            try:
-                yield db
-            finally:
-                pass
-
-        app.dependency_overrides[get_db] = overrideGetDb
-
-        try:
-            with TestClient(app) as client:
-                resp = client.get(
-                    "/api/v1/bugs/list",
-                    params={"project_id": selfTestProject.id},
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                assert resp.status_code == 200
-                data = resp.json()["data"]
-                assert "items" in data
-                assert "total" in data
-        finally:
-            app.dependency_overrides.pop(get_db, None)
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert "items" in data
+        assert "total" in data
 
 
 # ---------------------------------------------------------------------------

@@ -14,8 +14,9 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.test_point import check_project_permission
@@ -155,11 +156,13 @@ async def _run_ai_parse_with_progress(
     # 写入数据库并返回结果
     # 注意：SSE场景下请求级别的db会话在StreamingResponse返回后已关闭，
     # 需在此处独立创建会话，生命周期由本函数管理
+    # 性能优化：handle_ai_enhanced_import 是 sync 函数，直接调用会阻塞事件循环，包到线程
     try:
         from app.db.database import PrimarySessionLocal
         db = PrimarySessionLocal()
         try:
-            result = handle_ai_enhanced_import(
+            result = await asyncio.to_thread(
+                handle_ai_enhanced_import,
                 db=db,
                 project_id=project_id,
                 current_username=current_username,
@@ -195,14 +198,17 @@ async def import_xmind_stream(
     project_id: int = Form(..., description="项目ID"),
     preview: bool = Form(False, description="是否预览模式"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
 ):
     """XMind AI增强导入SSE流式端点。
 
     返回Server-Sent Events流，实时推送AI解析进度和最终结果。
     仅支持AI增强模式（自动启用）。
     """
-    check_project_permission(db, project_id, current_user.id)
+    def _check_permission(sync_db: Session) -> None:
+        check_project_permission(sync_db, project_id, current_user.id)
+
+    await db.run_sync(_check_permission)
     validate_file(file)
 
     logger.info(f"XMind SSE导入请求: project_id={project_id}, preview={preview}")
@@ -237,8 +243,11 @@ async def import_xmind_stream(
                     yield event
             finally:
                 # 清理临时文件
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
+                try:
+                    if os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
+                except Exception:
+                    logger.debug("删除临时xmind文件失败", exc_info=True)
 
         return StreamingResponse(
             event_generator(),
@@ -250,8 +259,11 @@ async def import_xmind_stream(
             },
         )
     except XmindParseError:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+        try:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+        except Exception:
+            logger.debug("删除临时xmind文件失败", exc_info=True)
         async def _error_gen():
             yield _sse_event("error", {"detail": "XMind解析失败", "error_type": "parse_error"})
         return StreamingResponse(_error_gen(), media_type="text/event-stream")

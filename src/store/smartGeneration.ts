@@ -469,7 +469,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
 
       generationProgress.value = '正在生成测试用例...'
 
-      const response = await fetch('/api/v1/testCase/ai-enhanced-generate/stream', {
+      const response = await fetch('/api/v1/test-case/ai-enhanced-generate/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -788,7 +788,7 @@ export const useSmartGenerationStore = defineStore('smartGeneration', () => {
       const ctx = generationContext.value
       const description = normalizeGenerationDescription(`重新生成测试用例：${oldCase.title}`)
 
-      const response = await fetch('/api/v1/testCase/ai-enhanced-generate/stream', {
+      const response = await fetch('/api/v1/test-case/ai-enhanced-generate/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

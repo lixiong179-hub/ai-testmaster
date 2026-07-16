@@ -68,7 +68,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
           return cy
             .request({
               method: 'POST',
-              url: `${API_URL}/api/v1/testCase`,
+              url: `${API_URL}/api/v1/test-case`,
               headers: {
                 ...authHeaders(),
                 'Content-Type': 'application/json',
@@ -161,7 +161,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
     cy.get('.el-table__body-wrapper').should('contain.text', caseTitle)
     cy.get('.el-table__body-wrapper').should('contain.text', overflowCaseTitle)
 
-    cy.intercept('POST', '**/api/v1/test_task').as('createTask')
+    cy.intercept('POST', '**/api/v1/test-task').as('createTask')
 
     cy.get('input[placeholder="请输入任务名称"]').type(taskName)
     cy.get('.el-table__body-wrapper tbody tr').first().find('.el-checkbox').click()
@@ -185,7 +185,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
         },
       }).as('executionStatus404')
 
-      cy.intercept('GET', `**/api/v1/test_task/${taskId}*`, (req) => {
+      cy.intercept('GET', `**/api/v1/test-task/${taskId}*`, (req) => {
         req.reply({
           statusCode: 200,
           body: {
@@ -238,7 +238,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
       cy.wait('@startExecution', { timeout: 120000 }).then((interception) => {
         expect(interception.response?.statusCode).to.eq(200)
       })
-      cy.intercept('GET', `**/api/v1/test_task/${taskId}*`, {
+      cy.intercept('GET', `**/api/v1/test-task/${taskId}*`, {
         statusCode: 200,
         body: {
           code: 200,
@@ -272,7 +272,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
 
       cy.request({
         method: 'GET',
-        url: `${API_URL}/api/v1/test_task/${taskId}`,
+        url: `${API_URL}/api/v1/test-task/${taskId}`,
         headers: authHeaders(),
       }).then((taskDetailResponse) => {
         expect(taskDetailResponse.status).to.eq(200)
@@ -281,7 +281,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
         expect(taskData.status).to.not.eq(0)
       })
 
-      cy.intercept('GET', '**/api/v1/test_task/?*', {
+      cy.intercept('GET', '**/api/v1/test-task/?*', {
         statusCode: 200,
         body: {
           code: 200,
@@ -347,7 +347,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
     request.defaults.baseURL = Cypress.config('baseUrl')
     localStorage.setItem('token', authToken)
 
-    cy.intercept('POST', `**/api/v1/test_task/${mockedTaskId}/start*`, {
+    cy.intercept('POST', `**/api/v1/test-task/${mockedTaskId}/start*`, {
       statusCode: 200,
       body: {
         code: 200,
@@ -371,7 +371,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
       },
     }).as('storeStopTask')
 
-    cy.intercept('POST', `**/api/v1/test_task/${mockedTaskId}/run*`, {
+    cy.intercept('POST', `**/api/v1/test-task/${mockedTaskId}/run*`, {
       statusCode: 200,
       body: {
         task: {
@@ -390,7 +390,7 @@ describe('业务链路回归：项目 -> 创建任务 -> 执行启动 -> 测试�
       },
     }).as('storeRunTask')
 
-    cy.intercept('GET', `**/api/v1/test_task/${mockedTaskId}*`, {
+    cy.intercept('GET', `**/api/v1/test-task/${mockedTaskId}*`, {
       statusCode: 200,
       body: {
         code: 200,

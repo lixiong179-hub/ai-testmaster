@@ -89,13 +89,13 @@ def taskInOtherProject(db: Session, otherProject, otherUser):
 
 
 class TestCreateTaskPermission:
-    """POST /api/v1/test_task/ 的权限校验。"""
+    """POST /api/v1/test-task/ 的权限校验。"""
 
     def test_create_with_other_project_returns_403(
         self, client, myAuthHeaders, otherProject
     ):
         response = client.post(
-            "/api/v1/test_task/",
+            "/api/v1/test-task/",
             json={
                 "project_id": otherProject.id,
                 "task_name": f"steal_{uuid.uuid4().hex[:8]}",
@@ -109,7 +109,7 @@ class TestCreateTaskPermission:
         self, client, myAuthHeaders, testProject
     ):
         response = client.post(
-            "/api/v1/test_task/",
+            "/api/v1/test-task/",
             json={
                 "project_id": testProject.id,
                 "task_name": f"own_{uuid.uuid4().hex[:8]}",
@@ -122,33 +122,33 @@ class TestCreateTaskPermission:
 
 
 class TestGetTaskPermission:
-    """GET /api/v1/test_task/{task_id} 的权限校验。"""
+    """GET /api/v1/test-task/{task_id} 的权限校验。"""
 
     def test_get_other_project_task_returns_403(
         self, client, myAuthHeaders, taskInOtherProject
     ):
         response = client.get(
-            f"/api/v1/test_task/{taskInOtherProject.id}",
+            f"/api/v1/test-task/{taskInOtherProject.id}",
             headers=myAuthHeaders,
         )
         assertResponseForbidden(response)
 
     def test_get_nonexistent_task_returns_404(self, client, myAuthHeaders):
         response = client.get(
-            "/api/v1/test_task/99999",
+            "/api/v1/test-task/99999",
             headers=myAuthHeaders,
         )
         assertResponseNotFound(response)
 
 
 class TestListTaskPermission:
-    """GET /api/v1/test_task/ 的权限校验和筛选。"""
+    """GET /api/v1/test-task/ 的权限校验和筛选。"""
 
     def test_list_other_project_returns_403(
         self, client, myAuthHeaders, otherProject
     ):
         response = client.get(
-            f"/api/v1/test_task/?project_id={otherProject.id}",
+            f"/api/v1/test-task/?project_id={otherProject.id}",
             headers=myAuthHeaders,
         )
         assertResponseForbidden(response)
@@ -169,7 +169,7 @@ class TestListTaskPermission:
         db.add(own_task)
         db.flush()
 
-        response = client.get("/api/v1/test_task/", headers=myAuthHeaders)
+        response = client.get("/api/v1/test-task/", headers=myAuthHeaders)
         data = assertResponseSuccess(response)
         task_ids = {item["id"] for item in data["items"]}
 
@@ -201,7 +201,7 @@ class TestListTaskPermission:
         db.flush()
 
         response = client.get(
-            f"/api/v1/test_task/?project_id={testProject.id}&task_status=0",
+            f"/api/v1/test-task/?project_id={testProject.id}&task_status=0",
             headers=myAuthHeaders,
         )
         data = assertResponseSuccess(response)
@@ -213,52 +213,52 @@ class TestListTaskPermission:
 
 
 class TestStartTaskPermission:
-    """POST /api/v1/test_task/{task_id}/start 的权限校验。"""
+    """POST /api/v1/test-task/{task_id}/start 的权限校验。"""
 
     def test_start_other_project_task_returns_403(
         self, client, myAuthHeaders, taskInOtherProject
     ):
         response = client.post(
-            f"/api/v1/test_task/{taskInOtherProject.id}/start",
+            f"/api/v1/test-task/{taskInOtherProject.id}/start",
             headers=myAuthHeaders,
         )
         assertResponseForbidden(response)
 
 
 class TestDeleteTaskPermission:
-    """DELETE /api/v1/test_task/{task_id} 的权限校验。"""
+    """DELETE /api/v1/test-task/{task_id} 的权限校验。"""
 
     def test_delete_other_project_task_returns_403(
         self, client, myAuthHeaders, taskInOtherProject
     ):
         response = client.delete(
-            f"/api/v1/test_task/{taskInOtherProject.id}",
+            f"/api/v1/test-task/{taskInOtherProject.id}",
             headers=myAuthHeaders,
         )
         assertResponseForbidden(response)
 
 
 class TestRunTaskPermission:
-    """POST /api/v1/test_task/{task_id}/run 的权限校验。"""
+    """POST /api/v1/test-task/{task_id}/run 的权限校验。"""
 
     def test_run_other_project_task_returns_403(
         self, client, myAuthHeaders, taskInOtherProject
     ):
         response = client.post(
-            f"/api/v1/test_task/{taskInOtherProject.id}/run",
+            f"/api/v1/test-task/{taskInOtherProject.id}/run",
             headers=myAuthHeaders,
         )
         assertResponseForbidden(response)
 
 
 class TestSummaryPermission:
-    """GET /api/v1/test_task/{task_id}/summary 的权限校验。"""
+    """GET /api/v1/test-task/{task_id}/summary 的权限校验。"""
 
     def test_summary_other_project_task_returns_403(
         self, client, myAuthHeaders, taskInOtherProject
     ):
         response = client.get(
-            f"/api/v1/test_task/{taskInOtherProject.id}/summary",
+            f"/api/v1/test-task/{taskInOtherProject.id}/summary",
             headers=myAuthHeaders,
         )
         assertResponseForbidden(response)

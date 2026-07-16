@@ -2,7 +2,7 @@ import pytest
 
 from app.core.config import settings
 from app.models.test_case import TestCase as AppTestCase, TestStep as AppTestStep
-from app.services.test_case_generation.validate_mixin import TestCaseGenerationValidateMixin
+from app.services.test_case_generation.validator import CaseValidator as TestCaseGenerationValidateMixin
 
 
 class _DummyValidateService(TestCaseGenerationValidateMixin):

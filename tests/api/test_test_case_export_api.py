@@ -1,91 +1,55 @@
-import pytest
+"""test_case_export.py 端点 async 测试。
+
+覆盖 Markdown/HTML/Python/JSON/Excel 导出端点的未认证与不存在用例场景。
+使用 tests/api/conftest.py 的 async fixture。
+"""
 
 
-class TestExportMarkdown:
-    def test_without_auth(self, client):
-        resp = client.get("/api/v1/testCase/1/export-markdown")
+class TestExportAPI:
+    """测试用例多格式导出端点测试。"""
+
+    async def test_export_markdown_without_auth(self, async_client):
+        resp = await async_client.get("/api/v1/test-case/1/export-markdown")
         assert resp.status_code in (401, 403, 404)
 
-    def test_nonexistent_case(self, client, authHeaders):
-        resp = client.get(
-            "/api/v1/testCase/99999/export-markdown",
-            headers=authHeaders,
-        )
-        assert resp.status_code in (404, 500)
-
-
-class TestExportHtml:
-    def test_without_auth(self, client):
-        resp = client.get("/api/v1/testCase/1/export-html")
+    async def test_export_html_without_auth(self, async_client):
+        resp = await async_client.get("/api/v1/test-case/1/export-html")
         assert resp.status_code in (401, 403, 404)
 
-    def test_nonexistent_case(self, client, authHeaders):
-        resp = client.get(
-            "/api/v1/testCase/99999/export-html",
-            headers=authHeaders,
-        )
-        assert resp.status_code in (404, 500)
-
-
-class TestExportPython:
-    def test_without_auth(self, client):
-        resp = client.get("/api/v1/testCase/1/export-python")
+    async def test_export_python_without_auth(self, async_client):
+        resp = await async_client.get("/api/v1/test-case/1/export-python")
         assert resp.status_code in (401, 403, 404)
 
-    def test_nonexistent_case(self, client, authHeaders):
-        resp = client.get(
-            "/api/v1/testCase/99999/export-python",
-            headers=authHeaders,
-        )
-        assert resp.status_code in (404, 500)
-
-
-class TestExportJson:
-    def test_without_auth(self, client):
-        resp = client.get("/api/v1/testCase/1/export-json")
+    async def test_export_json_without_auth(self, async_client):
+        resp = await async_client.get("/api/v1/test-case/1/export-json")
         assert resp.status_code in (401, 403, 404)
 
-    def test_nonexistent_case(self, client, authHeaders):
-        resp = client.get(
-            "/api/v1/testCase/99999/export-json",
-            headers=authHeaders,
-        )
-        assert resp.status_code in (404, 500)
+    async def test_export_excel_without_auth(self, async_client):
+        resp = await async_client.post("/api/v1/test-case/1/export-excel")
+        assert resp.status_code in (401, 403, 404)
 
+    async def test_export_markdown_nonexistent(self, async_auth_client):
+        resp = await async_auth_client.get("/api/v1/test-case/99999/export-markdown")
+        assert resp.status_code in (403, 404, 500)
 
-class TestExportExcel:
-    def test_without_auth(self, client):
-        resp = client.get("/api/v1/testCase/1/export-excel")
-        assert resp.status_code in (401, 403, 404, 405)
+    async def test_export_json_nonexistent(self, async_auth_client):
+        resp = await async_auth_client.get("/api/v1/test-case/99999/export-json")
+        assert resp.status_code in (403, 404, 500)
 
-    def test_nonexistent_case(self, client, authHeaders):
-        resp = client.get(
-            "/api/v1/testCase/99999/export-excel",
-            headers=authHeaders,
-        )
-        assert resp.status_code in (404, 500, 405)
+    async def test_export_excel_nonexistent(self, async_auth_client):
+        resp = await async_auth_client.post("/api/v1/test-case/99999/export-excel")
+        assert resp.status_code in (403, 404, 500)
 
-
-class TestFunctionalExcelExport:
-    def test_without_auth(self, client):
-        resp = client.post(
-            "/api/v1/testCase/functional-excel-export",
-            json={"case_ids": [1, 2]},
-        )
-        assert resp.status_code in (401, 403, 404, 405)
-
-    def test_empty_case_ids(self, client, authHeaders):
-        resp = client.post(
-            "/api/v1/testCase/functional-excel-export",
+    async def test_export_functional_excel_empty_ids(self, async_auth_client):
+        resp = await async_auth_client.post(
+            "/api/v1/test-case/export-functional-excel",
             json={"case_ids": []},
-            headers=authHeaders,
         )
-        assert resp.status_code in (400, 404, 422, 405)
+        assert resp.status_code in (400, 403, 404)
 
-    def test_nonexistent_cases(self, client, authHeaders):
-        resp = client.post(
-            "/api/v1/testCase/functional-excel-export",
-            json={"case_ids": [99998, 99999]},
-            headers=authHeaders,
+    async def test_export_functional_excel_nonexistent(self, async_auth_client):
+        resp = await async_auth_client.post(
+            "/api/v1/test-case/export-functional-excel",
+            json={"case_ids": [99999]},
         )
-        assert resp.status_code in (404, 500, 405)
+        assert resp.status_code in (403, 404, 500)

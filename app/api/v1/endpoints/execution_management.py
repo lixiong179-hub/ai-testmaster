@@ -17,13 +17,19 @@
     - 截图按任务/用例/步骤/类型组织存储
     - 视频通过VideoService管理，支持按任务和用例查询
 """
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+import os
 
-from app.db.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.database import async_get_db
 from app.models.user import User
 from app.models.test_task import TestTask
+from app.models.video_record import VideoRecord
 from app.api.v1.endpoints.auth import get_current_user
+from app.api.v1.endpoints.execution_core import verify_project_permission
 from app.services.video import get_video_service
 from app.core.exception import create_response
 from loguru import logger
@@ -37,27 +43,26 @@ async def get_step_screenshot(
     case_id: int,
     step_number: int,
     type: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取步骤截图"""
     try:
-        from fastapi.responses import FileResponse
-
-        task = db.query(TestTask).filter(TestTask.id == task_id).first()
+        result = await db.execute(select(TestTask).where(TestTask.id == task_id))
+        task = result.scalar_one_or_none()
         if not task:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="任务不存在"
             )
 
-        from app.api.v1.endpoints.execution_core import verify_project_permission
-        verify_project_permission(db, task.project_id, current_user.id)
+        def _verify(sync_db):
+            verify_project_permission(sync_db, task.project_id, current_user.id)
+        await db.run_sync(_verify)
 
         screenshot_dir = f"./screenshots/{task_id}/{case_id}"
         screenshot_path = f"{screenshot_dir}/{step_number}_{type}.png"
 
-        import os
         if os.path.exists(screenshot_path):
             return FileResponse(screenshot_path)
 
@@ -77,29 +82,28 @@ async def get_step_screenshot(
 async def get_execution_video(
     task_id: int,
     case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取执行视频"""
     try:
-        from fastapi.responses import FileResponse
-
-        task = db.query(TestTask).filter(TestTask.id == task_id).first()
+        result = await db.execute(select(TestTask).where(TestTask.id == task_id))
+        task = result.scalar_one_or_none()
         if not task:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="任务不存在"
             )
 
-        from app.api.v1.endpoints.execution_core import verify_project_permission
-        verify_project_permission(db, task.project_id, current_user.id)
-
-        service = get_video_service(db)
-        videos = await service.get_videos_by_task(task_id)
+        def _verify_and_get_videos(sync_db):
+            verify_project_permission(sync_db, task.project_id, current_user.id)
+            service = get_video_service(sync_db)
+            videos = sync_db.query(VideoRecord).filter(VideoRecord.task_id == task_id).all()
+            return [service._to_video_info(v) for v in videos]
+        videos = await db.run_sync(_verify_and_get_videos)
 
         for video in videos:
             if video.case_id == case_id and video.file_path:
-                import os
                 if os.path.exists(video.file_path):
                     return FileResponse(
                         video.file_path,
@@ -123,23 +127,25 @@ async def get_execution_video(
 async def get_video_info(
     task_id: int,
     case_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取视频信息"""
     try:
-        task = db.query(TestTask).filter(TestTask.id == task_id).first()
+        result = await db.execute(select(TestTask).where(TestTask.id == task_id))
+        task = result.scalar_one_or_none()
         if not task:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="任务不存在"
             )
 
-        from app.api.v1.endpoints.execution_core import verify_project_permission
-        verify_project_permission(db, task.project_id, current_user.id)
-
-        service = get_video_service(db)
-        videos = await service.get_videos_by_case(case_id)
+        def _verify_and_get_videos(sync_db):
+            verify_project_permission(sync_db, task.project_id, current_user.id)
+            service = get_video_service(sync_db)
+            videos = sync_db.query(VideoRecord).filter(VideoRecord.case_id == case_id).all()
+            return [service._to_video_info(v) for v in videos]
+        videos = await db.run_sync(_verify_and_get_videos)
 
         if videos:
             video = videos[0]

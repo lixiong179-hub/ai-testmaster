@@ -1,13 +1,25 @@
-"""跨设备用例迁移服务测试 - 正常/空值/异常/边界场景覆盖。"""
+"""跨设备用例迁移服务测试 - 正常/空值/异常/边界场景覆盖。
+
+迁移说明:
+    DB 相关测试（TestMigrateSingleCase / TestBatchMigration / TestDeviceFilter）
+    已迁移到 async + async_db fixture 模式，与 tests/services/conftest.py 对齐。
+    纯逻辑测试（TestMigrationPrompt / TestExcelNormalize / TestAIClientIntegration）
+    保持 sync，不依赖 DB。
+"""
 import json
-import os
+from typing import Any, Dict
+
 import pytest
-from typing import Dict, Any, List, Optional
+import pytest_asyncio
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy.orm import Session
-
-from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
 from app.models.project import Project
+from app.models.test_case import (
+    TestCase,
+    disable_lifecycle_transition,
+    enable_lifecycle_transition,
+)
 from app.services.case_migration import CaseMigrationService
 
 TestCase.__test__ = False
@@ -88,16 +100,18 @@ class MockAIClient:
         })
 
 
-@pytest.fixture
-def migration_service(db: Session) -> CaseMigrationService:
-    return CaseMigrationService(db)
+@pytest_asyncio.fixture
+async def migration_service(async_db: AsyncSession) -> CaseMigrationService:
+    return CaseMigrationService(async_db)
 
 
-@pytest.fixture
-def tablet_case(db: Session, testProject: Project) -> TestCase:
+@pytest_asyncio.fixture
+async def tablet_case(
+    async_db: AsyncSession, async_test_project: Project
+) -> TestCase:
     enable_lifecycle_transition()
     case = TestCase(
-        project_id=testProject.id,
+        project_id=async_test_project.id,
         case_no="TC_TABLET_001",
         module="设置模块",
         title="通过侧边栏导航到设置页",
@@ -110,18 +124,19 @@ def tablet_case(db: Session, testProject: Project) -> TestCase:
         target_device="tablet",
         lifecycle_status="active",
     )
-    db.add(case)
-    db.flush()
-    db.commit()
+    async_db.add(case)
+    await async_db.flush()
     disable_lifecycle_transition()
     return case
 
 
-@pytest.fixture
-def api_case(db: Session, testProject: Project) -> TestCase:
+@pytest_asyncio.fixture
+async def api_case(
+    async_db: AsyncSession, async_test_project: Project
+) -> TestCase:
     enable_lifecycle_transition()
     case = TestCase(
-        project_id=testProject.id,
+        project_id=async_test_project.id,
         case_no="TC_API_001",
         module="接口模块",
         title="登录接口参数校验",
@@ -134,9 +149,8 @@ def api_case(db: Session, testProject: Project) -> TestCase:
         target_device="tablet",
         lifecycle_status="active",
     )
-    db.add(case)
-    db.flush()
-    db.commit()
+    async_db.add(case)
+    await async_db.flush()
     disable_lifecycle_transition()
     return case
 
@@ -144,57 +158,58 @@ def api_case(db: Session, testProject: Project) -> TestCase:
 class TestMigrateSingleCase:
     """单条用例迁移测试。"""
 
-    def test_api_case_cloned(
-        self, migration_service: CaseMigrationService, api_case: TestCase, testProject: Project,
+    async def test_api_case_cloned(
+        self, migration_service: CaseMigrationService,
+        api_case: TestCase, async_test_project: Project,
     ) -> None:
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=api_case.id,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             source_device="tablet",
         )
         assert result["success"] is True
         assert result["migration_type"] == "cloned"
         assert result["new_case_id"] is not None
-        new_case = migration_service.db.query(TestCase).filter(
-            TestCase.id == result["new_case_id"],
-        ).first()
+        stmt = select(TestCase).where(TestCase.id == result["new_case_id"])
+        new_case = (await migration_service.db.execute(stmt)).scalar_one_or_none()
         assert new_case is not None
         assert new_case.target_device == "phone"
         assert new_case.migration_type == "cloned"
         assert new_case.migration_source_id == api_case.id
         assert new_case.lifecycle_status == "draft"
 
-    def test_ui_case_ai_adapted(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase, testProject: Project,
+    async def test_ui_case_ai_adapted(
+        self, migration_service: CaseMigrationService,
+        tablet_case: TestCase, async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("adapted")
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             source_device="tablet",
             ai_client=ai_client,
         )
         assert result["success"] is True
         assert result["migration_type"] == "adapted"
         assert len(result["new_case_ids"]) == 1
-        new_case = migration_service.db.query(TestCase).filter(
-            TestCase.id == result["new_case_ids"][0],
-        ).first()
+        stmt = select(TestCase).where(TestCase.id == result["new_case_ids"][0])
+        new_case = (await migration_service.db.execute(stmt)).scalar_one_or_none()
         assert new_case is not None
         assert new_case.target_device == "phone"
         assert new_case.migration_type == "adapted"
         assert "手机端" in new_case.precondition
 
-    def test_ui_case_ai_split(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase, testProject: Project,
+    async def test_ui_case_ai_split(
+        self, migration_service: CaseMigrationService,
+        tablet_case: TestCase, async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("split")
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             source_device="tablet",
             ai_client=ai_client,
         )
@@ -202,14 +217,15 @@ class TestMigrateSingleCase:
         assert result["migration_type"] == "split"
         assert len(result["new_case_ids"]) == 2
 
-    def test_ui_case_ai_deprecated(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase, testProject: Project,
+    async def test_ui_case_ai_deprecated(
+        self, migration_service: CaseMigrationService,
+        tablet_case: TestCase, async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("deprecated")
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             source_device="tablet",
             ai_client=ai_client,
         )
@@ -217,37 +233,39 @@ class TestMigrateSingleCase:
         assert result["migration_type"] == "deprecated"
         assert len(result.get("new_case_ids", [])) == 0
 
-    def test_source_case_not_found(
-        self, migration_service: CaseMigrationService, testProject: Project,
+    async def test_source_case_not_found(
+        self, migration_service: CaseMigrationService, async_test_project: Project,
     ) -> None:
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=99999,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
         )
         assert result["success"] is False
         assert "不存在" in result["error"]
 
-    def test_ui_case_without_ai_client(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase, testProject: Project,
+    async def test_ui_case_without_ai_client(
+        self, migration_service: CaseMigrationService,
+        tablet_case: TestCase, async_test_project: Project,
     ) -> None:
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             ai_client=None,
         )
         assert result["success"] is False
         assert "AI客户端" in result["error"]
 
-    def test_ai_returns_invalid_json(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase, testProject: Project,
+    async def test_ai_returns_invalid_json(
+        self, migration_service: CaseMigrationService,
+        tablet_case: TestCase, async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("invalid_json")
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             ai_client=ai_client,
         )
         assert result["success"] is False
@@ -257,17 +275,17 @@ class TestMigrateSingleCase:
 class TestBatchMigration:
     """批量迁移预览、提交与回滚。"""
 
-    def test_preview_batch_mixes_api_and_ui_cases(
+    async def test_preview_batch_mixes_api_and_ui_cases(
         self,
         migration_service: CaseMigrationService,
         api_case: TestCase,
         tablet_case: TestCase,
-        testProject: Project,
+        async_test_project: Project,
     ) -> None:
-        result = migration_service.preview_batch(
+        result = await migration_service.preview_batch(
             source_case_ids=[api_case.id, tablet_case.id],
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             source_device="tablet",
             target_ui_specs="手机端设置页",
             ai_client=MockAIClient("adapted"),
@@ -278,90 +296,95 @@ class TestBatchMigration:
         assert result["summary"]["adapted"] == 1
         assert result["items"][0]["batch_id"] == result["batch_id"]
 
-    def test_commit_and_rollback_batch(
+    async def test_commit_and_rollback_batch(
         self,
         migration_service: CaseMigrationService,
         tablet_case: TestCase,
-        testProject: Project,
+        async_test_project: Project,
     ) -> None:
-        preview = migration_service.preview_batch(
+        preview = await migration_service.preview_batch(
             source_case_ids=[tablet_case.id],
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             source_device="tablet",
             target_ui_specs="手机端设置页",
             ai_client=MockAIClient("adapted"),
         )
-        commit = migration_service.commit_batch(
+        commit = await migration_service.commit_batch(
             preview_items=preview["items"],
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             target_device="phone",
         )
         assert commit["success"] is True
         assert len(commit["created_case_ids"]) == 1
-        batch = migration_service.get_batch_cases(preview["batch_id"])
+        batch = await migration_service.get_batch_cases(preview["batch_id"])
         assert batch["case_count"] == 1
-        rollback = migration_service.rollback_batch(preview["batch_id"])
+        rollback = await migration_service.rollback_batch(preview["batch_id"])
         assert rollback["rolled_back_count"] == 1
-        batch_after = migration_service.get_batch_cases(preview["batch_id"])
+        batch_after = await migration_service.get_batch_cases(preview["batch_id"])
         assert batch_after["case_count"] == 0
 
-    def test_ai_returns_missing_field(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase, testProject: Project,
+    async def test_ai_returns_missing_field(
+        self, migration_service: CaseMigrationService,
+        tablet_case: TestCase, async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("missing_field")
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             ai_client=ai_client,
         )
         assert result["success"] is False
         assert "解析失败" in result["error"]
 
-    def test_ai_returns_empty(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase, testProject: Project,
+    async def test_ai_returns_empty(
+        self, migration_service: CaseMigrationService,
+        tablet_case: TestCase, async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("empty")
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             ai_client=ai_client,
         )
         assert result["success"] is False
 
-    def test_batch_id_consistency(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase, testProject: Project,
+    async def test_batch_id_consistency(
+        self, migration_service: CaseMigrationService,
+        tablet_case: TestCase, async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("split")
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="phone",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             ai_client=ai_client,
         )
         batch_id = result["batch_id"]
         for case_id in result["new_case_ids"]:
-            case = migration_service.db.query(TestCase).filter(TestCase.id == case_id).first()
+            stmt = select(TestCase).where(TestCase.id == case_id)
+            case = (await migration_service.db.execute(stmt)).scalar_one_or_none()
             assert case.migration_batch_id == batch_id
 
-    def test_same_device_rejected(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase, testProject: Project,
+    async def test_same_device_rejected(
+        self, migration_service: CaseMigrationService,
+        tablet_case: TestCase, async_test_project: Project,
     ) -> None:
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="tablet",
-            target_project_id=testProject.id,
+            target_project_id=async_test_project.id,
             source_device="tablet",
         )
         assert result["success"] is False
         assert "相同" in result["error"]
 
-    def test_target_project_not_found(
+    async def test_target_project_not_found(
         self, migration_service: CaseMigrationService, tablet_case: TestCase,
     ) -> None:
-        result = migration_service.migrate_single_case(
+        result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
             target_device="phone",
             target_project_id=99999,
@@ -459,38 +482,108 @@ class TestExcelNormalize:
 class TestDeviceFilter:
     """设备类型筛选测试。"""
 
-    def test_filter_by_target_device(self, db: Session, testProject: Project) -> None:
+    async def test_filter_by_target_device(
+        self, async_db: AsyncSession, async_test_project: Project
+    ) -> None:
         enable_lifecycle_transition()
         tablet_case = TestCase(
-            project_id=testProject.id, case_no="FILTER_T_001", module="测试模块",
+            project_id=async_test_project.id, case_no="FILTER_T_001", module="测试模块",
             title="平板用例", precondition="无", steps_json=[], expected_result="pass",
             priority=2, case_type="ui_automation", generate_status=1,
             target_device="tablet", lifecycle_status="draft",
         )
         phone_case = TestCase(
-            project_id=testProject.id, case_no="FILTER_P_001", module="测试模块",
+            project_id=async_test_project.id, case_no="FILTER_P_001", module="测试模块",
             title="手机用例", precondition="无", steps_json=[], expected_result="pass",
             priority=2, case_type="ui_automation", generate_status=1,
             target_device="phone", lifecycle_status="draft",
         )
         general_case = TestCase(
-            project_id=testProject.id, case_no="FILTER_G_001", module="测试模块",
+            project_id=async_test_project.id, case_no="FILTER_G_001", module="测试模块",
             title="通用用例", precondition="无", steps_json=[], expected_result="pass",
             priority=2, case_type="ui_automation", generate_status=1,
             target_device=None, lifecycle_status="draft",
         )
-        db.add_all([tablet_case, phone_case, general_case])
-        db.commit()
+        async_db.add_all([tablet_case, phone_case, general_case])
+        await async_db.flush()
         disable_lifecycle_transition()
-        tablet_results = db.query(TestCase).filter(
-            TestCase.project_id == testProject.id,
+        stmt_tablet = select(TestCase).where(
+            TestCase.project_id == async_test_project.id,
             TestCase.target_device == "tablet",
             TestCase.is_deleted.is_(False),
-        ).all()
+        )
+        tablet_results = (await async_db.execute(stmt_tablet)).scalars().all()
         assert all(c.target_device == "tablet" for c in tablet_results)
-        general_results = db.query(TestCase).filter(
-            TestCase.project_id == testProject.id,
+        stmt_general = select(TestCase).where(
+            TestCase.project_id == async_test_project.id,
             TestCase.target_device.is_(None),
             TestCase.is_deleted.is_(False),
-        ).all()
+        )
+        general_results = (await async_db.execute(stmt_general)).scalars().all()
         assert all(c.target_device is None for c in general_results)
+
+
+class TestAIClientIntegration:
+    """AI 客户端集成测试 — 验证 _get_ai_client 与 _call_ai 标准 complete() 接口。
+
+    回归覆盖：
+        - _get_ai_client 返回非 None 且具备 complete() 方法的 OpenAIClient
+        - _call_ai 优先使用 complete() 接口，提取 AIResponse.content
+        - complete() 返回 None / 抛异常时 _call_ai 返回 None
+        - ai_client=None 时不崩溃
+    """
+
+    def test_get_ai_client_returns_complete_client(self) -> None:
+        """_get_ai_client 返回非 None 且具备 complete() 方法的客户端"""
+        from app.api.v1.endpoints import case_migration
+        case_migration._ai_client_instance = None
+        client = case_migration._get_ai_client()
+        assert client is not None
+        assert hasattr(client, "complete")
+
+    def test_call_ai_with_complete_interface(self) -> None:
+        """_call_ai 优先使用 complete() 接口，提取 AIResponse.content"""
+        from app.ai.client import AIResponse, TokenUsage
+        from app.services.case_migration._ai_mixin import CaseMigrationAiMixin
+
+        class CompleteClient:
+            def complete(self, prompt: str) -> AIResponse:
+                return AIResponse(
+                    content='{"migration_type": "adapted"}',
+                    usage=TokenUsage(prompt_tokens=10, completion_tokens=5),
+                )
+
+        mixin = CaseMigrationAiMixin()
+        result = mixin._call_ai(CompleteClient(), "test prompt")
+        assert result == '{"migration_type": "adapted"}'
+
+    def test_call_ai_with_complete_returns_none(self) -> None:
+        """complete() 返回 None 时 _call_ai 返回 None"""
+        from app.services.case_migration._ai_mixin import CaseMigrationAiMixin
+
+        class NoneCompleteClient:
+            def complete(self, prompt: str) -> None:
+                return None
+
+        mixin = CaseMigrationAiMixin()
+        result = mixin._call_ai(NoneCompleteClient(), "test prompt")
+        assert result is None
+
+    def test_call_ai_with_none_client(self) -> None:
+        """ai_client=None 时返回 None 不崩溃"""
+        from app.services.case_migration._ai_mixin import CaseMigrationAiMixin
+        mixin = CaseMigrationAiMixin()
+        result = mixin._call_ai(None, "test prompt")
+        assert result is None
+
+    def test_call_ai_complete_raises_exception(self) -> None:
+        """complete() 抛异常时 _call_ai 返回 None"""
+        from app.services.case_migration._ai_mixin import CaseMigrationAiMixin
+
+        class RaisingClient:
+            def complete(self, prompt: str) -> None:
+                raise RuntimeError("API timeout")
+
+        mixin = CaseMigrationAiMixin()
+        result = mixin._call_ai(RaisingClient(), "test prompt")
+        assert result is None

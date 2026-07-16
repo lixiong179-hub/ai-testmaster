@@ -19,10 +19,11 @@
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exception import create_response
 from loguru import logger
-from app.db.database import get_db
+from app.db.database import async_get_db
 from app.models.user import User
 from app.schemas.auth import RegisterRequest
 from app.api.v1.endpoints.auth_deps import get_current_user
@@ -77,7 +78,7 @@ async def login(
     password: Optional[str] = Form(None),
     captcha_id: Optional[str] = Form(None),
     captcha_code: Optional[str] = Form(None),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(async_get_db)
 ):
     try:
         if username is None or password is None:
@@ -111,7 +112,8 @@ async def login(
                 detail="验证码错误或已过期"
             )
 
-        user = db.query(User).filter(User.username == username).first()
+        result = await db.execute(select(User).where(User.username == username))
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -155,7 +157,7 @@ async def login(
 @router.post("/register", response_model=dict)
 async def register(
     register_data: RegisterRequest,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(async_get_db)
 ):
     """
     用户注册
@@ -185,17 +187,20 @@ async def register(
         password = register_data.password
         email = register_data.email
         # 校验用户名唯一性
-        if db.query(User).filter(User.username == username).first():
+        result = await db.execute(select(User).where(User.username == username))
+        if result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="用户名已存在"
             )
         # 校验邮箱唯一性（仅当提供了邮箱时）
-        if email and db.query(User).filter(User.email == email).first():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="邮箱已被注册"
-            )
+        if email:
+            result = await db.execute(select(User).where(User.email == email))
+            if result.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="邮箱已被注册"
+                )
         # 用户名长度校验
         if len(username) < 3 or len(username) > 50:
             raise HTTPException(
@@ -216,8 +221,8 @@ async def register(
             is_active=True
         )
         db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+        await db.commit()
+        await db.refresh(new_user)
         logger.info(f"用户注册成功: username={username}")
         return create_response(
             data={
@@ -230,7 +235,7 @@ async def register(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"注册异常: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

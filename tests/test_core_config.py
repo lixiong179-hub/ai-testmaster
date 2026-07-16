@@ -85,10 +85,29 @@ class TestSettingsProperties:
         result = s.cors_allow_headers_list
         assert "Content-Type" in result
 
-    def test_celery_accept_content_list(self):
-        s = Settings(DATABASE_URL="mysql+pymysql://root:pass@localhost/db")
-        result = s.celery_accept_content_list
-        assert "json" in result
+    def test_cors_allow_headers_default_is_explicit_list(self):
+        """验证 CORS_ALLOW_HEADERS 模型字段默认值不是通配符 "*"，而是显式白名单。
+
+        直接检查 model_fields 默认值，避免 .env 文件或环境变量覆盖默认值导致误判。
+        """
+        field_default = Settings.model_fields["CORS_ALLOW_HEADERS"].default
+        assert field_default != "*"
+        assert "Authorization" in field_default
+        assert "Content-Type" in field_default
+        assert "*" not in field_default
+
+    def test_cors_allow_headers_default_contains_required_headers(self):
+        """验证默认白名单包含平台必需的 Header（JWT 认证、JSON 请求体、跨域标识、CSRF 防护、请求追踪）。
+
+        直接检查 model_fields 默认值，避免 .env 文件或环境变量覆盖默认值导致误判。
+        """
+        field_default = Settings.model_fields["CORS_ALLOW_HEADERS"].default
+        result = set(parse_list(field_default))
+        required_headers = {
+            "Authorization", "Content-Type", "Accept", "Origin",
+            "X-Requested-With", "X-CSRF-Token", "X-Request-ID"
+        }
+        assert required_headers.issubset(result), f"缺少必需 Header: {required_headers - result}"
 
 
 class TestEnsureSecretKeys:
