@@ -40,8 +40,6 @@ router = APIRouter(tags=["快速测试"])
 # 单用户限流参数（SubTask 9.5）：10 次/分钟。
 _LAUNCH_MAX_REQUESTS = 10
 _LAUNCH_TIME_WINDOW_SEC = 60
-# WebSocket 通道模板，与 QuickLauncher 保持一致
-_CHANNEL_TEMPLATE = "quick_test:{task_id}"
 
 
 class _PerUserRateLimiter:
@@ -252,7 +250,7 @@ def _build_status_response(task: TestTask) -> QuickTestStatusResponse:
         current_stage=_derive_stage(task),
         case_count=len(case_ids),
         started_at=started_at,
-        websocket_channel=_CHANNEL_TEMPLATE.format(task_id=task.id),
+        websocket_channel=f"quick_test:{task.id}",
     )
 
 

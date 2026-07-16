@@ -23,6 +23,7 @@ from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 from app.services import metrics_service
 from app.utils.db_time import utcnow
 
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/metrics", tags=["Pipeline监控指标"])
 
 
-@router.get("/summary", response_model=dict)
+@router.get("/summary", response_model=ApiResponse)
 async def get_metrics_summary(
     project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=365, description="统计天数"),
@@ -50,7 +51,7 @@ async def get_metrics_summary(
         raise HTTPException(status_code=500, detail="获取监控摘要失败，请稍后重试")
 
 
-@router.get("/query", response_model=dict)
+@router.get("/query", response_model=ApiResponse)
 async def query_metrics(
     metric_name: Optional[str] = Query(None, description="指标名过滤"),
     project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
@@ -77,7 +78,7 @@ async def query_metrics(
         raise HTTPException(status_code=500, detail="查询监控指标失败，请稍后重试")
 
 
-@router.get("/timeseries", response_model=dict)
+@router.get("/timeseries", response_model=ApiResponse)
 async def get_metric_timeseries(
     metric_name: str = Query(..., description="指标名（必填）"),
     project_id: Optional[int] = Query(None, description="项目 ID 过滤"),

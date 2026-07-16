@@ -15,6 +15,9 @@ if sys.platform == "win32":
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 from prometheus_fastapi_instrumentator import Instrumentator
 from app.core.config import settings, init_directories
 from app.core.logging import setup_logging
@@ -140,6 +143,18 @@ TAGS_METADATA = [
 ]
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """P2-8: 安全响应头中间件 — 统一注入安全相关的 HTTP 响应头。"""
+
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+
 # 创建FastAPI应用实例
 app = FastAPI(
     title=settings.APP_NAME,
@@ -153,7 +168,7 @@ app = FastAPI(
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # 配置CORS中间件：统一由 settings 控制，移除 ["*"] 冗余回退。
-# - DevSettings 默认 CORS_ORIGINS="*"（开发便利）
+# - DevSettings 继承基类 localhost 白名单（安全收紧，不再默认 "*"）
 # - ProdSettings 默认 CORS_ORIGINS=""（强制显式配置，启动时由 ensure_secret_keys 校验）
 # - CORS_ALLOW_HEADERS 默认为显式白名单（见 config.py）
 # 空列表时 CORSMiddleware 将拒绝所有跨域请求，这是预期行为（强制显式配置）。
@@ -164,6 +179,9 @@ app.add_middleware(
     allow_methods=settings.cors_allow_methods_list,
     allow_headers=settings.cors_allow_headers_list,
 )
+
+# P2-8: 安全响应头中间件
+app.add_middleware(SecurityHeadersMiddleware)
 
 # 配置限流中间件（根据环境调整）
 _rate_limit = 1000 if settings.ENVIRONMENT == "prod" else 5000  # 生产环境更严格
@@ -214,13 +232,13 @@ app.include_router(quick_test.router, prefix="/api/v1/quick-test")
 
 
 # 根路径
-@app.get("/")
+@app.get("/", summary="根路径", description="返回 API 名称与版本号，用于快速验证服务是否在线。")
 def root() -> dict[str, str]:
     return {"message": "AI TestMaster API", "version": settings.APP_VERSION}
 
 
 # 健康检查接口
-@app.get("/health")
+@app.get("/health", summary="健康检查", description="检测 API 服务及依赖组件（数据库、Redis、AI 接口）的可用性状态。返回 status=healthy 或 degraded。")
 def health_check() -> dict[str, object]:
     """健康检查接口（含依赖服务状态检测）"""
     health_status = {

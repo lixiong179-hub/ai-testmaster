@@ -43,7 +43,9 @@ export function downloadBlob(blob: Blob, filename: string): void {
 export function downloadFromResponse(resp: AxiosResponse<Blob>, fallbackName: string): string {
   const disposition =
     (resp.headers?.['content-disposition'] as string | undefined) ||
-    (resp.headers as any)?.get?.('content-disposition')
+    (resp.headers as unknown as { get?: (name: string) => string | undefined })?.get?.(
+      'content-disposition'
+    )
   const filename = parseFilename(disposition) || fallbackName
   downloadBlob(resp.data, filename)
   return filename
@@ -53,8 +55,9 @@ export function downloadFromResponse(resp: AxiosResponse<Blob>, fallbackName: st
  * 当 axios 请求设置了 `responseType: 'blob'` 时，错误响应的 `data` 也是 Blob。
  * 这里把它反解为 JSON 中的 `detail` 字段，拿不到则返回兜底 message。
  */
-export async function parseBlobError(err: any, fallbackMsg: string): Promise<string> {
-  const data = err?.response?.data
+export async function parseBlobError(err: unknown, fallbackMsg: string): Promise<string> {
+  const e = err as { response?: { data?: unknown }; message?: string } | null
+  const data = e?.response?.data
   if (data instanceof Blob) {
     try {
       const text = await data.text()
@@ -68,5 +71,5 @@ export async function parseBlobError(err: any, fallbackMsg: string): Promise<str
       return fallbackMsg
     }
   }
-  return err?.message || fallbackMsg
+  return e?.message || fallbackMsg
 }

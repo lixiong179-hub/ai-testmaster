@@ -6,7 +6,82 @@ import pytest_asyncio
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.util.concurrency import greenlet_spawn
 from httpx import AsyncClient, ASGITransport
+
+
+class _SyncBackedAsyncSession:
+    """轻量级 AsyncSession 替代品，委托给 sync Session。
+
+    用于 sync TestClient 调用 async 端点的测试场景：
+    async 端点使用 db.run_sync() / db.execute() / db.commit() 等，
+    本包装器将这些调用委托给 sync db fixture 的 Session，
+    使 async 端点可见 sync db 事务中的测试数据（test_user / real_project 等）。
+
+    设计原因：SQLAlchemy 2.0 的 AsyncSession 不接受 sync Connection 作为 bind，
+    且 db.run_sync() 要求 AsyncEngine；而测试数据在 sync db 事务内（未 commit），
+    独立 async engine 的连接无法看到。通过 wrapper 委托给同一 sync Session 可解决。
+    """
+
+    def __init__(self, sync_session: Session) -> None:
+        self._sync = sync_session
+
+    async def run_sync(self, fn, *args, **kwargs):
+        return await greenlet_spawn(fn, self._sync, *args, **kwargs)
+
+    async def execute(self, stmt, *args, **kwargs):
+        return await greenlet_spawn(self._sync.execute, stmt, *args, **kwargs)
+
+    async def scalar(self, stmt, *args, **kwargs):
+        return await greenlet_spawn(self._sync.scalar, stmt, *args, **kwargs)
+
+    async def scalars(self, stmt, *args, **kwargs):
+        result = await greenlet_spawn(self._sync.execute, stmt, *args, **kwargs)
+        return result.scalars()
+
+    async def commit(self):
+        # commit → flush，保持与 sync db fixture 一致的事务隔离策略
+        await greenlet_spawn(self._sync.flush)
+
+    async def rollback(self):
+        # no-op：由 db fixture 的 savepoint 机制处理回滚
+        pass
+
+    async def refresh(self, instance, *args, **kwargs):
+        await greenlet_spawn(self._sync.refresh, instance, *args, **kwargs)
+
+    async def flush(self, *args, **kwargs):
+        await greenlet_spawn(self._sync.flush, *args, **kwargs)
+
+    async def close(self):
+        # 不关闭底层 sync session，由 db fixture 统一清理
+        pass
+
+    async def merge(self, instance, *args, **kwargs):
+        return await greenlet_spawn(self._sync.merge, instance, *args, **kwargs)
+
+    async def get(self, entity, ident, *args, **kwargs):
+        return await greenlet_spawn(self._sync.get, entity, ident, *args, **kwargs)
+
+    def add(self, instance, *args, **kwargs):
+        self._sync.add(instance, *args, **kwargs)
+
+    def add_all(self, instances):
+        self._sync.add_all(instances)
+
+    def delete(self, instance):
+        self._sync.delete(instance)
+
+    def query(self, *args, **kwargs):
+        return self._sync.query(*args, **kwargs)
+
+    @property
+    def is_active(self):
+        return self._sync.is_active
+
+    @property
+    def in_transaction(self):
+        return self._sync.in_transaction
 
 from app.core.config import settings
 from app.db.database import Base, get_db, async_get_db
@@ -41,6 +116,14 @@ def ensureEventLoop():
     if created_loop is not None:
         created_loop.close()
         asyncio.set_event_loop(None)
+
+
+@pytest.fixture(autouse=True)
+def resetAiSemaphore():
+    """每个测试前重置 AI 生成信号量单例，避免前序用例残留计数影响后续用例。"""
+    from app.utils.ai_concurrency import reset_ai_generation_semaphore
+    reset_ai_generation_semaphore()
+    yield
 
 
 @pytest.fixture(scope="session")
@@ -122,6 +205,8 @@ def cleanupTracker():
 @pytest.fixture(scope="function")
 def client(db):
     from fastapi.testclient import TestClient
+    from unittest.mock import patch
+    from sqlalchemy.orm import Session as SyncSession
     from app.main import app
 
     def overrideGetDb():
@@ -130,10 +215,37 @@ def client(db):
         finally:
             pass
 
+    async def overrideAsyncGetDb():
+        # 关键：用 _SyncBackedAsyncSession 包装 sync db 的 Session，
+        # 使 async 端点的 db.run_sync() / db.execute() / db.commit() 等
+        # 委托给 sync db，从而可见 sync db 事务中的 test_user/real_project 等数据。
+        # commit → flush 已在 wrapper 内实现，保持事务隔离。
+        yield _SyncBackedAsyncSession(db)
+
+    def _create_shared_session():
+        """创建共享 db 连接的 sync Session，使端点内 PrimarySessionLocal()
+        创建的独立会话也能可见 sync db 事务中的测试数据。
+        commit → flush、rollback → no-op，保持外层事务隔离不被破坏。"""
+        session = SyncSession(bind=db.connection())
+        session.commit = session.flush
+        session.rollback = lambda *a, **kw: None
+        return session
+
     app.dependency_overrides[get_db] = overrideGetDb
-    with TestClient(app) as c:
-        yield c
+    app.dependency_overrides[async_get_db] = overrideAsyncGetDb
+    # 部分端点（如 generate-context / generate-single）内部用 PrimarySessionLocal()
+    # 创建独立 sync 会话，需 patch 为共享 db 连接，否则看不到测试事务中的数据。
+    with patch(
+        "app.api.v1.endpoints.test_case_ai_generate._context.PrimarySessionLocal",
+        side_effect=_create_shared_session,
+    ), patch(
+        "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
+        side_effect=_create_shared_session,
+    ):
+        with TestClient(app) as c:
+            yield c
     app.dependency_overrides.pop(get_db, None)
+    app.dependency_overrides.pop(async_get_db, None)
 
 
 @pytest.fixture(scope="function")
@@ -444,3 +556,26 @@ async def async_admin_client(async_db, async_admin_user):
         yield client
     app.dependency_overrides.pop(async_get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """测试会话结束时清理 async_primary_engine 连接池。
+
+    避免事件循环关闭后 pool_pre_ping 触发
+    `RuntimeError: Event loop is closed`（L-1 修复）。
+
+    async_primary_engine 是 app.db.database._engine 的模块级单例，
+    即使测试中 override 了 async_get_db，引擎对象仍会被导入创建。
+    显式 dispose 确保连接池中的连接在新事件循环中干净关闭。
+    """
+    import asyncio
+    try:
+        from app.db.database._engine import async_primary_engine
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(async_primary_engine.dispose())
+        finally:
+            loop.close()
+    except Exception:
+        # 引擎未创建或已 dispose，忽略
+        pass

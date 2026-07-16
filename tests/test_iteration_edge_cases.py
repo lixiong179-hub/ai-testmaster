@@ -395,7 +395,7 @@ class TestPermissionsAndSecurity:
         测试不能将文件移动到其他项目的迭代
 
         场景: 尝试将A项目的文件的iteration_id设置为B项目的迭代ID
-        预期: 数据一致性检查应阻止此操作（通过业务逻辑层）
+        预期: before_flush 事件守卫应阻止此操作，抛出 ValueError
         """
         # 在test_project下创建文件
         file_obj = file_crud.create_project_file(
@@ -414,26 +414,15 @@ class TestPermissionsAndSecurity:
             version="v1.0"
         )
 
-        # 尝试将文件移动到其他项目的迭代（直接修改DB）
-        # 注意: 这里的测试是为了验证如果绕过API直接修改DB会怎样
-        # 实际应用中API层应该有验证
-        original_iteration_id = file_obj.iteration_id
-
-        # 直接设置（模拟恶意操作）
+        # 尝试将文件移动到其他项目的迭代（直接修改DB，绕过API）
         file_obj.iteration_id = other_iteration.id
-        db.commit()
 
-        # 虽然DB层面可能允许（取决于外键约束），但查询时应该能发现不一致
-        # 这里记录这个潜在的安全隐患
-        moved_file = db.query(ProjectFile).filter(
-            ProjectFile.id == file_obj.id
-        ).first()
+        # before_flush 守卫应拦截跨项目赋值
+        with pytest.raises(ValueError, match="不属于文件所在项目"):
+            db.commit()
 
-        # 如果系统允许跨项目移动，这是一个安全隐患
-        # 正确的做法是API层验证iteration_id必须属于同一project
-        if moved_file.iteration_id == other_iteration.id:
-            # 标记为已知问题（需要在API层修复）
-            pytest.xfail("API层缺少跨项目迭代归属验证")
+        # 回滚确保后续测试不受污染
+        db.rollback()
 
     def test_iteration_data_isolation_between_projects(self, db, test_project, other_project):
         """测试不同项目间的迭代数据完全隔离"""

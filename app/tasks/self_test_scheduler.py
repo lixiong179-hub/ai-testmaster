@@ -5,7 +5,8 @@ from typing import Any, Dict, Iterable, Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.websocket import manager as ws_manager
 from app.models.bug import Bug
@@ -71,11 +72,20 @@ class SelfTestScheduler:
         if self._scheduler.get_job(job_id):
             self._scheduler.remove_job(job_id)
 
-    def refresh_jobs(self, db: Session) -> None:
+    async def refresh_jobs(self, db: AsyncSession) -> None:
+        """从数据库刷新所有自测项目的调度任务。
+
+        Args:
+            db: 异步数据库会话。
+        """
         if self._scheduler is None:
             self.start()
         valid_job_ids: set[str] = set()
-        projects = db.query(Project).filter(Project.is_self_test.is_(True)).all()
+        projects = (
+            await db.execute(
+                select(Project).where(Project.is_self_test.is_(True))
+            )
+        ).scalars().all()
         for project in projects:
             if project.self_test_schedule:
                 self.add_job(project.id, project.self_test_schedule)
@@ -109,11 +119,15 @@ class SelfTestScheduler:
         Args:
             project_id: 自测项目 ID。
         """
-        from app.db.database import PrimarySessionLocal
+        from app.db.database import AsyncPrimarySessionLocal
 
-        db = PrimarySessionLocal()
+        db = AsyncPrimarySessionLocal()
         try:
-            project = db.query(Project).filter(Project.id == project_id).first()
+            project = (
+                await db.execute(
+                    select(Project).where(Project.id == project_id)
+                )
+            ).scalars().first()
             if not project:
                 logger.error(f"自测项目不存在: {project_id}")
                 return
@@ -145,7 +159,7 @@ class SelfTestScheduler:
         except Exception as exc:
             logger.error(f"自测执行失败: project_id={project_id}, error={exc}")
         finally:
-            db.close()
+            await db.close()
 
     @staticmethod
     def _get_self_test_mode(project: Project) -> str:
@@ -175,31 +189,32 @@ class SelfTestScheduler:
 
     async def _execute_ui_automation(
         self,
-        db: Session,
+        db: AsyncSession,
         project: Project,
     ) -> None:
         """UI 自动化执行模式：仅执行项目下已有的活跃用例。
 
         创建任务、启动执行引擎、处理失败结果。
+        执行引擎内部使用 sync Session，通过 run_async_coro_in_thread
+        在独立线程中运行避免阻塞事件循环。
 
         Args:
-            db: 数据库会话。
+            db: 异步数据库会话。
             project: 自测项目实例。
         """
-        from app.crud.test_task import create_test_task
-        from app.models.test_case import TestCase
+        from app.crud.test_task import create_test_task_async
         from app.models.enums import ExecStatus
 
         # 查询项目下所有活跃用例
         active_cases = (
-            db.query(TestCase)
-            .filter(
-                TestCase.project_id == project.id,
-                TestCase.is_deleted.is_(False),
-                TestCase.test_category == "ui_automation",
+            await db.execute(
+                select(TestCase).where(
+                    TestCase.project_id == project.id,
+                    TestCase.is_deleted.is_(False),
+                    TestCase.test_category == "ui_automation",
+                )
             )
-            .all()
-        )
+        ).scalars().all()
         if not active_cases:
             logger.warning(
                 f"自测项目 {project.id} 无活跃 UI 自动化用例，跳过执行"
@@ -207,7 +222,7 @@ class SelfTestScheduler:
             return
 
         case_ids = [tc.id for tc in active_cases]
-        task = create_test_task(
+        task = await create_test_task_async(
             db=db,
             task_name=f"UI自动化自测-{asyncio.get_event_loop().time():.0f}",
             project_id=project.id,
@@ -215,10 +230,12 @@ class SelfTestScheduler:
             executor_id=project.user_id,
         )
 
-        # 启动执行引擎
+        # 启动执行引擎 - TestExecutionEngineV2 内部使用 sync Session
+        from app.db.database import PrimarySessionLocal
         from app.services.test_execution_engine import TestExecutionEngineV2
         from app.services.precondition_service import PreconditionService
         from app.services.element_locator_service import ElementLocatorService
+        from app.utils.async_sync_bridge import run_async_coro_in_thread
 
         try:
             precondition_service = PreconditionService()
@@ -227,28 +244,34 @@ class SelfTestScheduler:
             logger.warning(f"前置条件服务初始化失败: {exc}")
             precondition_service = None
 
-        locator_service = ElementLocatorService(db)
-        engine = TestExecutionEngineV2(
-            db=db,
-            precondition_service=precondition_service,
-            locator_service=locator_service,
-        )
-
+        sync_db = PrimarySessionLocal()
         try:
-            await engine.execute_test_task(task_id=task.id, global_headless=True)
-        except Exception as exc:
-            logger.error(f"UI 自动化执行失败: {exc}")
+            locator_service = ElementLocatorService(sync_db)
+            engine = TestExecutionEngineV2(
+                db=sync_db,
+                precondition_service=precondition_service,
+                locator_service=locator_service,
+            )
+
+            try:
+                await run_async_coro_in_thread(
+                    engine.execute_test_task(task_id=task.id, global_headless=True)
+                )
+            except Exception as exc:
+                logger.error(f"UI 自动化执行失败: {exc}")
+        finally:
+            sync_db.close()
 
         # 处理失败结果
         failed_results = (
-            db.query(TestResult)
-            .filter(
-                TestResult.project_id == project.id,
-                TestResult.task_id == task.id,
-                TestResult.exec_status.in_([ExecStatus.FAILED, ExecStatus.BLOCKED]),
+            await db.execute(
+                select(TestResult).where(
+                    TestResult.project_id == project.id,
+                    TestResult.task_id == task.id,
+                    TestResult.exec_status.in_([ExecStatus.FAILED, ExecStatus.BLOCKED]),
+                )
             )
-            .all()
-        )
+        ).scalars().all()
 
         if failed_results:
             failed_case_ids = [r.case_id for r in failed_results]
@@ -256,14 +279,35 @@ class SelfTestScheduler:
                 db, project, len(failed_results), failed_case_ids
             )
 
-    async def _cleanup_self_test_data(self, db: Session, task_id: int) -> None:
-        task = db.query(TestTask).filter(TestTask.id == task_id).first()
+    async def _cleanup_self_test_data(self, db: AsyncSession, task_id: int) -> None:
+        """清理指定任务的自测数据：解绑 Bug 关联并删除任务。
+
+        Args:
+            db: 异步数据库会话。
+            task_id: 测试任务 ID。
+        """
+        task = (
+            await db.execute(
+                select(TestTask).where(TestTask.id == task_id)
+            )
+        ).scalars().first()
         if not task:
             return
 
-        for bug in db.query(Bug).filter(Bug.test_result_id.in_(
-            db.query(TestResult.id).filter(TestResult.task_id == task_id)
-        )).all():
+        # 子查询：task_id 关联的 TestResult.id
+        from sqlalchemy.orm import selectinload
+
+        result_id_subquery = select(TestResult.id).where(
+            TestResult.task_id == task_id
+        )
+        bugs = (
+            await db.execute(
+                select(Bug)
+                .options(selectinload(Bug.test_result))
+                .where(Bug.test_result_id.in_(result_id_subquery))
+            )
+        ).scalars().all()
+        for bug in bugs:
             result = bug.test_result
             if result:
                 bug.reproduction_steps = (
@@ -272,18 +316,32 @@ class SelfTestScheduler:
                 )
             bug.test_result_id = None
 
-        db.delete(task)
-        db.commit()
+        await db.delete(task)
+        await db.commit()
 
     async def _notify_new_failures(
         self,
-        db: Session,
+        db: AsyncSession,
         project: Project,
         failed_count: int,
         failed_case_ids: Iterable[int],
     ) -> None:
+        """通过 WebSocket 推送新失败用例通知。
+
+        Args:
+            db: 异步数据库会话。
+            project: 自测项目实例。
+            failed_count: 失败用例数。
+            failed_case_ids: 失败用例 ID 列表。
+        """
         try:
-            cases = db.query(TestCase).filter(TestCase.id.in_(list(failed_case_ids))).all()
+            cases = (
+                await db.execute(
+                    select(TestCase).where(
+                        TestCase.id.in_(list(failed_case_ids))
+                    )
+                )
+            ).scalars().all()
             message = {
                 "type": "self_test_notification",
                 "project_id": project.id,
@@ -300,7 +358,7 @@ class SelfTestScheduler:
 
     async def handle_step_failure(
         self,
-        db: Session,
+        db: AsyncSession,
         project: Project,
         failure_type: str,
         error_message: str,
@@ -315,7 +373,7 @@ class SelfTestScheduler:
         P2/P3 缺陷仅创建 Bug 记录，不立即通知，等待定期汇总。
 
         Args:
-            db: 数据库会话。
+            db: 异步数据库会话。
             project: 关联的项目实例。
             failure_type: 断言类型或缺陷来源标识。
             error_message: 步骤执行错误信息。
@@ -327,7 +385,7 @@ class SelfTestScheduler:
         Returns:
             创建的 Bug 实例，未创建时返回 None。
         """
-        bug = _auto_create_defect_bug(
+        bug = await _auto_create_defect_bug(
             db=db,
             project=project,
             failure_type=failure_type,

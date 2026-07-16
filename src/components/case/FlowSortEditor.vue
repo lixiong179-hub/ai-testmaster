@@ -167,7 +167,7 @@
       />
       <FlowTypeConfigDialog
         v-model:visible="ctx.flowTypeConfigVisible.value"
-        :flow-type="(ctx.pendingFlowTypeChange.value?.type as any) || 'branch'"
+        :flow-type="(ctx.pendingFlowTypeChange.value?.type as unknown as 'branch' | 'exception' | 'bypass') || 'branch'"
         :main-node-options="ctx.mainNodeOptions.value"
         :initial-data="ctx.pendingFlowMeta.value"
         @confirm="ctx.handleFlowTypeConfigConfirm"
@@ -217,6 +217,8 @@ import NodeDetailPanel from './components/NodeDetailPanel.vue'
 import MainStepList from './components/MainStepList.vue'
 import { computeFlowStats, deriveStatsIssues } from '@/composables/useFlowStats'
 import type { UIScreen } from '@/api/uiPrototype'
+import type { FlowGraphEdge } from '@/composables/useFlowEditor'
+import type { FlowNodeData, FlowEdgeData } from '@/store/flowSort'
 
 const props = defineProps<{
   screens: UIScreen[]
@@ -226,8 +228,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'update:sort-data': [data: any]
-  'preview-screen': [screen: any]
+  'update:sort-data': [data: { mode: string; nodes: FlowNodeData[]; edges: FlowEdgeData[] }]
+  'preview-screen': [screen: { screen_id: number; screen_name: string; image_url?: string }]
 }>()
 
 const ctx = provideFlowSortEditor(props, emit)
@@ -248,7 +250,7 @@ const handleQuickScreenPreview = (screen: UIScreen) => {
 
 /** 从当前画布节点/连线实时计算统计数据 */
 const flowStats = computed(() =>
-  computeFlowStats(ctx.vueFlowNodes.value, ctx.vueFlowEdges.value as any)
+  computeFlowStats(ctx.vueFlowNodes.value, ctx.vueFlowEdges.value as unknown as FlowGraphEdge[])
 )
 
 /** 从统计数据推导问题列表 */

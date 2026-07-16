@@ -1,5 +1,7 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.test_point import TestPoint
 from app.models.project import Project
 from app.models.enums import TestPointStatus
@@ -97,3 +99,37 @@ def get_test_points_count(
     if priority:
         query = query.filter(TestPoint.priority == priority)
     return query.count()
+
+
+async def get_test_points_by_project_async(
+    db: AsyncSession,
+    project_id: int,
+    module: Optional[str] = None,
+    priority: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 100
+) -> List[TestPoint]:
+    """
+    获取项目的测试点列表（异步版本）
+
+    get_test_points_by_project 的异步实现，支持按模块和优先级过滤，带分页。
+
+    Args:
+        db: 异步数据库会话
+        project_id: 项目ID
+        module: 模块名（可选）
+        priority: 优先级（可选）
+        skip: 偏移量
+        limit: 限制数
+
+    Returns:
+        List[TestPoint]: 测试点列表
+    """
+    stmt = select(TestPoint).where(TestPoint.project_id == project_id)
+    if module:
+        stmt = stmt.where(TestPoint.module == module)
+    if priority:
+        stmt = stmt.where(TestPoint.priority == priority)
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return result.scalars().all()

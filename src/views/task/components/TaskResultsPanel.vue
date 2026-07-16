@@ -150,7 +150,7 @@ import { useTaskDetail } from '@/composables/task/useTaskDetail'
 const ctx = useTaskDetail()
 
 const setScrollbarRef = (el: unknown) => {
-  ctx.scrollbarRef.value = el
+  ctx.scrollbarRef.value = el as typeof ctx.scrollbarRef.value
 }
 
 const setLogContainerRef = (el: unknown) => {

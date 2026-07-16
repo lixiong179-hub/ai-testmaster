@@ -62,6 +62,7 @@ def build_backward_scan_prompt(
     """
     label = module_label or "全部"
     cases_text = _format_cases_for_prompt(cases)
+    # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
     return BACKWARD_SCAN_USER_TEMPLATE.format(
         change_signals=change_signals,
         module_label=label,

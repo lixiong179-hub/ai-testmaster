@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import type { Edge } from '@vue-flow/core'
 import type { FlowNodeData, FlowEdgeData } from '@/store/flowSort'
 import type { useFlowSortStore } from '@/store/flowSort'
 import type { FlowSortSubmitData } from '@/api/case'
@@ -62,7 +63,7 @@ export default function useFlowSortData(options: UseFlowSortDataOptions): UseFlo
   /** 序列化所有节点和边数据，emit 事件并同步到 flowSort store */
   function emitSortData(): void {
     // 在序列化前从边推导主干顺序并同步 main_order，确保 store 中的 main_order 与画布连线一致
-    const normalizedNodes = normalizeMainNodeOrders(vueFlowNodes.value, vueFlowEdges.value as any)
+    const normalizedNodes = normalizeMainNodeOrders(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
 
     // 将边推导的 main_order 同步回 vueFlowNodes，避免后续代码路径读到旧值
     normalizedNodes.forEach((normalized) => {
@@ -94,7 +95,7 @@ export default function useFlowSortData(options: UseFlowSortDataOptions): UseFlo
 
   /** 获取提交给后端的完整流程数据 */
   function getFlowSortSubmitData(): { flow_sort_data: FlowSortSubmitData } {
-    const sortedNodes = getOrderedNodesForSubmit(vueFlowNodes.value, vueFlowEdges.value as any)
+    const sortedNodes = getOrderedNodesForSubmit(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
     return {
       flow_sort_data: {
         nodes: sortedNodes.map((node, index) => ({

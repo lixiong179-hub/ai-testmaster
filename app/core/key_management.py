@@ -48,7 +48,7 @@ def load_cached_key(key_name: str, cache_file: Path) -> str:
             if key_name in cached and cached[key_name]:
                 return cached[key_name]
     except Exception:
-        pass
+        _logger.exception("密钥缓存文件读取失败")
     return ""
 
 
@@ -65,13 +65,17 @@ def save_cached_key(key_name: str, value: str, cache_file: Path) -> None:
         cache_file.write_text(json.dumps(cached))
         os.chmod(cache_file, 0o600)
     except Exception as e:
+        _logger.error(f"密钥缓存文件保存失败: {e}", exc_info=True)
         warnings.warn(f"无法保存密钥到文件: {e}")
 
 
 def is_default_value(value: str) -> bool:
-    """检查配置值是否为默认/示例值。"""
+    """检查配置值是否为默认/示例值。
+
+    空字符串不属于弱默认值，而是"未设置"，由后续长度/非空检查处理。
+    """
     if not value:
-        return True
+        return False
     value_lower = value.lower()
     return any(pattern in value_lower for pattern in _DEFAULT_PATTERNS)
 
@@ -109,24 +113,53 @@ def ensure_secret_keys(settings_instance) -> None:
         settings_instance.DEEPSEEK_API_KEY = settings_instance.AI_API_KEY
 
     if settings_instance.ENVIRONMENT == "prod":
-        if is_default_value(settings_instance.DEEPSEEK_API_KEY):
+        if not settings_instance.DEEPSEEK_API_KEY or is_default_value(settings_instance.DEEPSEEK_API_KEY):
             raise ValueError(
-                "生产环境检测到DEEPSEEK_API_KEY使用了默认值！"
+                "生产环境DEEPSEEK_API_KEY未配置或使用了默认值！"
                 "请在 .env 中配置真实的 API 密钥。"
                 "获取地址: https://platform.deepseek.com/"
+            )
+        # 安全收紧：JWT/加密密钥既校验长度也校验是否为弱默认值模式
+        # 防止 "your-secret-key-here-padding-to-32-chars" 等绕过长度检查的弱密钥
+        if is_default_value(settings_instance.JWT_SECRET_KEY):
+            raise ValueError(
+                "生产环境JWT_SECRET_KEY使用了弱默认值模式（包含 your-/changeme/secret 等关键字）！"
+                "请通过环境变量 JWT_SECRET_KEY 设置强随机密钥。"
+                "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
         if len(settings_instance.JWT_SECRET_KEY) < 32:
             raise ValueError(
                 "生产环境JWT_SECRET_KEY长度不足（至少32字符）！"
                 "请使用强随机密钥。生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
+        if is_default_value(settings_instance.ENCRYPTION_KEY):
+            raise ValueError(
+                "生产环境ENCRYPTION_KEY使用了弱默认值模式！"
+                "请通过环境变量 ENCRYPTION_KEY 设置强随机密钥。"
+                "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+            )
+        if is_default_value(settings_instance.ENCRYPTION_SALT):
+            raise ValueError(
+                "生产环境ENCRYPTION_SALT使用了弱默认值模式！"
+                "请通过环境变量 ENCRYPTION_SALT 设置强随机盐值。"
+                "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+            )
     else:
-        if is_default_value(settings_instance.DEEPSEEK_API_KEY):
+        if not settings_instance.DEEPSEEK_API_KEY or is_default_value(settings_instance.DEEPSEEK_API_KEY):
             warnings.warn(
-                "⚠️  DEEPSEEK_API_KEY 可能使用了默认值，AI功能可能无法正常工作。"
+                "⚠️  DEEPSEEK_API_KEY 未配置或可能使用了默认值，AI功能可能无法正常工作。"
                 "请在 .env 中配置真实的 API 密钥。",
                 UserWarning
             )
+        # 非生产环境对 JWT/加密密钥弱默认值发出警告，便于开发者发现配置错误
+        for _key_name in ("JWT_SECRET_KEY", "ENCRYPTION_KEY", "ENCRYPTION_SALT"):
+            _val = getattr(settings_instance, _key_name, "")
+            if _val and is_default_value(_val):
+                warnings.warn(
+                    f"⚠️  {_key_name} 检测到弱默认值模式，生产环境将拒绝启动。"
+                    "请使用强随机密钥。",
+                    UserWarning
+                )
 
     if settings_instance.JWT_SECRET_KEY:
         _log_key_source("JWT_SECRET_KEY", "env")

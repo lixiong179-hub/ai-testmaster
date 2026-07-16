@@ -114,6 +114,85 @@ npm run test
 7. **运行单元测试**: `npm run test`
 8. **构建生产版本**: `npm run build`
 
+## 环境变量配置
+
+首次部署前，复制模板并填写真实配置（详见 `.env.example`）：
+
+```bash
+cp .env.example .env
+```
+
+关键配置项：
+
+- `DATABASE_URL`：MySQL 连接串（格式 `mysql+pymysql://用户:密码@主机:3306/ai_testmaster`）
+- `REDIS_URL`：Redis 连接串
+- `JWT_SECRET_KEY` / `ENCRYPTION_KEY` / `ENCRYPTION_SALT`：生产环境必须使用强随机密钥（生成命令：`python -c "import secrets; print(secrets.token_urlsafe(32))"`）
+- `AI_API_KEY` / `DEEPSEEK_API_KEY`：AI 模型服务密钥
+- `MYSQL_ROOT_PASSWORD` / `MYSQL_PASSWORD`：Docker 部署时必填，未配置容器将拒绝启动
+
+## Docker 部署
+
+```bash
+# 1. 准备环境变量（必填项不可留空）
+cp .env.example .env
+
+# 2. 默认部署（暴露 MySQL/Redis 端口到宿主机，适合开发/测试）
+docker-compose up -d
+
+# 3. 生产环境部署（合并 prod override，关闭 DB 端口对外映射）
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# 4. 启用监控栈（Prometheus + Grafana，可选）
+docker-compose --profile monitoring up -d
+
+# 5. 查看后端日志
+docker-compose logs -f backend
+
+# 6. 停止并清理服务
+docker-compose down
+```
+
+服务端口：后端 `8000`、Nginx `80`、MySQL `3306`、Redis `6379`、Grafana `3000`、Prometheus `9090`。
+
+## 数据库迁移（Alembic）
+
+```bash
+# 应用所有迁移到最新版本
+alembic upgrade head
+
+# 回滚一个版本
+alembic downgrade -1
+
+# 生成新的迁移脚本（修改模型后执行）
+alembic revision --autogenerate -m "描述本次变更"
+
+# 查看当前迁移版本
+alembic current
+```
+
+> 注：`alembic.ini` 中 `sqlalchemy.url` 会被应用设置注入，实际运行时使用 `.env` 中的 `DATABASE_URL`。
+
+## 后端测试
+
+项目使用 `pytest` 进行测试，标记定义见 `pytest.ini`（默认跳过 `real_browser` 与 `real_api` 标记的测试）：
+
+```bash
+# 运行全部测试（默认排除真实浏览器/真实 API 用例）
+pytest tests/ -v
+
+# 仅运行单元测试
+pytest tests/ -v -m unit
+
+# 仅运行集成测试
+pytest tests/ -v -m integration
+
+# 运行 Pipeline 回归测试
+pytest tests/regression/ -v -m regression
+
+# 生成覆盖率报告
+pytest tests/ -v --cov=app --cov-report=term-missing
+```
+
 ## 注意事项
 
 - 项目使用TypeScript严格模式，确保代码类型安全

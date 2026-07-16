@@ -22,7 +22,7 @@
 """
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -35,6 +35,7 @@ from app.schemas.feature_flag import (
     FeatureFlagUpdate,
 )
 from app.services.feature_flag_service import FeatureFlagService
+from app.schemas.common import ApiResponse
 
 
 async def _require_admin(current_user: User = Depends(get_current_user)) -> User:
@@ -46,14 +47,26 @@ async def _require_admin(current_user: User = Depends(get_current_user)) -> User
 router = APIRouter(tags=["特性开关"])
 
 
-@router.get("/", response_model=List[FeatureFlagResponse])
+@router.get("/", response_model=ApiResponse)
 async def list_feature_flags(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> List[FeatureFlagResponse]:
-    """获取所有特性开关列表"""
+) -> Dict[str, Any]:
+    """获取所有特性开关列表（分页）"""
     service = FeatureFlagService(db)
-    return await service.list_flags()
+    flags = await service.list_flags()
+    total = len(flags)
+    skip = (page - 1) * page_size
+    page_flags = flags[skip:skip + page_size]
+    items = [
+        FeatureFlagResponse.model_validate(f).model_dump(mode="json")
+        for f in page_flags
+    ]
+    return create_response(
+        data={"items": items, "total": total, "page": page, "page_size": page_size}
+    )
 
 
 @router.post("/", response_model=FeatureFlagResponse, status_code=status.HTTP_201_CREATED)
@@ -102,7 +115,7 @@ async def update_feature_flag(
     return flag
 
 
-@router.delete("/{key}", response_model=dict)
+@router.delete("/{key}", response_model=ApiResponse)
 async def delete_feature_flag(
     key: str,
     db: AsyncSession = Depends(async_get_db),

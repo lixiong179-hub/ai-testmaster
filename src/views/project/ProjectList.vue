@@ -332,6 +332,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Link } from '@element-plus/icons-vue'
+import type { FormInstance } from 'element-plus'
 import { useProjectList } from './useProjectList'
 import { useQuickTestCard } from './useQuickTestEntry'
 
@@ -375,7 +376,7 @@ const {
 const advancedCollapse = ref<string[]>([])
 
 const setProjectFormRef = (el: unknown) => {
-  projectFormRef.value = el
+  projectFormRef.value = el as FormInstance | null
 }
 </script>
 

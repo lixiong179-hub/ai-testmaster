@@ -77,6 +77,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { useReportStore } from '@/store/report'
 import projectApi from '@/api/project'
+import type { Report } from '@/api/report'
 
 interface Project {
   id: number
@@ -139,7 +140,7 @@ const handleCurrentChange = (current: number) => {
 }
 
 // 处理查看报告（需要project_id）
-const handleView = (report: any) => {
+const handleView = (report: Report) => {
   if (!report.project_id) {
     ElMessage.error('报告缺少项目ID，无法查看详情')
     return
@@ -151,7 +152,7 @@ const handleView = (report: any) => {
 }
 
 // 处理导出PDF（需要project_id）
-const handleExportPDF = async (report: any) => {
+const handleExportPDF = async (report: Report) => {
   if (!report.project_id) {
     ElMessage.error('报告缺少项目ID，无法导出')
     return
@@ -174,7 +175,7 @@ const handleExportPDF = async (report: any) => {
 }
 
 // 处理导出HTML（需要project_id）
-const handleExportHTML = async (report: any) => {
+const handleExportHTML = async (report: Report) => {
   if (!report.project_id) {
     ElMessage.error('报告缺少项目ID，无法导出')
     return
@@ -197,7 +198,7 @@ const handleExportHTML = async (report: any) => {
 }
 
 // 处理删除报告（需要project_id）
-const handleDelete = (report: any) => {
+const handleDelete = (report: Report) => {
   if (!report.project_id) {
     ElMessage.error('报告缺少项目ID，无法删除')
     return

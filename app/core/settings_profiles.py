@@ -3,12 +3,16 @@ from app.core.config import Settings
 
 
 class DevSettings(Settings):
-    """开发环境配置 - DEBUG模式、CORS通配符、日志级别DEBUG。"""
+    """开发环境配置 - DEBUG模式、日志级别DEBUG。
+
+    安全收紧：不再默认 CORS_ORIGINS="*"，继承基类 localhost 白名单
+    (5173/3000)。如需联调其他源，通过环境变量 CORS_ORIGINS 显式配置。
+    生产环境由 key_management.ensure_secret_keys 强制校验禁止 "*"。
+    """
 
     DEBUG: bool = True
     ENVIRONMENT: str = "dev"
     LOG_LEVEL: str = "DEBUG"
-    CORS_ORIGINS: str = "*"
 
 
 class TestSettings(Settings):

@@ -242,19 +242,28 @@ async def optimize_case_locators(
             steps, project_id=test_case.project_id, test_case=test_case
         )
 
+        # P1-4: 批量查询定位器替代循环内逐个查询，消除 N+1
+        step_ids = [s.id for s in steps if hasattr(s, 'id') and s.id]
+        existing_locator_step_ids: set = set()
+        if step_ids:
+            existing_locators = (
+                sync_db.query(ElementLocator)
+                .filter(ElementLocator.step_id.in_(step_ids))
+                .all()
+            )
+            existing_locator_step_ids = {
+                loc.step_id for loc in existing_locators if loc.step_id is not None
+            }
+
         steps_without_locator = []
         for step in steps:
             step_id = step.id if hasattr(step, 'id') else None
-            if step_id:
-                locator = sync_db.query(ElementLocator).filter(
-                    ElementLocator.step_id == step_id
-                ).first()
-                if not locator:
-                    steps_without_locator.append({
-                        "step_id": step_id,
-                        "action": step.action if hasattr(step, 'action') else str(step),
-                        "target_element": step.target_element if hasattr(step, 'target_element') else ""
-                    })
+            if step_id and step_id not in existing_locator_step_ids:
+                steps_without_locator.append({
+                    "step_id": step_id,
+                    "action": step.action if hasattr(step, 'action') else str(step),
+                    "target_element": step.target_element if hasattr(step, 'target_element') else ""
+                })
 
         return {
             "case_id": case_id,

@@ -210,6 +210,7 @@ class PlaywrightMCPClient:
             result = await self._send_request("tools/list", {})
             return result is not None
         except Exception:
+            logger.exception("MCP健康检查异常")
             return False
 
     async def reconnect(self, max_retries: int = 3) -> bool:

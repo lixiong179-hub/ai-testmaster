@@ -134,10 +134,10 @@ async def normalize_excel(
         result = await db.run_sync(_normalize)
         return create_response(data=result)
     except Exception as e:
-        logger.error(f"Excel规范化检测失败: {e}")
+        logger.error(f"Excel规范化检测失败: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"检测失败: {e}",
+            detail="检测失败",
         )
     finally:
         _remove_temp_file(temp_path)
@@ -210,10 +210,10 @@ async def import_excel(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Excel导入失败: {e}")
+        logger.error(f"Excel导入失败: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"导入失败: {e}",
+            detail="导入失败",
         )
     finally:
         _remove_temp_file(temp_path)
@@ -250,10 +250,10 @@ async def migrate_single_case(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"单条用例迁移失败: {e}")
+        logger.error(f"单条用例迁移失败: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"迁移失败: {e}",
+            detail="迁移失败",
         )
 
 

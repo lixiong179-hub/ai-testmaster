@@ -25,7 +25,7 @@
       >
         <el-select
           v-if="field.type === 'select'"
-          v-model="formData[field.key] as any"
+          v-model="formData[field.key] as unknown as string | number"
           :placeholder="field.placeholder || '请选择'"
         >
           <el-option
@@ -38,7 +38,7 @@
 
         <el-input
           v-else-if="field.type === 'textarea'"
-          v-model="formData[field.key] as any"
+          v-model="formData[field.key] as unknown as string | number"
           type="textarea"
           :rows="3"
           :placeholder="field.placeholder || '请输入'"
@@ -46,14 +46,14 @@
 
         <el-input
           v-else-if="field.type === 'number'"
-          v-model.number="formData[field.key] as any"
+          v-model.number="formData[field.key] as unknown as string | number"
           type="number"
           :placeholder="field.placeholder || '请输入'"
         />
 
         <el-input
           v-else
-          v-model="formData[field.key] as any"
+          v-model="formData[field.key] as unknown as string | number"
           :placeholder="field.placeholder || '请输入'"
         />
       </el-form-item>

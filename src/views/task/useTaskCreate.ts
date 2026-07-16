@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { useTaskStore } from '@/store/task'
 import testTaskApi from '@/api/testTask'
 import type { TagType } from '@/types/element-plus'
+import type { TestCase } from '@/types/testCase'
 
 export function useTaskCreate() {
   const router = useRouter()
@@ -32,7 +33,7 @@ export function useTaskCreate() {
   )
 
   const filter = ref({ module: '', priority: '' as number | '', keyword: '' })
-  const cases = ref<any[]>([])
+  const cases = ref<TestCase[]>([])
   const page = ref(1)
   const pageSize = ref(50)
   const total = ref(0)
@@ -54,8 +55,8 @@ export function useTaskCreate() {
         const keyword = filter.value.keyword.toLowerCase()
         match =
           match &&
-          ((item.title && item.title.toLowerCase().includes(keyword)) ||
-            (item.case_no && item.case_no.toLowerCase().includes(keyword)))
+          ((!!item.title && item.title.toLowerCase().includes(keyword)) ||
+            (!!item.case_no && item.case_no.toLowerCase().includes(keyword)))
       }
       return match
     })
@@ -85,7 +86,7 @@ export function useTaskCreate() {
     case_ids: [
       {
         required: true,
-        validator: (_rule: any, value: any, callback: any) => {
+        validator: (_rule: unknown, value: number[], callback: (error?: Error) => void) => {
           value.length === 0 ? callback(new Error('请至少选择一条用例')) : callback()
         },
         trigger: 'change',
@@ -103,7 +104,7 @@ export function useTaskCreate() {
     return priority ? map[priority] || 'info' : 'info'
   }
 
-  const handleSelectionChange = (selection: any[]) => {
+  const handleSelectionChange = (selection: TestCase[]) => {
     form.value.case_ids = selection.map((item) => item.id)
   }
   const handleSelectAll = (value: boolean) => {
@@ -134,8 +135,8 @@ export function useTaskCreate() {
           })
           ElMessage.success('任务创建成功')
           router.push(`/home/task/list/${projectId.value}`)
-        } catch (error: any) {
-          ElMessage.error(error.message || '任务创建失败')
+        } catch (error: unknown) {
+          ElMessage.error(error instanceof Error ? error.message : '任务创建失败')
         } finally {
           submitting.value = false
         }
@@ -154,16 +155,22 @@ export function useTaskCreate() {
 
   const fetchAllProjectCases = async (targetProjectId: number) => {
     const pageSize = 100
-    const allCases: any[] = []
+    const allCases: TestCase[] = []
     let currentPage = 1
     let totalPages = 1
+    // 后端返回结构兼容多形态：{ data: { items, total } } 或直接 { items, total }
+    interface ProjectCasesPageData {
+      items?: TestCase[]
+      total?: number
+      data?: { items?: TestCase[]; total?: number }
+    }
     while (currentPage <= totalPages) {
       const response = (await testTaskApi.getProjectCases(targetProjectId, {
         page: currentPage,
         page_size: pageSize,
-      })) as any
-      const payload = response?.data || response || {}
-      const pageData = payload.items ? payload : payload.data || {}
+      })) as ProjectCasesPageData
+      const payload: ProjectCasesPageData = response?.data || response || {}
+      const pageData: ProjectCasesPageData = payload.items ? payload : payload.data || {}
       const items = Array.isArray(pageData.items) ? pageData.items : []
       const totalCount = Number(pageData.total || items.length || 0)
       allCases.push(...items)
@@ -171,7 +178,7 @@ export function useTaskCreate() {
       if (items.length === 0) break
       currentPage += 1
     }
-    const uniqueCases = new Map<number, any>()
+    const uniqueCases = new Map<number, TestCase>()
     allCases.forEach((item) => {
       if (item?.id) uniqueCases.set(item.id, item)
     })
@@ -184,8 +191,8 @@ export function useTaskCreate() {
       cases.value = await fetchAllProjectCases(projectId.value)
       total.value = cases.value.length
       if (cases.value.length === 0) ElMessage.warning('该项目下暂无测试用例，请先生成测试用例')
-    } catch (error: any) {
-      ElMessage.error(error.message || '获取用例列表失败')
+    } catch (error: unknown) {
+      ElMessage.error(error instanceof Error ? error.message : '获取用例列表失败')
     } finally {
       loading.value = false
     }

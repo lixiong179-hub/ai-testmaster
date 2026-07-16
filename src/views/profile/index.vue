@@ -116,6 +116,16 @@ import { Search } from '@element-plus/icons-vue'
 import { userApi } from '@/api/user'
 import type { User, Pagination } from '@/types/user'
 
+// 登录日志
+interface LoginLog {
+  id: number
+  username: string
+  ip: string
+  user_agent: string
+  login_time: string
+  status: boolean
+}
+
 // 状态管理
 const activeTab = ref('basic')
 const loading = ref(false)
@@ -150,7 +160,7 @@ const passwordRules = {
   confirmPassword: [
     { required: true, message: '请确认新密码', trigger: 'blur' },
     {
-      validator: (_rule: any, value: string, callback: any) => {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
         if (value !== passwordForm.newPassword) {
           callback(new Error('两次输入的密码不一致'))
         } else {
@@ -163,7 +173,7 @@ const passwordRules = {
 }
 
 // 登录日志
-const loginLogs = ref<any[]>([])
+const loginLogs = ref<LoginLog[]>([])
 const logDateRange = ref<[Date, Date] | null>(null)
 const logsPagination = reactive<Pagination>({
   page: 1,
@@ -220,8 +230,9 @@ const changePassword = async () => {
           confirmPassword: '',
         })
         // 实际项目中应该跳转到登录页
-      } catch (error: any) {
-        ElMessage.error(error.response?.data?.message || '密码修改失败')
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } }
+        ElMessage.error(err.response?.data?.message || '密码修改失败')
       } finally {
         loading.value = false
       }

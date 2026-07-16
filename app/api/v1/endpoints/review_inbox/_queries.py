@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +10,7 @@ from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 from app.services import review_service
 from app.api.v1.endpoints.review_inbox._schemas import (
     _verify_review_access,
@@ -19,13 +20,15 @@ from app.api.v1.endpoints.review_inbox._schemas import (
 router = APIRouter()
 
 
-@router.get("/{review_id}/decisions", response_model=dict)
+@router.get("/{review_id}/decisions", response_model=ApiResponse)
 async def list_decisions(
     review_id: int,
     verdict: Optional[str] = None,
     target_kind: Optional[str] = None,
     sort_by: Optional[str] = None,
     order: Optional[str] = "desc",
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -33,29 +36,26 @@ async def list_decisions(
         def _list(sync_db: Session):
             _verify_review_access(sync_db, review_id, current_user)
 
-            decisions = review_service.get_decisions(sync_db, review_id, target_kind=target_kind)
+            # P2-3: verdict 过滤 + 排序下推至 SQL（原在 Python 内存中执行）
+            decisions = review_service.get_decisions(
+                sync_db,
+                review_id,
+                target_kind=target_kind,
+                verdict=verdict,
+                sort_by=sort_by,
+                order=order,
+            )
 
-            if verdict is not None:
-                decisions = [d for d in decisions if d.final_verdict == verdict]
-
-            if sort_by == "confidence":
-                reverse = order != "asc"
-                decisions = sorted(
-                    decisions,
-                    key=lambda d: d.ai_confidence if d.ai_confidence is not None else 0,
-                    reverse=reverse,
-                )
-            elif sort_by == "decided_at":
-                reverse = order != "asc"
-                decisions = sorted(
-                    decisions,
-                    key=lambda d: d.decided_at if d.decided_at else None,
-                    reverse=reverse,
-                )
+            # P2-4: 分页（service 返回 Python list，按切片分页）
+            total = len(decisions)
+            skip = (page - 1) * page_size
+            page_decisions = decisions[skip:skip + page_size]
 
             return {
-                "decisions": [_serialize_decision(d) for d in decisions],
-                "total": len(decisions),
+                "decisions": [_serialize_decision(d) for d in page_decisions],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
             }
 
         data = await db.run_sync(_list)

@@ -68,11 +68,11 @@ export function useFlowMainOrder(options: UseFlowMainOrderOptions) {
     saveSnapshot()
     isProgrammaticEdgeChange.value = true
     vueFlowEdges.value = vueFlowEdges.value.filter(
-      (e: any) => !deletedSet.has(e.source) && !deletedSet.has(e.target)
+      (e: FlowGraphEdge) => !deletedSet.has(e.source) && !deletedSet.has(e.target)
     )
     vueFlowNodes.value = normalizeMainNodeOrders(
       vueFlowNodes.value.filter((n) => !deletedSet.has(n.id)),
-      vueFlowEdges.value as any
+      vueFlowEdges.value as unknown as Edge[]
     )
     collapsedParentNodeIds.value = collapsedParentNodeIds.value.filter((id) => !deletedSet.has(id))
     if (focusedNodeId.value && deletedSet.has(focusedNodeId.value)) {
@@ -103,7 +103,7 @@ export function useFlowMainOrder(options: UseFlowMainOrderOptions) {
     const selectedNode = vueFlowNodes.value.find((n) => n.id === selectedNodeId)
     if (!selectedNode) return
 
-    const orderedMainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as any)
+    const orderedMainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
     const currentIndex = orderedMainNodes.findIndex((node) => node.id === selectedNode.id)
     const targetIndex = currentIndex + direction
     if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedMainNodes.length) return

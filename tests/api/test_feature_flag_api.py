@@ -237,7 +237,11 @@ class TestFeatureFlagAsyncAPI:
         """空列表"""
         resp = await async_auth_client.get("/api/v1/feature-flags/")
         assert resp.status_code == 200
-        assert isinstance(resp.json(), list)
+        data = resp.json()["data"]
+        assert data["items"] == []
+        assert data["total"] == 0
+        assert data["page"] == 1
+        assert data["page_size"] == 20
 
     async def test_create_flag_via_api(self, async_admin_client):
         """通过 API 创建特性开关（管理员）"""

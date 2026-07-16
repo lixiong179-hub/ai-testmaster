@@ -2,8 +2,8 @@ import asyncio
 from typing import List
 
 from app.crud.test_task import (
-    update_test_task_status,
-    update_test_task_progress
+    update_test_task_status_async,
+    update_test_task_progress_async,
 )
 from loguru import logger
 
@@ -58,10 +58,10 @@ class TaskCoreMixin:
             project_id: 项目ID
             case_ids: 用例ID列表
         """
-        from app.db.database import SessionLocal
+        from app.db.database import AsyncPrimarySessionLocal
         from app.services.precondition_service import PreconditionService
 
-        db = SessionLocal()
+        db = AsyncPrimarySessionLocal()
         total_cases = len(case_ids)
         success_count = 0
         fail_count = 0
@@ -78,7 +78,7 @@ class TaskCoreMixin:
                 # 检查任务是否被停止
                 if task_id not in self.running_tasks or self.running_tasks[task_id]["status"] == "stopped":
                     logger.info(f"任务已停止: {task_id}")
-                    update_test_task_status(db, task_id, project_id, 4)  # 4: 已停止
+                    await update_test_task_status_async(db, task_id, project_id, 4)  # 4: 已停止
                     break
 
                 # 更新当前执行的用例
@@ -97,7 +97,7 @@ class TaskCoreMixin:
                     fail_count += 1
 
                 # 更新任务进度
-                update_test_task_progress(
+                await update_test_task_progress_async(
                     db=db,
                     task_id=task_id,
                     project_id=project_id,
@@ -142,7 +142,7 @@ class TaskCoreMixin:
                 else:
                     status = 3  # 3: 执行失败
 
-                update_test_task_status(db, task_id, project_id, status)
+                await update_test_task_status_async(db, task_id, project_id, status)
 
                 # 推送任务完成消息
                 await self.push_execution_log(
@@ -155,7 +155,7 @@ class TaskCoreMixin:
 
         except Exception as e:
             logger.error(f"执行任务失败: {e}")
-            update_test_task_status(db, task_id, project_id, 3)  # 3: 执行失败
+            await update_test_task_status_async(db, task_id, project_id, 3)  # 3: 执行失败
 
             # 推送错误消息
             await self.push_execution_log(
@@ -178,7 +178,7 @@ class TaskCoreMixin:
                 del self.running_tasks[task_id]
 
             # 关闭数据库连接（防止连接泄漏）
-            db.close()
+            await db.close()
 
 
 TestTaskCoreMixin = TaskCoreMixin

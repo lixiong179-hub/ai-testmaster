@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { useVueFlow } from '@vue-flow/core'
+import { useVueFlow, type Edge } from '@vue-flow/core'
 import type { FlowEditorNode, FlowGraphEdge, EditorNodeData } from '@/composables/useFlowEditor'
 import { getMainNodesInOrder } from '@/composables/useFlowEditor'
 import type { Ref, ComputedRef } from 'vue'
@@ -84,7 +84,7 @@ export function useFlowGroupBackground(
 
     // Group by parent main node (for branch/exception/bypass children)
     const groups = new Map<string, FlowEditorNode[]>()
-    const mainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as any)
+    const mainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
 
     mainNodes.forEach((mainNode) => {
       const children = branchChildrenMap.value.get(mainNode.id)

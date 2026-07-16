@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
+from app.schemas.common import ApiResponse
 from app.schemas.project import (
     ProjectCreate,
 )
@@ -43,8 +44,8 @@ class SelfTestScheduleRequest(BaseModel):
     schedule: str | None = None
 
 
-@router.post("/", response_model=dict)
-@router.post("/create", response_model=dict)
+@router.post("/", response_model=ApiResponse)
+@router.post("/create", response_model=ApiResponse)
 async def create_project(
     project: ProjectCreate,
     db: AsyncSession = Depends(async_get_db),
@@ -108,7 +109,7 @@ async def create_project(
         raise HTTPException(status_code=500, detail="创建项目失败")
 
 
-@router.get("/list", response_model=dict)
+@router.get("/list", response_model=ApiResponse)
 async def get_projects(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=1000, description="每页数量"),
@@ -147,7 +148,7 @@ async def get_projects(
         raise HTTPException(status_code=500, detail="获取项目列表失败")
 
 
-@router.get("/{project_id}", response_model=dict)
+@router.get("/{project_id}", response_model=ApiResponse)
 async def get_project(
     project_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -226,7 +227,7 @@ def _delete_project_core_assets(db, project_id: int) -> None:
         db.delete(test_case)
 
 
-@router.delete("/{project_id}", response_model=dict)
+@router.delete("/{project_id}", response_model=ApiResponse)
 async def delete_project(
     project_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -260,7 +261,7 @@ async def delete_project(
         raise HTTPException(status_code=500, detail="删除项目失败")
 
 
-@router.put("/{project_id}/self-test-schedule", response_model=dict)
+@router.put("/{project_id}/self-test-schedule", response_model=ApiResponse)
 async def update_self_test_schedule(
     project_id: int,
     body: SelfTestScheduleRequest,

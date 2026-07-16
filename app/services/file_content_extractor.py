@@ -127,8 +127,12 @@ async def batch_extract_files(file_ids: List[int], db: Session, force_refresh: b
     results = {"total": len(file_ids), "success": 0, "failed": 0, "skipped": 0, "details": []}
     extractor = FileContentExtractor(db)
 
+    # P1-2: 批量查询替代循环内逐个查询，消除 N+1
+    files = db.query(ProjectFile).filter(ProjectFile.id.in_(file_ids)).all()
+    files_by_id: Dict[int, ProjectFile] = {f.id: f for f in files}
+
     for file_id in file_ids:
-        file = db.query(ProjectFile).filter(ProjectFile.id == file_id).first()
+        file = files_by_id.get(file_id)
         if not file:
             results["failed"] += 1
             results["details"].append({"file_id": file_id, "status": "not_found"})

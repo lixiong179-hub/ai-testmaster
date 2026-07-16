@@ -42,6 +42,8 @@
     - other: 其他
 """
 from sqlalchemy.orm import Session
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.project import ProjectFile
 from typing import List, Optional
 from app.utils.db_time import utcnow
@@ -304,3 +306,40 @@ def get_project_files_by_iteration(db: Session, project_id: int,
         ProjectFile.project_id == project_id,
         ProjectFile.iteration_id == iteration_id
     ).order_by(ProjectFile.upload_time.desc()).all()
+
+
+async def update_file_content_async(
+    db: AsyncSession,
+    file_id: int,
+    content: str,
+    extract_status: str,
+    extract_error: str = None
+) -> Optional[ProjectFile]:
+    """
+    更新文件提取内容和状态（异步版本）
+
+    update_file_content 的异步实现，文件内容提取完成后调用此函数更新提取结果。
+
+    Args:
+        db: 异步数据库会话
+        file_id: 文件ID
+        content: 提取的文本内容
+        extract_status: 提取状态，completed/failed
+        extract_error: 提取错误信息（可选），失败时记录原因
+
+    Returns:
+        Optional[ProjectFile]: 更新后的文件对象，不存在则返回None
+    """
+    result = await db.execute(
+        select(ProjectFile).where(ProjectFile.id == file_id)
+    )
+    db_file = result.scalars().first()
+    if not db_file:
+        return None
+    db_file.content = content
+    db_file.extract_status = extract_status
+    db_file.extract_error = extract_error
+    db_file.extracted_at = utcnow()
+    await db.commit()
+    await db.refresh(db_file)
+    return db_file

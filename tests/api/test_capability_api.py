@@ -124,7 +124,7 @@ class TestCapabilityAPI:
         resp = await async_auth_client.get(
             f"/api/v1/test-capability/?project_id={async_test_project.id}",
         )
-        keys = {c["key"] for c in resp.json()}
+        keys = {c["key"] for c in resp.json()["data"]["items"]}
         assert "ARCH_LIST_CAP" not in keys
 
     async def test_list_include_archived(self, async_auth_client, async_test_project):
@@ -144,7 +144,7 @@ class TestCapabilityAPI:
         resp = await async_auth_client.get(
             f"/api/v1/test-capability/?project_id={async_test_project.id}&include_archived=true",
         )
-        keys = {c["key"] for c in resp.json()}
+        keys = {c["key"] for c in resp.json()["data"]["items"]}
         assert "ARCH_INC_CAP" in keys
 
     async def test_unauthenticated(self, async_client, async_test_project):

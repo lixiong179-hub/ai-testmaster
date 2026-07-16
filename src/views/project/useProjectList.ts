@@ -1,6 +1,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessageBox, type FormInstance } from 'element-plus'
 import type { TagType } from '@/types/element-plus'
 import { useProjectStore } from '@/store/project'
 
@@ -9,7 +9,7 @@ export function useProjectList() {
   const projectStore = useProjectStore()
 
   const dialogVisible = ref(false)
-  const projectFormRef = ref<any>(null)
+  const projectFormRef = ref<FormInstance | null>(null)
   const searchKeyword = ref('')
   // 来源筛选：'' 全部 | manual 手动创建 | url_quick_test 快速测试
   // 后端暂未在 list 接口支持 source 过滤参数，故仅在前端客户端过滤

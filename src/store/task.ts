@@ -146,8 +146,8 @@ export const useTaskStore = defineStore('task', {
       this.error = null
       try {
         const response = await testTaskApi.getTaskDetail(taskId, projectId)
-        const data = extractTaskResponseData<any>(response)
-        this.taskDetail = data.task || data
+        const data = extractTaskResponseData<{ task?: TestTask }>(response)
+        this.taskDetail = data.task || (data as unknown as TestTask)
         return this.taskDetail
       } catch (error: unknown) {
         this.error = error instanceof Error ? error.message : String(error)
@@ -176,7 +176,7 @@ export const useTaskStore = defineStore('task', {
       this.error = null
       try {
         const response = await testTaskApi.getTaskSummary(taskId, projectId)
-        const data = extractTaskResponseData<any>(response)
+        const data = extractTaskResponseData<TaskSummary>(response)
         this.taskSummary = data
         return this.taskSummary
       } catch (error: unknown) {
@@ -196,7 +196,7 @@ export const useTaskStore = defineStore('task', {
       this.error = null
       try {
         const response = await testTaskApi.createTask(_data)
-        return extractTaskResponseData<any>(response)
+        return extractTaskResponseData<Record<string, unknown>>(response)
       } catch (error: unknown) {
         this.error = error instanceof Error ? error.message : String(error)
         throw error
@@ -220,7 +220,7 @@ export const useTaskStore = defineStore('task', {
           mobileDeviceId
         )
         await this.fetchTaskDetail(taskId, projectId)
-        return extractTaskResponseData<any>(response)
+        return extractTaskResponseData<Record<string, unknown>>(response)
       } catch (error: unknown) {
         this.error = error instanceof Error ? error.message : String(error)
         throw error
@@ -234,7 +234,7 @@ export const useTaskStore = defineStore('task', {
       try {
         const response = await testTaskApi.stopTask(taskId, projectId)
         await this.fetchTaskDetail(taskId, projectId)
-        return extractTaskResponseData<any>(response)
+        return extractTaskResponseData<Record<string, unknown>>(response)
       } catch (error: unknown) {
         this.error = error instanceof Error ? error.message : String(error)
         throw error
@@ -247,7 +247,7 @@ export const useTaskStore = defineStore('task', {
       this.error = null
       try {
         const response = await testTaskApi.runTask(taskId, projectId)
-        return extractTaskResponseData<any>(response)
+        return extractTaskResponseData<Record<string, unknown>>(response)
       } catch (error: unknown) {
         this.error = error instanceof Error ? error.message : String(error)
         throw error

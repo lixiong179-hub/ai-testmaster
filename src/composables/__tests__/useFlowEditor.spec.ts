@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { Edge } from '@vue-flow/core'
 import {
   getMainNodesInOrder,
   getOrderedNodesForSubmit,
@@ -9,7 +10,7 @@ import {
   normalizeEdges,
   EDGE_STYLES,
 } from '../useFlowEditor'
-import type { FlowEditorNode } from '../useFlowEditor'
+import type { FlowEditorNode, EditorNodeData } from '../useFlowEditor'
 
 const makeNode = (
   id: string,
@@ -87,7 +88,7 @@ describe('normalizeMainNodeOrders', () => {
     ]
     const result = normalizeMainNodeOrders(nodes)
     const mainResult = result.filter((n) => n.data.flow_type === 'main')
-    expect(mainResult.map((n) => (n.data as any).main_order)).toEqual([1, 2])
+    expect(mainResult.map((n) => (n.data as EditorNodeData).main_order)).toEqual([1, 2])
   })
 
   it('should remove main_order from non-main nodes', () => {
@@ -100,7 +101,7 @@ describe('normalizeMainNodeOrders', () => {
     ]
     const result = normalizeMainNodeOrders(nodes)
     const branchNode = result.find((n) => n.id === 'node_2')
-    expect((branchNode?.data as any).main_order).toBeUndefined()
+    expect((branchNode?.data as EditorNodeData).main_order).toBeUndefined()
   })
 })
 
@@ -193,16 +194,16 @@ describe('normalizeEdges', () => {
       { id: 'e1', source: 'a', target: 'b', data: { edge_type: 'branch' } },
       { id: 'e2', source: 'a', target: 'c', data: { edge_type: 'normal' } },
     ]
-    const result = normalizeEdges(edges as any)
-    expect((result[0].style as any)?.stroke).toBe(EDGE_STYLES.branch.stroke)
+    const result = normalizeEdges(edges as unknown as Edge[])
+    expect((result[0].style as unknown as { stroke?: string })?.stroke).toBe(EDGE_STYLES.branch.stroke)
     expect(result[0].animated).toBe(true)
-    expect((result[1].style as any)?.stroke).toBe(EDGE_STYLES.normal.stroke)
+    expect((result[1].style as unknown as { stroke?: string })?.stroke).toBe(EDGE_STYLES.normal.stroke)
     expect(result[1].animated).toBe(false)
   })
 
   it('should create arrow marker with correct color', () => {
     const edges = [{ id: 'e1', source: 'a', target: 'b', data: { edge_type: 'exception' } }]
-    const result = normalizeEdges(edges as any)
-    expect((result[0].markerEnd as any)?.color).toBe(EDGE_STYLES.exception.stroke)
+    const result = normalizeEdges(edges as unknown as Edge[])
+    expect((result[0].markerEnd as unknown as { color?: string })?.color).toBe(EDGE_STYLES.exception.stroke)
   })
 })

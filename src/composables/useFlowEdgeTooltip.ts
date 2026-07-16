@@ -11,7 +11,7 @@ export interface EdgeTooltipData {
   id: string
   source: string
   target: string
-  label?: string | number
+  label?: string
   data?: Record<string, unknown>
   [key: string]: unknown
 }

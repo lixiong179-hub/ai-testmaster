@@ -1598,13 +1598,13 @@ else:
 
 | 接口路径 | 请求方法 | 修改类型 | 变更内容 | 影响范围 |
 |----------|----------|----------|----------|----------|
-| `/api/v1/testCase/ai-enhanced-generate` | POST | 新增参数 | 新增 `mode`（string, 默认 'linear'）、`flow_sort_data`（object, 可选） | 前端调用需适配 |
+| `/api/v1/test-case/ai-enhanced-generate` | POST | 新增参数 | 新增 `mode`（string, 默认 'linear'）、`flow_sort_data`（object, 可选） | 前端调用需适配 |
 | `/api/v1/ui-prototype/projects/{project_id}/screens` | GET | 无需修改 | 返回数据已包含 `ui_spec`、`summary`，前端直接使用 | 无 |
 | `/api/v1/file/preview-screen/{screen_id}` | GET | 无需修改 | 截图预览接口，流程图节点缩略图使用 | 无 |
 
 ### 新增参数详细说明
 
-**接口：** `POST /api/v1/testCase/ai-enhanced-generate`
+**接口：** `POST /api/v1/test-case/ai-enhanced-generate`
 
 **新增字段：**
 

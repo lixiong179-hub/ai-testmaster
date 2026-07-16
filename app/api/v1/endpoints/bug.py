@@ -32,11 +32,12 @@ from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 
 router = APIRouter(tags=["Bug缺陷管理"])
 
 
-@router.get("/list", response_model=dict)
+@router.get("/list", response_model=ApiResponse)
 async def list_bugs(
     project_id: int = Query(..., description="项目ID"),
     severity: Optional[int] = Query(None, ge=1, le=4, description="严重程度: 1致命/2严重/3一般/4轻微"),

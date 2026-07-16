@@ -27,7 +27,7 @@ export interface QuickTestPushMessage {
     stage: string
     status: string
     progress: number
-    // 项目规范禁用 any，detail 统一用 unknown，调用方按需窄化
+    // 项目规范禁用未约束类型，detail 统一用 unknown，调用方按需窄化
     detail: unknown
 }
 

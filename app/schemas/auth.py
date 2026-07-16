@@ -20,11 +20,11 @@ class LoginRequest(BaseModel):
     用户登录请求模型
 
     业务用途：用户通过用户名+密码进行身份认证
-    验证规则：用户名3-50字符，密码6-100字符
+    验证规则：用户名3-50字符，密码8-100字符
     对应API：POST /api/v1/auth/login
     """
     username: str = Field(..., min_length=3, max_length=50, description="用户名")  # 必填，与User.username对应
-    password: str = Field(..., min_length=6, max_length=100, description="密码")  # 必填，明文传输，服务端校验hash
+    password: str = Field(..., min_length=8, max_length=100, description="密码")  # 必填，明文传输，服务端校验hash
 
 
 class RegisterRequest(BaseModel):
@@ -41,8 +41,8 @@ class RegisterRequest(BaseModel):
     """
     username: str = Field(..., min_length=3, max_length=50, description="用户名")  # 必填，注册后作为登录标识，唯一
     email: EmailStr = Field(..., description="邮箱")  # 必填，Pydantic EmailStr自动校验格式，与User.email对应
-    password: str = Field(..., min_length=6, max_length=100, description="密码")  # 必填，最小6位保证基本安全性
-    confirm_password: str = Field(..., min_length=6, max_length=100, description="确认密码")  # 必填，需与password一致
+    password: str = Field(..., min_length=8, max_length=100, description="密码")  # 必填，最小8位保证基本安全性
+    confirm_password: str = Field(..., min_length=8, max_length=100, description="确认密码")  # 必填，需与password一致
 
     @model_validator(mode='after')
     def passwords_match(self) -> 'RegisterRequest':

@@ -22,9 +22,18 @@ export const useReportStore = defineStore('report', {
       this.loading = true
       this.error = null
       try {
-        const response = (await reportApi.getReports(params)) as any
+        const response = (await reportApi.getReports(params)) as unknown as {
+          data?: { reports?: Report[]; items?: Report[]; total?: number }
+          reports?: Report[]
+          items?: Report[]
+          total?: number
+        }
         // 响应拦截器已返回response.data，所以response就是ApiResponse对象
-        const data = response?.data || response || {}
+        const data = (response?.data || response || {}) as {
+          reports?: Report[]
+          items?: Report[]
+          total?: number
+        }
         this.reports = data.reports || data.items || []
         this.total = data.total || 0
       } catch (error: unknown) {
@@ -41,9 +50,11 @@ export const useReportStore = defineStore('report', {
       this.loading = true
       this.error = null
       try {
-        const response = (await reportApi.getReportDetail(id, project_id)) as any
+        const response = (await reportApi.getReportDetail(id, project_id)) as unknown as {
+          data?: { data?: Report }
+        }
         const responseData = response?.data?.data || response?.data || response || {}
-        this.currentReport = responseData
+        this.currentReport = responseData as unknown as Report
         return this.currentReport
       } catch (error: unknown) {
         const err = error as { message?: string }

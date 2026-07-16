@@ -34,6 +34,7 @@ from app.db.database import async_get_db
 from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
+from app.schemas.common import ApiResponse
 from app.schemas.file import UrlSubmitRequest
 from app.crud import file as file_crud
 from app.core.config import settings
@@ -84,7 +85,7 @@ def _auto_detect_resource_type(filename: str, file_ext: str) -> str:
     return detect_resource_type(filename, file_ext)
 
 
-@router.post("/upload", response_model=dict)
+@router.post("/upload", response_model=ApiResponse)
 async def upload_file(
     project_id: int = Form(...),
     file: UploadFile = File(...),
@@ -200,7 +201,7 @@ async def upload_file(
         raise HTTPException(status_code=500, detail="上传文件失败")
 
 
-@router.post("/submit-url", response_model=dict)
+@router.post("/submit-url", response_model=ApiResponse)
 async def submit_url(
     url_request: UrlSubmitRequest,
     db: AsyncSession = Depends(async_get_db),
@@ -236,16 +237,20 @@ async def update_file_sort(
                 .all()
             )
 
+            # 批量查询所有文件记录，避免循环内逐条查询（N+1 修复）
+            file_records = (
+                sync_db.query(ProjectFile)
+                .filter(
+                    ProjectFile.id.in_(unique_file_ids),
+                    ProjectFile.is_active.is_(True),
+                )
+                .all()
+            )
+            file_map = {record.id: record for record in file_records}
+
             updated_count = 0
             for index, file_id in enumerate(unique_file_ids):
-                file_record = (
-                    sync_db.query(ProjectFile)
-                    .filter(
-                        ProjectFile.id == file_id,
-                        ProjectFile.is_active.is_(True),
-                    )
-                    .first()
-                )
+                file_record = file_map.get(file_id)
 
                 if file_record and file_record.project_id in user_project_ids:
                     file_record.sort_order = index + 1

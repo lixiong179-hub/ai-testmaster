@@ -29,15 +29,42 @@ export { _ISSUE_TYPE_LABELS as ISSUE_TYPE_LABELS, _ISSUE_TYPE_COLORS as ISSUE_TY
 export type TestExecutionContext = ReturnType<typeof createTestExecutionContext>
 export const TEST_EXECUTION_KEY: InjectionKey<TestExecutionContext> = Symbol('testExecution')
 
+interface ExecutionLogEntry {
+  level: string
+  timestamp: string
+  message: string
+  [key: string]: unknown
+}
+
+interface ExecutionStepEntry {
+  action?: string
+  description?: string
+  display_action?: string
+  target?: string
+  status: string
+  execution_time?: number | string
+  case_id?: number
+  timestamp?: string
+  ai_analysis?: string
+  element_highlight?: { x: number; y: number; width: number; height: number }
+  [key: string]: unknown
+}
+
+interface ExecutionStatusInfo {
+  status: string
+  estimated_time_remaining?: number
+  [key: string]: unknown
+}
+
 function createTestExecutionContext() {
   const route = useRoute()
   const router = useRouter()
   const taskId = computed(() => Number(route.params.taskId))
 
-  const taskInfo = ref<any>(null)
-  const executionStatus = ref<any>(null)
-  const executionSteps = ref<any[]>([])
-  const executionLogs = ref<any[]>([])
+  const taskInfo = ref<Record<string, unknown> | null>(null)
+  const executionStatus = ref<ExecutionStatusInfo | null>(null)
+  const executionSteps = ref<ExecutionStepEntry[]>([])
+  const executionLogs = ref<ExecutionLogEntry[]>([])
   const currentStepIndex = ref(0)
   const currentScreenshot = ref('')
   const videoUrl = ref('')
@@ -60,12 +87,16 @@ function createTestExecutionContext() {
   const envOptions = ref<Array<{ name: string; url: string; username?: string }>>([])
   const videoPlayer = ref<HTMLVideoElement>()
 
-  const getTaskPayload = () => taskInfo.value?.task || taskInfo.value || null
+  const getTaskPayload = () =>
+    (taskInfo.value?.task || taskInfo.value || null) as Record<string, unknown> | null
 
   const syncTaskInfoStatus = (status: number) => {
     if (!taskInfo.value) return
     if (taskInfo.value?.task) {
-      taskInfo.value = { ...taskInfo.value, task: { ...taskInfo.value.task, status } }
+      taskInfo.value = {
+        ...taskInfo.value,
+        task: { ...(taskInfo.value.task as Record<string, unknown>), status },
+      }
       return
     }
     taskInfo.value = { ...taskInfo.value, status }
@@ -93,19 +124,21 @@ function createTestExecutionContext() {
   const loadTaskInfo = async () => {
     try {
       const res = await testTaskApi.getTaskDetail(taskId.value)
-      const body = unwrapApiResponse<any>(res)
+      const body = unwrapApiResponse<Record<string, unknown>>(res)
       if (body.code === 200 && body.data) {
         taskInfo.value = body.data
         const taskData = body.data.task || body.data
-        const projectId = taskData?.project_id
+        const projectId = (taskData as Record<string, unknown>)?.project_id
         if (projectId) {
-          const projectRes = await ProjectAPI.getProjectDetail(projectId)
-          const projectBody = unwrapApiResponse<any>(projectRes)
+          const projectRes = await ProjectAPI.getProjectDetail(projectId as number)
+          const projectBody = unwrapApiResponse<{
+            web_env_configs?: Record<string, { url?: string; username?: string }>
+          }>(projectRes)
           if (projectBody.code === 200 && projectBody.data) {
             const webEnvConfigs = projectBody.data?.web_env_configs
             if (webEnvConfigs && typeof webEnvConfigs === 'object') {
               const options = Object.entries(webEnvConfigs)
-                .map(([name, cfg]: [string, any]) => ({
+                .map(([name, cfg]: [string, { url?: string; username?: string }]) => ({
                   name,
                   url: cfg?.url || '',
                   username: cfg?.username || '',
@@ -129,10 +162,11 @@ function createTestExecutionContext() {
   const loadExecutionStatus = async () => {
     try {
       const res = await getExecutionStatus(taskId.value)
-      const body = unwrapApiResponse<any>(res)
-      if (body.code === 200 && body.data) executionStatus.value = body.data
-    } catch (error: any) {
-      if (error?.response?.status === 404) {
+      const body = unwrapApiResponse<Record<string, unknown>>(res)
+      if (body.code === 200 && body.data) executionStatus.value = body.data as ExecutionStatusInfo
+    } catch (error: unknown) {
+      const err = error as { response?: { status?: number } }
+      if (err?.response?.status === 404) {
         if (!getTaskPayload()) await loadTaskInfo()
         const fallbackStatus = buildExecutionStatusFallback()
         if (fallbackStatus) executionStatus.value = fallbackStatus
@@ -145,9 +179,9 @@ function createTestExecutionContext() {
   const loadExecutionLogs = async () => {
     try {
       const res = await getExecutionLogs(taskId.value)
-      const body = unwrapApiResponse<any>(res)
+      const body = unwrapApiResponse<{ logs?: Record<string, unknown>[] }>(res)
       if (body.code === 200) {
-        executionLogs.value = body.data?.logs || []
+        executionLogs.value = (body.data?.logs as ExecutionLogEntry[]) || []
         nextTick(() => scrollToBottom())
       }
     } catch (error) {
@@ -162,7 +196,7 @@ function createTestExecutionContext() {
     try {
       const res = await getStepScreenshot(
         taskId.value,
-        currentStep.value.case_id || 0,
+        (currentStep.value.case_id as number) || 0,
         currentStepIndex.value + 1,
         screenshotType.value
       )
@@ -181,7 +215,7 @@ function createTestExecutionContext() {
     loadingDevices.value = true
     try {
       const res = await getConnectedDevices()
-      const body = unwrapApiResponse<any[]>(res)
+      const body = unwrapApiResponse<Array<{ udid: string; model?: string; state: string }>>(res)
       if (body.code === 200) connectedDevices.value = body.data || []
     } catch (error) {
       console.error('获取设备列表失败:', error)
@@ -259,7 +293,7 @@ function createTestExecutionContext() {
       failed: '执行失败',
       stopped: '已停止',
     }
-    return m[executionStatus.value?.status] || '未知状态'
+    return m[executionStatus.value?.status as string] || '未知状态'
   })
   const statusTagType = computed<TagType>(() => {
     const m: Record<string, TagType> = {
@@ -270,7 +304,7 @@ function createTestExecutionContext() {
       failed: 'danger',
       stopped: 'info',
     }
-    return m[executionStatus.value?.status] || 'info'
+    return m[executionStatus.value?.status as string] || 'info'
   })
 
   const selectStep = (index: number) => {
@@ -320,7 +354,7 @@ function createTestExecutionContext() {
   const formatLogTime = (timestamp: string) => new Date(timestamp).toLocaleTimeString('zh-CN')
 
   const currentProjectId = computed(() => {
-    const td = taskInfo.value?.task || taskInfo.value
+    const td = (taskInfo.value?.task || taskInfo.value) as Record<string, unknown> | null
     return Number(td?.project_id || route.query.project_id || 0)
   })
   const goBack = () => goToTaskList()
@@ -351,7 +385,7 @@ function createTestExecutionContext() {
         },
         taskId.value
       )
-      const body = unwrapApiResponse<any>(res)
+      const body = unwrapApiResponse<unknown>(res)
       if (body.code === 200) {
         ElMessage.success('配置已保存')
         showConfigDialog.value = false
@@ -367,7 +401,12 @@ function createTestExecutionContext() {
   const loadVisibilityConfig = async () => {
     try {
       const res = await getVisibilityConfig('task', taskId.value)
-      const body = unwrapApiResponse<any>(res)
+      const body = unwrapApiResponse<{
+        headless: boolean
+        record_video: boolean
+        video_fps: number
+        video_resolution?: [number, number]
+      }>(res)
       if (body.code === 200 && body.data) {
         const config = body.data
         visibilityConfig.value.headless = config.headless

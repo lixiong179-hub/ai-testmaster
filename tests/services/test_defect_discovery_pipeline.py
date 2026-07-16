@@ -7,12 +7,10 @@
     - 汇总通知
     - 定时执行模式切换
 """
-import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy.orm import Session
 
 from app.models.project import Project, ProjectFile
 from app.models.user import User
@@ -70,16 +68,16 @@ class TestBuildStepResult:
 class TestStepRequirementConfirmation:
     """需求确认步骤测试"""
 
-    def test_requirement_file_exists(self, db: Session, testUser: User) -> None:
+    async def test_requirement_file_exists(self, async_db, async_test_user: User) -> None:
         project = Project(
             name="req_confirm_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         file_record = ProjectFile(
             project_id=project.id,
@@ -91,42 +89,38 @@ class TestStepRequirementConfirmation:
             extract_status="completed",
             is_active=True,
         )
-        db.add(file_record)
-        db.flush()
+        async_db.add(file_record)
+        await async_db.flush()
 
-        ok, err = asyncio.get_event_loop().run_until_complete(
-            _step_requirement_confirmation(db, project.id)
-        )
+        ok, err = await _step_requirement_confirmation(async_db, project.id)
         assert ok is True
         assert err is None
 
-    def test_no_requirement_file(self, db: Session, testUser: User) -> None:
+    async def test_no_requirement_file(self, async_db, async_test_user: User) -> None:
         project = Project(
             name="no_req_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        ok, err = asyncio.get_event_loop().run_until_complete(
-            _step_requirement_confirmation(db, project.id)
-        )
+        ok, err = await _step_requirement_confirmation(async_db, project.id)
         assert ok is False
         assert "未找到已完成提取的需求文档" in err
 
-    def test_requirement_file_not_completed(self, db: Session, testUser: User) -> None:
+    async def test_requirement_file_not_completed(self, async_db, async_test_user: User) -> None:
         project = Project(
             name="pending_req_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         file_record = ProjectFile(
             project_id=project.id,
@@ -138,25 +132,23 @@ class TestStepRequirementConfirmation:
             extract_status="pending",
             is_active=True,
         )
-        db.add(file_record)
-        db.flush()
+        async_db.add(file_record)
+        await async_db.flush()
 
-        ok, err = asyncio.get_event_loop().run_until_complete(
-            _step_requirement_confirmation(db, project.id)
-        )
+        ok, err = await _step_requirement_confirmation(async_db, project.id)
         assert ok is False
         assert "未找到已完成提取的需求文档" in err
 
-    def test_requirement_file_inactive(self, db: Session, testUser: User) -> None:
+    async def test_requirement_file_inactive(self, async_db, async_test_user: User) -> None:
         project = Project(
             name="inactive_req_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         file_record = ProjectFile(
             project_id=project.id,
@@ -168,12 +160,10 @@ class TestStepRequirementConfirmation:
             extract_status="completed",
             is_active=False,
         )
-        db.add(file_record)
-        db.flush()
+        async_db.add(file_record)
+        await async_db.flush()
 
-        ok, err = asyncio.get_event_loop().run_until_complete(
-            _step_requirement_confirmation(db, project.id)
-        )
+        ok, err = await _step_requirement_confirmation(async_db, project.id)
         assert ok is False
 
 
@@ -184,8 +174,8 @@ class TestStepRequirementConfirmation:
 class TestStepExtractTestPoints:
     """测试点提取步骤测试"""
 
-    def test_existing_points_skip_extraction(
-        self, db: Session, testUser: User
+    async def test_existing_points_skip_extraction(
+        self, async_db, async_test_user: User
     ) -> None:
         """已有测试点时跳过提取"""
         from app.models.test_point import TestPoint
@@ -193,13 +183,13 @@ class TestStepExtractTestPoints:
 
         project = Project(
             name="existing_tp_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         tp = TestPoint(
             project_id=project.id,
@@ -208,19 +198,17 @@ class TestStepExtractTestPoints:
             priority=1,
             status=TestPointStatus.ACTIVE.value,
         )
-        db.add(tp)
-        db.flush()
+        async_db.add(tp)
+        await async_db.flush()
 
-        ok, err, point_ids = asyncio.get_event_loop().run_until_complete(
-            _step_extract_test_points(db, project.id)
-        )
+        ok, err, point_ids = await _step_extract_test_points(async_db, project.id)
         assert ok is True
         assert err is None
         assert len(point_ids) >= 1
 
-    @patch("app.services.ai_analysis_service.extract_test_points_from_content")
-    def test_extract_from_requirement_content(
-        self, mock_extract, db: Session, testUser: User
+    @patch("app.services.ai_analysis_service.extract_test_points_from_content", new_callable=AsyncMock)
+    async def test_extract_from_requirement_content(
+        self, mock_extract, async_db, async_test_user: User
     ) -> None:
         """无已有测试点时从需求文档提取"""
         mock_extract.return_value = [
@@ -229,13 +217,13 @@ class TestStepExtractTestPoints:
 
         project = Project(
             name="extract_tp_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         file_record = ProjectFile(
             project_id=project.id,
@@ -248,28 +236,26 @@ class TestStepExtractTestPoints:
             content="需求文档内容",
             is_active=True,
         )
-        db.add(file_record)
-        db.flush()
+        async_db.add(file_record)
+        await async_db.flush()
 
-        ok, err, point_ids = asyncio.get_event_loop().run_until_complete(
-            _step_extract_test_points(db, project.id)
-        )
+        ok, err, point_ids = await _step_extract_test_points(async_db, project.id)
         assert ok is True
         assert err is None
         assert len(point_ids) >= 1
         mock_extract.assert_called_once()
 
-    def test_no_requirement_content(self, db: Session, testUser: User) -> None:
+    async def test_no_requirement_content(self, async_db, async_test_user: User) -> None:
         """需求文档内容为空"""
         project = Project(
             name="no_content_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         file_record = ProjectFile(
             project_id=project.id,
@@ -282,12 +268,10 @@ class TestStepExtractTestPoints:
             content=None,
             is_active=True,
         )
-        db.add(file_record)
-        db.flush()
+        async_db.add(file_record)
+        await async_db.flush()
 
-        ok, err, point_ids = asyncio.get_event_loop().run_until_complete(
-            _step_extract_test_points(db, project.id)
-        )
+        ok, err, point_ids = await _step_extract_test_points(async_db, project.id)
         assert ok is False
         assert "需求文档内容为空" in err
         assert point_ids == []
@@ -300,20 +284,20 @@ class TestStepExtractTestPoints:
 class TestStepGenerateCases:
     """用例生成步骤测试"""
 
-    def test_no_test_points(self) -> None:
+    async def test_no_test_points(self) -> None:
         """无测试点时返回失败"""
-        ok, err, case_ids = asyncio.get_event_loop().run_until_complete(
-            _step_generate_cases(MagicMock(), 1, 1, [])
-        )
+        ok, err, case_ids = await _step_generate_cases(MagicMock(), 1, 1, [])
         assert ok is False
         assert "无可用测试点" in err
         assert case_ids == []
 
+    @patch("app.db.database.PrimarySessionLocal")
     @patch("app.services.test_case_generation.TestCaseGenerationService")
-    def test_generate_cases_success(self, mock_service_cls) -> None:
+    async def test_generate_cases_success(self, mock_service_cls, mock_session_local) -> None:
         """用例生成成功"""
         mock_service = MagicMock()
         mock_service_cls.return_value = mock_service
+        mock_session_local.return_value = MagicMock()
 
         async def mock_batch_gen(**kwargs):
             yield {"status": "completed", "case_id": 101}
@@ -322,19 +306,19 @@ class TestStepGenerateCases:
 
         mock_service.generate_test_cases_batch = mock_batch_gen
 
-        ok, err, case_ids = asyncio.get_event_loop().run_until_complete(
-            _step_generate_cases(MagicMock(), 1, 1, [1, 2, 3])
-        )
+        ok, err, case_ids = await _step_generate_cases(MagicMock(), 1, 1, [1, 2, 3])
         assert ok is True
         assert err is None
         assert 101 in case_ids
         assert 102 in case_ids
 
+    @patch("app.db.database.PrimarySessionLocal")
     @patch("app.services.test_case_generation.TestCaseGenerationService")
-    def test_generate_cases_empty_result(self, mock_service_cls) -> None:
+    async def test_generate_cases_empty_result(self, mock_service_cls, mock_session_local) -> None:
         """用例生成结果为空"""
         mock_service = MagicMock()
         mock_service_cls.return_value = mock_service
+        mock_session_local.return_value = MagicMock()
 
         async def mock_batch_gen(**kwargs):
             yield {"status": "running", "progress": 50}
@@ -342,9 +326,7 @@ class TestStepGenerateCases:
 
         mock_service.generate_test_cases_batch = mock_batch_gen
 
-        ok, err, case_ids = asyncio.get_event_loop().run_until_complete(
-            _step_generate_cases(MagicMock(), 1, 1, [1, 2])
-        )
+        ok, err, case_ids = await _step_generate_cases(MagicMock(), 1, 1, [1, 2])
         assert ok is False
         assert "未产出任何用例" in err
 
@@ -356,31 +338,27 @@ class TestStepGenerateCases:
 class TestStepReviewAndSave:
     """评审保存步骤测试"""
 
-    def test_no_case_ids(self) -> None:
+    async def test_no_case_ids(self) -> None:
         """无用例时直接返回成功"""
-        ok, err = asyncio.get_event_loop().run_until_complete(
-            _step_review_and_save(MagicMock(), 1, 1, [])
-        )
+        ok, err = await _step_review_and_save(MagicMock(), 1, 1, [])
         assert ok is True
         assert err is None
 
-    def test_no_iteration_skip_review(
-        self, db: Session, testUser: User
+    async def test_no_iteration_skip_review(
+        self, async_db, async_test_user: User
     ) -> None:
         """无迭代时跳过评审"""
         project = Project(
             name="no_iteration_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        ok, err = asyncio.get_event_loop().run_until_complete(
-            _step_review_and_save(db, project.id, testUser.id, [999])
-        )
+        ok, err = await _step_review_and_save(async_db, project.id, async_test_user.id, [999])
         assert ok is True
         assert err is None
 
@@ -392,30 +370,28 @@ class TestStepReviewAndSave:
 class TestStepCreateTask:
     """任务创建步骤测试"""
 
-    def test_no_case_ids(self) -> None:
+    async def test_no_case_ids(self) -> None:
         """无用例时返回失败"""
-        ok, err, task_id = asyncio.get_event_loop().run_until_complete(
-            _step_create_task(MagicMock(), 1, 1, [])
-        )
+        ok, err, task_id = await _step_create_task(MagicMock(), 1, 1, [])
         assert ok is False
         assert "无可用用例" in err
         assert task_id is None
 
-    def test_create_task_success(
-        self, db: Session, testUser: User
+    async def test_create_task_success(
+        self, async_db, async_test_user: User
     ) -> None:
         """创建任务成功"""
         from app.models.test_case import TestCase
 
         project = Project(
             name="task_create_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
         test_case = TestCase(
             title="测试用例",
@@ -428,12 +404,10 @@ class TestStepCreateTask:
             priority=2,
             case_type="UI",
         )
-        db.add(test_case)
-        db.flush()
+        async_db.add(test_case)
+        await async_db.flush()
 
-        ok, err, task_id = asyncio.get_event_loop().run_until_complete(
-            _step_create_task(db, project.id, testUser.id, [test_case.id])
-        )
+        ok, err, task_id = await _step_create_task(async_db, project.id, async_test_user.id, [test_case.id])
         assert ok is True
         assert err is None
         assert task_id is not None
@@ -446,35 +420,33 @@ class TestStepCreateTask:
 class TestStepAssessSeverity:
     """严重度评估步骤测试"""
 
-    def test_project_not_found(self) -> None:
+    async def test_project_not_found(self) -> None:
         """项目不存在"""
-        mock_db = MagicMock()
-        mock_db.query.return_value.filter.return_value.first.return_value = None
+        mock_db = AsyncMock()
+        execute_result = MagicMock()
+        execute_result.scalars.return_value.first.return_value = None
+        mock_db.execute.return_value = execute_result
 
-        ok, err, counts = asyncio.get_event_loop().run_until_complete(
-            _step_assess_severity(mock_db, 99999, 1)
-        )
+        ok, err, counts = await _step_assess_severity(mock_db, 99999, 1)
         assert ok is False
         assert "不存在" in err
         assert counts == {"p0": 0, "p1": 0, "p2": 0, "p3": 0}
 
-    def test_no_failed_results(
-        self, db: Session, testUser: User
+    async def test_no_failed_results(
+        self, async_db, async_test_user: User
     ) -> None:
         """无失败结果时缺陷统计全为0"""
         project = Project(
             name="severity_no_fail_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        ok, err, counts = asyncio.get_event_loop().run_until_complete(
-            _step_assess_severity(db, project.id, 99999)
-        )
+        ok, err, counts = await _step_assess_severity(async_db, project.id, 99999)
         assert ok is True
         assert err is None
         assert counts == {"p0": 0, "p1": 0, "p2": 0, "p3": 0}
@@ -487,28 +459,28 @@ class TestStepAssessSeverity:
 class TestStepGenerateReport:
     """报告生成步骤测试"""
 
+    @patch("app.db.database.PrimarySessionLocal")
     @patch("app.services.report_service.ReportService")
-    def test_generate_report_success(self, mock_report_cls) -> None:
+    async def test_generate_report_success(self, mock_report_cls, mock_session_local) -> None:
         """报告生成成功"""
         mock_report = MagicMock()
         mock_report.id = 42
         mock_report_cls.generate_report.return_value = mock_report
+        mock_session_local.return_value = MagicMock()
 
-        ok, err, report_id = asyncio.get_event_loop().run_until_complete(
-            _step_generate_report(MagicMock(), 1, 1, 1)
-        )
+        ok, err, report_id = await _step_generate_report(MagicMock(), 1, 1, 1)
         assert ok is True
         assert err is None
         assert report_id == 42
 
+    @patch("app.db.database.PrimarySessionLocal")
     @patch("app.services.report_service.ReportService")
-    def test_generate_report_failure(self, mock_report_cls) -> None:
+    async def test_generate_report_failure(self, mock_report_cls, mock_session_local) -> None:
         """报告生成失败"""
         mock_report_cls.generate_report.side_effect = Exception("报告生成异常")
+        mock_session_local.return_value = MagicMock()
 
-        ok, err, report_id = asyncio.get_event_loop().run_until_complete(
-            _step_generate_report(MagicMock(), 1, 1, 1)
-        )
+        ok, err, report_id = await _step_generate_report(MagicMock(), 1, 1, 1)
         assert ok is False
         assert "报告生成失败" in err
         assert report_id is None
@@ -521,21 +493,19 @@ class TestStepGenerateReport:
 class TestStepCleanup:
     """数据清理步骤测试"""
 
-    def test_cleanup_success(self, db: Session, testUser: User) -> None:
+    async def test_cleanup_success(self, async_db, async_test_user: User) -> None:
         """数据清理成功"""
         project = Project(
             name="cleanup_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        ok, err = asyncio.get_event_loop().run_until_complete(
-            _step_cleanup(db, project.id)
-        )
+        ok, err = await _step_cleanup(async_db, project.id)
         assert ok is True
         assert err is None
 
@@ -557,7 +527,7 @@ class TestRunDefectDiscoverySelfTest:
     @patch("app.services.self_test_service._step_extract_test_points", new_callable=AsyncMock)
     @patch("app.services.self_test_service._step_requirement_confirmation", new_callable=AsyncMock)
     @patch("app.services.self_test_service._notify_pipeline_summary", new_callable=AsyncMock)
-    def test_full_pipeline_success(
+    async def test_full_pipeline_success(
         self,
         mock_notify,
         mock_step1,
@@ -581,9 +551,7 @@ class TestRunDefectDiscoverySelfTest:
         mock_step8.return_value = (True, None, 601)
         mock_step9.return_value = (True, None)
 
-        result = asyncio.get_event_loop().run_until_complete(
-            run_defect_discovery_self_test(MagicMock(), 1, 1)
-        )
+        result = await run_defect_discovery_self_test(MagicMock(), 1, 1)
 
         assert result["project_id"] == 1
         assert result["success"] is True
@@ -608,7 +576,7 @@ class TestRunDefectDiscoverySelfTest:
     @patch("app.services.self_test_service._step_extract_test_points", new_callable=AsyncMock)
     @patch("app.services.self_test_service._step_requirement_confirmation", new_callable=AsyncMock)
     @patch("app.services.self_test_service._notify_pipeline_summary", new_callable=AsyncMock)
-    def test_step_failure_does_not_interrupt(
+    async def test_step_failure_does_not_interrupt(
         self,
         mock_notify,
         mock_step1,
@@ -627,9 +595,7 @@ class TestRunDefectDiscoverySelfTest:
         # 步骤3-8 不会被调用（因为 test_point_ids 为空），但步骤9仍会执行
         mock_step9.return_value = (True, None)
 
-        result = asyncio.get_event_loop().run_until_complete(
-            run_defect_discovery_self_test(MagicMock(), 1, 1)
-        )
+        result = await run_defect_discovery_self_test(MagicMock(), 1, 1)
 
         assert result["success"] is False
         assert len(result["steps"]) == 9
@@ -654,7 +620,7 @@ class TestRunDefectDiscoverySelfTest:
     @patch("app.services.self_test_service._step_extract_test_points", new_callable=AsyncMock)
     @patch("app.services.self_test_service._step_requirement_confirmation", new_callable=AsyncMock)
     @patch("app.services.self_test_service._notify_pipeline_summary", new_callable=AsyncMock)
-    def test_step_exception_does_not_interrupt(
+    async def test_step_exception_does_not_interrupt(
         self,
         mock_notify,
         mock_step1,
@@ -678,9 +644,7 @@ class TestRunDefectDiscoverySelfTest:
         mock_step8.return_value = (True, None, 601)
         mock_step9.return_value = (True, None)
 
-        result = asyncio.get_event_loop().run_until_complete(
-            run_defect_discovery_self_test(MagicMock(), 1, 1)
-        )
+        result = await run_defect_discovery_self_test(MagicMock(), 1, 1)
 
         assert result["success"] is False
         assert result["steps"][0]["status"] == "failed"
@@ -698,7 +662,7 @@ class TestRunDefectDiscoverySelfTest:
     @patch("app.services.self_test_service._step_extract_test_points", new_callable=AsyncMock)
     @patch("app.services.self_test_service._step_requirement_confirmation", new_callable=AsyncMock)
     @patch("app.services.self_test_service._notify_pipeline_summary", new_callable=AsyncMock)
-    def test_return_structure(
+    async def test_return_structure(
         self,
         mock_notify,
         mock_step1,
@@ -722,9 +686,7 @@ class TestRunDefectDiscoverySelfTest:
         mock_step8.return_value = (True, None, 601)
         mock_step9.return_value = (True, None)
 
-        result = asyncio.get_event_loop().run_until_complete(
-            run_defect_discovery_self_test(MagicMock(), 42, 7)
-        )
+        result = await run_defect_discovery_self_test(MagicMock(), 42, 7)
 
         # 验证返回结构
         assert "project_id" in result
@@ -764,7 +726,7 @@ class TestNotifyPipelineSummary:
     """汇总通知测试"""
 
     @patch("app.core.websocket.manager")
-    def test_notify_success(self, mock_ws_manager) -> None:
+    async def test_notify_success(self, mock_ws_manager) -> None:
         """通知推送成功"""
         mock_ws_manager.broadcast = AsyncMock()
 
@@ -774,9 +736,7 @@ class TestNotifyPipelineSummary:
         ]
         defect_summary = {"p0_count": 1, "p1_count": 2, "p2_count": 3, "p3_count": 1, "total_defects": 7}
 
-        asyncio.get_event_loop().run_until_complete(
-            _notify_pipeline_summary(MagicMock(), 1, steps, defect_summary, 42)
-        )
+        await _notify_pipeline_summary(MagicMock(), 1, steps, defect_summary, 42)
 
         mock_ws_manager.broadcast.assert_called_once()
         call_args = mock_ws_manager.broadcast.call_args
@@ -789,23 +749,21 @@ class TestNotifyPipelineSummary:
         assert message["defect_summary"]["total_defects"] == 7
 
     @patch("app.core.websocket.manager")
-    def test_notify_no_report(self, mock_ws_manager) -> None:
+    async def test_notify_no_report(self, mock_ws_manager) -> None:
         """无报告时通知链接为 None"""
         mock_ws_manager.broadcast = AsyncMock()
 
         steps = [_build_step_result("需求确认", "failed", "文档不存在")]
         defect_summary = {"p0_count": 0, "p1_count": 0, "p2_count": 0, "p3_count": 0, "total_defects": 0}
 
-        asyncio.get_event_loop().run_until_complete(
-            _notify_pipeline_summary(MagicMock(), 1, steps, defect_summary, None)
-        )
+        await _notify_pipeline_summary(MagicMock(), 1, steps, defect_summary, None)
 
         message = mock_ws_manager.broadcast.call_args[0][1]
         assert message["report_id"] is None
         assert message["report_link"] is None
 
     @patch("app.core.websocket.manager")
-    def test_notify_ws_error_handled(self, mock_ws_manager) -> None:
+    async def test_notify_ws_error_handled(self, mock_ws_manager) -> None:
         """WebSocket 推送失败不抛异常"""
         mock_ws_manager.broadcast = AsyncMock(side_effect=Exception("WS error"))
 
@@ -813,9 +771,7 @@ class TestNotifyPipelineSummary:
         defect_summary = {"p0_count": 0, "p1_count": 0, "p2_count": 0, "p3_count": 0, "total_defects": 0}
 
         # 不应抛出异常
-        asyncio.get_event_loop().run_until_complete(
-            _notify_pipeline_summary(MagicMock(), 1, steps, defect_summary, None)
-        )
+        await _notify_pipeline_summary(MagicMock(), 1, steps, defect_summary, None)
 
 
 # ---------------------------------------------------------------------------
@@ -867,20 +823,22 @@ class TestSelfTestModeSwitch:
         mode = SelfTestScheduler._get_self_test_mode(project)
         assert mode == "ui_automation"
 
-    @patch("app.tasks.self_test_scheduler.run_defect_discovery_self_test")
-    @patch("app.db.database.PrimarySessionLocal")
-    def test_full_pipeline_mode_calls_run_defect_discovery(
+    @patch("app.tasks.self_test_scheduler.run_defect_discovery_self_test", new_callable=AsyncMock)
+    @patch("app.db.database.AsyncPrimarySessionLocal")
+    async def test_full_pipeline_mode_calls_run_defect_discovery(
         self, mock_session_local, mock_run_pipeline
     ) -> None:
         """full_pipeline 模式调用 run_defect_discovery_self_test"""
-        mock_db = MagicMock()
+        mock_db = AsyncMock()
         mock_session_local.return_value = mock_db
 
         project = MagicMock()
         project.id = 42
         project.user_id = 1
         project.config = {"self_test_mode": "full_pipeline"}
-        mock_db.query.return_value.filter.return_value.first.return_value = project
+        execute_result = MagicMock()
+        execute_result.scalars.return_value.first.return_value = project
+        mock_db.execute.return_value = execute_result
 
         mock_run_pipeline.return_value = {
             "success": True,
@@ -888,63 +846,63 @@ class TestSelfTestModeSwitch:
         }
 
         scheduler = SelfTestScheduler()
-        asyncio.get_event_loop().run_until_complete(
-            scheduler._execute_self_test(42)
-        )
+        await scheduler._execute_self_test(42)
 
         mock_run_pipeline.assert_called_once_with(
             db=mock_db, project_id=42, user_id=1
         )
         mock_db.close.assert_called_once()
 
-    @patch("app.db.database.PrimarySessionLocal")
-    def test_ui_automation_mode_calls_execute_ui(
+    @patch("app.db.database.AsyncPrimarySessionLocal")
+    async def test_ui_automation_mode_calls_execute_ui(
         self, mock_session_local
     ) -> None:
         """ui_automation 模式调用 _execute_ui_automation"""
-        mock_db = MagicMock()
+        mock_db = AsyncMock()
         mock_session_local.return_value = mock_db
 
         project = MagicMock()
         project.id = 42
         project.user_id = 1
         project.config = {"self_test_mode": "ui_automation"}
-        mock_db.query.return_value.filter.return_value.first.return_value = project
+        execute_result = MagicMock()
+        execute_result.scalars.return_value.first.return_value = project
+        mock_db.execute.return_value = execute_result
 
         scheduler = SelfTestScheduler()
         with patch.object(
             scheduler, "_execute_ui_automation", new_callable=AsyncMock
         ) as mock_ui_exec:
-            asyncio.get_event_loop().run_until_complete(
-                scheduler._execute_self_test(42)
-            )
+            await scheduler._execute_self_test(42)
             mock_ui_exec.assert_called_once_with(mock_db, project)
 
-    @patch("app.db.database.PrimarySessionLocal")
-    def test_project_not_found(self, mock_session_local) -> None:
+    @patch("app.db.database.AsyncPrimarySessionLocal")
+    async def test_project_not_found(self, mock_session_local) -> None:
         """项目不存在时记录错误日志"""
-        mock_db = MagicMock()
+        mock_db = AsyncMock()
         mock_session_local.return_value = mock_db
-        mock_db.query.return_value.filter.return_value.first.return_value = None
+        execute_result = MagicMock()
+        execute_result.scalars.return_value.first.return_value = None
+        mock_db.execute.return_value = execute_result
 
         scheduler = SelfTestScheduler()
         # 不应抛出异常
-        asyncio.get_event_loop().run_until_complete(
-            scheduler._execute_self_test(99999)
-        )
+        await scheduler._execute_self_test(99999)
         mock_db.close.assert_called_once()
 
-    @patch("app.db.database.PrimarySessionLocal")
-    def test_execution_exception_handled(self, mock_session_local) -> None:
+    @patch("app.db.database.AsyncPrimarySessionLocal")
+    async def test_execution_exception_handled(self, mock_session_local) -> None:
         """执行异常不抛出"""
-        mock_db = MagicMock()
+        mock_db = AsyncMock()
         mock_session_local.return_value = mock_db
 
         project = MagicMock()
         project.id = 42
         project.user_id = 1
         project.config = {"self_test_mode": "full_pipeline"}
-        mock_db.query.return_value.filter.return_value.first.return_value = project
+        execute_result = MagicMock()
+        execute_result.scalars.return_value.first.return_value = project
+        mock_db.execute.return_value = execute_result
 
         with patch(
             "app.tasks.self_test_scheduler.run_defect_discovery_self_test",
@@ -953,7 +911,5 @@ class TestSelfTestModeSwitch:
         ):
             scheduler = SelfTestScheduler()
             # 不应抛出异常
-            asyncio.get_event_loop().run_until_complete(
-                scheduler._execute_self_test(42)
-            )
+            await scheduler._execute_self_test(42)
         mock_db.close.assert_called_once()

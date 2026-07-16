@@ -7,7 +7,11 @@ from app.services.ai_analysis_service._extract import _ExtractMixin
 
 aio_analysis_service = ai_analysis_service
 
-_extract_instance = AIAnalysisService(ai_client=None)
+# 性能优化：使用 AsyncOpenAIClient 替代 None，避免调用时缺客户端
+# 走 complete_async + asyncio.wait_for 超时保护
+from app.ai.openai_client import AsyncOpenAIClient
+
+_extract_instance = AIAnalysisService(ai_client=AsyncOpenAIClient())
 
 async def extract_test_points_from_content(*args, **kwargs):
     return await _ExtractMixin.extract_test_points_from_content(_extract_instance, *args, **kwargs)

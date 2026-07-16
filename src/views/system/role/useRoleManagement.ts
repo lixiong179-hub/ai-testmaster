@@ -3,6 +3,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { userApi } from '@/api/user'
 import type { Role, RoleForm, Permission, Pagination } from '@/types/user'
 
+// 权限树节点
+interface PermissionTreeNode {
+  id: number
+  code: string
+  name: string
+  type: Permission['type']
+  children: PermissionTreeNode[]
+}
+
 export function useRoleManagement() {
   const loading = ref(false)
   const roles = ref<Role[]>([])
@@ -22,7 +31,7 @@ export function useRoleManagement() {
     desc: [{ max: 200, message: '角色描述长度不超过200位', trigger: 'blur' }],
   }
   const permissions = ref<Permission[]>([])
-  const permissionTree = ref<any[]>([])
+  const permissionTree = ref<PermissionTreeNode[]>([])
   const selectedPermissions = ref<string[]>([])
   const currentRole = ref<Role | null>(null)
 
@@ -53,9 +62,9 @@ export function useRoleManagement() {
     }
   }
 
-  const buildPermissionTree = (perms: Permission[]): any[] => {
-    const tree: any[] = []
-    const map: { [key: number]: any } = {}
+  const buildPermissionTree = (perms: Permission[]): PermissionTreeNode[] => {
+    const tree: PermissionTreeNode[] = []
+    const map: { [key: number]: PermissionTreeNode } = {}
     perms.forEach((perm) => {
       map[perm.id] = {
         id: perm.id,
@@ -118,8 +127,9 @@ export function useRoleManagement() {
           }
           dialogVisible.value = false
           loadRoles()
-        } catch (error: any) {
-          ElMessage.error(error.response?.data?.message || '保存失败')
+        } catch (error: unknown) {
+          const err = error as { response?: { data?: { message?: string } } }
+          ElMessage.error(err.response?.data?.message || '保存失败')
         }
       }
     })

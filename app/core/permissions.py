@@ -25,6 +25,7 @@
 from typing import List, Optional, Callable, Any
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from loguru import logger
 
 from app.db.database import get_db
 from app.api.v1.endpoints.auth import get_current_user
@@ -85,7 +86,7 @@ def check_role(user: User, allowed_roles: List[str]) -> bool:
         user_roles = [role.name for role in getattr(user, 'roles', [])]
     except Exception:
         # roles关联查询可能因数据库异常等原因失败，此时视为无角色
-        pass
+        logger.exception("权限校验失败：获取用户角色列表异常")
 
     # 如果用户有任意一个允许的角色，则返回True（OR语义，非AND）
     return any(role in allowed_roles for role in user_roles)

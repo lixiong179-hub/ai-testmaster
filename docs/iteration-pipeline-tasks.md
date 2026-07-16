@@ -391,7 +391,7 @@
   "
 
   # 接口冒烟
-  curl http://localhost:8000/api/v1/testCase/list?project_id=1
+  curl http://localhost:8000/api/v1/test-case/list?project_id=1
   ```
 - **Notes**:
   - 不在本任务实现状态变更逻辑，留给 M1-T05

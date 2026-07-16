@@ -1,6 +1,7 @@
 import { type InjectionKey, inject, provide, ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import ProjectAPI from '@/api/project'
+import type { Iteration } from '@/api/iteration'
 import { useIterationManager, type SafeIteration } from '@/composables/useIterationManager'
 import { useResourceList } from '@/composables/useResourceList'
 import { useResourceUpload } from '@/composables/useResourceUpload'
@@ -52,7 +53,12 @@ function createResourceManageContext() {
 
   const iterationFormLocalRef = ref()
   const fileFormLocalRef = ref()
-  const uploaderRef = ref<any>(null)
+  const uploaderRef = ref<{
+    uploading?: boolean
+    fileCount?: number
+    clearFiles?: () => void
+    upload?: () => Promise<void>
+  } | null>(null)
   const projects = ref<Project[]>([])
 
   const safeIterationsArray = computed(() => iterationManager.safeIterations as SafeIteration[])
@@ -111,7 +117,7 @@ function createResourceManageContext() {
     }
     resourceUpload.fileDialogVisible = true
     nextTick(() => {
-      uploaderRef.value?.clearFiles()
+      uploaderRef.value?.clearFiles?.()
     })
   }
 
@@ -132,7 +138,7 @@ function createResourceManageContext() {
       ElMessage.warning('请选择文件')
       return
     }
-    await uploaderRef.value.upload()
+    await uploaderRef.value.upload?.()
   }
 
   const handleEditWrapper = (row: Resource) => {
@@ -149,7 +155,10 @@ function createResourceManageContext() {
   const handleBatchUploadError = () => {}
 
   const handleIterationCommandWrapper = async (command: string, iteration: SafeIteration) => {
-    const needRefresh = await iterationManager.handleIterationCommand(command, iteration as any)
+    const needRefresh = await iterationManager.handleIterationCommand(
+      command,
+      iteration as unknown as Iteration
+    )
     if (needRefresh) {
       resourceList.pagination.page = 1
       await iterationManager.loadIterations(Number(resourceList.filterForm.project_id))

@@ -6,7 +6,7 @@
 import json
 from typing import Dict, Any, List
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.test_result import TestResult
 from app.models.test_case import TestCase
@@ -33,6 +33,7 @@ class _ReportDefectDimensionBuilder:
 
         bugs = (
             db.query(Bug)
+            .options(joinedload(Bug.test_result))
             .filter(Bug.project_id == project_id, Bug.source == "self_test")
             .order_by(Bug.create_time.desc())
             .all()
@@ -103,6 +104,7 @@ class _ReportDefectDimensionBuilder:
 
         bugs = (
             db.query(Bug)
+            .options(joinedload(Bug.test_case), joinedload(Bug.test_result))
             .filter(Bug.project_id == project_id, Bug.source == "self_test")
             .order_by(Bug.severity.asc(), Bug.create_time.desc())
             .all()
@@ -144,6 +146,7 @@ class _ReportDefectDimensionBuilder:
 
         bugs = (
             db.query(Bug)
+            .options(joinedload(Bug.test_case))
             .filter(Bug.project_id == project_id, Bug.source == "self_test")
             .all()
         )
@@ -221,6 +224,7 @@ class _ReportDefectDimensionBuilder:
 
         security_bugs = (
             db.query(Bug)
+            .options(joinedload(Bug.test_result))
             .filter(
                 Bug.project_id == project_id,
                 Bug.source == "self_test",
@@ -275,6 +279,7 @@ class _ReportDefectDimensionBuilder:
         # 有缺陷的模块集合
         bugs = (
             db.query(Bug)
+            .options(joinedload(Bug.test_case))
             .filter(Bug.project_id == project_id, Bug.source == "self_test")
             .all()
         )

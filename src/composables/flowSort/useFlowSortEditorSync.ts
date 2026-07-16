@@ -1,6 +1,9 @@
 import { watch, onMounted, nextTick } from 'vue'
 import { generateAutoEdges } from '@/composables/useFlowEditor'
 import { normalizeMainNodeOrders } from '@/composables/useFlowEditor'
+import type { FlowEditorNode, FlowGraphEdge } from '@/composables/useFlowEditor'
+import type { FlowNodeData, FlowEdgeData } from '@/store/flowSort'
+import type { UIScreen, UIElement } from '@/api/uiPrototype'
 import type { FlowSortEditorContext } from './useFlowSortEditor'
 
 const NODE_SPACING_X = 280
@@ -35,9 +38,9 @@ export function useFlowSortEditorSync(ctx: FlowSortEditorContext) {
     flowSortStore,
   } = ctx
 
-  function isScreensEqual(a: any[], b: any[]): boolean {
+  function isScreensEqual(a: UIScreen[], b: UIScreen[]): boolean {
     if (a.length !== b.length) return false
-    return a.every((screen: any, index: number) => {
+    return a.every((screen: UIScreen, index: number) => {
       const other = b[index]
       return (
         screen.id === other.id &&
@@ -48,7 +51,7 @@ export function useFlowSortEditorSync(ctx: FlowSortEditorContext) {
     })
   }
 
-  let lastScreens: any[] = []
+  let lastScreens: UIScreen[] = []
 
   watch(
     () => props.screens,
@@ -57,7 +60,7 @@ export function useFlowSortEditorSync(ctx: FlowSortEditorContext) {
       lastScreens = newScreens
       isRestoredFromBackend.value = false
       const newNodes = normalizeMainNodeOrders(
-        newScreens.map((screen: any, index: number) => ({
+        newScreens.map((screen: UIScreen, index: number) => ({
           id: `node_${screen.id}`,
           type: 'custom',
           position:
@@ -71,7 +74,7 @@ export function useFlowSortEditorSync(ctx: FlowSortEditorContext) {
             screen_id: screen.id,
             screen_name: screen.screen_name,
             summary: screen.summary,
-            ui_spec_elements: (screen.ui_spec?.elements || []).map((el: any) => ({
+            ui_spec_elements: (screen.ui_spec?.elements || []).map((el: UIElement) => ({
               type: el.type,
               label: el.label,
               semantic: el.semantic_hint || el.description,
@@ -92,7 +95,7 @@ export function useFlowSortEditorSync(ctx: FlowSortEditorContext) {
         vueFlowEdges.value = []
       } else {
         const autoEdges = generateAutoEdges(newNodes)
-        vueFlowEdges.value = applyAllEdgeStyles(autoEdges as any)
+        vueFlowEdges.value = applyAllEdgeStyles(autoEdges as unknown as FlowGraphEdge[])
       }
       saveSnapshot()
       emitSortData()
@@ -152,13 +155,13 @@ export function useFlowSortEditorSync(ctx: FlowSortEditorContext) {
   watch(collapsedParentNodeIds, () => ctx.applyCollapsedHidden(), { deep: true })
 
   function syncStoreToEditor() {
-    const currentScreenIds = new Set(props.screens.map((screen: any) => Number(screen.id)))
-    const storeNodes = flowSortStore.nodes.filter((node: any) =>
+    const currentScreenIds = new Set(props.screens.map((screen: UIScreen) => Number(screen.id)))
+    const storeNodes = flowSortStore.nodes.filter((node: FlowNodeData) =>
       currentScreenIds.has(Number(node.screen_id))
     )
     if (storeNodes.length === 0) return
-    const screenById = new Map(props.screens.map((s: any) => [s.id, s]))
-    vueFlowNodes.value = storeNodes.map((node: any) => ({
+    const screenById = new Map(props.screens.map((s: UIScreen) => [s.id, s]))
+    vueFlowNodes.value = storeNodes.map((node: FlowNodeData) => ({
       id: node.id,
       type: 'custom',
       position: node.position || { x: 0, y: 0 },
@@ -175,10 +178,10 @@ export function useFlowSortEditorSync(ctx: FlowSortEditorContext) {
       },
     }))
     const { inferEdgeType, getNodeData } = ctx
-    const validNodeIds = new Set(storeNodes.map((node: any) => node.id))
-    const validScreenIds = new Set(storeNodes.map((node: any) => String(node.screen_id)))
+    const validNodeIds = new Set(storeNodes.map((node: FlowNodeData) => node.id))
+    const validScreenIds = new Set(storeNodes.map((node: FlowNodeData) => String(node.screen_id)))
     const rawEdges = flowSortStore.edges
-      .filter((edge: any) => {
+      .filter((edge: FlowEdgeData) => {
         const source = String(edge.source)
         const target = String(edge.target)
         return (
@@ -186,12 +189,12 @@ export function useFlowSortEditorSync(ctx: FlowSortEditorContext) {
           (validNodeIds.has(target) || validScreenIds.has(target))
         )
       })
-      .map((edge: any) => {
+      .map((edge: FlowEdgeData) => {
         const sourceNode = vueFlowNodes.value.find(
-          (n: any) => getNodeData(n).screen_id === Number(edge.source)
+          (n: FlowEditorNode) => getNodeData(n).screen_id === Number(edge.source)
         )
         const targetNode = vueFlowNodes.value.find(
-          (n: any) => getNodeData(n).screen_id === Number(edge.target)
+          (n: FlowEditorNode) => getNodeData(n).screen_id === Number(edge.target)
         )
         const sourceType = sourceNode ? getNodeData(sourceNode).flow_type : 'main'
         const targetType = targetNode ? getNodeData(targetNode).flow_type : 'main'
@@ -216,7 +219,7 @@ export function useFlowSortEditorSync(ctx: FlowSortEditorContext) {
           label: edge.label || '连线',
         }
       })
-    vueFlowEdges.value = applyAllEdgeStyles(rawEdges as any)
+    vueFlowEdges.value = applyAllEdgeStyles(rawEdges as unknown as FlowGraphEdge[])
     saveSnapshot()
     isRestoredFromBackend.value = true
     emitSortData()

@@ -19,7 +19,7 @@
 
 拆分说明:
     - 后台执行（_run_executor_safely）与终态推送（_push_final_status）拆至
-      _task_assembler_async；本模块 re-export _CHANNEL_TEMPLATE 保持导入兼容
+      _task_assembler_async；本模块 re-export 保持导入兼容
 """
 import asyncio
 from datetime import datetime
@@ -36,7 +36,6 @@ from app.models.test_task import TaskStatus, TestTask
 from app.services.push_service import PushService, get_push_service
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
 from app.services.url_driven._task_assembler_async import (  # noqa: F401
-    _CHANNEL_TEMPLATE,
     push_final_status as _push_final_status_impl,
     run_executor_safely as _run_executor_safely_impl,
 )

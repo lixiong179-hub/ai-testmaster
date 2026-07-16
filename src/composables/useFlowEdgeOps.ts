@@ -1,5 +1,5 @@
 import { ref, watch, nextTick, type Ref } from 'vue'
-import { type Connection as FlowConnection, type EdgeChange } from '@vue-flow/core'
+import { type Connection as FlowConnection, type EdgeChange, type Edge } from '@vue-flow/core'
 import { ElMessage } from 'element-plus'
 import {
   type FlowEditorNode,
@@ -29,7 +29,7 @@ export interface UseFlowEdgeOpsOptions {
   /** 是否为总览模式 */
   isOverviewMode: Ref<boolean>
   /** 标准化边列表（附加样式/标记） */
-  normalizeEdges: (edges: any[], styleMap?: any, isOverview?: boolean) => any[]
+  normalizeEdges: (edges: Edge[], styleMap?: Record<string, EdgeStyleConfig>, isOverview?: boolean) => Edge[]
   /** 共享的程序化边变更标志（与 useFlowTypeOps/useFlowMainOrder 共用） */
   isProgrammaticEdgeChange: Ref<boolean>
 }
@@ -169,7 +169,7 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
   }
 
   /** 编辑边 - 打开条件弹窗并填充已有数据 */
-  const handleEditEdge = (edge: any, closeTooltip?: () => void): void => {
+  const handleEditEdge = (edge: FlowGraphEdge, closeTooltip?: () => void): void => {
     if (closeTooltip) closeTooltip()
     editingEdgeId.value = edge.id
     currentConnection.value = null
@@ -184,11 +184,11 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
   }
 
   /** 删除边 */
-  const handleDeleteEdge = (edge: any, closeTooltip?: () => void): void => {
+  const handleDeleteEdge = (edge: FlowGraphEdge, closeTooltip?: () => void): void => {
     if (closeTooltip) closeTooltip()
     saveSnapshot()
     isProgrammaticEdgeChange.value = true
-    vueFlowEdges.value = vueFlowEdges.value.filter((e: any) => e.id !== edge.id)
+    vueFlowEdges.value = vueFlowEdges.value.filter((e: FlowGraphEdge) => e.id !== edge.id)
     emitSortData()
     ElMessage.success('已删除连线')
   }
@@ -200,7 +200,7 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
     if (editingEdgeId.value) {
       // 编辑已有边
       vueFlowEdges.value = applyAllEdgeStyles(
-        vueFlowEdges.value.map((e: any) => {
+        vueFlowEdges.value.map((e: FlowGraphEdge) => {
           if (e.id !== editingEdgeId.value) return e
           return {
             ...e,
@@ -226,7 +226,7 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
         return
       }
       const alreadyExists = vueFlowEdges.value.some(
-        (e: any) =>
+        (e: FlowGraphEdge) =>
           e.source === currentConnection.value!.source &&
           e.target === currentConnection.value!.target
       )
@@ -256,10 +256,10 @@ export function useFlowEdgeOps(options: UseFlowEdgeOpsOptions) {
       }
 
       vueFlowEdges.value = normalizeEdgesFn(
-        [...vueFlowEdges.value, newEdge] as any,
+        [...vueFlowEdges.value, newEdge] as unknown as Edge[],
         currentEdgeStyles.value,
         isOverviewMode.value
-      ) as any
+      ) as unknown as FlowGraphEdge[]
     }
 
     conditionDialogVisible.value = false

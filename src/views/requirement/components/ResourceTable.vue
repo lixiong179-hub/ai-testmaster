@@ -264,7 +264,7 @@ const setFileFormRef = (el: unknown) => {
 }
 
 const setUploaderRef = (el: unknown) => {
-  ctx.uploaderRef.value = el
+  ctx.uploaderRef.value = el as typeof ctx.uploaderRef.value
 }
 </script>
 

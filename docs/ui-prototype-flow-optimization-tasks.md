@@ -2513,7 +2513,7 @@ M2 再考虑将错误返回前端展示。
 #### 新增接口建议
 
 ```http
-POST /api/v1/testCase/preview-graph-prompt
+POST /api/v1/test-case/preview-graph-prompt
 ```
 
 #### 请求参数

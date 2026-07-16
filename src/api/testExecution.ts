@@ -111,37 +111,42 @@ export const getReplaySession = (executionId: string) => {
 
 /**
  * 开始回放
+ * 后端：POST /api/v1/execution-vis/replay/{execution_id}/start （execution_vis_video_replay）
  */
 export const startReplay = (executionId: string) => {
-  return request.post(`/api/v1/execution/replay/${executionId}/start`)
+  return request.post(`/api/v1/execution-vis/replay/${executionId}/start`)
 }
 
 /**
  * 暂停回放
+ * 后端：POST /api/v1/execution-vis/replay/{execution_id}/pause （execution_vis_video_replay）
  */
 export const pauseReplay = (executionId: string) => {
-  return request.post(`/api/v1/execution/replay/${executionId}/pause`)
+  return request.post(`/api/v1/execution-vis/replay/${executionId}/pause`)
 }
 
 /**
  * 恢复回放
+ * 后端：POST /api/v1/execution-vis/replay/{execution_id}/resume （execution_vis_video_replay）
  */
 export const resumeReplay = (executionId: string) => {
-  return request.post(`/api/v1/execution/replay/${executionId}/resume`)
+  return request.post(`/api/v1/execution-vis/replay/${executionId}/resume`)
 }
 
 /**
  * 停止回放
+ * 后端：POST /api/v1/execution-vis/replay/{execution_id}/stop （execution_vis_video_replay）
  */
 export const stopReplay = (executionId: string) => {
-  return request.post(`/api/v1/execution/replay/${executionId}/stop`)
+  return request.post(`/api/v1/execution-vis/replay/${executionId}/stop`)
 }
 
 /**
  * 跳转到指定时间
+ * 后端：POST /api/v1/execution-vis/replay/{execution_id}/seek （execution_vis_video_replay）
  */
 export const seekTo = (executionId: string, timestamp: number) => {
-  return request.post(`/api/v1/execution/replay/${executionId}/seek`, { timestamp })
+  return request.post(`/api/v1/execution-vis/replay/${executionId}/seek`, { timestamp })
 }
 
 /**

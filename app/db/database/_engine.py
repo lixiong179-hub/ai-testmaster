@@ -83,6 +83,9 @@ class ModelBase:
 
 
 Base = declarative_base(cls=ModelBase, constructor=ModelBase.__init__)
+# P3-2: 标记为非测试类，避免 pytest 把 Base（及别名 TestCaseBase）误识别为测试类
+# 触发 PytestCollectionWarning: cannot collect test class 'Base'
+Base.__test__ = False
 
 logger = logging.getLogger(__name__)
 

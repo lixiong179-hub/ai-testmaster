@@ -20,6 +20,7 @@ from app.db.database import async_get_db
 from app.models.user import User
 from app.services import audit_service
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 
 router = APIRouter(prefix="/audit-log", tags=["审计日志"])
 
@@ -40,7 +41,7 @@ def _require_admin(db: AsyncSession, user_id: int) -> None:
         )
 
 
-@router.get("/logs", response_model=dict)
+@router.get("/logs", response_model=ApiResponse)
 async def get_audit_logs(
     target_kind: Optional[str] = Query(None, description="目标实体类型过滤"),
     target_id: Optional[int] = Query(None, description="目标实体ID过滤"),

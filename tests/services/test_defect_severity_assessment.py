@@ -12,8 +12,8 @@
     - ux_category 非法值校验
 """
 import pytest
+import pytest_asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
-from sqlalchemy.orm import Session
 
 from app.models.bug import Bug, VALID_UX_CATEGORIES
 from app.models.project import Project
@@ -35,20 +35,20 @@ from app.tasks.self_test_scheduler import SelfTestScheduler
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def bugTestUser(db: Session) -> User:
+@pytest_asyncio.fixture
+async def bugTestUser(async_db) -> User:
     user = User(
         username="defect_severity_user",
         email="defect_severity@example.com",
         password_hash="hash",
     )
-    db.add(user)
-    db.flush()
-    yield user
+    async_db.add(user)
+    await async_db.flush()
+    return user
 
 
-@pytest.fixture
-def selfTestProject(db: Session, bugTestUser: User) -> Project:
+@pytest_asyncio.fixture
+async def selfTestProject(async_db, bugTestUser: User) -> Project:
     project = Project(
         name="缺陷严重度自测项目",
         user_id=bugTestUser.id,
@@ -56,13 +56,13 @@ def selfTestProject(db: Session, bugTestUser: User) -> Project:
         project_type="web",
         is_self_test=True,
     )
-    db.add(project)
-    db.flush()
-    yield project
+    async_db.add(project)
+    await async_db.flush()
+    return project
 
 
-@pytest.fixture
-def normalProject(db: Session, bugTestUser: User) -> Project:
+@pytest_asyncio.fixture
+async def normalProject(async_db, bugTestUser: User) -> Project:
     project = Project(
         name="缺陷严重度普通项目",
         user_id=bugTestUser.id,
@@ -70,13 +70,13 @@ def normalProject(db: Session, bugTestUser: User) -> Project:
         project_type="web",
         is_self_test=False,
     )
-    db.add(project)
-    db.flush()
-    yield project
+    async_db.add(project)
+    await async_db.flush()
+    return project
 
 
-@pytest.fixture
-def selfTestTask(db: Session, selfTestProject: Project, bugTestUser: User) -> TestTask:
+@pytest_asyncio.fixture
+async def selfTestTask(async_db, selfTestProject: Project, bugTestUser: User) -> TestTask:
     task = TestTask(
         task_name="缺陷严重度自测任务",
         project_id=selfTestProject.id,
@@ -84,13 +84,13 @@ def selfTestTask(db: Session, selfTestProject: Project, bugTestUser: User) -> Te
         case_ids=[],
         total_count=1,
     )
-    db.add(task)
-    db.flush()
-    yield task
+    async_db.add(task)
+    await async_db.flush()
+    return task
 
 
-@pytest.fixture
-def defectTestCase(db: Session, selfTestProject: Project) -> TestCase:
+@pytest_asyncio.fixture
+async def defectTestCase(async_db, selfTestProject: Project) -> TestCase:
     case = TestCase(
         case_no="DEFECT-001",
         project_id=selfTestProject.id,
@@ -102,14 +102,14 @@ def defectTestCase(db: Session, selfTestProject: Project) -> TestCase:
         priority=1,
         case_type="UI",
     )
-    db.add(case)
-    db.flush()
-    yield case
+    async_db.add(case)
+    await async_db.flush()
+    return case
 
 
-@pytest.fixture
-def defectTestResult(
-    db: Session, selfTestProject: Project, defectTestCase: TestCase, selfTestTask: TestTask
+@pytest_asyncio.fixture
+async def defectTestResult(
+    async_db, selfTestProject: Project, defectTestCase: TestCase, selfTestTask: TestTask
 ) -> TestResult:
     result = TestResult(
         task_id=selfTestTask.id,
@@ -120,9 +120,9 @@ def defectTestResult(
         error_msg="功能缺陷: 页面显示异常",
         exec_log="执行步骤1: 打开页面",
     )
-    db.add(result)
-    db.flush()
-    yield result
+    async_db.add(result)
+    await async_db.flush()
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -359,11 +359,11 @@ class TestUxCategoryMapping:
 class TestAutoCreateDefectBug:
     """Bug 自动创建测试"""
 
-    def test_auto_create_bug_for_self_test_project(
-        self, db: Session, selfTestProject: Project
+    async def test_auto_create_bug_for_self_test_project(
+        self, async_db, selfTestProject: Project
     ) -> None:
-        bug = _auto_create_defect_bug(
-            db=db,
+        bug = await _auto_create_defect_bug(
+            db=async_db,
             project=selfTestProject,
             failure_type="no_sensitive_data",
             error_message="敏感数据暴露",
@@ -378,15 +378,15 @@ class TestAutoCreateDefectBug:
         assert bug.project_id == selfTestProject.id
         assert bug.reporter_id == selfTestProject.user_id
 
-    def test_auto_create_bug_with_evidence(
-        self, db: Session, selfTestProject: Project
+    async def test_auto_create_bug_with_evidence(
+        self, async_db, selfTestProject: Project
     ) -> None:
         evidence = {
             "console_errors": [{"type": "error", "message": "Uncaught TypeError"}],
             "network_failures": [],
         }
-        bug = _auto_create_defect_bug(
-            db=db,
+        bug = await _auto_create_defect_bug(
+            db=async_db,
             project=selfTestProject,
             failure_type="no_console_errors",
             error_message="控制台存在错误",
@@ -397,12 +397,12 @@ class TestAutoCreateDefectBug:
         assert bug.ux_category == "error_feedback"
         assert "缺陷证据" in bug.description
 
-    def test_auto_create_bug_with_test_result(
-        self, db: Session, selfTestProject: Project,
+    async def test_auto_create_bug_with_test_result(
+        self, async_db, selfTestProject: Project,
         defectTestCase: TestCase, defectTestResult: TestResult,
     ) -> None:
-        bug = _auto_create_defect_bug(
-            db=db,
+        bug = await _auto_create_defect_bug(
+            db=async_db,
             project=selfTestProject,
             failure_type="loading_hidden",
             error_message="加载指示器未在10秒内隐藏",
@@ -416,74 +416,74 @@ class TestAutoCreateDefectBug:
         assert bug.severity == 3
         assert bug.ux_category == "loading_experience"
 
-    def test_no_bug_for_normal_project(
-        self, db: Session, normalProject: Project
+    async def test_no_bug_for_normal_project(
+        self, async_db, normalProject: Project
     ) -> None:
-        bug = _auto_create_defect_bug(
-            db=db,
+        bug = await _auto_create_defect_bug(
+            db=async_db,
             project=normalProject,
             failure_type="no_sensitive_data",
             error_message="敏感数据暴露",
         )
         assert bug is None
 
-    def test_bug_priority_mapping(
-        self, db: Session, selfTestProject: Project
+    async def test_bug_priority_mapping(
+        self, async_db, selfTestProject: Project
     ) -> None:
         """验证 severity 到 priority 的映射"""
         # P0 → priority 1
-        bug_p0 = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug_p0 = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="no_xss", error_message="XSS漏洞",
         )
         assert bug_p0.priority == 1
 
         # P1 → priority 1
-        bug_p1 = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug_p1 = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="element_not_found", error_message="元素未找到",
         )
         assert bug_p1.priority == 1
 
         # P2 → priority 2
-        bug_p2 = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug_p2 = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="loading_hidden", error_message="加载超时",
         )
         assert bug_p2.priority == 2
 
         # P3 → priority 3
-        bug_p3 = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug_p3 = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="no_console_errors", error_message="控制台错误",
         )
         assert bug_p3.priority == 3
 
-    def test_bug_title_contains_severity_prefix(
-        self, db: Session, selfTestProject: Project
+    async def test_bug_title_contains_severity_prefix(
+        self, async_db, selfTestProject: Project
     ) -> None:
-        bug = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="no_sensitive_data",
             error_message="敏感数据暴露",
             step_description="安全检查",
         )
         assert "[P1]" in bug.title
 
-    def test_bug_description_contains_ux_category(
-        self, db: Session, selfTestProject: Project
+    async def test_bug_description_contains_ux_category(
+        self, async_db, selfTestProject: Project
     ) -> None:
-        bug = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="no_xss", error_message="XSS漏洞",
         )
         assert "UX分类: security" in bug.description
 
-    def test_bug_description_shows_functional_bug_when_no_ux_category(
-        self, db: Session, selfTestProject: Project
+    async def test_bug_description_shows_functional_bug_when_no_ux_category(
+        self, async_db, selfTestProject: Project
     ) -> None:
-        bug = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="element_not_found", error_message="元素未找到",
         )
         assert "UX分类: 功能Bug" in bug.description
@@ -497,18 +497,18 @@ class TestAutoCreateDefectBug:
 class TestGenerateBugNo:
     """Bug 编号生成测试"""
 
-    def test_bug_no_format(self, db: Session, selfTestProject: Project) -> None:
-        bug_no = _generate_bug_no(db, selfTestProject.id)
+    async def test_bug_no_format(self, async_db, selfTestProject: Project) -> None:
+        bug_no = await _generate_bug_no(async_db, selfTestProject.id)
         assert bug_no.startswith(f"BUG-{selfTestProject.id}-")
         # 序号部分应为4位数字
         parts = bug_no.split("-")
         assert len(parts[-1]) == 4
         assert parts[-1].isdigit()
 
-    def test_bug_no_increments(
-        self, db: Session, selfTestProject: Project
+    async def test_bug_no_increments(
+        self, async_db, selfTestProject: Project
     ) -> None:
-        bug_no1 = _generate_bug_no(db, selfTestProject.id)
+        bug_no1 = await _generate_bug_no(async_db, selfTestProject.id)
         # 在两次调用之间插入一条 Bug 记录，使 count 递增
         from app.models.bug import Bug as BugModel
         temp_bug = BugModel(
@@ -520,9 +520,9 @@ class TestGenerateBugNo:
             priority=2,
             reporter_id=selfTestProject.user_id,
         )
-        db.add(temp_bug)
-        db.flush()
-        bug_no2 = _generate_bug_no(db, selfTestProject.id)
+        async_db.add(temp_bug)
+        await async_db.flush()
+        bug_no2 = await _generate_bug_no(async_db, selfTestProject.id)
         seq1 = int(bug_no1.split("-")[-1])
         seq2 = int(bug_no2.split("-")[-1])
         assert seq2 > seq1
@@ -536,12 +536,11 @@ class TestGenerateBugNo:
 class TestNotifyCriticalDefectBug:
     """P0/P1 缺陷立即通知测试"""
 
-    @pytest.mark.asyncio
     async def test_p0_bug_triggers_notification(
-        self, db: Session, selfTestProject: Project
+        self, async_db, selfTestProject: Project
     ) -> None:
-        bug = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="no_sensitive_data",
             error_message="敏感数据暴露",
         )
@@ -561,12 +560,11 @@ class TestNotifyCriticalDefectBug:
             assert message["severity"] == 1
             assert message["ux_category"] == "security"
 
-    @pytest.mark.asyncio
     async def test_p1_bug_triggers_notification(
-        self, db: Session, selfTestProject: Project
+        self, async_db, selfTestProject: Project
     ) -> None:
-        bug = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="element_not_found",
             error_message="元素未找到",
         )
@@ -577,13 +575,12 @@ class TestNotifyCriticalDefectBug:
             await _notify_critical_defect_bug(bug, selfTestProject)
             mock_ws.broadcast.assert_called_once()
 
-    @pytest.mark.asyncio
     async def test_notification_failure_does_not_raise(
-        self, db: Session, selfTestProject: Project
+        self, async_db, selfTestProject: Project
     ) -> None:
         """WebSocket 通知失败不应抛出异常"""
-        bug = _auto_create_defect_bug(
-            db=db, project=selfTestProject,
+        bug = await _auto_create_defect_bug(
+            db=async_db, project=selfTestProject,
             failure_type="no_xss", error_message="XSS漏洞",
         )
         assert bug is not None
@@ -597,18 +594,18 @@ class TestNotifyCriticalDefectBug:
 class TestSchedulerHandleStepFailure:
     """SelfTestScheduler.handle_step_failure 集成测试"""
 
-    @pytest.mark.asyncio
     async def test_p0_bug_notified_immediately(
-        self, db: Session, selfTestProject: Project
+        self, async_db, selfTestProject: Project
     ) -> None:
         scheduler = SelfTestScheduler()
 
         with patch(
-            "app.tasks.self_test_scheduler._notify_critical_defect_bug"
+            "app.tasks.self_test_scheduler._notify_critical_defect_bug",
+            new_callable=AsyncMock,
         ) as mock_notify:
             mock_notify.return_value = None
             bug = await scheduler.handle_step_failure(
-                db=db,
+                db=async_db,
                 project=selfTestProject,
                 failure_type="no_sensitive_data",
                 error_message="敏感数据暴露",
@@ -617,18 +614,18 @@ class TestSchedulerHandleStepFailure:
             assert bug.severity == 1
             mock_notify.assert_called_once()
 
-    @pytest.mark.asyncio
     async def test_p2_bug_not_notified(
-        self, db: Session, selfTestProject: Project
+        self, async_db, selfTestProject: Project
     ) -> None:
         scheduler = SelfTestScheduler()
 
         with patch(
-            "app.tasks.self_test_scheduler._notify_critical_defect_bug"
+            "app.tasks.self_test_scheduler._notify_critical_defect_bug",
+            new_callable=AsyncMock,
         ) as mock_notify:
             mock_notify.return_value = None
             bug = await scheduler.handle_step_failure(
-                db=db,
+                db=async_db,
                 project=selfTestProject,
                 failure_type="loading_hidden",
                 error_message="加载指示器未在10秒内隐藏",
@@ -638,18 +635,18 @@ class TestSchedulerHandleStepFailure:
             # P2 缺陷不应触发立即通知
             mock_notify.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_p3_bug_not_notified(
-        self, db: Session, selfTestProject: Project
+        self, async_db, selfTestProject: Project
     ) -> None:
         scheduler = SelfTestScheduler()
 
         with patch(
-            "app.tasks.self_test_scheduler._notify_critical_defect_bug"
+            "app.tasks.self_test_scheduler._notify_critical_defect_bug",
+            new_callable=AsyncMock,
         ) as mock_notify:
             mock_notify.return_value = None
             bug = await scheduler.handle_step_failure(
-                db=db,
+                db=async_db,
                 project=selfTestProject,
                 failure_type="no_console_errors",
                 error_message="控制台存在错误",
@@ -658,17 +655,17 @@ class TestSchedulerHandleStepFailure:
             assert bug.severity == 4
             mock_notify.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_normal_project_returns_none(
-        self, db: Session, normalProject: Project
+        self, async_db, normalProject: Project
     ) -> None:
         scheduler = SelfTestScheduler()
 
         with patch(
-            "app.tasks.self_test_scheduler._notify_critical_defect_bug"
+            "app.tasks.self_test_scheduler._notify_critical_defect_bug",
+            new_callable=AsyncMock,
         ) as mock_notify:
             bug = await scheduler.handle_step_failure(
-                db=db,
+                db=async_db,
                 project=normalProject,
                 failure_type="no_sensitive_data",
                 error_message="敏感数据暴露",
@@ -774,8 +771,8 @@ class TestBugListUxCategoryFilter:
 class TestBugModelUxCategory:
     """Bug 模型 ux_category 字段测试"""
 
-    def test_ux_category_nullable(
-        self, db: Session, selfTestProject: Project, bugTestUser: User
+    async def test_ux_category_nullable(
+        self, async_db, selfTestProject: Project, bugTestUser: User
     ) -> None:
         bug = Bug(
             bug_no="BUG-UX-001",
@@ -788,12 +785,12 @@ class TestBugModelUxCategory:
             source="manual",
             ux_category=None,
         )
-        db.add(bug)
-        db.flush()
+        async_db.add(bug)
+        await async_db.flush()
         assert bug.ux_category is None
 
-    def test_ux_category_with_value(
-        self, db: Session, selfTestProject: Project, bugTestUser: User
+    async def test_ux_category_with_value(
+        self, async_db, selfTestProject: Project, bugTestUser: User
     ) -> None:
         bug = Bug(
             bug_no="BUG-UX-002",
@@ -806,12 +803,12 @@ class TestBugModelUxCategory:
             source="self_test",
             ux_category="security",
         )
-        db.add(bug)
-        db.flush()
+        async_db.add(bug)
+        await async_db.flush()
         assert bug.ux_category == "security"
 
-    def test_all_valid_ux_categories(
-        self, db: Session, selfTestProject: Project, bugTestUser: User
+    async def test_all_valid_ux_categories(
+        self, async_db, selfTestProject: Project, bugTestUser: User
     ) -> None:
         """验证所有合法 ux_category 值均可写入"""
         for idx, cat in enumerate(sorted(VALID_UX_CATEGORIES), start=10):
@@ -826,6 +823,6 @@ class TestBugModelUxCategory:
                 source="self_test",
                 ux_category=cat,
             )
-            db.add(bug)
-            db.flush()
+            async_db.add(bug)
+            await async_db.flush()
             assert bug.ux_category == cat

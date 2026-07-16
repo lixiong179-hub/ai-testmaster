@@ -163,7 +163,7 @@ class AIClientBase:
         if key in self.cache:
             cached_data, timestamp = self.cache[key]
             if time.time() - timestamp < self.cache_expiry:
-                logger.info(f"从缓存获取数据: {key}")
+                logger.debug(f"从缓存获取数据: {key}")
                 return cached_data
             else:
                 # 缓存已过期，主动清理
@@ -191,7 +191,7 @@ class AIClientBase:
             oldest_key = min(self.cache, key=lambda k: self.cache[k][1])
             del self.cache[oldest_key]
         self.cache[key] = (data, now)
-        logger.info(f"设置缓存数据: {key}, 当前缓存大小: {len(self.cache)}")
+        logger.debug(f"设置缓存数据: {key}, 当前缓存大小: {len(self.cache)}")
 
 
 def get_ai_client(api_key: str = None, base_url: str = None, model_name: str = None, timeout: int = None) -> OpenAI:

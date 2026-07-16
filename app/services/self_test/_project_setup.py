@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any
 
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project import Project, ProjectFile
 
@@ -25,7 +26,7 @@ def _get_project_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent.parent
 
 
-def _auto_import_requirement_doc(db: Session, project: Project) -> None:
+async def _auto_import_requirement_doc(db: AsyncSession, project: Project) -> None:
     """自测项目创建后自动导入需求文档。
 
     读取 docs/requirement_specification.md，创建 ProjectFile 记录
@@ -36,7 +37,7 @@ def _auto_import_requirement_doc(db: Session, project: Project) -> None:
     @patch("app.services.self_test_service._get_project_root") 仍能生效。
 
     Args:
-        db: 数据库会话。
+        db: 异步数据库会话。
         project: 已创建的自测项目实例。
     """
     from app.services import self_test_service as _stm
@@ -66,12 +67,12 @@ def _auto_import_requirement_doc(db: Session, project: Project) -> None:
             is_active=True,
         )
         db.add(project_file)
-        db.commit()
-        db.refresh(project_file)
+        await db.commit()
+        await db.refresh(project_file)
 
         # 直接写入提取内容（md 文件已读取到内存），避免异步调用
         from app.crud import file as file_crud
-        file_crud.update_file_content(db, project_file.id, content, "completed")
+        await file_crud.update_file_content_async(db, project_file.id, content, "completed")
 
         logger.info(
             f"自测项目需求文档自动导入成功: project_id={project.id}, "
@@ -97,17 +98,18 @@ def _get_self_test_env_configs() -> dict[str, dict[str, Any]]:
     }
 
 
-def get_self_test_project(db: Session) -> Project | None:
+async def get_self_test_project(db: AsyncSession) -> Project | None:
     return (
-        db.query(Project)
-        .filter(Project.is_self_test.is_(True))
-        .order_by(Project.id.asc())
-        .first()
-    )
+        await db.execute(
+            select(Project)
+            .where(Project.is_self_test.is_(True))
+            .order_by(Project.id.asc())
+        )
+    ).scalars().first()
 
 
-def create_self_test_project(db: Session, user_id: int) -> Project:
-    existing = get_self_test_project(db)
+async def create_self_test_project(db: AsyncSession, user_id: int) -> Project:
+    existing = await get_self_test_project(db)
     if existing:
         return existing
 
@@ -128,10 +130,10 @@ def create_self_test_project(db: Session, user_id: int) -> Project:
     project.test_object_password = os.getenv("SELF_TEST_PASSWORD", "")
 
     db.add(project)
-    db.commit()
-    db.refresh(project)
+    await db.commit()
+    await db.refresh(project)
 
     # 自动导入需求文档（降级处理：失败不阻断项目创建）
-    _auto_import_requirement_doc(db, project)
+    await _auto_import_requirement_doc(db, project)
 
     return project

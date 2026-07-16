@@ -14,7 +14,8 @@ A/B测试指标端点模块
 """
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +26,7 @@ from app.db.database import async_get_db
 from app.models.project import Project
 from app.models.user import User
 from app.services.ab_test_service import ABTestService
+from app.schemas.common import ApiResponse
 
 router = APIRouter(tags=["A/B测试"])
 
@@ -62,7 +64,7 @@ async def _get_user_project_ids(db: AsyncSession, user_id: int) -> List[int]:
     return [row[0] for row in rows if row[0] is not None]
 
 
-@router.post("/experiments/{experiment_id}/metrics", response_model=dict)
+@router.post("/experiments/{experiment_id}/metrics", response_model=ApiResponse)
 async def record_metric(
     experiment_id: str,
     body: MetricCreateRequest,
@@ -100,13 +102,14 @@ async def record_metric(
             detail=str(exc),
         )
     except Exception as exc:
+        logger.error(f"记录指标失败: {exc}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"记录指标失败: {exc}",
+            detail="记录指标失败",
         )
 
 
-@router.get("/experiments/{experiment_id}/summary", response_model=dict)
+@router.get("/experiments/{experiment_id}/summary", response_model=ApiResponse)
 async def get_experiment_summary(
     experiment_id: str,
     db: AsyncSession = Depends(async_get_db),
@@ -120,14 +123,17 @@ async def get_experiment_summary(
         )
         return create_response(data=summary, msg="获取实验汇总成功")
     except Exception as exc:
+        logger.error(f"获取实验汇总失败: {exc}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取实验汇总失败: {exc}",
+            detail="获取实验汇总失败",
         )
 
 
-@router.get("/experiments", response_model=dict)
+@router.get("/experiments", response_model=ApiResponse)
 async def list_experiments(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
@@ -137,9 +143,21 @@ async def list_experiments(
         experiments: List[Dict[str, Any]] = await service.list_experiments_async(
             project_ids=user_project_ids,
         )
-        return create_response(data=experiments, msg="获取实验列表成功")
+        total = len(experiments)
+        skip = (page - 1) * page_size
+        page_experiments = experiments[skip:skip + page_size]
+        return create_response(
+            data={
+                "items": page_experiments,
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            },
+            msg="获取实验列表成功",
+        )
     except Exception as exc:
+        logger.error(f"获取实验列表失败: {exc}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取实验列表失败: {exc}",
+            detail="获取实验列表失败",
         )

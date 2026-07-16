@@ -104,6 +104,7 @@ class CaseRefreshService:
                 steps_text = json.dumps(case.steps_json, ensure_ascii=False, indent=2)
             else:
                 steps_text = str(case.steps_json)
+        # 模板为模块级常量，f-string 无法延迟求值，按项目规则例外使用 .format()
         return REFRESH_PROMPT_TEMPLATE.format(
             requirement_description=requirement.description or "",
             case_title=case.title or "",

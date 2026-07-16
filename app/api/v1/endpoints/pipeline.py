@@ -18,6 +18,7 @@ from app.models.user import User
 from app.models.pipeline import PipelineRun
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 
 # 从子模块导入请求模型（保持外部 import 路径兼容）
 from app.api.v1.endpoints.pipeline_schemas import (
@@ -71,7 +72,7 @@ router.include_router(_metrics_router)
 router.include_router(_artifacts_router)
 
 
-@router.post("/iteration/{iteration_id}/run", response_model=dict)
+@router.post("/iteration/{iteration_id}/run", response_model=ApiResponse)
 async def run_pipeline(
     iteration_id: int,
     body: PipelineRunRequest,
@@ -188,7 +189,7 @@ async def run_pipeline(
     return await db.run_sync(_run)
 
 
-@router.get("/{run_id}", response_model=dict)
+@router.get("/{run_id}", response_model=ApiResponse)
 async def get_pipeline_run(
     run_id: int,
     db: AsyncSession = Depends(async_get_db),

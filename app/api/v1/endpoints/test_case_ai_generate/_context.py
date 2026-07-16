@@ -14,6 +14,7 @@ from app.api.v1.endpoints.test_case_ai_schemas import (
     SingleGenerateRequest,
 )
 from app.core.exception import create_response
+from app.schemas.common import ApiResponse
 from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.project import Project
 from app.models.test_case import TestCase
@@ -148,7 +149,7 @@ def _summarize_history_case(
     return result
 
 
-@router.post("/generate-context", response_model=dict)
+@router.post("/generate-context", response_model=ApiResponse)
 async def get_generation_context(
     request: GenerateContextRequest,
     db: AsyncSession = Depends(async_get_db),
@@ -265,12 +266,15 @@ async def generate_single_test_case(
             )
         test_point = test_points[0]
         try:
-            generated_case = await run_async_coro_in_thread(
-                service.generate_test_case_for_point(
-                    context=context, test_point=test_point,
-                    project_id=request.project_id, case_type=request.case_type,
+            from app.utils.ai_concurrency import ai_generation_slot
+            # AI 生成调用受模块级信号量保护，限制跨请求总并发（P-2 修复）
+            async with ai_generation_slot():
+                generated_case = await run_async_coro_in_thread(
+                    service.generate_test_case_for_point(
+                        context=context, test_point=test_point,
+                        project_id=request.project_id, case_type=request.case_type,
+                    )
                 )
-            )
             saved_case = await run_async_coro_in_thread(
                 service._save_test_case(
                     project_id=request.project_id,

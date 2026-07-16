@@ -1,28 +1,35 @@
 """test_case_generation - 用例校验与持久化（组合模式组件）。
 
-合并自 validate_mixin.py + _ui_validation_mixin.py + _quality_gate_mixin.py，
-提供 CaseValidator 类负责生成用例的 UI 元素可执行性校验、质量门禁判定与
-DB 持久化（含前置条件解析）。
+CaseValidator 类负责生成用例的 DB 持久化（含前置条件解析），
+通过多继承组合 UI 元素可执行性校验与质量门禁判定能力：
+    - UIElementValidationMixin: UI 元素命中率校验（_validator_ui_elements.py）
+    - QualityGateMixin: 动作修正、质量门禁、优先级解析（_validator_quality_gate.py）
+
+公开 API（CaseValidator / AIGenerationError / TestCaseGenerationValidateMixin）
+保持 import 路径不变。
 
 quality_validator.py + _quality_field_validators.py + _quality_step_validators.py
 因被外部模块引用保留独立文件，本模块不合并。
+
+注意：_save_test_case 保留在本文件内，因其引用 settings 全局变量，
+测试通过 patch("...validator.settings") 进行替换，需保证全局查找
+落在本模块命名空间。
 """
 import inspect
-import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE, normalize_priority
 from app.models.test_case import TestCase, TestStep
 from app.services.case_number_service import CaseNumberService
 from app.services.case_quality.history_cache import invalidate_project_cache
 from app.services.quality.grade import grade_status_to_letter
-from app.services.quality.quality_gate_service import QualityGateService
 from app.services.test_case_generation.quality_validator import compute_quality_score
+from app.services.test_case_generation._validator_ui_elements import UIElementValidationMixin
+from app.services.test_case_generation._validator_quality_gate import QualityGateMixin
 
 
 class AIGenerationError(Exception):
@@ -34,13 +41,16 @@ class AIGenerationError(Exception):
     """
 
 
-class CaseValidator:
+class CaseValidator(UIElementValidationMixin, QualityGateMixin):
     """测试用例校验与持久化器。
 
     职责：
         1. UI 元素可执行性校验（步骤引用的元素是否在 UI 规格中存在）
+           —— UIElementValidationMixin
         2. 动作修正与质量门禁判定（QualityGateService + 本地硬性校验）
+           —— QualityGateMixin
         3. 生成用例的 DB 持久化（TestCase + TestStep + 前置条件解析）
+           —— 本类
 
     构造函数注入 db: Session，对外保持 _save_test_case / _quality_gate_issues
     等方法签名兼容。
@@ -48,314 +58,8 @@ class CaseValidator:
 
     __test__ = False
 
-    # ── UI 元素可执行性校验常量（合并自 _ui_validation_mixin） ──
-    _MIN_UI_ELEMENT_HIT_RATE = 0.8
-    _UI_ELEMENT_KEYS = frozenset({
-        "id", "key", "name", "label", "text", "title", "placeholder",
-        "content", "value", "aria_label", "element_name", "selector",
-    })
-    _GENERIC_UI_WORDS = frozenset({
-        "按钮", "输入框", "文本框", "链接", "页面", "弹窗", "菜单", "选项",
-        "入口", "控件",
-    })
-
-    # ── 质量门禁与动作修正常量（合并自 _quality_gate_mixin） ──
-    _CLICK_KEYWORDS = frozenset({"点击", "勾选", "切换", "按下", "长按"})
-    _INPUT_KEYWORDS = frozenset({"输入", "填写", "键入", "录入"})
-    _ASSERT_KEYWORDS = frozenset({"查看", "检查", "验证", "确认", "核对", "观察", "获取"})
-    _NAVIGATE_KEYWORDS = frozenset({"等待", "静置", "等待加载"})
-    _ASSERT_CLICK_PATTERNS = re.compile(
-        r'(检查.*(?:点击|可点击|是否可)|查看.*(?:点击|可点击|是否可)|'
-        r'验证.*(?:点击|可点击|是否可)|确认.*(?:点击|可点击|是否可))'
-    )
-    _VALID_CASE_TYPES = frozenset({
-        "ui_automation", "manual", "api_automation", "performance", "security",
-    })
-    _MIN_PERSIST_QUALITY_SCORE = 80.0
-    _MIN_PRECONDITION_LENGTH = 15
-    _PRIORITY_ONE_KEYWORDS = frozenset({
-        "主流程", "全流程", "核心", "提交批改", "批改", "断网", "无网络",
-        "网络异常", "数据丢失", "崩溃", "白屏", "未登录", "权限", "越权",
-        "安全", "重复提交", "连续快速点击", "正确率100%", "听写结果", "结果页",
-    })
-
     def __init__(self, db: Session) -> None:
         self.db = db
-
-    # ── UI 元素可执行性校验（合并自 _ui_validation_mixin） ──
-    @staticmethod
-    def _normalize_ui_element_name(value: Any) -> str:
-        text = str(value or "").strip()
-        text = re.sub(r"[\s【】「」\"'`<>《》:：,，。；;、\[\]()（）]", "", text)
-        return text.lower()
-
-    @classmethod
-    def _collect_ui_element_names(cls, ui_specs: Optional[List[Dict[str, Any]]]) -> set[str]:
-        names: set[str] = set()
-
-        def add(value: Any) -> None:
-            if not isinstance(value, str):
-                return
-            normalized = cls._normalize_ui_element_name(value)
-            if len(normalized) < 2 or normalized in cls._GENERIC_UI_WORDS:
-                return
-            names.add(normalized)
-
-        def walk(value: Any, key_hint: Optional[str] = None) -> None:
-            if isinstance(value, dict):
-                for key, item in value.items():
-                    key_text = str(key).lower()
-                    if key_text in cls._UI_ELEMENT_KEYS:
-                        add(item)
-                    if isinstance(item, (dict, list)):
-                        walk(item, key_text)
-            elif isinstance(value, list):
-                for item in value:
-                    walk(item, key_hint)
-            elif key_hint in cls._UI_ELEMENT_KEYS:
-                add(value)
-
-        for spec_item in ui_specs or []:
-            if not isinstance(spec_item, dict):
-                continue
-            add(spec_item.get("screen_name"))
-            walk(spec_item.get("ui_spec"))
-        return names
-
-    @classmethod
-    def _extract_step_target_elements(cls, step: Dict[str, Any]) -> List[str]:
-        candidates: List[str] = []
-        explicit = step.get("target_element")
-        if explicit:
-            candidates.append(str(explicit))
-
-        action = " ".join(
-            str(value or "")
-            for value in (
-                step.get("action"),
-                step.get("description"),
-                step.get("param"),
-            )
-        )
-        bracket_patterns = [
-            r"(?:点击|选择|勾选|切换|按下|长按)\s*[【「《\"']([^】」》\"']{2,40})[】」》\"']",
-            r"(?:在|向)\s*[【「《\"']([^】」》\"']{2,40})[】」》\"']\s*(?:输入|填写|键入|录入|选择)",
-        ]
-        for pattern in bracket_patterns:
-            candidates.extend(re.findall(pattern, action))
-
-        result: List[str] = []
-        seen = set()
-        for item in candidates:
-            normalized = cls._normalize_ui_element_name(item)
-            if len(normalized) < 2 or normalized in cls._GENERIC_UI_WORDS or normalized in seen:
-                continue
-            seen.add(normalized)
-            result.append(item.strip())
-        return result
-
-    @classmethod
-    def _ui_element_exists(cls, target: str, element_names: set[str]) -> bool:
-        normalized = cls._normalize_ui_element_name(target)
-        if not normalized:
-            return False
-        for element in element_names:
-            if normalized == element:
-                return True
-            if len(normalized) >= 2 and normalized in element:
-                return True
-            if len(element) >= 2 and element in normalized:
-                return True
-        return False
-
-    @classmethod
-    def _ui_executability_issues(
-        cls,
-        steps: List[Dict[str, Any]],
-        ui_specs: Optional[List[Dict[str, Any]]] = None,
-    ) -> List[str]:
-        element_names = cls._collect_ui_element_names(ui_specs)
-        if not element_names:
-            return []
-
-        checked = 0
-        hit = 0
-        missing: List[str] = []
-        for step in steps or []:
-            targets = cls._extract_step_target_elements(step)
-            for target in targets:
-                checked += 1
-                if cls._ui_element_exists(target, element_names):
-                    hit += 1
-                else:
-                    missing.append(target)
-
-        if checked == 0:
-            return []
-        hit_rate = hit / checked
-        if hit_rate >= cls._MIN_UI_ELEMENT_HIT_RATE:
-            return []
-        unique_missing = []
-        seen = set()
-        for item in missing:
-            normalized = cls._normalize_ui_element_name(item)
-            if normalized in seen:
-                continue
-            seen.add(normalized)
-            unique_missing.append(item)
-        missing_text = "、".join(unique_missing[:5])
-        return [
-            f"UI元素命中率 {hit_rate:.0%} 低于 {cls._MIN_UI_ELEMENT_HIT_RATE:.0%}，未匹配元素: {missing_text}"
-        ]
-
-    # ── 质量门禁与动作修正（合并自 _quality_gate_mixin） ──
-    @staticmethod
-    def _correct_action_type(action: str, action_type: str) -> str:
-        if not action:
-            return action_type
-        cls = CaseValidator
-        has_assert = any(kw in action for kw in cls._ASSERT_KEYWORDS)
-        has_click = any(kw in action for kw in cls._CLICK_KEYWORDS)
-        if has_assert and has_click:
-            if cls._ASSERT_CLICK_PATTERNS.search(action):
-                return "verify"
-            return "click"
-        if has_click:
-            return "click"
-        if any(kw in action for kw in cls._INPUT_KEYWORDS):
-            return "input"
-        if has_assert:
-            return "verify"
-        if any(kw in action for kw in cls._NAVIGATE_KEYWORDS):
-            return "navigate"
-        return action_type
-
-    @staticmethod
-    def _clean_precondition(precondition: str) -> str:
-        if not precondition:
-            return precondition
-        patterns = [
-            r'[、，,]?\s*通过(?:Mock|cy\.intercept|ADB|devtools)[^、，,]*',
-            r'[、，,]?\s*Mock[^、，,]*',
-            r'[、，,]?\s*cy\.intercept\([^)]*\)[^、，,]*',
-            r'[、，,]?\s*ADB[^、，,]*',
-            r'[、，,]?\s*devtools[^、，,]*',
-            r'[、，,]?\s*（?清除(?:token|cookie|session|缓存|localStorage|sessionStorage)[^）、，,]*）?',
-            r'[、，,]?\s*清除(?:token|cookie|session|缓存|localStorage|sessionStorage)[^、，,]*',
-            r'[、，,]?\s*（?(?:token|cookie|session)[^）、，,]*）?',
-        ]
-        cleaned = precondition
-        for pattern in patterns:
-            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
-        cleaned = re.sub(r'[、，,]\s*$', '', cleaned.strip())
-        cleaned = re.sub(r'^[、，,]\s*', '', cleaned)
-        cleaned = re.sub(r'（\s*）', '', cleaned)
-        cleaned = re.sub(r'\(\s*\)', '', cleaned)
-        return cleaned
-
-    @classmethod
-    def _normalize_case_type(cls, *values: Optional[str]) -> str:
-        for value in values:
-            if not value:
-                continue
-            for part in str(value).split(","):
-                normalized = part.strip()
-                if normalized in cls._VALID_CASE_TYPES:
-                    return normalized
-        return DEFAULT_AI_FALLBACK_CASE_TYPE
-
-    @classmethod
-    def _quality_gate_issues(
-        cls,
-        generated_case: Dict[str, Any],
-        quality_score: Optional[float],
-        ui_specs: Optional[List[Dict[str, Any]]] = None,
-        project_id: Optional[int] = None,
-        db: Any = None,
-    ) -> Tuple[List[str], str]:
-        """使用 QualityGateService 执行统一校验，返回 (issues, status) 元组。
-
-        分级阻断规则:
-            - rejected: 返回非空 issues，调用方应阻断入库
-            - pending_review/warning/passed: 返回空 issues 列表，调用方不阻断
-
-        本地硬性校验（quality_score/precondition/UI可执行性）失败时，
-        状态提升为 rejected，确保硬性质量门槛始终阻断。
-        """
-        context: Dict[str, Any] = {
-            "ui_specs": ui_specs or generated_case.get("_context_ui_specs"),
-        }
-        gate_service = QualityGateService(db=db)
-        try:
-            result = gate_service.validate(
-                generated_case,
-                context=context,
-                project_id=project_id,
-            )
-            gate_status: str = result.status
-            issues: List[str] = [issue.message for issue in result.issues]
-        except Exception as e:
-            logger.warning(f"QualityGate 编排异常，降级为 warning: {e}")
-            gate_status = "warning"
-            issues = []
-
-        local_blocking = False
-        if quality_score is None:
-            issues.append("quality score is missing")
-            local_blocking = True
-        elif quality_score < cls._MIN_PERSIST_QUALITY_SCORE:
-            issues.append(
-                f"quality score {quality_score:.0f} is below "
-                f"{cls._MIN_PERSIST_QUALITY_SCORE:.0f}"
-            )
-            local_blocking = True
-        precondition = (generated_case.get("precondition") or "").strip()
-        if len(precondition) < cls._MIN_PRECONDITION_LENGTH:
-            issues.append(
-                f"precondition is too short ({len(precondition)} chars)"
-            )
-            local_blocking = True
-        ui_issues = cls._ui_executability_issues(
-            generated_case.get("steps", []),
-            ui_specs or generated_case.get("_context_ui_specs"),
-        )
-        if ui_issues:
-            issues.extend(ui_issues)
-            local_blocking = True
-
-        if local_blocking:
-            gate_status = "rejected"
-
-        if gate_status == "rejected":
-            return issues, gate_status
-        return [], gate_status
-
-    @classmethod
-    def _resolve_generated_priority(
-        cls,
-        generated_case: Dict[str, Any],
-        test_point: Dict[str, Any],
-    ) -> int:
-        priority = normalize_priority(
-            generated_case.get("priority", test_point.get("priority", 2))
-        )
-        point_priority = normalize_priority(test_point.get("priority", priority))
-        if priority == 1 or point_priority == 1:
-            return 1
-
-        text = " ".join(
-            str(value or "")
-            for value in (
-                generated_case.get("title"),
-                generated_case.get("expected_result"),
-                generated_case.get("case_category"),
-                test_point.get("point"),
-                test_point.get("function"),
-            )
-        )
-        if any(keyword in text for keyword in cls._PRIORITY_ONE_KEYWORDS):
-            return 1
-        return priority
 
     # ── DB 持久化（合并自 validate_mixin） ──
     def _case_title_exists(self, project_id: int, title: str) -> bool:

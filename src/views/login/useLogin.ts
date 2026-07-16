@@ -1,7 +1,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { authApi } from '@/api/auth'
+import { authApi, type UserInfo } from '@/api/auth'
 import type { ApiResponse } from '@/utils/request'
 import type { LoginForm as LoginFormType } from '@/types/user'
 import { signPermissions } from '@/directives/permission'
@@ -158,17 +158,13 @@ export function useLogin() {
 
   async function saveUserInfo(): Promise<void> {
     try {
-      const r = (await authApi.getCurrentUser()) as any
-      const d = r?.data || r
+      const r = (await authApi.getCurrentUser()) as unknown as ApiResponse<UserInfo> &
+        Partial<UserInfo>
+      // 优先取响应 data；兼容响应体直接平铺权限字段的兜底形态
+      const d = (r?.data || r) as UserInfo
       if (d) {
-        localStorage.setItem(
-          'userInfo',
-          JSON.stringify(
-            signPermissions(
-              d.permissions || d.roles?.flatMap((r: any) => r.permissions || []) || []
-            )
-          )
-        )
+        const perms = d.permissions || d.roles?.flatMap((role) => role.permissions || []) || []
+        localStorage.setItem('userInfo', JSON.stringify(signPermissions(perms)))
       }
     } catch {
       localStorage.setItem('userInfo', JSON.stringify(signPermissions([])))
@@ -206,16 +202,24 @@ export function useLogin() {
         } else if (lr.code === 401) throw new Error(lr.msg || lr.message || '用户名或密码错误')
         else if (lr.code === 400) throw new Error(lr.msg || lr.message || '请求参数错误')
         else throw new Error(lr.msg || lr.message || `登录失败（状态码: ${lr.code || '未知'}）`)
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const err = error as {
+          message?: string
+          code?: string
+          response?: {
+            status?: number
+            data?: { detail?: string; message?: string }
+          }
+        }
         let msg = '登录失败，请稍后重试'
-        if (error.message) msg = error.message
-        else if (error.response?.data?.detail) msg = error.response.data.detail
-        else if (error.response?.data?.message) msg = error.response.data.message
-        else if (error.response?.status === 401) msg = '用户名或密码错误'
-        else if (error.response?.status === 403) msg = '账号已被禁用'
-        else if (error.response?.status === 429) msg = '操作太频繁，请稍后再试'
-        else if (error.code === 'ERR_NETWORK') msg = '网络连接失败'
-        else if (error.code === 'ECONNABORTED') msg = '请求超时'
+        if (err.message) msg = err.message
+        else if (err.response?.data?.detail) msg = err.response.data.detail
+        else if (err.response?.data?.message) msg = err.response.data.message
+        else if (err.response?.status === 401) msg = '用户名或密码错误'
+        else if (err.response?.status === 403) msg = '账号已被禁用'
+        else if (err.response?.status === 429) msg = '操作太频繁，请稍后再试'
+        else if (err.code === 'ERR_NETWORK') msg = '网络连接失败'
+        else if (err.code === 'ECONNABORTED') msg = '请求超时'
         ElMessage.error(msg)
         refreshCaptcha()
       } finally {
@@ -245,8 +249,9 @@ export function useLogin() {
         } else {
           ElMessage.error('登录失败，返回数据格式错误')
         }
-      } catch (error: any) {
-        ElMessage.error(error.response?.data?.message || '登录失败')
+      } catch (error: unknown) {
+        const err = error as { response?: { data?: { message?: string } } }
+        ElMessage.error(err.response?.data?.message || '登录失败')
       } finally {
         phoneLoading.value = false
       }
