@@ -56,13 +56,10 @@ async def list_feature_flags(
 ) -> Dict[str, Any]:
     """获取所有特性开关列表（分页）"""
     service = FeatureFlagService(db)
-    flags = await service.list_flags()
-    total = len(flags)
-    skip = (page - 1) * page_size
-    page_flags = flags[skip:skip + page_size]
+    flags, total = await service.list_flags(page=page, page_size=page_size)
     items = [
         FeatureFlagResponse.model_validate(f).model_dump(mode="json")
-        for f in page_flags
+        for f in flags
     ]
     return create_response(
         data={"items": items, "total": total, "page": page, "page_size": page_size}

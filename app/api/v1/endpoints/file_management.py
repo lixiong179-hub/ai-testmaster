@@ -37,6 +37,7 @@ from app.models.user import User
 from app.schemas.common import ApiResponse
 from app.schemas.file import FileUpdateRequest
 from app.api.v1.endpoints.file_upload import _file_to_dict
+from app.core.exception import create_response
 from loguru import logger
 
 router = APIRouter()
@@ -87,16 +88,15 @@ async def get_all_files(
 
         files, total = await db.run_sync(_query_files)
 
-        return {
-            "code": 200,
-            "message": "获取成功",
-            "data": {
+        return create_response(
+            data={
                 "items": [_file_to_dict(f) for f in files],
                 "total": total,
                 "page": page,
                 "page_size": page_size,
             },
-        }
+            msg="获取成功",
+        )
     except Exception as e:
         logger.error(f"获取文件列表失败: {e}")
         raise HTTPException(
@@ -157,16 +157,15 @@ async def get_file_list(
 
         files, total = await db.run_sync(_query_files)
 
-        return {
-            "code": 200,
-            "message": "获取成功",
-            "data": {
+        return create_response(
+            data={
                 "items": [_file_to_dict(f) for f in files],
                 "total": total,
                 "page": page,
                 "page_size": page_size,
             },
-        }
+            msg="获取成功",
+        )
     except HTTPException:
         raise
     except Exception as e:

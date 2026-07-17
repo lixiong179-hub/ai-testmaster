@@ -22,7 +22,7 @@
 import hashlib
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.feature_flag import FeatureFlag
@@ -99,16 +99,34 @@ class FeatureFlagService:
         )
         return result.scalar_one_or_none()
 
-    async def list_flags(self) -> list[FeatureFlag]:
-        """获取所有特性开关列表
+    async def list_flags(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[FeatureFlag], int]:
+        """获取特性开关列表（DB 层分页）。
+
+        Args:
+            page: 页码（从 1 开始）
+            page_size: 每页数量
 
         Returns:
-            FeatureFlag 实例列表
+            (分页后的 FeatureFlag 列表, 总数)
         """
-        result = await self.db.execute(
-            select(FeatureFlag).order_by(FeatureFlag.key)
+        total_result = await self.db.execute(
+            select(func.count()).select_from(FeatureFlag)
         )
-        return result.scalars().all()
+        total = total_result.scalar_one()
+
+        skip = (page - 1) * page_size
+        result = await self.db.execute(
+            select(FeatureFlag)
+            .order_by(FeatureFlag.key)
+            .offset(skip)
+            .limit(page_size)
+        )
+        return result.scalars().all(), total
 
     async def create_flag(
         self,
