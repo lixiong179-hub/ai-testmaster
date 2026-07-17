@@ -14,16 +14,31 @@
     与UserService保持一致的静态方法设计，数据库会话
     由调用方管理，确保事务边界清晰。
 """
-from typing import Optional, List
+from typing import Optional, List, Union
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import Role, user_role
 from app.schemas.user import RoleCreate, RoleUpdate
 from app.core.exception import BaseAPIException
+from app.services.role_service.role_service_async_mixin import RoleServiceAsyncMixin
 
 
-class RoleService:
-    """角色服务 - 处理角色CRUD与权限分配。"""
+class RoleService(RoleServiceAsyncMixin):
+    """角色服务 - 处理角色CRUD与权限分配。
+
+    hybrid 模式：sync 调用方使用静态方法（db 作为首参传入），
+    async 端点通过 RoleService(db) 实例化后调用 *_async 方法。
+    """
+
+    def __init__(self, db: Optional[Union[Session, AsyncSession]] = None) -> None:
+        """初始化角色服务。
+
+        Args:
+            db: 数据库会话，async 端点传 AsyncSession；sync 调用方
+                无需实例化，直接使用静态方法。
+        """
+        self.db = db
 
     @staticmethod
     def create_role(db: Session, role_in: RoleCreate | dict) -> Role:

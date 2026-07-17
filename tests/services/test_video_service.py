@@ -117,7 +117,11 @@ def sample_test_case(db, sample_project):
     db.commit()
     db.refresh(case)
     yield case
-    db.delete(case)
+    try:
+        db.delete(case)
+        db.commit()
+    except Exception:
+        db.rollback()
 
 
 @pytest.fixture

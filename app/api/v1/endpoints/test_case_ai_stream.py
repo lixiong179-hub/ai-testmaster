@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Tuple
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -105,17 +106,16 @@ async def ai_enhanced_generate_stream(
     project_id = request.project_id
     description = request.description
 
-    def _check_project(sync_db: Session) -> Project:
-        project = sync_db.query(Project).filter(
+    project_result = await db.execute(
+        select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
-        ).first()
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在"
-            )
-        return project
-
-    await db.run_sync(_check_project)
+        )
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在"
+        )
 
     if not description or len(description.strip()) < 5:
         raise HTTPException(
@@ -259,16 +259,16 @@ async def batch_generate_test_cases_stream(
     以SSE方式流式返回AI批量生成的测试用例，
     每生成一条用例即推送一条事件，前端可实时展示生成进度。
     """
-    def _check_project(sync_db: Session) -> None:
-        project = sync_db.query(Project).filter(
+    project_result = await db.execute(
+        select(Project).where(
             Project.id == request.project_id, Project.user_id == current_user.id
-        ).first()
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-            )
-
-    await db.run_sync(_check_project)
+        )
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+        )
 
     from app.services.test_case_generation import TestCaseGenerationService
     from app.utils.async_sync_bridge import iter_async_gen_in_thread

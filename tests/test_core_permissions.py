@@ -55,6 +55,7 @@ class TestCheckRole:
             is_superuser=False,
         )
         role = Role(name="test_engineer", desc="测试工程师")
+        db.add(user)
         db.add(role)
         db.flush()
         user.roles.append(role)
@@ -71,6 +72,7 @@ class TestCheckRole:
             is_superuser=False,
         )
         role = Role(name="viewer", desc="观察者")
+        db.add(user)
         db.add(role)
         db.flush()
         user.roles.append(role)
@@ -189,6 +191,7 @@ class TestCanViewTechnical:
             is_superuser=False,
         )
         role = Role(name="developer", desc="开发者")
+        db.add(user)
         db.add(role)
         db.flush()
         user.roles.append(role)
@@ -204,6 +207,7 @@ class TestCanViewTechnical:
             is_superuser=False,
         )
         role = Role(name="viewer", desc="观察者")
+        db.add(user)
         db.add(role)
         db.flush()
         user.roles.append(role)
@@ -236,6 +240,7 @@ class TestCanEditLocator:
             is_superuser=False,
         )
         role = Role(name="test_engineer", desc="测试工程师")
+        db.add(user)
         db.add(role)
         db.flush()
         user.roles.append(role)
@@ -251,6 +256,7 @@ class TestCanEditLocator:
             is_superuser=False,
         )
         role = Role(name="viewer", desc="观察者")
+        db.add(user)
         db.add(role)
         db.flush()
         user.roles.append(role)

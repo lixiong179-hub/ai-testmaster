@@ -25,14 +25,16 @@ RBAC模型:
     - 角色分配幂等性校验，防止重复分配
     - 权限校验采用白名单模式，默认无权限
 """
-from typing import Optional, List
+from typing import Optional, List, Union
 from sqlalchemy import select, delete, and_
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import Permission, Role, user_role
 from app.schemas.user import PermissionCreate, PermissionUpdate
 from app.core.exception import BaseAPIException
 from app.services.user_service.user_service import UserService
 from app.services.role_service.role_service import RoleService
+from app.services.user_role_service_async_mixin import UserRoleServiceAsyncMixin
 
 
 class PermissionService:
@@ -169,7 +171,7 @@ class PermissionService:
         return db.execute(select(Permission).offset(skip).limit(limit)).scalars().all()
 
 
-class UserRoleService:
+class UserRoleService(UserRoleServiceAsyncMixin):
     """用户-角色关联服务 - 管理用户与角色的绑定关系。
 
     职责:
@@ -181,7 +183,19 @@ class UserRoleService:
         - 角色分配页面调用assign_role
         - 角色管理页面调用remove_role
         - 权限校验前通过get_user_roles获取用户角色
+
+    hybrid 模式：sync 调用方使用静态方法（db 作为首参传入），
+    async 端点通过 UserRoleService(db) 实例化后调用 *_async 方法。
     """
+
+    def __init__(self, db: Optional[Union[Session, AsyncSession]] = None) -> None:
+        """初始化用户-角色关联服务。
+
+        Args:
+            db: 数据库会话，async 端点传 AsyncSession；sync 调用方
+                无需实例化，直接使用静态方法。
+        """
+        self.db = db
 
     @staticmethod
     def assign_role(db: Session, user_id: int, role_id: int) -> bool:

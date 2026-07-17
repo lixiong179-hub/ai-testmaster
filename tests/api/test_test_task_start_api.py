@@ -12,8 +12,12 @@
     - TestTask 直接通过 async_db fixture 创建，避免 API 创建链路的额外依赖。
     - 使用 tests/api/conftest.py 的 async fixture（async_auth_client / async_db /
       async_test_project / async_test_user），端测双迁。
+    - 端点 start_test_task 已迁移为直接 async 调用，使用请求级 db 会话独立 commit；
+      测试断言 task.status/end_time 时需重新查询（async_db 中的实例已过期），
+      禁止使用 async_db.refresh(task)，否则会抛 InvalidRequestError。
 """
 import pytest
+from sqlalchemy import select
 from app.models.test_task import TestTask
 
 
@@ -208,7 +212,12 @@ class TestStartTaskErrorPaths:
         )
 
         assert resp.status_code == 200
-        await async_db.refresh(task)
+        # 端点用请求级 db 会话独立 commit，async_db 中的 task 实例已过期，
+        # 必须重新查询以拿到最新 status/end_time。
+        result = await async_db.execute(
+            select(TestTask).where(TestTask.id == task.id)
+        )
+        task = result.scalars().first()
         assert task.status == 2
         assert task.end_time is not None
 
