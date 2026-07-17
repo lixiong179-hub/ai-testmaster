@@ -43,9 +43,8 @@ async def get_test_case_technical_view(
     current_user: User = Depends(require_technical_view)
 ):
     try:
-        def _get_view(sync_db):
-            return TestCaseViewService(sync_db).get_technical_view(test_case_id)
-        technical_view = await db.run_sync(_get_view)
+        service = TestCaseViewService(db)
+        technical_view = await service.get_technical_view_async(test_case_id)
         if not technical_view:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
         return create_response(data=technical_view)
@@ -63,9 +62,8 @@ async def get_test_case_business_view(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        def _get_view(sync_db):
-            return TestCaseViewService(sync_db).get_business_view(test_case_id)
-        business_view = await db.run_sync(_get_view)
+        service = TestCaseViewService(db)
+        business_view = await service.get_business_view_async(test_case_id)
         if not business_view:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
         return create_response(data=business_view.to_dict())
@@ -83,9 +81,8 @@ async def get_locator_coverage(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        def _get_coverage(sync_db):
-            return TestCaseViewService(sync_db).get_locator_coverage(test_case_id)
-        coverage = await db.run_sync(_get_coverage)
+        service = TestCaseViewService(db)
+        coverage = await service.get_locator_coverage_async(test_case_id)
         return create_response(data=coverage)
     except Exception as e:
         logger.error(f"获取定位覆盖率失败: {e}")
@@ -99,9 +96,8 @@ async def get_view_statistics(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        def _get_statistics(sync_db):
-            return TestCaseViewService(sync_db).get_view_statistics(test_case_id)
-        statistics = await db.run_sync(_get_statistics)
+        service = TestCaseViewService(db)
+        statistics = await service.get_view_statistics_async(test_case_id)
         return create_response(data=statistics)
     except Exception as e:
         logger.error(f"获取视图统计失败: {e}")
@@ -128,11 +124,10 @@ async def batch_update_view_config(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        def _update(sync_db):
-            return TestCaseViewService(sync_db).batch_update_view_config(
-                test_case_id, config.view_type, config.visible
-            )
-        updated_count = await db.run_sync(_update)
+        service = TestCaseViewService(db)
+        updated_count = await service.batch_update_view_config_async(
+            test_case_id, config.view_type, config.visible
+        )
         return create_response(data={"updated_count": updated_count})
     except Exception as e:
         logger.error(f"批量更新视图配置失败: {e}")
@@ -152,11 +147,10 @@ async def update_step_view_config(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        def _update(sync_db):
-            return TestCaseViewService(sync_db).update_step_view_config(
-                step_id, config.is_business_view, config.is_technical_view
-            )
-        success = await db.run_sync(_update)
+        service = TestCaseViewService(db)
+        success = await service.update_step_view_config_async(
+            step_id, config.is_business_view, config.is_technical_view
+        )
         return create_response(data={"success": success})
     except Exception as e:
         logger.error(f"更新步骤视图配置失败: {e}")
@@ -332,9 +326,8 @@ async def update_technical_view(
         await db.refresh(test_case)
         logger.info(f"[技术视图编辑] 用户ID={current_user.id}, 用例ID={test_case_id}")
 
-        def _get_view(sync_db):
-            return TestCaseViewService(sync_db).get_technical_view(test_case_id)
-        technical_view = await db.run_sync(_get_view)
+        service = TestCaseViewService(db)
+        technical_view = await service.get_technical_view_async(test_case_id)
         return create_response(data=technical_view)
     except HTTPException:
         raise

@@ -39,9 +39,8 @@ async def create_permission(
 ) -> Permission:
     """创建权限（需超级管理员）"""
     _require_superuser(current_user)
-    def _create(sync_db):
-        return PermissionService.create_permission(sync_db, permission_in)
-    permission = await db.run_sync(_create)
+    service = PermissionService(db)
+    permission = await service.create_permission_async(permission_in)
     logger.info(f"管理员 {current_user.username} 创建了权限 {permission.name}")
     return permission
 
@@ -54,9 +53,8 @@ async def get_permissions(
     current_user: User = Depends(get_current_user)
 ) -> List[Permission]:
     """获取权限列表（需认证）"""
-    def _list(sync_db):
-        return PermissionService.get_permissions(sync_db, skip=skip, limit=limit)
-    permissions = await db.run_sync(_list)
+    service = PermissionService(db)
+    permissions = await service.get_permissions_async(skip=skip, limit=limit)
     return permissions
 
 
@@ -67,9 +65,8 @@ async def get_permission(
     current_user: User = Depends(get_current_user)
 ) -> Permission:
     """获取权限详情（需认证）"""
-    def _get(sync_db):
-        return PermissionService.get_permission_by_id(sync_db, perm_id)
-    permission = await db.run_sync(_get)
+    service = PermissionService(db)
+    permission = await service.get_permission_by_id_async(perm_id)
     if not permission:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -87,9 +84,8 @@ async def update_permission(
 ) -> Permission:
     """更新权限（需超级管理员）"""
     _require_superuser(current_user)
-    def _update(sync_db):
-        return PermissionService.update_permission(sync_db, perm_id, permission_in)
-    permission = await db.run_sync(_update)
+    service = PermissionService(db)
+    permission = await service.update_permission_async(perm_id, permission_in)
     logger.info(f"管理员 {current_user.username} 更新了权限 ID={perm_id}")
     return permission
 
@@ -102,8 +98,7 @@ async def delete_permission(
 ) -> dict[str, str]:
     """删除权限（需超级管理员）"""
     _require_superuser(current_user)
-    def _delete(sync_db):
-        return PermissionService.delete_permission(sync_db, perm_id)
-    await db.run_sync(_delete)
+    service = PermissionService(db)
+    await service.delete_permission_async(perm_id)
     logger.warning(f"管理员 {current_user.username} 删除了权限 ID={perm_id}")
     return {"message": "权限删除成功"}
