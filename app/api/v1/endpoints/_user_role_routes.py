@@ -41,9 +41,8 @@ async def create_role(
 ) -> Role:
     """创建角色（需超级管理员）"""
     _require_superuser(current_user)
-    def _create(sync_db):
-        return RoleService.create_role(sync_db, role_in)
-    role = await db.run_sync(_create)
+    service = RoleService(db)
+    role = await service.create_role_async(role_in)
     logger.info(f"管理员 {current_user.username} 创建了角色 {role.name}")
     return role
 
@@ -56,9 +55,8 @@ async def get_roles(
     current_user: User = Depends(get_current_user)
 ) -> List[Role]:
     """获取角色列表（需认证）"""
-    def _list(sync_db):
-        return RoleService.get_roles(sync_db, skip=skip, limit=limit)
-    roles = await db.run_sync(_list)
+    service = RoleService(db)
+    roles = await service.get_roles_async(skip=skip, limit=limit)
     return roles
 
 
@@ -69,9 +67,8 @@ async def get_role(
     current_user: User = Depends(get_current_user)
 ) -> Role:
     """获取角色详情（需认证）"""
-    def _get(sync_db):
-        return RoleService.get_role_by_id(sync_db, role_id)
-    role = await db.run_sync(_get)
+    service = RoleService(db)
+    role = await service.get_role_by_id_async(role_id)
     if not role:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -89,9 +86,8 @@ async def update_role(
 ) -> Role:
     """更新角色（需超级管理员）"""
     _require_superuser(current_user)
-    def _update(sync_db):
-        return RoleService.update_role(sync_db, role_id, role_in)
-    role = await db.run_sync(_update)
+    service = RoleService(db)
+    role = await service.update_role_async(role_id, role_in)
     logger.info(f"管理员 {current_user.username} 更新了角色 ID={role_id}")
     return role
 
@@ -104,9 +100,8 @@ async def delete_role(
 ) -> dict[str, str]:
     """删除角色（需超级管理员）"""
     _require_superuser(current_user)
-    def _delete(sync_db):
-        return RoleService.delete_role(sync_db, role_id)
-    await db.run_sync(_delete)
+    service = RoleService(db)
+    await service.delete_role_async(role_id)
     logger.warning(f"管理员 {current_user.username} 删除了角色 ID={role_id}")
     return {"message": "角色删除成功"}
 
@@ -120,9 +115,8 @@ async def assign_role(
 ) -> dict[str, str]:
     """分配角色给用户（需超级管理员）"""
     _require_superuser(current_user)
-    def _assign(sync_db):
-        return UserRoleService.assign_role(sync_db, user_id, role_id)
-    await db.run_sync(_assign)
+    service = UserRoleService(db)
+    await service.assign_role_async(user_id, role_id)
     logger.info(f"管理员 {current_user.username} 为用户 ID={user_id} 分配了角色 ID={role_id}")
     return {"message": "角色分配成功"}
 
@@ -136,8 +130,7 @@ async def remove_role(
 ) -> dict[str, str]:
     """移除用户角色（需超级管理员）"""
     _require_superuser(current_user)
-    def _remove(sync_db):
-        return UserRoleService.remove_role(sync_db, user_id, role_id)
-    await db.run_sync(_remove)
+    service = UserRoleService(db)
+    await service.remove_role_async(user_id, role_id)
     logger.info(f"管理员 {current_user.username} 移除了用户 ID={user_id} 的角色 ID={role_id}")
     return {"message": "角色移除成功"}

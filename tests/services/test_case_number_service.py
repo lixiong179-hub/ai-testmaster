@@ -61,7 +61,8 @@ def db(_engine) -> Session:
 
     session.rollback()
     session.close()
-    transaction.rollback()
+    if transaction.is_active:
+        transaction.rollback()
     connection.close()
 
 

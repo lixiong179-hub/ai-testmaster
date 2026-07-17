@@ -4,6 +4,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -66,49 +67,48 @@ async def ai_generate_test_case(
     project_id = request_data.project_id
     description = request_data.description
 
-    def _check_project(sync_db):
-        return sync_db.query(Project).filter(
+    project_result = await db.execute(
+        select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
-        ).first()
-    project = await db.run_sync(_check_project)
+        )
+    )
+    project = project_result.scalars().first()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
     try:
         generated_case = generate_test_case(description)
         priority_value = normalize_priority(generated_case.get("priority", "medium"))
 
-        def _create(sync_db):
-            new_test_case = TestCase(
-                project_id=project_id, title=generated_case.get("title") or "(无标题)",
-                precondition=generated_case.get("precondition", ""),
-                expected_result=generated_case.get("expected_result", ""),
-                priority=priority_value, module="AI生成",
-                case_type=generated_case.get("case_type") or generated_case.get("test_category") or DEFAULT_AI_FALLBACK_CASE_TYPE,
-                steps_json=generated_case.get("steps", []),
-                case_no=f"CASE{project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
-                generate_status=1,
-                test_category=generated_case.get("test_category", None),
+        new_test_case = TestCase(
+            project_id=project_id, title=generated_case.get("title") or "(无标题)",
+            precondition=generated_case.get("precondition", ""),
+            expected_result=generated_case.get("expected_result", ""),
+            priority=priority_value, module="AI生成",
+            case_type=generated_case.get("case_type") or generated_case.get("test_category") or DEFAULT_AI_FALLBACK_CASE_TYPE,
+            steps_json=generated_case.get("steps", []),
+            case_no=f"CASE{project_id}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+            generate_status=1,
+            test_category=generated_case.get("test_category", None),
+        )
+        db.add(new_test_case)
+        await db.flush()
+        for i, step in enumerate(generated_case.get("steps", [])):
+            action = step.get("action") or step.get("step") or f"步骤{i + 1}"
+            expected_result = (
+                step.get("expected_result") or step.get("param") or "预期结果正常"
             )
-            sync_db.add(new_test_case)
-            sync_db.flush()
-            for i, step in enumerate(generated_case.get("steps", [])):
-                action = step.get("action") or step.get("step") or f"步骤{i + 1}"
-                expected_result = (
-                    step.get("expected_result") or step.get("param") or "预期结果正常"
-                )
-                test_step = TestStep(
-                    test_case_id=new_test_case.id, step_number=i + 1,
-                    action=action, expected_result=expected_result,
-                    action_type=step.get("action_type", ""),
-                    input_value=step.get("input_value", ""),
-                    target_element=step.get("target_element", ""),
-                    is_business_view=1, is_technical_view=1,
-                )
-                sync_db.add(test_step)
-            sync_db.commit()
-            sync_db.refresh(new_test_case)
-            return build_test_case_response(new_test_case)
-        data = await db.run_sync(_create)
+            test_step = TestStep(
+                test_case_id=new_test_case.id, step_number=i + 1,
+                action=action, expected_result=expected_result,
+                action_type=step.get("action_type", ""),
+                input_value=step.get("input_value", ""),
+                target_element=step.get("target_element", ""),
+                is_business_view=1, is_technical_view=1,
+            )
+            db.add(test_step)
+        await db.commit()
+        await db.refresh(new_test_case)
+        data = build_test_case_response(new_test_case)
         return create_response(data=data)
     except Exception as e:
         await db.rollback()
@@ -125,11 +125,12 @@ async def ai_enhanced_generate(
     project_id = request.project_id
     description = request.description
 
-    def _check_project(sync_db):
-        return sync_db.query(Project).filter(
+    project_result = await db.execute(
+        select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
-        ).first()
-    project = await db.run_sync(_check_project)
+        )
+    )
+    project = project_result.scalars().first()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
     if not description or len(description.strip()) < 5:

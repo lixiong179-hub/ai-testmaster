@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -155,11 +156,12 @@ async def get_generation_context(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    def _check_project(sync_db):
-        return sync_db.query(Project).filter(
+    project_result = await db.execute(
+        select(Project).where(
             Project.id == request.project_id, Project.user_id == current_user.id
-        ).first()
-    project = await db.run_sync(_check_project)
+        )
+    )
+    project = project_result.scalars().first()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
@@ -233,11 +235,12 @@ async def generate_single_test_case(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    def _check_project(sync_db):
-        return sync_db.query(Project).filter(
+    project_result = await db.execute(
+        select(Project).where(
             Project.id == request.project_id, Project.user_id == current_user.id
-        ).first()
-    project = await db.run_sync(_check_project)
+        )
+    )
+    project = project_result.scalars().first()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"

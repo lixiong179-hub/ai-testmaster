@@ -324,3 +324,25 @@ def transition_iteration_status(
 
     db.flush()
     return iteration
+
+
+# 异步 mixin 在模块末尾导入，避免与上方异常类/常量的定义产生循环导入。
+# 加载顺序：本模块先定义异常类与常量 → 再导入 mixin（mixin 反向导入这些名称）。
+from typing import Union
+from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.services.iteration_async_mixin import IterationAsyncMixin  # noqa: E402
+
+
+class IterationService(IterationAsyncMixin):
+    """迭代服务（hybrid 模式）。
+
+    sync 端点继续用模块级函数（create_iteration 等）；
+    async 端点用本类实例的 _async 后缀方法，消除 db.run_sync 桥接。
+
+    Args:
+        db: 数据库会话，async 端点传 AsyncSession。
+    """
+
+    def __init__(self, db: Union[Session, AsyncSession]) -> None:
+        self.db = db

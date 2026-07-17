@@ -20,6 +20,7 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import select, func, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.utils.db_time import utcnow
@@ -73,6 +74,42 @@ def _verify_task_access(
         )
 
 
+async def _verify_project_access_async(
+    db: AsyncSession, project_id: int, current_user: User
+) -> None:
+    """async 版本的项目权限校验，供 async 端点内联调用。"""
+    result = await db.execute(
+        select(Project).where(
+            Project.id == project_id,
+            Project.user_id == current_user.id
+        )
+    )
+    project = result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此项目"
+        )
+
+
+async def _verify_task_access_async(
+    db: AsyncSession, task: TestTask, current_user: User
+) -> None:
+    """async 版本的任务权限校验，供 async 端点内联调用。"""
+    result = await db.execute(
+        select(Project).where(
+            Project.id == task.project_id,
+            Project.user_id == current_user.id
+        )
+    )
+    project = result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此任务"
+        )
+
+
 # 创建任务请求模型
 class CreateTaskRequest(BaseModel):
     project_id: int
@@ -99,51 +136,51 @@ async def create_test_task(
         task_name = request_data.task_name
         test_case_ids = request_data.case_ids
 
-        def _create(sync_db) -> dict:
-            _verify_project_access(sync_db, project_id, current_user)
-            new_task = TestTask(
-                project_id=project_id,
-                task_name=task_name,
-                case_ids=test_case_ids or [],
-                executor_id=current_user.id,
-                status=0,
-                total_count=len(test_case_ids) if test_case_ids else 0
-            )
-            sync_db.add(new_task)
-            sync_db.flush()
+        await _verify_project_access_async(db, project_id, current_user)
+        new_task = TestTask(
+            project_id=project_id,
+            task_name=task_name,
+            case_ids=test_case_ids or [],
+            executor_id=current_user.id,
+            status=0,
+            total_count=len(test_case_ids) if test_case_ids else 0
+        )
+        db.add(new_task)
+        await db.flush()
 
-            if test_case_ids:
-                test_cases = sync_db.query(TestCase).filter(
+        if test_case_ids:
+            cases_result = await db.execute(
+                select(TestCase).where(
                     TestCase.id.in_(test_case_ids),
                     TestCase.project_id == project_id,
                     TestCase.is_deleted.is_(False)
-                ).all()
-                case_map = {tc.id: tc for tc in test_cases}
-                task_results_to_insert = []
-                for case_id in test_case_ids:
-                    test_case = case_map.get(case_id)
-                    if test_case:
-                        task_results_to_insert.append({
-                            "task_id": new_task.id,
-                            "project_id": project_id,
-                            "case_id": case_id,
-                            "case_no": test_case.case_no,
-                            "exec_status": ExecStatus.NOT_EXECUTED
-                        })
-                if task_results_to_insert:
-                    sync_db.bulk_insert_mappings(TestResult, task_results_to_insert)
+                )
+            )
+            test_cases = cases_result.scalars().all()
+            case_map = {tc.id: tc for tc in test_cases}
+            task_results_to_insert = []
+            for case_id in test_case_ids:
+                test_case = case_map.get(case_id)
+                if test_case:
+                    task_results_to_insert.append({
+                        "task_id": new_task.id,
+                        "project_id": project_id,
+                        "case_id": case_id,
+                        "case_no": test_case.case_no,
+                        "exec_status": ExecStatus.NOT_EXECUTED
+                    })
+            if task_results_to_insert:
+                await db.execute(insert(TestResult), task_results_to_insert)
 
-            sync_db.commit()
-            sync_db.refresh(new_task)
-            return {
-                "task_id": new_task.id,
-                "task_name": new_task.task_name,
-                "project_id": new_task.project_id,
-                "total_count": new_task.total_count,
-                "create_time": new_task.create_time
-            }
-
-        data = await db.run_sync(_create)
+        await db.commit()
+        await db.refresh(new_task)
+        data = {
+            "task_id": new_task.id,
+            "task_name": new_task.task_name,
+            "project_id": new_task.project_id,
+            "total_count": new_task.total_count,
+            "create_time": new_task.create_time
+        }
         return create_response(data=data)
     except HTTPException:
         raise
@@ -166,39 +203,46 @@ async def get_test_tasks(
     current_user: User = Depends(get_current_user)
 ):
     """获取测试任务列表"""
-    def _list(sync_db) -> dict:
-        if project_id is not None:
-            _verify_project_access(sync_db, project_id, current_user)
-            query = sync_db.query(TestTask).filter(TestTask.project_id == project_id)
-        else:
-            query = sync_db.query(TestTask).join(
-                Project,
-                Project.id == TestTask.project_id
-            ).filter(Project.user_id == current_user.id)
-        if task_status is not None:
-            query = query.filter(TestTask.status == task_status)
-        offset = (page - 1) * page_size
-        test_tasks = query.order_by(TestTask.id.desc()).offset(offset).limit(page_size).all()
-        total = query.count()
-        items = []
-        for task in test_tasks:
-            items.append({
-                "id": task.id,
-                "task_name": task.task_name,
-                "project_id": task.project_id,
-                "case_ids": task.case_ids or [],
-                "executor_id": task.executor_id,
-                "status": task.status,
-                "total_count": task.total_count,
-                "success_count": getattr(task, 'success_count', 0),
-                "fail_count": getattr(task, 'fail_count', 0),
-                "progress": getattr(task, 'progress', 0),
-                "create_time": task.create_time,
-                "update_time": getattr(task, 'update_time', None)
-            })
-        return {"total": total, "items": items}
-
-    data = await db.run_sync(_list)
+    if project_id is not None:
+        await _verify_project_access_async(db, project_id, current_user)
+        base_query = select(TestTask).where(TestTask.project_id == project_id)
+        count_query = select(func.count()).select_from(TestTask).where(TestTask.project_id == project_id)
+    else:
+        base_query = select(TestTask).join(
+            Project,
+            Project.id == TestTask.project_id
+        ).where(Project.user_id == current_user.id)
+        count_query = select(func.count()).select_from(TestTask).join(
+            Project,
+            Project.id == TestTask.project_id
+        ).where(Project.user_id == current_user.id)
+    if task_status is not None:
+        base_query = base_query.where(TestTask.status == task_status)
+        count_query = count_query.where(TestTask.status == task_status)
+    offset = (page - 1) * page_size
+    tasks_result = await db.execute(
+        base_query.order_by(TestTask.id.desc()).offset(offset).limit(page_size)
+    )
+    test_tasks = tasks_result.scalars().all()
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    items = []
+    for task in test_tasks:
+        items.append({
+            "id": task.id,
+            "task_name": task.task_name,
+            "project_id": task.project_id,
+            "case_ids": task.case_ids or [],
+            "executor_id": task.executor_id,
+            "status": task.status,
+            "total_count": task.total_count,
+            "success_count": getattr(task, 'success_count', 0),
+            "fail_count": getattr(task, 'fail_count', 0),
+            "progress": getattr(task, 'progress', 0),
+            "create_time": task.create_time,
+            "update_time": getattr(task, 'update_time', None)
+        })
+    data = {"total": total, "items": items}
     return create_response(data=data)
 
 
@@ -252,20 +296,21 @@ async def start_test_task(
 ):
     """开始执行测试任务（支持执行模式和设备参数）"""
     try:
-        def _prepare(sync_db) -> TestTask:
-            task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-            if not task:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="任务不存在"
-                )
-            _verify_task_access(sync_db, task, current_user)
-            if task.status not in [0, 3]:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"任务状态不允许开始执行 (当前状态: {task.status})"
-                )
-            return task
+        task_result = await db.execute(
+            select(TestTask).where(TestTask.id == task_id)
+        )
+        task = task_result.scalars().first()
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="任务不存在"
+            )
+        await _verify_task_access_async(db, task, current_user)
+        if task.status not in [0, 3]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"任务状态不允许开始执行 (当前状态: {task.status})"
+            )
 
         execution_mode = "smart"
         mobile_device_id = None
@@ -278,15 +323,14 @@ async def start_test_task(
             logger.warning(f"非法执行模式 '{execution_mode}'，回退到默认值 'smart'")
             execution_mode = "smart"
 
-        task = await db.run_sync(_prepare)
-
-        def _mark_running(sync_db):
-            t = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-            t.status = 1
-            t.start_time = utcnow()
-            sync_db.commit()
-            return t
-        await db.run_sync(_mark_running)
+        # 标记任务为运行中
+        running_result = await db.execute(
+            select(TestTask).where(TestTask.id == task_id)
+        )
+        running_task = running_result.scalars().first()
+        running_task.status = 1
+        running_task.start_time = utcnow()
+        await db.commit()
 
         # TestExecutionEngineV2 内部使用 sync Session API，需独立 sync 会话
         # 性能优化：将 async service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
@@ -304,15 +348,16 @@ async def start_test_task(
                 )
             except Exception as e:
                 logger.error("任务执行异常: {}", e, exc_info=True)
-
-                def _mark_failed(failed_db):
-                    t = failed_db.query(TestTask).filter(TestTask.id == task_id).first()
-                    if t:
-                        t.status = 2
-                        t.end_time = utcnow()
-                        failed_db.commit()
-                # 使用 async 会话的 sync session 更新状态，保证事务可见性
-                await db.run_sync(_mark_failed)
+                # 异常路径：_mark_running 已 commit，async 会话干净，
+                # 直接重新查询并标记失败（与原 db.run_sync 实现一致，无需 rollback）
+                failed_result = await db.execute(
+                    select(TestTask).where(TestTask.id == task_id)
+                )
+                failed_task = failed_result.scalars().first()
+                if failed_task:
+                    failed_task.status = 2
+                    failed_task.end_time = utcnow()
+                    await db.commit()
         finally:
             sync_db.close()
 
@@ -338,16 +383,16 @@ async def delete_test_task(
     current_user: User = Depends(get_current_user)
 ):
     """删除测试任务"""
-    def _delete(sync_db):
-        task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-        if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="测试任务不存在"
-            )
-        _verify_task_access(sync_db, task, current_user)
-        sync_db.delete(task)
-        sync_db.commit()
-
-    await db.run_sync(_delete)
+    task_result = await db.execute(
+        select(TestTask).where(TestTask.id == task_id)
+    )
+    task = task_result.scalars().first()
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试任务不存在"
+        )
+    await _verify_task_access_async(db, task, current_user)
+    await db.delete(task)
+    await db.commit()
     return {"message": "测试任务删除成功"}

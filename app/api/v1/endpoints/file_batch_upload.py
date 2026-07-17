@@ -26,6 +26,7 @@ from fastapi import (
     Form,
 )
 from typing import List, Optional
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
@@ -78,22 +79,17 @@ async def batch_upload_files(
                 detail=f"无效的资源类型，允许值: {', '.join(valid_resource_types)}",
             )
 
-        def _check_project(sync_db: Session) -> Project:
-            project = (
-                sync_db.query(Project)
-                .filter(
-                    Project.id == project_id, Project.user_id == current_user.id
-                )
-                .first()
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == project_id, Project.user_id == current_user.id
             )
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="无权限操作此项目",
-                )
-            return project
-
-        await db.run_sync(_check_project)
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此项目",
+            )
 
         if not files or len(files) == 0:
             raise HTTPException(status_code=400, detail="请选择至少一个文件")

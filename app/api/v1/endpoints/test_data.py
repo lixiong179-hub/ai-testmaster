@@ -126,10 +126,8 @@ async def create_test_data(
 ):
     """创建测试数据"""
     try:
-        def _create(sync_db):
-            service = TestDataService(sync_db)
-            return service.create_test_data(**request.model_dump())
-        test_data = await db.run_sync(_create)
+        service = TestDataService(db)
+        test_data = await service.create_test_data_async(**request.model_dump())
         return test_data.to_dict()
     except Exception as e:
         logger.error(f"创建测试数据失败: {e}")
@@ -146,10 +144,8 @@ async def get_test_data(
     current_user: User = Depends(get_current_user)
 ):
     """获取单个测试数据"""
-    def _get(sync_db):
-        service = TestDataService(sync_db)
-        return service.get_test_data(test_data_id)
-    test_data = await db.run_sync(_get)
+    service = TestDataService(db)
+    test_data = await service.get_test_data_async(test_data_id)
     if not test_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -165,10 +161,8 @@ async def get_test_data_by_step(
     current_user: User = Depends(get_current_user)
 ):
     """获取步骤的所有测试数据"""
-    def _get(sync_db):
-        service = TestDataService(sync_db)
-        return service.get_test_data_by_step(step_id)
-    data_list = await db.run_sync(_get)
+    service = TestDataService(db)
+    data_list = await service.get_test_data_by_step_async(step_id)
     return {
         "step_id": step_id,
         "data_list": [data.to_dict() for data in data_list]
@@ -184,10 +178,8 @@ async def update_test_data(
 ):
     """更新测试数据"""
     update_data = {k: v for k, v in request.model_dump().items() if v is not None}
-    def _update(sync_db):
-        service = TestDataService(sync_db)
-        return service.update_test_data(test_data_id, **update_data)
-    test_data = await db.run_sync(_update)
+    service = TestDataService(db)
+    test_data = await service.update_test_data_async(test_data_id, **update_data)
     if not test_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -203,10 +195,8 @@ async def delete_test_data(
     current_user: User = Depends(get_current_user)
 ):
     """删除测试数据"""
-    def _delete(sync_db):
-        service = TestDataService(sync_db)
-        return service.delete_test_data(test_data_id)
-    success = await db.run_sync(_delete)
+    service = TestDataService(db)
+    success = await service.delete_test_data_async(test_data_id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -223,10 +213,8 @@ async def generate_step_data(
 ):
     """生成步骤的测试数据"""
     try:
-        def _generate(sync_db):
-            service = TestDataService(sync_db)
-            return service.generate_step_data(step_id)
-        generated_data = await db.run_sync(_generate)
+        service = TestDataService(db)
+        generated_data = await service.generate_step_data_async(step_id)
         return {
             "step_id": step_id,
             "generated_data": generated_data
@@ -248,10 +236,8 @@ async def auto_generate_test_data(
 ):
     """根据操作描述自动推断生成测试数据"""
     try:
-        def _auto_generate(sync_db):
-            service = TestDataService(sync_db)
-            return service.auto_generate_for_step(step_id, action_description)
-        created_list = await db.run_sync(_auto_generate)
+        service = TestDataService(db)
+        created_list = await service.auto_generate_for_step_async(step_id, action_description)
         return {
             "success": True,
             "count": len(created_list),
