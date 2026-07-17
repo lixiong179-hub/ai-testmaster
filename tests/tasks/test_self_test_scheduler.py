@@ -178,15 +178,15 @@ class TestRefreshJobs:
     def teardown_method(self) -> None:
         self.scheduler.stop()
 
-    def test_refresh_starts_scheduler_when_none(self, db) -> None:
+    async def test_refresh_starts_scheduler_when_none(self, sync_backed_async_db) -> None:
         """_scheduler 为 None 时 refresh_jobs 应自动启动调度器。"""
         assert self.scheduler._scheduler is None
-        self.scheduler.refresh_jobs(db)
+        await self.scheduler.refresh_jobs(sync_backed_async_db)
         assert self.scheduler._scheduler is not None
         assert self.scheduler._scheduler.running is True
 
-    def test_refresh_adds_job_for_self_test_project_with_schedule(
-        self, db, testUser
+    async def test_refresh_adds_job_for_self_test_project_with_schedule(
+        self, db, testUser, sync_backed_async_db
     ) -> None:
         """有 schedule 的自测项目应添加定时任务。"""
         from app.models.project import Project
@@ -202,22 +202,24 @@ class TestRefreshJobs:
         db.flush()
         try:
             self.scheduler.start()
-            self.scheduler.refresh_jobs(db)
+            await self.scheduler.refresh_jobs(sync_backed_async_db)
             jobId = SelfTestScheduler._make_job_id(project.id)
             assert self.scheduler._scheduler.get_job(jobId) is not None
         finally:
             self.scheduler.remove_job(project.id)
 
-    def test_refresh_removes_orphan_jobs(self, db) -> None:
+    async def test_refresh_removes_orphan_jobs(self, sync_backed_async_db) -> None:
         """refresh_jobs 应清理不在有效列表中的 self_test_ 任务。"""
         self.scheduler.start()
         self.scheduler.add_job(99999, "0 2 * * *")
         orphanId = SelfTestScheduler._make_job_id(99999)
         assert self.scheduler._scheduler.get_job(orphanId) is not None
-        self.scheduler.refresh_jobs(db)
+        await self.scheduler.refresh_jobs(sync_backed_async_db)
         assert self.scheduler._scheduler.get_job(orphanId) is None
 
-    def test_refresh_skips_project_without_schedule(self, db, testUser) -> None:
+    async def test_refresh_skips_project_without_schedule(
+        self, db, testUser, sync_backed_async_db
+    ) -> None:
         """无 schedule 的自测项目应被跳过（不添加任务）。"""
         from app.models.project import Project
 
@@ -231,7 +233,7 @@ class TestRefreshJobs:
         db.add(project)
         db.flush()
         self.scheduler.start()
-        self.scheduler.refresh_jobs(db)
+        await self.scheduler.refresh_jobs(sync_backed_async_db)
         jobId = SelfTestScheduler._make_job_id(project.id)
         assert self.scheduler._scheduler.get_job(jobId) is None
 

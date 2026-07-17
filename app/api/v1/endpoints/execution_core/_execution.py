@@ -2,15 +2,16 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.user import User
 from app.models.test_task import TestTask
+from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
 from app.core.exception import create_response
-from app.api.v1.endpoints.execution_core._helpers import verify_project_permission
 from app.utils.db_time import utcnow
 
 router = APIRouter()
@@ -59,27 +60,38 @@ async def start_test_execution(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        def _prepare(sync_db):
-            task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-            if not task:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="任务不存在"
-                )
+        task_result = await db.execute(
+            select(TestTask).where(TestTask.id == task_id)
+        )
+        task = task_result.scalars().first()
+        if not task:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="任务不存在"
+            )
 
-            verify_project_permission(sync_db, task.project_id, current_user.id)
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == task.project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此项目"
+            )
 
-            if task.status not in [0, 3]:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"任务状态不允许开始执行 (当前状态: {task.status})"
-                )
+        if task.status not in [0, 3]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"任务状态不允许开始执行 (当前状态: {task.status})"
+            )
 
-            task.status = 1
-            task.start_time = utcnow()
-            sync_db.commit()
-
-        await db.run_sync(_prepare)
+        task.status = 1
+        task.start_time = utcnow()
+        await db.commit()
 
         headless = True
         record_video = False
@@ -158,28 +170,36 @@ async def pause_test_execution(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _pause(sync_db):
-        try:
-            task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-            if not task:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    try:
+        task_result = await db.execute(
+            select(TestTask).where(TestTask.id == task_id)
+        )
+        task = task_result.scalars().first()
+        if not task:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-            verify_project_permission(sync_db, task.project_id, current_user.id)
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == task.project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
-            if task.status != 1:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在执行中，无法暂停")
+        if task.status != 1:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在执行中，无法暂停")
 
-            task.status = 3
-            sync_db.commit()
+        task.status = 3
+        await db.commit()
 
-            return create_response(data={"task_id": task_id, "status": "paused"})
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"暂停执行失败: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="暂停执行失败")
-
-    return await db.run_sync(_pause)
+        return create_response(data={"task_id": task_id, "status": "paused"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"暂停执行失败: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="暂停执行失败")
 
 
 @router.post("/{task_id}/resume")
@@ -188,28 +208,36 @@ async def resume_test_execution(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _resume(sync_db):
-        try:
-            task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-            if not task:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    try:
+        task_result = await db.execute(
+            select(TestTask).where(TestTask.id == task_id)
+        )
+        task = task_result.scalars().first()
+        if not task:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-            verify_project_permission(sync_db, task.project_id, current_user.id)
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == task.project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
-            if task.status != 3:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在暂停状态，无法恢复")
+        if task.status != 3:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在暂停状态，无法恢复")
 
-            task.status = 1
-            sync_db.commit()
+        task.status = 1
+        await db.commit()
 
-            return create_response(data={"task_id": task_id, "status": "running"})
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"恢复执行失败: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="恢复执行失败")
-
-    return await db.run_sync(_resume)
+        return create_response(data={"task_id": task_id, "status": "running"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"恢复执行失败: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="恢复执行失败")
 
 
 @router.post("/{task_id}/stop")
@@ -218,26 +246,34 @@ async def stop_test_execution(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _stop(sync_db):
-        try:
-            task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-            if not task:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    try:
+        task_result = await db.execute(
+            select(TestTask).where(TestTask.id == task_id)
+        )
+        task = task_result.scalars().first()
+        if not task:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-            verify_project_permission(sync_db, task.project_id, current_user.id)
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == task.project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
-            if task.status not in [1, 3]:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在执行中，无法停止")
+        if task.status not in [1, 3]:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在执行中，无法停止")
 
-            task.status = 4
-            task.end_time = utcnow()
-            sync_db.commit()
+        task.status = 4
+        task.end_time = utcnow()
+        await db.commit()
 
-            return create_response(data={"task_id": task_id, "status": "stopped"})
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"停止执行失败: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="停止执行失败")
-
-    return await db.run_sync(_stop)
+        return create_response(data={"task_id": task_id, "status": "stopped"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"停止执行失败: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="停止执行失败")

@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -21,7 +21,6 @@ from app.schemas.history_asset import (
 from app.api.v1.endpoints._history_asset_helpers import (
     _asset_to_detail_response,
     _asset_to_upload_response,
-    _validate_project_permission,
 )
 from app.api.v1.endpoints._history_asset_parsers import (
     _parse_excel_cases,
@@ -46,10 +45,16 @@ async def upload_history_asset(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _check_permission(sync_db: Session) -> Project:
-        return _validate_project_permission(project_id, current_user.id, sync_db)
-
-    await db.run_sync(_check_permission)
+    project_result = await db.execute(
+        select(Project).where(
+            Project.id == project_id, Project.user_id == current_user.id
+        )
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
+        )
 
     if asset_type not in _ALLOWED_ASSET_TYPES:
         raise HTTPException(
@@ -100,24 +105,20 @@ async def upload_history_asset(
     final_parsed_cases = parsed_cases if parse_status == "completed" else None
     final_case_count = len(parsed_cases) if parse_status == "completed" else 0
 
-    def _create_asset(sync_db: Session) -> HistoryAsset:
-        asset = HistoryAsset(
-            project_id=project_id,
-            user_id=current_user.id,
-            asset_type=asset_type,
-            file_path=file_path,
-            original_filename=filename,
-            parse_status=final_parse_status,
-            parse_error=final_parse_error,
-            parsed_cases_json=final_parsed_cases,
-            case_count=final_case_count,
-        )
-        sync_db.add(asset)
-        sync_db.commit()
-        sync_db.refresh(asset)
-        return asset
-
-    asset = await db.run_sync(_create_asset)
+    asset = HistoryAsset(
+        project_id=project_id,
+        user_id=current_user.id,
+        asset_type=asset_type,
+        file_path=file_path,
+        original_filename=filename,
+        parse_status=final_parse_status,
+        parse_error=final_parse_error,
+        parsed_cases_json=final_parsed_cases,
+        case_count=final_case_count,
+    )
+    db.add(asset)
+    await db.commit()
+    await db.refresh(asset)
 
     return create_response(data=_asset_to_upload_response(asset))
 
@@ -130,22 +131,30 @@ async def list_history_assets(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _list(sync_db: Session) -> tuple:
-        _validate_project_permission(project_id, current_user.id, sync_db)
-        query = sync_db.query(HistoryAsset).filter(
-            HistoryAsset.project_id == project_id
+    project_result = await db.execute(
+        select(Project).where(
+            Project.id == project_id, Project.user_id == current_user.id
         )
-        total = query.count()
-        skip = (page - 1) * page_size
-        assets = (
-            query.order_by(HistoryAsset.created_at.desc())
-            .offset(skip)
-            .limit(page_size)
-            .all()
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
         )
-        return assets, total
 
-    assets, total = await db.run_sync(_list)
+    total_result = await db.execute(
+        select(func.count()).select_from(HistoryAsset)
+        .where(HistoryAsset.project_id == project_id)
+    )
+    total = total_result.scalar() or 0
+    skip = (page - 1) * page_size
+    assets_result = await db.execute(
+        select(HistoryAsset).where(HistoryAsset.project_id == project_id)
+        .order_by(HistoryAsset.created_at.desc())
+        .offset(skip).limit(page_size)
+    )
+    assets = assets_result.scalars().all()
+
     items = [_asset_to_upload_response(a) for a in assets]
     return create_response(
         data={"items": items, "total": total, "page": page, "page_size": page_size}
@@ -175,78 +184,84 @@ async def align_history_assets(
             detail=f"参数 JSON 解析失败: {e}",
         ) from e
 
-    def _align(sync_db: Session) -> dict:
-        _validate_project_permission(project_id, current_user.id, sync_db)
-
-        assets = (
-            sync_db.query(HistoryAsset)
-            .filter(
-                HistoryAsset.id.in_(asset_ids),
-                HistoryAsset.project_id == project_id,
-            )
-            .all()
+    project_result = await db.execute(
+        select(Project).where(
+            Project.id == project_id, Project.user_id == current_user.id
         )
-        if len(assets) != len(asset_ids):
-            found_ids = {a.id for a in assets}
-            missing = set(asset_ids) - found_ids
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"以下历史资产不存在或不属于当前项目: {sorted(missing)}",
-            )
-
-        all_cases: list[dict[str, Any]] = []
-        for asset in assets:
-            if asset.parsed_cases_json:
-                all_cases.extend(asset.parsed_cases_json)
-
-        system_cases_query = (
-            sync_db.query(TestCase)
-            .filter(
-                TestCase.project_id == project_id,
-                TestCase.is_deleted.is_(False),
-            )
-            .all()
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
         )
-        system_cases: list[dict[str, Any]] = []
-        for sc in system_cases_query:
-            system_cases.append({
-                "case_id": sc.id,
-                "title": sc.title,
-                "module": sc.module,
-                "precondition": sc.precondition,
-                "steps": sc.steps_json or [],
-                "expected_result": sc.expected_result,
-                "priority": sc.priority,
-            })
 
-        requirement_keywords: list[str] = []
-        if req_file_ids:
-            from app.models.project import ProjectFile
-            req_files = sync_db.query(ProjectFile).filter(
+    assets_result = await db.execute(
+        select(HistoryAsset).where(
+            HistoryAsset.id.in_(asset_ids),
+            HistoryAsset.project_id == project_id,
+        )
+    )
+    assets = assets_result.scalars().all()
+    if len(assets) != len(asset_ids):
+        found_ids = {a.id for a in assets}
+        missing = set(asset_ids) - found_ids
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"以下历史资产不存在或不属于当前项目: {sorted(missing)}",
+        )
+
+    all_cases: list[dict[str, Any]] = []
+    for asset in assets:
+        if asset.parsed_cases_json:
+            all_cases.extend(asset.parsed_cases_json)
+
+    system_cases_result = await db.execute(
+        select(TestCase).where(
+            TestCase.project_id == project_id,
+            TestCase.is_deleted.is_(False),
+        )
+    )
+    system_cases_query = system_cases_result.scalars().all()
+    system_cases: list[dict[str, Any]] = []
+    for sc in system_cases_query:
+        system_cases.append({
+            "case_id": sc.id,
+            "title": sc.title,
+            "module": sc.module,
+            "precondition": sc.precondition,
+            "steps": sc.steps_json or [],
+            "expected_result": sc.expected_result,
+            "priority": sc.priority,
+        })
+
+    requirement_keywords: list[str] = []
+    if req_file_ids:
+        from app.models.project import ProjectFile
+        req_files_result = await db.execute(
+            select(ProjectFile).where(
                 ProjectFile.id.in_(req_file_ids),
                 ProjectFile.project_id == project_id,
-            ).all()
-            for rf in req_files:
-                if rf.original_filename:
-                    name = os.path.splitext(rf.original_filename)[0]
-                    requirement_keywords.extend(name.replace("_", " ").replace("-", " ").split())
-
-        classification_items = _classify_history_cases(all_cases, system_cases, requirement_keywords)
-
-        summary = HistoryClassificationSummary(
-            reuse_count=sum(1 for i in classification_items if i.classification == "REUSE_CASE"),
-            update_count=sum(1 for i in classification_items if i.classification == "UPDATE_CASE"),
-            new_count=sum(1 for i in classification_items if i.classification == "NEW_CASE"),
-            deprecated_count=sum(1 for i in classification_items if i.classification == "DEPRECATED_CASE"),
-            confirm_required_count=sum(1 for i in classification_items if i.classification == "CONFIRM_REQUIRED"),
-            total=len(classification_items),
+            )
         )
+        req_files = req_files_result.scalars().all()
+        for rf in req_files:
+            if rf.original_filename:
+                name = os.path.splitext(rf.original_filename)[0]
+                requirement_keywords.extend(name.replace("_", " ").replace("-", " ").split())
 
-        result = HistoryClassificationResponse(summary=summary, items=classification_items)
-        return result.model_dump()
+    classification_items = _classify_history_cases(all_cases, system_cases, requirement_keywords)
 
-    result_data = await db.run_sync(_align)
-    return create_response(data=result_data)
+    summary = HistoryClassificationSummary(
+        reuse_count=sum(1 for i in classification_items if i.classification == "REUSE_CASE"),
+        update_count=sum(1 for i in classification_items if i.classification == "UPDATE_CASE"),
+        new_count=sum(1 for i in classification_items if i.classification == "NEW_CASE"),
+        deprecated_count=sum(1 for i in classification_items if i.classification == "DEPRECATED_CASE"),
+        confirm_required_count=sum(1 for i in classification_items if i.classification == "CONFIRM_REQUIRED"),
+        total=len(classification_items),
+    )
+
+    result = HistoryClassificationResponse(summary=summary, items=classification_items)
+    return create_response(data=result.model_dump())
 
 
 @router.post("/import-system-cases")
@@ -266,56 +281,60 @@ async def import_system_cases(
             detail=f"case_ids JSON 解析失败: {e}",
         ) from e
 
-    def _import(sync_db: Session) -> HistoryAsset:
-        _validate_project_permission(project_id, current_user.id, sync_db)
-
-        cases = (
-            sync_db.query(TestCase)
-            .filter(
-                TestCase.id.in_(parsed_case_ids),
-                TestCase.project_id == project_id,
-                TestCase.is_deleted.is_(False),
-            )
-            .all()
+    project_result = await db.execute(
+        select(Project).where(
+            Project.id == project_id, Project.user_id == current_user.id
         )
-        if len(cases) != len(parsed_case_ids):
-            found_ids = {c.id for c in cases}
-            missing = set(parsed_case_ids) - found_ids
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"以下用例不存在或不属于当前项目: {sorted(missing)}",
-            )
-
-        parsed_cases: list[dict[str, Any]] = []
-        for case in cases:
-            parsed_cases.append({
-                "case_id": case.id,
-                "case_no": case.case_no,
-                "title": case.title,
-                "module": case.module,
-                "precondition": case.precondition,
-                "steps": case.steps_json or [],
-                "expected_result": case.expected_result,
-                "priority": case.priority,
-                "case_type": case.case_type,
-            })
-
-        asset = HistoryAsset(
-            project_id=project_id,
-            user_id=current_user.id,
-            asset_type="system_cases",
-            file_path=None,
-            original_filename=None,
-            parse_status="completed",
-            parsed_cases_json=parsed_cases,
-            case_count=len(parsed_cases),
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
         )
-        sync_db.add(asset)
-        sync_db.commit()
-        sync_db.refresh(asset)
-        return asset
 
-    asset = await db.run_sync(_import)
+    cases_result = await db.execute(
+        select(TestCase).where(
+            TestCase.id.in_(parsed_case_ids),
+            TestCase.project_id == project_id,
+            TestCase.is_deleted.is_(False),
+        )
+    )
+    cases = cases_result.scalars().all()
+    if len(cases) != len(parsed_case_ids):
+        found_ids = {c.id for c in cases}
+        missing = set(parsed_case_ids) - found_ids
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"以下用例不存在或不属于此项目: {sorted(missing)}",
+        )
+
+    parsed_cases: list[dict[str, Any]] = []
+    for case in cases:
+        parsed_cases.append({
+            "case_id": case.id,
+            "case_no": case.case_no,
+            "title": case.title,
+            "module": case.module,
+            "precondition": case.precondition,
+            "steps": case.steps_json or [],
+            "expected_result": case.expected_result,
+            "priority": case.priority,
+            "case_type": case.case_type,
+        })
+
+    asset = HistoryAsset(
+        project_id=project_id,
+        user_id=current_user.id,
+        asset_type="system_cases",
+        file_path=None,
+        original_filename=None,
+        parse_status="completed",
+        parsed_cases_json=parsed_cases,
+        case_count=len(parsed_cases),
+    )
+    db.add(asset)
+    await db.commit()
+    await db.refresh(asset)
 
     return create_response(data=_asset_to_upload_response(asset))
 
@@ -326,17 +345,16 @@ async def get_history_asset(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _get(sync_db: Session) -> HistoryAsset:
-        asset = sync_db.query(HistoryAsset).filter(HistoryAsset.id == asset_id).first()
-        if not asset:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="历史资产不存在"
-            )
-        if asset.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问此历史资产"
-            )
-        return asset
-
-    asset = await db.run_sync(_get)
+    asset_result = await db.execute(
+        select(HistoryAsset).where(HistoryAsset.id == asset_id)
+    )
+    asset = asset_result.scalars().first()
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="历史资产不存在"
+        )
+    if asset.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问此历史资产"
+        )
     return create_response(data=_asset_to_detail_response(asset))

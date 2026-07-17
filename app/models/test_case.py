@@ -22,17 +22,28 @@
     TestStep → TestData（一对多，级联删除）
     TestTask → TestCaseExecution（一对多，SET NULL）
 
+拆分说明：
+    - lifecycle_status 保护机制与版本快照函数已拆至
+      `_test_case_lifecycle.py`，避免单文件超 350 行；
+    - 本模块通过 re-export 保持 `from app.models.test_case import
+      enable_lifecycle_transition` 等导入路径不变，调用方零改动。
+
 依赖关系：
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from typing import Any
-
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float, event, Index
-from sqlalchemy.orm import relationship, Session
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Float, Index
+from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base
-import contextvars
+
+# re-export lifecycle 守卫函数保持导入路径兼容（实际定义见 _test_case_lifecycle.py）
+from app.models._test_case_lifecycle import (  # noqa: F401
+    enable_lifecycle_transition,
+    disable_lifecycle_transition,
+    skip_version_snapshot,
+    resume_version_snapshot,
+)
 
 
 class TestCase(Base):
@@ -60,7 +71,6 @@ class TestCase(Base):
     """
     __test__ = False
     __tablename__ = "test_cases"
-
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                          # 用例主键ID
     case_no = Column(String(50), nullable=False, unique=True, comment="用例编号，如'TC-001-0001'")   # 用例编号，全局唯一，格式为 TC-{项目ID}-{序号}
     legacy_case_no = Column(String(80), nullable=True, comment="历史用例编号，Excel导入时保留原始编号")  # 历史编号，导入时保留原编号
@@ -74,32 +84,19 @@ class TestCase(Base):
     expected_result = Column(Text, nullable=False, comment="预期结果")                                 # 整体预期结果
     priority = Column(Integer, nullable=False, comment="优先级：1高/2中/3低")                          # 优先级，1=高优先级，2=中优先级，3=低优先级
     case_type = Column(String(20), nullable=False, comment="用例类型：API/UI/接口")                    # 用例类型，决定执行方式
-
-    # 用例分类标签（支持多标签）
-    # 取值：ui_automation=UI自动化测试, manual=手工测试, api_automation=接口自动化测试
     test_category = Column(String(100), nullable=True, comment="用例分类标签，多个用逗号分隔")            # 多标签，逗号分隔
-
-    # 用例场景分类（单值）：positive/boundary/exception/security/performance
-    # 由 AI 生成时标注，domain_examples 按此字段分类提取 Few-shot 示例
     case_category = Column(String(20), nullable=True, comment="用例场景分类：positive/boundary/exception/security/performance")
-
     exec_script = Column(Text, nullable=True, comment="执行脚本占位，供后续测试模型调用")                # 预留字段，存储自动化执行脚本
     create_time = Column(DateTime, default=utcnow, nullable=False, comment="创建时间")                  # 创建时间，UTC时区
     update_time = Column(DateTime, onupdate=utcnow, default=utcnow, comment="更新时间")                 # 更新时间
     generate_status = Column(Integer, nullable=False, default=0, comment="生成状态：0生成中/1生成成功/2生成失败")  # AI生成状态，0=生成中，1=成功，2=失败
-
     is_deleted = Column(Boolean, nullable=False, default=False, comment="软删除标记")                   # 软删除，True表示已删除
     deleted_at = Column(DateTime, nullable=True, comment="删除时间")                                   # 软删除时间记录
-    
-    # 人工审核相关字段
     review_status = Column(String(20), default="pending", nullable=False, index=True, comment="审核状态：pending/approved/rejected/needs_optimization")  # pending=待审核，approved=已通过，rejected=已拒绝，needs_optimization=需优化
     review_comment = Column(Text, nullable=True, comment="审核意见")                                   # 审核人填写的意见
     reviewed_by = Column(String(100), nullable=True, comment="审核人")                                 # 审核人用户名
     reviewed_at = Column(DateTime, nullable=True, comment="审核时间")                                  # 审核操作时间
-
     correction_status = Column(String(30), default=None, nullable=True, index=True, comment="纠正状态：failed_correction/correcting/verifying/verified")  # failed_correction=纠正失败，correcting=纠正中，verifying=验证中，verified=已验证
-
-    # 生命周期与血缘字段
     lifecycle_status = Column(String(30), nullable=False, default="draft", comment="生命周期状态：draft/active/pending_review/needs_modify/locator_broken/deprecated/archived")  # 生命周期状态，变更必经 LifecycleService
     prior_quality_score = Column(Float, nullable=True, comment="先验质量分（0-100），生成时由 QualityGate 计算")
     posterior_quality_score = Column(Float, nullable=True, comment="后验质量分（0-100），评审+执行后回填")
@@ -119,26 +116,11 @@ class TestCase(Base):
     fallback_steps = Column(Text, nullable=True, comment="降级导航步骤JSON，当主干快照不可用时执行此步骤序列到达目标页面")
     setup_api_calls = Column(Text, nullable=True, comment="API前置准备JSON，B端用例通过API直接创建数据状态，避免依赖UI快照")
     last_review_id = Column(Integer, ForeignKey("code_reviews.id", ondelete="SET NULL"), nullable=True, comment="最近一次评审ID")  # 关联评审记录
-
-    # 执行验证结果字段（Task 10）
     execution_verified = Column(Boolean, nullable=True, comment="是否通过Playwright执行验证")
     element_verified_ratio = Column(Float, nullable=True, comment="元素定位成功率（0.0-1.0）")
     execution_failure_type = Column(String(50), nullable=True, comment="执行失败类型：element_not_found/timeout/assertion_failed/network_error/other")
     last_verified_at = Column(DateTime, nullable=True, comment="最后执行验证时间")
-
-    # 元素锚定来源（url-driven-quick-test Task 6）：标识用例步骤元素锚定的依据
-    # dom_snapshot=基于站点探索真实 DOM 快照生成（禁编造），manual=人工填写，None=未锚定
     grounding_source = Column(String(32), nullable=True, index=True, comment="元素锚定来源: dom_snapshot/manual")
-
-    __table_args__ = (
-        Index("ix_test_cases_project_lifecycle", "project_id", "lifecycle_status"),
-        # R3 修复：(project_id, title) 复合索引，配合 _case_title_exists 的
-        # with_for_update() 利用 InnoDB gap lock 消除标题并发竞态。非唯一索引，
-        # 不阻塞历史重复数据，仅防止新增重复。
-        Index("ix_test_cases_project_title", "project_id", "title"),
-    )
-
-    # 关联关系 - 通过project_id隔离
     project = relationship("Project", back_populates="test_cases")                                    # 所属项目
     test_point = relationship("TestPoint", backref="test_cases", foreign_keys=[test_point_id])        # 关联测试点
     parent_case = relationship("TestCase", remote_side=[id], foreign_keys=[parent_case_id], back_populates="child_cases")  # 父用例血缘关系
@@ -156,129 +138,6 @@ class TestCase(Base):
         secondary="ui_screen_test_case_links",
         back_populates="linked_test_cases"
     )                                                                                                # 关联的UI原型屏幕，用于UI自动化定位
-
-
-# ==================== lifecycle_status 保护机制 ====================
-# contextvars 上下文标记：LifecycleService 执行迁移时设置，允许通过；其他途径修改则抛错
-#
-# 设计说明：
-#   guard 注册在 Session 基类上（@event.listens_for(Session, "before_flush")），
-#   因此所有 Session 实例都会触发拦截，包括业务 Session、迁移脚本、管理后台等。
-#   非业务场景如需绕过 guard，必须显式调用 enable_lifecycle_transition() /
-#   disable_lifecycle_transition()，确保意图明确可追溯。
-#
-# 使用 contextvars 而非 threading.local() 的原因：
-#   FastAPI 异步模式下，同一线程内可能并发多个协程。threading.local() 在线程内
-#   对所有协程共享，可能导致协程 A 开启了 lifecycle 许可，协程 B 绕过 guard。
-#   contextvars 天然支持 asyncio 协程隔离，每个协程有独立的上下文副本。
-#
-# 批量操作逃生舱：
-#   对于数据迁移、批量修复等场景，可使用 enable/disable 包裹批量操作：
-#       enable_lifecycle_transition()
-#       try:
-#           for case in cases:
-#               case.lifecycle_status = "active"
-#           session.flush()
-#       finally:
-#           disable_lifecycle_transition()
-
-_lifecycle_guard: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    'lifecycle_transition_allowed', default=False
-)
-
-
-def _lifecycle_transition_allowed() -> bool:
-    """检查当前上下文是否允许修改 lifecycle_status（仅 LifecycleService 调用时为 True）。"""
-    return _lifecycle_guard.get()
-
-
-def enable_lifecycle_transition() -> None:
-    """LifecycleService 调用前设置允许标记。"""
-    _lifecycle_guard.set(True)
-
-
-def disable_lifecycle_transition() -> None:
-    """LifecycleService 调用后清除允许标记。"""
-    _lifecycle_guard.set(False)
-
-
-@event.listens_for(Session, "before_flush")
-def _guard_lifecycle_status(session, flush_context, instances):
-    """拦截 TestCase.lifecycle_status 的直接修改。
-
-    如果 lifecycle_status 被修改且当前线程未通过 LifecycleService 授权，
-    则抛出 RuntimeError，强制所有状态变更经过 LifecycleService.transition()。
-
-    同时检测追踪字段的变更，自动创建版本快照。
-    """
-    for instance in session.dirty:
-        if not isinstance(instance, TestCase):
-            continue
-        # 检查 lifecycle_status 是否被修改
-        from sqlalchemy import inspect as sa_inspect
-        state = sa_inspect(instance)
-        hist = state.attrs.lifecycle_status.history
-        if hist.deleted or hist.added:
-            # lifecycle_status 被修改
-            if not _lifecycle_transition_allowed():
-                raise RuntimeError(
-                    f"Direct update of TestCase.lifecycle_status is forbidden. "
-                    f"Use LifecycleService.transition() instead. "
-                    f"(case_id={instance.id}, "
-                    f"old={hist.deleted[0] if hist.deleted else '?'}, "
-                    f"new={hist.added[0] if hist.added else '?'})"
-                )
-
-        # 自动版本快照：检测追踪字段变更
-        _auto_create_version_snapshot(session, instance, state)
-
-
-# 上下文标记：跳过自动版本快照（用于批量操作或内部流程手动控制）
-_version_snapshot_skip: contextvars.ContextVar[bool] = contextvars.ContextVar(
-    'version_snapshot_skip', default=False
-)
-
-
-def skip_version_snapshot() -> None:
-    """设置跳过自动版本快照标记。"""
-    _version_snapshot_skip.set(True)
-
-
-def resume_version_snapshot() -> None:
-    """恢复自动版本快照标记。"""
-    _version_snapshot_skip.set(False)
-
-
-def _auto_create_version_snapshot(session: Session, instance: TestCase, state: Any) -> None:
-    """当 TestCase 的追踪字段变更时自动创建版本快照。
-
-    仅在实例有持久化主键且追踪字段真正变更时触发，
-    通过 CaseVersionService.create_snapshot 统一处理。
-    由于在 before_flush 事件中调用，auto_flush=False 避免递归 flush。
-
-    Args:
-        session: 数据库会话。
-        instance: TestCase 脏实例。
-        state: SQLAlchemy instance state。
-    """
-    if _version_snapshot_skip.get():
-        return
-    if instance.id is None:
-        return
-
-    from app.services.case_version_service import CaseVersionService, TRACKED_FIELDS
-
-    changed_fields = CaseVersionService.build_changed_fields(instance, state)
-    if not changed_fields:
-        return
-
-    CaseVersionService.create_snapshot(
-        db=session,
-        test_case_id=instance.id,
-        change_type="update",
-        changed_fields=changed_fields,
-        auto_flush=False,
-    )
 
 
 class TestStep(Base):

@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone, timedelta
 
 from app.services.test_case_generation.context_builder import ContextBuilder as TestCaseGenerationBaseMixin
@@ -251,8 +251,9 @@ class TestCaseRefreshSuggestionModel:
 class TestCaseRefreshService:
     def setup_method(self):
         self.db = MagicMock()
+        self.db.flush = AsyncMock()
 
-    def test_create_suggestion(self):
+    async def test_create_suggestion(self):
         from app.services.case_refresh_service import CaseRefreshService
         service = CaseRefreshService(self.db)
         ai_result = {
@@ -263,7 +264,7 @@ class TestCaseRefreshService:
             "diff_description": "步骤变更",
             "deprecation_reason": "",
         }
-        suggestion = service.create_suggestion(
+        suggestion = await service.create_suggestion(
             case_id=1,
             trigger_reason="stale",
             requirement_id=10,

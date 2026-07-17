@@ -1,4 +1,5 @@
 import os
+import uuid
 import warnings
 import asyncio
 import pytest
@@ -194,6 +195,17 @@ def db_session(db):
 
 
 @pytest.fixture(scope="function")
+def sync_backed_async_db(db):
+    """为 async 测试提供与 sync db 共享事务的 AsyncSession 包装。
+
+    直接调用 async service 函数时，sync db 的 Session 无法 await db.execute()，
+    用 _SyncBackedAsyncSession 包装后委托 greenlet_spawn 执行，保持与 sync db
+    事务的数据可见性（testUser / testProject 等均在 sync db 事务内）。
+    """
+    return _SyncBackedAsyncSession(db)
+
+
+@pytest.fixture(scope="function")
 def cleanupTracker():
     tracker = {"tables": [], "ids": {}}
 
@@ -252,7 +264,8 @@ def client(db):
 def testUser(db):
     from app.models.user import User
 
-    uniqueSuffix = os.getenv("PYTEST_XDIST_WORKER", "0")
+    # 使用 UUID 后缀避免全量回归时多测试创建同名用户导致 MySQL 死锁
+    uniqueSuffix = f"{os.getenv('PYTEST_XDIST_WORKER', '0')}_{uuid.uuid4().hex[:8]}"
     username = f"test_user_{uniqueSuffix}"
     email = f"test_{uniqueSuffix}@test.com"
 
@@ -284,7 +297,8 @@ def testUser(db):
 def testAdminUser(db):
     from app.models.user import User
 
-    uniqueSuffix = os.getenv("PYTEST_XDIST_WORKER", "0")
+    # 使用 UUID 后缀避免全量回归时多测试创建同名用户导致 MySQL 死锁
+    uniqueSuffix = f"{os.getenv('PYTEST_XDIST_WORKER', '0')}_{uuid.uuid4().hex[:8]}"
     username = f"test_admin_{uniqueSuffix}"
     email = f"test_admin_{uniqueSuffix}@test.com"
 

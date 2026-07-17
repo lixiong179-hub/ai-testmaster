@@ -16,7 +16,7 @@
 import json
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestScenario1HistoryCaseCorruptionGovernance:
@@ -243,16 +243,19 @@ class TestScenario3CompletenessScoreWithNavigationFlow:
 class TestScenario4CaseRefreshStats:
     """场景4: 保鲜建议统计API"""
 
-    def test_stats_returns_full_counts_not_page_limited(self):
+    async def test_stats_returns_full_counts_not_page_limited(self):
         from app.services.case_refresh_service import CaseRefreshService
 
         mock_db = MagicMock()
-        mock_db.query.return_value.join.return_value.filter.return_value.group_by.return_value.all.return_value = [
+        mock_db.execute = AsyncMock()
+        result_mock = MagicMock()
+        result_mock.all.return_value = [
             ("pending", 5), ("applied", 3), ("rejected", 2),
         ]
+        mock_db.execute.return_value = result_mock
 
         service = CaseRefreshService(mock_db)
-        stats = service.get_suggestions_stats(project_id=1)
+        stats = await service.get_suggestions_stats(project_id=1)
 
         assert stats["pending"] == 5
         assert stats["applied"] == 3

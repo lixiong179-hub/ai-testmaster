@@ -22,6 +22,19 @@ from app.schemas.ui_prototype import FlowDataSaveRequest
 from app.utils.jwt_utils import get_password_hash
 
 
+class _AsyncSessionWrapper:
+    """轻量级 AsyncSession 包装器，仅委托 run_sync 给 sync Session。
+
+    用于直接调用 async 端点函数（端点内部用 db.run_sync(fn) 执行同步查询）。
+    """
+
+    def __init__(self, sync_session) -> None:
+        self._sync = sync_session
+
+    async def run_sync(self, fn, *args, **kwargs):
+        return fn(self._sync, *args, **kwargs)
+
+
 @pytest.fixture
 def api_project(db, testUser):
     """为测试创建属于 testUser 的项目"""
@@ -82,7 +95,7 @@ class TestPutFlowData:
         response = await save_flow_data(
             project_id=api_project.id,
             flow_request=request,
-            db=db,
+            db=_AsyncSessionWrapper(db),
             current_user=testUser,
         )
         assert response["code"] == 200
@@ -96,7 +109,7 @@ class TestPutFlowData:
         r1 = await save_flow_data(
             project_id=api_project.id,
             flow_request=req1,
-            db=db,
+            db=_AsyncSessionWrapper(db),
             current_user=testUser,
         )
         assert r1["code"] == 200
@@ -108,7 +121,7 @@ class TestPutFlowData:
         r2 = await save_flow_data(
             project_id=api_project.id,
             flow_request=req2,
-            db=db,
+            db=_AsyncSessionWrapper(db),
             current_user=testUser,
         )
         assert r2["code"] == 200
@@ -125,7 +138,7 @@ class TestPutFlowData:
         response = await save_flow_data(
             project_id=api_project.id,
             flow_request=request,
-            db=db,
+            db=_AsyncSessionWrapper(db),
             current_user=testUser,
         )
         assert response["code"] == 200
@@ -138,7 +151,7 @@ class TestPutFlowData:
             await save_flow_data(
                 project_id=api_project.id,
                 flow_request=request,
-                db=db,
+                db=_AsyncSessionWrapper(db),
                 current_user=testUser,
             )
         assert exc.value.status_code == status.HTTP_400_BAD_REQUEST
@@ -150,7 +163,7 @@ class TestPutFlowData:
             await save_flow_data(
                 project_id=other_user["project"].id,
                 flow_request=request,
-                db=db,
+                db=_AsyncSessionWrapper(db),
                 current_user=testUser,
             )
         assert exc.value.status_code == status.HTTP_403_FORBIDDEN
@@ -172,14 +185,14 @@ class TestGetFlowData:
         await save_flow_data(
             project_id=api_project.id,
             flow_request=request,
-            db=db,
+            db=_AsyncSessionWrapper(db),
             current_user=testUser,
         )
 
         # 再查询
         response = await get_flow_data(
             project_id=api_project.id,
-            db=db,
+            db=_AsyncSessionWrapper(db),
             current_user=testUser,
         )
         assert response["code"] == 200
@@ -190,7 +203,7 @@ class TestGetFlowData:
     async def test_returns_null_when_no_data(self, db, api_project, testUser):
         response = await get_flow_data(
             project_id=api_project.id,
-            db=db,
+            db=_AsyncSessionWrapper(db),
             current_user=testUser,
         )
         assert response["code"] == 200
@@ -203,7 +216,7 @@ class TestGetFlowData:
         with pytest.raises(HTTPException) as exc:
             await get_flow_data(
                 project_id=other_user["project"].id,
-                db=db,
+                db=_AsyncSessionWrapper(db),
                 current_user=testUser,
             )
         assert exc.value.status_code == status.HTTP_403_FORBIDDEN

@@ -60,10 +60,12 @@ class TestFeatureFlagCRUDAsync:
         service = FeatureFlagService(async_db)
         await service.create_flag(key="list_a", name="列表A")
         await service.create_flag(key="list_b", name="列表B")
-        flags = await service.list_flags()
+        # P2-4 分页改造后 list_flags 返回 (flags, total) 元组
+        flags, total = await service.list_flags()
         keys = [f.key for f in flags]
         assert "list_a" in keys
         assert "list_b" in keys
+        assert total >= 2
 
     async def test_update_flag(self, async_db):
         """更新特性开关"""
