@@ -15,6 +15,8 @@
         service = UserRoleService(db)  # db 为 AsyncSession
         await service.assign_role_async(user_id, role_id)
 """
+from typing import List
+
 from sqlalchemy import select, delete, and_
 
 from app.models.user import User, Role, user_role
@@ -80,3 +82,17 @@ class UserRoleServiceAsyncMixin:
         if result.rowcount == 0:
             raise BaseAPIException("角色分配不存在", code=404)
         return True
+
+    async def get_user_roles_async(self, user_id: int) -> List[Role]:
+        """查询用户的所有角色（异步版本）。
+
+        Args:
+            user_id: 用户ID。
+
+        Returns:
+            Role 实例列表，无角色时返回空列表。
+        """
+        result = await self.db.execute(
+            select(Role).join(user_role).where(user_role.c.user_id == user_id)
+        )
+        return result.scalars().all()

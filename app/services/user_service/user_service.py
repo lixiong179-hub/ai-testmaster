@@ -14,24 +14,43 @@
     - 权限校验前通过get_user_by_id获取用户信息
 
 设计意图:
-    全部采用静态方法，服务不持有可变状态，数据库会话由调用方
-    传入管理，确保事务边界清晰，避免长事务问题。
+    Hybrid 模式：sync 调用方继续使用静态方法（db: Session 由调用方传入），
+    async 调用方通过实例化 UserService(db: AsyncSession) 调用 *_async 方法。
+    纯计算方法（verify_password/get_password_hash）保持静态，供 sync/async 复用。
 """
-from typing import Optional, List
+from typing import Optional, List, Union
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 from app.core.exception import BaseAPIException
+from app.services.user_service.user_service_async_mixin import UserServiceAsyncMixin
 
 # bcrypt密码加密上下文，deprecated="auto"表示自动迁移旧哈希格式
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-class UserService:
-    """用户服务 - 处理用户认证、密码管理与CRUD操作。"""
+class UserService(UserServiceAsyncMixin):
+    """用户服务 - 处理用户认证、密码管理与CRUD操作。
+
+    Hybrid 模式：
+        - sync 调用：直接使用静态方法，例如 ``UserService.create_user(db, user_in)``
+        - async 调用：实例化后调用 ``*_async`` 方法，例如
+          ``await UserService(db).create_user_async(user_in)``，此时 db 必须为 AsyncSession。
+    """
+
+    def __init__(self, db: Optional[Union[Session, AsyncSession]] = None) -> None:
+        """初始化服务实例。
+
+        Args:
+            db: 数据库会话。sync 静态方法不依赖此属性；async 实例方法
+                要求传入 AsyncSession 实例。默认 None 允许在不持有 db 的
+                场景下实例化（仅用于调用纯计算静态方法时）。
+        """
+        self.db = db
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
