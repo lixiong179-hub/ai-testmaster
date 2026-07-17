@@ -15,6 +15,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import async_get_db
@@ -66,40 +67,49 @@ async def get_test_case_versions(
     from app.models.project import Project
     from app.models.test_case_version import TestCaseVersion
 
-    def _list_versions(sync_db) -> dict:
-        test_case = sync_db.query(TestCase).join(Project).filter(
+    test_case_result = await db.execute(
+        select(TestCase).join(Project).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        ).first()
-        if not test_case:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="测试用例不存在"
-            )
-        query = sync_db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == test_case_id
-        ).order_by(TestCaseVersion.version_number.desc())
-        total = query.count()
-        offset = (page - 1) * page_size
-        versions = query.offset(offset).limit(page_size).all()
-        items = []
-        for v in versions:
-            items.append({
-                "id": v.id,
-                "test_case_id": v.test_case_id,
-                "version_number": v.version_number,
-                "change_type": v.change_type,
-                "change_description": v.change_description,
-                "changed_fields": v.changed_fields if isinstance(v.changed_fields, dict) else json.loads(v.changed_fields or "{}"),
-                "snapshot_data": v.snapshot_data if isinstance(v.snapshot_data, dict) else json.loads(v.snapshot_data or "{}"),
-                "operator_id": v.operator_id,
-                "operator_name": v.operator_name,
-                "created_at": v.created_at.isoformat() if v.created_at else None
-            })
-        return {"total": total, "items": items, "page": page, "page_size": page_size}
+        )
+    )
+    test_case = test_case_result.scalars().first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
 
-    data = await db.run_sync(_list_versions)
+    base_filter = TestCaseVersion.test_case_id == test_case_id
+    count_result = await db.execute(
+        select(func.count()).select_from(TestCaseVersion).where(base_filter)
+    )
+    total = count_result.scalar() or 0
+
+    offset = (page - 1) * page_size
+    versions_result = await db.execute(
+        select(TestCaseVersion).where(base_filter)
+        .order_by(TestCaseVersion.version_number.desc())
+        .offset(offset).limit(page_size)
+    )
+    versions = versions_result.scalars().all()
+
+    items = []
+    for v in versions:
+        items.append({
+            "id": v.id,
+            "test_case_id": v.test_case_id,
+            "version_number": v.version_number,
+            "change_type": v.change_type,
+            "change_description": v.change_description,
+            "changed_fields": v.changed_fields if isinstance(v.changed_fields, dict) else json.loads(v.changed_fields or "{}"),
+            "snapshot_data": v.snapshot_data if isinstance(v.snapshot_data, dict) else json.loads(v.snapshot_data or "{}"),
+            "operator_id": v.operator_id,
+            "operator_name": v.operator_name,
+            "created_at": v.created_at.isoformat() if v.created_at else None
+        })
+    data = {"total": total, "items": items, "page": page, "page_size": page_size}
     return create_response(data=data)
 
 
@@ -123,40 +133,45 @@ async def get_test_case_version_detail(
     from app.models.test_case_version import TestCaseVersion
     from app.models.project import Project
 
-    def _get_detail(sync_db) -> dict:
-        test_case = sync_db.query(TestCase).join(Project).filter(
+    test_case_result = await db.execute(
+        select(TestCase).join(Project).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        ).first()
-        if not test_case:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="测试用例不存在"
-            )
-        version = sync_db.query(TestCaseVersion).filter(
+        )
+    )
+    test_case = test_case_result.scalars().first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+
+    version_result = await db.execute(
+        select(TestCaseVersion).where(
             TestCaseVersion.id == version_id,
             TestCaseVersion.test_case_id == test_case_id
-        ).first()
-        if not version:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="版本记录不存在"
-            )
-        return {
-            "id": version.id,
-            "test_case_id": version.test_case_id,
-            "version_number": version.version_number,
-            "change_type": version.change_type,
-            "change_description": version.change_description,
-            "changed_fields": version.changed_fields if isinstance(version.changed_fields, dict) else json.loads(version.changed_fields or "{}"),
-            "snapshot_data": version.snapshot_data if isinstance(version.snapshot_data, dict) else json.loads(version.snapshot_data or "{}"),
-            "operator_id": version.operator_id,
-            "operator_name": version.operator_name,
-            "created_at": version.created_at.isoformat() if version.created_at else None
-        }
+        )
+    )
+    version = version_result.scalars().first()
+    if not version:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="版本记录不存在"
+        )
 
-    data = await db.run_sync(_get_detail)
+    data = {
+        "id": version.id,
+        "test_case_id": version.test_case_id,
+        "version_number": version.version_number,
+        "change_type": version.change_type,
+        "change_description": version.change_description,
+        "changed_fields": version.changed_fields if isinstance(version.changed_fields, dict) else json.loads(version.changed_fields or "{}"),
+        "snapshot_data": version.snapshot_data if isinstance(version.snapshot_data, dict) else json.loads(version.snapshot_data or "{}"),
+        "operator_id": version.operator_id,
+        "operator_name": version.operator_name,
+        "created_at": version.created_at.isoformat() if version.created_at else None
+    }
     return create_response(data=data)
 
 

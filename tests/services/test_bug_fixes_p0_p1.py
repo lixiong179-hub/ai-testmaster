@@ -254,41 +254,41 @@ class TestSelfTestPasswordNotInEnvConfigs:
             configs = _get_self_test_env_configs()
             assert "password" not in configs["test"]
 
-    def test_password_stored_via_test_object_password(self, db, testUser) -> None:
+    async def test_password_stored_via_test_object_password(self, testUser, sync_backed_async_db) -> None:
         with patch.dict(os.environ, {
             "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
             "SELF_TEST_USERNAME": "admin",
             "SELF_TEST_PASSWORD": "my_secret_pass",
         }, clear=False):
             from app.services.self_test_service import create_self_test_project
-            project = create_self_test_project(db, testUser.id)
+            project = await create_self_test_project(sync_backed_async_db, testUser.id)
 
         web_configs = json.loads(project.web_env_configs)
         assert "password" not in web_configs["test"]
 
         assert project.test_object_password == "my_secret_pass"
 
-    def test_password_encrypted_in_db_column(self, db, testUser) -> None:
+    async def test_password_encrypted_in_db_column(self, testUser, sync_backed_async_db) -> None:
         with patch.dict(os.environ, {
             "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
             "SELF_TEST_USERNAME": "admin",
             "SELF_TEST_PASSWORD": "my_secret_pass",
         }, clear=False):
             from app.services.self_test_service import create_self_test_project
-            project = create_self_test_project(db, testUser.id)
+            project = await create_self_test_project(sync_backed_async_db, testUser.id)
 
         assert project.test_object_password_encrypted is not None
         assert project.test_object_password_encrypted != "my_secret_pass"
         assert project.test_object_password_encrypted.startswith("gAAAAA")
 
-    def test_no_password_env_stores_none(self, db, testUser) -> None:
+    async def test_no_password_env_stores_none(self, testUser, sync_backed_async_db) -> None:
         with patch.dict(os.environ, {
             "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
             "SELF_TEST_USERNAME": "admin",
             "SELF_TEST_PASSWORD": "",
         }, clear=False):
             from app.services.self_test_service import create_self_test_project
-            project = create_self_test_project(db, testUser.id)
+            project = await create_self_test_project(sync_backed_async_db, testUser.id)
 
         assert project.test_object_password is None
         assert project.test_object_password_encrypted is None

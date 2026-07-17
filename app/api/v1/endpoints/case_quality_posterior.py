@@ -84,75 +84,73 @@ async def get_posterior_result(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _get_stats(sync_db: Session):
-        from app.models.project import Project
-        project = sync_db.query(Project).filter(Project.id == project_id).first()
-        if not project:
-            raise HTTPException(status_code=404, detail="项目不存在")
+    from app.models.project import Project
+    from app.models.test_case import TestCase
+    from sqlalchemy import select
 
-        from app.models.test_case import TestCase
+    project_result = await db.execute(
+        select(Project).where(Project.id == project_id)
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
 
-        stats = (
-            sync_db.query(
-                func.count(TestCase.id).label("total_cases"),
-                func.sum(case(
-                    (TestCase.posterior_quality_score.isnot(None), 1),
-                    else_=0,
-                )).label("scored_cases"),
-                func.avg(TestCase.posterior_quality_score).label("avg_score"),
-                func.max(TestCase.posterior_quality_score).label("max_score"),
-                func.min(TestCase.posterior_quality_score).label("min_score"),
-            )
-            .filter(
+    stats_result = await db.execute(
+        select(
+            func.count(TestCase.id).label("total_cases"),
+            func.sum(case(
+                (TestCase.posterior_quality_score.isnot(None), 1),
+                else_=0,
+            )).label("scored_cases"),
+            func.avg(TestCase.posterior_quality_score).label("avg_score"),
+            func.max(TestCase.posterior_quality_score).label("max_score"),
+            func.min(TestCase.posterior_quality_score).label("min_score"),
+        ).where(
+            TestCase.project_id == project_id,
+            TestCase.is_deleted.is_(False),
+        )
+    )
+    stats = stats_result.one()
+
+    total_cases = stats.total_cases or 0
+    scored_cases = stats.scored_cases or 0
+    unscored_cases = total_cases - scored_cases
+
+    distribution: Dict[str, int] = {
+        "A_90_100": 0,
+        "B_75_89": 0,
+        "C_60_74": 0,
+        "D_0_59": 0,
+    }
+
+    if scored_cases > 0:
+        scored_result = await db.execute(
+            select(TestCase.posterior_quality_score).where(
                 TestCase.project_id == project_id,
                 TestCase.is_deleted.is_(False),
+                TestCase.posterior_quality_score.isnot(None),
             )
-            .first()
         )
+        for row in scored_result.all():
+            score = row[0]
+            if score is None:
+                continue
+            if score >= 90:
+                distribution["A_90_100"] += 1
+            elif score >= 75:
+                distribution["B_75_89"] += 1
+            elif score >= 60:
+                distribution["C_60_74"] += 1
+            else:
+                distribution["D_0_59"] += 1
 
-        total_cases = stats.total_cases or 0
-        scored_cases = stats.scored_cases or 0
-        unscored_cases = total_cases - scored_cases
-
-        distribution: Dict[str, int] = {
-            "A_90_100": 0,
-            "B_75_89": 0,
-            "C_60_74": 0,
-            "D_0_59": 0,
-        }
-
-        if scored_cases > 0:
-            scored_rows = (
-                sync_db.query(TestCase.posterior_quality_score)
-                .filter(
-                    TestCase.project_id == project_id,
-                    TestCase.is_deleted.is_(False),
-                    TestCase.posterior_quality_score.isnot(None),
-                )
-                .all()
-            )
-            for row in scored_rows:
-                score = row.posterior_quality_score
-                if score is None:
-                    continue
-                if score >= 90:
-                    distribution["A_90_100"] += 1
-                elif score >= 75:
-                    distribution["B_75_89"] += 1
-                elif score >= 60:
-                    distribution["C_60_74"] += 1
-                else:
-                    distribution["D_0_59"] += 1
-
-        return PosteriorStatsResponse(
-            project_id=project_id,
-            avg_posterior_score=round(stats.avg_score, 2) if stats.avg_score else None,
-            max_posterior_score=stats.max_score,
-            min_posterior_score=stats.min_score,
-            total_cases=total_cases,
-            scored_cases=scored_cases,
-            unscored_cases=unscored_cases,
-            distribution=distribution,
-        )
-
-    return await db.run_sync(_get_stats)
+    return PosteriorStatsResponse(
+        project_id=project_id,
+        avg_posterior_score=round(stats.avg_score, 2) if stats.avg_score else None,
+        max_posterior_score=stats.max_score,
+        min_posterior_score=stats.min_score,
+        total_cases=total_cases,
+        scored_cases=scored_cases,
+        unscored_cases=unscored_cases,
+        distribution=distribution,
+    )

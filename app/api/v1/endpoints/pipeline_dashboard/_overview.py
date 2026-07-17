@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
+from sqlalchemy import case, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import async_get_db
@@ -37,20 +37,28 @@ async def get_dashboard_overview(
         try:
             since = utcnow() - timedelta(days=days)
 
-            # P2-2: 合并 8 次独立 COUNT/SUM/AVG 查询为 4 次（按表分组 + FILTER 子句条件聚合）
+            # P2-2: 合并 8 次独立 COUNT/SUM/AVG 查询为 4 次（按表分组 + CASE WHEN 条件聚合）
+            # 注意：MySQL 不支持 PostgreSQL 的 FILTER (WHERE ...) 语法，使用 SUM(CASE WHEN ...) 替代
             # PipelineRun: total_runs + completed_runs + avg_duration → 1 次查询
             run_stats = sync_db.query(
                 func.count(PipelineRun.id).label("total_runs"),
-                func.count(PipelineRun.id)
-                    .filter(PipelineRun.status == "completed")
-                    .label("completed_runs"),
+                func.sum(
+                    case((PipelineRun.status == "completed", 1), else_=0)
+                ).label("completed_runs"),
                 func.coalesce(
-                    func.avg(duration_seconds(PipelineRun.started_at, PipelineRun.finished_at, sync_db))
-                        .filter(
-                            PipelineRun.status == "completed",
-                            PipelineRun.started_at.isnot(None),
-                            PipelineRun.finished_at.isnot(None),
-                        ),
+                    func.avg(
+                        case(
+                            (
+                                and_(
+                                    PipelineRun.status == "completed",
+                                    PipelineRun.started_at.isnot(None),
+                                    PipelineRun.finished_at.isnot(None),
+                                ),
+                                duration_seconds(PipelineRun.started_at, PipelineRun.finished_at, sync_db),
+                            ),
+                            else_=None,
+                        )
+                    ),
                     0,
                 ).label("avg_duration"),
             ).filter(PipelineRun.started_at >= since)
@@ -66,12 +74,18 @@ async def get_dashboard_overview(
 
             # PipelineStep: cache_hit_steps + total_steps → 1 次查询
             step_stats = sync_db.query(
-                func.count(PipelineStep.id)
-                    .filter(
-                        PipelineStep.cache_key.isnot(None),
-                        PipelineStep.status == "skipped",
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                PipelineStep.cache_key.isnot(None),
+                                PipelineStep.status == "skipped",
+                            ),
+                            1,
+                        ),
+                        else_=0,
                     )
-                    .label("cache_hit_steps"),
+                ).label("cache_hit_steps"),
                 func.count(PipelineStep.id).label("total_steps"),
             ).filter(PipelineStep.started_at >= since)
 

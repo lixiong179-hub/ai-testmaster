@@ -13,11 +13,12 @@ import json
 import os
 
 import pytest
-from dotenv import load_dotenv
+
+# 注意：不可在模块顶部调用 load_dotenv() — 会在测试收集阶段将 .env 中的
+# CORS_ORIGINS=* 等变量注入 os.environ，污染后续测试（如 test_core_config.py
+# 的 DevSettings 默认值校验）。改为在 fixture 内按需加载。
 
 pytestmark = pytest.mark.skip(reason="AI_API_KEY缺失")
-
-load_dotenv()  # 从 .env 加载 DEEPSEEK_API_KEY
 
 from app.ai.client import AIResponse, TokenUsage
 from app.ai.openai_client import OpenAIClient
@@ -32,6 +33,8 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 def openai_client():
+    from dotenv import load_dotenv
+    load_dotenv()  # 从 .env 加载 DEEPSEEK_API_KEY（仅在 fixture 实际执行时）
     return OpenAIClient()
 
 

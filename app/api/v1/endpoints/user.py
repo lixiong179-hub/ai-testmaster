@@ -2,23 +2,28 @@ from typing import List, Any
 """
 用户管理端点模块
 
-本模块定义用户管理的API端点，提供用户信息的查询和更新功能。
+本模块定义用户管理的API端点，提供用户认证、用户CRUD功能。
+角色管理和权限管理端点已拆分至 _user_role_routes 和 _user_perm_routes。
 
 路由前缀: /user
 标签: 用户管理
 
 端点概览:
-    - GET  /me          - 获取当前用户信息
-    - PUT  /me          - 更新当前用户信息
-    - PUT  /me/password - 修改密码
+    - POST /login          - 用户登录（JWT令牌）
+    - GET  /me             - 获取当前用户信息
+    - POST /               - 创建用户
+    - GET  /               - 获取用户列表
+    - GET  /{user_id}      - 获取用户详情（含角色）
+    - PUT  /{user_id}      - 更新用户信息
+    - DELETE /{user_id}    - 删除用户
+
+子模块（通过 include_router 注册）:
+    - _user_role_routes  : 角色CRUD + 分配/移除
+    - _user_perm_routes  : 权限CRUD
 
 权限要求: 所有端点需要Bearer令牌认证
-
-业务说明:
-    - 用户信息包括用户名、邮箱、创建时间等
-    - 修改密码需验证旧密码
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,12 +31,10 @@ from app.db.database import async_get_db
 from app.schemas.common import ApiResponse
 from app.schemas.user import (
     User, UserCreate, UserUpdate, UserWithRoles,
-    Role, RoleCreate, RoleUpdate,
-    Permission, PermissionCreate, PermissionUpdate,
     Token,
 )
 from app.services.user_service import (
-    UserService, RoleService, PermissionService, UserRoleService,
+    UserService, UserRoleService,
 )
 from app.api.v1.endpoints.auth import get_current_user
 from app.utils.jwt_utils import create_access_token
@@ -120,192 +123,12 @@ async def get_users(
     return users
 
 
-@router.post("/role", response_model=Role)
-async def create_role(
-    role_in: RoleCreate,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> Role:
-    """创建角色（需超级管理员）"""
-    _require_superuser(current_user)
-    def _create(sync_db):
-        return RoleService.create_role(sync_db, role_in)
-    role = await db.run_sync(_create)
-    logger.info(f"管理员 {current_user.username} 创建了角色 {role.name}")
-    return role
+# 注册角色和权限子模块路由（在 /{user_id} 路由之前，避免路径参数误匹配）
+from app.api.v1.endpoints._user_role_routes import router as role_router
+from app.api.v1.endpoints._user_perm_routes import router as perm_router
 
-
-@router.get("/role", response_model=List[Role])
-async def get_roles(
-    skip: int = 0,
-    limit: int = 100,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> List[Role]:
-    """获取角色列表（需认证）"""
-    def _list(sync_db):
-        return RoleService.get_roles(sync_db, skip=skip, limit=limit)
-    roles = await db.run_sync(_list)
-    return roles
-
-
-@router.get("/role/{role_id}", response_model=Role)
-async def get_role(
-    role_id: int,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> Role:
-    """获取角色详情（需认证）"""
-    def _get(sync_db):
-        return RoleService.get_role_by_id(sync_db, role_id)
-    role = await db.run_sync(_get)
-    if not role:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="角色不存在"
-        )
-    return role
-
-
-@router.put("/role/{role_id}", response_model=Role)
-async def update_role(
-    role_id: int,
-    role_in: RoleUpdate,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> Role:
-    """更新角色（需超级管理员）"""
-    _require_superuser(current_user)
-    def _update(sync_db):
-        return RoleService.update_role(sync_db, role_id, role_in)
-    role = await db.run_sync(_update)
-    logger.info(f"管理员 {current_user.username} 更新了角色 ID={role_id}")
-    return role
-
-
-@router.delete("/role/{role_id}", response_model=ApiResponse)
-async def delete_role(
-    role_id: int,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> dict[str, str]:
-    """删除角色（需超级管理员）"""
-    _require_superuser(current_user)
-    def _delete(sync_db):
-        return RoleService.delete_role(sync_db, role_id)
-    await db.run_sync(_delete)
-    logger.warning(f"管理员 {current_user.username} 删除了角色 ID={role_id}")
-    return {"message": "角色删除成功"}
-
-
-@router.post("/permission", response_model=Permission)
-async def create_permission(
-    permission_in: PermissionCreate,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> Permission:
-    """创建权限（需超级管理员）"""
-    _require_superuser(current_user)
-    def _create(sync_db):
-        return PermissionService.create_permission(sync_db, permission_in)
-    permission = await db.run_sync(_create)
-    logger.info(f"管理员 {current_user.username} 创建了权限 {permission.name}")
-    return permission
-
-
-@router.get("/permission", response_model=List[Permission])
-async def get_permissions(
-    skip: int = 0,
-    limit: int = 100,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> List[Permission]:
-    """获取权限列表（需认证）"""
-    def _list(sync_db):
-        return PermissionService.get_permissions(sync_db, skip=skip, limit=limit)
-    permissions = await db.run_sync(_list)
-    return permissions
-
-
-@router.get("/permission/{perm_id}", response_model=Permission)
-async def get_permission(
-    perm_id: int,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> Permission:
-    """获取权限详情（需认证）"""
-    def _get(sync_db):
-        return PermissionService.get_permission_by_id(sync_db, perm_id)
-    permission = await db.run_sync(_get)
-    if not permission:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="权限不存在"
-        )
-    return permission
-
-
-@router.put("/permission/{perm_id}", response_model=Permission)
-async def update_permission(
-    perm_id: int,
-    permission_in: PermissionUpdate,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> Permission:
-    """更新权限（需超级管理员）"""
-    _require_superuser(current_user)
-    def _update(sync_db):
-        return PermissionService.update_permission(sync_db, perm_id, permission_in)
-    permission = await db.run_sync(_update)
-    logger.info(f"管理员 {current_user.username} 更新了权限 ID={perm_id}")
-    return permission
-
-
-@router.delete("/permission/{perm_id}", response_model=ApiResponse)
-async def delete_permission(
-    perm_id: int,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> dict[str, str]:
-    """删除权限（需超级管理员）"""
-    _require_superuser(current_user)
-    def _delete(sync_db):
-        return PermissionService.delete_permission(sync_db, perm_id)
-    await db.run_sync(_delete)
-    logger.warning(f"管理员 {current_user.username} 删除了权限 ID={perm_id}")
-    return {"message": "权限删除成功"}
-
-
-@router.post("/role/assign", response_model=ApiResponse)
-async def assign_role(
-    user_id: int = Body(...),
-    role_id: int = Body(...),
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> dict[str, str]:
-    """分配角色给用户（需超级管理员）"""
-    _require_superuser(current_user)
-    def _assign(sync_db):
-        return UserRoleService.assign_role(sync_db, user_id, role_id)
-    await db.run_sync(_assign)
-    logger.info(f"管理员 {current_user.username} 为用户 ID={user_id} 分配了角色 ID={role_id}")
-    return {"message": "角色分配成功"}
-
-
-@router.post("/role/remove", response_model=ApiResponse)
-async def remove_role(
-    user_id: int = Body(...),
-    role_id: int = Body(...),
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
-) -> dict[str, str]:
-    """移除用户角色（需超级管理员）"""
-    _require_superuser(current_user)
-    def _remove(sync_db):
-        return UserRoleService.remove_role(sync_db, user_id, role_id)
-    await db.run_sync(_remove)
-    logger.info(f"管理员 {current_user.username} 移除了用户 ID={user_id} 的角色 ID={role_id}")
-    return {"message": "角色移除成功"}
+router.include_router(role_router)
+router.include_router(perm_router)
 
 
 @router.get("/{user_id}", response_model=UserWithRoles)

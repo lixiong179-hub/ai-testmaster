@@ -171,7 +171,7 @@ class TestListTaskPermission:
 
         response = client.get("/api/v1/test-task/", headers=myAuthHeaders)
         data = assertResponseSuccess(response)
-        task_ids = {item["id"] for item in data["items"]}
+        task_ids = {item["id"] for item in data["data"]["items"]}
 
         assert own_task.id in task_ids
         assert taskInOtherProject.id not in task_ids
@@ -205,11 +205,11 @@ class TestListTaskPermission:
             headers=myAuthHeaders,
         )
         data = assertResponseSuccess(response)
-        task_ids = {item["id"] for item in data["items"]}
+        task_ids = {item["id"] for item in data["data"]["items"]}
 
         assert waiting_task.id in task_ids
         assert running_task.id not in task_ids
-        assert all(item["status"] == 0 for item in data["items"])
+        assert all(item["status"] == 0 for item in data["data"]["items"])
 
 
 class TestStartTaskPermission:

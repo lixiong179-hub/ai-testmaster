@@ -103,6 +103,10 @@ class ActionMixin:
                     "source": script.replace("arguments[", "__args["),
                     "args": list(args),
                 }
+                # 安全说明：此 eval 在浏览器端执行（Playwright page.evaluate），
+                # 非 Python eval。script 参数仅由内部服务代码以硬编码字面量传入
+                # （如 "document.title"、"window.scrollBy(0,500)"），无用户输入
+                # 直接流入路径，属浏览器自动化工具的标准模式。
                 return await self._page.evaluate("""
                     ({ source, args }) => {
                         const __args = args;

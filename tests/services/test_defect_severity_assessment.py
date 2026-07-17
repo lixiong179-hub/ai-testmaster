@@ -600,7 +600,7 @@ class TestSchedulerHandleStepFailure:
         scheduler = SelfTestScheduler()
 
         with patch(
-            "app.tasks.self_test_scheduler._notify_critical_defect_bug",
+            "app.tasks._self_test_executor_mixin._notify_critical_defect_bug",
             new_callable=AsyncMock,
         ) as mock_notify:
             mock_notify.return_value = None
@@ -620,7 +620,7 @@ class TestSchedulerHandleStepFailure:
         scheduler = SelfTestScheduler()
 
         with patch(
-            "app.tasks.self_test_scheduler._notify_critical_defect_bug",
+            "app.tasks._self_test_executor_mixin._notify_critical_defect_bug",
             new_callable=AsyncMock,
         ) as mock_notify:
             mock_notify.return_value = None
@@ -641,7 +641,7 @@ class TestSchedulerHandleStepFailure:
         scheduler = SelfTestScheduler()
 
         with patch(
-            "app.tasks.self_test_scheduler._notify_critical_defect_bug",
+            "app.tasks._self_test_executor_mixin._notify_critical_defect_bug",
             new_callable=AsyncMock,
         ) as mock_notify:
             mock_notify.return_value = None
@@ -661,7 +661,7 @@ class TestSchedulerHandleStepFailure:
         scheduler = SelfTestScheduler()
 
         with patch(
-            "app.tasks.self_test_scheduler._notify_critical_defect_bug",
+            "app.tasks._self_test_executor_mixin._notify_critical_defect_bug",
             new_callable=AsyncMock,
         ) as mock_notify:
             bug = await scheduler.handle_step_failure(

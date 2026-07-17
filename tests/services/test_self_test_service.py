@@ -14,6 +14,8 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.models.project import Project, ProjectFile
@@ -57,52 +59,58 @@ class TestGetSelfTestEnvConfigs:
 class TestGetSelfTestProject:
     """查询自测项目测试"""
 
-    def test_no_self_test_project(self, db: Session) -> None:
-        result = get_self_test_project(db)
+    async def test_no_self_test_project(self, async_db: AsyncSession) -> None:
+        result = await get_self_test_project(async_db)
         assert result is None
 
-    def test_existing_self_test_project(self, db: Session, testUser: User) -> None:
+    async def test_existing_self_test_project(
+        self, async_db: AsyncSession, async_test_user: User
+    ) -> None:
         project = Project(
             name=SELF_TEST_PROJECT_NAME,
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        result = get_self_test_project(db)
+        result = await get_self_test_project(async_db)
         assert result is not None
         assert result.id == project.id
         assert result.is_self_test is True
 
-    def test_normal_project_not_returned(self, db: Session, testUser: User) -> None:
+    async def test_normal_project_not_returned(
+        self, async_db: AsyncSession, async_test_user: User
+    ) -> None:
         project = Project(
             name="normal_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=False,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        result = get_self_test_project(db)
+        result = await get_self_test_project(async_db)
         assert result is None
 
 
 class TestCreateSelfTestProject:
     """创建自测项目测试"""
 
-    def test_create_success(self, db: Session, testUser: User) -> None:
+    async def test_create_success(
+        self, async_db: AsyncSession, async_test_user: User
+    ) -> None:
         env = {
             "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
             "SELF_TEST_USERNAME": "test_admin",
             "SELF_TEST_PASSWORD": "test_pass",
         }
         with patch.dict(os.environ, env, clear=False):
-            project = create_self_test_project(db, testUser.id)
+            project = await create_self_test_project(async_db, async_test_user.id)
 
         assert project is not None
         assert project.name == SELF_TEST_PROJECT_NAME
@@ -121,26 +129,30 @@ class TestCreateSelfTestProject:
 
         assert project.test_object_password == "test_pass"
 
-    def test_idempotent_create(self, db: Session, testUser: User) -> None:
+    async def test_idempotent_create(
+        self, async_db: AsyncSession, async_test_user: User
+    ) -> None:
         with patch.dict(os.environ, {
             "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
             "SELF_TEST_USERNAME": "admin",
             "SELF_TEST_PASSWORD": "pass",
         }, clear=False):
-            first = create_self_test_project(db, testUser.id)
-            second = create_self_test_project(db, testUser.id)
+            first = await create_self_test_project(async_db, async_test_user.id)
+            second = await create_self_test_project(async_db, async_test_user.id)
 
         assert first.id == second.id
         assert first.name == second.name
 
-    def test_create_without_password(self, db: Session, testUser: User) -> None:
+    async def test_create_without_password(
+        self, async_db: AsyncSession, async_test_user: User
+    ) -> None:
         env = {
             "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
             "SELF_TEST_USERNAME": "",
             "SELF_TEST_PASSWORD": "",
         }
         with patch.dict(os.environ, env, clear=False):
-            project = create_self_test_project(db, testUser.id)
+            project = await create_self_test_project(async_db, async_test_user.id)
 
         assert project is not None
         assert project.is_self_test is True
@@ -210,31 +222,31 @@ class TestGetProjectRoot:
 class TestAutoImportRequirementDoc:
     """需求文档自动导入测试"""
 
-    def test_import_success_when_doc_exists(
-        self, db: Session, testUser: User
+    async def test_import_success_when_doc_exists(
+        self, async_db: AsyncSession, async_test_user: User
     ) -> None:
         """需求文档存在时，自动导入创建 ProjectFile 记录并提取内容"""
         project = Project(
             name="import_test_project",
-            user_id=testUser.id,
+            user_id=async_test_user.id,
             status=1,
             project_type="web",
             is_self_test=True,
         )
-        db.add(project)
-        db.flush()
+        async_db.add(project)
+        await async_db.flush()
 
-        _auto_import_requirement_doc(db, project)
+        await _auto_import_requirement_doc(async_db, project)
 
         # 验证 ProjectFile 记录已创建
         file_record = (
-            db.query(ProjectFile)
-            .filter(
-                ProjectFile.project_id == project.id,
-                ProjectFile.resource_type == "requirement",
+            await async_db.execute(
+                select(ProjectFile).where(
+                    ProjectFile.project_id == project.id,
+                    ProjectFile.resource_type == "requirement",
+                )
             )
-            .first()
-        )
+        ).scalars().first()
         if file_record is not None:
             assert file_record.file_name == "requirement_specification.md"
             assert file_record.file_type == "md"
@@ -245,7 +257,7 @@ class TestAutoImportRequirementDoc:
             assert len(file_record.content) > 0
             assert file_record.is_active is True
 
-    def test_graceful_when_doc_not_exists(
+    async def test_graceful_when_doc_not_exists(
         self, db: Session, testUser: User
     ) -> None:
         """需求文档不存在时，仅记录警告日志，不阻断流程"""
@@ -265,7 +277,7 @@ class TestAutoImportRequirementDoc:
             return_value=Path("/nonexistent_root_for_test"),
         ):
             # 不应抛出异常
-            _auto_import_requirement_doc(db, project)
+            await _auto_import_requirement_doc(db, project)
 
         # 不应创建任何 ProjectFile 记录
         file_count = (
@@ -275,7 +287,7 @@ class TestAutoImportRequirementDoc:
         )
         assert file_count == 0
 
-    def test_graceful_when_extract_fails(
+    async def test_graceful_when_extract_fails(
         self, db: Session, testUser: User
     ) -> None:
         """文件读取异常时，仅记录警告日志，不阻断项目创建"""
@@ -292,7 +304,7 @@ class TestAutoImportRequirementDoc:
         # mock open 抛出异常
         with patch("builtins.open", side_effect=PermissionError("no access")):
             # 不应抛出异常
-            _auto_import_requirement_doc(db, project)
+            await _auto_import_requirement_doc(db, project)
 
         # 不应创建任何 ProjectFile 记录
         file_count = (
@@ -302,8 +314,8 @@ class TestAutoImportRequirementDoc:
         )
         assert file_count == 0
 
-    def test_import_does_not_block_project_creation(
-        self, db: Session, testUser: User
+    async def test_import_does_not_block_project_creation(
+        self, async_db: AsyncSession, async_test_user: User
     ) -> None:
         """即使需求文档导入失败，项目创建仍然成功"""
         with patch.dict(os.environ, {
@@ -316,7 +328,7 @@ class TestAutoImportRequirementDoc:
                 "app.services.self_test_service._get_project_root",
                 return_value=Path("/nonexistent_root_for_test"),
             ):
-                project = create_self_test_project(db, testUser.id)
+                project = await create_self_test_project(async_db, async_test_user.id)
 
         # 项目仍然创建成功
         assert project is not None
@@ -327,8 +339,8 @@ class TestAutoImportRequirementDoc:
 class TestCreateSelfTestProjectWithRequirementImport:
     """创建自测项目时需求文档自动导入集成测试"""
 
-    def test_create_project_imports_requirement_doc(
-        self, db: Session, testUser: User
+    async def test_create_project_imports_requirement_doc(
+        self, async_db: AsyncSession, async_test_user: User
     ) -> None:
         """创建自测项目后，需求文档被自动导入"""
         with patch.dict(os.environ, {
@@ -336,7 +348,7 @@ class TestCreateSelfTestProjectWithRequirementImport:
             "SELF_TEST_USERNAME": "admin",
             "SELF_TEST_PASSWORD": "pass",
         }, clear=False):
-            project = create_self_test_project(db, testUser.id)
+            project = await create_self_test_project(async_db, async_test_user.id)
 
         assert project is not None
 
@@ -344,20 +356,20 @@ class TestCreateSelfTestProjectWithRequirementImport:
         doc_path = _get_project_root() / "docs" / "requirement_specification.md"
         if doc_path.exists():
             file_record = (
-                db.query(ProjectFile)
-                .filter(
-                    ProjectFile.project_id == project.id,
-                    ProjectFile.resource_type == "requirement",
+                await async_db.execute(
+                    select(ProjectFile).where(
+                        ProjectFile.project_id == project.id,
+                        ProjectFile.resource_type == "requirement",
+                    )
                 )
-                .first()
-            )
+            ).scalars().first()
             assert file_record is not None
             assert file_record.file_name == "requirement_specification.md"
             assert file_record.extract_status == "completed"
             assert file_record.content is not None
 
-    def test_idempotent_create_does_not_duplicate_import(
-        self, db: Session, testUser: User
+    async def test_idempotent_create_does_not_duplicate_import(
+        self, async_db: AsyncSession, async_test_user: User
     ) -> None:
         """幂等创建自测项目时，不会重复导入需求文档"""
         with patch.dict(os.environ, {
@@ -365,19 +377,21 @@ class TestCreateSelfTestProjectWithRequirementImport:
             "SELF_TEST_USERNAME": "admin",
             "SELF_TEST_PASSWORD": "pass",
         }, clear=False):
-            first = create_self_test_project(db, testUser.id)
-            second = create_self_test_project(db, testUser.id)
+            first = await create_self_test_project(async_db, async_test_user.id)
+            second = await create_self_test_project(async_db, async_test_user.id)
 
         assert first.id == second.id
 
         # 幂等返回已有项目，不应创建额外的文件记录
         file_count = (
-            db.query(ProjectFile)
-            .filter(
-                ProjectFile.project_id == first.id,
-                ProjectFile.resource_type == "requirement",
+            await async_db.execute(
+                select(func.count())
+                .select_from(ProjectFile)
+                .where(
+                    ProjectFile.project_id == first.id,
+                    ProjectFile.resource_type == "requirement",
+                )
             )
-            .count()
-        )
+        ).scalar()
         # 最多只有一条需求文档记录
         assert file_count <= 1

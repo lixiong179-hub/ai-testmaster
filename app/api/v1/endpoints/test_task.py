@@ -198,7 +198,8 @@ async def get_test_tasks(
             })
         return {"total": total, "items": items}
 
-    return await db.run_sync(_list)
+    data = await db.run_sync(_list)
+    return create_response(data=data)
 
 
 @router.get("/{task_id}", response_model=ApiResponse)
