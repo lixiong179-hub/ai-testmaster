@@ -49,11 +49,33 @@ class AsyncOpenAIClient:
     ) -> None:
         self.model = model or settings.AI_MODEL_NAME
         self.api_key = api_key or settings.DEEPSEEK_API_KEY
-        self.base_url = base_url or settings.DEEPSEEK_API_URL.rsplit("/v1", 1)[0] + "/v1"
+        self.base_url = base_url or self._normalize_base_url(settings.DEEPSEEK_API_URL)
         self.temperature = temperature if temperature is not None else settings.AI_TEMPERATURE
         self.max_tokens = max_tokens if max_tokens is not None else settings.AI_MAX_TOKENS
         self.max_retries = max_retries
         self._async_client: Optional[AsyncOpenAI] = None
+
+    @staticmethod
+    def _normalize_base_url(raw_url: str) -> str:
+        """将 API URL 归一化为 OpenAI SDK 所需的 base_url。
+
+        兼容三种配置形态：
+        - https://api.deepseek.com/v1/chat/completions -> https://api.deepseek.com/v1
+        - https://api.deepseek.com/v1 -> https://api.deepseek.com/v1
+        - https://api.deepseek.com -> https://api.deepseek.com/v1
+        """
+        if not raw_url:
+            return ""
+        from urllib.parse import urlsplit, urlunsplit
+
+        parts = urlsplit(raw_url)
+        path = parts.path or ""
+        # 移除 /chat/completions 后缀
+        path = path.replace("/chat/completions", "")
+        # 若路径不以 /v1 结尾，则补充
+        if not path.endswith("/v1"):
+            path = path.rstrip("/") + "/v1"
+        return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
 
     @property
     def async_client(self) -> AsyncOpenAI:
