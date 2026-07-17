@@ -35,9 +35,10 @@ from app.core.exception import BaseAPIException
 from app.services.user_service.user_service import UserService
 from app.services.role_service.role_service import RoleService
 from app.services.user_role_service_async_mixin import UserRoleServiceAsyncMixin
+from app.services.permission_service_async_mixin import PermissionServiceAsyncMixin
 
 
-class PermissionService:
+class PermissionService(PermissionServiceAsyncMixin):
     """权限CRUD服务 - 管理权限的全生命周期。
 
     职责:
@@ -50,10 +51,18 @@ class PermissionService:
         - 权限管理页面调用CRUD方法
         - 系统初始化时创建基础权限
 
-    设计意图:
-        采用静态方法设计，服务不持有状态，数据库会话由调用方传入。
-        与UserService/RoleService保持一致的设计风格。
+    hybrid 模式：sync 调用方使用静态方法（db 作为首参传入），
+    async 端点通过 PermissionService(db) 实例化后调用 *_async 方法。
     """
+
+    def __init__(self, db: Optional[Union[Session, AsyncSession]] = None) -> None:
+        """初始化权限服务。
+
+        Args:
+            db: 数据库会话，async 端点传 AsyncSession；sync 调用方
+                无需实例化，直接使用静态方法。
+        """
+        self.db = db
 
     @staticmethod
     def create_permission(db: Session, permission_in: PermissionCreate | dict) -> Permission:
