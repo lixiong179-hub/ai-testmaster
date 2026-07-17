@@ -60,11 +60,9 @@ async def login(
     db: AsyncSession = Depends(async_get_db)
 ) -> Token:
     """用户登录 - 使用JWT令牌"""
-    def _authenticate(sync_db):
-        return UserService.authenticate_user(
-            sync_db, form_data.username, form_data.password
-        )
-    user = await db.run_sync(_authenticate)
+    user = await UserService(db).authenticate_user_async(
+        form_data.username, form_data.password
+    )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -102,9 +100,7 @@ async def create_user(
     current_user: User = Depends(get_current_user)
 ) -> User:
     """创建用户（需认证）"""
-    def _create(sync_db):
-        return UserService.create_user(sync_db, user_in)
-    user = await db.run_sync(_create)
+    user = await UserService(db).create_user_async(user_in)
     logger.info(f"用户 {current_user.username} 创建了新用户 {user.username}")
     return user
 
@@ -117,9 +113,7 @@ async def get_users(
     current_user: User = Depends(get_current_user)
 ) -> List[User]:
     """获取用户列表（需认证）"""
-    def _list(sync_db):
-        return UserService.get_users(sync_db, skip=skip, limit=limit)
-    users = await db.run_sync(_list)
+    users = await UserService(db).get_users_async(skip=skip, limit=limit)
     return users
 
 
@@ -138,20 +132,15 @@ async def get_user(
     current_user: User = Depends(get_current_user)
 ) -> UserWithRoles:
     """获取用户详情（需认证）"""
-    def _get_with_roles(sync_db):
-        user = UserService.get_user_by_id(sync_db, user_id)
-        if not user:
-            return None
-        roles = UserRoleService.get_user_roles(sync_db, user.id)
-        user_dict = user.__dict__
-        user_dict["roles"] = roles
-        return user_dict
-    user_dict = await db.run_sync(_get_with_roles)
-    if user_dict is None:
+    user = await UserService(db).get_user_by_id_async(user_id)
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="用户不存在"
         )
+    roles = await UserRoleService(db).get_user_roles_async(user.id)
+    user_dict = user.__dict__
+    user_dict["roles"] = roles
     return UserWithRoles(**user_dict)
 
 
@@ -168,9 +157,7 @@ async def update_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="只能修改自己的信息或需要管理员权限"
         )
-    def _update(sync_db):
-        return UserService.update_user(sync_db, user_id, user_in)
-    user = await db.run_sync(_update)
+    user = await UserService(db).update_user_async(user_id, user_in)
     logger.info(f"用户 {current_user.username} 更新了用户 ID={user_id} 的信息")
     return user
 
@@ -188,8 +175,6 @@ async def delete_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="不能删除自己的账号"
         )
-    def _delete(sync_db):
-        return UserService.delete_user(sync_db, user_id)
-    await db.run_sync(_delete)
+    await UserService(db).delete_user_async(user_id)
     logger.warning(f"管理员 {current_user.username} 删除了用户 ID={user_id}")
     return {"message": "用户删除成功"}
