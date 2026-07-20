@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy import text
 
-pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")
+# pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")  # 临时移除排查
 
 from app.models.test_case import TestCase
 from app.models.pipeline_config import PipelineConfig

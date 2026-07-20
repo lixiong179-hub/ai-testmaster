@@ -21,7 +21,7 @@ import pytest
 from unittest.mock import patch, AsyncMock
 from fastapi import HTTPException, status
 
-pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")
+# pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")  # 临时移除排查
 
 from app.api.v1.endpoints.ui_prototype.parse_endpoints import parse_ui_screens
 from app.models.ui_prototype import UIPrototypeScreen

@@ -11,7 +11,7 @@ from app.models.test_task import TestTask
 from app.models.test_case import TestCase
 from app.schemas.test_report import TestReportCreate
 
-pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")
+# pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")  # 临时移除排查
 
 
 @pytest.fixture

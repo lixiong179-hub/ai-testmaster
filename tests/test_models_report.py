@@ -4,7 +4,7 @@ from app.models.report import TestReport
 from app.models.project import Project
 from app.models.user import User
 
-pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")
+# pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")  # 临时移除排查
 
 
 @pytest.fixture
