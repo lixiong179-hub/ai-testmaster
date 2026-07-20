@@ -28,7 +28,7 @@ from app.schemas.test_point import (
 )
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.test_point import check_project_permission
+from app.api.v1.endpoints.test_point._helpers import check_project_permission_async
 from app.services.xmind_parser import XmindParser, XmindParseError
 from app.services.xmind_case_parser import XmindCaseParser
 from app.services.xmind_ai_parser import XmindAIParser
@@ -83,10 +83,7 @@ async def import_xmind(
         预览模式返回 TestPointXmindPreviewResponse，
         导入模式返回 TestPointXmindImportResponse。
     """
-    def _check_permission(sync_db: Session) -> None:
-        check_project_permission(sync_db, project_id, current_user.id)
-
-    await db.run_sync(_check_permission)
+    await check_project_permission_async(db, project_id, current_user.id)
 
     validate_file(file)
 

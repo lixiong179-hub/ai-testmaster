@@ -22,7 +22,7 @@ import asyncio
 import traceback
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
@@ -60,51 +60,51 @@ async def parse_ui_screens(
                 detail="请选择要解析的屏幕",
             )
 
-        def _validate(sync_db: Session):
-            # 一次性批量查询所有屏幕，防止N+1及越权风险
-            screens = (
-                sync_db.query(UIPrototypeScreen)
-                .filter(UIPrototypeScreen.id.in_(parse_request.screen_ids))
-                .all()
+        # 一次性批量查询所有屏幕，防止N+1及越权风险
+        screens_result = await db.execute(
+            select(UIPrototypeScreen).where(
+                UIPrototypeScreen.id.in_(parse_request.screen_ids)
             )
-            # 校验所有 screen_id 均存在
-            found_ids = {s.id for s in screens}
-            missing_ids = set(parse_request.screen_ids) - found_ids
-            if missing_ids:
-                logger.warning(f"屏幕不存在: {missing_ids}")
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"屏幕不存在: {missing_ids}",
-                )
-            # 强约束：所有 screen 必须属于同一项目，避免跨项目调用导致 pipeline 上下文混乱
-            screen_project_ids = {s.project_id for s in screens}
-            if len(screen_project_ids) > 1:
-                logger.warning(
-                    f"screen_ids 跨多个项目: project_ids={screen_project_ids}"
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="screen_ids 必须属于同一项目",
-                )
-            # 一次性校验所有屏幕均属于当前用户拥有的项目
-            authorized_project_ids = {
-                pid for (pid,) in sync_db.query(Project.id)
-                .filter(Project.id.in_(screen_project_ids), Project.user_id == current_user.id)
-                .all()
-            }
-            unauthorized_project_ids = screen_project_ids - authorized_project_ids
-            if unauthorized_project_ids:
-                logger.warning(
-                    f"用户 user_id={current_user.id} 无权限操作项目 project_ids={unauthorized_project_ids}"
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="无权限操作此项目",
-                )
+        )
+        screens = screens_result.scalars().all()
+        # 校验所有 screen_id 均存在
+        found_ids = {s.id for s in screens}
+        missing_ids = set(parse_request.screen_ids) - found_ids
+        if missing_ids:
+            logger.warning(f"屏幕不存在: {missing_ids}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"屏幕不存在: {missing_ids}",
+            )
+        # 强约束：所有 screen 必须属于同一项目，避免跨项目调用导致 pipeline 上下文混乱
+        screen_project_ids = {s.project_id for s in screens}
+        if len(screen_project_ids) > 1:
+            logger.warning(
+                f"screen_ids 跨多个项目: project_ids={screen_project_ids}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="screen_ids 必须属于同一项目",
+            )
+        # 一次性校验所有屏幕均属于当前用户拥有的项目
+        authorized_result = await db.execute(
+            select(Project.id).where(
+                Project.id.in_(screen_project_ids),
+                Project.user_id == current_user.id,
+            )
+        )
+        authorized_project_ids = {pid for (pid,) in authorized_result.all()}
+        unauthorized_project_ids = screen_project_ids - authorized_project_ids
+        if unauthorized_project_ids:
+            logger.warning(
+                f"用户 user_id={current_user.id} 无权限操作项目 project_ids={unauthorized_project_ids}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此项目",
+            )
 
-            return next(iter(screen_project_ids))
-
-        target_project_id = await db.run_sync(_validate)
+        target_project_id = next(iter(screen_project_ids))
 
         # 后台执行解析，使用独立数据库会话，避免请求会话被关闭
         # 不在此处预设 running 状态，由 pipeline.parse_screen() 逐屏设置，保证进度条渐进推进
@@ -171,36 +171,33 @@ async def parse_prototype_project(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        def _validate(sync_db: Session):
-            prototype_project = (
-                sync_db.query(UIPrototypeProject)
-                .filter(UIPrototypeProject.id == prototype_project_id)
-                .first()
+        proto_result = await db.execute(
+            select(UIPrototypeProject).where(
+                UIPrototypeProject.id == prototype_project_id
+            )
+        )
+        prototype_project = proto_result.scalars().first()
+
+        if not prototype_project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
             )
 
-            if not prototype_project:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
-                )
+        db_project_result = await db.execute(
+            select(Project).where(
+                Project.id == prototype_project.project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+        db_project = db_project_result.scalars().first()
 
-            db_project = (
-                sync_db.query(Project)
-                .filter(
-                    Project.id == prototype_project.project_id,
-                    Project.user_id == current_user.id,
-                )
-                .first()
+        if not db_project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="无权限操作此项目或项目不存在",
             )
 
-            if not db_project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="无权限操作此项目或项目不存在",
-                )
-
-            return db_project.id
-
-        project_id = await db.run_sync(_validate)
+        project_id = db_project.id
 
         # 后台执行解析，使用独立数据库会话
         # 不在此处预设 running 状态，由 pipeline 逐屏设置，保证进度条渐进推进

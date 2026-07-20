@@ -225,37 +225,31 @@ async def update_file_sort(
 
         unique_file_ids = list(dict.fromkeys(file_ids))
 
-        def _update_sort(sync_db: Session) -> int:
-            user_project_ids = set(
-                proj.id
-                for proj in sync_db.query(Project.id)
-                .filter(Project.user_id == current_user.id)
-                .all()
+        # 查询用户拥有的项目ID集合（参数化批量查询，杜绝SQL注入）
+        project_result = await db.execute(
+            select(Project.id).where(Project.user_id == current_user.id)
+        )
+        user_project_ids = set(project_result.scalars().all())
+
+        # 批量查询所有文件记录，避免循环内逐条查询（N+1 修复）
+        file_result = await db.execute(
+            select(ProjectFile).where(
+                ProjectFile.id.in_(unique_file_ids),
+                ProjectFile.is_active.is_(True),
             )
+        )
+        file_records = file_result.scalars().all()
+        file_map = {record.id: record for record in file_records}
 
-            # 批量查询所有文件记录，避免循环内逐条查询（N+1 修复）
-            file_records = (
-                sync_db.query(ProjectFile)
-                .filter(
-                    ProjectFile.id.in_(unique_file_ids),
-                    ProjectFile.is_active.is_(True),
-                )
-                .all()
-            )
-            file_map = {record.id: record for record in file_records}
+        updated_count = 0
+        for index, file_id in enumerate(unique_file_ids):
+            file_record = file_map.get(file_id)
 
-            updated_count = 0
-            for index, file_id in enumerate(unique_file_ids):
-                file_record = file_map.get(file_id)
+            if file_record and file_record.project_id in user_project_ids:
+                file_record.sort_order = index + 1
+                updated_count += 1
 
-                if file_record and file_record.project_id in user_project_ids:
-                    file_record.sort_order = index + 1
-                    updated_count += 1
-
-            sync_db.commit()
-            return updated_count
-
-        updated_count = await db.run_sync(_update_sort)
+        await db.commit()
 
         logger.info(
             (
