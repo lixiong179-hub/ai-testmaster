@@ -111,7 +111,7 @@ def encrypt_password(plain_password: str) -> str:
         encrypted = f.encrypt(plain_password.encode())
         return encrypted.decode()
     except Exception as e:
-        logger.error(f"密码加密失败: {e}")
+        logger.error(f"密码加密失败: {e}", exc_info=True)
         raise ValueError(f"密码加密失败，拒绝存储明文密码: {e}") from e
 
 
@@ -141,7 +141,7 @@ def decrypt_password(encrypted_password: str) -> str:
         decrypted = f.decrypt(encrypted_password.encode())
         return decrypted.decode()
     except Exception as e:
-        logger.error(f"密码解密失败: {e}")
+        logger.error(f"密码解密失败: {e}", exc_info=True)
         raise ValueError(f"密码解密失败: {e}") from e
 
 

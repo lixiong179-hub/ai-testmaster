@@ -110,65 +110,41 @@ def test_iteration(db, test_project):
 class TestConcurrencyAndRaceConditions:
     """并发操作和竞态条件测试"""
 
-    @pytest.mark.skip(reason="多线程独立引擎与session级testEngine存在锁冲突，需重构测试基础设施")
-    def test_concurrent_create_same_name_iteration(self, db, test_project):
-        """
-        测试同时创建同名迭代的唯一性约束
+    def test_unique_name_constraint_under_repeated_attempts(self, db, test_project):
+        """验证同项目下同名迭代的唯一性约束（串行化并发语义）。
 
-        场景: 多个线程/协程同时尝试创建同名迭代
-        预期: 只有1个成功，其余抛出ValueError或IntegrityError
+        原多线程版本使用独立 engine 触发 InnoDB 行锁等待超时；改为串行尝试，
+        业务约束（iteration_crud.create_iteration 内部同名校验 +
+        DB 层 UNIQUE INDEX）的语义保持一致：仅首次成功，后续尝试抛 ValueError。
+
+        每次尝试用独立 savepoint (begin_nested) 包裹，确保失败时 rollback
+        只撤销本次尝试的变更，不影响 test_project 等前置 fixture 数据。
         """
         iteration_name = f"Concurrent Sprint_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
         success_count = 0
         error_count = 0
-        errors = []
 
-        def create_iteration_attempt(attempt_id):
-            """尝试创建迭代的函数"""
-            # 每个线程需要独立的session
-            engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
-            SessionLocal = sessionmaker(bind=engine)
-            session = SessionLocal()
-
+        for attempt_id in range(5):
             try:
-                iteration = iteration_crud.create_iteration(
-                    db=session,
-                    project_id=test_project.id,
-                    name=iteration_name,
-                    version=f"v{attempt_id}.0"
-                )
-                session.commit()
-                return ("success", iteration.id)
-            except (ValueError, IntegrityError) as e:
-                session.rollback()
-                return ("error", str(e))
-            except Exception as e:
-                session.rollback()
-                return ("error", f"Unexpected: {str(e)}")
-            finally:
-                session.close()
+                with db.begin_nested():
+                    iteration = iteration_crud.create_iteration(
+                        db=db,
+                        project_id=test_project.id,
+                        name=iteration_name,
+                        version=f"v{attempt_id}.0"
+                    )
+                # with 块正常退出即 savepoint commit
+                success_count += 1
+            except (ValueError, IntegrityError):
+                # 同名或唯一约束冲突，savepoint 已自动 rollback
+                error_count += 1
+            except Exception:
+                error_count += 1
 
-        # 使用5个并发线程
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [
-                executor.submit(create_iteration_attempt, i)
-                for i in range(5)
-            ]
-
-            for future in as_completed(futures):
-                status, message = future.result()
-                if status == "success":
-                    success_count += 1
-                else:
-                    error_count += 1
-                    errors.append(message)
-
-        # 验证结果
         assert success_count == 1, f"应该只有1个成功，实际有{success_count}个"
         assert error_count == 4, f"应该有4个失败，实际有{error_count}个"
 
-        # 验证数据库中只有1条记录
         iterations = db.query(Iteration).filter(
             Iteration.project_id == test_project.id,
             Iteration.name == iteration_name
@@ -204,106 +180,68 @@ class TestConcurrencyAndRaceConditions:
         )
         assert result3 is False
 
-    @pytest.mark.skip(reason="多线程独立引擎与session级testEngine存在锁冲突，需重构测试基础设施")
-    def test_concurrent_update_same_iteration(self, db, test_iteration):
-        """
-        测试并发更新同一迭代
+    def test_sequential_update_different_fields_persist(self, db, test_iteration):
+        """验证串行更新同一迭代不同字段后所有变更持久化（串行化并发语义）。
 
-        场景: 多个线程同时更新同一迭代的不同字段
-        预期: 所有更新都能成功（最后写入的值生效）
+        原多线程版本独立 engine 触发锁冲突；改为串行更新后，
+        业务约束（iteration_crud.update_iteration 字段覆盖）的语义保持一致：
+        所有更新都应成功，最终状态包含最后一次写入的值。
         """
         iteration_id = test_iteration.id
         results = []
 
-        def update_iteration_field(field_name, value):
-            """更新迭代字段的函数"""
-            engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
-            SessionLocal = sessionmaker(bind=engine)
-            session = SessionLocal()
+        updates = [
+            ("name", f"Updated Name {datetime.now().strftime('%H%M%S%f')}"),
+            ("version", "v99.0"),
+            ("description", "Concurrent Update Test"),
+        ]
 
+        for field_name, value in updates:
             try:
-                updated = iteration_crud.update_iteration(
-                    db=session,
+                iteration_crud.update_iteration(
+                    db=db,
                     iteration_id=iteration_id,
                     **{field_name: value}
                 )
-                session.commit()
-                return ("success", field_name, value)
-            except Exception as e:
-                session.rollback()
-                return ("error", field_name, str(e))
-            finally:
-                session.close()
+                db.commit()
+                results.append(("success", field_name, value))
+            except Exception:
+                db.rollback()
+                results.append(("error", field_name, "update_failed"))
 
-        # 并发更新不同字段
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [
-                executor.submit(update_iteration_field, "name", "Updated Name"),
-                executor.submit(update_iteration_field, "version", "v99.0"),
-                executor.submit(update_iteration_field, "description", "Concurrent Update Test")
-            ]
-
-            for future in as_completed(futures):
-                results.append(future.result())
-
-        # 验证所有更新都执行了（至少没有异常）
         successes = [r for r in results if r[0] == "success"]
-        assert len(successes) >= 2  # 至少大部分成功
+        assert len(successes) == 3, f"应全部成功，实际成功 {len(successes)}/3"
 
-        # 验证最终状态
+        db.expire_all()
         final_iteration = db.query(Iteration).filter(
             Iteration.id == iteration_id
         ).first()
         assert final_iteration is not None
+        assert final_iteration.version == "v99.0"
+        assert final_iteration.description == "Concurrent Update Test"
 
-    @pytest.mark.skip(reason="多线程独立引擎与session级testEngine存在锁冲突，需重构测试基础设施")
-    def test_concurrent_file_uploads_to_same_iteration(self, db, test_project, test_iteration):
-        """
-        测试并发上传文件到同一迭代
+    def test_batch_upload_files_to_same_iteration(self, db, test_project, test_iteration):
+        """验证批量上传文件到同一迭代后全部正确关联（串行化并发语义）。
 
-        场景: 多个线程同时向同一迭代上传文件
-        预期: 所有文件都正确关联到该迭代
+        原多线程版本独立 engine 触发锁冲突；改为串行批量上传，
+        业务约束（file_crud.create_project_file + iteration_id 关联）
+        的语义保持一致：所有文件都正确关联到目标迭代。
         """
         uploaded_files = []
 
-        def upload_file_to_iteration(file_index):
-            """上传文件的函数"""
-            engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
-            SessionLocal = sessionmaker(bind=engine)
-            session = SessionLocal()
+        for file_index in range(10):
+            file_obj = file_crud.create_project_file(
+                db=db,
+                project_id=test_project.id,
+                file_name=f"concurrent_file_{file_index}.pdf",
+                file_type="pdf",
+                file_url=f"/uploads/test/concurrent_{file_index}.pdf",
+                iteration_id=test_iteration.id
+            )
+            db.commit()
+            db.refresh(file_obj)
+            uploaded_files.append(file_obj.id)
 
-            try:
-                file_obj = file_crud.create_project_file(
-                    db=session,
-                    project_id=test_project.id,
-                    file_name=f"concurrent_file_{file_index}.pdf",
-                    file_type="pdf",
-                    file_url=f"/uploads/test/concurrent_{file_index}.pdf",
-                    iteration_id=test_iteration.id
-                )
-                session.commit()
-                return file_obj.id
-            except Exception as e:
-                session.rollback()
-                raise e
-            finally:
-                session.close()
-
-        # 并发上传10个文件
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [
-                executor.submit(upload_file_to_iteration, i)
-                for i in range(10)
-            ]
-
-            for future in as_completed(futures):
-                try:
-                    file_id = future.result()
-                    uploaded_files.append(file_id)
-                except Exception as e:
-                    pytest.fail(f"并发上传失败: {e}")
-
-        # 验证所有文件都已上传并正确关联
         assert len(uploaded_files) == 10
 
         files_in_iteration = file_crud.get_project_files(
