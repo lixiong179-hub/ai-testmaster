@@ -17,8 +17,11 @@ from typing import Optional
     - 配置包括截图质量、视频帧率、展示模式等参数
 """
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
+from app.models.test_case import TestCase
+from app.models.test_task import TestTask
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.visibility_config_service import (
@@ -79,23 +82,22 @@ async def get_task_config(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _get_task(sync_db):
-        from app.models.test_task import TestTask
-        service = get_visibility_config_service()
-        task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-        if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="任务不存在"
-            )
-        config = service.get_task_config(task)
-        return VisibilityConfigResponse(
-            config=config.to_dict(),
-            level="task",
-            summary=service.get_config_summary(config)
+    service = get_visibility_config_service()
+    task_result = await db.execute(
+        select(TestTask).where(TestTask.id == task_id)
+    )
+    task = task_result.scalars().first()
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="任务不存在"
         )
-
-    return await db.run_sync(_get_task)
+    config = service.get_task_config(task)
+    return VisibilityConfigResponse(
+        config=config.to_dict(),
+        level="task",
+        summary=service.get_config_summary(config)
+    )
 
 
 @router.put("/config/task/{task_id}", response_model=VisibilityConfigResponse)
@@ -105,35 +107,34 @@ async def update_task_config(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _update_task(sync_db):
-        from app.models.test_task import TestTask
-        service = get_visibility_config_service()
-        task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-        if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="任务不存在"
-            )
-        config_dict = config.dict()
-        if 'video_resolution' in config_dict and isinstance(config_dict['video_resolution'], dict):
-            res = config_dict['video_resolution']
-            config_dict['video_resolution'] = (res['width'], res['height'])
-        new_config = VisibilityConfig(**config_dict)
-        is_valid, error_msg = service.validate_config(new_config)
-        if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg
-            )
-        service.update_task_config(task, new_config)
-        sync_db.commit()
-        return VisibilityConfigResponse(
-            config=new_config.to_dict(),
-            level="task",
-            summary=service.get_config_summary(new_config)
+    service = get_visibility_config_service()
+    task_result = await db.execute(
+        select(TestTask).where(TestTask.id == task_id)
+    )
+    task = task_result.scalars().first()
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="任务不存在"
         )
-
-    return await db.run_sync(_update_task)
+    config_dict = config.dict()
+    if 'video_resolution' in config_dict and isinstance(config_dict['video_resolution'], dict):
+        res = config_dict['video_resolution']
+        config_dict['video_resolution'] = (res['width'], res['height'])
+    new_config = VisibilityConfig(**config_dict)
+    is_valid, error_msg = service.validate_config(new_config)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_msg
+        )
+    service.update_task_config(task, new_config)
+    await db.commit()
+    return VisibilityConfigResponse(
+        config=new_config.to_dict(),
+        level="task",
+        summary=service.get_config_summary(new_config)
+    )
 
 
 @router.get("/config/case/{case_id}", response_model=VisibilityConfigResponse)
@@ -143,24 +144,28 @@ async def get_case_config(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _get_case(sync_db):
-        from app.models.test_case import TestCase
-        from app.models.test_task import TestTask
-        service = get_visibility_config_service()
-        case = sync_db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-        if not case:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用例不存在"
-            )
-        task = None
-        if task_id:
-            task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-        config = service.get_case_config(case, task)
-        return VisibilityConfigResponse(
-            config=config.to_dict(),
-            level="case",
-            summary=service.get_config_summary(config)
+    service = get_visibility_config_service()
+    case_result = await db.execute(
+        select(TestCase).where(
+            TestCase.id == case_id,
+            TestCase.is_deleted.is_(False),
         )
-
-    return await db.run_sync(_get_case)
+    )
+    case = case_result.scalars().first()
+    if not case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用例不存在"
+        )
+    task = None
+    if task_id:
+        task_result = await db.execute(
+            select(TestTask).where(TestTask.id == task_id)
+        )
+        task = task_result.scalars().first()
+    config = service.get_case_config(case, task)
+    return VisibilityConfigResponse(
+        config=config.to_dict(),
+        level="case",
+        summary=service.get_config_summary(config)
+    )
