@@ -130,6 +130,25 @@ def resetAiSemaphore():
     yield
 
 
+@pytest.fixture(autouse=True)
+def resetCaptchaState():
+    """每个测试前重置 captcha_service 单例状态，避免跨用例状态污染。
+
+    根因：captcha_service 是模块级单例，_store/_used/_ip_limits 跨测试持久化。
+    批量执行时多个测试文件的 _getCaptcha(client) 共用 IP="testclient"，
+    60 秒内累积超过 _rate_limit 次后触发 429，导致 _getCaptcha 抛 KeyError。
+
+    同时还原 CaptchaService._instance 指针，避免 test_captcha_service_extended
+    等通过 _instance=None 新建实例后污染后续测试的 singleton 查询。
+    """
+    from app.services.captcha_service import CaptchaService, captcha_service
+    CaptchaService._instance = captcha_service
+    captcha_service._store.clear()
+    captcha_service._used.clear()
+    captcha_service._ip_limits.clear()
+    yield
+
+
 @pytest.fixture(scope="session")
 def testEngine():
     engine = create_engine(

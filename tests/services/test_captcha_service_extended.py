@@ -5,8 +5,14 @@ from app.services.captcha_service import CaptchaService
 
 class TestCaptchaGenerate:
     def setup_method(self):
+        # 保存原 _instance 以便 teardown 还原，避免污染后续测试的 singleton 查询
+        self._orig_instance = CaptchaService._instance
         CaptchaService._instance = None
         self.svc = CaptchaService()
+
+    def teardown_method(self):
+        # 还原 _instance 到原始 captcha_service 单例
+        CaptchaService._instance = self._orig_instance
 
     def test_generate_returns_tuple(self):
         captcha_id, code = self.svc.generate()
@@ -29,6 +35,9 @@ class TestCaptchaGenerate:
         assert id1 != id2
 
     def test_ip_rate_limit(self):
+        # conftest.py 设置 CAPTCHA_RATE_LIMIT=10000 以放宽批量测试限制,
+        # 本测试需低阈值验证触发逻辑, 故显式设置实例属性为 10
+        self.svc._rate_limit = 10
         for _ in range(10):
             self.svc.generate(ip="1.2.3.4")
         with pytest.raises(Exception, match="请求过于频繁"):
@@ -42,8 +51,12 @@ class TestCaptchaGenerate:
 
 class TestCaptchaVerify:
     def setup_method(self):
+        self._orig_instance = CaptchaService._instance
         CaptchaService._instance = None
         self.svc = CaptchaService()
+
+    def teardown_method(self):
+        CaptchaService._instance = self._orig_instance
 
     def test_verify_correct_code(self):
         captcha_id, code = self.svc.generate()
@@ -80,8 +93,12 @@ class TestCaptchaVerify:
 
 class TestCaptchaCleanup:
     def setup_method(self):
+        self._orig_instance = CaptchaService._instance
         CaptchaService._instance = None
         self.svc = CaptchaService()
+
+    def teardown_method(self):
+        CaptchaService._instance = self._orig_instance
 
     def test_cleanup_removes_expired(self):
         self.svc._store["expired_id"] = ("1234", time.time() - 1)
