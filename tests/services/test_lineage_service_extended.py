@@ -36,17 +36,20 @@ class TestToNode:
 
 class TestCheckChainWarning:
     def test_short_chain_no_warning(self):
-        result = _check_chain_warning(1)
-        assert result is None
+        warning, threshold = _check_chain_warning(1)
+        assert warning is None
+        assert threshold == 3
 
     def test_long_chain_warning(self):
-        result = _check_chain_warning(5)
-        assert result is not None
-        assert "警告阈值" in result
+        warning, threshold = _check_chain_warning(5)
+        assert warning is not None
+        assert "警告阈值" in warning
+        assert threshold == 3
 
     def test_exact_threshold_warning(self):
-        result = _check_chain_warning(3)
-        assert result is not None
+        warning, threshold = _check_chain_warning(3)
+        assert warning is not None
+        assert threshold == 3
 
 
 class TestGetLineage:

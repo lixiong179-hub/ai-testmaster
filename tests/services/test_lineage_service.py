@@ -146,24 +146,29 @@ class TestBuildDescendantTree:
 class TestCheckChainWarning:
     def test_below_threshold(self):
         with patch("app.services.config_service.get_config", return_value="3"):
-            assert _check_chain_warning(2) is None
+            warning, threshold = _check_chain_warning(2)
+            assert warning is None
+            assert threshold == 3
 
     def test_at_threshold(self):
         with patch("app.services.config_service.get_config", return_value="3"):
-            result = _check_chain_warning(3)
-            assert result is not None
-            assert "3" in result
+            warning, threshold = _check_chain_warning(3)
+            assert warning is not None
+            assert "3" in warning
+            assert threshold == 3
 
     def test_above_threshold(self):
         with patch("app.services.config_service.get_config", return_value="3"):
-            result = _check_chain_warning(5)
-            assert result is not None
-            assert "5" in result
+            warning, threshold = _check_chain_warning(5)
+            assert warning is not None
+            assert "5" in warning
+            assert threshold == 3
 
     def test_config_exception_uses_default(self):
         with patch("app.services.config_service.get_config", side_effect=Exception("err")):
-            result = _check_chain_warning(3)
-            assert result is not None
+            warning, threshold = _check_chain_warning(3)
+            assert warning is not None
+            assert threshold == 3
 
 
 class TestLineageNode:
