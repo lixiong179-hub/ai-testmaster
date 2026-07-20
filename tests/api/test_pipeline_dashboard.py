@@ -20,16 +20,21 @@ from app.utils.db_time import utcnow
 
 
 class _AsyncSessionWrapper:
-    """轻量级 AsyncSession 包装器，仅委托 run_sync 给 sync Session。
+    """轻量级 AsyncSession 包装器，委托 run_sync 和 execute 给 sync Session。
 
-    用于直接调用 async 端点函数（端点内部用 db.run_sync(fn) 执行同步查询）。
+    用于直接调用 async 端点函数（端点内部用 db.run_sync(fn) 或 await db.execute(stmt) 执行查询）。
     """
 
     def __init__(self, sync_session) -> None:
         self._sync = sync_session
+        # 暴露 bind 给 dialect 检测辅助函数使用
+        self.bind = sync_session.bind
 
     async def run_sync(self, fn, *args, **kwargs):
         return fn(self._sync, *args, **kwargs)
+
+    async def execute(self, stmt, *args, **kwargs):
+        return self._sync.execute(stmt, *args, **kwargs)
 
 
 @pytest.fixture

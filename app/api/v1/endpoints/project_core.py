@@ -28,7 +28,7 @@ from app.schemas.common import ApiResponse
 from app.schemas.project import (
     ProjectCreate,
 )
-from app.models.project import Project
+from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.crud.file import get_project_files
@@ -166,9 +166,16 @@ async def get_project(
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
-        def _get_files(sync_db):
-            return get_project_files(sync_db, project_id)
-        files = await db.run_sync(_get_files)
+        # 内联 async 查询替代 get_project_files sync crud
+        files_result = await db.execute(
+            select(ProjectFile)
+            .where(
+                ProjectFile.project_id == project_id,
+                ProjectFile.is_active.is_(True),
+            )
+            .order_by(ProjectFile.upload_time.desc())
+        )
+        files = files_result.scalars().all()
         file_list = [{
             "id": f.id, "file_name": f.file_name, "file_type": f.file_type,
             "file_url": f.file_url, "file_source": f.file_source,
@@ -227,6 +234,42 @@ def _delete_project_core_assets(db, project_id: int) -> None:
         db.delete(test_case)
 
 
+async def _delete_project_core_assets_async(db: AsyncSession, project_id: int) -> None:
+    """async 版本的项目核心资产删除，纯ORM操作。"""
+    from sqlalchemy import delete as sa_delete
+    from app.models.test_case import TestCase
+    from app.models.test_result import TestResult
+    from app.models.test_task import TestTask
+    from app.models.test_case_version import TestCaseVersion
+
+    await db.execute(
+        sa_delete(TestResult).where(TestResult.project_id == project_id)
+    )
+
+    tasks_result = await db.execute(
+        select(TestTask).where(TestTask.project_id == project_id)
+    )
+    for task in tasks_result.scalars().all():
+        await db.delete(task)
+
+    case_ids_result = await db.execute(
+        select(TestCase.id).where(TestCase.project_id == project_id)
+    )
+    case_ids = [row[0] for row in case_ids_result.all()]
+    if case_ids:
+        await db.execute(
+            sa_delete(TestCaseVersion).where(
+                TestCaseVersion.test_case_id.in_(case_ids)
+            )
+        )
+
+    test_cases_result = await db.execute(
+        select(TestCase).where(TestCase.project_id == project_id)
+    )
+    for test_case in test_cases_result.scalars().all():
+        await db.delete(test_case)
+
+
 @router.delete("/{project_id}", response_model=ApiResponse)
 async def delete_project(
     project_id: int,
@@ -247,9 +290,7 @@ async def delete_project(
         if getattr(project, "is_self_test", False):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="自测项目不可删除")
 
-        def _delete_assets(sync_db):
-            _delete_project_core_assets(sync_db, project_id)
-        await db.run_sync(_delete_assets)
+        await _delete_project_core_assets_async(db, project_id)
         await db.delete(project)
         await db.commit()
         return create_response(data={}, msg="删除成功")

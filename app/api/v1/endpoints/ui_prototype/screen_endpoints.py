@@ -24,13 +24,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, or_, delete as sa_delete
 from datetime import datetime
 
 from app.db.database import async_get_db
 from app.models.user import User
 from app.models.project import Project
-from app.models.ui_prototype import UIPrototypeProject
+from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen, UIScreenTestCaseLink
 from app.api.v1.endpoints.auth import get_current_user
 from app.crud import ui_prototype as ui_prototype_crud
 from app.api.v1.endpoints.ui_prototype.helpers import (
@@ -46,6 +46,30 @@ from app.schemas.common import ApiResponse
 from loguru import logger
 
 router = APIRouter(tags=["UI原型管理"])
+
+
+def _apply_iteration_filter_stmt(stmt, iteration_id: Optional[int]):
+    """async 风格的迭代过滤条件构建器，用于 select 语句链式构建。
+
+    与 crud/ui_prototype_screen._apply_iteration_filter 同义，但作用在 select 对象上。
+    """
+    if iteration_id is not None:
+        if iteration_id <= 0:
+            stmt = stmt.outerjoin(
+                UIPrototypeProject,
+                UIPrototypeScreen.prototype_project_id == UIPrototypeProject.id,
+            ).where(
+                or_(
+                    UIPrototypeProject.iteration_id.is_(None),
+                    UIPrototypeScreen.prototype_project_id.is_(None),
+                )
+            )
+        else:
+            stmt = stmt.join(
+                UIPrototypeProject,
+                UIPrototypeScreen.prototype_project_id == UIPrototypeProject.id,
+            ).where(UIPrototypeProject.iteration_id == iteration_id)
+    return stmt
 
 
 @router.post("/upload", response_model=ApiResponse, status_code=status.HTTP_201_CREATED)
@@ -207,46 +231,55 @@ async def get_ui_screens(
 ):
     """获取UI屏幕列表"""
     try:
-        def _list(sync_db: Session):
-            project = (
-                sync_db.query(Project)
-                .filter(Project.id == project_id, Project.user_id == current_user.id)
-                .first()
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == project_id, Project.user_id == current_user.id
             )
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-                )
-
-            skip = (page - 1) * page_size
-            screens = ui_prototype_crud.get_ui_screens_by_project(
-                db=sync_db,
-                project_id=project_id,
-                user_id=current_user.id,
-                prototype_project_id=prototype_project_id,
-                parse_status=parse_status,
-                iteration_id=iteration_id,
-                skip=skip,
-                limit=page_size,
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
 
-            total = ui_prototype_crud.get_ui_screens_count(
-                db=sync_db,
-                project_id=project_id,
-                user_id=current_user.id,
-                prototype_project_id=prototype_project_id,
-                parse_status=parse_status,
-                iteration_id=iteration_id,
-            )
+        skip = (page - 1) * page_size
+        # 内联 async 查询替代 ui_prototype_crud.get_ui_screens_by_project
+        stmt = (
+            select(UIPrototypeScreen)
+            .join(Project)
+            .where(UIPrototypeScreen.project_id == project_id, Project.user_id == current_user.id)
+        )
+        if prototype_project_id:
+            stmt = stmt.where(UIPrototypeScreen.prototype_project_id == prototype_project_id)
+        if parse_status:
+            stmt = stmt.where(UIPrototypeScreen.parse_status == parse_status)
+        stmt = _apply_iteration_filter_stmt(stmt, iteration_id)
+        stmt = stmt.order_by(
+            UIPrototypeScreen.screen_order, UIPrototypeScreen.create_time
+        ).offset(skip).limit(page_size)
+        screens_result = await db.execute(stmt)
+        screens = screens_result.scalars().all()
 
-            return {
-                "total": total,
-                "items": [_build_screen_response(s) for s in screens],
-                "page": page,
-                "page_size": page_size,
-            }
+        # 内联 async 查询替代 ui_prototype_crud.get_ui_screens_count
+        count_stmt = (
+            select(func.count())
+            .select_from(UIPrototypeScreen)
+            .join(Project)
+            .where(UIPrototypeScreen.project_id == project_id, Project.user_id == current_user.id)
+        )
+        if prototype_project_id:
+            count_stmt = count_stmt.where(UIPrototypeScreen.prototype_project_id == prototype_project_id)
+        if parse_status:
+            count_stmt = count_stmt.where(UIPrototypeScreen.parse_status == parse_status)
+        count_stmt = _apply_iteration_filter_stmt(count_stmt, iteration_id)
+        total = (await db.execute(count_stmt)).scalar() or 0
 
-        data = await db.run_sync(_list)
+        data = {
+            "total": total,
+            "items": [_build_screen_response(s) for s in screens],
+            "page": page,
+            "page_size": page_size,
+        }
         return create_response(data=data)
     except HTTPException:
         raise
@@ -266,29 +299,27 @@ async def get_ui_screen_detail(
 ):
     """获取UI屏幕详情"""
     try:
-        def _detail(sync_db: Session):
-            screen = ui_prototype_crud.get_ui_screen_by_id(sync_db, screen_id)
-            if not screen:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
-                )
-
-            project = (
-                sync_db.query(Project)
-                .filter(
-                    Project.id == screen.project_id, Project.user_id == current_user.id
-                )
-                .first()
+        screen_result = await db.execute(
+            select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
+        )
+        screen = screen_result.scalars().first()
+        if not screen:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
             )
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-                )
 
-            return _build_screen_response(screen)
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == screen.project_id, Project.user_id == current_user.id
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+            )
 
-        data = await db.run_sync(_detail)
-        return create_response(data=data)
+        return create_response(data=_build_screen_response(screen))
     except HTTPException:
         raise
     except Exception as e:
@@ -307,36 +338,43 @@ async def delete_ui_screen(
 ):
     """删除UI屏幕"""
     try:
-        def _delete(sync_db: Session):
-            screen = ui_prototype_crud.get_ui_screen_by_id(sync_db, screen_id)
-            if not screen:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
-                )
-
-            project = (
-                sync_db.query(Project)
-                .filter(
-                    Project.id == screen.project_id, Project.user_id == current_user.id
-                )
-                .first()
+        screen_result = await db.execute(
+            select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
+        )
+        screen = screen_result.scalars().first()
+        if not screen:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
             )
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == screen.project_id, Project.user_id == current_user.id
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+            )
+
+        if screen.original_file_path and os.path.exists(screen.original_file_path):
+            try:
+                os.remove(screen.original_file_path)
+            except OSError as e:
+                logger.warning(
+                    f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}"
                 )
 
-            if screen.original_file_path and os.path.exists(screen.original_file_path):
-                try:
-                    os.remove(screen.original_file_path)
-                except OSError as e:
-                    logger.warning(
-                        f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}"
-                    )
+        # 内联 async 级联删除替代 ui_prototype_crud.delete_ui_screen
+        await db.execute(
+            sa_delete(UIScreenTestCaseLink).where(
+                UIScreenTestCaseLink.screen_id == screen_id
+            )
+        )
+        await db.delete(screen)
+        await db.commit()
 
-            ui_prototype_crud.delete_ui_screen(sync_db, screen_id)
-
-        await db.run_sync(_delete)
         return create_response(msg="删除成功")
     except HTTPException:
         raise
