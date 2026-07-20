@@ -1,5 +1,7 @@
 from fastapi import HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.models.project import Project
@@ -30,6 +32,25 @@ def verify_project_permission(db: Session, project_id: int, user_id: int) -> Pro
         Project.id == project_id,
         Project.user_id == user_id
     ).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此项目"
+        )
+    return project
+
+
+async def verify_project_permission_async(
+    db: AsyncSession, project_id: int, user_id: int
+) -> Project:
+    """异步版项目权限校验，语义与 sync 版完全一致。"""
+    result = await db.execute(
+        select(Project).where(
+            Project.id == project_id,
+            Project.user_id == user_id,
+        )
+    )
+    project = result.scalars().first()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
