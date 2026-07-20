@@ -1,11 +1,15 @@
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
 from app.db.database import async_get_db
+from app.models.enums import CapabilityStatus
+from app.models.test_capability import TestCapability
 from app.models.user import User
 from app.schemas.common import ApiResponse
 from app.schemas.test_capability import (
@@ -13,15 +17,7 @@ from app.schemas.test_capability import (
     TestCapabilityResponse,
     TestCapabilityUpdate,
 )
-from app.services.test_capability_service import (
-    DuplicateCapabilityKeyError,
-    _UNSET,
-    create_capability,
-    delete_capability,
-    get_capability_by_id,
-    get_capabilities_by_project,
-    update_capability,
-)
+from app.services.test_capability_service import delete_capability
 
 router = APIRouter(prefix="/test-capability", tags=["测试能力管理"])
 
@@ -36,21 +32,25 @@ async def list_capabilities(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
-    def _list(sync_db):
-        capabilities = get_capabilities_by_project(
-            sync_db, project_id=project_id, status=status, include_archived=include_archived,
-        )
-        total = len(capabilities)
-        skip = (page - 1) * page_size
-        page_capabilities = capabilities[skip:skip + page_size]
-        items = [
-            TestCapabilityResponse.model_validate(c).model_dump(mode="json")
-            for c in page_capabilities
-        ]
-        return {"items": items, "total": total, "page": page, "page_size": page_size}
+    conditions = [TestCapability.project_id == project_id]
+    if not include_archived:
+        conditions.append(TestCapability.status != CapabilityStatus.ARCHIVED.value)
+    if status is not None:
+        conditions.append(TestCapability.status == status)
 
-    data = await db.run_sync(_list)
-    return create_response(data=data)
+    result = await db.execute(
+        select(TestCapability).where(*conditions).order_by(TestCapability.key)
+    )
+    capabilities: List[TestCapability] = list(result.scalars().all())
+
+    total = len(capabilities)
+    skip = (page - 1) * page_size
+    page_capabilities = capabilities[skip:skip + page_size]
+    items = [
+        TestCapabilityResponse.model_validate(c).model_dump(mode="json")
+        for c in page_capabilities
+    ]
+    return create_response(data={"items": items, "total": total, "page": page, "page_size": page_size})
 
 
 @router.post("/", response_model=TestCapabilityResponse, status_code=status.HTTP_201_CREATED)
@@ -59,22 +59,24 @@ async def create_capability_endpoint(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _create(sync_db):
-        return create_capability(
-            sync_db,
-            project_id=data.project_id,
-            key=data.key,
-            title=data.title,
-            description=data.description,
-            status=data.status,
-        )
+    capability = TestCapability(
+        project_id=data.project_id,
+        key=data.key,
+        title=data.title,
+        description=data.description,
+        status=data.status,
+    )
+    db.add(capability)
     try:
-        capability = await db.run_sync(_create)
-    except DuplicateCapabilityKeyError as e:
+        await db.flush()
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+            detail=f"Capability key '{data.key}' already exists in project {data.project_id}",
+        ) from e
+    await db.refresh(capability)
     return capability
 
 
@@ -84,9 +86,10 @@ async def get_capability_endpoint(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _get(sync_db):
-        return get_capability_by_id(sync_db, capability_id=capability_id)
-    capability = await db.run_sync(_get)
+    result = await db.execute(
+        select(TestCapability).where(TestCapability.id == capability_id)
+    )
+    capability = result.scalars().first()
     if capability is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -102,25 +105,31 @@ async def update_capability_endpoint(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    update_kwargs = {}
-    for field_name in ("key", "title", "description", "status"):
-        value = getattr(data, field_name, None)
-        update_kwargs[field_name] = value if value is not None else _UNSET
-
-    def _update(sync_db):
-        return update_capability(sync_db, capability_id=capability_id, **update_kwargs)
-    try:
-        capability = await db.run_sync(_update)
-    except DuplicateCapabilityKeyError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e),
-        )
+    result = await db.execute(
+        select(TestCapability).where(TestCapability.id == capability_id)
+    )
+    capability = result.scalars().first()
     if capability is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capability {capability_id} not found",
         )
+
+    for field_name in ("key", "title", "description", "status"):
+        value = getattr(data, field_name, None)
+        if value is not None and hasattr(capability, field_name):
+            setattr(capability, field_name, value)
+
+    try:
+        await db.flush()
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Capability key conflict after update",
+        ) from e
+    await db.refresh(capability)
     return capability
 
 
@@ -130,7 +139,12 @@ async def delete_capability_endpoint(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """软删除能力：将 status 置为 archived，返回更新后的能力对象。"""
+    """软删除能力：将 status 置为 archived，返回更新后的能力对象。
+
+    保留 db.run_sync 桥接：delete_capability → transition_capability →
+    _write_capability_audit_log → audit_service.log_action 为深层 sync 链，
+    迁移需同步改造 lifecycle_service 与 audit_service，超出本批次范围。
+    """
     def _delete(sync_db):
         return delete_capability(
             sync_db, capability_id=capability_id, actor_id=current_user.id,
