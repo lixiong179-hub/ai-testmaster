@@ -9,7 +9,7 @@ import unittest
 from datetime import datetime
 import pytest
 
-pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")
+# pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")  # 临时移除排查
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)

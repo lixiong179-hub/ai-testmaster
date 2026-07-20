@@ -15,7 +15,7 @@ from datetime import datetime
 import json
 import pytest
 
-pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")
+# pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")  # 临时移除排查
 
 # 导入所有模型
 from app.models.element_locator import ElementLocator
