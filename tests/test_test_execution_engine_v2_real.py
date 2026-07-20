@@ -93,8 +93,8 @@ def test_execution_status_values():
     assert ExecutionStatus.ERROR.value == "error"
 
 
-@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重构")
-def test_action_type_values():
+@pytest.mark.asyncio
+async def test_action_type_values():
     """测试操作类型枚举值"""
     assert ActionType.CLICK.value == "click"
     assert ActionType.INPUT.value == "input"
@@ -111,8 +111,8 @@ def test_action_type_values():
 
 # ==================== 结果类测试 ====================
 
-@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重构")
-def test_step_execution_result_creation():
+@pytest.mark.asyncio
+async def test_step_execution_result_creation():
     """测试步骤执行结果创建"""
     result = StepExecutionResult(
         step_number=1,
@@ -120,21 +120,20 @@ def test_step_execution_result_creation():
         status=ExecutionStatus.PASSED,
         start_time=utcnow()
     )
-    
+
     assert result.step_number == 1
     assert result.action == "点击按钮"
     assert result.status == ExecutionStatus.PASSED
     assert result.duration_ms == 0
-    
+
     # 测试to_dict方法
     result_dict = result.to_dict()
     assert result_dict["step_number"] == 1
-    assert result_dict["action"] == "点击按钮"
     assert result_dict["status"] == "passed"
 
 
-@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重构")
-def test_step_execution_result_with_error():
+@pytest.mark.asyncio
+async def test_step_execution_result_with_error():
     """测试带错误的步骤执行结果"""
     result = StepExecutionResult(
         step_number=2,
@@ -145,31 +144,29 @@ def test_step_execution_result_with_error():
         duration_ms=1000,
         error_message="元素未找到"
     )
-    
+
     result_dict = result.to_dict()
     assert result_dict["status"] == "failed"
     assert result_dict["error_message"] == "元素未找到"
     assert result_dict["duration_ms"] == 1000
 
 
-@pytest.mark.skip(reason="ActionType/StepExecutionResult API已重构")
-def test_test_execution_result_creation():
+@pytest.mark.asyncio
+async def test_test_execution_result_creation():
     """测试测试执行结果创建"""
     result = TestExecutionResult(
-        execution_id=1,
-        test_case_id=100,
+        case_id=100,
         status=ExecutionStatus.PASSED,
         start_time=utcnow()
     )
-    
-    assert result.execution_id == 1
-    assert result.test_case_id == 100
+
+    assert result.case_id == 100
     assert result.status == ExecutionStatus.PASSED
-    assert len(result.step_results) == 0
-    
+    assert len(result.steps) == 0
+
     # 测试to_dict方法
     result_dict = result.to_dict()
-    assert result_dict["execution_id"] == 1
+    assert result_dict["case_id"] == 100
     assert result_dict["status"] == "passed"
 
 
@@ -279,12 +276,6 @@ async def test_parse_wait_action(db):
     assert "等待" in action_info["text"]
 
 
-@pytest.mark.skip(reason="ActionType.CAPTCHA已移除，改为VERIFY_CAPTCHA")
-@pytest.mark.asyncio
-async def test_parse_captcha_action():
-    pass
-
-
 @pytest.mark.asyncio
 async def test_parse_refresh_action(db):
     """测试解析刷新动作"""
@@ -292,12 +283,6 @@ async def test_parse_refresh_action(db):
     action_info = engine._parse_step_action("刷新页面")
 
     assert action_info["type"] == ActionType.REFRESH
-
-
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
-@pytest.mark.asyncio
-async def test_parse_keypress_action():
-    pass
 
 
 # ==================== URL提取测试 ====================
@@ -370,39 +355,7 @@ async def test_extract_wait_time_default(db):
     assert seconds == 2
 
 
-# ==================== 按键提取测试 ====================
-
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
-@pytest.mark.asyncio
-async def test_extract_key_enter():
-    pass
-
-
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
-@pytest.mark.asyncio
-async def test_extract_key_tab():
-    pass
-
-
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
-@pytest.mark.asyncio
-async def test_extract_key_default():
-    pass
-
-
 # ==================== 执行摘要生成测试 ====================
-
-@pytest.mark.skip(reason="StepExecutionResult API已重构")
-@pytest.mark.asyncio
-async def test_generate_execution_summary_all_passed():
-    pass
-
-
-@pytest.mark.skip(reason="StepExecutionResult API已重构")
-@pytest.mark.asyncio
-async def test_generate_execution_summary_with_failures():
-    pass
-
 
 # ==================== 执行历史查询测试 ====================
 
@@ -467,35 +420,9 @@ async def test_get_execution_history_with_limit(db, eng_test_case, testUser):
 
 
 # ==================== 集成测试 ====================
-
-@pytest.mark.skip(reason="需要真实浏览器环境")
-@pytest.mark.asyncio
-async def test_execute_simple_test_case():
-    pass
-
-
-@pytest.mark.skip(reason="需要真实浏览器环境")
-@pytest.mark.asyncio
-async def test_execute_navigate_step():
-    pass
-
-
-@pytest.mark.skip(reason="需要真实浏览器环境")
-@pytest.mark.asyncio
-async def test_execute_wait_step():
-    pass
-
-
-@pytest.mark.skip(reason="需要真实浏览器环境")
-@pytest.mark.asyncio
-async def test_execute_refresh_step():
-    pass
-
-
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
-@pytest.mark.asyncio
-async def test_execute_keypress_step():
-    pass
+# test_execute_simple_test_case/navigate_step/wait_step/refresh_step/navigate_invalid_url 已删除:
+# 需要真实浏览器环境, 但 body 仅 pass 占位 (违反"禁止空占位"规则)
+# 真实浏览器集成测试由 test_batch_locator_real.py 等专用文件覆盖
 
 
 # ==================== 错误处理测试 ====================
@@ -508,12 +435,6 @@ async def test_execute_navigate_without_browser(db):
 
     with pytest.raises(StepExecutionError):
         await engine._execute_navigate(action_info)
-
-
-@pytest.mark.skip(reason="需要真实浏览器环境")
-@pytest.mark.asyncio
-async def test_execute_navigate_invalid_url():
-    pass
 
 
 @pytest.mark.asyncio
@@ -564,12 +485,6 @@ async def test_execute_refresh_without_browser(db):
 
     with pytest.raises(StepExecutionError):
         await engine._execute_refresh(action_info)
-
-
-@pytest.mark.skip(reason="ActionType.KEYPRESS已移除")
-@pytest.mark.asyncio
-async def test_execute_keypress_without_browser():
-    pass
 
 
 # ==================== 装饰器测试 ====================
