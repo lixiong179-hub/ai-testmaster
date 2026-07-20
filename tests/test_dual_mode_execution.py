@@ -14,8 +14,8 @@ from app.services.test_execution_engine_v2 import (
     TestExecutionEngineV2, ExecutionMode, ExecutionStatus, ActionType,
     StepExecutionError, VerificationError, ExecutionError,
     StepExecutionResult, TestExecutionResult, handle_execution_errors,
+    FailureCategory,
 )
-from app.services.test_execution_engine import FailureCategory
 from app.models.test_case import TestCase
 
 
