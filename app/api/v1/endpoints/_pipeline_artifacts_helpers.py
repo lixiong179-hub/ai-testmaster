@@ -7,12 +7,16 @@ import json
 from typing import Any, Optional
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, joinedload
 
 from loguru import logger
 
+from app.models.iteration import Iteration
+from app.models.pipeline import Artifact, PipelineRun
+from app.models.project import Project
 from app.models.user import User
-from app.models.pipeline import PipelineRun
 
 PAYLOAD_TRUNCATE_THRESHOLD = 10 * 1024  # 10KB 截断阈值
 
@@ -108,3 +112,71 @@ def record_version_rerun_metric(
         )
     except Exception as e:
         logger.debug("记录pipeline版本重跑指标失败(不影响业务): %s", e)
+
+
+async def _get_run_async(
+    db: AsyncSession, run_id: int
+) -> Optional[PipelineRun]:
+    """async 版本的 pipeline_service.get_run，joinedload steps/artifacts。"""
+    result = await db.execute(
+        select(PipelineRun)
+        .options(
+            joinedload(PipelineRun.steps),
+            joinedload(PipelineRun.artifacts),
+        )
+        .where(PipelineRun.id == run_id)
+    )
+    return result.scalars().first()
+
+
+async def _verify_iteration_access_async(
+    db: AsyncSession, iteration_id: int, current_user: User
+) -> Iteration:
+    """async 版本的 verify_iteration_access，校验迭代操作权限并返回迭代对象。"""
+    iter_result = await db.execute(
+        select(Iteration).where(Iteration.id == iteration_id)
+    )
+    iteration = iter_result.scalars().first()
+    if not iteration:
+        raise HTTPException(status_code=404, detail="迭代不存在")
+    project_result = await db.execute(
+        select(Project).where(
+            Project.id == iteration.project_id,
+            Project.user_id == current_user.id,
+        )
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(status_code=403, detail="无权限操作此迭代的 Pipeline")
+    return iteration
+
+
+async def _get_artifact_async(
+    db: AsyncSession,
+    run_id: int,
+    *,
+    artifact_id: Optional[int] = None,
+    kind: Optional[str] = None,
+    order_by_created_desc: bool = False,
+) -> Optional[Artifact]:
+    """async 版本的 Artifact 查询，支持按 artifact_id 或 kind 过滤。
+
+    Args:
+        db: AsyncSession
+        run_id: PipelineRun ID
+        artifact_id: 可选, 按产物ID过滤
+        kind: 可选, 按产物kind过滤
+        order_by_created_desc: 是否按 created_at 降序排序
+
+    Returns:
+        Optional[Artifact]
+    """
+    stmt = select(Artifact).where(Artifact.run_id == run_id)
+    if artifact_id is not None:
+        stmt = stmt.where(Artifact.id == artifact_id)
+    if kind is not None:
+        stmt = stmt.where(Artifact.kind == kind)
+    if order_by_created_desc:
+        stmt = stmt.order_by(Artifact.created_at.desc())
+    result = await db.execute(stmt)
+    return result.scalars().first()

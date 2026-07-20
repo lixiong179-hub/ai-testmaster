@@ -32,31 +32,30 @@ async def create_prototype_project(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        def _create(sync_db: Session):
-            project = (
-                sync_db.query(Project)
-                .filter(
-                    Project.id == project_data.project_id,
-                    Project.user_id == current_user.id,
-                )
-                .first()
+        # 内联 async 实现, 替代 db.run_sync(_create) + sync crud
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == project_data.project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
 
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-                )
-
-            return ui_prototype_crud.create_ui_prototype_project(
-                db=sync_db,
-                project_id=project_data.project_id,
-                name=project_data.name,
-                description=project_data.description,
-                source=project_data.source,
-                created_by=current_user.id,
-            )
-
-        data = await db.run_sync(_create)
+        record = UIPrototypeProject(
+            project_id=project_data.project_id,
+            name=project_data.name,
+            description=project_data.description,
+            source=project_data.source,
+            created_by=current_user.id,
+        )
+        db.add(record)
+        await db.commit()
+        await db.refresh(record)
+        data = record
         return create_response(data=data, msg="创建成功")
     except HTTPException:
         raise
@@ -77,62 +76,84 @@ async def get_prototype_projects(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        def _list(sync_db: Session):
-            project = (
-                sync_db.query(Project)
-                .filter(Project.id == project_id, Project.user_id == current_user.id)
-                .first()
+        # 内联 async 实现, 替代 db.run_sync(_list) + sync crud
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == project_id, Project.user_id == current_user.id
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
 
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+        skip = (page - 1) * page_size
+        # 内联 async 查询替代 get_ui_prototype_projects_by_project
+        list_stmt = (
+            select(UIPrototypeProject)
+            .join(Project)
+            .where(
+                UIPrototypeProject.project_id == project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+        if iteration_id is not None:
+            if iteration_id <= 0:
+                list_stmt = list_stmt.where(UIPrototypeProject.iteration_id.is_(None))
+            else:
+                list_stmt = list_stmt.where(
+                    UIPrototypeProject.iteration_id == iteration_id
                 )
+        list_stmt = list_stmt.offset(skip).limit(page_size)
+        db_projects_result = await db.execute(list_stmt)
+        db_projects = db_projects_result.scalars().all()
 
-            skip = (page - 1) * page_size
-            db_projects = ui_prototype_crud.get_ui_prototype_projects_by_project(
-                db=sync_db,
-                project_id=project_id,
-                user_id=current_user.id,
-                skip=skip,
-                limit=page_size,
-                iteration_id=iteration_id,
+        # 内联 async 聚合查询替代 get_ui_prototype_projects_count
+        from sqlalchemy import func as sa_func
+        count_stmt = (
+            select(sa_func.count())
+            .select_from(UIPrototypeProject)
+            .join(Project)
+            .where(
+                UIPrototypeProject.project_id == project_id,
+                Project.user_id == current_user.id,
             )
+        )
+        if iteration_id is not None:
+            if iteration_id <= 0:
+                count_stmt = count_stmt.where(UIPrototypeProject.iteration_id.is_(None))
+            else:
+                count_stmt = count_stmt.where(
+                    UIPrototypeProject.iteration_id == iteration_id
+                )
+        total = (await db.execute(count_stmt)).scalar() or 0
 
-            total = ui_prototype_crud.get_ui_prototype_projects_count(
-                db=sync_db,
-                project_id=project_id,
-                user_id=current_user.id,
-                iteration_id=iteration_id,
-            )
+        items = []
+        for p in db_projects:
+            flow_summary = _build_flow_summary(p.merged_flow)
+            items.append({
+                "id": p.id,
+                "project_id": p.project_id,
+                "name": p.name,
+                "description": p.description,
+                "source": p.source,
+                "screen_count": p.screen_count,
+                "parsed_count": p.parsed_count,
+                "parse_status": p.parse_status,
+                "iteration_id": p.iteration_id,
+                "has_flow": flow_summary["has_flow"],
+                "flow_summary": flow_summary,
+                "create_time": p.create_time.isoformat() if p.create_time else None,
+                "update_time": p.update_time.isoformat() if p.update_time else None,
+            })
 
-            items = []
-            for p in db_projects:
-                flow_summary = _build_flow_summary(p.merged_flow)
-                items.append({
-                    "id": p.id,
-                    "project_id": p.project_id,
-                    "name": p.name,
-                    "description": p.description,
-                    "source": p.source,
-                    "screen_count": p.screen_count,
-                    "parsed_count": p.parsed_count,
-                    "parse_status": p.parse_status,
-                    "iteration_id": p.iteration_id,
-                    "has_flow": flow_summary["has_flow"],
-                    "flow_summary": flow_summary,
-                    "create_time": p.create_time.isoformat() if p.create_time else None,
-                    "update_time": p.update_time.isoformat() if p.update_time else None,
-                })
-
-            return {
-                "items": items,
-                "total": total,
-                "page": page,
-                "page_size": page_size,
-            }
-
-        data = await db.run_sync(_list)
+        data = {
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
         return create_response(data=data)
     except HTTPException:
         raise

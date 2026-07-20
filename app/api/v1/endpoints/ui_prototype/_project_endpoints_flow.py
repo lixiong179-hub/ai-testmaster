@@ -7,20 +7,20 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.ui_prototype._project_endpoints_helpers import (
     _serialize_project_flow_data,
 )
 from app.core.exception import create_response
-from app.crud.project_flow_data import get_project_flow_data, save_project_flow_data
 from app.db.database import async_get_db
 from app.models.project import Project
 from app.models.project_flow_data import ProjectFlowData
 from app.models.user import User
 from app.schemas.ui_prototype import FlowDataSaveRequest
+from app.utils.db_time import utcnow
 
 
 async def save_flow_data(
@@ -45,27 +45,41 @@ async def save_flow_data(
                 detail="请求体项目ID与路径项目ID不一致",
             )
 
-        def _save(sync_db: Session):
-            project = (
-                sync_db.query(Project)
-                .filter(Project.id == project_id, Project.user_id == current_user.id)
-                .first()
+        # 内联 async 实现, 替代 db.run_sync(_save) + sync crud
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == project_id, Project.user_id == current_user.id
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
 
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-                )
-
-            result: ProjectFlowData = save_project_flow_data(
-                db=sync_db,
+        existing_result = await db.execute(
+            select(ProjectFlowData).where(
+                ProjectFlowData.project_id == project_id
+            )
+        )
+        existing = existing_result.scalars().first()
+        if existing:
+            existing.flow_data = flow_request.flow_data
+            existing.update_time = utcnow()
+            await db.commit()
+            await db.refresh(existing)
+            result = existing
+        else:
+            record = ProjectFlowData(
                 project_id=project_id,
                 flow_data=flow_request.flow_data,
             )
+            db.add(record)
+            await db.commit()
+            await db.refresh(record)
+            result = record
 
-            return _serialize_project_flow_data(result)
-
-        data = await db.run_sync(_save)
+        data = _serialize_project_flow_data(result)
         return create_response(data=data, msg="保存成功")
     except HTTPException:
         raise
@@ -89,29 +103,27 @@ async def get_flow_data(
     若存在已保存数据则返回完整数据，否则返回data=None及提示信息。
     """
     try:
-        def _get(sync_db: Session):
-            project = (
-                sync_db.query(Project)
-                .filter(Project.id == project_id, Project.user_id == current_user.id)
-                .first()
+        # 内联 async 实现, 替代 db.run_sync(_get) + sync crud
+        project_result = await db.execute(
+            select(Project).where(
+                Project.id == project_id, Project.user_id == current_user.id
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
 
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-                )
-
-            result: Optional[ProjectFlowData] = get_project_flow_data(
-                db=sync_db,
-                project_id=project_id,
+        flow_result = await db.execute(
+            select(ProjectFlowData).where(
+                ProjectFlowData.project_id == project_id
             )
+        )
+        result: Optional[ProjectFlowData] = flow_result.scalars().first()
 
-            if result:
-                return _serialize_project_flow_data(result)
-            return None
-
-        data = await db.run_sync(_get)
-        if data:
+        if result:
+            data = _serialize_project_flow_data(result)
             return create_response(data=data)
         else:
             return create_response(data=None, msg="暂无保存数据")
