@@ -30,6 +30,11 @@ from app.crud import iteration as iteration_crud
 from app.crud import file as file_crud
 from app.utils.file_utils import validate_file_format, detect_resource_type
 from app.models import Project, ProjectFile
+from app.api.v1.endpoints.file_export import (
+    _extract_images_from_zip,
+    MAX_ZIP_ENTRIES,
+    MAX_ZIP_TOTAL_SIZE,
+)
 
 
 class TestZIPPathTraversalVulnerability:
@@ -75,11 +80,6 @@ class TestZIPPathTraversalVulnerability:
         with open(zip_path, 'wb') as f:
             f.write(malicious_zip)
 
-        try:
-            from app.api.v1.endpoints.file_export import _extract_images_from_zip
-        except ImportError:
-            pytest.skip("_extract_images_from_zip not available")
-
         project_upload_dir = os.path.join(self.temp_dir, "uploads")
         os.makedirs(project_upload_dir, exist_ok=True)
 
@@ -106,11 +106,6 @@ class TestZIPPathTraversalVulnerability:
 
         with open(zip_path, 'wb') as f:
             f.write(malicious_zip)
-
-        try:
-            from app.api.v1.endpoints.file_export import _extract_images_from_zip
-        except ImportError:
-            pytest.skip("_extract_images_from_zip not available")
 
         project_upload_dir = os.path.join(self.temp_dir, "uploads")
         os.makedirs(project_upload_dir, exist_ok=True)
@@ -432,11 +427,6 @@ class TestBatchUploadEdgeCases:
 
     def test_empty_batch_returns_empty_result(self):
         """测试空批量上传列表的处理"""
-        try:
-            from app.api.v1.endpoints.file_export import _extract_images_from_zip
-        except ImportError:
-            pytest.skip("_extract_images_from_zip not available")
-
         result_uploaded = []
         result_failed = []
 
@@ -444,11 +434,6 @@ class TestBatchUploadEdgeCases:
 
     def test_oversized_zip_rejected(self, db_session, test_project):
         """测试超大ZIP文件被拒绝"""
-        try:
-            from app.api.v1.endpoints.file_export import _extract_images_from_zip, MAX_ZIP_TOTAL_SIZE
-        except ImportError:
-            pytest.skip("_extract_images_from_zip not available")
-
         temp_file = os.path.join(self.temp_dir, "oversized.zip")
         with open(temp_file, 'wb') as f:
             f.write(b'\x00' * (MAX_ZIP_TOTAL_SIZE + 1))
@@ -461,11 +446,6 @@ class TestBatchUploadEdgeCases:
 
     def test_too_many_entries_rejected(self, db_session, test_project):
         """测试文件数量过多的ZIP被拒绝"""
-        try:
-            from app.api.v1.endpoints.file_export import _extract_images_from_zip, MAX_ZIP_ENTRIES
-        except ImportError:
-            pytest.skip("_extract_images_from_zip not available")
-
         buffer = BytesIO()
         with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
             for i in range(MAX_ZIP_ENTRIES + 1):

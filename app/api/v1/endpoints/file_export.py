@@ -23,6 +23,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse
 from typing import Optional
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
@@ -246,31 +247,27 @@ async def preview_file(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _get_file(sync_db: Session) -> str:
-        file_record = (
-            sync_db.query(ProjectFile).filter(ProjectFile.id == file_id).first()
+    file_result = await db.execute(
+        select(ProjectFile).where(ProjectFile.id == file_id)
+    )
+    file_record = file_result.scalars().first()
+    if not file_record:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    project_result = await db.execute(
+        select(Project).where(
+            Project.id == file_record.project_id,
+            Project.user_id == current_user.id,
         )
-        if not file_record:
-            raise HTTPException(status_code=404, detail="文件不存在")
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(status_code=403, detail="无权访问此文件")
 
-        project = (
-            sync_db.query(Project)
-            .filter(
-                Project.id == file_record.project_id,
-                Project.user_id == current_user.id,
-            )
-            .first()
-        )
-        if not project:
-            raise HTTPException(status_code=403, detail="无权访问此文件")
+    file_path = file_record.file_url
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
 
-        file_path = file_record.file_url
-        if not file_path or not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="文件不存在")
-
-        return file_path
-
-    file_path = await db.run_sync(_get_file)
     return FileResponse(path=file_path)
 
 
@@ -280,32 +277,26 @@ async def preview_screen(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _get_screen_file(sync_db: Session) -> str:
-        from app.models.ui_prototype import UIPrototypeScreen
+    from app.models.ui_prototype import UIPrototypeScreen
 
-        screen = (
-            sync_db.query(UIPrototypeScreen)
-            .filter(UIPrototypeScreen.id == screen_id)
-            .first()
+    screen_result = await db.execute(
+        select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
+    )
+    screen = screen_result.scalars().first()
+    if not screen:
+        raise HTTPException(status_code=404, detail="屏幕不存在")
+
+    project_result = await db.execute(
+        select(Project).where(
+            Project.id == screen.project_id, Project.user_id == current_user.id
         )
-        if not screen:
-            raise HTTPException(status_code=404, detail="屏幕不存在")
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(status_code=403, detail="无权访问此文件")
 
-        project = (
-            sync_db.query(Project)
-            .filter(
-                Project.id == screen.project_id, Project.user_id == current_user.id
-            )
-            .first()
-        )
-        if not project:
-            raise HTTPException(status_code=403, detail="无权访问此文件")
+    file_path = screen.original_file_path
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
 
-        file_path = screen.original_file_path
-        if not file_path or not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="文件不存在")
-
-        return file_path
-
-    file_path = await db.run_sync(_get_screen_file)
     return FileResponse(path=file_path)

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -238,37 +239,42 @@ async def create_quick_verify_task(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _create(sync_db):
-        try:
-            test_case = sync_db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
-            if not test_case:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
+    try:
+        test_case_result = await db.execute(
+            select(TestCase).where(
+                TestCase.id == case_id, TestCase.is_deleted.is_(False)
+            )
+        )
+        test_case = test_case_result.scalars().first()
+        if not test_case:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
-            if not step_indices:
-                steps = sync_db.query(TestStep).filter(
+        if not step_indices:
+            steps_result = await db.execute(
+                select(TestStep).where(
                     TestStep.test_case_id == case_id
-                ).order_by(TestStep.step_number).all()
-                step_indices = [s.step_number for s in steps]
+                ).order_by(TestStep.step_number)
+            )
+            steps = steps_result.scalars().all()
+            step_indices = [s.step_number for s in steps]
 
-            task_data = {
-                "name": f"快速验证 - {test_case.title}",
-                "case_id": case_id, "case_ids": [case_id],
-                "task_type": "quick_verify", "step_indices": step_indices,
-                "created_by": current_user.username if current_user else "system",
-                "description": f"用例纠正后快速验证，用例ID: {case_id}，验证步骤: {step_indices}"
-            }
+        task_data = {
+            "name": f"快速验证 - {test_case.title}",
+            "case_id": case_id, "case_ids": [case_id],
+            "task_type": "quick_verify", "step_indices": step_indices,
+            "created_by": current_user.username if current_user else "system",
+            "description": f"用例纠正后快速验证，用例ID: {case_id}，验证步骤: {step_indices}"
+        }
 
-            if test_case.correction_status:
-                test_case.correction_status = "verifying"
-                sync_db.commit()
+        if test_case.correction_status:
+            test_case.correction_status = "verifying"
+            await db.commit()
 
-            logger.info(f"创建快速验证任务: 用例ID={case_id}, 步骤={step_indices}, 操作人={current_user.username if current_user else 'system'}")
-            return create_response(data=task_data, message="快速验证任务已创建")
-        except HTTPException:
-            raise
-        except Exception as e:
-            sync_db.rollback()
-            logger.error(f"创建快速验证任务失败: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建快速验证任务失败")
-
-    return await db.run_sync(_create)
+        logger.info(f"创建快速验证任务: 用例ID={case_id}, 步骤={step_indices}, 操作人={current_user.username if current_user else 'system'}")
+        return create_response(data=task_data, message="快速验证任务已创建")
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"创建快速验证任务失败: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建快速验证任务失败")

@@ -13,6 +13,7 @@
 权限要求: 所有端点需要Bearer令牌认证
 """
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
 from app.db.database import async_get_db, PrimarySessionLocal
@@ -44,6 +45,24 @@ def _verify_task_access(
         )
 
 
+async def _verify_task_access_async(
+    db: AsyncSession, task: TestTask, current_user: User
+) -> None:
+    """async 版本的任务权限校验，供 async 端点内联调用。"""
+    result = await db.execute(
+        select(Project).where(
+            Project.id == task.project_id,
+            Project.user_id == current_user.id
+        )
+    )
+    project = result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此任务"
+        )
+
+
 @router.post("/{task_id}/run")
 async def run_test_task(
     task_id: int,
@@ -51,17 +70,18 @@ async def run_test_task(
     current_user: User = Depends(get_current_user)
 ):
     """执行测试任务"""
-    def _prepare(sync_db):
-        task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
-        if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="测试任务不存在"
-            )
-        _verify_task_access(sync_db, task, current_user)
-        return task
-
-    task = await db.run_sync(_prepare)
+    task_result = await db.execute(
+        select(TestTask).where(TestTask.id == task_id)
+    )
+    task = task_result.scalars().first()
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试任务不存在"
+        )
+    await _verify_task_access_async(db, task, current_user)
+    # 提前提取 project_id，避免 task 对象跨会话访问属性
+    project_id = task.project_id
 
     # TestExecutionEngineV2 内部使用 sync Session API，需独立 sync 会话
     # 性能优化：将 async service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
@@ -79,7 +99,7 @@ async def run_test_task(
 
             vis_service = VisibilityConfigService()
             config = await asyncio.to_thread(
-                vis_service.get_project_config, sync_db, task.project_id
+                vis_service.get_project_config, sync_db, project_id
             )
             hidden_fields = config.hidden_fields or []
             if hidden_fields:
@@ -105,20 +125,24 @@ async def get_task_summary(
     current_user: User = Depends(get_current_user)
 ):
     """获取任务执行摘要"""
-    def _summary(sync_db):
-        from sqlalchemy import case, func
-
-        task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
+    try:
+        task_result = await db.execute(
+            select(TestTask).where(TestTask.id == task_id)
+        )
+        task = task_result.scalars().first()
         if not task:
             raise HTTPException(status_code=404, detail="任务不存在")
 
-        _verify_task_access(sync_db, task, current_user)
+        await _verify_task_access_async(db, task, current_user)
 
-        stats = sync_db.query(
-            func.count(TestResult.id).label('total'),
-            func.sum(case((TestResult.exec_status == ExecStatus.PASSED, 1), else_=0)).label('success'),
-            func.sum(case((TestResult.exec_status == ExecStatus.FAILED, 1), else_=0)).label('failed'),
-        ).filter(TestResult.task_id == task_id).first()
+        stats_result = await db.execute(
+            select(
+                func.count(TestResult.id).label('total'),
+                func.sum(case((TestResult.exec_status == ExecStatus.PASSED, 1), else_=0)).label('success'),
+                func.sum(case((TestResult.exec_status == ExecStatus.FAILED, 1), else_=0)).label('failed'),
+            ).where(TestResult.task_id == task_id)
+        )
+        stats = stats_result.first()
 
         total = stats.total if stats.total else 0
         success_count = stats.success if stats.success else 0
@@ -136,9 +160,6 @@ async def get_task_summary(
             "end_time": task.end_time.isoformat() if task.end_time else None,
         }
         return create_response(data=summary)
-
-    try:
-        return await db.run_sync(_summary)
     except HTTPException:
         raise
     except Exception as e:

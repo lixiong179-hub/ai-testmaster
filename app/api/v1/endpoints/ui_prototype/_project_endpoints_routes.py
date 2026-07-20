@@ -8,8 +8,8 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, Query, status
 from loguru import logger
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.ui_prototype._project_endpoints_helpers import _build_flow_summary
@@ -150,61 +150,60 @@ async def delete_prototype_project(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        def _delete(sync_db: Session):
-            proto_project = (
-                sync_db.query(UIPrototypeProject)
-                .filter(UIPrototypeProject.id == prototype_project_id)
-                .first()
+        proto_result = await db.execute(
+            select(UIPrototypeProject).where(
+                UIPrototypeProject.id == prototype_project_id
+            )
+        )
+        proto_project = proto_result.scalars().first()
+
+        if not proto_project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
             )
 
-            if not proto_project:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
-                )
+        db_project_result = await db.execute(
+            select(Project).where(
+                Project.id == proto_project.project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+        db_project = db_project_result.scalars().first()
 
-            db_project = (
-                sync_db.query(Project)
-                .filter(
-                    Project.id == proto_project.project_id,
-                    Project.user_id == current_user.id,
-                )
-                .first()
+        if not db_project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
 
-            if not db_project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-                )
-
-            screens = (
-                sync_db.query(UIPrototypeScreen)
-                .filter(UIPrototypeScreen.prototype_project_id == prototype_project_id)
-                .all()
+        screens_result = await db.execute(
+            select(UIPrototypeScreen).where(
+                UIPrototypeScreen.prototype_project_id == prototype_project_id
             )
+        )
+        screens = screens_result.scalars().all()
 
-            deleted_screens = 0
-            for screen in screens:
-                if screen.original_file_path and os.path.exists(
-                    screen.original_file_path
-                ):
-                    try:
-                        os.remove(screen.original_file_path)
-                    except OSError as e:
-                        logger.warning(
-                            f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}"
-                        )
-                sync_db.query(UIScreenTestCaseLink).filter(
+        deleted_screens = 0
+        for screen in screens:
+            if screen.original_file_path and os.path.exists(
+                screen.original_file_path
+            ):
+                try:
+                    os.remove(screen.original_file_path)
+                except OSError as e:
+                    logger.warning(
+                        f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}"
+                    )
+            await db.execute(
+                delete(UIScreenTestCaseLink).where(
                     UIScreenTestCaseLink.screen_id == screen.id
-                ).delete()
-                sync_db.delete(screen)
-                deleted_screens += 1
+                )
+            )
+            await db.delete(screen)
+            deleted_screens += 1
 
-            sync_db.delete(proto_project)
-            sync_db.commit()
+        await db.delete(proto_project)
+        await db.commit()
 
-            return deleted_screens
-
-        deleted_screens = await db.run_sync(_delete)
         return create_response(
             data={"deleted_screens": deleted_screens},
             msg=f"删除成功，共删除 {deleted_screens} 张图片"

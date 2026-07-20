@@ -26,7 +26,7 @@ import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -166,20 +166,17 @@ async def batch_get_ui_screens(
     try:
         parsed_ids = _parse_screen_ids(ids)
 
-        def _query_screens(sync_db: Session) -> list:
-            # 参数化批量查询：join Project 校验权限，使用 in_ 列表传参杜绝 SQL 注入
-            # 单次查询返回所有所需屏幕，杜绝循环内执行 SQL 的 N+1 问题
-            return (
-                sync_db.query(UIPrototypeScreen)
-                .join(Project, UIPrototypeScreen.project_id == Project.id)
-                .filter(
-                    UIPrototypeScreen.id.in_(parsed_ids),
-                    Project.user_id == current_user.id,
-                )
-                .all()
+        # 参数化批量查询：join Project 校验权限，使用 in_ 列表传参杜绝 SQL 注入
+        # 单次查询返回所有所需屏幕，杜绝循环内执行 SQL 的 N+1 问题
+        screens_result = await db.execute(
+            select(UIPrototypeScreen)
+            .join(Project, UIPrototypeScreen.project_id == Project.id)
+            .where(
+                UIPrototypeScreen.id.in_(parsed_ids),
+                Project.user_id == current_user.id,
             )
-
-        screens = await db.run_sync(_query_screens)
+        )
+        screens = screens_result.scalars().all()
 
         result: dict[str, str] = {}
         for screen in screens:

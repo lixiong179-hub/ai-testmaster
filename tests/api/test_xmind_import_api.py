@@ -411,7 +411,7 @@ class TestImportXmindAiEnhance:
     """
 
     _PATCH_PARSE = "app.api.v1.endpoints.test_point_import.XmindAIParser"
-    _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission"
+    _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission_async"
 
     def _post_ai(self, ai_client, valid_xmind, preview="true"):
         with open(valid_xmind, "rb") as f:
@@ -630,7 +630,7 @@ class TestImportXmindAiReal:
     环境要求：DEEPSEEK_API_KEY 已配置，不满足时自动 skip。
     """
 
-    _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission"
+    _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission_async"
 
     @pytest.mark.skipif(not _ai_key_configured(), reason="DeepSeek API Key 未配置")
     def test_ai_preview_returns_structured_cases(

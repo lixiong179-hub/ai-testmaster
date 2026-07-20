@@ -12,6 +12,7 @@ XMind导入端点已迁移至 test_point_import.py。
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -48,24 +49,26 @@ async def extract_test_points(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="请提供 file_id"
             )
 
-        def _get_file(sync_db):
-            file = sync_db.query(ProjectFile).filter(
+        file_result = await db.execute(
+            select(ProjectFile).where(
                 ProjectFile.id == request.file_id, ProjectFile.is_active == True  # noqa: E712
-            ).first()
-            if not file:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在"
-                )
-            project = sync_db.query(Project).filter(
+            )
+        )
+        file = file_result.scalars().first()
+        if not file:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在"
+            )
+        project_result = await db.execute(
+            select(Project).where(
                 Project.id == file.project_id, Project.user_id == current_user.id,
-            ).first()
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-                )
-            return file
-
-        file = await db.run_sync(_get_file)
+            )
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
+            )
         # FileContentExtractor 内部使用 sync Session API，需独立 sync 会话
         # 性能优化：将 async service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
         from app.utils.async_sync_bridge import run_async_coro_in_thread
@@ -116,43 +119,41 @@ async def extract_test_points_from_ui(
 ):
     """从UI原型屏幕提取测试点（三维策略：页面 x 可交互元素 x 流程边）。"""
     try:
-        def _check_screens(sync_db):
-            project = sync_db.query(Project).filter(
+        project_result = await db.execute(
+            select(Project).where(
                 Project.id == request.project_id, Project.user_id == current_user.id,
-            ).first()
-            if not project:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
-                )
-            screen_count = (
-                sync_db.query(UIPrototypeScreen)
-                .filter(
-                    UIPrototypeScreen.id.in_(request.ui_screen_ids),
-                    UIPrototypeScreen.project_id == request.project_id,
-                )
-                .count()
             )
-            if screen_count != len(request.ui_screen_ids):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="部分屏幕ID不存在或不属于当前项目",
-                )
-            pending_screens = (
-                sync_db.query(UIPrototypeScreen)
-                .filter(
-                    UIPrototypeScreen.id.in_(request.ui_screen_ids),
-                    UIPrototypeScreen.parse_status != "completed",
-                )
-                .all()
+        )
+        project = project_result.scalars().first()
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
-            if pending_screens:
-                pending_names = [s.screen_name for s in pending_screens]
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"以下屏幕尚未完成AI解析: {', '.join(pending_names)}，请先解析后再提取测试点",
-                )
-
-        await db.run_sync(_check_screens)
+        count_result = await db.execute(
+            select(func.count()).select_from(UIPrototypeScreen).where(
+                UIPrototypeScreen.id.in_(request.ui_screen_ids),
+                UIPrototypeScreen.project_id == request.project_id,
+            )
+        )
+        screen_count = count_result.scalar() or 0
+        if screen_count != len(request.ui_screen_ids):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="部分屏幕ID不存在或不属于当前项目",
+            )
+        pending_result = await db.execute(
+            select(UIPrototypeScreen).where(
+                UIPrototypeScreen.id.in_(request.ui_screen_ids),
+                UIPrototypeScreen.parse_status != "completed",
+            )
+        )
+        pending_screens = pending_result.scalars().all()
+        if pending_screens:
+            pending_names = [s.screen_name for s in pending_screens]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"以下屏幕尚未完成AI解析: {', '.join(pending_names)}，请先解析后再提取测试点",
+            )
         # extract_test_points_from_ui_specs 接受 sync db，使用独立 sync 会话
         # 性能优化：将 async service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
         from app.utils.async_sync_bridge import run_async_coro_in_thread

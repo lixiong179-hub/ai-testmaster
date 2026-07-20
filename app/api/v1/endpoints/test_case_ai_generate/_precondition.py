@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -23,19 +24,23 @@ async def get_precondition_steps(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _get(sync_db):
-        test_case = sync_db.query(TestCase).join(Project).filter(
+    test_case_result = await db.execute(
+        select(TestCase).join(Project).where(
             TestCase.id == case_id,
             TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        ).first()
-        if not test_case:
-            raise HTTPException(status_code=404, detail="测试用例不存在")
-        steps = sync_db.query(TestCasePreconditionStep).filter(
+        )
+    )
+    test_case = test_case_result.scalars().first()
+    if not test_case:
+        raise HTTPException(status_code=404, detail="测试用例不存在")
+    steps_result = await db.execute(
+        select(TestCasePreconditionStep).where(
             TestCasePreconditionStep.test_case_id == case_id
-        ).order_by(TestCasePreconditionStep.step_number).all()
-        return [PreconditionStepResponse.model_validate(s) for s in steps]
-    data = await db.run_sync(_get)
+        ).order_by(TestCasePreconditionStep.step_number)
+    )
+    steps = steps_result.scalars().all()
+    data = [PreconditionStepResponse.model_validate(s) for s in steps]
     return create_response(data=data)
 
 
@@ -46,34 +51,40 @@ async def batch_save_precondition_steps(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _save(sync_db):
-        test_case = sync_db.query(TestCase).join(Project).filter(
+    test_case_result = await db.execute(
+        select(TestCase).join(Project).where(
             TestCase.id == case_id, TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        ).first()
-        if not test_case:
-            raise HTTPException(status_code=404, detail="测试用例不存在")
-        sync_db.query(TestCasePreconditionStep).filter(
+        )
+    )
+    test_case = test_case_result.scalars().first()
+    if not test_case:
+        raise HTTPException(status_code=404, detail="测试用例不存在")
+    await db.execute(
+        delete(TestCasePreconditionStep).where(
             TestCasePreconditionStep.test_case_id == case_id
-        ).delete()
-        for i, step_data in enumerate(request.steps):
-            step = TestCasePreconditionStep(
-                test_case_id=case_id,
-                step_number=step_data.step_number or (i + 1),
-                action=step_data.action,
-                expected_result=step_data.expected_result or "",
-                action_type=step_data.action_type,
-                input_value=step_data.input_value,
-                target_element=step_data.target_element,
-                has_locator=0, locator_status="pending",
-            )
-            sync_db.add(step)
-        sync_db.commit()
-        steps = sync_db.query(TestCasePreconditionStep).filter(
+        )
+    )
+    for i, step_data in enumerate(request.steps):
+        step = TestCasePreconditionStep(
+            test_case_id=case_id,
+            step_number=step_data.step_number or (i + 1),
+            action=step_data.action,
+            expected_result=step_data.expected_result or "",
+            action_type=step_data.action_type,
+            input_value=step_data.input_value,
+            target_element=step_data.target_element,
+            has_locator=0, locator_status="pending",
+        )
+        db.add(step)
+    await db.commit()
+    steps_result = await db.execute(
+        select(TestCasePreconditionStep).where(
             TestCasePreconditionStep.test_case_id == case_id
-        ).order_by(TestCasePreconditionStep.step_number).all()
-        return [PreconditionStepResponse.model_validate(s) for s in steps]
-    data = await db.run_sync(_save)
+        ).order_by(TestCasePreconditionStep.step_number)
+    )
+    steps = steps_result.scalars().all()
+    data = [PreconditionStepResponse.model_validate(s) for s in steps]
     return create_response(data=data)
 
 
@@ -83,15 +94,16 @@ async def parse_precondition(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _get_precondition(sync_db):
-        test_case = sync_db.query(TestCase).join(Project).filter(
+    test_case_result = await db.execute(
+        select(TestCase).join(Project).where(
             TestCase.id == case_id, TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        ).first()
-        if not test_case:
-            raise HTTPException(status_code=404, detail="测试用例不存在")
-        return test_case.precondition
-    precondition = await db.run_sync(_get_precondition)
+        )
+    )
+    test_case = test_case_result.scalars().first()
+    if not test_case:
+        raise HTTPException(status_code=404, detail="测试用例不存在")
+    precondition = test_case.precondition
     if not precondition:
         return create_response(data=[], msg="前置条件为空，无需解析")
     try:
@@ -99,28 +111,31 @@ async def parse_precondition(
             precondition=precondition,
         )
         if steps:
-            def _save_steps(sync_db):
-                sync_db.query(TestCasePreconditionStep).filter(
+            await db.execute(
+                delete(TestCasePreconditionStep).where(
                     TestCasePreconditionStep.test_case_id == case_id
-                ).delete()
-                for i, step_data in enumerate(steps):
-                    pc_step = TestCasePreconditionStep(
-                        test_case_id=case_id,
-                        step_number=step_data.get("step_number", i + 1),
-                        action=step_data.get("action", ""),
-                        expected_result=step_data.get("expected_result", ""),
-                        action_type=step_data.get("action_type", ""),
-                        input_value=step_data.get("input_value", ""),
-                        target_element=step_data.get("target_element", ""),
-                        has_locator=0, locator_status="pending",
-                    )
-                    sync_db.add(pc_step)
-                sync_db.commit()
-                saved_steps = sync_db.query(TestCasePreconditionStep).filter(
+                )
+            )
+            for i, step_data in enumerate(steps):
+                pc_step = TestCasePreconditionStep(
+                    test_case_id=case_id,
+                    step_number=step_data.get("step_number", i + 1),
+                    action=step_data.get("action", ""),
+                    expected_result=step_data.get("expected_result", ""),
+                    action_type=step_data.get("action_type", ""),
+                    input_value=step_data.get("input_value", ""),
+                    target_element=step_data.get("target_element", ""),
+                    has_locator=0, locator_status="pending",
+                )
+                db.add(pc_step)
+            await db.commit()
+            saved_result = await db.execute(
+                select(TestCasePreconditionStep).where(
                     TestCasePreconditionStep.test_case_id == case_id
-                ).order_by(TestCasePreconditionStep.step_number).all()
-                return [PreconditionStepResponse.model_validate(s) for s in saved_steps]
-            saved = await db.run_sync(_save_steps)
+                ).order_by(TestCasePreconditionStep.step_number)
+            )
+            saved_steps = saved_result.scalars().all()
+            saved = [PreconditionStepResponse.model_validate(s) for s in saved_steps]
             return create_response(
                 data=saved,
                 msg=f"解析成功，生成 {len(steps)} 个步骤",
