@@ -24,6 +24,7 @@ from app.services.test_execution_engine import (
     VerificationError,
     StepExecutionResult,
     TestExecutionResult,
+    FailureCategory,
     handle_execution_errors,
 )
 
@@ -37,5 +38,6 @@ __all__ = [
     'VerificationError',
     'StepExecutionResult',
     'TestExecutionResult',
+    'FailureCategory',
     'handle_execution_errors',
 ]

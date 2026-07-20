@@ -49,7 +49,14 @@ class StepExecutorMixin(
     _execute_step / _execute_step_legacy 核心执行流程与重试控制。
     """
 
-    VALID_EXECUTION_MODES = {"preprocess", "realtime", "smart", "mobile_realtime", "mobile_smart"}
+    # 兼容新旧 ExecutionMode 值:
+    # - 旧值 (legacy): preprocess/realtime/smart/mobile_realtime/mobile_smart (内部执行分支仍按这些值判断)
+    # - 新值 (ExecutionMode 枚举): ai_vision/api/unknown (新版 API 契约)
+    # 新值传入时不命中 preprocess/mobile_* 分支，按"智能视觉"默认路径执行，与 AI_VISION 语义一致
+    VALID_EXECUTION_MODES = {
+        "preprocess", "realtime", "smart", "mobile_realtime", "mobile_smart",
+        "ai_vision", "api", "unknown",
+    }
     MAX_STEP_RETRIES = 2
     RETRY_DELAY = 0.5
 
