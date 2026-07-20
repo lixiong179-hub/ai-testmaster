@@ -27,8 +27,14 @@ def _getCaptcha(client) -> tuple[str, str]:
     登录端点要求 captcha_id + captcha_code, 通过 GET /api/v1/auth/captcha 获取。
     """
     response = client.get("/api/v1/auth/captcha")
+    assert response.status_code == 200, (
+        f"获取验证码失败: status={response.status_code}, body={response.text}"
+    )
     body = response.json()
     data = body["data"] if "data" in body else body
+    assert "captcha_id" in data and "code" in data, (
+        f"验证码响应缺少必要字段: body={body}"
+    )
     return data["captcha_id"], data["code"]
 
 

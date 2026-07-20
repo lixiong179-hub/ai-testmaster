@@ -151,20 +151,17 @@ class TestCaptchaExpiry:
 class TestCaptchaRateLimit:
     """IP频率限制测试"""
 
-    def test_rate_limit_enforced(self):
+    def test_rate_limit_enforced(self, monkeypatch):
         """测试同一IP的频率限制"""
+        # conftest.py 设置 CAPTCHA_RATE_LIMIT=10000 以放宽批量测试限制,
+        # 本测试需低阈值验证触发逻辑, 故显式 patch 类属性为 10
+        monkeypatch.setattr(CaptchaService, "_rate_limit", 10)
         ip = "192.168.1.100"
-        
-        # 快速请求超过限制（默认10次/分钟）
-        with pytest.raises(Exception) as exc_info:
-            for i in range(15):  # 超过10次限制
-                try:
-                    captcha_service.generate(ip=ip)
-                except Exception as e:
-                    raise e
-        
-        # 应该触发频率限制异常
-        assert exc_info.value is not None
+
+        # 快速请求超过限制（10次/分钟）
+        with pytest.raises(Exception, match="请求过于频繁"):
+            for _ in range(11):  # 第 11 次应触发频率限制
+                captcha_service.generate(ip=ip)
 
 
 class TestCaptchaCleanup:
