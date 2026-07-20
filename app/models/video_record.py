@@ -40,7 +40,8 @@ class VideoRecord(Base):
         - 视频文件管理（大小、格式、时长）
     """
     __tablename__ = "video_records"
-    
+    __mapper_args__ = {"confirm_deleted_rows": False}
+
     id = Column(Integer, primary_key=True, index=True)                                                # 视频记录主键ID
     
     # 关联信息
