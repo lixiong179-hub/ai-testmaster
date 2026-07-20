@@ -983,7 +983,9 @@ class TestViewServiceCoverage(unittest.TestCase):
         
         try:
             result = self.service.export_technical_view_to_python(self.test_case.id)
-            self.assertIn('TODO: 需要添加元素定位', result, "应该包含TODO注释")
+            # 代码生成已升级为可执行的文本匹配提示，而非 TODO 占位
+            self.assertIn('无定位器', result, "无定位器步骤应给出文本匹配提示")
+            self.assertIn('使用文本匹配执行操作', result, "应明确指导使用文本匹配执行操作")
             print("✅ 测试45通过: 导出技术视图Python脚本（无定位器）")
         finally:
             self.db.query(TestStep).filter(TestStep.id == no_locator_step.id).delete(synchronize_session=False)
