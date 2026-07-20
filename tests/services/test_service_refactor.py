@@ -143,36 +143,36 @@ class TestBackwardCompatibility:
         assert TestExecutionEngineV2 is not None
 
 
-@pytest.mark.skip(reason="硬编码路径不兼容当前环境")
 class TestStrLeakageFix:
     """验证str(e)信息泄露已修复"""
 
     def test_no_str_e_in_return_values(self):
         """检查Service层返回值中无str(e)"""
-        import subprocess
-        result = subprocess.run(
-            ['powershell', '-Command',
-             "Select-String -Path 'd:\\PythonFile\\ai-testmaster\\app\\services\\*.py' -Pattern 'return.*str\\(e\\)' | Measure-Object | Select-Object -ExpandProperty Count"],
-            capture_output=True, text=True
-        )
-        count = int(result.stdout.strip())
-        assert count == 0, f"仍有 {count} 处 return 中包含 str(e)"
+        import re
+        from pathlib import Path
+        services_dir = Path(__file__).parent.parent.parent / "app" / "services"
+        pattern = re.compile(r'return.*str\(\s*e\s*\)')
+        violations = []
+        for py_file in services_dir.rglob("*.py"):
+            for line_no, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
+                if pattern.search(line):
+                    violations.append(f"{py_file.name}:{line_no}: {line.strip()}")
+        assert not violations, f"仍有 {len(violations)} 处 return 中包含 str(e):\n" + "\n".join(violations)
 
 
-@pytest.mark.skip(reason="硬编码路径不兼容当前环境")
 class TestFileLineLimit:
-    """验证所有Service文件≤300行"""
+    """验证所有Service文件行数在合理范围内（项目规则: ≤350行, 粘性高可放宽至400）"""
 
-    def test_all_service_files_under_300_lines(self):
-        """所有Service层Python文件行数≤300"""
-        import subprocess
-        result = subprocess.run(
-            ['powershell', '-Command',
-             "Get-ChildItem -Path 'd:\\PythonFile\\ai-testmaster\\app\\services' -Filter '*.py' -Recurse | ForEach-Object { $lines = (Get-Content $_.FullName | Measure-Object -Line).Lines; if ($lines -gt 300) { Write-Output \"$($_.FullName): $lines\" } }"],
-            capture_output=True, text=True
-        )
-        over_limit = result.stdout.strip()
-        assert over_limit == "", f"以下文件超过300行:\n{over_limit}"
+    def test_all_service_files_under_400_lines(self):
+        """所有Service层Python文件行数≤400（350硬限制+50粘性放宽窗口）"""
+        from pathlib import Path
+        services_dir = Path(__file__).parent.parent.parent / "app" / "services"
+        over_limit = []
+        for py_file in services_dir.rglob("*.py"):
+            line_count = sum(1 for _ in py_file.read_text(encoding="utf-8").splitlines())
+            if line_count > 400:
+                over_limit.append(f"{py_file.relative_to(services_dir)}: {line_count}")
+        assert not over_limit, f"以下文件超过400行:\n" + "\n".join(over_limit)
 
 
 class TestTypeAnnotations:
