@@ -1,7 +1,7 @@
 import uuid
 import pytest
 
-pytestmark = pytest.mark.skip(reason="API契约变更，测试需要完全重写")
+# pytestmark = pytest.mark.skip(reason="API契约变更，测试需要完全重写")  # 临时移除排查
 
 from tests.helpers import assertResponseSuccess, assertResponseError
 
@@ -37,6 +37,8 @@ class TestTestCaseApiCreate:
             json={
                 "project_id": testProject.id,
                 "title": f"api_min_{uuid.uuid4().hex[:8]}",
+                # DB 列 case_type NOT NULL, 必须提供非 None 值
+                "case_type": "manual",
             },
             headers=authHeaders,
         )
@@ -130,13 +132,13 @@ class TestTestCaseApiList:
         assert len(data["data"]["items"]) <= 2
 
     def test_get_test_cases_empty(self, client, authHeaders):
+        # project_id=99999 用户无权访问, 端点返回 403 "无权限访问此项目" (非 200 + 空列表)
         response = client.get(
             "/api/v1/test-case/",
             params={"project_id": 99999},
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
-        assert data["data"]["total"] == 0
+        assert response.status_code == 403
 
 
 class TestTestCaseApiGet:
@@ -261,7 +263,7 @@ class TestTestCaseApiBatchDelete:
             headers=authHeaders,
         )
         data = assertResponseSuccess(response)
-        assert data["data"]["successCount"] == 2
+        assert data["data"]["success_count"] == 2
 
     def test_batch_delete_empty_list(self, client, authHeaders):
         response = client.post(
@@ -269,7 +271,8 @@ class TestTestCaseApiBatchDelete:
             json={"caseIds": []},
             headers=authHeaders,
         )
-        assert response.status_code == 422
+        # Pydantic value_error 被全局异常处理器包装为 400 (非 422)
+        assert response.status_code == 400
 
     def test_batch_delete_nonexistent_ids(self, client, authHeaders):
         response = client.post(
@@ -278,7 +281,7 @@ class TestTestCaseApiBatchDelete:
             headers=authHeaders,
         )
         data = assertResponseSuccess(response)
-        assert data["data"]["notFoundCount"] == 2
+        assert data["data"]["not_found_count"] == 2
 
 
 class TestTestCaseApiBatchRestore:
@@ -305,4 +308,4 @@ class TestTestCaseApiBatchRestore:
             headers=authHeaders,
         )
         data = assertResponseSuccess(response)
-        assert data["data"]["successCount"] == 1
+        assert data["data"]["success_count"] == 1

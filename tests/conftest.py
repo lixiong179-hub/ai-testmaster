@@ -1,4 +1,6 @@
 import os
+# 测试环境放宽 captcha 频率限制 (默认 10/分钟, 测试批量执行需要更高)
+os.environ.setdefault("CAPTCHA_RATE_LIMIT", "10000")
 import uuid
 import warnings
 import asyncio

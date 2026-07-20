@@ -1,7 +1,7 @@
 import uuid
 import pytest
 
-pytestmark = pytest.mark.skip(reason="API契约变更（认证/测试用例接口重构），测试需要完全重写")
+# pytestmark = pytest.mark.skip(reason="API契约变更（认证/测试用例接口重构），测试需要完全重写")  # 临时移除排查
 
 from tests.helpers import (
     assertResponseSuccess,
@@ -45,7 +45,7 @@ class TestCreateTestCase:
             json=_build_test_case_payload(testProject.id),
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldExists(data, "id")
         assertFieldExists(data, "title")
 
@@ -56,7 +56,7 @@ class TestCreateTestCase:
             json=_build_test_case_payload(testProject.id, case_no=caseNo),
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldValue(data, "case_no", caseNo)
 
     def test_create_test_case_with_test_data(self, client, authHeaders, testProject):
@@ -71,7 +71,7 @@ class TestCreateTestCase:
             json=payload,
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldExists(data, "id")
 
     def test_create_test_case_no_auth(self, client, testProject):
@@ -87,7 +87,7 @@ class TestCreateTestCase:
             json=_build_test_case_payload(testProject.id, test_category="ui_automation"),
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldExists(data, "id")
 
     def test_create_test_case_boundary_priority(self, client, authHeaders, testProject):
@@ -97,7 +97,7 @@ class TestCreateTestCase:
                 json=_build_test_case_payload(testProject.id, priority=priority),
                 headers=authHeaders,
             )
-            data = assertResponseSuccess(response)
+            data = assertResponseSuccess(response)["data"]
             assertFieldValue(data, "priority", priority)
 
 
@@ -107,7 +107,7 @@ class TestGetTestCases:
             "/api/v1/test-case/",
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldExists(data, "items")
         assertFieldExists(data, "total")
 
@@ -116,7 +116,7 @@ class TestGetTestCases:
             f"/api/v1/test-case/?project_id={testProject.id}",
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldExists(data, "items")
 
     def test_get_test_cases_pagination(self, client, authHeaders, testProject):
@@ -124,7 +124,7 @@ class TestGetTestCases:
             "/api/v1/test-case/?page=1&page_size=5",
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldExists(data, "items")
 
     def test_get_test_cases_no_auth(self, client):
@@ -139,7 +139,7 @@ class TestGetTestCase:
             f"/api/v1/test-case/{testCase.id}",
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldExists(data, "id")
 
     def test_get_test_case_nonexistent(self, client, authHeaders):
@@ -163,22 +163,23 @@ class TestUpdateTestCase:
             json={"title": "updated title", "priority": 1},
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldValue(data, "title", "updated title")
         assertFieldValue(data, "priority", 1)
 
     def test_update_test_case_with_steps(self, client, authHeaders, db, testProject):
         testCase = createTestTestCase(db=db, projectId=testProject.id)
+        # TestCaseStep schema 要求 step 字段 (步骤描述或编号)
         newSteps = [
-            {"action": "click button", "expected_result": "button clicked", "action_type": "click"},
-            {"action": "verify text", "expected_result": "text visible", "action_type": "verify"},
+            {"step": 1, "action": "click button", "expected_result": "button clicked", "action_type": "click"},
+            {"step": 2, "action": "verify text", "expected_result": "text visible", "action_type": "verify"},
         ]
         response = client.put(
             f"/api/v1/test-case/{testCase.id}",
             json={"steps": newSteps},
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldExists(data, "steps")
 
     def test_update_test_case_nonexistent(self, client, authHeaders):
@@ -204,7 +205,7 @@ class TestUpdateTestCase:
             json={"module": "updated_module"},
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
+        data = assertResponseSuccess(response)["data"]
         assertFieldValue(data, "module", "updated_module")
 
 
@@ -239,8 +240,8 @@ class TestBatchDeleteTestCases:
             json={"caseIds": [tc1.id, tc2.id]},
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
-        assertFieldExists(data, "successCount")
+        data = assertResponseSuccess(response)["data"]
+        assertFieldExists(data, "success_count")
 
     def test_batch_delete_nonexistent_ids(self, client, authHeaders):
         response = client.post(
@@ -248,8 +249,8 @@ class TestBatchDeleteTestCases:
             json={"caseIds": [99998, 99999]},
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
-        assertFieldValue(data, "successCount", 0)
+        data = assertResponseSuccess(response)["data"]
+        assertFieldValue(data, "success_count", 0)
 
     def test_batch_delete_empty_list(self, client, authHeaders):
         response = client.post(
@@ -257,7 +258,8 @@ class TestBatchDeleteTestCases:
             json={"caseIds": []},
             headers=authHeaders,
         )
-        assertResponseError(response, expectedStatus=422)
+        # Pydantic value_error 被全局异常处理器包装为 400 (非 422)
+        assertResponseError(response, expectedStatus=400)
 
     def test_batch_delete_no_auth(self, client):
         response = client.post(
@@ -283,8 +285,8 @@ class TestBatchRestoreTestCases:
             json={"caseIds": [tc1.id, tc2.id]},
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
-        assertFieldExists(data, "successCount")
+        data = assertResponseSuccess(response)["data"]
+        assertFieldExists(data, "success_count")
 
     def test_batch_restore_non_deleted_cases(self, client, authHeaders, db, testProject, testUser):
         tc = createTestTestCase(db=db, projectId=testProject.id)
@@ -293,8 +295,8 @@ class TestBatchRestoreTestCases:
             json={"caseIds": [tc.id]},
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
-        assertFieldValue(data, "notFoundCount", 1)
+        data = assertResponseSuccess(response)["data"]
+        assertFieldValue(data, "not_found_count", 1)
 
     def test_batch_restore_nonexistent_ids(self, client, authHeaders):
         response = client.post(
@@ -302,8 +304,8 @@ class TestBatchRestoreTestCases:
             json={"caseIds": [99998, 99999]},
             headers=authHeaders,
         )
-        data = assertResponseSuccess(response)
-        assertFieldValue(data, "notFoundCount", 2)
+        data = assertResponseSuccess(response)["data"]
+        assertFieldValue(data, "not_found_count", 2)
 
     def test_batch_restore_empty_list(self, client, authHeaders):
         response = client.post(
@@ -311,7 +313,8 @@ class TestBatchRestoreTestCases:
             json={"caseIds": []},
             headers=authHeaders,
         )
-        assertResponseError(response, expectedStatus=422)
+        # Pydantic value_error 被全局异常处理器包装为 400 (非 422)
+        assertResponseError(response, expectedStatus=400)
 
     def test_batch_restore_no_auth(self, client):
         response = client.post(

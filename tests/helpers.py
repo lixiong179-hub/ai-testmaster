@@ -112,10 +112,22 @@ def createTestTestCase(
     from app.models.test_case import TestCase
 
     uniqueId = uuid.uuid4().hex[:8]
+    # TestCase 多个 DB 列为 NOT NULL (case_no/module/precondition/steps_json/
+    # expected_result/priority/case_type), 需提供默认值；调用方 kwargs 优先
+    defaults = {
+        "case_no": f"helper_case_{uniqueId}",
+        "module": "helper_module",
+        "precondition": "",
+        "steps_json": [],
+        "expected_result": "",
+        "priority": 2,
+        "case_type": "manual",
+    }
+    defaults.update(kwargs)
     testCase = TestCase(
         title=title or f"helper_testcase_{uniqueId}",
         project_id=projectId,
-        **kwargs,
+        **defaults,
     )
     db.add(testCase)
     db.flush()
