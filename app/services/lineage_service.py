@@ -44,6 +44,7 @@ class LineageResult(BaseModel):
     ancestors: List[LineageNode] = []
     chain_length: int = 0
     warning: Optional[str] = None
+    warning_threshold: Optional[int] = None
 
 
 def get_lineage(db: Session, test_case_id: int) -> Optional[LineageResult]:
@@ -69,13 +70,14 @@ def get_lineage(db: Session, test_case_id: int) -> Optional[LineageResult]:
     _build_descendant_tree(db, root)
 
     chain_length = len(ancestors) + 1
-    warning = _check_chain_warning(chain_length)
+    warning, threshold = _check_chain_warning(chain_length)
 
     return LineageResult(
         root=root,
         ancestors=ancestors,
         chain_length=chain_length,
         warning=warning,
+        warning_threshold=threshold,
     )
 
 
@@ -177,14 +179,14 @@ def _to_node(case: TestCase) -> LineageNode:
     )
 
 
-def _check_chain_warning(chain_length: int) -> Optional[str]:
+def _check_chain_warning(chain_length: int) -> tuple:
     """检查链长度是否超过警告阈值。
 
     Args:
         chain_length: 血缘链长度。
 
     Returns:
-        警告字符串或 None。
+        (警告字符串或 None, 阈值) 元组。
     """
     try:
         from app.services.config_service import get_config
@@ -192,9 +194,10 @@ def _check_chain_warning(chain_length: int) -> Optional[str]:
     except Exception:
         threshold = 3
 
+    warning = None
     if chain_length >= threshold:
-        return (
+        warning = (
             f"血缘链长度 {chain_length} 已达警告阈值 {threshold}，"
             f"建议检查是否存在过度衍生"
         )
-    return None
+    return (warning, threshold)

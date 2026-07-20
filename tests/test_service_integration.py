@@ -59,24 +59,14 @@ class TestVisibilityConfigService:
         assert valid is False
         assert msg is not None
 
-    @pytest.mark.skip(reason="get_recommended_config已移除，VisibilityConfigService API重构为分层配置")
-    def test_get_recommended_config(self):
-        service = VisibilityConfigService()
-        debug_config = service.get_recommended_config("debug")
-        assert debug_config.headless is False
-        ci_config = service.get_recommended_config("ci")
-        assert ci_config.headless is True
-
-    @pytest.mark.skip(reason="VALID_SPEEDS常量已移除，VisibilityConfigService API重构")
-    def test_speed_delay_map(self):
-        service = VisibilityConfigService()
-        assert service.VALID_SPEEDS == ('slow', 'normal', 'fast')
-
-    @pytest.mark.skip(reason="VALID_RESOLUTIONS常量已移除，VisibilityConfigService API重构")
-    def test_valid_resolutions(self):
-        service = VisibilityConfigService()
-        assert (1280, 720) in service.VALID_RESOLUTIONS
-        assert (1920, 1080) in service.VALID_RESOLUTIONS
+    def test_speed_delay_map_migrated_to_env_loader(self):
+        """VALID_SPEEDS 已迁移至 VisibilityEnvLoader.SPEED_DELAY_MAP（分层配置重构）。"""
+        from app.services.visibility_config.env_loader import VisibilityEnvLoader
+        speed_map = VisibilityEnvLoader.SPEED_DELAY_MAP
+        assert "slow" in speed_map
+        assert "normal" in speed_map
+        assert "fast" in speed_map
+        assert speed_map["slow"] > speed_map["normal"] > speed_map["fast"]
 
 
 class TestCostStatisticsService:
@@ -119,31 +109,19 @@ class TestCostStatisticsService:
 
 
 class TestTaskService:
-    @pytest.mark.skip(reason="TaskService构造函数已重构为无参数，使用内部get_db()")
-    def test_service_initialization(self, db):
-        service = TaskService(db)
+    """TaskService 构造函数已重构为无参数，新签名测试见 tests/test_service_task.py。
+
+    此处仅保留对构造函数初始化的回归覆盖，start_task/stop_task 的完整行为
+    由 tests/test_service_task.py 中的 TestTaskServiceStartTask/
+    TestTaskServiceStopTask 类负责（避免重复）。
+    """
+
+    def test_service_initialization_no_args(self):
+        """TaskService() 无参数构造应正常完成并初始化 running_tasks。"""
+        service = TaskService()
         assert service is not None
-        assert service.db == db
-
-    @pytest.mark.skip(reason="TaskService构造函数已重构，start_task签名改为(task_id, project_id, case_ids)")
-    def test_start_task_nonexistent(self, db):
-        service = TaskService(db)
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            service.start_task(99999, db)
-        )
-        assert result["success"] is False
-        assert "不存在" in result["error"]
-
-    @pytest.mark.skip(reason="TaskService构造函数已重构，stop_task不再需要db参数")
-    def test_stop_task_nonexistent(self, db):
-        service = TaskService(db)
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            service.stop_task(99999, db)
-        )
-        assert result["success"] is False
-        assert "不存在" in result["error"]
+        assert service.running_tasks == {}
+        assert service._push_service is None
 
 
 class TestExecutionModeSelector:
