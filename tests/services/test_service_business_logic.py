@@ -129,16 +129,9 @@ class TestTestExecutionEngineModels:
 
 
 class TestConstants:
-    @pytest.mark.skip(reason="TestTaskStatus和TestCaseStatus已从constants模块移除")
-    def test_core_constants_exist(self):
-        from app.core.constants import TestTaskStatus, TestCaseStatus
-        assert hasattr(TestTaskStatus, 'PENDING')
-        assert hasattr(TestTaskStatus, 'RUNNING')
-        assert hasattr(TestTaskStatus, 'COMPLETED')
-        assert hasattr(TestTaskStatus, 'FAILED')
-        assert hasattr(TestCaseStatus, 'DRAFT')
-        assert hasattr(TestCaseStatus, 'ENABLED')
-        assert hasattr(TestCaseStatus, 'DISABLED')
+    # test_core_constants_exist 已删除:
+    # TestTaskStatus 和 TestCaseStatus 已从 app.core.constants 模块移除,
+    # 对应测试不再可恢复, 故直接删除测试方法 (而非保留 skip 标记)
 
     def test_http_status_constants(self):
         from app.core.constants import HTTPStatus

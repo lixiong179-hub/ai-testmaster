@@ -192,31 +192,14 @@ class TestVisibilityConfigService:
         assert config.record_video is True
         assert config.video_resolution == (1280, 720)
         assert config.video_fps == 60
-        
+
         # 恢复默认
         config_service.set_global_config(VisibilityConfigService.DEFAULT_GLOBAL_CONFIG)
-    
-    @pytest.mark.skip(reason="_load_config_from_env方法已移除")
-    def test_load_config_from_env(self, config_service, monkeypatch):
-        """测试从环境变量加载配置"""
-        # 设置环境变量
-        monkeypatch.setenv("TEST_HEADLESS", "false")
-        monkeypatch.setenv("TEST_RECORD_VIDEO", "true")
-        monkeypatch.setenv("TEST_VIDEO_WIDTH", "1280")
-        monkeypatch.setenv("TEST_VIDEO_HEIGHT", "720")
-        monkeypatch.setenv("TEST_VIDEO_FPS", "60")
-        monkeypatch.setenv("TEST_EXECUTION_SPEED", "fast")
-        
-        # 加载配置
-        config = config_service._load_config_from_env()
-        
-        # 验证
-        assert config.headless is False
-        assert config.record_video is True
-        assert config.video_resolution == (1280, 720)
-        assert config.video_fps == 60
-        assert config.execution_speed == "fast"
-    
+
+    # test_load_config_from_env 已删除:
+    # _load_config_from_env 方法已从 VisibilityConfigService 移除,
+    # 对应测试不再可恢复, 故直接删除测试方法 (而非保留 skip 标记)
+
     def test_get_task_config(self, config_service, test_task):
         """测试获取任务配置"""
         config = config_service.get_task_config(test_task)
@@ -235,32 +218,14 @@ class TestVisibilityConfigService:
     def test_get_case_config_without_task(self, config_service, test_case):
         """测试获取用例配置（无任务）"""
         config = config_service.get_case_config(test_case)
-        
+
         # 应该返回全局配置
         assert isinstance(config, VisibilityConfig)
-    
-    @pytest.mark.skip(reason="_merge_configs方法已移除")
-    def test_config_merge(self, config_service):
-        """测试配置合并"""
-        base_config = VisibilityConfig(
-            headless=True,
-            record_video=False,
-            video_fps=30
-        )
-        
-        override_config = VisibilityConfig(
-            headless=False,  # 覆盖
-            record_video=True  # 覆盖
-            # video_fps 不覆盖，保持base的值
-        )
-        
-        merged = config_service._merge_configs(base_config, override_config)
-        
-        # 验证：override覆盖base
-        assert merged.headless is False
-        assert merged.record_video is True
-        assert merged.video_fps == 30  # 保持base的值
-    
+
+    # test_config_merge 已删除:
+    # _merge_configs 方法已从 VisibilityConfigService 移除,
+    # 对应测试不再可恢复, 故直接删除测试方法 (而非保留 skip 标记)
+
     def test_config_to_dict(self, config_service):
         """测试配置转字典"""
         config = VisibilityConfig(
@@ -304,18 +269,15 @@ class TestVisibilityConfigService:
     def test_get_screenshot_save_path(self, config_service):
         """测试获取截图保存路径"""
         path = config_service.get_screenshot_save_path(task_id=1, case_id=1, step_number=5)
-        
+
         assert "task_1" in str(path)
         assert "case_1" in str(path)
         assert "step_5" in str(path)
         assert path.suffix == ".png"
-    
-    @pytest.mark.skip(reason="SPEED_DELAY_MAP属性已移除")
-    def test_speed_delay_map(self, config_service):
-        """测试速度延迟映射"""
-        assert config_service.SPEED_DELAY_MAP["slow"] == 1000
-        assert config_service.SPEED_DELAY_MAP["normal"] == 500
-        assert config_service.SPEED_DELAY_MAP["fast"] == 100
+
+    # test_speed_delay_map 已删除:
+    # SPEED_DELAY_MAP 属性已从 VisibilityConfigService 移除,
+    # 对应测试不再可恢复, 故直接删除测试方法 (而非保留 skip 标记)
 
 
 class TestVisibilityConfigServiceSingleton:
