@@ -14,8 +14,6 @@ import json
 import pytest
 from typing import ClassVar, List
 
-pytestmark = pytest.mark.skip(reason="AI_API_KEY缺失/Pipeline运行失败")
-
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
 from app.pipelines.runner import PipelineRunner
@@ -225,7 +223,6 @@ class TestTestPointAlignment:
         assert result.success is True
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致CaseGeneration执行失败")
 class TestCaseGeneration:
     def test_execute_with_aligned_testpoints(self, db, make_ctx, mock_ai):
         ctx = make_ctx()
@@ -347,7 +344,6 @@ class TestQualityGate:
         assert result.degraded is True
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Persist执行失败")
 class TestPersist:
     def test_execute_persists_cases(self, db, make_ctx, mock_ai, testProject):
         ctx = make_ctx()
@@ -392,7 +388,6 @@ class TestPersist:
         assert result.degraded is True
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Scenario1 E2E Pipeline失败")
 class TestScenario1E2E:
     def test_full_pipeline_run(self, db, make_ctx, mock_ai, testProject):
         ctx = make_ctx()

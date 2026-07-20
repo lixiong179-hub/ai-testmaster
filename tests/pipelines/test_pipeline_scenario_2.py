@@ -10,8 +10,6 @@ M1-T12 场景 2 流水线测试（PRD + 测试点，无 UI）
 import json
 import pytest
 
-pytestmark = pytest.mark.skip(reason="AI_API_KEY缺失/Pipeline运行失败")
-
 from app.pipelines.context import PipelineContext
 from app.pipelines.runner import PipelineRunner
 from app.ai.mock_client import MockAIClient
@@ -89,7 +87,6 @@ class TestScenario2Registry:
         assert "persist" in step_names
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Scenario2 E2E Pipeline失败")
 class TestScenario2E2E:
     def test_full_pipeline_no_ui(self, db, testProject, mock_ai, setup_no_ui_iteration):
         iteration = setup_no_ui_iteration["iteration"]

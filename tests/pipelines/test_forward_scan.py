@@ -219,7 +219,6 @@ class TestForwardScanFallback:
         assert result.artifact_payload["verdicts"] == []
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致ForwardScan执行失败")
 class TestForwardScanExecute:
     def test_execute_missing_candidates(self, make_ctx):
         ctx = make_ctx()
