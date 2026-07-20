@@ -17,15 +17,18 @@ from app.utils.jwt_utils import (
 from app.core.exception import AuthenticationError
 
 
-@pytest.mark.skip(reason="_utcnow已被移除")
 class TestUtcnow:
+    """验证 app.utils.db_time.utcnow 的行为（原 _utcnow 已迁移至 db_time 模块）。"""
+
     def test_returns_naive_datetime_for_mysql_compat(self):
-        result = _utcnow()
+        """utcnow() 应返回 naive datetime（无 tzinfo），兼容 MySQL 驱动。"""
+        result = utcnow()
         assert result.tzinfo is None
 
     def test_returns_recent_time(self):
+        """utcnow() 返回的时间应处于前后两次调用的区间内。"""
         before = utcnow()
-        result = _utcnow()
+        result = utcnow()
         after = utcnow()
         assert before <= result <= after
 
