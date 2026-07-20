@@ -4,18 +4,17 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
-from sqlalchemy.orm import Session
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.test_point._helpers import check_project_permission
-from app.crud.test_point import create_test_point, get_test_point_by_id
-from app.crud.test_point_management import (
-    get_requirements_by_project,
-    get_test_cases_by_test_point,
-    get_test_cases_by_test_point_total,
-)
+from app.api.v1.endpoints.test_point._helpers import check_project_permission_async
 from app.db.database import async_get_db
+from app.models.enums import TestPointStatus
+from app.models.project import Project
+from app.models.requirement import Requirement
+from app.models.test_case import TestCase
+from app.models.test_point import TestPoint
 from app.models.user import User
 from app.schemas.test_point import (
     TestPointBatchGenerateRequest,
@@ -35,16 +34,22 @@ async def create_test_point_item(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> TestPointResponse:
-    def _create(sync_db: Session):
-        check_project_permission(sync_db, request.project_id, current_user.id)
-        return create_test_point(
-            db=sync_db, project_id=request.project_id, module=request.module,
-            point=request.point, priority=request.priority,
-            ai_prompt=request.ai_prompt, created_by=current_user.username,
-            capability_id=request.capability_id, status=request.status,
-        )
+    await check_project_permission_async(db, request.project_id, current_user.id)
 
-    created = await db.run_sync(_create)
+    created = TestPoint(
+        project_id=request.project_id,
+        module=request.module,
+        point=request.point,
+        priority=request.priority,
+        ai_prompt=request.ai_prompt,
+        created_by=current_user.username,
+        requirement_id=None,
+        capability_id=request.capability_id,
+        status=request.status or TestPointStatus.ACTIVE.value,
+    )
+    db.add(created)
+    await db.commit()
+    await db.refresh(created)
     return TestPointResponse(
         id=created.id, project_id=created.project_id,
         requirement_id=created.requirement_id, module=created.module,
@@ -65,26 +70,42 @@ async def get_related_test_cases(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await check_project_permission_async(db, project_id, current_user.id)
     skip = (page - 1) * page_size
 
-    def _query(sync_db: Session):
-        check_project_permission(sync_db, project_id, current_user.id)
-        test_point = get_test_point_by_id(sync_db, test_point_id, project_id)
-        if not test_point:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在"
-            )
-        items = get_test_cases_by_test_point(
-            db=sync_db, project_id=project_id, user_id=current_user.id,
-            test_point_id=test_point_id, skip=skip, limit=page_size,
+    tp_result = await db.execute(
+        select(TestPoint).where(
+            TestPoint.id == test_point_id,
+            TestPoint.project_id == project_id,
         )
-        total = get_test_cases_by_test_point_total(
-            db=sync_db, project_id=project_id, user_id=current_user.id,
-            test_point_id=test_point_id,
+    )
+    test_point = tp_result.scalars().first()
+    if not test_point:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在"
         )
-        return items, total
 
-    items, total = await db.run_sync(_query)
+    items_result = await db.execute(
+        select(TestCase).join(Project, Project.id == TestCase.project_id).where(
+            TestCase.project_id == project_id,
+            TestCase.test_point_id == test_point_id,
+            TestCase.is_deleted.is_(False),
+            Project.user_id == current_user.id,
+        ).order_by(desc(TestCase.create_time), desc(TestCase.id))
+        .offset(skip).limit(page_size)
+    )
+    items = items_result.scalars().all()
+
+    total_result = await db.execute(
+        select(func.count(TestCase.id)).join(Project, Project.id == TestCase.project_id).where(
+            TestCase.project_id == project_id,
+            TestCase.test_point_id == test_point_id,
+            TestCase.is_deleted.is_(False),
+            Project.user_id == current_user.id,
+        )
+    )
+    total = total_result.scalar() or 0
+
     return {
         "code": 200, "message": "获取成功",
         "data": {
@@ -100,13 +121,16 @@ async def get_test_point_requirements(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _query(sync_db: Session):
-        check_project_permission(sync_db, project_id, current_user.id)
-        return get_requirements_by_project(
-            db=sync_db, project_id=project_id, user_id=current_user.id,
-        )
+    await check_project_permission_async(db, project_id, current_user.id)
 
-    requirements = await db.run_sync(_query)
+    result = await db.execute(
+        select(Requirement).join(Project, Project.id == Requirement.project_id).where(
+            Requirement.project_id == project_id,
+            Project.user_id == current_user.id,
+        ).order_by(desc(Requirement.create_time), desc(Requirement.id))
+    )
+    requirements = result.scalars().all()
+
     return {
         "code": 200, "message": "获取成功",
         "data": {
@@ -126,10 +150,7 @@ async def batch_generate_test_cases_by_points(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
-    def _check(sync_db: Session):
-        check_project_permission(sync_db, request.project_id, current_user.id)
-
-    await db.run_sync(_check)
+    await check_project_permission_async(db, request.project_id, current_user.id)
 
     async def generate_progress() -> Any:
         from app.db.database import PrimarySessionLocal
