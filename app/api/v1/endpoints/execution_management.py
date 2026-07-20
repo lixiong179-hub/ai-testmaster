@@ -29,7 +29,7 @@ from app.models.user import User
 from app.models.test_task import TestTask
 from app.models.video_record import VideoRecord
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.execution_core import verify_project_permission
+from app.api.v1.endpoints.execution_core._helpers import verify_project_permission_async
 from app.services.video import get_video_service
 from app.core.exception import create_response
 from loguru import logger
@@ -56,9 +56,7 @@ async def get_step_screenshot(
                 detail="任务不存在"
             )
 
-        def _verify(sync_db):
-            verify_project_permission(sync_db, task.project_id, current_user.id)
-        await db.run_sync(_verify)
+        await verify_project_permission_async(db, task.project_id, current_user.id)
 
         screenshot_dir = f"./screenshots/{task_id}/{case_id}"
         screenshot_path = f"{screenshot_dir}/{step_number}_{type}.png"
@@ -95,14 +93,17 @@ async def get_execution_video(
                 detail="任务不存在"
             )
 
-        def _verify_and_get_videos(sync_db):
-            verify_project_permission(sync_db, task.project_id, current_user.id)
-            service = get_video_service(sync_db)
-            videos = sync_db.query(VideoRecord).filter(VideoRecord.task_id == task_id).all()
-            return [service._to_video_info(v) for v in videos]
-        videos = await db.run_sync(_verify_and_get_videos)
+        await verify_project_permission_async(db, task.project_id, current_user.id)
 
-        for video in videos:
+        videos_result = await db.execute(
+            select(VideoRecord).where(VideoRecord.task_id == task_id)
+        )
+        videos = videos_result.scalars().all()
+        # _to_video_info 为纯计算方法，VideoService 单例无需 db 即可调用
+        service = get_video_service()
+        video_infos = [service._to_video_info(v) for v in videos]
+
+        for video in video_infos:
             if video.case_id == case_id and video.file_path:
                 if os.path.exists(video.file_path):
                     return FileResponse(
@@ -140,15 +141,17 @@ async def get_video_info(
                 detail="任务不存在"
             )
 
-        def _verify_and_get_videos(sync_db):
-            verify_project_permission(sync_db, task.project_id, current_user.id)
-            service = get_video_service(sync_db)
-            videos = sync_db.query(VideoRecord).filter(VideoRecord.case_id == case_id).all()
-            return [service._to_video_info(v) for v in videos]
-        videos = await db.run_sync(_verify_and_get_videos)
+        await verify_project_permission_async(db, task.project_id, current_user.id)
 
-        if videos:
-            video = videos[0]
+        videos_result = await db.execute(
+            select(VideoRecord).where(VideoRecord.case_id == case_id)
+        )
+        videos = videos_result.scalars().all()
+        service = get_video_service()
+        video_infos = [service._to_video_info(v) for v in videos]
+
+        if video_infos:
+            video = video_infos[0]
             return create_response(data=video.to_dict())
 
         return create_response(code=404, message="视频不存在")
