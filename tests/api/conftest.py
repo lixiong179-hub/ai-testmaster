@@ -17,23 +17,71 @@ fixture 清单:
     2. async_client 用于 oauth2_scheme 层拦截的未认证测试（不查 DB）
     3. async_auth_client 绕过 get_current_user（async_db 事务对同步 session 不可见）
     4. 鉴权逻辑本身由 tests/api/test_auth_*.py 覆盖
+    5. 所有 async HTTP 客户端均 patch PrimarySessionLocal，使端点内
+       asyncio.to_thread + PrimarySessionLocal() 创建的独立 sync session
+       能可见 async_db 事务内的测试数据（阶段4 service 层 async 化必需）
 """
 import os
+import sys
 import warnings
+from contextlib import ExitStack
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import create_engine, event
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import Session as SyncSession
 
 from app.db.database import Base, async_get_db
+from app.db import database as db_module
 from app.db.smart_sync import DatabaseSyncTool
 from app.utils.jwt_utils import get_password_hash
 from app.models.project import Project
 from app.models.user import User, Role, user_role
 from app.db.database._engine import _to_async_url
 import app.models  # noqa: F401 — ensure all models registered
+
+
+def _build_primary_session_patches(shared_ref, async_db):
+    """构建 PrimarySessionLocal patch 管理器列表。
+
+    返回 (patch_managers, create_shared_session) 元组。
+    create_shared_session 懒创建共享 sync session，绑定到 async_db 的底层 sync connection，
+    使端点内 PrimarySessionLocal() 创建的独立 sync session 可见 async_db 事务内的测试数据。
+
+    设计要点：
+    - singleton 模式：同一测试内多次调用 PrimarySessionLocal() 返回同一 session 实例，
+      保证跨调用数据可见性（同事务 + 同 identity map）
+    - commit → flush、rollback → no-op、close → no-op，保持外层事务隔离不被破坏
+    """
+    from unittest.mock import patch
+
+    def _create_shared_sync_session():
+        if shared_ref["session"] is None:
+            sync_conn = async_db.sync_session.connection()
+            session = SyncSession(bind=sync_conn)
+            session.commit = session.flush
+            session.rollback = lambda *a, **kw: None
+            session.close = lambda *a, **kw: None  # type: ignore[assignment]
+            shared_ref["session"] = session
+        return shared_ref["session"]
+
+    patch_targets = []
+    for _mod in list(sys.modules.values()):
+        if _mod is None:
+            continue
+        try:
+            if getattr(_mod, "PrimarySessionLocal", None) is db_module.PrimarySessionLocal:
+                patch_targets.append(_mod.__name__)
+        except Exception:
+            continue
+
+    patch_mgrs = [patch.object(db_module, "PrimarySessionLocal", side_effect=_create_shared_sync_session)]
+    for _mod_name in patch_targets:
+        patch_mgrs.append(patch(f"{_mod_name}.PrimarySessionLocal", side_effect=_create_shared_sync_session))
+
+    return patch_mgrs
 
 os.environ.setdefault("ENVIRONMENT", "test")
 
@@ -185,6 +233,8 @@ async def async_client(async_db):
     """异步 HTTP 客户端 — 仅 override async_get_db。
 
     用于未认证场景测试：oauth2_scheme 在 get_current_user 之前抛 401。
+    同时 patch PrimarySessionLocal，使端点内 asyncio.to_thread + PrimarySessionLocal()
+    创建的独立 sync session 可见 async_db 事务内的测试数据。
     """
     from app.main import app
 
@@ -192,9 +242,16 @@ async def async_client(async_db):
         yield async_db
 
     app.dependency_overrides[async_get_db] = override_async_get_db
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+
+    _shared_ref = {"session": None}
+    _patch_mgrs = _build_primary_session_patches(_shared_ref, async_db)
+
+    with ExitStack() as _stack:
+        for _mgr in _patch_mgrs:
+            _stack.enter_context(_mgr)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
     app.dependency_overrides.pop(async_get_db, None)
 
 
@@ -203,6 +260,8 @@ async def async_auth_client(async_db, async_test_user):
     """异步 HTTP 客户端 — override async_get_db + get_current_user。
 
     用于普通用户认证场景：绕过 get_current_user 的同步 DB 查询。
+    同时 patch PrimarySessionLocal，使端点内 asyncio.to_thread + PrimarySessionLocal()
+    创建的独立 sync session 可见 async_db 事务内的测试数据。
     """
     from app.main import app
     from app.api.v1.endpoints.auth_deps import get_current_user
@@ -215,9 +274,16 @@ async def async_auth_client(async_db, async_test_user):
 
     app.dependency_overrides[async_get_db] = override_async_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+
+    _shared_ref = {"session": None}
+    _patch_mgrs = _build_primary_session_patches(_shared_ref, async_db)
+
+    with ExitStack() as _stack:
+        for _mgr in _patch_mgrs:
+            _stack.enter_context(_mgr)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
     app.dependency_overrides.pop(async_get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
 
@@ -228,6 +294,8 @@ async def async_admin_client(async_db, async_admin_user):
 
     用于 _require_admin 场景：override get_current_user 返回 admin 用户，
     使 _require_admin 的角色检查通过。
+    同时 patch PrimarySessionLocal，使端点内 asyncio.to_thread + PrimarySessionLocal()
+    创建的独立 sync session 可见 async_db 事务内的测试数据。
     """
     from app.main import app
     from app.api.v1.endpoints.auth_deps import get_current_user
@@ -240,8 +308,15 @@ async def async_admin_client(async_db, async_admin_user):
 
     app.dependency_overrides[async_get_db] = override_async_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+
+    _shared_ref = {"session": None}
+    _patch_mgrs = _build_primary_session_patches(_shared_ref, async_db)
+
+    with ExitStack() as _stack:
+        for _mgr in _patch_mgrs:
+            _stack.enter_context(_mgr)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
     app.dependency_overrides.pop(async_get_db, None)
     app.dependency_overrides.pop(get_current_user, None)

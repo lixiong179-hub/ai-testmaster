@@ -192,20 +192,28 @@ async def restore_test_case_version(
     Raises:
         HTTPException 404: 用例或版本不存在
     """
+    import asyncio
     from app.models.project import Project
+    from app.db.database import PrimarySessionLocal
     from app.services.case_version_service import CaseVersionService
 
-    def _restore(sync_db):
-        test_case = sync_db.query(TestCase).join(Project).filter(
+    # async 权限校验：查询当前用户是否拥有该用例
+    test_case_result = await db.execute(
+        select(TestCase).join(Project).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        ).first()
-        if not test_case:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="测试用例不存在"
-            )
+        )
+    )
+    test_case = test_case_result.scalars().first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+
+    # CaseVersionService.restore_version 是 sync 写操作，使用独立 sync 会话 + to_thread 释放事件循环
+    def _do_restore(sync_db):
         restored_case = CaseVersionService.restore_version(
             db=sync_db,
             test_case_id=test_case_id,
@@ -222,7 +230,11 @@ async def restore_test_case_version(
         return build_test_case_response(restored_case)
 
     try:
-        data = await db.run_sync(_restore)
+        sync_db = PrimarySessionLocal()
+        try:
+            data = await asyncio.to_thread(_do_restore, sync_db)
+        finally:
+            sync_db.close()
         logger.info(f"[版本恢复] 用户ID={current_user.id}, 用例ID={test_case_id}, 恢复到版本ID={version_id}")
         return create_response(data=data)
     except ValueError as e:
@@ -233,7 +245,6 @@ async def restore_test_case_version(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
         logger.error(f"恢复测试用例版本失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -262,20 +273,28 @@ async def diff_test_case_versions(
         HTTPException 404: 用例不存在
         HTTPException 400: 版本不存在或不属于指定用例
     """
+    import asyncio
     from app.models.project import Project
+    from app.db.database import PrimarySessionLocal
     from app.services.case_version_service import CaseVersionService
 
-    def _diff(sync_db) -> dict:
-        test_case = sync_db.query(TestCase).join(Project).filter(
+    # async 权限校验
+    test_case_result = await db.execute(
+        select(TestCase).join(Project).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        ).first()
-        if not test_case:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="测试用例不存在"
-            )
+        )
+    )
+    test_case = test_case_result.scalars().first()
+    if not test_case:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="测试用例不存在"
+        )
+
+    # CaseVersionService.compare_versions 是 sync 读操作，使用独立 sync 会话 + to_thread 释放事件循环
+    def _do_diff(sync_db) -> dict:
         return CaseVersionService.compare_versions(
             db=sync_db,
             test_case_id=test_case_id,
@@ -284,7 +303,11 @@ async def diff_test_case_versions(
         )
 
     try:
-        result = await db.run_sync(_diff)
+        sync_db = PrimarySessionLocal()
+        try:
+            result = await asyncio.to_thread(_do_diff, sync_db)
+        finally:
+            sync_db.close()
         return create_response(data=result)
     except ValueError as e:
         raise HTTPException(

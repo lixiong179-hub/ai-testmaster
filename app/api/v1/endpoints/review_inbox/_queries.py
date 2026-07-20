@@ -1,3 +1,9 @@
+"""review_inbox 决策列表查询端点。
+
+review_service.get_decisions 为 sync 实现，端点使用 asyncio.to_thread + PrimarySessionLocal
+在独立线程中执行 sync 业务逻辑，释放事件循环并避免与 AsyncSession 事务冲突。
+"""
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -6,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from loguru import logger
 
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
@@ -58,7 +64,11 @@ async def list_decisions(
                 "page_size": page_size,
             }
 
-        data = await db.run_sync(_list)
+        sync_db = PrimarySessionLocal()
+        try:
+            data = await asyncio.to_thread(_list, sync_db)
+        finally:
+            sync_db.close()
         return create_response(data=data, msg="获取成功")
     except HTTPException:
         raise

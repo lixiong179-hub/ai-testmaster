@@ -1,6 +1,4 @@
-from typing import List, Optional
-"""
-用例质量检查端点模块
+"""用例质量检查端点模块。
 
 本模块定义用例质量检查的API端点，支持按规则对测试用例进行质量评分和问题检测。
 
@@ -17,19 +15,39 @@ from typing import List, Optional
 业务说明:
     - 质量检查规则包括：步骤完整性、预期结果明确性、测试数据有效性等
     - 评分采用百分制，低于60分为不合格
+
+CaseQualityAnalyzer 的 async 方法实质上使用 sync_db.query（声明 async 但内部为同步 DB 操作），
+端点使用 asyncio.to_thread + PrimarySessionLocal + asyncio.run 在独立线程中执行完整逻辑，
+释放事件循环并避免与 AsyncSession 事务冲突。
 """
+import asyncio
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 from loguru import logger
 
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.case_quality import CaseQualityAnalyzer
 from app.models.user import User
 
 router = APIRouter()
+
+
+async def _run_analyzer(fn):
+    """在独立线程中执行 CaseQualityAnalyzer 相关 sync 逻辑，释放事件循环。
+
+    使用 PrimarySessionLocal 创建独立 sync 会话，避免与 AsyncSession 事务冲突。
+    fn 接收 sync_db 参数并返回结果（可为 sync 值或协程，协程会在新事件循环中执行）。
+    """
+    sync_db = PrimarySessionLocal()
+    try:
+        return await asyncio.to_thread(fn, sync_db)
+    finally:
+        sync_db.close()
 
 
 class ComplexityScoreSchema(BaseModel):
@@ -153,16 +171,19 @@ async def analyze_case_quality(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _create_analyzer(sync_db: Session):
-        return CaseQualityAnalyzer(sync_db)
-
-    analyzer = await db.run_sync(_create_analyzer)
+    def _do_analyze(sync_db: Session):
+        analyzer = CaseQualityAnalyzer(sync_db)
+        # analyzer.analyze_case_quality 声明为 async 但内部为 sync db.query 操作，
+        # 在独立线程的新事件循环中执行以避免阻塞主事件循环。
+        return asyncio.run(analyzer.analyze_case_quality(case_id))
 
     try:
-        report = await analyzer.analyze_case_quality(case_id)
+        report = await _run_analyzer(_do_analyze)
         return report.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"用例质量分析失败: {e}")
         raise HTTPException(status_code=500, detail="分析失败")
@@ -174,14 +195,15 @@ async def analyze_project_quality(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _create_analyzer(sync_db: Session):
-        return CaseQualityAnalyzer(sync_db)
-
-    analyzer = await db.run_sync(_create_analyzer)
+    def _do_analyze(sync_db: Session):
+        analyzer = CaseQualityAnalyzer(sync_db)
+        return asyncio.run(analyzer.analyze_project_quality(project_id))
 
     try:
-        summary = await analyzer.analyze_project_quality(project_id)
+        summary = await _run_analyzer(_do_analyze)
         return summary
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"项目质量分析失败: {e}")
         raise HTTPException(status_code=500, detail="分析失败")
@@ -194,26 +216,29 @@ async def get_case_quality_trend(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _prepare(sync_db: Session):
+    def _do_get_trend(sync_db: Session):
         from app.models.test_case import TestCase
-        test_case = sync_db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
+        test_case = sync_db.query(TestCase).filter(
+            TestCase.id == case_id, TestCase.is_deleted.is_(False)
+        ).first()
         if not test_case:
             return None, None
         analyzer = CaseQualityAnalyzer(sync_db)
-        return test_case.project_id, analyzer
-
-    project_id, analyzer = await db.run_sync(_prepare)
-    if project_id is None:
-        raise HTTPException(status_code=404, detail="测试用例不存在")
+        trend = asyncio.run(analyzer.get_quality_trend(test_case.project_id, days))
+        return test_case.project_id, trend
 
     try:
-        trend = await analyzer.get_quality_trend(project_id, days)
+        project_id, trend = await _run_analyzer(_do_get_trend)
+        if project_id is None:
+            raise HTTPException(status_code=404, detail="测试用例不存在")
         return {
             "case_id": case_id,
             "project_id": project_id,
             "days": days,
             "trend": trend
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取趋势失败: {e}")
         raise HTTPException(status_code=500, detail="获取趋势失败")
@@ -225,11 +250,13 @@ async def optimize_case_locators(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _optimize(sync_db: Session):
+    def _do_optimize(sync_db: Session):
         from app.models.test_case import TestCase, TestStep
         from app.models.element_locator import ElementLocator
 
-        test_case = sync_db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
+        test_case = sync_db.query(TestCase).filter(
+            TestCase.id == case_id, TestCase.is_deleted.is_(False)
+        ).first()
         if not test_case:
             raise HTTPException(status_code=404, detail="测试用例不存在")
 
@@ -276,7 +303,13 @@ async def optimize_case_locators(
             "message": f"发现{len(steps_without_locator)}个步骤缺少元素定位，补充后可节省{len(steps_without_locator) * 0.8:.1f}单位成本"
         }
 
-    return await db.run_sync(_optimize)
+    try:
+        return await _run_analyzer(_do_optimize)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"用例定位优化失败: {e}")
+        raise HTTPException(status_code=500, detail="优化失败")
 
 
 @router.post("/batch-analyze")
@@ -285,40 +318,45 @@ async def batch_analyze_cases(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _create_analyzer(sync_db: Session):
-        return CaseQualityAnalyzer(sync_db)
+    def _do_batch_analyze(sync_db: Session):
+        analyzer = CaseQualityAnalyzer(sync_db)
+        results = []
+        for case_id in case_ids:
+            try:
+                report = asyncio.run(analyzer.analyze_case_quality(case_id))
+                results.append({
+                    "case_id": case_id,
+                    "case_name": report.case_name,
+                    "overall_score": report.overall_score,
+                    "status": "success"
+                })
+            except Exception:
+                results.append({
+                    "case_id": case_id,
+                    "case_name": "",
+                    "overall_score": 0,
+                    "status": "failed",
+                    "error": "分析失败"
+                })
 
-    analyzer = await db.run_sync(_create_analyzer)
+        success_results = [r for r in results if r["status"] == "success"]
+        avg_score = (
+            sum(r["overall_score"] for r in success_results) / len(success_results)
+            if success_results else 0
+        )
 
-    results = []
-    for case_id in case_ids:
-        try:
-            report = await analyzer.analyze_case_quality(case_id)
-            results.append({
-                "case_id": case_id,
-                "case_name": report.case_name,
-                "overall_score": report.overall_score,
-                "status": "success"
-            })
-        except Exception as e:
-            results.append({
-                "case_id": case_id,
-                "case_name": "",
-                "overall_score": 0,
-                "status": "failed",
-                "error": "分析失败"
-            })
+        return {
+            "total": len(case_ids),
+            "success": len(success_results),
+            "failed": len([r for r in results if r["status"] == "failed"]),
+            "average_score": round(avg_score, 1),
+            "results": results
+        }
 
-    success_results = [r for r in results if r["status"] == "success"]
-    avg_score = (
-        sum(r["overall_score"] for r in success_results) / len(success_results)
-        if success_results else 0
-    )
-
-    return {
-        "total": len(case_ids),
-        "success": len(success_results),
-        "failed": len([r for r in results if r["status"] == "failed"]),
-        "average_score": round(avg_score, 1),
-        "results": results
-    }
+    try:
+        return await _run_analyzer(_do_batch_analyze)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"批量分析失败: {e}")
+        raise HTTPException(status_code=500, detail="批量分析失败")

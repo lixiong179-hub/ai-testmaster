@@ -42,29 +42,39 @@ async def generate_test_report(
     current_user: User = Depends(get_current_user)
 ):
     """生成测试报告"""
-    def _generate(sync_db: Session):
-        project = sync_db.query(Project).filter(
+    import asyncio
+    from app.db.database import PrimarySessionLocal
+
+    # async 权限校验
+    project_result = await db.execute(
+        select(Project).where(
             Project.id == request.project_id,
             Project.user_id == current_user.id
-        ).first()
+        )
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此项目"
+        )
 
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目"
-            )
-
-        report = ReportService.generate_report(
+    # ReportService.generate_report 是 sync 写操作，使用独立 sync 会话 + to_thread 释放事件循环
+    def _do_generate(sync_db):
+        return ReportService.generate_report(
             db=sync_db,
             project_id=request.project_id,
             test_task_id=request.test_task_id,
             name=request.name,
             description=request.description
         )
-        return report
 
     try:
-        return await db.run_sync(_generate)
+        sync_db = PrimarySessionLocal()
+        try:
+            return await asyncio.to_thread(_do_generate, sync_db)
+        finally:
+            sync_db.close()
     except HTTPException:
         raise
     except Exception as e:
