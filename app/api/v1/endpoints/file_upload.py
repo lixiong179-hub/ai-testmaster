@@ -28,10 +28,11 @@ from fastapi import (
     Body,
 )
 from typing import List, Optional
+import asyncio
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
@@ -178,7 +179,11 @@ async def upload_file(
                 iteration_id=db_iteration_id,
             )
 
-        new_file = await db.run_sync(_create_file)
+        sync_db = PrimarySessionLocal()
+        try:
+            new_file = await asyncio.to_thread(_create_file, sync_db)
+        finally:
+            sync_db.close()
 
         return {
             "code": 200,

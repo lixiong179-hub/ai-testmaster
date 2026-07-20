@@ -23,10 +23,11 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse
 from typing import Optional
+import asyncio
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
@@ -218,7 +219,6 @@ async def extract_file_content(
             if not project:
                 raise HTTPException(status_code=403, detail="无权限操作此项目")
 
-            import asyncio
             loop = asyncio.new_event_loop()
             try:
                 return loop.run_until_complete(
@@ -229,7 +229,11 @@ async def extract_file_content(
             finally:
                 loop.close()
 
-        results = await db.run_sync(_check_and_extract)
+        sync_db = PrimarySessionLocal()
+        try:
+            results = await asyncio.to_thread(_check_and_extract, sync_db)
+        finally:
+            sync_db.close()
 
         return {"code": 200, "message": "提取任务已启动", "data": results}
     except HTTPException:

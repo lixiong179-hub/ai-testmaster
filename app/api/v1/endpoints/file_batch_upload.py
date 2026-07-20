@@ -29,7 +29,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
@@ -37,6 +37,7 @@ from app.schemas.common import ApiResponse
 from app.schemas.file import ResourceType
 from app.crud import file as file_crud
 from app.core.config import settings
+import asyncio
 import uuid
 import os
 from app.utils.file_utils import (
@@ -206,7 +207,11 @@ async def batch_upload_files(
                             iteration_id=iteration_id,
                         )
 
-                    zip_uploaded, zip_failed = await db.run_sync(_extract_zip)
+                    zip_sync_db = PrimarySessionLocal()
+                    try:
+                        zip_uploaded, zip_failed = await asyncio.to_thread(_extract_zip, zip_sync_db)
+                    finally:
+                        zip_sync_db.close()
 
                     uploaded_files.extend(zip_uploaded)
                     failed_files.extend(zip_failed)
@@ -247,7 +252,11 @@ async def batch_upload_files(
                         iteration_id=db_iteration_id,
                     )
 
-                new_file = await db.run_sync(_create_file)
+                file_sync_db = PrimarySessionLocal()
+                try:
+                    new_file = await asyncio.to_thread(_create_file, file_sync_db)
+                finally:
+                    file_sync_db.close()
 
                 uploaded_files.append(_file_to_dict(new_file))
                 file_index += 1

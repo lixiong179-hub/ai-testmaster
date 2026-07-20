@@ -1,22 +1,34 @@
 """用例质量成本统计端点（从 case_quality_report 拆分）。
 
 包含项目成本统计、成本报表、用例成本统计 3 个端点，
-均通过 CostStatisticsService 桥接 sync Session。
+CostStatisticsService 为 sync 实现，端点使用 asyncio.to_thread + PrimarySessionLocal 释放事件循环。
 """
+import asyncio
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.cost_statistics_service import CostStatisticsService
 from app.models.user import User
 from app.utils.db_time import utcnow
 
 router = APIRouter()
+
+
+async def _run_cost_service(fn):
+    """在独立线程中执行 sync CostStatisticsService 方法，释放事件循环。
+
+    使用 PrimarySessionLocal 创建独立 sync 会话，避免与 AsyncSession 事务冲突。
+    """
+    sync_db = PrimarySessionLocal()
+    try:
+        return await asyncio.to_thread(fn, sync_db)
+    finally:
+        sync_db.close()
 
 
 @router.get("/projects/{project_id}/cost-statistics")
@@ -26,11 +38,11 @@ async def get_project_cost_statistics(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        def _get_summary(sync_db: Session):
+        def _do_get_summary(sync_db):
             service = CostStatisticsService(sync_db)
             return service.get_cost_summary(project_id)
 
-        summary = await db.run_sync(_get_summary)
+        summary = await _run_cost_service(_do_get_summary)
         return summary
     except Exception as e:
         logger.error(f"获取成本统计失败: {e}")
@@ -48,11 +60,11 @@ async def get_project_cost_report(
         end_date = utcnow()
         start_date = end_date - timedelta(days=days)
 
-        def _gen_report(sync_db: Session):
+        def _do_gen_report(sync_db):
             service = CostStatisticsService(sync_db)
             return service.generate_cost_report(project_id, start_date, end_date)
 
-        report = await db.run_sync(_gen_report)
+        report = await _run_cost_service(_do_gen_report)
 
         return {
             "report_id": report.report_id,
@@ -90,11 +102,11 @@ async def get_case_cost_statistics(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        def _get_case_stats(sync_db: Session):
+        def _do_get_case_stats(sync_db):
             service = CostStatisticsService(sync_db)
             return service.get_case_cost_statistics(case_id)
 
-        stats = await db.run_sync(_get_case_stats)
+        stats = await _run_cost_service(_do_get_case_stats)
         return {
             "case_id": case_id,
             "total_steps": stats.total_steps,

@@ -48,12 +48,21 @@ async def trigger_posterior_scoring(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
-    def _trigger(sync_db: Session):
-        from app.models.project import Project
-        project = sync_db.query(Project).filter(Project.id == project_id).first()
-        if not project:
-            raise HTTPException(status_code=404, detail="项目不存在")
+    import asyncio
+    from sqlalchemy import select as sa_select
+    from app.models.project import Project
+    from app.db.database import PrimarySessionLocal
 
+    # async 权限校验
+    project_result = await db.execute(
+        sa_select(Project).where(Project.id == project_id)
+    )
+    project = project_result.scalars().first()
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    # compute_and_persist_posterior 是 sync 写操作，使用独立 sync 会话 + to_thread 释放事件循环
+    def _do_trigger(sync_db):
         from app.services.posterior_quality_service import compute_and_persist_posterior
         try:
             result = compute_and_persist_posterior(sync_db, project_id)
@@ -75,7 +84,11 @@ async def trigger_posterior_scoring(
             meets_min_executions=result["meets_min_executions"],
         )
 
-    return await db.run_sync(_trigger)
+    sync_db = PrimarySessionLocal()
+    try:
+        return await asyncio.to_thread(_do_trigger, sync_db)
+    finally:
+        sync_db.close()
 
 
 @router.get("/posterior/{project_id}/result", response_model=PosteriorStatsResponse)

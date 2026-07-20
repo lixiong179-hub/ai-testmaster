@@ -1,10 +1,17 @@
+"""review_inbox 人工判定端点（mutations）。
+
+review_service 为 sync 实现，端点使用 asyncio.to_thread + PrimarySessionLocal
+在独立线程中执行 sync 业务逻辑，释放事件循环并避免与 AsyncSession 事务冲突。
+"""
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from loguru import logger
 
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
@@ -20,6 +27,19 @@ from app.api.v1.endpoints.review_inbox._schemas import (
 )
 
 router = APIRouter()
+
+
+async def _run_review_mutation(fn):
+    """在独立线程中执行 sync review_service 逻辑，释放事件循环。
+
+    使用 PrimarySessionLocal 创建独立 sync 会话，避免与 AsyncSession 事务冲突。
+    fn 接收 sync_db 参数，需自行管理 commit/rollback/savepoint。
+    """
+    sync_db = PrimarySessionLocal()
+    try:
+        return await asyncio.to_thread(fn, sync_db)
+    finally:
+        sync_db.close()
 
 
 @router.post("/{review_id}/decisions/{decision_id}/decide", response_model=ApiResponse)
@@ -69,7 +89,7 @@ async def decide_single(
 
             return _serialize_decision(result)
 
-        data = await db.run_sync(_decide)
+        data = await _run_review_mutation(_decide)
         return create_response(data=data, msg="人工判定已提交")
     except HTTPException:
         raise
@@ -141,15 +161,13 @@ async def decide_batch(
 
             return {"decisions": results, "total": len(results)}
 
-        data = await db.run_sync(_batch_decide)
+        data = await _run_review_mutation(_batch_decide)
         return create_response(data=data, msg="批量人工判定已提交")
     except HTTPException:
         raise
     except review_service.ReviewError as e:
-        await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        await db.rollback()
         logger.error("批量人工判定失败: {}", e)
         raise HTTPException(status_code=500, detail="批量人工判定失败")
 
@@ -177,7 +195,7 @@ async def finalize_review(
                 "finalized_by": review.finalized_by,
             }
 
-        data = await db.run_sync(_finalize)
+        data = await _run_review_mutation(_finalize)
         return create_response(data=data, msg="评审已最终化")
     except HTTPException:
         raise
@@ -209,21 +227,17 @@ async def rollback_decision(
             sync_db.commit()
             return {"success": True, "detail": "决策已回滚", "rolled_back_decision_ids": [decision_id]}
 
-        data = await db.run_sync(_rollback)
+        data = await _run_review_mutation(_rollback)
         return create_response(data=data, msg="决策已回滚")
     except HTTPException:
         raise
     except review_service.ReviewUndoWindowExpiredError as e:
-        await db.rollback()
         raise HTTPException(status_code=403, detail=str(e))
     except review_service.ReviewNotFinalizedError as e:
-        await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     except review_service.ReviewError as e:
-        await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        await db.rollback()
         logger.error("回滚决策失败: {}", e)
         raise HTTPException(status_code=500, detail="回滚决策失败")
 
@@ -250,21 +264,17 @@ async def undo_decision(
                 "rolled_back_decision_ids": [decision_id],
             }
 
-        data = await db.run_sync(_undo)
+        data = await _run_review_mutation(_undo)
         return create_response(data=data, msg="决策已撤销")
     except HTTPException:
         raise
     except review_service.ReviewUndoWindowExpiredError as e:
-        await db.rollback()
         raise HTTPException(status_code=403, detail=str(e))
     except review_service.ReviewNotFinalizedError as e:
-        await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     except review_service.ReviewError as e:
-        await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        await db.rollback()
         logger.error("撤销决策失败: {}", e)
         raise HTTPException(status_code=500, detail="撤销决策失败")
 
@@ -284,21 +294,17 @@ async def undo_finalize(
 
             return {"status": review.status, "detail": "评审已撤销最终化", "undone_case_count": 0, "rolled_back_decision_ids": []}
 
-        data = await db.run_sync(_undo_finalize)
+        data = await _run_review_mutation(_undo_finalize)
         return create_response(data=data, msg="评审已撤销最终化")
     except HTTPException:
         raise
     except review_service.ReviewUndoWindowExpiredError as e:
-        await db.rollback()
         raise HTTPException(status_code=403, detail=str(e))
     except review_service.ReviewNotFinalizedError as e:
-        await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     except review_service.ReviewError as e:
-        await db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        await db.rollback()
         logger.error("撤销最终化失败: {}", e)
         raise HTTPException(status_code=500, detail="撤销最终化失败")
 
@@ -329,7 +335,7 @@ async def apply_decisions_endpoint(
                 "failed_count": sum(1 for r in results if not r.success),
             }
 
-        data = await db.run_sync(_apply)
+        data = await _run_review_mutation(_apply)
         return create_response(data=data, msg="决策应用完成")
     except HTTPException:
         raise

@@ -58,7 +58,9 @@ async def get_audit_logs(
     try:
         offset = (page - 1) * page_size
 
-        def _query(sync_db):
+        # _require_admin + audit_service.query_logs + count_logs 都是 sync 调用，
+        # 使用独立 sync 会话 + to_thread 释放事件循环
+        def _do_query(sync_db):
             _require_admin(db=sync_db, user_id=current_user.id)
             logs = audit_service.query_logs(
                 db=sync_db,
@@ -82,7 +84,13 @@ async def get_audit_logs(
             )
             return logs, total
 
-        logs, total = await db.run_sync(_query)
+        import asyncio
+        from app.db.database import PrimarySessionLocal
+        sync_db = PrimarySessionLocal()
+        try:
+            logs, total = await asyncio.to_thread(_do_query, sync_db)
+        finally:
+            sync_db.close()
 
         items = [
             {

@@ -141,9 +141,9 @@ async def delete_capability_endpoint(
 ):
     """软删除能力：将 status 置为 archived，返回更新后的能力对象。
 
-    保留 db.run_sync 桥接：delete_capability → transition_capability →
-    _write_capability_audit_log → audit_service.log_action 为深层 sync 链，
-    迁移需同步改造 lifecycle_service 与 audit_service，超出本批次范围。
+    使用 db.run_sync 包装深层 sync 链
+    (delete_capability → transition_capability → _write_capability_audit_log →
+    audit_service.log_action)，保证 sync 操作与 AsyncSession 共享事务。
     """
     def _delete(sync_db):
         return delete_capability(

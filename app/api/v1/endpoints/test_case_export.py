@@ -3,6 +3,7 @@
 提供 Markdown / HTML / Python / JSON / Excel / 功能用例Excel 等多格式导出功能。
 路由前缀: /testCase（由父模块 test_case.py 注册）。
 """
+import asyncio
 import os
 import tempfile
 import urllib.parse
@@ -16,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.background import BackgroundTask
 
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.test_case import TestCase
 from app.models.project import Project
 from app.models.user import User
@@ -96,6 +97,18 @@ async def _get_owned_test_case(
     return test_case
 
 
+async def _run_export_sync(fn, *args):
+    """在独立线程中执行 sync TestCaseViewService 导出方法，释放事件循环。
+
+    使用 PrimarySessionLocal 创建独立 sync 会话，避免与 AsyncSession 事务冲突。
+    """
+    sync_db = PrimarySessionLocal()
+    try:
+        return await asyncio.to_thread(fn, sync_db, *args)
+    finally:
+        sync_db.close()
+
+
 @router.get("/{test_case_id}/export-markdown")
 async def export_markdown(
     test_case_id: int,
@@ -106,9 +119,9 @@ async def export_markdown(
     await _get_owned_test_case(db, test_case_id, current_user.id)
 
     try:
-        def _export(sync_db):
+        def _do_export(sync_db):
             return TestCaseViewService(sync_db).export_business_view_to_markdown(test_case_id)
-        markdown = await db.run_sync(_export)
+        markdown = await _run_export_sync(_do_export)
         return create_response(data={"content": markdown})
     except HTTPException:
         raise
@@ -130,9 +143,9 @@ async def export_html(
     await _get_owned_test_case(db, test_case_id, current_user.id)
 
     try:
-        def _export(sync_db):
+        def _do_export(sync_db):
             return TestCaseViewService(sync_db).export_business_view_to_html(test_case_id)
-        html = await db.run_sync(_export)
+        html = await _run_export_sync(_do_export)
         return create_response(data={"content": html})
     except HTTPException:
         raise
@@ -154,9 +167,9 @@ async def export_python(
     await _get_owned_test_case(db, test_case_id, current_user.id)
 
     try:
-        def _export(sync_db):
+        def _do_export(sync_db):
             return TestCaseViewService(sync_db).export_technical_view_to_python(test_case_id)
-        python_code = await db.run_sync(_export)
+        python_code = await _run_export_sync(_do_export)
         return create_response(data={"content": python_code})
     except HTTPException:
         raise
@@ -178,9 +191,9 @@ async def export_json(
     await _get_owned_test_case(db, test_case_id, current_user.id)
 
     try:
-        def _export(sync_db):
+        def _do_export(sync_db):
             return TestCaseViewService(sync_db).export_technical_view_to_json(test_case_id)
-        json_data = await db.run_sync(_export)
+        json_data = await _run_export_sync(_do_export)
         return create_response(data=json_data)
     except HTTPException:
         raise
@@ -204,9 +217,9 @@ async def export_excel(
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
     tmp.close()
     try:
-        def _export(sync_db):
+        def _do_export(sync_db):
             return TestCaseViewService(sync_db).export_to_excel(test_case_id, tmp.name)
-        ok = await db.run_sync(_export)
+        ok = await _run_export_sync(_do_export)
         if not ok:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -263,9 +276,9 @@ async def export_functional_excel(
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
     tmp.close()
     try:
-        def _export(sync_db):
+        def _do_export(sync_db):
             return TestCaseViewService(sync_db).export_to_functional_excel(ordered_ids, tmp.name)
-        ok = await db.run_sync(_export)
+        ok = await _run_export_sync(_do_export)
         if not ok:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

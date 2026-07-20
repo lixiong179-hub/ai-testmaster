@@ -1,4 +1,5 @@
 """跨设备用例迁移API端点。"""
+import asyncio
 import os
 import tempfile
 import threading
@@ -9,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.models.project import Project
@@ -128,10 +129,14 @@ async def normalize_excel(
             tmp.write(content)
             temp_path = tmp.name
 
-        def _normalize(sync_db):
+        def _do_normalize(sync_db):
             service = TestCaseViewService(sync_db)
             return service.normalize_excel(temp_path)
-        result = await db.run_sync(_normalize)
+        sync_db = PrimarySessionLocal()
+        try:
+            result = await asyncio.to_thread(_do_normalize, sync_db)
+        finally:
+            sync_db.close()
         return create_response(data=result)
     except Exception as e:
         logger.error(f"Excel规范化检测失败: {e}", exc_info=True)
@@ -174,7 +179,7 @@ async def import_excel(
             tmp.write(content)
             temp_path = tmp.name
 
-        def _import(sync_db):
+        def _do_import(sync_db):
             service = TestCaseViewService(sync_db)
             functional_result = service.validate_functional_excel(temp_path)
             imported_ids: list = []
@@ -197,7 +202,11 @@ async def import_excel(
                     )
             return imported_ids
 
-        imported_ids = await db.run_sync(_import)
+        sync_db = PrimarySessionLocal()
+        try:
+            imported_ids = await asyncio.to_thread(_do_import, sync_db)
+        finally:
+            sync_db.close()
         if not imported_ids:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

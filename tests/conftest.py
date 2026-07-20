@@ -4,6 +4,7 @@ os.environ.setdefault("CAPTCHA_RATE_LIMIT", "10000")
 import uuid
 import warnings
 import asyncio
+from contextlib import ExitStack
 import pytest
 import pytest_asyncio
 from sqlalchemy import create_engine, event, text
@@ -222,6 +223,8 @@ def client(db):
     from unittest.mock import patch
     from sqlalchemy.orm import Session as SyncSession
     from app.main import app
+    from app.db import database as db_module
+    import sys
 
     def overrideGetDb():
         try:
@@ -236,26 +239,52 @@ def client(db):
         # commit → flush 已在 wrapper 内实现，保持事务隔离。
         yield _SyncBackedAsyncSession(db)
 
+    _shared_session_ref = {"session": None}
+
     def _create_shared_session():
         """创建共享 db 连接的 sync Session，使端点内 PrimarySessionLocal()
         创建的独立会话也能可见 sync db 事务中的测试数据。
-        commit → flush、rollback → no-op，保持外层事务隔离不被破坏。"""
-        session = SyncSession(bind=db.connection())
-        session.commit = session.flush
-        session.rollback = lambda *a, **kw: None
-        return session
+
+        关键设计：同一测试内多次调用 PrimarySessionLocal() 返回同一个 session 实例，
+        确保前一次调用写入（flush）的数据对后续调用的查询可见（同事务 + 同 identity map）。
+        commit → flush、rollback → no-op、close → no-op，保持外层事务隔离不被破坏。
+        实际事务由 db fixture 的外层 transaction.rollback() 统一清理。"""
+        if _shared_session_ref["session"] is None:
+            session = SyncSession(bind=db.connection())
+            session.commit = session.flush
+            session.rollback = lambda *a, **kw: None
+            session.close = lambda *a, **kw: None  # type: ignore[assignment]
+            _shared_session_ref["session"] = session
+        return _shared_session_ref["session"]
 
     app.dependency_overrides[get_db] = overrideGetDb
     app.dependency_overrides[async_get_db] = overrideAsyncGetDb
-    # 部分端点（如 generate-context / generate-single）内部用 PrimarySessionLocal()
-    # 创建独立 sync 会话，需 patch 为共享 db 连接，否则看不到测试事务中的数据。
-    with patch(
-        "app.api.v1.endpoints.test_case_ai_generate._context.PrimarySessionLocal",
-        side_effect=_create_shared_session,
-    ), patch(
-        "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
-        side_effect=_create_shared_session,
-    ):
+
+    # 收集所有已加载模块中引用了 PrimarySessionLocal 的模块，
+    # 统一 patch 为共享 db 连接，否则端点内 PrimarySessionLocal() 创建的独立会话
+    # 看不到测试事务中的数据。覆盖阶段4 service 层 async 化所有迁移端点。
+    _primary_session_local_modules = []
+    for _mod in list(sys.modules.values()):
+        if _mod is None:
+            continue
+        try:
+            if getattr(_mod, "PrimarySessionLocal", None) is db_module.PrimarySessionLocal:
+                _primary_session_local_modules.append(_mod.__name__)
+        except Exception:
+            continue
+
+    _patch_managers = []
+    _patch_managers.append(
+        patch.object(db_module, "PrimarySessionLocal", side_effect=_create_shared_session)
+    )
+    for _mod_name in _primary_session_local_modules:
+        _patch_managers.append(
+            patch(f"{_mod_name}.PrimarySessionLocal", side_effect=_create_shared_session)
+        )
+
+    with ExitStack() as _stack:
+        for _mgr in _patch_managers:
+            _stack.enter_context(_mgr)
         with TestClient(app) as c:
             yield c
     app.dependency_overrides.pop(get_db, None)
@@ -521,14 +550,50 @@ async def async_test_project(async_db, async_test_user):
 async def async_client(async_db):
     """异步 HTTP 客户端 — 仅 override async_get_db（未认证场景）。"""
     from app.main import app
+    from unittest.mock import patch
+    from sqlalchemy.orm import Session as SyncSession
 
     async def override_async_get_db():
         yield async_db
 
     app.dependency_overrides[async_get_db] = override_async_get_db
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+
+    _shared_async_session_ref = {"session": None}
+
+    def _create_shared_sync_session():
+        """为 async 测试中调用 PrimarySessionLocal() 的端点提供共享 sync session。
+        复用 async_db 的底层 sync connection，确保可见 async_db 事务内的测试数据。"""
+        if _shared_async_session_ref["session"] is None:
+            sync_conn = async_db.sync_session.connection()
+            session = SyncSession(bind=sync_conn)
+            session.commit = session.flush
+            session.rollback = lambda *a, **kw: None
+            session.close = lambda *a, **kw: None
+            _shared_async_session_ref["session"] = session
+        return _shared_async_session_ref["session"]
+
+    import sys
+    from app.db import database as db_module
+    _patch_targets = []
+    for _mod in list(sys.modules.values()):
+        if _mod is None:
+            continue
+        try:
+            if getattr(_mod, "PrimarySessionLocal", None) is db_module.PrimarySessionLocal:
+                _patch_targets.append(_mod.__name__)
+        except Exception:
+            continue
+
+    _patch_mgrs = [patch.object(db_module, "PrimarySessionLocal", side_effect=_create_shared_sync_session)]
+    for _mod_name in _patch_targets:
+        _patch_mgrs.append(patch(f"{_mod_name}.PrimarySessionLocal", side_effect=_create_shared_sync_session))
+
+    with ExitStack() as _stack:
+        for _mgr in _patch_mgrs:
+            _stack.enter_context(_mgr)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
     app.dependency_overrides.pop(async_get_db, None)
 
 
@@ -537,6 +602,8 @@ async def async_auth_client(async_db, async_test_user):
     """异步 HTTP 客户端 — override async_get_db + get_current_user（普通用户）。"""
     from app.main import app
     from app.api.v1.endpoints.auth_deps import get_current_user
+    from unittest.mock import patch
+    from sqlalchemy.orm import Session as SyncSession
 
     async def override_async_get_db():
         yield async_db
@@ -546,9 +613,42 @@ async def async_auth_client(async_db, async_test_user):
 
     app.dependency_overrides[async_get_db] = override_async_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+
+    _shared_async_session_ref = {"session": None}
+
+    def _create_shared_sync_session():
+        """为 async 测试中调用 PrimarySessionLocal() 的端点提供共享 sync session。"""
+        if _shared_async_session_ref["session"] is None:
+            sync_conn = async_db.sync_session.connection()
+            session = SyncSession(bind=sync_conn)
+            session.commit = session.flush
+            session.rollback = lambda *a, **kw: None
+            session.close = lambda *a, **kw: None
+            _shared_async_session_ref["session"] = session
+        return _shared_async_session_ref["session"]
+
+    import sys
+    from app.db import database as db_module
+    _patch_targets = []
+    for _mod in list(sys.modules.values()):
+        if _mod is None:
+            continue
+        try:
+            if getattr(_mod, "PrimarySessionLocal", None) is db_module.PrimarySessionLocal:
+                _patch_targets.append(_mod.__name__)
+        except Exception:
+            continue
+
+    _patch_mgrs = [patch.object(db_module, "PrimarySessionLocal", side_effect=_create_shared_sync_session)]
+    for _mod_name in _patch_targets:
+        _patch_mgrs.append(patch(f"{_mod_name}.PrimarySessionLocal", side_effect=_create_shared_sync_session))
+
+    with ExitStack() as _stack:
+        for _mgr in _patch_mgrs:
+            _stack.enter_context(_mgr)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
     app.dependency_overrides.pop(async_get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
 
@@ -558,6 +658,8 @@ async def async_admin_client(async_db, async_admin_user):
     """异步 HTTP 客户端 — override async_get_db + get_current_user（admin 用户）。"""
     from app.main import app
     from app.api.v1.endpoints.auth_deps import get_current_user
+    from unittest.mock import patch
+    from sqlalchemy.orm import Session as SyncSession
 
     async def override_async_get_db():
         yield async_db
@@ -567,9 +669,42 @@ async def async_admin_client(async_db, async_admin_user):
 
     app.dependency_overrides[async_get_db] = override_async_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+
+    _shared_async_session_ref = {"session": None}
+
+    def _create_shared_sync_session():
+        """为 async 测试中调用 PrimarySessionLocal() 的端点提供共享 sync session。"""
+        if _shared_async_session_ref["session"] is None:
+            sync_conn = async_db.sync_session.connection()
+            session = SyncSession(bind=sync_conn)
+            session.commit = session.flush
+            session.rollback = lambda *a, **kw: None
+            session.close = lambda *a, **kw: None
+            _shared_async_session_ref["session"] = session
+        return _shared_async_session_ref["session"]
+
+    import sys
+    from app.db import database as db_module
+    _patch_targets = []
+    for _mod in list(sys.modules.values()):
+        if _mod is None:
+            continue
+        try:
+            if getattr(_mod, "PrimarySessionLocal", None) is db_module.PrimarySessionLocal:
+                _patch_targets.append(_mod.__name__)
+        except Exception:
+            continue
+
+    _patch_mgrs = [patch.object(db_module, "PrimarySessionLocal", side_effect=_create_shared_sync_session)]
+    for _mod_name in _patch_targets:
+        _patch_mgrs.append(patch(f"{_mod_name}.PrimarySessionLocal", side_effect=_create_shared_sync_session))
+
+    with ExitStack() as _stack:
+        for _mgr in _patch_mgrs:
+            _stack.enter_context(_mgr)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
     app.dependency_overrides.pop(async_get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
 
