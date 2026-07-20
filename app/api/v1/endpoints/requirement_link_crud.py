@@ -9,9 +9,10 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Optional
-from sqlalchemy.orm import Session
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
+from app.models.requirement_link import RequirementLink
 from app.schemas.requirement_link import (
     RequirementLinkCreate,
     RequirementLinkUpdate,
@@ -23,10 +24,45 @@ from app.schemas.requirement_link import (
 from app.models.user import User
 from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
-from app.crud import requirement_link as requirement_link_crud
+from app.utils.db_time import utcnow
 from loguru import logger
 
 router = APIRouter()
+
+
+async def _verify_project_permission(
+    db: AsyncSession, project_id: int, user_id: int
+) -> None:
+    """验证用户对项目的操作权限，不存在或无权限时抛403。"""
+    result = await db.execute(
+        select(Project).where(
+            Project.id == project_id,
+            Project.user_id == user_id,
+        )
+    )
+    project = result.scalars().first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此项目",
+        )
+
+
+async def _get_owned_link(
+    db: AsyncSession, link_id: int, user_id: int
+) -> RequirementLink:
+    """查询链接并验证用户对所属项目的权限，不存在抛404、无权限抛403。"""
+    result = await db.execute(
+        select(RequirementLink).where(RequirementLink.id == link_id)
+    )
+    link = result.scalars().first()
+    if not link:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="需求链接不存在",
+        )
+    await _verify_project_permission(db, link.project_id, user_id)
+    return link
 
 
 def _build_auth_config_response(auth_type: str, auth_config: Optional[dict]) -> Optional[AuthConfigResponse]:
@@ -69,21 +105,21 @@ async def create_requirement_link(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _create(sync_db: Session):
-        project = sync_db.query(Project).filter(
-            Project.id == link_data.project_id,
-            Project.user_id == current_user.id
-        ).first()
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目"
+    try:
+        await _verify_project_permission(db, link_data.project_id, current_user.id)
+
+        exists_result = await db.execute(
+            select(RequirementLink).where(
+                RequirementLink.project_id == link_data.project_id,
+                RequirementLink.link_url == link_data.link_url,
             )
-        if requirement_link_crud.check_link_exists(sync_db, link_data.project_id, link_data.link_url):
+        )
+        if exists_result.scalars().first() is not None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="该链接已存在"
+                detail="该链接已存在",
             )
+
         auth_config = None
         if link_data.auth_type != AuthTypeEnum.NONE:
             auth_config = {}
@@ -95,29 +131,30 @@ async def create_requirement_link(
                 auth_config = {"api_key": link_data.api_key, "api_key_header": link_data.api_key_header or "X-API-Key"}
             elif link_data.auth_type == AuthTypeEnum.COOKIE:
                 auth_config = {"cookie": link_data.cookie}
-        link = requirement_link_crud.create_requirement_link(
-            db=sync_db,
+
+        link = RequirementLink(
             project_id=link_data.project_id,
             link_name=link_data.link_name,
             link_type=link_data.link_type.value,
             link_url=link_data.link_url,
             created_by=current_user.id,
             auth_type=link_data.auth_type.value,
-            auth_config=auth_config,
             description=link_data.description,
-            cache_expire_minutes=link_data.cache_expire_minutes
+            cache_expire_minutes=link_data.cache_expire_minutes,
         )
+        link.auth_config = auth_config
+        db.add(link)
+        await db.commit()
+        await db.refresh(link)
         return _build_link_response(link)
 
-    try:
-        return await db.run_sync(_create)
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"创建需求链接失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="创建需求链接失败"
+            detail="创建需求链接失败",
         )
 
 
@@ -131,49 +168,45 @@ async def get_requirement_links(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _list(sync_db: Session):
-        project = sync_db.query(Project).filter(
-            Project.id == project_id,
-            Project.user_id == current_user.id
-        ).first()
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目"
-            )
+    try:
+        await _verify_project_permission(db, project_id, current_user.id)
         skip = (page - 1) * page_size
-        links = requirement_link_crud.get_requirement_links_by_project(
-            db=sync_db,
-            project_id=project_id,
-            user_id=current_user.id,
-            link_type=link_type,
-            is_active=is_active,
-            skip=skip,
-            limit=page_size
+
+        conditions = [
+            RequirementLink.project_id == project_id,
+            Project.user_id == current_user.id,
+        ]
+        if link_type:
+            conditions.append(RequirementLink.link_type == link_type)
+        if is_active is not None:
+            conditions.append(RequirementLink.is_active == is_active)
+
+        links_result = await db.execute(
+            select(RequirementLink).join(Project).where(*conditions)
+            .order_by(RequirementLink.create_time.desc())
+            .offset(skip).limit(page_size)
         )
-        total = requirement_link_crud.get_requirement_links_count(
-            db=sync_db,
-            project_id=project_id,
-            user_id=current_user.id,
-            link_type=link_type,
-            is_active=is_active
+        links = links_result.scalars().all()
+
+        count_result = await db.execute(
+            select(func.count()).select_from(RequirementLink).join(Project).where(*conditions)
         )
+        total = count_result.scalar() or 0
+
         return RequirementLinkListResponse(
             total=total,
             items=[_build_link_response(link) for link in links],
             page=page,
-            page_size=page_size
+            page_size=page_size,
         )
 
-    try:
-        return await db.run_sync(_list)
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"获取需求链接列表失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取需求链接列表失败"
+            detail="获取需求链接列表失败",
         )
 
 
@@ -183,33 +216,17 @@ async def get_requirement_link_detail(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _detail(sync_db: Session):
-        link = requirement_link_crud.get_requirement_link_by_id(sync_db, link_id)
-        if not link:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="需求链接不存在"
-            )
-        project = sync_db.query(Project).filter(
-            Project.id == link.project_id,
-            Project.user_id == current_user.id
-        ).first()
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目"
-            )
+    try:
+        link = await _get_owned_link(db, link_id, current_user.id)
         return _build_link_response(link)
 
-    try:
-        return await db.run_sync(_detail)
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"获取需求链接详情失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="获取需求链接详情失败"
+            detail="获取需求链接详情失败",
         )
 
 
@@ -220,22 +237,9 @@ async def update_requirement_link(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _update(sync_db: Session):
-        link = requirement_link_crud.get_requirement_link_by_id(sync_db, link_id)
-        if not link:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="需求链接不存在"
-            )
-        project = sync_db.query(Project).filter(
-            Project.id == link.project_id,
-            Project.user_id == current_user.id
-        ).first()
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目"
-            )
+    try:
+        link = await _get_owned_link(db, link_id, current_user.id)
+
         update_data = link_data.model_dump(exclude_unset=True)
         auth_fields = ['username', 'password', 'token', 'api_key', 'api_key_header', 'cookie']
         if any(k in update_data for k in auth_fields):
@@ -250,22 +254,23 @@ async def update_requirement_link(
             update_data['link_type'] = update_data['link_type'].value
         if 'auth_type' in update_data and update_data['auth_type']:
             update_data['auth_type'] = update_data['auth_type'].value
-        updated_link = requirement_link_crud.update_requirement_link(
-            db=sync_db,
-            link_id=link_id,
-            **update_data
-        )
-        return _build_link_response(updated_link)
 
-    try:
-        return await db.run_sync(_update)
+        protected_fields = {'id', 'project_id', 'created_by', 'create_time'}
+        for key, value in update_data.items():
+            if key not in protected_fields and hasattr(link, key):
+                setattr(link, key, value)
+        link.update_time = utcnow()
+        await db.commit()
+        await db.refresh(link)
+        return _build_link_response(link)
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"更新需求链接失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="更新需求链接失败"
+            detail="更新需求链接失败",
         )
 
 
@@ -275,31 +280,15 @@ async def delete_requirement_link(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _delete(sync_db: Session):
-        link = requirement_link_crud.get_requirement_link_by_id(sync_db, link_id)
-        if not link:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="需求链接不存在"
-            )
-        project = sync_db.query(Project).filter(
-            Project.id == link.project_id,
-            Project.user_id == current_user.id
-        ).first()
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="无权限操作此项目"
-            )
-        requirement_link_crud.delete_requirement_link(sync_db, link_id)
-
     try:
-        await db.run_sync(_delete)
+        link = await _get_owned_link(db, link_id, current_user.id)
+        await db.delete(link)
+        await db.commit()
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"删除需求链接失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="删除需求链接失败"
+            detail="删除需求链接失败",
         )
