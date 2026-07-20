@@ -19,10 +19,9 @@
 权限要求: 所有端点需要Bearer令牌认证
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel, Field
 from sqlalchemy import select, func, insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
+from typing import Optional
 from app.utils.db_time import utcnow
 from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.test_task import TestTask
@@ -38,90 +37,20 @@ from app.core.exception import create_response
 from app.schemas.common import ApiResponse
 from loguru import logger
 
+from app.api.v1.endpoints.test_task_helpers import (
+    _verify_project_access,
+    _verify_task_access,
+    _verify_project_access_async,
+    _verify_task_access_async,
+    CreateTaskRequest,
+    TaskStartConfig,
+)
 from app.api.v1.endpoints.test_task_exec import router as exec_router
 
 router = APIRouter(prefix="/test-task", tags=["测试任务管理"])
 
 # 注册子模块路由
 router.include_router(exec_router)
-
-
-def _verify_project_access(
-    db, project_id: int, current_user: User
-) -> None:
-    project = db.query(Project).filter(
-        Project.id == project_id,
-        Project.user_id == current_user.id
-    ).first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
-        )
-
-
-def _verify_task_access(
-    db, task: TestTask, current_user: User
-) -> None:
-    project = db.query(Project).filter(
-        Project.id == task.project_id,
-        Project.user_id == current_user.id
-    ).first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此任务"
-        )
-
-
-async def _verify_project_access_async(
-    db: AsyncSession, project_id: int, current_user: User
-) -> None:
-    """async 版本的项目权限校验，供 async 端点内联调用。"""
-    result = await db.execute(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == current_user.id
-        )
-    )
-    project = result.scalars().first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此项目"
-        )
-
-
-async def _verify_task_access_async(
-    db: AsyncSession, task: TestTask, current_user: User
-) -> None:
-    """async 版本的任务权限校验，供 async 端点内联调用。"""
-    result = await db.execute(
-        select(Project).where(
-            Project.id == task.project_id,
-            Project.user_id == current_user.id
-        )
-    )
-    project = result.scalars().first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此任务"
-        )
-
-
-# 创建任务请求模型
-class CreateTaskRequest(BaseModel):
-    project_id: int
-    task_name: str
-    description: Optional[str] = None
-    case_ids: List[int] = Field(default_factory=list)
-
-
-class TaskStartConfig(BaseModel):
-    """任务启动配置模型"""
-    execution_mode: Optional[str] = Field("smart", description="执行模式")
-    mobile_device_id: Optional[str] = Field(None, description="移动设备ID")
 
 
 @router.post("/", response_model=ApiResponse)

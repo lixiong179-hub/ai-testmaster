@@ -367,7 +367,6 @@ class TestComputeScanConfidence:
         assert _compute_scan_confidence(verdicts) == 0.5
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致BackwardScan执行失败")
 class TestBackwardScanExecute:
     def test_execute_with_valid_ai(self, db, make_ctx, mock_ai, test_iteration):
         ai_response = json.dumps({

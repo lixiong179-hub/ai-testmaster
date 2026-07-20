@@ -255,7 +255,6 @@ class TestFallback:
 
 # ==================== execute 测试 ====================
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致ReverseInfer执行失败")
 class TestExecuteNewProject:
     def test_success(self, make_ctx, mock_ai):
         mock_ai.set_response("reverse_infer", {
@@ -382,7 +381,6 @@ class TestExecuteNewProject:
         assert "缺少 project_id" in (result.error or "")
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致ReverseInfer执行失败")
 class TestExecuteOldProject:
     def test_success(self, make_ctx, mock_ai):
         mock_ai.set_response("reverse_infer", {
