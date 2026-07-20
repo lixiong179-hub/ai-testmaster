@@ -2,12 +2,14 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from loguru import logger
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.test_point._helpers import check_project_permission
-from app.crud.test_point import get_test_point_by_id
+from app.api.v1.endpoints.test_point._helpers import check_project_permission_async
+from app.crud.test_point import batch_create_test_points_async
 from app.db.database import async_get_db
+from app.models.test_point import TestPoint as TestPointModel
 from app.models.user import User
 from app.schemas.test_point import TestPointResponse, TestPointUpdate
 
@@ -61,24 +63,20 @@ async def batch_save_test_points(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="没有有效的测试点数据可保存",
             )
-        from app.crud.test_point import batch_create_test_points
 
-        def _save(sync_db):
-            check_project_permission(sync_db, project_id, current_user.id)
-            saved = batch_create_test_points(
-                db=sync_db, project_id=project_id,
-                test_points_data=valid_points, created_by=current_user.username,
-            )
-            return {
-                "saved_count": len(saved), "total_submitted": len(valid_points),
-                "items": [
-                    {"id": tp.id, "module": tp.module,
-                     "point": tp.point, "priority": tp.priority}
-                    for tp in saved
-                ],
-            }
-
-        data = await db.run_sync(_save)
+        await check_project_permission_async(db, project_id, current_user.id)
+        saved = await batch_create_test_points_async(
+            db=db, project_id=project_id,
+            test_points_data=valid_points, created_by=current_user.username,
+        )
+        data = {
+            "saved_count": len(saved), "total_submitted": len(valid_points),
+            "items": [
+                {"id": tp.id, "module": tp.module,
+                 "point": tp.point, "priority": tp.priority}
+                for tp in saved
+            ],
+        }
         logger.info(
             f"批量保存测试点成功: {data['saved_count']}/{data['total_submitted']} 个 "
             f"(用户: {current_user.username})"
@@ -107,37 +105,41 @@ async def update_test_point(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        def _update(sync_db) -> TestPointResponse:
-            check_project_permission(sync_db, project_id, current_user.id)
-            test_point = get_test_point_by_id(sync_db, test_point_id, project_id)
-            if not test_point:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在"
-                )
-            if update_data.module is not None:
-                test_point.module = update_data.module
-            if update_data.point is not None:
-                test_point.point = update_data.point
-            if update_data.priority is not None:
-                test_point.priority = update_data.priority
-            if update_data.ai_prompt is not None:
-                test_point.ai_prompt = update_data.ai_prompt
-            if update_data.status is not None:
-                test_point.status = update_data.status
-            test_point.version = (test_point.version or 1) + 1
-            sync_db.commit()
-            sync_db.refresh(test_point)
-            return TestPointResponse(
-                id=test_point.id, project_id=test_point.project_id,
-                requirement_id=test_point.requirement_id, module=test_point.module,
-                point=test_point.point,
-                priority=test_point.priority, ai_prompt=test_point.ai_prompt,
-                capability_id=test_point.capability_id, version=test_point.version, status=test_point.status,
-                create_time=test_point.create_time, created_by=test_point.created_by,
-                test_case_count=0,
-            )
+        await check_project_permission_async(db, project_id, current_user.id)
 
-        data = await db.run_sync(_update)
+        result = await db.execute(
+            select(TestPointModel).where(
+                TestPointModel.id == test_point_id,
+                TestPointModel.project_id == project_id,
+            )
+        )
+        test_point = result.scalars().first()
+        if not test_point:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在"
+            )
+        if update_data.module is not None:
+            test_point.module = update_data.module
+        if update_data.point is not None:
+            test_point.point = update_data.point
+        if update_data.priority is not None:
+            test_point.priority = update_data.priority
+        if update_data.ai_prompt is not None:
+            test_point.ai_prompt = update_data.ai_prompt
+        if update_data.status is not None:
+            test_point.status = update_data.status
+        test_point.version = (test_point.version or 1) + 1
+        await db.commit()
+        await db.refresh(test_point)
+        data = TestPointResponse(
+            id=test_point.id, project_id=test_point.project_id,
+            requirement_id=test_point.requirement_id, module=test_point.module,
+            point=test_point.point,
+            priority=test_point.priority, ai_prompt=test_point.ai_prompt,
+            capability_id=test_point.capability_id, version=test_point.version, status=test_point.status,
+            create_time=test_point.create_time, created_by=test_point.created_by,
+            test_case_count=0,
+        )
         logger.info(f"用户 {current_user.username} 更新了测试点 {test_point_id}")
         return {"code": 200, "message": "更新成功", "data": data}
     except HTTPException:
@@ -174,18 +176,16 @@ async def batch_delete_test_points(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"单次删除数量不能超过{max_batch_delete}个（当前{len(unique_ids)}个）",
             )
-        from app.models.test_point import TestPoint as TestPointModel
 
-        def _batch_delete(sync_db) -> int:
-            check_project_permission(sync_db, project_id, current_user.id)
-            deleted_count = sync_db.query(TestPointModel).filter(
+        await check_project_permission_async(db, project_id, current_user.id)
+        result = await db.execute(
+            delete(TestPointModel).where(
                 TestPointModel.id.in_(unique_ids),
                 TestPointModel.project_id == project_id,
-            ).delete(synchronize_session=False)
-            sync_db.commit()
-            return deleted_count
-
-        deleted_count = await db.run_sync(_batch_delete)
+            )
+        )
+        deleted_count = result.rowcount or 0
+        await db.commit()
         logger.info(f"用户 {current_user.username} 批量删除了 {deleted_count} 个测试点")
         return {
             "code": 200, "message": f"成功删除 {deleted_count} 个测试点",
@@ -210,18 +210,20 @@ async def delete_test_point(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        def _delete(sync_db) -> dict:
-            check_project_permission(sync_db, project_id, current_user.id)
-            test_point = get_test_point_by_id(sync_db, test_point_id, project_id)
-            if not test_point:
-                return {"id": test_point_id}
-            sync_db.delete(test_point)
-            sync_db.commit()
-            return {"id": test_point_id}
+        await check_project_permission_async(db, project_id, current_user.id)
 
-        data = await db.run_sync(_delete)
+        result = await db.execute(
+            select(TestPointModel).where(
+                TestPointModel.id == test_point_id,
+                TestPointModel.project_id == project_id,
+            )
+        )
+        test_point = result.scalars().first()
+        if test_point:
+            await db.delete(test_point)
+            await db.commit()
         logger.info(f"用户 {current_user.username} 删除了测试点 {test_point_id}")
-        return {"code": 200, "message": "删除成功", "data": data}
+        return {"code": 200, "message": "删除成功", "data": {"id": test_point_id}}
     except HTTPException:
         raise
     except Exception as e:
