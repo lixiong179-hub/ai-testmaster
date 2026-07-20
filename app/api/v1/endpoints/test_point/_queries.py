@@ -4,10 +4,11 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.test_point._helpers import check_project_permission
+from app.api.v1.endpoints.test_point._helpers import check_project_permission, check_project_permission_async
 from app.crud.test_point import get_test_point_by_id
 from app.crud.test_point_management import (
     get_test_point_list_stats,
@@ -15,6 +16,9 @@ from app.crud.test_point_management import (
     get_test_points_with_case_count_total,
 )
 from app.db.database import async_get_db, PrimarySessionLocal
+from app.models.project import Project
+from app.models.test_case import TestCase
+from app.models.test_point import TestPoint
 from app.models.user import User
 from app.schemas.test_point import TestPointResponse
 from app.services.ai_analysis_service import aio_analysis_service
@@ -135,30 +139,40 @@ async def get_test_point_detail(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        from app.crud.test_point_management import get_test_cases_by_test_point_total
-
-        def _detail(sync_db) -> TestPointResponse:
-            check_project_permission(sync_db, project_id, current_user.id)
-            test_point = get_test_point_by_id(sync_db, test_point_id, project_id)
-            if not test_point:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在"
-                )
-            test_case_count = get_test_cases_by_test_point_total(
-                db=sync_db, project_id=project_id,
-                user_id=current_user.id, test_point_id=test_point_id,
+        await check_project_permission_async(db, project_id, current_user.id)
+        # 内联 async 查询替代 get_test_point_by_id sync crud
+        tp_result = await db.execute(
+            select(TestPoint).where(
+                TestPoint.id == test_point_id,
+                TestPoint.project_id == project_id,
             )
-            return TestPointResponse(
-                id=test_point.id, project_id=test_point.project_id,
-                requirement_id=test_point.requirement_id, module=test_point.module,
-                point=test_point.point,
-                priority=test_point.priority, ai_prompt=test_point.ai_prompt,
-                capability_id=test_point.capability_id, version=test_point.version, status=test_point.status,
-                create_time=test_point.create_time, created_by=test_point.created_by,
-                test_case_count=test_case_count,
+        )
+        test_point = tp_result.scalars().first()
+        if not test_point:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="测试点不存在"
             )
-
-        return await db.run_sync(_detail)
+        # 内联 async 聚合查询替代 get_test_cases_by_test_point_total sync crud
+        count_result = await db.execute(
+            select(func.count(TestCase.id))
+            .join(Project, Project.id == TestCase.project_id)
+            .where(
+                TestCase.project_id == project_id,
+                TestCase.test_point_id == test_point_id,
+                TestCase.is_deleted.is_(False),
+                Project.user_id == current_user.id,
+            )
+        )
+        test_case_count = count_result.scalar() or 0
+        return TestPointResponse(
+            id=test_point.id, project_id=test_point.project_id,
+            requirement_id=test_point.requirement_id, module=test_point.module,
+            point=test_point.point,
+            priority=test_point.priority, ai_prompt=test_point.ai_prompt,
+            capability_id=test_point.capability_id, version=test_point.version, status=test_point.status,
+            create_time=test_point.create_time, created_by=test_point.created_by,
+            test_case_count=test_case_count,
+        )
     except HTTPException:
         raise
     except Exception as e:

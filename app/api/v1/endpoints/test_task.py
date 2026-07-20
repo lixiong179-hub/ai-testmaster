@@ -182,19 +182,35 @@ async def get_test_task(
     current_user: User = Depends(get_current_user)
 ):
     """获取测试任务详情"""
-    def _detail(sync_db) -> dict:
-        task = sync_db.query(TestTask).filter(TestTask.id == task_id).first()
+    try:
+        task_result = await db.execute(
+            select(TestTask).where(TestTask.id == task_id)
+        )
+        task = task_result.scalars().first()
         if not task:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="测试任务不存在"
             )
-        _verify_task_access(sync_db, task, current_user)
-        task_results = sync_db.query(TestResult).filter(
-            TestResult.task_id == task_id
-        ).all()
+        await _verify_task_access_async(db, task, current_user)
+        # 提前提取 project_id，避免 task 对象跨会话属性访问
+        project_id = task.project_id
+
+        results_result = await db.execute(
+            select(TestResult).where(TestResult.task_id == task_id)
+        )
+        task_results = results_result.scalars().all()
+
+        # VisibilityConfigService 是 sync service，使用 PrimarySessionLocal 通过 to_thread 释放事件循环
+        import asyncio
         vis_service = VisibilityConfigService()
-        vis_config = vis_service.get_project_config(sync_db, task.project_id)
+        sync_db = PrimarySessionLocal()
+        try:
+            vis_config = await asyncio.to_thread(
+                vis_service.get_project_config, sync_db, project_id
+            )
+        finally:
+            sync_db.close()
         hidden_fields = vis_config.hidden_fields or []
         results_data = []
         for tr in task_results:
@@ -212,8 +228,14 @@ async def get_test_task(
                 tr_dict = {k: v for k, v in tr_dict.items() if k not in hidden_fields}
             results_data.append(tr_dict)
         return {"task": task, "results": results_data}
-
-    return await db.run_sync(_detail)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取测试任务详情失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取测试任务详情失败"
+        )
 
 
 @router.post("/{task_id}/start", response_model=ApiResponse)
