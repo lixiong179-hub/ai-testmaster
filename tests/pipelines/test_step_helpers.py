@@ -436,41 +436,9 @@ class TestComputeAlignmentConfidence:
         assert _compute_alignment_confidence([], []) == 0.0
 
 
-@pytest.mark.skip(reason="_build_case_prompt已被移除")
-class TestBuildCasePrompt:
-    def test_with_prd_and_ui(self):
-        tp = {"module": "用户管理", "function": "登录", "point": "登录验证", "priority": 1}
-        prompt = _build_case_prompt(tp, "需求文档内容", [{"screen_name": "登录页", "ui_spec": {"elements": [{"type": "button", "text": "登录"}]}}], True)
-        assert "用户管理" in prompt
-        assert "需求文档内容" in prompt
-        assert "登录页" in prompt
-
-    def test_without_ui(self):
-        tp = {"module": "用户管理", "function": "", "point": "测试", "priority": 3}
-        prompt = _build_case_prompt(tp, "", [], False)
-        assert "用户管理" in prompt
-
-
-@pytest.mark.skip(reason="_format_ui_specs_for_prompt已被移除")
-class TestFormatUiSpecsForPrompt:
-    def test_with_elements(self):
-        ui_specs = [
-            {
-                "screen_name": "登录页",
-                "ui_spec": {"elements": [{"type": "button", "text": "登录"}]},
-            },
-        ]
-        result = _format_ui_specs_for_prompt(ui_specs)
-        assert "登录页" in result
-        assert "登录" in result
-
-    def test_empty_ui_specs(self):
-        assert _format_ui_specs_for_prompt([]) == ""
-
-    def test_ui_spec_not_dict(self):
-        ui_specs = [{"screen_name": "测试页", "ui_spec": "not a dict"}]
-        result = _format_ui_specs_for_prompt(ui_specs)
-        assert result == ""
+# TestBuildCasePrompt 和 TestFormatUiSpecsForPrompt 类已删除:
+# _build_case_prompt 和 _format_ui_specs_for_prompt 函数已从生产代码移除,
+# 对应测试不再可恢复, 故直接删除测试类 (而非保留 skip 标记)
 
 
 class TestParseCaseResponse:

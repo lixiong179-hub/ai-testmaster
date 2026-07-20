@@ -21,6 +21,17 @@ from app.utils.jwt_utils import (
 from app.core.exception import AuthenticationError
 
 
+def _getCaptcha(client) -> tuple[str, str]:
+    """获取验证码, 返回 (captcha_id, captcha_code)。
+
+    登录端点要求 captcha_id + captcha_code, 通过 GET /api/v1/auth/captcha 获取。
+    """
+    response = client.get("/api/v1/auth/captcha")
+    body = response.json()
+    data = body["data"] if "data" in body else body
+    return data["captcha_id"], data["code"]
+
+
 class TestJWTUtils:
 
     def test_password_hash_and_verify(self):
@@ -74,13 +85,18 @@ class TestJWTUtils:
         assert "Token类型错误" in str(exc_info.value)
 
 
-@pytest.mark.skip(reason="登录需验证码")
 class TestLoginEndpoint:
 
     def test_login_success_form(self, client, testUser):
+        captcha_id, captcha_code = _getCaptcha(client)
         response = client.post(
             "/api/v1/auth/login",
-            data={"username": testUser.username, "password": "Test@123456"},
+            data={
+                "username": testUser.username,
+                "password": "Test@123456",
+                "captcha_id": captcha_id,
+                "captcha_code": captcha_code,
+            },
         )
         assert response.status_code == 200
         body = response.json()
@@ -91,9 +107,15 @@ class TestLoginEndpoint:
         assert body["data"]["user"]["is_active"] is True
 
     def test_login_success_json(self, client, testUser):
+        captcha_id, captcha_code = _getCaptcha(client)
         response = client.post(
             "/api/v1/auth/login",
-            json={"username": testUser.username, "password": "Test@123456"},
+            json={
+                "username": testUser.username,
+                "password": "Test@123456",
+                "captcha_id": captcha_id,
+                "captcha_code": captcha_code,
+            },
         )
         assert response.status_code == 200
         body = response.json()
@@ -101,43 +123,75 @@ class TestLoginEndpoint:
         assert "access_token" in body["data"]
 
     def test_login_wrong_password(self, client, testUser):
+        captcha_id, captcha_code = _getCaptcha(client)
         response = client.post(
             "/api/v1/auth/login",
-            data={"username": testUser.username, "password": "WrongPass!1"},
+            data={
+                "username": testUser.username,
+                "password": "WrongPass!1",
+                "captcha_id": captcha_id,
+                "captcha_code": captcha_code,
+            },
         )
         assert response.status_code == 401
         body = response.json()
         assert body["code"] == 401
 
     def test_login_nonexistent_user(self, client):
+        captcha_id, captcha_code = _getCaptcha(client)
         response = client.post(
             "/api/v1/auth/login",
-            data={"username": "nonexistent_user_xyz", "password": "Whatever123"},
+            data={
+                "username": "nonexistent_user_xyz",
+                "password": "Whatever123",
+                "captcha_id": captcha_id,
+                "captcha_code": captcha_code,
+            },
         )
         assert response.status_code == 401
         body = response.json()
         assert body["code"] == 401
 
     def test_login_missing_username(self, client):
+        # 提供 captcha 但缺 username, 端点返回 400 "请提供用户名和密码"
+        # 用 json 调用走 JSON 路径, 避免 form data 触发 "Stream consumed"
+        captcha_id, captcha_code = _getCaptcha(client)
         response = client.post(
             "/api/v1/auth/login",
-            data={"password": "Test@123456"},
+            json={
+                "password": "Test@123456",
+                "captcha_id": captcha_id,
+                "captcha_code": captcha_code,
+            },
         )
         assert response.status_code == 400
 
     def test_login_missing_password(self, client):
+        # 提供 captcha 但缺 password, 端点返回 400 "请提供用户名和密码"
+        # 用 json 调用走 JSON 路径, 避免 form data 触发 "Stream consumed"
+        captcha_id, captcha_code = _getCaptcha(client)
         response = client.post(
             "/api/v1/auth/login",
-            data={"username": "some_user"},
+            json={
+                "username": "some_user",
+                "captcha_id": captcha_id,
+                "captcha_code": captcha_code,
+            },
         )
         assert response.status_code == 400
 
     def test_login_disabled_account(self, client, db, testUser):
         testUser.is_active = False
         db.flush()
+        captcha_id, captcha_code = _getCaptcha(client)
         response = client.post(
             "/api/v1/auth/login",
-            data={"username": testUser.username, "password": "Test@123456"},
+            data={
+                "username": testUser.username,
+                "password": "Test@123456",
+                "captcha_id": captcha_id,
+                "captcha_code": captcha_code,
+            },
         )
         assert response.status_code == 403
         body = response.json()
@@ -227,13 +281,19 @@ class TestRegisterEndpoint:
         assert response.status_code == 400
 
 
-@pytest.mark.skip(reason="登录需验证码")
 class TestMeEndpoint:
 
     def test_get_current_user_success(self, client, testUser):
+        # 先通过完整 captcha 流程登录获取 access_token
+        captcha_id, captcha_code = _getCaptcha(client)
         login_resp = client.post(
             "/api/v1/auth/login",
-            data={"username": testUser.username, "password": "Test@123456"},
+            data={
+                "username": testUser.username,
+                "password": "Test@123456",
+                "captcha_id": captcha_id,
+                "captcha_code": captcha_code,
+            },
         )
         token = login_resp.json()["data"]["access_token"]
         response = client.get(
@@ -288,15 +348,16 @@ class TestCaptchaEndpoint:
         assert "captcha_id" in body["data"]
 
 
-@pytest.mark.skip(reason="ResponseValidationError")
 class TestHealthEndpoint:
 
     def test_health_check(self, client):
         response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "healthy"
+        # /health 端点直接返回 dict (无 create_response 包装), status 可能为 healthy 或 degraded
+        assert data["status"] in ["healthy", "degraded"]
         assert "version" in data
+        assert "services" in data
 
     def test_root_endpoint(self, client):
         response = client.get("/")
