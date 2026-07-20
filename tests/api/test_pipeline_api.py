@@ -17,8 +17,6 @@
 import pytest
 from types import SimpleNamespace
 
-# pytestmark = pytest.mark.skip(reason="数据库DDL不兼容")  # 临时移除排查
-
 from app.models.iteration import Iteration
 from app.models.test_point import TestPoint
 from app.models.iteration import IterationInput
