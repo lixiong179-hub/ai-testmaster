@@ -11,8 +11,6 @@ import json
 import pytest
 from datetime import datetime, timedelta, timezone
 
-pytestmark = pytest.mark.skip(reason="Pipeline运行失败")
-
 from app.models.iteration import Iteration
 from app.models.test_case import TestCase, TestCaseExecution
 from app.models.review import IterationReview, ReviewDecision
@@ -341,8 +339,9 @@ class TestLineageE2E:
 
 
 class TestFMEAMetricsE2E:
-    def test_query_metrics_with_fmea_metadata(self, db, m4_metrics_in_db):
-        results = query_metrics(db)
+    @pytest.mark.asyncio
+    async def test_query_metrics_with_fmea_metadata(self, db, sync_backed_async_db, m4_metrics_in_db):
+        results = await query_metrics(sync_backed_async_db)
         assert len(results) >= 1
 
         jvf = next((r for r in results if r["metric_name"] == "json_validation_failure"), None)
@@ -354,14 +353,16 @@ class TestFMEAMetricsE2E:
         assert lcp is not None
         assert lcp["fmea_id"] == "F1"
 
-    def test_query_metrics_with_project_filter(self, db, m4_metrics_in_db, m4_project):
-        results = query_metrics(db, project_id=m4_project.id)
+    @pytest.mark.asyncio
+    async def test_query_metrics_with_project_filter(self, db, sync_backed_async_db, m4_metrics_in_db, m4_project):
+        results = await query_metrics(sync_backed_async_db, project_id=m4_project.id)
         assert len(results) >= 1
         for r in results:
             assert r["count"] >= 1
 
-    def test_dashboard_summary(self, db, m4_metrics_in_db, m4_project):
-        summary = get_dashboard_summary(db, project_id=m4_project.id)
+    @pytest.mark.asyncio
+    async def test_dashboard_summary(self, db, sync_backed_async_db, m4_metrics_in_db, m4_project):
+        summary = await get_dashboard_summary(sync_backed_async_db, project_id=m4_project.id)
         assert "metrics" in summary
         assert summary["total_metric_types"] == len(FMEA_METRICS)
         active = [m for m in summary["metrics"] if m["count"] > 0]
@@ -373,7 +374,8 @@ class TestFMEAMetricsE2E:
             assert "description" in meta, f"Missing description for {name}"
             assert name in VALID_METRIC_NAMES
 
-    def test_pipeline_metric_model_direct_insert(self, db, m4_project):
+    @pytest.mark.asyncio
+    async def test_pipeline_metric_model_direct_insert(self, db, sync_backed_async_db, m4_project):
         metric = PipelineMetric(
             metric_name="pipeline_recovery",
             value=1.0,
@@ -387,19 +389,20 @@ class TestFMEAMetricsE2E:
         assert metric.id is not None
         assert metric.metric_name == "pipeline_recovery"
 
-        results = query_metrics(db, metric_name="pipeline_recovery")
+        results = await query_metrics(sync_backed_async_db, metric_name="pipeline_recovery")
         assert len(results) >= 1
         assert results[0]["fmea_id"] == "F9"
 
 
 class TestDashboardE2E:
-    def test_overview_returns_structure(self, db, m4_pipeline_run, m4_project, testUser):
+    @pytest.mark.asyncio
+    async def test_overview_returns_structure(self, db, sync_backed_async_db, m4_pipeline_run, m4_project, testUser):
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
         try:
-            result = get_dashboard_overview(
+            result = await get_dashboard_overview(
                 project_id=m4_project.id,
                 days=7,
-                db=db,
+                db=sync_backed_async_db,
                 current_user=testUser,
             )
         except Exception as e:
@@ -415,13 +418,14 @@ class TestDashboardE2E:
         assert "fmea_alerts" in data
         assert data["total_runs"] >= 1
 
-    def test_overview_cache_hit_rate(self, db, m4_pipeline_run, m4_project, testUser):
+    @pytest.mark.asyncio
+    async def test_overview_cache_hit_rate(self, db, sync_backed_async_db, m4_pipeline_run, m4_project, testUser):
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
         try:
-            result = get_dashboard_overview(
+            result = await get_dashboard_overview(
                 project_id=m4_project.id,
                 days=7,
-                db=db,
+                db=sync_backed_async_db,
                 current_user=testUser,
             )
         except Exception as e:
@@ -429,13 +433,14 @@ class TestDashboardE2E:
         data = result["data"]
         assert data["cache_hit_rate"] >= 0.0
 
-    def test_overview_no_project_filter(self, db, m4_pipeline_run, testUser):
+    @pytest.mark.asyncio
+    async def test_overview_no_project_filter(self, db, sync_backed_async_db, m4_pipeline_run, testUser):
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
         try:
-            result = get_dashboard_overview(
+            result = await get_dashboard_overview(
                 project_id=None,
                 days=7,
-                db=db,
+                db=sync_backed_async_db,
                 current_user=testUser,
             )
         except Exception as e:
@@ -572,7 +577,8 @@ class TestM4CrossModule:
         assert len(lineage.ancestors) == 1
         assert lineage.ancestors[0].id == parent.id
 
-    def test_metrics_with_pipeline_run(self, db, m4_project, m4_iteration):
+    @pytest.mark.asyncio
+    async def test_metrics_with_pipeline_run(self, db, sync_backed_async_db, m4_project, m4_iteration):
         metric = PipelineMetric(
             metric_name="pipeline_recovery",
             value=1.0,
@@ -584,8 +590,8 @@ class TestM4CrossModule:
         db.add(metric)
         db.flush()
 
-        results = query_metrics(
-            db,
+        results = await query_metrics(
+            sync_backed_async_db,
             metric_name="pipeline_recovery",
             project_id=m4_project.id,
         )

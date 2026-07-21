@@ -14,8 +14,6 @@
 import json
 import pytest
 
-pytestmark = pytest.mark.skip(reason="Pipeline运行失败")
-
 from app.models.iteration import Iteration, IterationInput
 from app.models.test_point import TestPoint
 from app.models.test_case import TestCase
@@ -192,7 +190,6 @@ def _run_pipeline(db, iteration, mock_ai, scenario_id):
     return run, ctx
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Pipeline失败")
 class TestScenario1E2E:
     def test_pipeline_completes(self, db, s1_iteration, mock_ai_s1):
         iteration = s1_iteration["iteration"]
@@ -252,7 +249,6 @@ class TestScenario1E2E:
         assert len(found.artifacts) >= 1
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Pipeline失败")
 class TestScenario2E2E:
     def test_pipeline_completes(self, db, s2_iteration, mock_ai_s2):
         iteration = s2_iteration["iteration"]
@@ -307,7 +303,6 @@ class TestScenario2E2E:
         assert len(found.steps) >= 3
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Pipeline失败")
 class TestM1CrossScenario:
     def test_both_scenarios_same_project(self, db, testProject, mock_ai_s1, mock_ai_s2):
         iter1 = Iteration(project_id=testProject.id, name="cross_s1", status="draft")

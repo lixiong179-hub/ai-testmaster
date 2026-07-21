@@ -11,8 +11,6 @@ from unittest.mock import patch
 
 import pytest
 
-pytestmark = pytest.mark.skip(reason="文件路径不兼容当前环境")
-
 from app.models.iteration import Iteration
 from app.models.pipeline import PipelineRun, Artifact
 from app.models.audit_log import AuditLog
@@ -283,7 +281,10 @@ class TestCleanupAuditLogs:
                     assert "action" in record
 
 
-@pytest.mark.skip(reason="Windows环境PermissionError: 备份目录权限不足")
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows环境PermissionError: 备份目录权限不足（Linux/Mac可正常运行）",
+)
 class TestBackupPipelineData:
     """全量备份 pipeline 数据"""
 
