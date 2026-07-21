@@ -539,35 +539,6 @@ class TestBatchLocatorServiceAsync:
 
 
 # ============================================================================
-# 集成测试标记
-# ============================================================================
-
-@pytest.mark.integration
-@pytest.mark.real_browser
-class TestBatchLocatorIntegration:
-    """
-    集成测试（需要真实环境）
-
-    这些测试需要：
-    - 真实MySQL数据库
-    - 真实浏览器
-    - AI视觉模型
-    """
-
-    @pytest.mark.skip(reason="需要真实数据库和浏览器环境")
-    async def test_batch_record_with_real_db(self):
-        """测试真实数据库环境下的批量记录"""
-        # 此测试需要真实环境，默认跳过
-        pass
-
-    @pytest.mark.skip(reason="需要真实浏览器环境")
-    async def test_batch_record_with_real_browser(self):
-        """测试真实浏览器环境下的批量记录"""
-        # 此测试需要真实环境，默认跳过
-        pass
-
-
-# ============================================================================
 # 测试覆盖率统计
 # ============================================================================
 

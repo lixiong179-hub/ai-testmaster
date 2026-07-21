@@ -8,8 +8,6 @@
 import json
 import pytest
 
-pytestmark = pytest.mark.skip(reason="AI_API_KEY缺失/Pipeline运行失败")
-
 from app.models.test_case import TestCase
 from app.models.iteration import Iteration, IterationInput
 from app.models.pipeline import PipelineRun, Artifact
@@ -89,7 +87,6 @@ def s3_iteration(db, testProject):
 
 @pytest.mark.regression
 @pytest.mark.scenario_full
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Pipeline失败")
 class TestScenario3Regression:
     """场景 3 回归：仅 UI 输入新项目"""
 

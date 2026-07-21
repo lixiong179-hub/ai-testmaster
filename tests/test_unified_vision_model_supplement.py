@@ -48,14 +48,16 @@ class TestUnifiedVisionModelSupplement:
                 )
                 assert model.api_key is None or model.api_key == ''
 
-    @pytest.mark.skip(reason="timeout默认值已从60变更为300")
     def test_init_default_values(self):
-        """测试默认值"""
+        """测试默认值
+
+        timeout 默认值已从 60 变更为 300（见 _core_mixin._init_core）。
+        """
         with patch.dict('os.environ', {'KIMI_API_KEY': 'test-key'}):
             model = UnifiedVisionModel(model_type=VisionModelType.KIMI)
             assert model.max_retries == 3
             assert model.retry_delay == 2
-            assert model.timeout == 60
+            assert model.timeout == 300
             assert model.temperature == 0.3
 
     # ============================================================================

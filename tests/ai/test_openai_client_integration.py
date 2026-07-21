@@ -18,8 +18,6 @@ import pytest
 # CORS_ORIGINS=* 等变量注入 os.environ，污染后续测试（如 test_core_config.py
 # 的 DevSettings 默认值校验）。改为在 fixture 内按需加载。
 
-pytestmark = pytest.mark.skip(reason="AI_API_KEY缺失")
-
 from app.ai.client import AIResponse, TokenUsage
 from app.ai.openai_client import OpenAIClient
 
@@ -38,7 +36,6 @@ def openai_client():
     return OpenAIClient()
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致API调用返回空内容")
 class TestOpenAIClientRealAPI:
     """真实 API 调用集成测试"""
 

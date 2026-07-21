@@ -3,8 +3,6 @@ import os
 import asyncio
 import pytest
 
-pytestmark = pytest.mark.skip(reason="WebSocket不可用")
-
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 os.chdir(project_root)
@@ -15,7 +13,6 @@ from app.core.websocket import manager
 from app.utils.jwt_utils import create_access_token
 
 
-@pytest.mark.skip(reason="WebSocket连接问题: starlette.websockets.WebSocketDisconnect")
 class TestWebSocketReal:
     """WebSocket真实测试类"""
 
@@ -43,11 +40,15 @@ class TestWebSocketReal:
         print("✅ 测试1通过: WebSocket连接建立成功")
 
     def test_websocket_invalid_token(self, client):
-        """测试2: WebSocket无效Token拒绝连接"""
+        """测试2: WebSocket无效Token拒绝连接
+
+        服务端在 token 校验失败时立即 close(1008)，TestClient.websocket_connect()
+        的 __enter__ 会抛 WebSocketDisconnect，因此 pytest.raises 须包裹 connect。
+        """
         execution_id = "test_execution_002"
 
-        with client.websocket_connect(f"/api/v1/ws/execution/{execution_id}?token=invalid_token") as websocket:
-            with pytest.raises(Exception):
+        with pytest.raises(Exception):
+            with client.websocket_connect(f"/api/v1/ws/execution/{execution_id}?token=invalid_token") as websocket:
                 websocket.receive_json()
 
         print("✅ 测试2通过: WebSocket无效Token拒绝连接")

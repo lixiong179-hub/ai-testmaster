@@ -8,8 +8,6 @@
 import json
 import pytest
 
-pytestmark = pytest.mark.skip(reason="AI_API_KEY缺失/Pipeline运行失败")
-
 from app.models.test_case import TestCase
 from app.models.test_point import TestPoint
 from app.models.iteration import Iteration, IterationInput

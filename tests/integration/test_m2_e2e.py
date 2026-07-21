@@ -12,8 +12,6 @@
 import json
 import pytest
 
-pytestmark = pytest.mark.skip(reason="Pipeline运行失败")
-
 from app.models.iteration import Iteration, IterationInput
 from app.models.test_point import TestPoint
 from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
@@ -129,8 +127,8 @@ def _run_s4_pipeline(db, iteration, mock_ai):
     return run, ctx
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Pipeline失败")
 class TestScenario4E2E:
+    @pytest.mark.skip(reason="scenario_4 case_generation 步骤失败：MockAIClient 返回数据未通过质量校验")
     def test_pipeline_completes(self, db, s4_iteration, mock_ai_s4):
         iteration = s4_iteration["iteration"]
         run, _ = _run_s4_pipeline(db, iteration, mock_ai_s4)
@@ -250,8 +248,8 @@ class TestReviewInboxFlow:
         assert result.human_verdict is None
 
 
-@pytest.mark.skip(reason="AI_API_KEY缺失导致Pipeline失败")
 class TestPipelineRunRecord:
+    @pytest.mark.skip(reason="scenario_4 case_generation 步骤失败：MockAIClient 返回数据未通过质量校验")
     def test_run_record_has_steps(self, db, s4_iteration, mock_ai_s4):
         iteration = s4_iteration["iteration"]
         run, _ = _run_s4_pipeline(db, iteration, mock_ai_s4)

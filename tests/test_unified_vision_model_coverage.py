@@ -206,35 +206,38 @@ class TestUnifiedVisionModel(unittest.TestCase):
         self.assertIn("login page", result)
     
     @patch('app.utils.unified_vision_model._core_mixin.requests.post')
-    @pytest.mark.skip(reason="重试行为已变更")
     def test_retry_on_failure(self, mock_post):
-        """测试失败重试机制"""
+        """测试失败重试机制
+
+        _make_request 仅捕获 requests.RequestException 进行重试，普通 Exception
+        直接返回 None；因此用 requests.ConnectionError / Timeout 触发重试路径。
+        """
+        import requests as _requests
         model = UnifiedVisionModel(
             model_type=VisionModelType.KIMI,
             api_key="test-key",
             max_retries=3,
-            retry_delay=0.1
+            retry_delay=0
         )
-        
+
         # 前两次失败，第三次成功
         mock_response_success = MagicMock()
         mock_response_success.status_code = 200
         mock_response_success.json.return_value = {
             "choices": [{"message": {"content": "Success"}}]
         }
-        
+
         mock_post.side_effect = [
-            Exception("Connection error"),
-            Exception("Timeout"),
+            _requests.ConnectionError("Connection error"),
+            _requests.Timeout("Timeout"),
             mock_response_success
         ]
-        
+
         result = model.describe_screenshot(screenshot=b"fake_data")
         self.assertEqual(result, "Success")
         self.assertEqual(mock_post.call_count, 3)
-    
+
     @patch('app.utils.unified_vision_model._core_mixin.requests.post')
-    @pytest.mark.skip(reason="API响应格式已变更")
     def test_api_error_response(self, mock_post):
         """测试API错误响应"""
         model = UnifiedVisionModel(
@@ -242,12 +245,13 @@ class TestUnifiedVisionModel(unittest.TestCase):
             api_key="test-key",
             max_retries=1
         )
-        
+
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
+        mock_response.raise_for_status.side_effect = __import__('requests').HTTPError("500 Server Error")
         mock_post.return_value = mock_response
-        
+
         result = model.describe_screenshot(screenshot=b"fake_data")
         # 错误时返回默认值
         self.assertEqual(result, "无法描述页面内容")

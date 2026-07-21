@@ -164,7 +164,6 @@ class TestGetProject:
 
 
 class TestDeleteProject:
-    @pytest.mark.skip(reason="_SyncBackedAsyncSession.delete 为同步方法, await db.delete(project) 触发 'NoneType can't be used in await' — 测试基础设施问题, 非契约问题")
     def test_delete_project_normal(self, client, authHeaders, db, testUser):
         from app.schemas.project import ProjectCreate
         from app.crud.project import create_project

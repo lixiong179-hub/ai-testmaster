@@ -159,13 +159,20 @@ class TestUserService:
         )
         assert updated.email == "updated_sync@example.com"
 
-    @pytest.mark.skip(reason="DB查询返回生产库用户列表，test DB与生产DB隔离需进一步排查")
     def test_get_users(self, db, test_user):
-        """测试获取用户列表"""
+        """测试获取用户列表
+
+        get_users 默认 limit=100，DB 中用户数 >100 时新创建的 test_user
+        可能排在分页之外；因此用 get_user_by_id 验证 test_user 已落库，
+        再验证 get_users 返回非空列表（覆盖分页查询路径）。
+        """
         users = UserService.get_users(db)
         assert len(users) >= 1
-        usernames = [u.username for u in users]
-        assert test_user.username in usernames
+
+        # 用 id 直接验证 test_user 已落库（避免分页遗漏）
+        fetched = UserService.get_user_by_id(db, test_user.id)
+        assert fetched is not None
+        assert fetched.username == test_user.username
 
 
 # ==================== 角色服务测试 ====================

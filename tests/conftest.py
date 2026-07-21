@@ -73,8 +73,10 @@ class _SyncBackedAsyncSession:
     def add_all(self, instances):
         self._sync.add_all(instances)
 
-    def delete(self, instance):
-        self._sync.delete(instance)
+    async def delete(self, instance, *args, **kwargs):
+        # 端点用 `await db.delete(...)` 调用，故须 async；委托 greenlet_spawn
+        # 以保持与 sync db 事务的连接一致性。
+        return await greenlet_spawn(self._sync.delete, instance, *args, **kwargs)
 
     def query(self, *args, **kwargs):
         return self._sync.query(*args, **kwargs)
@@ -127,25 +129,6 @@ def resetAiSemaphore():
     """每个测试前重置 AI 生成信号量单例，避免前序用例残留计数影响后续用例。"""
     from app.utils.ai_concurrency import reset_ai_generation_semaphore
     reset_ai_generation_semaphore()
-    yield
-
-
-@pytest.fixture(autouse=True)
-def resetCaptchaState():
-    """每个测试前重置 captcha_service 单例状态，避免跨用例状态污染。
-
-    根因：captcha_service 是模块级单例，_store/_used/_ip_limits 跨测试持久化。
-    批量执行时多个测试文件的 _getCaptcha(client) 共用 IP="testclient"，
-    60 秒内累积超过 _rate_limit 次后触发 429，导致 _getCaptcha 抛 KeyError。
-
-    同时还原 CaptchaService._instance 指针，避免 test_captcha_service_extended
-    等通过 _instance=None 新建实例后污染后续测试的 singleton 查询。
-    """
-    from app.services.captcha_service import CaptchaService, captcha_service
-    CaptchaService._instance = captcha_service
-    captcha_service._store.clear()
-    captcha_service._used.clear()
-    captcha_service._ip_limits.clear()
     yield
 
 

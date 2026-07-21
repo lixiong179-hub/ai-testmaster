@@ -19,7 +19,7 @@ except ImportError:
 
 pytestmark = pytest.mark.skipif(
     not _BACKFILL_AVAILABLE,
-    reason="scripts.backfill_case_summary已被移除",
+    reason="scripts.backfill_case_summary 不可导入（模块路径变更或依赖缺失）",
 )
 
 

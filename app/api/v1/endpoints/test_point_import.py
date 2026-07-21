@@ -49,7 +49,7 @@ from app.utils.ai_client_core import (
     AIServiceError,
     AITimeoutError,
 )
-from app.crud.test_point import batch_create_test_points
+from app.crud.test_point import batch_create_test_points_async
 from loguru import logger
 
 router = APIRouter()
@@ -216,15 +216,12 @@ async def import_xmind(
                 ai_timeout=False,
             )
 
-        def _batch_create(sync_db: Session):
-            return batch_create_test_points(
-                db=sync_db,
-                project_id=project_id,
-                test_points_data=valid_points,
-                created_by=current_user.username,
-            )
-
-        saved = await db.run_sync(_batch_create)
+        saved = await batch_create_test_points_async(
+            db=db,
+            project_id=project_id,
+            test_points_data=valid_points,
+            created_by=current_user.username,
+        )
         logger.info(
             f"XMind 导入完成: project_id={project_id}, "
             f"saved={len(saved)}, skipped={skipped_count}"
