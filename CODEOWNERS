@@ -1,0 +1,16 @@
+# 默认审阅人：请按团队替换为实际 GitHub 用户名/团队名
+* @maintainers
+
+# 后端
+/app @backend-maintainers
+/alembic @backend-maintainers
+/tests @backend-maintainers
+
+# 前端
+/src @frontend-maintainers
+/cypress @frontend-maintainers
+
+# 部署与 CI
+/.github @devops-maintainers
+/Dockerfile @devops-maintainers
+/docker-compose*.yml @devops-maintainers

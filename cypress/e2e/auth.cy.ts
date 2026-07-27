@@ -1,6 +1,12 @@
-describe('登录功能测试', () => {
+/**
+ * 认证套件：覆盖 UI 登录、API 登录、错误分支
+ * 合并来源：login.cy.ts + api-login-test.cy.ts
+ */
+describe('认证套件', () => {
+  const API_BASE = 'http://127.0.0.1:8000'
+
   const prepareCaptcha = () => {
-    cy.request('GET', 'http://127.0.0.1:8000/api/v1/auth/captcha/generate').then(
+    cy.request('GET', `${API_BASE}/api/v1/auth/captcha/generate`).then(
       (captchaResponse) => {
         const captcha = captchaResponse.body.data || {}
         cy.intercept('GET', '**/api/v1/auth/captcha/generate', {
@@ -27,12 +33,13 @@ describe('登录功能测试', () => {
     cy.wait(500)
   })
 
-  it('正常登录', () => {
+  // ===== UI 登录测试 =====
+  it('UI 正常登录', () => {
     cy.login()
     cy.url().should('include', '/home')
   })
 
-  it('错误密码登录', () => {
+  it('UI 错误密码登录', () => {
     prepareCaptcha()
     cy.intercept('POST', '**/api/v1/auth/login').as('loginRequest')
     cy.get('.el-tabs__item').contains('账号登录').click()
@@ -51,7 +58,7 @@ describe('登录功能测试', () => {
     cy.get('.el-message__content', { timeout: 10000 }).should('be.visible')
   })
 
-  it('空用户名登录', () => {
+  it('UI 空用户名登录', () => {
     cy.get('.el-tabs__item').contains('账号登录').click()
     cy.wait(500)
     cy.get('input[placeholder*="密码"]').first().type('admin123')
@@ -65,7 +72,7 @@ describe('登录功能测试', () => {
     cy.contains('请输入账号').should('exist')
   })
 
-  it('空密码登录', () => {
+  it('UI 空密码登录', () => {
     cy.get('.el-tabs__item').contains('账号登录').click()
     cy.wait(500)
     cy.get('input[placeholder*="账号"]').first().type('admin')
@@ -77,5 +84,32 @@ describe('登录功能测试', () => {
       })
     cy.get('button').contains('登录').click()
     cy.contains('请输入密码').should('exist')
+  })
+
+  // ===== API 登录测试 =====
+  it('API 正常登录返回 token', () => {
+    cy.request({
+      method: 'POST',
+      url: `${API_BASE}/api/v1/auth/login`,
+      body: { username: 'admin', password: 'admin123' },
+      headers: { 'Content-Type': 'application/json' },
+    }).then((response) => {
+      expect(response.status).to.eq(200)
+      expect(response.body.code).to.eq(200)
+      expect(response.body.data).to.have.property('access_token')
+      expect(response.body.data.access_token).to.not.be.empty
+    })
+  })
+
+  it('API 错误密码返回 4xx', () => {
+    cy.request({
+      method: 'POST',
+      url: `${API_BASE}/api/v1/auth/login`,
+      body: { username: 'admin', password: 'wrongpassword' },
+      headers: { 'Content-Type': 'application/json' },
+      failOnStatusCode: false,
+    }).then((response) => {
+      expect(response.status).to.be.oneOf([400, 401])
+    })
   })
 })
