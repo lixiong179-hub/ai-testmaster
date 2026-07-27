@@ -114,6 +114,9 @@ test_ai_gen.py
 e2e_hidden_bug_report.json
 debug_ai_response.txt
 
+# Local dev scripts (Windows .bat/.ps1 starters moved here)
+scripts/dev/
+
 # Local investigation outputs/scripts
 scripts/cases_output.txt
 scripts/tablet70_generation_comparison.json

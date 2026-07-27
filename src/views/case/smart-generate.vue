@@ -22,7 +22,7 @@
             :class="{ active: store.selectedTask === 'new_feature' }"
             @click="selectTask('new_feature')"
           >
-            <div class="task-icon">🚀</div>
+            <div class="task-icon"><el-icon :size="40"><MagicStick /></el-icon></div>
             <h3>新功能生成用例</h3>
             <p>我有新需求或测试点，要生成测试用例</p>
             <div class="task-tags">
@@ -36,7 +36,7 @@
             :class="{ active: store.selectedTask === 'history_update' }"
             @click="selectTask('history_update')"
           >
-            <div class="task-icon">📋</div>
+            <div class="task-icon"><el-icon :size="40"><Document /></el-icon></div>
             <h3>历史资产更新用例</h3>
             <p>我有旧用例，要基于新版本更新</p>
             <div class="task-tags">
@@ -47,7 +47,7 @@
             <div class="task-btn-hint">点击卡片即选择此任务</div>
           </div>
           <div class="task-card disabled">
-            <div class="task-icon">📥</div>
+            <div class="task-icon"><el-icon :size="40"><Download /></el-icon></div>
             <h3>导入测试资产</h3>
             <p>我只想先把旧资产导入系统</p>
             <div class="task-tags">
@@ -277,7 +277,7 @@
                   :src="store.uiScreenImageUrls[screen.id]"
                   :alt="screen.screen_name"
                 />
-                <el-icon v-else :size="32" color="#c0c4cc"><Picture /></el-icon>
+                <el-icon v-else :size="32" color="var(--color-text-disabled)"><Picture /></el-icon>
               </div>
               <div class="screen-info">
                 <span class="screen-name">{{ screen.screen_name || `页面${screen.id}` }}</span>
@@ -422,7 +422,7 @@
           <el-card v-if="store.warnings.length > 0" class="warning-card">
             <template #header><span>风险提示</span></template>
             <div v-for="w in store.warningUserTexts" :key="w.code" class="warning-item">
-              <el-icon color="#E6A23C"><WarningFilled /></el-icon><span>{{ w.text }}</span>
+              <el-icon color="var(--color-warning)"><WarningFilled /></el-icon><span>{{ w.text }}</span>
             </div>
           </el-card>
           <el-card
@@ -505,7 +505,7 @@
       <div v-else-if="store.currentStep === 'generating'" class="generating-progress">
         <el-card v-if="store.generating">
           <div class="progress-content">
-            <el-icon class="spin-icon" :size="48" color="#409EFF"><Loading /></el-icon>
+            <el-icon class="spin-icon" :size="48" color="var(--color-primary)"><Loading /></el-icon>
             <h3>{{ store.generationProgress || '正在生成...' }}</h3>
             <!-- Task3.2: 真实进度百分比（progressPercent 为 null 时降级 indeterminate） -->
             <el-progress
@@ -878,199 +878,24 @@
       </div>
     </div>
 
-    <!-- 编辑对话框 -->
-    <el-dialog v-model="editDialogVisible" title="编辑用例" width="700px" destroy-on-close>
-      <el-form v-if="editingCase" label-width="90px" size="default">
-        <el-form-item label="标题" required
-          ><el-input v-model="editingCase.title" maxlength="255" show-word-limit
-        /></el-form-item>
-        <el-form-item label="模块"
-          ><el-input v-model="editingCase.module" maxlength="100"
-        /></el-form-item>
-        <el-form-item label="优先级"
-          ><el-select v-model="editingCase.priority"
-            ><el-option label="高" :value="1" /><el-option label="中" :value="2" /><el-option
-              label="低"
-              :value="3" /></el-select
-        ></el-form-item>
-        <el-form-item label="前置条件"
-          ><el-input v-model="editingCase.precondition" type="textarea" :rows="2"
-        /></el-form-item>
-        <el-form-item label="步骤" required>
-          <div class="edit-steps">
-            <div v-for="(step, i) in editingCase.steps" :key="i" class="edit-step-row">
-              <el-input-number
-                :model-value="i + 1"
-                disabled
-                :controls="false"
-                style="width: 48px"
-              />
-              <el-input
-                :model-value="(step as Record<string, unknown>).action as string"
-                @update:model-value="updateStepField(i, 'action', $event)"
-                placeholder="操作"
-                style="flex: 2"
-              />
-              <el-input
-                :model-value="((step as Record<string, unknown>).expected_result as string) || ''"
-                @update:model-value="updateStepField(i, 'expected_result', $event)"
-                placeholder="预期结果"
-                style="flex: 2"
-              />
-              <el-button text type="danger" @click="removeEditStep(i)">删除</el-button>
-            </div>
-            <el-button size="small" @click="addEditStep">+ 添加步骤</el-button>
-          </div>
-        </el-form-item>
-        <el-form-item label="预期结果" required
-          ><el-input v-model="editingCase.expected_result" type="textarea" :rows="2"
-        /></el-form-item>
-      </el-form>
-      <template #footer
-        ><el-button @click="editDialogVisible = false">取消</el-button
-        ><el-button type="primary" @click="saveEdit">保存修改</el-button></template
-      >
-    </el-dialog>
-
-    <!-- 保存结果对话框（Task2: 由独立 save_result 步改为弹窗） -->
-    <el-dialog
-      v-model="saveResultDialogVisible"
-      title="保存结果"
-      width="560px"
-      :close-on-click-modal="false"
-      destroy-on-close
-    >
-      <template v-if="store.saveResult">
-        <el-result
-          :icon="
-            store.saveResult.status === 'saved'
-              ? 'success'
-              : store.saveResult.status === 'partial_saved'
-                ? 'warning'
-                : 'error'
-          "
-          :title="
-            store.saveResult.status === 'saved'
-              ? '保存成功'
-              : store.saveResult.status === 'partial_saved'
-                ? '部分保存成功'
-                : '保存失败'
-          "
-        >
-          <template #extra>
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="成功数量">{{
-                store.saveResult.saved_count
-              }}</el-descriptions-item>
-              <el-descriptions-item label="失败数量">{{
-                store.saveResult.failed_count
-              }}</el-descriptions-item>
-              <el-descriptions-item label="Token 消耗">
-                <template v-if="store.batchCost">
-                  <span>{{ store.batchCost.totalTokens.toLocaleString() }}</span>
-                  <span class="cost-detail"
-                    >（输入 {{ store.batchCost.totalPromptTokens.toLocaleString() }} / 输出
-                    {{ store.batchCost.totalCompletionTokens.toLocaleString() }}）</span
-                  >
-                </template>
-                <el-icon v-else class="spin-icon" :size="14" color="#909399"><Loading /></el-icon>
-              </el-descriptions-item>
-              <el-descriptions-item label="估算成本">
-                <template v-if="store.batchCost">
-                  <span>&yen;{{ (store.batchCost.totalCostUsd * 7.25).toFixed(2) }}</span>
-                  <span class="cost-detail"
-                    >（${{ store.batchCost.totalCostUsd.toFixed(4) }}）</span
-                  >
-                </template>
-                <el-icon v-else class="spin-icon" :size="14" color="#909399"><Loading /></el-icon>
-              </el-descriptions-item>
-            </el-descriptions>
-            <div v-if="store.saveResult.failures.length > 0" class="failure-list">
-              <h4>失败明细</h4>
-              <div v-for="(f, i) in store.saveResult.failures" :key="i" class="failure-item">
-                <el-tag type="danger" size="small">{{ f.title || f.client_id }}</el-tag
-                ><span>{{ f.reason }}</span>
-              </div>
-            </div>
-          </template>
-        </el-result>
-      </template>
-      <template v-else-if="store.saveError">
-        <ErrorState title="保存失败" :reason="store.saveError" retryable @retry="handleSave" />
-      </template>
-      <template #footer>
-        <el-button @click="saveResultDialogVisible = false">关闭</el-button>
-        <el-button type="primary" @click="goToCaseList">查看已保存用例</el-button>
-        <el-button @click="handleReset">重新生成</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- UI 上传对话框 -->
-    <el-dialog
-      v-model="store.uiUploadDialogVisible"
-      title="上传 UI 页面"
-      width="500px"
-      destroy-on-close
-    >
-      <el-upload
-        ref="uiUploadRef"
-        action=""
-        :auto-upload="false"
-        :limit="20"
-        :multiple="true"
-        accept=".png,.jpg,.jpeg,.gif,.webp,.bmp"
-        drag
-        :on-change="handleUIFileChange"
-      >
-        <el-icon :size="48" color="#c0c4cc"><Upload /></el-icon>
-        <div>拖拽或点击上传 UI 页面截图</div>
-        <template #tip
-          ><div class="upload-tip">支持 PNG/JPG/GIF/WebP/BMP，单次最多 20 张</div></template
-        >
-      </el-upload>
-      <template #footer
-        ><el-button @click="store.uiUploadDialogVisible = false">取消</el-button
-        ><el-button type="primary" :loading="store.uiUploading" @click="handleUIUploadSubmit"
-          >上传并解析</el-button
-        ></template
-      >
-    </el-dialog>
-
-    <!-- 系统用例选择对话框 -->
-    <el-dialog
-      v-model="systemCaseSelectDialogVisible"
-      title="从系统用例导入"
-      width="700px"
-      destroy-on-close
-    >
-      <el-table
-        :data="systemCases"
-        size="small"
-        stripe
-        @selection-change="handleSystemCaseSelectionChange"
-      >
-        <el-table-column type="selection" width="50" />
-        <el-table-column prop="title" label="用例标题" show-overflow-tooltip />
-        <el-table-column prop="module" label="模块" width="120" show-overflow-tooltip />
-        <el-table-column prop="case_type" label="类型" width="80" />
-      </el-table>
-      <template #footer
-        ><el-button @click="systemCaseSelectDialogVisible = false">取消</el-button
-        ><el-button
-          type="primary"
-          :disabled="selectedSystemCaseIds.length === 0"
-          @click="handleImportSystemCases"
-          >导入选中 ({{ selectedSystemCaseIds.length }})</el-button
-        ></template
-      >
-    </el-dialog>
+    <SmartGenerateDialogs
+      v-model:editVisible="editDialogVisible"
+      v-model:saveResultVisible="saveResultDialogVisible"
+      v-model:systemCaseVisible="systemCaseSelectDialogVisible"
+      :editing-case="editingCase"
+      :editing-client-id="editingClientId"
+      :save-mode="saveMode"
+      @save="handleSave"
+      @reset="handleReset"
+      @go-to-case-list="goToCaseList"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, WarningFilled, Loading, Upload, Picture } from '@element-plus/icons-vue'
+import { ArrowLeft, WarningFilled, Loading, Upload, Picture, MagicStick, Document, Download } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSmartGenerationStore } from '@/store/smartGeneration'
 import type { QualityStatus, SmartPreviewCase } from '@/store/smartGeneration'
@@ -1080,6 +905,7 @@ import request from '@/utils/request'
 import ErrorState from './components/ErrorState.vue'
 import QualityDonutChart from './components/QualityDonutChart.vue'
 import PreviewCaseItem from './components/PreviewCaseItem.vue'
+import SmartGenerateDialogs from './components/SmartGenerateDialogs.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -1089,10 +915,7 @@ const projects = ref<{ id: number; name: string }[]>([])
 const requirementFiles = ref<{ id: number; file_name: string; original_name: string }[]>([])
 const testPoints = ref<{ id: number; name: string; test_point: string; module: string }[]>([])
 const saveMode = ref<'draft' | 'formal' | 'passed_only'>('draft')
-const uiUploadFiles = ref<File[]>([])
 const systemCaseSelectDialogVisible = ref(false)
-const systemCases = ref<{ id: number; title: string; module: string; case_type: string }[]>([])
-const selectedSystemCaseIds = ref<number[]>([])
 const editDialogVisible = ref(false)
 const editingCase = ref<SmartPreviewCase | null>(null)
 const editingClientId = ref<string>('')
@@ -1258,21 +1081,6 @@ function historyParseStatusLabel(s: string) {
 // 暴露给子组件使用
 void qualityTagType
 
-function handleUIFileChange(_file: unknown, fileList: unknown[]) {
-  uiUploadFiles.value = fileList.map((f) => (f as { raw: File }).raw).filter(Boolean)
-}
-
-async function handleUIUploadSubmit() {
-  if (uiUploadFiles.value.length === 0) {
-    ElMessage.warning('请选择要上传的文件')
-    return
-  }
-  await store.uploadUIScreens(uiUploadFiles.value)
-  uiUploadFiles.value = []
-  store.uiUploadDialogVisible = false
-  ElMessage.success('上传成功，正在后台解析')
-}
-
 function extractListData(resp: unknown) {
   const data = (resp as { data?: unknown })?.data || resp
   return Array.isArray(data) ? data : (data as { items?: unknown[] })?.items || []
@@ -1315,21 +1123,6 @@ async function loadTestPoints() {
     testPoints.value = []
   }
 }
-async function loadSystemCases() {
-  if (!store.selectedProjectId) {
-    systemCases.value = []
-    return
-  }
-  try {
-    systemCases.value = extractListData(
-      await request.get(
-        `/api/v1/test-case/?project_id=${store.selectedProjectId}&page=1&page_size=200`
-      )
-    ) as { id: number; title: string; module: string; case_type: string }[]
-  } catch {
-    systemCases.value = []
-  }
-}
 
 watch(
   () => store.selectedProjectId,
@@ -1347,9 +1140,6 @@ watch(
     }
   }
 )
-watch(systemCaseSelectDialogVisible, (val) => {
-  if (val) loadSystemCases()
-})
 
 // Task2: 点卡片即确认 task，不再分离"进入生成"动作
 function selectTask(task: 'new_feature' | 'history_update') {
@@ -1382,23 +1172,6 @@ async function handleHistoryAssetFileChange(uploadFile: unknown) {
   } catch (e: unknown) {
     // Task8.1: 透出真实原因，兜底才用通用文案
     ElMessage.error(extractErrorDetail(e, '上传失败'))
-  }
-}
-
-function handleSystemCaseSelectionChange(rows: unknown[]) {
-  selectedSystemCaseIds.value = rows.map((r) => (r as { id: number }).id)
-}
-
-async function handleImportSystemCases() {
-  if (selectedSystemCaseIds.value.length === 0) return
-  try {
-    await store.importSystemCasesAsHistory(selectedSystemCaseIds.value)
-    ElMessage.success('系统用例导入成功')
-    systemCaseSelectDialogVisible.value = false
-    selectedSystemCaseIds.value = []
-  } catch (e: unknown) {
-    // Task8.1: 透出真实原因
-    ElMessage.error(extractErrorDetail(e, '导入失败'))
   }
 }
 
@@ -1616,42 +1389,6 @@ function openEditDialog(c: SmartPreviewCase) {
   editDialogVisible.value = true
 }
 
-function updateStepField(idx: number, field: string, value: string) {
-  if (!editingCase.value) return
-  const steps = [...editingCase.value.steps]
-  const step = { ...(steps[idx] as Record<string, unknown>) }
-  step[field] = value
-  steps[idx] = step
-  editingCase.value.steps = steps
-}
-function removeEditStep(index: number) {
-  editingCase.value?.steps.splice(index, 1)
-}
-function addEditStep() {
-  editingCase.value?.steps.push({
-    step: editingCase.value.steps.length + 1,
-    action: '',
-    expected_result: '',
-  })
-}
-
-function saveEdit() {
-  if (!editingCase.value) return
-  const target = store.previewCases.find((c) => c.client_id === editingClientId.value)
-  if (target) {
-    target.title = editingCase.value.title
-    target.module = editingCase.value.module
-    target.priority = editingCase.value.priority
-    target.precondition = editingCase.value.precondition
-    target.steps = editingCase.value.steps
-    target.expected_result = editingCase.value.expected_result
-    target.dirty = true
-    store.recalcQualitySummary()
-  }
-  editDialogVisible.value = false
-  ElMessage.success('修改已保存到预览')
-}
-
 async function handleSave() {
   if (saveMode.value === 'formal') {
     try {
@@ -1793,7 +1530,7 @@ function handleKeydown(event: KeyboardEvent) {
   gap: 12px;
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--color-border-light);
 }
 .task-cards {
   display: grid;
@@ -1801,7 +1538,7 @@ function handleKeydown(event: KeyboardEvent) {
   gap: 20px;
 }
 .task-card {
-  border: 2px solid #e4e7ed;
+  border: 2px solid var(--color-border);
   border-radius: 12px;
   padding: 24px;
   text-align: center;
@@ -1810,15 +1547,15 @@ function handleKeydown(event: KeyboardEvent) {
   background: #fff;
 }
 .task-card:hover {
-  border-color: #409eff;
+  border-color: var(--color-primary);
   box-shadow: 0 2px 12px rgba(64, 158, 255, 0.15);
 }
 .task-card.active {
-  border-color: #409eff;
+  border-color: var(--color-primary);
   background: #ecf5ff;
 }
 .task-card.primary {
-  border-color: #409eff;
+  border-color: var(--color-primary);
 }
 .task-card.disabled {
   opacity: 0.7;
@@ -1832,7 +1569,7 @@ function handleKeydown(event: KeyboardEvent) {
   font-size: 18px;
 }
 .task-card p {
-  color: #909399;
+  color: var(--color-info);
   margin: 0 0 16px;
   font-size: 14px;
 }
@@ -1843,7 +1580,7 @@ function handleKeydown(event: KeyboardEvent) {
   margin: 0 4px;
 }
 .task-btn-hint {
-  color: #409eff;
+  color: var(--color-primary);
   font-size: 13px;
   margin-top: 8px;
 }
@@ -1858,7 +1595,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 .optional-hint {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-info);
   margin-top: 4px;
 }
 .ui-project-row {
@@ -1868,7 +1605,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 .ui-screen-section {
   margin-top: 16px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
 }
@@ -1894,7 +1631,7 @@ function handleKeydown(event: KeyboardEvent) {
   gap: 12px;
 }
 .ui-screen-card {
-  border: 2px solid #e4e7ed;
+  border: 2px solid var(--color-border);
   border-radius: 8px;
   padding: 8px;
   cursor: pointer;
@@ -1902,19 +1639,19 @@ function handleKeydown(event: KeyboardEvent) {
   text-align: center;
 }
 .ui-screen-card:hover {
-  border-color: #409eff;
+  border-color: var(--color-primary);
   box-shadow: 0 2px 8px rgba(64, 158, 255, 0.12);
 }
 .ui-screen-card.selected {
-  border-color: #409eff;
+  border-color: var(--color-primary);
   background: #ecf5ff;
 }
 .ui-screen-card.parse-failed {
-  border-color: #f56c6c;
+  border-color: var(--color-danger);
   opacity: 0.8;
 }
 .ui-screen-card.parse-pending {
-  border-color: #e6a23c;
+  border-color: var(--color-warning);
   opacity: 0.85;
 }
 .screen-thumb {
@@ -1922,7 +1659,7 @@ function handleKeydown(event: KeyboardEvent) {
   height: 80px;
   overflow: hidden;
   border-radius: 4px;
-  background: #f5f7fa;
+  background: var(--color-bg-page);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1951,18 +1688,14 @@ function handleKeydown(event: KeyboardEvent) {
 }
 .screen-elements {
   font-size: 11px;
-  color: #909399;
+  color: var(--color-info);
 }
 .screen-error {
   font-size: 11px;
-  color: #f56c6c;
+  color: var(--color-danger);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.upload-tip {
-  font-size: 12px;
-  color: #909399;
 }
 .advanced-collapse {
   max-width: 600px;
@@ -1996,9 +1729,9 @@ function handleKeydown(event: KeyboardEvent) {
 }
 .evidence-item {
   font-size: 13px;
-  color: #606266;
+  color: var(--color-text-regular);
   padding: 2px 6px;
-  background: #f5f7fa;
+  background: var(--color-bg-page);
   border-radius: 4px;
 }
 .progress-content {
@@ -2018,7 +1751,7 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 .progress-hint {
-  color: #909399;
+  color: var(--color-info);
   margin-top: 12px;
 }
 .preview-skeleton {
@@ -2042,7 +1775,7 @@ function handleKeydown(event: KeyboardEvent) {
   gap: 12px;
   margin-bottom: 16px;
   padding: 8px 12px;
-  background: #f5f7fa;
+  background: var(--color-bg-page);
   border-radius: 6px;
   flex-wrap: wrap;
 }
@@ -2065,45 +1798,45 @@ function handleKeydown(event: KeyboardEvent) {
   margin: 0 0 12px;
 }
 .save-warning {
-  color: #e6a23c;
+  color: var(--color-warning);
   font-size: 13px;
   margin-top: 8px;
 }
 .preview-list-header {
-  color: #606266;
+  color: var(--color-text-regular);
   font-size: 13px;
   margin-bottom: 8px;
 }
 .preview-case-card {
   margin-bottom: 12px;
-  border-left: 4px solid #e4e7ed;
+  border-left: 4px solid var(--color-border);
 }
 .preview-case-card.quality-passed {
-  border-left-color: #67c23a;
+  border-left-color: var(--color-success);
 }
 .preview-case-card.quality-warning {
-  border-left-color: #e6a23c;
+  border-left-color: var(--color-warning);
 }
 .preview-case-card.quality-pending_review {
-  border-left-color: #409eff;
+  border-left-color: var(--color-primary);
 }
 .preview-case-card.quality-rejected {
-  border-left-color: #f56c6c;
+  border-left-color: var(--color-danger);
 }
 .preview-case-card.classification-REUSE_CASE {
-  border-left-color: #67c23a;
+  border-left-color: var(--color-success);
 }
 .preview-case-card.classification-UPDATE_CASE {
-  border-left-color: #e6a23c;
+  border-left-color: var(--color-warning);
 }
 .preview-case-card.classification-NEW_CASE {
-  border-left-color: #409eff;
+  border-left-color: var(--color-primary);
 }
 .preview-case-card.classification-DEPRECATED_CASE {
-  border-left-color: #f56c6c;
+  border-left-color: var(--color-danger);
 }
 .preview-case-card.classification-CONFIRM_REQUIRED {
-  border-left-color: #909399;
+  border-left-color: var(--color-info);
 }
 .preview-list-virtual {
   max-height: 70vh;
@@ -2112,34 +1845,6 @@ function handleKeydown(event: KeyboardEvent) {
 }
 .virtual-item {
   will-change: transform;
-}
-.failure-list {
-  margin-top: 16px;
-  text-align: left;
-}
-.failure-list h4 {
-  margin: 0 0 8px;
-}
-.failure-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  font-size: 13px;
-}
-.cost-detail {
-  color: #909399;
-  font-size: 12px;
-  margin-left: 8px;
-}
-.edit-steps {
-  width: 100%;
-}
-.edit-step-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 8px;
 }
 .history-asset-section {
   width: 100%;
@@ -2150,7 +1855,7 @@ function handleKeydown(event: KeyboardEvent) {
   margin-bottom: 12px;
 }
 .history-asset-list {
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px;
 }
@@ -2178,7 +1883,7 @@ function handleKeydown(event: KeyboardEvent) {
   margin-bottom: 8px;
 }
 .classification-total {
-  color: #909399;
+  color: var(--color-info);
   font-size: 13px;
 }
 .classification-group {
@@ -2191,34 +1896,34 @@ function handleKeydown(event: KeyboardEvent) {
   margin-bottom: 8px;
   padding: 8px 12px;
   border-radius: 6px;
-  background: #f5f7fa;
+  background: var(--color-bg-page);
 }
 .group-header.group-REUSE_CASE {
-  border-left: 4px solid #67c23a;
+  border-left: 4px solid var(--color-success);
 }
 .group-header.group-UPDATE_CASE {
-  border-left: 4px solid #e6a23c;
+  border-left: 4px solid var(--color-warning);
 }
 .group-header.group-NEW_CASE {
-  border-left: 4px solid #409eff;
+  border-left: 4px solid var(--color-primary);
 }
 .group-header.group-DEPRECATED_CASE {
-  border-left: 4px solid #f56c6c;
+  border-left: 4px solid var(--color-danger);
 }
 .group-header.group-CONFIRM_REQUIRED {
-  border-left: 4px solid #909399;
+  border-left: 4px solid var(--color-info);
 }
 .group-action-hint {
-  color: #909399;
+  color: var(--color-info);
   font-size: 13px;
 }
 .confidence-hint {
   font-size: 12px;
-  color: #e6a23c;
+  color: var(--color-warning);
 }
 .classification-reason {
   font-size: 12px;
-  color: #909399;
+  color: var(--color-info);
   margin-left: auto;
   max-width: 300px;
   overflow: hidden;
@@ -2245,14 +1950,14 @@ function handleKeydown(event: KeyboardEvent) {
   border: 1px solid #fde2e2;
 }
 .diff-old h5 {
-  color: #f56c6c;
+  color: var(--color-danger);
 }
 .diff-new {
   background: #f0f9eb;
   border: 1px solid #e1f3d8;
 }
 .diff-new h5 {
-  color: #67c23a;
+  color: var(--color-success);
 }
 .diff-field {
   margin-bottom: 4px;
