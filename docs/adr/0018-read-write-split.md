@@ -5,7 +5,7 @@
 - **作者**: AI TestMaster 团队
 - **评审**: Phase 1 Task 2 读写分离实施
 - **关联规则**: `.trae/rules/project_rules.md` 第三章"架构设计"、第五章"性能要求"
-- **关联路线图**: `docs/architecture-competitive-analysis.md` 第六章 Phase 1
+- **关联路线图**: `docs/架构对标分析与优化路线图.md` 第六章 Phase 1
 
 ## 1. 背景 (Context)
 
@@ -146,5 +146,5 @@ v2.0 路线图 Phase 1 要求 0-3 个月内完成 MySQL 读写分离，目标：
 
 - [MySQL 8.0 Replication Documentation](https://dev.mysql.com/doc/refman/8.0/en/replication.html)
 - [SQLAlchemy 2.0 AsyncSession](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html)
-- `docs/phase1-implementation-plan.md` 第三章 P1-2 WBS
-- `docs/architecture-competitive-analysis.md` 第六章 Phase 1
+- `docs/一期（0-3月）落地计划.md` 第三章 P1-2 WBS
+- `docs/架构对标分析与优化路线图.md` 第六章 Phase 1
