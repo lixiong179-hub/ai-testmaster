@@ -13,8 +13,7 @@
     "lint:fix": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
     "test": "vitest",
     "test:run": "vitest run",
-    "cypress:open": "cypress open",
-    "cypress:run": "cypress run"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@vue-flow/additional-components": "^1.3.3",
@@ -34,16 +33,14 @@
     "@vue/eslint-config-prettier": "^8.0.0",
     "@vue/eslint-config-typescript": "^12.0.0",
     "@vue/test-utils": "^2.4.6",
-    "cypress": "^14.5.4",
-    "cypress-file-upload": "^5.0.8",
     "eslint": "^8.49.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
     "eslint-plugin-vue": "^9.17.0",
     "happy-dom": "^20.9.0",
     "prettier": "^3.0.3",
+    "rollup-plugin-visualizer": "^5.12.0",
     "sass-embedded": "^1.99.0",
-    "terser": "^5.46.1",
     "typescript": "^5.2.2",
     "unplugin-auto-import": "^21.0.0",
     "unplugin-vue-components": "^32.1.0",

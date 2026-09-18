@@ -226,7 +226,6 @@ Iteration → [IterationInput, PipelineRun] → PipelineStep → Artifact
 | unplugin-auto-import | 自动导入 |
 | sass-embedded | SCSS预处理 |
 | Vitest | 单元测试 |
-| Cypress | E2E测试 |
 | Playwright | E2E测试 |
 
 ### 4.3 前端结构
@@ -311,8 +310,7 @@ tests/
 
 ### 5.2 前端测试
 - **Vitest**: 单元测试 (`npm run test`)
-- **Cypress**: E2E测试 (`npm run cypress:open`)
-- **Playwright**: E2E测试 (`e2e-playwright/`)
+- **Playwright**: E2E测试 (`npm run test:e2e`, 用例目录 `e2e-playwright/`)
 
 ### 5.3 脚本工具 (49个)
 路径: `scripts/`

@@ -1,0 +1,71 @@
+================================================================================
+R0-1 仓库清理清单存档 (cleanup manifest)
+================================================================================
+执行日期   : 2026-09-18
+清理范围   : 项目根目录（D:\PythonFile\ai-testmaster\），不递归 app/ src/ tests/
+清理方式   : 直接删除（候选文件均已被 .gitignore 覆盖，未被 git 跟踪，删除不产生 diff）
+决策依据   : 《R0 组执行计划》§一（R0-1 = 大档清理）+ §六已确认「直接删除 + 落盘 manifest 存档」
+
+【重要说明】
+本文件为**存档重建版**。原始逐文件清单（含每条路径 + 字节数 + 合计释放空间）
+随 docs/ 目录于 2026-09-18 被外部进程的 `git clean` 一并删除（该文件当时未被 git
+跟踪，无恢复途径）。本版依据执行计划中已核实的分类与计数重建，保留全部可复核的
+结构化事实（类别 / 数量 / 目录 / 保留边界），逐文件明细不可复原。
+
+--------------------------------------------------------------------------------
+一、已删除内容（按类别）
+--------------------------------------------------------------------------------
+[文件类]
+  1) 根目录 `_*` 临时产物                52 个
+     （形如 _backend.err.log、_diag_result.txt、_diff_iter.txt、_check_result.txt、
+       _e2e_out.log、_starter6.log、_tmp_cov.cover、_build_a2.txt 等）
+  2) 根目录 `*.log`                     130 个
+  3) 根目录 `*.cover` 覆盖率残留          17 个
+  4) 根目录散落 `*.txt`（未被跟踪者）      以 `_*.txt` 为主，均被 .gitignore 第 104 行 `/*.txt` 覆盖
+
+[目录类]
+  1) venv_backup/        约 201 MB   虚拟环境备份（非缓存；需重建时 python -m venv + 重装 requirements.txt）
+  2) htmlcov/            约  15 MB   HTML 覆盖率报告输出
+  3) .mypy_cache/                   mypy 缓存
+  4) .ruff_cache/                   ruff 缓存
+  5) test-results/                  Playwright/测试结果输出
+
+  合计释放空间：约 216 MB 以上（以 venv_backup 为主）
+
+--------------------------------------------------------------------------------
+二、明确保留（删除边界，均已逐项核验存在）
+--------------------------------------------------------------------------------
+[A] 10 个被 git 跟踪的根级 .txt —— 一律不删
+    check_result.txt                  check_result2.txt
+    integrity_check_results.txt       modified_files_list.txt
+    modified_python_files.txt         recent_modified.txt
+    requirements.txt                  review_progress.txt
+    test_requirement_upload.txt       token.txt
+
+[B] 数据库文件 —— 可能含开发数据，不在删除范围
+    ai_testmaster.db  (约 180 KB)
+    test.db           (约 208 KB)
+
+[C] 其它
+    .git/  .workbuddy/（含 memory/）  node_modules/  venv/
+    以及 app/、src/、tests/、docs/ 等源码与文档目录（本轮完全不触碰）
+
+[D] .gitignore —— 未做任何修改
+    已核实覆盖关系：`*.cover`@41、`*.log`@52、`/*.txt`@104
+    ⚠️ 禁止新增裸规则 `_*`：会误伤 app/api/v1/endpoints/ 下 17 个真实源码文件
+       （_case_quality_schemas.py 等）；如确需，必须写锚定根目录的 `/_*`
+
+--------------------------------------------------------------------------------
+三、完成判据复核结果（2026-09-18 实测）
+--------------------------------------------------------------------------------
+  ls -1 _* 2>/dev/null | wc -l                     -> 0     ✅
+  ls -1 *.log 2>/dev/null | wc -l                   -> 0     ✅
+  ls -1 *.cover 2>/dev/null | wc -l                 -> 0     ✅
+  test -e venv_backup / htmlcov / .mypy_cache / .ruff_cache / test-results
+                                                    -> 均不存在 ✅
+  10 个被跟踪 .txt + ai_testmaster.db + test.db     -> 均存在   ✅
+  git status --porcelain（本次清理未新增任何改动项）  -> 无新增    ✅
+
+  备注：`.pytest_cache/` 在清理后被后续测试运行重新生成（属正常行为，可随时再删）。
+
+================================================================================
