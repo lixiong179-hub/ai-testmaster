@@ -5,7 +5,7 @@
 - **作者**: AI TestMaster 团队
 - **评审**: Phase 1 Task 3 分布式执行引擎实施
 - **关联规则**: `.trae/rules/project_rules.md` 第三章"架构设计"、第五章"性能要求"
-- **关联路线图**: `docs/architecture-competitive-analysis.md` 第六章 Phase 1
+- **关联路线图**: `docs/架构对标分析与优化路线图.md` 第六章 Phase 1
 
 ## 1. 背景 (Context)
 
@@ -163,5 +163,5 @@ v2.0 路线图 Phase 1 要求 0-6 个月内完成分布式执行引擎，目标�
 
 - [Celery 5.4 Documentation](https://docs.celeryq.dev/en/stable/)
 - [Celery Best Practices](https://docs.celeryq.dev/en/stable/userguide/tasks.html#best-practices)
-- `docs/phase1-implementation-plan.md` 第四章 P1-3 WBS
-- `docs/architecture-competitive-analysis.md` 第六章 Phase 1
+- `docs/一期（0-3月）落地计划.md` 第四章 P1-3 WBS
+- `docs/架构对标分析与优化路线图.md` 第六章 Phase 1
