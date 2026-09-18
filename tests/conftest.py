@@ -13,6 +13,11 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.util.concurrency import greenlet_spawn
 from httpx import AsyncClient, ASGITransport
 
+# 冻结区不参与测试收集（tests/tasks/_frozen/ 与 ../../app/tasks/_frozen/）。
+# 该目录存放已冻结的 Celery 基础设施，其依赖 celery 已从 requirements.txt 移除；
+# 若被收集，顶层 import celery 会抛 ImportError 而中断全量测试。
+collect_ignore_glob = ["tasks/_frozen/*"]
+
 
 class _SyncBackedAsyncSession:
     """轻量级 AsyncSession 替代品，委托给 sync Session。
@@ -287,7 +292,9 @@ def client(db):
     with ExitStack() as _stack:
         for _mgr in _patch_managers:
             _stack.enter_context(_mgr)
-        with TestClient(app) as c:
+        # 设置 Origin 头模拟真实浏览器，使 CSRF 中间件 Origin/Referer 校验通过
+        # （CORS_ORIGINS 默认含 http://localhost:5173）
+        with TestClient(app, headers={"Origin": "http://localhost:5173"}) as c:
             yield c
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(async_get_db, None)
@@ -594,7 +601,11 @@ async def async_client(async_db):
         for _mgr in _patch_mgrs:
             _stack.enter_context(_mgr)
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"Origin": "http://localhost:5173"},
+        ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
 
@@ -649,7 +660,11 @@ async def async_auth_client(async_db, async_test_user):
         for _mgr in _patch_mgrs:
             _stack.enter_context(_mgr)
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"Origin": "http://localhost:5173"},
+        ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
@@ -705,7 +720,11 @@ async def async_admin_client(async_db, async_admin_user):
         for _mgr in _patch_mgrs:
             _stack.enter_context(_mgr)
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"Origin": "http://localhost:5173"},
+        ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
     app.dependency_overrides.pop(get_current_user, None)

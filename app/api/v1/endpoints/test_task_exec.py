@@ -20,9 +20,7 @@ from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
 from app.models.enums import ExecStatus
-from app.models.project import Project
-from app.models.user import User
-from app.api.v1.endpoints.auth import get_current_user
+from app.api.v1.endpoints.access_deps import require_task_access
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
 from app.services.visibility_config import VisibilityConfigService
 from app.core.exception import create_response
@@ -31,55 +29,17 @@ from loguru import logger
 router = APIRouter()
 
 
-def _verify_task_access(
-    db, task: TestTask, current_user: User
-) -> None:
-    project = db.query(Project).filter(
-        Project.id == task.project_id,
-        Project.user_id == current_user.id
-    ).first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此任务"
-        )
-
-
-async def _verify_task_access_async(
-    db: AsyncSession, task: TestTask, current_user: User
-) -> None:
-    """async 版本的任务权限校验，供 async 端点内联调用。"""
-    result = await db.execute(
-        select(Project).where(
-            Project.id == task.project_id,
-            Project.user_id == current_user.id
-        )
-    )
-    project = result.scalars().first()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="无权限操作此任务"
-        )
-
-
 @router.post("/{task_id}/run")
 async def run_test_task(
     task_id: int,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
+    task: TestTask = Depends(require_task_access),
+    db: AsyncSession = Depends(async_get_db)
 ):
-    """执行测试任务"""
-    task_result = await db.execute(
-        select(TestTask).where(TestTask.id == task_id)
-    )
-    task = task_result.scalars().first()
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="测试任务不存在"
-        )
-    await _verify_task_access_async(db, task, current_user)
+    """执行测试任务
+
+    任务「存在性 + 归属」校验已由 require_task_access 依赖完成
+    （不存在 404、非本人项目 403），并直接注入 task 对象。
+    """
     # 提前提取 project_id，避免 task 对象跨会话访问属性
     project_id = task.project_id
 
@@ -121,20 +81,11 @@ async def run_test_task(
 @router.get("/{task_id}/summary")
 async def get_task_summary(
     task_id: int,
-    db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
+    task: TestTask = Depends(require_task_access),
+    db: AsyncSession = Depends(async_get_db)
 ):
-    """获取任务执行摘要"""
+    """获取任务执行摘要（存在性与归属校验由 require_task_access 完成）"""
     try:
-        task_result = await db.execute(
-            select(TestTask).where(TestTask.id == task_id)
-        )
-        task = task_result.scalars().first()
-        if not task:
-            raise HTTPException(status_code=404, detail="任务不存在")
-
-        await _verify_task_access_async(db, task, current_user)
-
         stats_result = await db.execute(
             select(
                 func.count(TestResult.id).label('total'),
