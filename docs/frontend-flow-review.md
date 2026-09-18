@@ -1,0 +1,589 @@
+# AI-TestMaster 前端业务流程评审报告
+
+> 评审范围：从前端视角对全部业务操作流程开展全面排查，涵盖流程断层、不合理设计、功能缺失三大维度。
+> 评审基线：后端已实现的全部 API 端点与业务流程（详见 `docs/business_process_overview.md`）。
+> 前端代码基线：`src/` 目录下 Vue 3 + Element Plus + Pinia 应用。
+
+---
+
+## 目录
+
+- [一、功能缺失：后端已开发但前端未配套](#一功能缺失后端已开发但前端未配套)
+- [二、流程断层：连续操作间缺少合理衔接](#二流程断层连续操作间缺少合理衔接)
+- [三、不合理流程设计：违背用户习惯或存在冗余](#三不合理流程设计违背用户习惯或存在冗余)
+- [四、改进优先级排序与实施路线图](#四改进优先级排序与实施路线图)
+
+---
+
+## 一、功能缺失：后端已开发但前端未配套
+
+### 1.1 自愈管理完全缺失
+
+**问题描述**：后端已完整实现自愈系统（失败分析、审计记录、配置管理、回滚、Prometheus 指标），包含 `GET /self-healing/audits`、`PUT /self-healing/config`、`POST /self-healing/audits/{id}/rollback` 等端点。前端无对应的 API 服务文件、无视图页面、无菜单入口。
+
+**涉及文件**：
+- 后端：[self_healing.py](file:///d:/PythonFile/ai-testmaster/app/api/v1/endpoints/self_healing.py)、[self_healing/](file:///d:/PythonFile/ai-testmaster/app/services/self_healing/)
+- 前端缺失：无 `src/api/selfHealing.ts`、无 `src/views/self-healing/` 目录
+
+**影响分析**：
+- 测试执行中元素定位失败后，自愈引擎自动修复了定位器，但用户无法查看修复记录、无法审批低置信度修复、无法手动回滚错误修复
+- 项目级自愈配置（启用/禁用、策略选择、Token 限额）无法通过前端修改
+- 自愈审计日志不可查，缺乏可追溯性
+
+**改进方案**：
+1. 新建 `src/api/selfHealing.ts`，封装 audits 列表/详情、config 查询/更新、rollback 接口
+2. 在项目详情页新增"自愈配置"Tab，提供开关、策略多选、Token 限额输入
+3. 在执行中心或用例详情页新增"自愈记录"入口，展示审计列表（含旧/新选择器、置信度、失败类型）
+4. 支持低置信度记录的人工审批与回滚操作
+
+---
+
+### 1.2 Bug 缺陷管理完全缺失
+
+**问题描述**：后端已实现 `GET /bugs/list` 端点，支持按项目、严重级别、来源、UX 分类、状态多维度筛选。前端无 API 文件、无视图页面。
+
+**涉及文件**：
+- 后端：[bug.py](file:///d:/PythonFile/ai-testmaster/app/api/v1/endpoints/bug.py)
+- 前端缺失：无 `src/api/bug.ts`、无 Bug 列表页面
+
+**影响分析**：
+- 测试执行发现的缺陷无法在前端查看，用户需直接查数据库或调用 API
+- 快速测试流程中 `QuickDefectList.vue` 组件已存在，但通用 Bug 列表页缺失
+
+**改进方案**：
+1. 新建 `src/api/bug.ts`，封装 Bug 列表查询接口
+2. 在执行中心或报告中心新增"缺陷列表"页面，支持按项目/严重级别/状态筛选
+3. 在测试报告详情页关联展示对应 Bug
+
+---
+
+### 1.3 Prompt 模板管理完全缺失
+
+**问题描述**：后端已实现 Prompt 模板的版本注册、默认版本切换、回滚、运行时内容获取（DB 优先 + 硬编码 Fallback）。前端无 API 文件、无管理页面。
+
+**涉及文件**：
+- 后端：[prompt_template.py](file:///d:/PythonFile/ai-testmaster/app/api/v1/endpoints/prompt_template.py)、[prompt_registry.py](file:///d:/PythonFile/ai-testmaster/app/services/prompt_registry.py)
+- 前端缺失：无 `src/api/promptTemplate.ts`、无管理页面
+
+**影响分析**：
+- 运维人员无法通过前端管理 Prompt 版本，只能通过 API 或直接操作数据库
+- Prompt 回滚、默认版本切换等操作不可视
+- 特性开关与 A/B 测试联动 Prompt 切换的效果无法在前端验证
+
+**改进方案**：
+1. 在系统管理下新增"Prompt 模板"菜单项
+2. 新建 Prompt 模板列表页，支持按 key 分组查看版本、内容预览、SHA256 哈希对比
+3. 提供版本切换、回滚操作按钮，操作前需二次确认
+
+---
+
+### 1.4 A/B 测试管理完全缺失
+
+**问题描述**：后端已实现 A/B 测试指标记录、实验汇总、实验列表查询。前端无 API 文件、无管理页面。
+
+**涉及文件**：
+- 后端：[ab_test.py](file:///d:/PythonFile/ai-testmaster/app/api/v1/endpoints/ab_test.py)、[ab_test_service.py](file:///d:/PythonFile/ai-testmaster/app/services/ab_test_service.py)
+- 前端缺失：无 `src/api/abTest.ts`、无 A/B 测试页面
+
+**影响分析**：
+- 特性开关灰度发布后，无法在前端查看 control/treatment 对比数据
+- 实验指标（步骤可执行率、需求对齐率等 9 项指标）的统计结果不可视
+
+**改进方案**：
+1. 新建 `src/api/abTest.ts`
+2. 在运营看板下新增"A/B 实验"页面
+3. 展示实验列表、各变体指标对比（均值/标准差/样本数），支持图表可视化
+
+---
+
+### 1.5 用户注册功能缺失
+
+**问题描述**：后端已实现 `POST /auth/register` 端点，支持用户名/密码/邮箱注册。前端 [auth.ts](file:///d:/PythonFile/ai-testmaster/src/api/auth.ts) 仅包含 `generateCaptcha`、`login`、`getCurrentUser` 三个函数，无注册接口。登录页 [login/index.vue](file:///d:/PythonFile/ai-testmaster/src/views/login/index.vue) 无注册入口。
+
+**影响分析**：
+- 新用户无法通过前端自助注册，需管理员在系统管理中手动创建
+- 对于开放注册的部署场景，前端完全不支持
+
+**改进方案**：
+1. 在 `auth.ts` 中新增 `register` 函数
+2. 在登录页底部新增"注册账号"链接，跳转或弹窗展示注册表单
+3. 注册表单包含：用户名（3-50 字符）、密码（≥8 位）、邮箱（可选）、验证码
+
+---
+
+### 1.6 会话管理功能缺失
+
+**问题描述**：后端已实现 `GET /auth/sessions`（查询当前用户会话列表）、`DELETE /auth/sessions/{id}`（撤销指定会话）、`POST /auth/logout`（登出当前会话）、`POST /auth/logout-all`（登出所有会话）。前端均未实现。
+
+**涉及文件**：
+- 后端：[auth_endpoints.py](file:///d:/PythonFile/ai-testmaster/app/api/v1/endpoints/auth_endpoints.py#L482)
+- 前端：[useMainLayout.ts#L239-L244](file:///d:/PythonFile/ai-testmaster/src/layouts/useMainLayout.ts#L239-L244) — `handleLogout` 仅执行 `localStorage.removeItem('token')`，未调用后端登出 API
+
+**影响分析**：
+- **安全风险**：退出登录不通知后端，refresh_token 未撤销、UserSession 未标记 revoked、token 未加入黑名单。旧 token 在过期前仍然有效
+- 用户无法查看自己在其他设备的登录会话，无法远程踢出可疑会话
+- 多设备登录状态不可见
+
+**改进方案**：
+1. 在 `auth.ts` 中新增 `logout`、`logoutAll`、`getSessions`、`revokeSession` 函数
+2. 修改 `handleLogout` 调用 `authApi.logout()` 后再清理本地状态
+3. 在个人中心页面新增"登录会话"Tab，展示会话列表（设备/IP/最后活跃时间），支持撤销
+
+---
+
+### 1.7 Token 自动刷新机制缺失
+
+**问题描述**：后端已实现 `POST /auth/refresh` 端点，支持用 refresh_token 换取新 access_token。前端 [request.ts](file:///d:/PythonFile/ai-testmaster/src/utils/request.ts#L174-L178) 的 401 处理逻辑是直接清理凭据并跳转登录页，未尝试刷新 token。
+
+**涉及文件**：
+- 后端：[auth_endpoints.py#L424](file:///d:/PythonFile/ai-testmaster/app/api/v1/endpoints/auth_endpoints.py#L424)
+- 前端：[request.ts#L129-L160](file:///d:/PythonFile/ai-testmaster/src/utils/request.ts#L129-L160) — `handleUnauthorized` 直接跳转登录
+
+**影响分析**：
+- access_token 过期后用户被立即踢到登录页，需重新输入用户名密码
+- 长时间操作（如 AI 生成用例需 3 分钟）期间 token 可能过期，导致操作中断丢失上下文
+- 严重影响长会话场景的用户体验
+
+**改进方案**：
+1. 在 `auth.ts` 中新增 `refreshToken` 函数
+2. 在 request.ts 响应拦截器中，当收到 401 时先尝试用 refresh_token 刷新：
+   - 刷新成功 → 用新 token 重发原请求
+   - 刷新失败 → 执行现有的 `handleUnauthorized` 逻辑
+3. 使用请求队列避免并发刷新（多个请求同时 401 时只刷新一次）
+
+---
+
+### 1.8 迭代定稿与 Pipeline 启动接口缺失
+
+**问题描述**：后端已实现 `POST /iteration/{id}/finalize`（迭代定稿）和 `POST /iteration/{id}/pipeline/run`（启动 Pipeline）。前端 [iteration.ts](file:///d:/PythonFile/ai-testmaster/src/api/iteration.ts) 仅包含 CRUD 和 addIterationInput，缺少 finalize 和 runPipeline 函数。
+
+**涉及文件**：
+- 后端：[iteration/_routes.py](file:///d:/PythonFile/ai-testmaster/app/api/v1/endpoints/iteration/_routes.py)
+- 前端：[iteration.ts](file:///d:/PythonFile/ai-testmaster/src/api/iteration.ts#L57-L95) — 无 finalize/runPipeline
+
+**影响分析**：
+- 迭代面板 [IterationPanel.vue](file:///d:/PythonFile/ai-testmaster/src/views/requirement/components/IterationPanel.vue#L62-L76) 的操作下拉菜单只有"编辑"和"删除"，缺少"定稿"和"运行 Pipeline"
+- 用户无法从前端直接触发 Pipeline 执行，需通过回归变更分析页面间接调用
+
+**改进方案**：
+1. 在 `iteration.ts` 中新增 `finalizeIteration` 和 `runPipeline` 函数
+2. 在 IterationPanel 的下拉菜单中根据迭代状态动态添加操作项：
+   - `in_review` 状态：显示"定稿"
+   - `draft` 状态：显示"运行 Pipeline"
+3. 运行 Pipeline 后自动跳转到 PipelineProgress 页面
+
+---
+
+### 1.9 移动端（C 端）配置功能被禁用
+
+**问题描述**：后端已完整实现 ADB 设备管理、移动端执行引擎（`mobile_realtime`/`mobile_smart` 模式）、移动端 AI 执行器。前端 [project/detail.vue](file:///d:/PythonFile/ai-testmaster/src/views/project/detail.vue#L131-L134) 中 C 端设备配置区域显示"C端测试功能正在开发中，设备配置功能暂不可用"。
+
+**涉及文件**：
+- 后端：[adb_controller/](file:///d:/PythonFile/ai-testmaster/app/utils/adb_controller/)、[mobile_ai_executor.py](file:///d:/PythonFile/ai-testmaster/app/services/mobile_ai_executor.py)
+- 前端：[detail.vue#L131-L134](file:///d:/PythonFile/ai-testmaster/src/views/project/detail.vue#L131-L134)
+
+**影响分析**：
+- 移动端项目无法配置设备信息（平台、设备 ID、App 包名等）
+- 移动端用例无法执行，后端能力被浪费
+- 创建任务时无法选择 `mobile_realtime`/`mobile_smart` 执行模式
+
+**改进方案**：
+1. 移除 detail.vue 中的禁用提示，启用设备配置表单
+2. 在执行配置中新增移动端执行模式选项
+3. 在任务执行页面新增 ADB 设备列表查询与选择
+
+---
+
+### 1.10 后验质量评分手动触发缺失
+
+**问题描述**：后端已实现 `POST /quality/posterior/{project_id}` 手动触发后验评分。前端 [caseQuality.ts](file:///d:/PythonFile/ai-testmaster/src/api/caseQuality.ts) 未包含此接口。
+
+**影响分析**：
+- 后验质量评分只能由定时任务自动触发，用户无法手动刷新
+- 质量分析页面展示的 posterior_quality_score 可能是过期数据
+
+**改进方案**：
+1. 在 `caseQuality.ts` 中新增 `triggerPosteriorScoring` 函数
+2. 在用例质量分析页面或项目详情页新增"刷新后验评分"按钮
+
+---
+
+## 二、流程断层：连续操作间缺少合理衔接
+
+### 2.1 退出登录不调用后端 API（安全断层）
+
+**问题描述**：[useMainLayout.ts#L239-L244](file:///d:/PythonFile/ai-testmaster/src/layouts/useMainLayout.ts#L239-L244) 中 `handleLogout` 仅执行：
+```typescript
+localStorage.removeItem('token')
+flowSortStore.reset()
+ElMessage.success('退出登录成功')
+router.push('/login')
+```
+未调用 `POST /auth/logout`，后端 UserSession 未被撤销，refresh_token 仍然有效。
+
+**影响分析**：
+- 安全风险：在公共电脑上退出登录后，攻击者可使用截获的 token 继续访问
+- 会话泄漏：UserSession 表中堆积大量未撤销的"僵尸"会话
+- 黑名单未更新：token 未加入 Redis 黑名单，在过期前持续有效
+
+**改进方案**：
+```typescript
+const handleLogout = async () => {
+  try {
+    await authApi.logout()  // 调用后端撤销会话
+  } catch {
+    // 后端不可用时仍允许本地退出
+  } finally {
+    localStorage.removeItem('token')
+    localStorage.removeItem('userInfo')
+    // ...reset stores
+    router.push('/login')
+  }
+}
+```
+
+---
+
+### 2.2 Pipeline 完成后无自动跳转到评审
+
+**问题描述**：Pipeline 运行完成后（status=completed），[PipelineProgress.vue](file:///d:/PythonFile/ai-testmaster/src/views/iteration/PipelineProgress.vue) 仅展示步骤列表和运行结果，未提供"前往评审"入口。用户需手动导航到 ReviewInbox 页面。
+
+**涉及文件**：
+- [PipelineProgress.vue](file:///d:/PythonFile/ai-testmaster/src/views/iteration/PipelineProgress.vue) — 完成状态无评审跳转
+- [ReviewInbox.vue](file:///d:/PythonFile/ai-testmaster/src/views/iteration/ReviewInbox.vue) — 存在但无菜单入口
+
+**影响分析**：
+- Pipeline 生成的用例会进入评审队列（ReviewDecision），但用户不知道需要去评审
+- 评审 Inbox 在侧边栏无菜单入口，用户难以发现
+- 流程断裂：Pipeline 运行 → ??? → 评审
+
+**改进方案**：
+1. 在 PipelineProgress 页面，当 status=completed 时显示"前往评审"按钮
+2. 在侧边栏"迭代中心"下新增"评审 Inbox"菜单项
+3. Pipeline 完成后通过 WebSocket 推送通知，引导用户前往评审
+
+---
+
+### 2.3 评审定稿后无引导到用例列表或任务创建
+
+**问题描述**：[ReviewInbox.vue](file:///d:/PythonFile/ai-testmaster/src/views/iteration/ReviewInbox.vue) 中评审最终化（finalize）成功后，仅显示成功提示，未引导用户进行下一步操作。
+
+**影响分析**：
+- 评审定稿后，用例状态已更新（keep/modify/deprecate），但用户不知道接下来该做什么
+- 流程断裂：评审定稿 → ??? → 创建执行任务
+
+**改进方案**：
+1. 评审定稿成功后弹出操作引导对话框：
+   - "查看用例列表" → 跳转到 TestCaseList
+   - "创建执行任务" → 跳转到 TaskCreate 并自动带入评审通过的用例
+   - "返回迭代列表" → 跳转到资源中心
+
+---
+
+### 2.4 用例生成后无快捷创建任务入口
+
+**问题描述**：智能生成用例（[smart-generate.vue](file:///d:/PythonFile/ai-testmaster/src/views/case/smart-generate.vue)）完成预览保存后，用户被留在生成结果页面，无"用这些用例创建任务"的快捷入口。
+
+**影响分析**：
+- 用户生成用例后，需手动导航到执行中心 → 创建任务 → 重新选择项目 → 选择刚生成的用例
+- 重复选择项目和应用例，操作冗余
+
+**改进方案**：
+1. 在生成结果保存成功后，弹出后续操作引导：
+   - "查看用例列表" → TestCaseList（自动筛选当前项目）
+   - "创建执行任务" → TaskCreate（自动带入项目 ID 和已保存用例 ID）
+
+---
+
+### 2.5 任务执行完成后无直接查看报告入口
+
+**问题描述**：[TaskDetail.vue](file:///d:/PythonFile/ai-testmaster/src/views/task/TaskDetail.vue) 展示任务状态和执行进度，但任务完成（status=COMPLETED/FAILED）后无"查看报告"快捷入口。
+
+**涉及文件**：
+- [TaskDetail.vue](file:///d:/PythonFile/ai-testmaster/src/views/task/TaskDetail.vue) — 完成状态无报告跳转
+
+**影响分析**：
+- 用户需手动导航到报告中心 → 查找对应报告
+- 流程断裂：任务执行 → ??? → 查看报告
+
+**改进方案**：
+1. 在 TaskDetail 页面，当 status=COMPLETED 时显示"查看测试报告"按钮
+2. 点击后跳转到 ReportDetail 并携带 task_id 参数
+
+---
+
+### 2.6 迭代管理嵌入资源中心，入口隐蔽
+
+**问题描述**：迭代管理功能（创建/编辑/删除迭代）被嵌入在 [resource-manage.vue](file:///d:/PythonFile/ai-testmaster/src/views/requirement/resource-manage.vue) 的 [IterationPanel.vue](file:///d:/PythonFile/ai-testmaster/src/views/requirement/components/IterationPanel.vue) 组件中，而非独立页面。侧边栏无"迭代管理"菜单项。
+
+**影响分析**：
+- 用户难以发现迭代管理入口，需先进入资源中心才能管理迭代
+- 迭代是核心业务对象（关联 Pipeline、评审、文件输入），但被降级为资源中心的子组件
+- 与后端设计不一致：后端迭代是独立的一等实体
+
+**改进方案**：
+1. 将"迭代中心"菜单项展开，新增"迭代管理"子菜单
+2. 新建独立的迭代管理页面，展示迭代列表（含状态、版本、文件数、Pipeline 状态）
+3. 资源中心保留迭代筛选功能，但迭代 CRUD 操作集中到独立页面
+
+---
+
+### 2.7 用例迁移与保鲜页面无菜单入口
+
+**问题描述**：[CaseMigration.vue](file:///d:/PythonFile/ai-testmaster/src/views/case/CaseMigration.vue) 和 [CaseRefresh.vue](file:///d:/PythonFile/ai-testmaster/src/views/case/CaseRefresh.vue) 页面存在且有路由配置，但侧边栏"测试资产"菜单组下未列出这两项。
+
+**涉及文件**：
+- 路由：[routes.ts#L189-L194](file:///d:/PythonFile/ai-testmaster/src/router/routes.ts#L189-L194)
+- 菜单：[useMainLayout.ts#L31-L40](file:///d:/PythonFile/ai-testmaster/src/layouts/useMainLayout.ts#L31-L40) — 测试资产下仅有"用例列表"、"测试点管理"、"智能生成用例"
+
+**影响分析**：
+- 用户无法通过导航发现"用例迁移"和"保鲜建议"功能
+- 这两个功能只能通过 URL 直接访问，几乎不可用
+
+**改进方案**：
+1. 在"测试资产"菜单组下新增"用例迁移"和"保鲜建议"菜单项
+2. 或在用例列表页的操作工具栏中添加入口按钮
+
+---
+
+### 2.8 需求分析页面无菜单入口
+
+**问题描述**：[AnalysisPage.vue](file:///d:/PythonFile/ai-testmaster/src/views/analysis/AnalysisPage.vue) 存在且有路由配置，但侧边栏无对应菜单项。面包屑映射中将 `/home/analysis` 映射到"资源中心"。
+
+**涉及文件**：
+- 路由：[routes.ts#L141-L152](file:///d:/PythonFile/ai-testmaster/src/router/routes.ts#L141-L152)
+- 菜单：[useMainLayout.ts](file:///d:/PythonFile/ai-testmaster/src/layouts/useMainLayout.ts#L129-L131) — `activeMenu` 中将 `/home/analysis` 映射到 `/home/requirement`
+
+**影响分析**：
+- 需求分析功能不可发现，用户无法通过导航到达
+- 需求分析是需求文件上传后的自然延续步骤，入口缺失导致流程断裂
+
+**改进方案**：
+1. 在"资源中心"菜单组下新增"需求分析"子菜单项
+2. 或在资源中心的文件列表中，为需求文件添加"分析"操作按钮
+
+---
+
+## 三、不合理流程设计：违背用户习惯或存在冗余
+
+### 3.1 质量规则配置放在系统管理而非项目详情
+
+**问题描述**：后端质量规则是项目级配置（`GET/PUT /projects/{project_id}/quality-rules`），但前端将其放在"系统管理"菜单下（[useMainLayout.ts#L70](file:///d:/PythonFile/ai-testmaster/src/layouts/useMainLayout.ts#L70)），路由为 `/home/system/quality-rule`。
+
+**涉及文件**：
+- 后端：[quality_rule.py](file:///d:/PythonFile/ai-testmaster/app/api/v1/endpoints/quality_rule.py) — 路径含 project_id
+- 前端：[useMainLayout.ts#L70](file:///d:/PythonFile/ai-testmaster/src/layouts/useMainLayout.ts#L70) — 放在系统管理下
+
+**影响分析**：
+- 质量规则是项目级配置，放在系统管理下导致用户需先选择项目再配置规则，交互路径不合理
+- 与后端 API 设计不一致（API 是项目级，UI 是系统级）
+- 用户在项目详情页找不到质量规则配置入口
+
+**改进方案**：
+1. 将质量规则配置从系统管理移至项目详情页的 Tab 中
+2. 系统管理下可保留"全局质量规则默认值"配置（如有）
+
+---
+
+### 3.2 测试能力管理放在系统管理而非项目详情
+
+**问题描述**：与质量规则类似，测试能力（TestCapability）是项目级数据（`/api/v1/test-capability/?project_id=xxx`），但前端将其放在系统管理菜单下。
+
+**涉及文件**：
+- 后端：[test_capability.py](file:///d:/PythonFile/ai-testmaster/app/api/v1/endpoints/test_capability.py)
+- 前端：[useMainLayout.ts#L69](file:///d:/PythonFile/ai-testmaster/src/layouts/useMainLayout.ts#L69) — 放在系统管理下
+
+**影响分析**：
+- 用户在项目详情页无法管理测试能力，需到系统管理中切换项目
+- 测试能力与测试点强关联（TestPoint.capability_id），应就近管理
+
+**改进方案**：
+1. 将测试能力管理移至项目详情页 Tab，或放在"测试资产"菜单组下
+2. 在测试点管理页面提供测试能力的快捷编辑入口
+
+---
+
+### 3.3 智能生成与 Pipeline 运行两条路径并存导致用户困惑
+
+**问题描述**：前端存在两条用例生成路径：
+1. **智能生成**（[smart-generate.vue](file:///d:/PythonFile/ai-testmaster/src/views/case/smart-generate.vue)）：4 步向导，调用 `test-case/ai-generate` 等接口
+2. **Pipeline 运行**（[RegressionGenerate.vue](file:///d:/PythonFile/ai-testmaster/src/views/iteration/RegressionGenerate.vue)）：调用 `pipeline/run` 接口，包含信号采集→历史指纹→前向/后向扫描→裁决→生成→质量门禁→持久化完整链路
+
+两条路径功能重叠但实现不同，用户不清楚何时使用哪条。
+
+**影响分析**：
+- 用户困惑：智能生成不走 Pipeline，缺少质量门禁、历史对齐、前向/后向扫描等关键步骤
+- 生成的用例质量可能不一致：Pipeline 生成的用例经过 QualityGate 评分，智能生成的不一定
+- 功能割裂：智能生成无法享受 Pipeline 的缓存、重试、降级机制
+
+**改进方案**：
+1. **短期**：在智能生成页面添加说明文案，引导用户使用 Pipeline 模式获取更高质量用例
+2. **中期**：将智能生成的底层调用切换为 Pipeline API（scenario=1/2/3），统一生成路径
+3. **长期**：智能生成页面作为 Pipeline 的简化入口，4 步向导内部调用 Pipeline run
+
+---
+
+### 3.4 项目上下文在页面间不传递，需重复选择
+
+**问题描述**：多个页面独立要求用户选择项目：
+- 智能生成：[smart-generate.vue#L66-L73](file:///d:/PythonFile/ai-testmaster/src/views/case/smart-generate.vue#L66-L73) — 项目选择下拉框
+- 创建任务：[TaskCreate.vue](file:///d:/PythonFile/ai-testmaster/src/views/task/TaskCreate.vue) — 项目选择
+- 测试点管理：需选择项目
+- 资源中心：需选择项目
+
+但用户通常在一个项目内连续操作，反复选择项目是冗余步骤。
+
+**影响分析**：
+- 每次跳转页面都需重新选择项目，操作冗余
+- 可能选错项目导致数据混淆
+- 与用户心智模型不符：用户期望"我在项目 A 中操作"，而非每个页面重新选择
+
+**改进方案**：
+1. 在 Pinia store 中维护 `currentProjectId` 全局状态
+2. 从项目详情页跳转时自动传递 project_id 到目标页面
+3. 各页面的项目选择器改为"当前项目 + 切换"模式，默认显示当前项目
+4. 在顶部导航栏显示当前项目名称，支持快速切换
+
+---
+
+### 3.5 登录页缺少验证码刷新与错误提示优化
+
+**问题描述**：[login/index.vue](file:///d:/PythonFile/ai-testmaster/src/views/login/index.vue) 的验证码获取逻辑中，验证码为文本返回（后端 `captcha_service` 返回 `code` 字段），前端直接展示文本而非图片。登录失败后验证码不自动刷新。
+
+**影响分析**：
+- 验证码以文本形式展示，缺乏基本的反自动化效果
+- 登录失败后需手动刷新验证码，增加操作步骤
+- 账户锁定后无倒计时提示，用户不知道何时可以重试
+
+**改进方案**：
+1. 验证码刷新：登录失败后自动重新获取验证码
+2. 账户锁定：后端返回 423 状态码时，前端展示锁定倒计时
+3. 验证码展示：如后端支持图片格式则展示图片，否则至少添加干扰线
+
+---
+
+### 3.6 文件内容提取需手动触发
+
+**问题描述**：[resource-manage.vue](file:///d:/PythonFile/ai-testmaster/src/views/requirement/resource-manage.vue) 中文件上传后，内容提取（extract-content）需用户手动点击触发。后端支持批量提取，但前端未在上传完成后自动触发。
+
+**影响分析**：
+- 用户上传需求文件后，需额外手动点击"提取内容"才能供 AI 分析使用
+- 如忘记提取，后续生成用例时上下文为空，生成质量差
+- 流程不连贯：上传 → ??? → 提取 → 生成
+
+**改进方案**：
+1. 文件上传成功后自动触发内容提取（后台异步执行）
+2. 在文件列表中显示提取状态（pending/processing/completed/failed）
+3. 提取失败时提供"重试"按钮
+
+---
+
+### 3.7 评审 Inbox 缺少批量操作引导与统计概览
+
+**问题描述**：[ReviewInbox.vue](file:///d:/PythonFile/ai-testmaster/src/views/iteration/ReviewInbox.vue) 虽然支持批量判定，但缺少：
+- 评审进度统计（已判定/未判定/冲突数量）
+- AI 建议分布概览（keep/modify/deprecate 各多少）
+- 冲突项高亮与快速筛选
+
+**影响分析**：
+- 评审员无法快速了解评审整体进度
+- 冲突项（AI 与人工判定不一致）不突出，可能被遗漏
+- 大量决策项缺乏分类筛选，评审效率低
+
+**改进方案**：
+1. 在评审页面顶部添加统计卡片：总数/已判定/未判定/冲突数
+2. 添加筛选器：按 AI 建议、按人工判定、按冲突状态筛选
+3. 冲突项用醒目颜色标注，支持"仅查看冲突"快速筛选
+
+---
+
+## 四、改进优先级排序与实施路线图
+
+### P0 — 安全与核心流程修复（立即实施）
+
+| 序号 | 问题 | 改进项 | 影响范围 |
+|------|------|--------|---------|
+| 1 | 退出登录不调用后端 | 修改 handleLogout 调用 /auth/logout | useMainLayout.ts |
+| 2 | Token 自动刷新缺失 | request.ts 401 拦截器增加 refresh 逻辑 | request.ts, auth.ts |
+| 3 | 会话管理缺失 | 新建会话管理 API + 个人中心 Tab | auth.ts, profile/index.vue |
+
+### P1 — 流程断层修复（本周实施）
+
+| 序号 | 问题 | 改进项 | 影响范围 |
+|------|------|--------|---------|
+| 4 | Pipeline 完成后无评审入口 | PipelineProgress 添加"前往评审"按钮 + 菜单项 | PipelineProgress.vue, useMainLayout.ts |
+| 5 | 评审定稿后无后续引导 | finalize 成功后弹出操作引导对话框 | ReviewInbox.vue |
+| 6 | 用例生成后无创建任务入口 | 生成结果页添加"创建任务"快捷入口 | smart-generate.vue |
+| 7 | 任务完成后无报告入口 | TaskDetail 添加"查看报告"按钮 | TaskDetail.vue |
+| 8 | 迭代定稿/Pipeline 启动接口缺失 | iteration.ts 补充 API + IterationPanel 添加操作 | iteration.ts, IterationPanel.vue |
+| 9 | 用例迁移/保鲜/需求分析无菜单入口 | 侧边栏菜单补充缺失项 | useMainLayout.ts |
+
+### P2 — 功能缺失补全（下个迭代）
+
+| 序号 | 问题 | 改进项 | 影响范围 |
+|------|------|--------|---------|
+| 10 | 自愈管理完全缺失 | 新建 API + 项目详情 Tab + 审计列表页 | 新建多个文件 |
+| 11 | Bug 管理缺失 | 新建 API + 缺陷列表页 | 新建文件 |
+| 12 | 用户注册缺失 | auth.ts 新增 register + 登录页注册入口 | auth.ts, login/index.vue |
+| 13 | 移动端配置被禁用 | 启用设备配置 + 执行模式选项 | detail.vue, TestExecution.vue |
+| 14 | Prompt 模板管理缺失 | 新建 API + 系统管理页面 | 新建文件 |
+| 15 | A/B 测试管理缺失 | 新建 API + 运营看板页面 | 新建文件 |
+| 16 | 后验评分手动触发缺失 | caseQuality.ts 新增接口 + 按钮添加 | caseQuality.ts, CaseQualityAnalysis.vue |
+
+### P3 — 体验优化（长期优化）
+
+| 序号 | 问题 | 改进项 | 影响范围 |
+|------|------|--------|---------|
+| 17 | 质量规则/测试能力放在系统管理 | 迁移到项目详情 Tab | useMainLayout.ts, detail.vue |
+| 18 | 智能生成与 Pipeline 路径并存 | 统一生成路径，智能生成底层改用 Pipeline | smart-generate.vue |
+| 19 | 项目上下文不传递 | 全局 currentProjectId + 页面间传递 | store/project.ts, 多个页面 |
+| 20 | 文件内容提取需手动触发 | 上传后自动提取 | resource-manage.vue |
+| 21 | 评审 Inbox 缺少统计与筛选 | 添加统计卡片与筛选器 | ReviewInbox.vue |
+| 22 | 迭代管理入口隐蔽 | 独立迭代管理页面 | 新建页面 |
+| 23 | 登录页验证码体验差 | 自动刷新 + 锁定倒计时 | login/index.vue |
+
+---
+
+## 附录：前端 API 覆盖度矩阵
+
+| 后端模块 | 前端 API 文件 | 前端视图页面 | 菜单入口 | 状态 |
+|---------|-------------|-------------|---------|------|
+| 认证（登录/验证码/me） | auth.ts | login/index.vue | 无需 | ✅ 完整 |
+| 认证（注册/刷新/登出/会话） | ❌ 缺失 | ❌ 缺失 | ❌ 缺失 | 🔴 缺失 |
+| 用户管理 | user.ts | system/user/ | 系统管理 | ✅ 完整 |
+| 角色管理 | user.ts | system/role/ | 系统管理 | ✅ 完整 |
+| 项目管理 | project.ts | ProjectList/detail | 项目中心 | ✅ 完整 |
+| 项目配置 | project.ts | detail.vue (env tab) | 项目详情 | ✅ 完整 |
+| 迭代管理 | iteration.ts | IterationPanel | 资源中心(嵌入式) | 🟡 部分缺失(finalize/runPipeline) |
+| 文件管理 | file.ts | resource-manage/upload | 资源中心 | ✅ 完整 |
+| 需求链接 | requirementLink.ts | resource-manage | 资源中心 | ✅ 完整 |
+| 历史资产 | historyAsset.ts | smart-generate(嵌入式) | 智能生成 | ✅ 完整 |
+| UI 原型 | uiPrototype.ts | ui-prototype.vue | 资源中心 | ✅ 完整 |
+| 测试用例 CRUD | case/crud.ts | TestCaseList/CaseDetail | 测试资产 | ✅ 完整 |
+| 用例 AI 生成 | case/ai.ts | smart-generate | 测试资产 | ✅ 完整 |
+| 用例版本 | case/version.ts | CaseDetail(嵌入式) | - | ✅ 完整 |
+| 用例保鲜 | caseRefresh.ts | CaseRefresh | ❌ 无菜单 | 🟡 有页面无入口 |
+| 用例迁移 | caseMigration.ts | CaseMigration | ❌ 无菜单 | 🟡 有页面无入口 |
+| 测试点 | testPoint.ts | test-point-management/ | 测试资产 | ✅ 完整 |
+| 测试数据 | testData.ts | CaseDetail(嵌入式) | - | ✅ 完整 |
+| 测试能力 | testCapability.ts | system/test-capability/ | 系统管理(位置不当) | 🟡 位置不合理 |
+| Pipeline | pipeline.ts | PipelineProgress/RegressionGenerate | 迭代中心 | ✅ 完整 |
+| 测试任务 | testTask.ts | TaskList/Create/Detail | 执行中心 | ✅ 完整 |
+| 测试执行 | testExecution.ts | TestExecution | 执行中心 | ✅ 完整 |
+| 报告 | report.ts | ReportList/Detail | 报告中心 | ✅ 完整 |
+| 快速测试 | quickTest.ts | QuickTest | 快速测试 | ✅ 完整 |
+| 评审 | review.ts | ReviewInbox | ❌ 无菜单 | 🟡 有页面无入口 |
+| 用例质量 | caseQuality.ts | CaseQualityAnalysis | 测试资产 | 🟡 缺后验触发 |
+| 质量规则 | qualityRule.ts | system/quality-rule/ | 系统管理(位置不当) | 🟡 位置不合理 |
+| 批量定位器 | batchLocator.ts | BatchLocatorDialog | 用例列表(弹窗) | ✅ 完整 |
+| 生成批次 | generationBatch.ts | smart-generate(嵌入式) | - | ✅ 完整 |
+| 特性开关 | featureFlag.ts | system/feature-flag/ | 系统管理 | ✅ 完整 |
+| AI 调用审计 | aiInvocation.ts | AICostDashboard | 运营看板 | ✅ 完整 |
+| 审计日志 | auditLog.ts | system/audit-log/ | 系统管理 | ✅ 完整 |
+| 可见性配置 | testExecution.ts | TestExecution(弹窗) | 执行页面 | ✅ 完整 |
+| 自愈管理 | ❌ 缺失 | ❌ 缺失 | ❌ 缺失 | 🔴 缺失 |
+| Bug 管理 | ❌ 缺失 | ❌ 缺失 | ❌ 缺失 | 🔴 缺失 |
+| Prompt 模板 | ❌ 缺失 | ❌ 缺失 | ❌ 缺失 | 🔴 缺失 |
+| A/B 测试 | ❌ 缺失 | ❌ 缺失 | ❌ 缺失 | 🔴 缺失 |
+| 用户注册 | ❌ 缺失 | ❌ 缺失 | ❌ 缺失 | 🔴 缺失 |
+| 移动端配置 | project.ts(部分) | detail.vue(禁用) | - | 🔴 禁用 |
