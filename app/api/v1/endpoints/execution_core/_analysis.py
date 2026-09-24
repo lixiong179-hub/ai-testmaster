@@ -1,3 +1,6 @@
+import asyncio
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from loguru import logger
 from sqlalchemy import select
@@ -15,11 +18,62 @@ from app.core.exception import create_response
 from app.utils.db_time import utcnow
 from app.api.v1.endpoints.execution_core._helpers import (
     _filter_by_visibility,
-    _get_hidden_fields,
+    _get_hidden_fields_async,
     SpeedReplayRequest,
 )
 
 router = APIRouter()
+
+
+def _spawn_failure_analysis_agent(
+    *,
+    project_id: int,
+    created_by: Optional[int],
+    last_error: Optional[str],
+    screenshot_url: Optional[str],
+) -> None:
+    """R1-1：fire-and-forget 触发 AgentOrchestrator 的失败分析管线。
+
+    设计约束（见 agents.py 既有注释）：`AgentRuntime.run` 会阻塞，不得在主请求
+    路径中 await。因此：
+
+    - 用 `asyncio.create_task` 在后台执行，端点立即返回既有响应；
+    - 使用**独立会话** `AsyncPrimarySessionLocal`（请求结束后请求会话即失效，
+      复用会导致会话已关闭错误）；
+    - 任何异常仅 `logger.warning`，并把会话置为 failed，**不影响主流程响应**。
+
+    Args:
+        project_id: 项目 ID。
+        created_by: 触发用户 ID。
+        last_error: 失败的错误信息（注入 ExecutionStateArtifact）。
+        screenshot_url: 失败截图 URL（注入 ExecutionStateArtifact）。
+    """
+    async def _run() -> None:
+        try:
+            from app.db.database import AsyncPrimarySessionLocal
+            from app.services.agent.artifacts import ExecutionStateArtifact
+            from app.services.agent.orchestrator import AgentOrchestrator
+            from app.services.agent.runtime import AgentRuntime
+
+            async with AsyncPrimarySessionLocal() as db:
+                orchestrator = AgentOrchestrator(runtime=AgentRuntime(db=db))
+                await orchestrator.execute_pipeline(
+                    pipeline=["failure_analysis"],
+                    project_id=project_id,
+                    initial_artifacts=[
+                        ExecutionStateArtifact(
+                            last_error=last_error,
+                            screenshot_url=screenshot_url,
+                        )
+                    ],
+                    created_by=created_by,
+                )
+                await db.commit()
+        except Exception as e:
+            # 异常隔离：仅告警，不冒泡到 HTTP 响应
+            logger.warning(f"触发失败分析 Agent 失败（不影响主流程）: {e}")
+
+    asyncio.create_task(_run())
 
 
 @router.get("/replay/{execution_id}")
@@ -62,33 +116,95 @@ async def analyze_failure(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    def _analyze(sync_db):
-        try:
-            result = sync_db.query(TestResult).filter(TestResult.id == result_id).first()
-            if not result:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="执行结果不存在")
+    """失败原因分析。
 
-            if result.exec_status != ExecStatus.FAILED:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="只有执行失败的结果才能进行失败分析")
+    原实现通过 db.run_sync(_analyze) 桥接 sync 查询。现拆分为:
+    1. inline async 查询 TestResult / TestCase / TestStep
+    2. asyncio.to_thread 包装 VisibilityConfigService.get_project_config (sync 服务)
+    3. _perform_failure_analysis 改为接收预查询的 steps 列表，主体保持纯计算
+    """
+    try:
+        # 1. async 查询 TestResult
+        result = (
+            await db.execute(
+                select(TestResult).where(TestResult.id == result_id)
+            )
+        ).scalar_one_or_none()
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="执行结果不存在")
 
-            test_case = sync_db.query(TestCase).filter(TestCase.id == result.case_id, TestCase.is_deleted.is_(False)).first()
-            if not test_case:
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="关联的测试用例不存在")
+        if result.exec_status != ExecStatus.FAILED:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="只有执行失败的结果才能进行失败分析")
 
-            analysis = _perform_failure_analysis(result, test_case, sync_db)
-            hidden_fields = _get_hidden_fields(sync_db, test_case.project_id)
-            analysis = _filter_by_visibility(analysis, hidden_fields)
-            return create_response(data=analysis, msg="失败原因分析完成")
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"分析失败原因异常: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="分析失败原因异常")
+        # 2. async 查询 TestCase
+        test_case = (
+            await db.execute(
+                select(TestCase).where(
+                    TestCase.id == result.case_id,
+                    TestCase.is_deleted.is_(False),
+                )
+            )
+        ).scalar_one_or_none()
+        if not test_case:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="关联的测试用例不存在")
 
-    return await db.run_sync(_analyze)
+        # 3. async 查询 TestStep (原 _perform_failure_analysis 内部 sync 查询)
+        steps = list(
+            (
+                await db.execute(
+                    select(TestStep)
+                    .where(TestStep.test_case_id == test_case.id)
+                    .order_by(TestStep.step_number)
+                )
+            ).scalars().all()
+        )
+
+        # 4. 纯计算失败原因分析
+        analysis = _perform_failure_analysis_with_steps(result, test_case, steps)
+
+        # 5. async 查询项目可见模式配置（替代原 PrimarySessionLocal + asyncio.to_thread
+        #    桥接 sync VisibilityConfigService，避免测试嵌套事务中 MissingGreenlet）
+        hidden_fields = await _get_hidden_fields_async(db, test_case.project_id)
+
+        analysis = _filter_by_visibility(analysis, hidden_fields)
+
+        # 6. R1-1：脱敏后 fire-and-forget 触发 Agent 失败分析（不阻塞本端点响应）
+        _spawn_failure_analysis_agent(
+            project_id=test_case.project_id,
+            created_by=current_user.id,
+            last_error=result.error_msg,
+            screenshot_url=analysis.get("screenshot_url"),
+        )
+
+        return create_response(data=analysis, msg="失败原因分析完成")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"分析失败原因异常: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="分析失败原因异常")
 
 
 def _perform_failure_analysis(result: TestResult, test_case: TestCase, db: Session) -> dict:
+    """失败原因分析（sync 版本，向后兼容入口）。
+
+    内部查询 TestStep 后委托给 _perform_failure_analysis_with_steps。
+    保留供测试与 sync 调用方使用；async 端点请直接调用 _with_steps 版本。
+    """
+    steps = db.query(TestStep).filter(
+        TestStep.test_case_id == test_case.id
+    ).order_by(TestStep.step_number).all()
+    return _perform_failure_analysis_with_steps(result, test_case, steps)
+
+
+def _perform_failure_analysis_with_steps(result: TestResult, test_case: TestCase, steps: list) -> dict:
+    """纯计算失败原因分析。
+
+    Args:
+        result: 执行结果对象。
+        test_case: 关联测试用例对象。
+        steps: 已预查询的 TestStep 列表（按 step_number 排序）。
+            原实现内部使用 db.query(TestStep)，迁移 async 后改为参数传入。
+    """
     case_issue_indicators = []
     bug_issue_indicators = []
 
@@ -128,10 +244,6 @@ def _perform_failure_analysis(result: TestResult, test_case: TestCase, db: Sessi
         if keyword.lower() in combined_text or keyword.lower() in ai_lower:
             bug_issue_indicators.append(f"分析文本中包含Bug问题关键词: '{keyword}'")
             break
-
-    steps = db.query(TestStep).filter(
-        TestStep.test_case_id == test_case.id
-    ).order_by(TestStep.step_number).all()
 
     for step in steps:
         if step.locator_status == LocatorStatus.FAILED.value:
