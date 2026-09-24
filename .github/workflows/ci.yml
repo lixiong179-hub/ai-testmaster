@@ -7,6 +7,10 @@ on:
     branches: [main, develop]
 
 jobs:
+  # ── 门禁分层（2026-09-24，R5-3）──
+  # 必阻断（失败即阻断合入）：backend-test、frontend-build、Ruff lint、vue-tsc
+  # 提示类（不阻断）：daily-regression.yml 的全量回归、security-scan.yml 的审计类
+  # 需在 GitHub 仓库 Settings → Branches → Branch protection 中勾选本文件必阻断 job 为 required
   backend-test:
     runs-on: ubuntu-latest
     services:
@@ -50,6 +54,18 @@ jobs:
         run: |
           python scripts/verify_migrations.py --check-downgrade
           python scripts/verify_migrations.py --full
+      # 【必阻断】后端核心子集。覆盖范围与排除项说明（2026-09-24，R5-3）：
+      # 覆盖：tests/api tests/crud tests/models tests/schemas tests/services
+      # 排除项及理由（实测基线 `pytest tests/ -q` = 73 failed / 10191 passed / 59 errors）：
+      #   1. tests/regression —— 由 pr-regression.yml（快速）+ daily-regression.yml（全量）承担，避免重复
+      #   2. tests/ 其余目录（tests/test_*.py、tests/utils、tests/migrations、tests/db 部分）——
+      #      含 63 failed + 59 errors 的**既有欠账**，与 CI 环境无关，不在本波修复范围：
+      #        - Excel / 报表依赖 34（test_view_service_coverage 13、test_functional_excel_real 7 等）
+      #        - 真实浏览器 / 录制 16（test_functional_pass_rate 11、test_video_recording 4 等）
+      #        - 配置与代码规范 9（test_core_config_prod_security 5、service 文件行数规范 2 等）
+      #        - 装置错误 59（test_ai_generation_full_coverage ~40、test_execution_engine_real ~17）
+      #      待上述欠账清零后，逐步把对应目录并入本 job；进度见《架构优化执行计划清单》§11 O-12
+      # 成本约束：本 job 目标 < 20 分钟；若超时须启用 pytest-xdist(-n auto) 或改为按 paths 分层触发
       - name: Backend pytest
         env:
           TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
@@ -57,6 +73,7 @@ jobs:
           pytest tests/api tests/crud tests/models tests/schemas tests/services \
             --tb=short --cov=app --cov-fail-under=80 -q
 
+  # 【必阻断】前端门禁：ESLint → vue-tsc 类型检查 → 构建 → 单测
   frontend-build:
     runs-on: ubuntu-latest
     steps:
