@@ -20,9 +20,12 @@ const dynamicRoutes: RouteRecordRaw[] = [
     meta: { title: '个人中心' },
   },
   {
+    // Task9: 测试能力已迁移至项目详情页「测试能力」Tab（按 project_id 配置），
+    // 旧 URL 重定向到项目详情并携带 tab=test-capability，避免书签失效。
+    // 项目 ID 由 detail 页 resolveInitialProjectId 从 URL/store 兜底解析。
     path: 'test-capability',
     name: 'TestCapability',
-    component: () => import('../views/system/test-capability/index.vue'),
+    redirect: '/home/project/detail?tab=test-capability',
     meta: { title: '测试能力', permission: 'system:manage' },
   },
   {
@@ -32,9 +35,12 @@ const dynamicRoutes: RouteRecordRaw[] = [
     meta: { title: '审计日志', permission: 'system:manage' },
   },
   {
+    // Task8: 质量规则已迁移至项目详情页「质量规则」Tab（按 project_id 配置），
+    // 旧 URL 重定向到项目详情并携带 tab=quality-rule，避免书签失效。
+    // 项目 ID 由 detail 页 resolveInitialProjectId 从 URL/store 兜底解析。
     path: 'quality-rule',
     name: 'QualityRule',
-    component: () => import('../views/system/quality-rule/index.vue'),
+    redirect: '/home/project/detail?tab=quality-rule',
     meta: { title: '质量规则配置', permission: 'system:manage' },
   },
   {
@@ -43,10 +49,33 @@ const dynamicRoutes: RouteRecordRaw[] = [
     component: () => import('../views/system/feature-flag/index.vue'),
     meta: { title: 'FeatureFlag管理', permission: 'system:manage' },
   },
+  {
+    // R1-3：Agent 可观测性闭环入口 —— 会话列表 / 消息流 / 工具调用与成本。
+    // 挂在 /home/system 下，沿用 system:manage 权限（与审计日志同级）。
+    path: 'agent-monitor',
+    name: 'AgentSessionMonitor',
+    component: () => import('@/views/agent/AgentSessionMonitor.vue'),
+    meta: { title: 'Agent会话监控', permission: 'system:manage' },
+  },
+  {
+    path: 'prompt-template',
+    name: 'PromptTemplate',
+    component: () => import('../views/system/prompt-template/index.vue'),
+    meta: { title: 'Prompt模板管理', permission: 'system:manage' },
+  },
 ]
 
 export const routes: RouteRecordRaw[] = [
-  { path: '/', redirect: '/login' },
+  // 根路径智能重定向：已登录 → 项目中心；未登录 → 登录页
+  // 避免已登录用户访问 / 时被多余跳到 /login 再回跳
+  {
+    path: '/',
+    redirect: () => {
+      const token = localStorage.getItem('token')
+      // 已登录用户默认进入工作台首页（Task 15）
+      return token ? '/home/workbench' : '/login'
+    },
+  },
   {
     path: '/login',
     name: 'Login',
@@ -54,19 +83,23 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '登录' },
   },
   {
-    path: '/test',
-    name: 'Test',
-    component: () => import('../views/test/index.vue'),
-    meta: { title: '测试' },
-  },
-  {
     path: '/home',
     name: 'Home',
     component: () => import('../layouts/MainLayout.vue'),
-    redirect: '/home/project',
+    // Task 15: /home 默认重定向到工作台首页
+    redirect: '/home/workbench',
     meta: { title: '首页', requireAuth: true },
     children: [
-      { path: 'dashboard', name: 'Dashboard', redirect: { name: 'ProjectList' } },
+      {
+        // 工作台首页：项目概览 + 待评审 + 最近任务 + AI 成本趋势
+        path: 'workbench',
+        name: 'Workbench',
+        component: () => import('../views/workbench/Workbench.vue'),
+        meta: { title: '工作台', requireAuth: true },
+      },
+      { path: 'dashboard', name: 'Dashboard', redirect: { name: 'Workbench' } },
+      // 旧 URL 兼容：/home/analysis → 资源中心需求分析
+      { path: 'analysis', redirect: { name: 'RequirementAnalysis' } },
       {
         path: 'pipeline-dashboard',
         name: 'PipelineDashboard',
@@ -78,6 +111,12 @@ export const routes: RouteRecordRaw[] = [
         name: 'AICostDashboard',
         component: () => import('@/views/admin/AICostDashboard.vue'),
         meta: { title: 'AI成本仪表盘', requireAuth: true },
+      },
+      {
+        path: 'ab-test-dashboard',
+        name: 'AbTestDashboard',
+        component: () => import('@/views/admin/AbTestDashboard.vue'),
+        meta: { title: 'A/B实验看板', requireAuth: true },
       },
       {
         path: 'system',
@@ -128,23 +167,42 @@ export const routes: RouteRecordRaw[] = [
             meta: { title: '上传资源' },
           },
           {
+            // 需求分析：复用资源中心页面（AI 分析入口位于资源列表），后续可独立为分析视图
+            path: 'analysis',
+            name: 'RequirementAnalysis',
+            component: () => import('../views/requirement/resource-manage.vue'),
+            meta: { title: '需求分析' },
+          },
+          {
             path: 'ui-prototype',
             name: 'UIPrototypeManage',
             component: () => import('../views/requirement/ui-prototype.vue'),
             meta: { title: 'UI原型详情' },
+            // UI原型详情页是上下文相关页面，需要 project_id 和 prototype_project_id 参数
+            // 从菜单直接进入时无参数，重定向到资源中心并筛选UI原型类型，引导用户选择具体原型
+            beforeEnter: (to) => {
+              const projectId = to.query.project_id
+              const prototypeProjectId = to.query.prototype_project_id
+              if (!projectId || !prototypeProjectId) {
+                return {
+                  name: 'RequirementResource',
+                  query: { resource_type: 'ui_mockup' },
+                }
+              }
+            },
           },
         ],
       },
       {
-        path: 'analysis',
-        name: 'AnalysisManagement',
-        meta: { title: '需求分析' },
+        path: 'self-healing',
+        name: 'SelfHealingManagement',
+        meta: { title: '自愈管理' },
         children: [
           {
-            path: '',
-            name: 'AnalysisPage',
-            component: () => import('../views/analysis/AnalysisPage.vue'),
-            meta: { title: '需求分析' },
+            path: 'audits',
+            name: 'SelfHealingAudits',
+            component: () => import('@/views/self-healing/AuditList.vue'),
+            meta: { title: '自愈审计', requireAuth: true },
           },
         ],
       },
@@ -258,29 +316,57 @@ export const routes: RouteRecordRaw[] = [
         ],
       },
       {
-        path: 'report',
-        name: 'ReportManagement',
-        meta: { title: '报告中心' },
+        // 执行中心：报告中心、缺陷管理统一归口（任务列表沿用 /home/task 不迁移）
+        path: 'execution',
+        name: 'ExecutionCenter',
+        meta: { title: '执行中心' },
         children: [
           {
-            path: '',
-            name: 'ReportList',
+            path: 'report',
+            name: 'ExecutionReportList',
             component: () => import('../views/report/ReportList.vue'),
-            meta: { title: '报告中心' },
+            meta: { title: '报告中心', requireAuth: true },
           },
           {
-            path: 'detail',
-            name: 'ReportDetail',
+            path: 'report/detail',
+            name: 'ExecutionReportDetail',
             component: () => import('../views/report/ReportDetail.vue'),
-            meta: { title: '报告详情' },
+            meta: { title: '报告详情', requireAuth: true },
+          },
+          {
+            path: 'bug',
+            name: 'ExecutionBugList',
+            component: () => import('../views/bug/BugList.vue'),
+            meta: { title: '缺陷管理', requireAuth: true },
           },
         ],
+      },
+      // 旧 URL 兼容：/home/report → /home/execution/report
+      {
+        path: 'report',
+        name: 'ReportManagement',
+        redirect: { name: 'ExecutionReportList' },
+        children: [
+          { path: 'detail', redirect: { name: 'ExecutionReportDetail' } },
+        ],
+      },
+      // 旧 URL 兼容：/home/bug → /home/execution/bug
+      {
+        path: 'bug',
+        name: 'BugManagement',
+        redirect: { name: 'ExecutionBugList' },
       },
       {
         path: 'iteration',
         name: 'IterationManagement',
         meta: { title: '迭代中心' },
         children: [
+          {
+            path: 'list',
+            name: 'IterationList',
+            component: () => import('../views/iteration/IterationList.vue'),
+            meta: { title: '迭代管理' },
+          },
           {
             path: 'pipeline/:runId',
             name: 'IterationPipelineProgress',
@@ -293,8 +379,21 @@ export const routes: RouteRecordRaw[] = [
             component: () => import('../views/iteration/RegressionGenerate.vue'),
             meta: { title: '回归变更分析' },
           },
+          {
+            path: 'review/:reviewId',
+            name: 'IterationReviewInbox',
+            component: () => import('../views/iteration/ReviewInbox.vue'),
+            meta: { title: '评审 Inbox' },
+          },
         ],
       },
     ],
+  },
+  // 404 兜底：未匹配的路由统一导向 NotFound，避免白屏
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/error/NotFound.vue'),
+    meta: { title: '页面不存在' },
   },
 ]
