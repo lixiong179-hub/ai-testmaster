@@ -316,6 +316,30 @@ async def cancel_session(
         _raise_for_agent(e, "取消Agent会话")
 
 
+@router.get(
+    "/sessions/{session_id}/audits",
+    response_model=ApiResponse[List[AuditResponse]],
+    summary="查询会话审计（工具调用）记录",
+    description=(
+        "R1-3：按 id 升序返回该会话的完整审计链。"
+        "复用 _check_session_ownership 防越权（非本人会话 403、超管绕过）。"
+    ),
+)
+async def list_session_audits(
+    session_id: int,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """查询指定会话的审计记录；会话不存在时返回空列表（与 messages 端点契约一致）。"""
+    try:
+        await _check_session_ownership(db, session_id, current_user)
+        audits = await _audit_service.get_session_audit(db, session_id)
+        data = [AuditResponse.model_validate(a).model_dump() for a in audits]
+        return create_response(data=data, msg="获取成功")
+    except Exception as e:
+        _raise_for_agent(e, "查询会话审计")
+
+
 @router.post(
     "/sessions/run",
     response_model=ApiResponse[SessionResponse],
