@@ -253,10 +253,11 @@ def build_corpus() -> Tuple[collections.Counter, collections.Counter, int]:
     return tokens, test_tokens, files
 
 
-def route_referenced(tokens: collections.Counter) -> Dict[str, int]:
-    """枚举前端路由文件中的懒加载引用，返回 {视图文件名(含扩展名): 出现次数}。
+def route_referenced() -> Dict[str, int]:
+    """枚举前端路由文件中的懒加载引用。
 
-    修正分词扫描对连字符文件名的漏判（`resource-manage.vue` 会被分词拆成两个词）。
+    返回 {仓库相对路径: 出现次数}。按**解析后的完整路径**匹配，避免 `index.vue`
+    这类同名文件被其它目录的 `*/index.vue` 路由误计（此前按 basename 统计导致误判）。
     """
     refs: Dict[str, int] = {}
     router_dir = os.path.join(REPO_ROOT, "src", "router")
@@ -271,7 +272,11 @@ def route_referenced(tokens: collections.Counter) -> Dict[str, int]:
         except OSError:
             continue
         for hit in re.finditer(r"import\(\s*['\"]([^'\"]+)['\"]\s*\)", text):
-            refs[os.path.basename(hit.group(1))] = refs.get(os.path.basename(hit.group(1)), 0) + 1
+            spec = hit.group(1)
+            if not spec.startswith("."):
+                continue  # 仅处理相对路径（别名 @/ 由 vite 解析，路由文件未使用）
+            resolved = os.path.normpath(os.path.join("src", "router", spec)).replace(os.sep, "/")
+            refs[resolved] = refs.get(resolved, 0) + 1
     return refs
 
 
@@ -333,7 +338,7 @@ def analyze(report_path: str, restored_commit: str) -> List[Dict[str, str]]:
     levels = parse_report(report_path)
     restored = restored_files(restored_commit)
     tokens, test_tokens, corpus_count = build_corpus()
-    routes = route_referenced(tokens)
+    routes = route_referenced()
 
     rows: List[Dict[str, str]] = []
     for path in sorted(levels):
@@ -345,8 +350,8 @@ def analyze(report_path: str, restored_commit: str) -> List[Dict[str, str]]:
         category = classify_category(path)
         task, _note = classify_refactor(path)
 
-        if category == "前端" and os.path.basename(path) in routes:
-            density = f"路由懒加载({routes[os.path.basename(path)]})"
+        if category == "前端" and path in routes:
+            density = f"路由懒加载({routes[path]})"
         elif task == "待定":
             density = "不适用"
         else:
@@ -444,6 +449,58 @@ def build_pyc_ledger(report_path: str) -> List[Tuple[str, str, int, str, str]]:
             verdict = "需人工比对：保留证据，纳入后续测试对齐（P1/基线维护）"
         ledger.append((path, ts, diff_funcs, "是" if only_old else "否", verdict))
     return sorted(ledger, key=lambda r: r[0])
+
+
+FRONTEND_ORPHAN_PATHS = {p for p, _ in FRONTEND_ORPHANS} | {p for p, _ in FRONTEND_CHAIN_ORPHANS}
+
+# 前端分批重构的批次判定说明
+BATCH_NOTES: Sequence[Tuple[str, str]] = (
+    ("批次 0", "孤儿/连锁失效文件：先确认功能是否已由新实现覆盖，再决定接线、归档或删除（禁止直接删）"),
+    ("批次 1", "已有同名相邻单测：护栏已存在，可直接进入重构并保持 vitest 全绿"),
+    ("批次 2", "路由锚点视图：引用面最广，**必须先补 `__tests__`** 再改造"),
+    ("批次 3", "组件/组合式/工具：随其所属视图的批次一并处理，避免跨批次引发布局抖动"),
+)
+
+
+def build_frontend_map(rows: Sequence[Dict[str, str]]) -> str:
+    """生成前端视图映射表（视图 → 路由/引用/测试 → 批次）。"""
+    fe = [r for r in rows if r["category"] == "前端"]
+    lines = [
+        "# 前端视图映射表（遗留文件批次划分）",
+        "",
+        "> 生成方式：`scripts/audit_legacy_files.py --frontend-map <路径>`；"
+        "路由引用来自 `src/router/*.ts` 的懒加载枚举，组件引用密度来自全仓分词统计，"
+        "孤儿判定来自引用面核实（见 `docs/遗留文件处置清单.md` §6.1）。",
+        "",
+        "| 文件 | 路由引用 | 引用密度 | 相邻测试 | 批次 |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    buckets: collections.Counter = collections.Counter()
+    for r in sorted(fe, key=lambda x: x["file"]):
+        path = r["file"]
+        if path in FRONTEND_ORPHAN_PATHS:
+            batch = "批次 0"
+        elif r["test"] == "有":
+            batch = "批次 1"
+        elif r["density"].startswith("路由懒加载"):
+            batch = "批次 2"
+        else:
+            batch = "批次 3"
+        buckets[batch] += 1
+        route = r["density"] if r["density"].startswith("路由懒加载") else "—"
+        lines.append(f"| `{path}` | {route} | {r['density']} | {r['test']} | {batch} |")
+    lines += ["", "## 批次说明与顺序", "", "| 批次 | 数量 | 处理原则 |", "| --- | --- | --- |"]
+    for name, note in BATCH_NOTES:
+        lines.append(f"| {name} | {buckets.get(name, 0)} | {note} |")
+    lines += [
+        "",
+        "**执行顺序**：批次 0（先确认去留，避免把可达文件误当孤儿）→ 批次 1（护栏已备，可立即重构）"
+        "→ 批次 2（先补测）→ 批次 3（随视图批次）。",
+        "",
+        f"*共 {len(fe)} 个前端待处置文件。*",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit: str) -> str:
@@ -705,6 +762,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="已恢复并提交的提交号，用于扣除已处置项")
     parser.add_argument("--table", action="store_true", help="打印逐文件 Markdown 表格")
     parser.add_argument("--doc", metavar="PATH", help="生成完整处置文档到指定路径")
+    parser.add_argument("--frontend-map", metavar="PATH", help="生成前端视图映射表到指定路径")
     args = parser.parse_args(argv)
 
     rows = analyze(args.report, args.restored_commit)
@@ -714,6 +772,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     if args.table:
         print(render_table(rows))
+        return 0
+
+    if args.frontend_map:
+        content = build_frontend_map(rows)
+        os.makedirs(os.path.dirname(os.path.abspath(args.frontend_map)), exist_ok=True)
+        with open(args.frontend_map, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(content)
+        print(f"[ok] 已生成 {args.frontend_map}")
         return 0
 
     if args.doc:
