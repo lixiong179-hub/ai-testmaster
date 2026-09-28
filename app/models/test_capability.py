@@ -20,9 +20,10 @@ from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base
 from app.models.enums import CapabilityStatus
+from app.core.tenant_context import TenantAwareMixin
 
 
-class TestCapability(Base):
+class TestCapability(TenantAwareMixin, Base):
     """
     业务能力模型 - 测试体系最稳定层级实体
 
@@ -49,6 +50,16 @@ class TestCapability(Base):
         index=True,
         comment="关联项目ID，多项目隔离核心"
     )
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
     key = Column(
         String(100),
         nullable=False,

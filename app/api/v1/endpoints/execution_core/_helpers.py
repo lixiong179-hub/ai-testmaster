@@ -27,6 +27,44 @@ def _get_hidden_fields(db: Session, project_id: int) -> list:
     return config.hidden_fields or []
 
 
+async def _get_hidden_fields_async(db: AsyncSession, project_id: int) -> list:
+    """异步版可见字段查询，替代 sync `_get_hidden_fields` 的 run_sync 桥接。
+
+    直接 async 查询 Project，并复用 `VisibilityConfigService` 的内存态全局配置，
+    避免测试嵌套事务中 MissingGreenlet（R1-1 失败分析端点依赖本函数）。
+    """
+    from loguru import logger
+
+    from app.services.visibility_config.merger import VisibilityConfigMerger
+    from app.services.visibility_config.models import VisibilityConfig
+
+    vis_service = VisibilityConfigService()
+    global_config = vis_service.get_global_config()
+
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalars().first()
+    if not project:
+        return global_config.hidden_fields or []
+
+    project_vis_config = None
+    if getattr(project, "config", None):
+        vis_cfg = (
+            project.config.get("visibility_config")
+            if isinstance(project.config, dict)
+            else None
+        )
+        if vis_cfg and isinstance(vis_cfg, dict):
+            try:
+                project_vis_config = VisibilityConfig.from_dict(vis_cfg)
+            except Exception:
+                logger.warning(f"解析项目可见模式配置失败: {project_id}")
+
+    if project_vis_config:
+        merged = VisibilityConfigMerger.merge(global_config, project_vis_config)
+        return merged.hidden_fields or []
+    return global_config.hidden_fields or []
+
+
 def verify_project_permission(db: Session, project_id: int, user_id: int) -> Project:
     project = db.query(Project).filter(
         Project.id == project_id,

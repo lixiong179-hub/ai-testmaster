@@ -34,9 +34,10 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 from app.models.enums import IterationPipelineStatus
+from app.core.tenant_context import TenantAwareMixin
 
 
-class Iteration(Base):
+class Iteration(TenantAwareMixin, Base):
     """
     迭代模型
 
@@ -61,6 +62,16 @@ class Iteration(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)                            # 迭代主键ID
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID")  # 项目ID，级联删除
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
     name = Column(String(200), nullable=False, comment="迭代名称")                                     # 迭代名称，同一项目下唯一
     version = Column(String(50), nullable=False, default="v1.0", comment="版本号")                     # 版本号，默认v1.0
     description = Column(Text, nullable=True, comment="迭代描述")                                      # 迭代描述和目标说明

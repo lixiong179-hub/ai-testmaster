@@ -31,6 +31,7 @@ JWT令牌工具模块
     - app.core.config.settings: JWT密钥、算法、过期时间配置
     - app.core.exception.AuthenticationError: 认证异常
 """
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
@@ -98,6 +99,46 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> 
     if expires_delta is None:
         expires_delta = timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
     return _encode_token(data=data, token_type="refresh", expires_delta=expires_delta)
+
+
+def create_refresh_token_with_jti(
+    data: dict, expires_delta: timedelta | None = None
+) -> tuple[str, str]:
+    """创建带 jti 声明的刷新令牌，返回 (token, jti)。
+
+    jti（JWT ID）作为刷新令牌的唯一标识，与 UserSession.refresh_jti 关联，
+    用于会话撤销/黑名单匹配。SAML/OIDC/MFA 登录流程共用此机制。
+    """
+    jti = uuid.uuid4().hex
+    token = create_refresh_token(data={**data, "jti": jti}, expires_delta=expires_delta)
+    return token, jti
+
+
+def blacklist_token(jti: str, expires_at: datetime) -> None:
+    """将 refresh_token 的 jti 加入黑名单（Redis），TTL 至 expires_at。
+
+    会话撤销时调用，防止 refresh_token 仍可续期。黑名单写入失败仅记录日志，
+    降级为 DB 的 UserSession.revoked_at 兜底，不阻断主流程。
+    """
+    try:
+        import redis
+
+        redis_url = getattr(settings, "REDIS_URL", None)
+        if not redis_url:
+            return
+        client = redis.from_url(
+            redis_url,
+            decode_responses=True,
+            socket_timeout=2,
+            socket_connect_timeout=2,
+        )
+        ttl = int((expires_at - utcnow()).total_seconds())
+        if ttl > 0:
+            client.setex(f"jti:blacklist:{jti}", ttl, "1")
+    except Exception as e:
+        from loguru import logger
+
+        logger.warning(f"写入 jti 黑名单失败（降级为 DB 兜底）: {e}")
 
 # 解码令牌
 def decode_token(token: str) -> dict:

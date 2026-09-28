@@ -235,3 +235,35 @@ class ProjectConfigUpdate(BaseModel):
     project_type: Optional[str] = Field(None, description="项目类型: web/app")
     web_env_configs: Optional[WebEnvConfigs] = Field(None, description="Web端多环境配置")
     device_config: Optional[DeviceConfig] = Field(None, description="C端设备配置")
+
+
+# ============== 项目成员 ==============
+class ProjectMemberCreate(BaseModel):
+    """添加项目成员请求模型。"""
+    user_id: int = Field(..., description="目标用户 ID")
+    role: str = Field(..., description="成员角色: owner/admin/member/viewer")
+
+
+class ProjectMemberUpdate(BaseModel):
+    """修改项目成员角色请求模型。"""
+    role: str = Field(..., description="成员角色: admin/member/viewer")
+
+
+class ProjectMemberResponse(BaseModel):
+    """项目成员响应模型（合并 ProjectMember 与 User 字段）。"""
+    id: int
+    project_id: int
+    user_id: int
+    username: str
+    email: Optional[str] = None
+    role: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TransferOwnershipRequest(BaseModel):
+    """转让项目所有权请求模型。"""
+    new_owner_user_id: int = Field(..., description="新 owner 的用户 ID")

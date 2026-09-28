@@ -36,6 +36,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base
+from app.core.tenant_context import TenantAwareMixin
 
 # re-export lifecycle 守卫函数保持导入路径兼容（实际定义见 _test_case_lifecycle.py）
 from app.models._test_case_lifecycle import (  # noqa: F401
@@ -46,7 +47,7 @@ from app.models._test_case_lifecycle import (  # noqa: F401
 )
 
 
-class TestCase(Base):
+class TestCase(TenantAwareMixin, Base):
     """
     测试用例模型 - 可执行，与project_id强绑定
 
@@ -75,6 +76,16 @@ class TestCase(Base):
     case_no = Column(String(50), nullable=False, unique=True, comment="用例编号，如'TC-001-0001'")   # 用例编号，全局唯一，格式为 TC-{项目ID}-{序号}
     legacy_case_no = Column(String(80), nullable=True, comment="历史用例编号，Excel导入时保留原始编号")  # 历史编号，导入时保留原编号
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID，多项目隔离核心")  # 项目ID，级联删除
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
     requirement_file_id = Column(Integer, ForeignKey("project_files.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联需求文件ID，用于按需求筛选")  # 需求文件ID，SET NULL保留用例
     test_point_id = Column(Integer, ForeignKey("test_points.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联测试点ID")  # 测试点ID，兼容历史数据允许为空
     module = Column(String(100), nullable=False, comment="关联测试点模块")                             # 模块名称，与测试点的module对应

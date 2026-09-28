@@ -19,9 +19,10 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base
+from app.core.tenant_context import TenantAwareMixin
 
 
-class TestReport(Base):
+class TestReport(TenantAwareMixin, Base):
     """
     测试报告模型
 
@@ -43,6 +44,16 @@ class TestReport(Base):
 
     id = Column(Integer, primary_key=True, index=True)                                                # 报告主键ID
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID，多项目隔离核心")  # 项目ID，级联删除
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
     test_task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="SET NULL"), nullable=True)   # 任务ID，SET NULL保留报告
     name = Column(String(255), nullable=False)                                                        # 报告名称
     description = Column(Text, nullable=True)                                                         # 报告描述

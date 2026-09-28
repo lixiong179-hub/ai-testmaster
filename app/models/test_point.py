@@ -20,9 +20,10 @@ from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base
 from app.models.enums import TestPointStatus
+from app.core.tenant_context import TenantAwareMixin
 
 
-class TestPoint(Base):
+class TestPoint(TenantAwareMixin, Base):
     """
     测试点模型
 
@@ -43,6 +44,16 @@ class TestPoint(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                           # 测试点主键ID
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID，多项目隔离核心")  # 项目ID，级联删除
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
     capability_id = Column(Integer, ForeignKey("test_capabilities.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联业务能力ID（可选）")  # 能力ID，SET NULL保留测试点
     requirement_id = Column(Integer, ForeignKey("requirements.id", ondelete="SET NULL"), nullable=True, comment="关联需求ID（可选）")  # 需求ID，SET NULL保留测试点
     module = Column(String(100), nullable=False, comment="模块名称，如'登录模块'")                      # 一级分类：功能模块

@@ -138,11 +138,21 @@ def ensure_secret_keys(settings_instance) -> None:
                 "请通过环境变量 ENCRYPTION_KEY 设置强随机密钥。"
                 "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
+        if len(settings_instance.ENCRYPTION_KEY) < 32:
+            raise ValueError(
+                "生产环境ENCRYPTION_KEY长度不足（至少32字符）！"
+                "请使用强随机密钥。生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+            )
         if is_default_value(settings_instance.ENCRYPTION_SALT):
             raise ValueError(
                 "生产环境ENCRYPTION_SALT使用了弱默认值模式！"
                 "请通过环境变量 ENCRYPTION_SALT 设置强随机盐值。"
                 "生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+            )
+        if len(settings_instance.ENCRYPTION_SALT) < 32:
+            raise ValueError(
+                "生产环境ENCRYPTION_SALT长度不足（至少32字符）！"
+                "请使用强随机盐值。生成命令: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
             )
     else:
         if not settings_instance.DEEPSEEK_API_KEY or is_default_value(settings_instance.DEEPSEEK_API_KEY):

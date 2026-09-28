@@ -33,9 +33,10 @@ from sqlalchemy.orm import relationship, Session
 from sqlalchemy import event, inspect as sa_inspect
 from app.db.database import Base
 from app.utils.crypto import encrypt_password, decrypt_password
+from app.core.tenant_context import TenantAwareMixin
 
 
-class Project(Base):
+class Project(TenantAwareMixin, Base):
     """
     项目主表 - 多项目隔离核心
 
@@ -57,6 +58,16 @@ class Project(Base):
         - 作为所有业务数据的隔离边界
     """
     __tablename__ = "projects"
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)                          # 项目主键ID
     name = Column(String(255), nullable=False, comment="项目名称")                                    # 项目名称，必填
@@ -127,6 +138,7 @@ class Project(Base):
             self.test_object_password_encrypted = encrypt_password(value)
 
     # 关联关系 - 所有子表通过project_id隔离
+    tenant = relationship("Tenant", back_populates="projects", foreign_keys=[tenant_id])              # 所属租户
     owner = relationship("User", back_populates="projects", foreign_keys=[user_id])                   # 项目所有者
     files = relationship("ProjectFile", back_populates="project", cascade="all, delete-orphan")       # 项目文件，级联删除
     test_cases = relationship("TestCase", back_populates="project", cascade="all, delete-orphan",
@@ -138,7 +150,7 @@ class Project(Base):
     test_capabilities = relationship("TestCapability", back_populates="project", cascade="all, delete-orphan")  # 业务能力，级联删除
 
 
-class ProjectFile(Base):
+class ProjectFile(TenantAwareMixin, Base):
     """
     项目文件表 - 文件隔离存储
 
@@ -162,6 +174,16 @@ class ProjectFile(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)                           # 文件主键ID
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID，多项目隔离核心")  # 项目ID，级联删除
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
     file_name = Column(String(500), nullable=False, comment="文件名")                                 # 原始文件名
     file_type = Column(String(50), nullable=False, comment="文件格式: docx/pdf/xlsx/png/jpg/figma")   # 文件扩展名
     file_url = Column(String(1000), nullable=False, comment="文件存储路径")                           # 文件在存储服务中的路径

@@ -32,6 +32,8 @@
 """
 # 导入顺序很重要：ui_prototype 必须先导入，因为它定义了 ui_screen_test_case_links 关联表
 # 而 test_case.py 中的 TestCase 模型需要引用这个关联表
+# 租户模型必须最早导入：业务模型的 tenant_id 外键指向 tenants 表
+from app.models.tenant import Tenant
 from app.models.ui_prototype import UIPrototypeScreen, UIScreenTestCaseLink, UIPrototypeProject
 from app.models.project_flow_data import ProjectFlowData
 from app.models.iteration import Iteration, IterationInput
@@ -90,6 +92,8 @@ __all__ = [
     "ProjectFile",
     # 用户与权限（RBAC）
     "User", "Role", "Permission", "UserRole",
+    # 租户（多租户隔离）
+    "Tenant",
     # 元素定位（UI自动化）
     "ElementLocator",
     # 测试用例体系

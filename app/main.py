@@ -41,6 +41,8 @@ from app.api.v1.endpoints import quality_rule
 from app.api.v1.endpoints import bug as bug_endpoint
 from app.api.v1.endpoints import ui_screens_batch
 from app.api.v1.endpoints import quick_test
+from app.api.v1.endpoints import agents, mcp_server, project_members, self_healing, impact_analysis, visual_ai
+from app.api.v1.endpoints import oidc_endpoints, saml_endpoints, mfa_endpoints
 from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
@@ -229,6 +231,15 @@ app.include_router(ai_invocation.router, prefix="/api/v1/ai-invocation")
 app.include_router(prompt_template.router, prefix="/api/v1/prompt-templates")
 app.include_router(bug_endpoint.router, prefix="/api/v1/bugs")
 app.include_router(quick_test.router, prefix="/api/v1/quick-test")
+app.include_router(self_healing.router, prefix="/api/v1")
+app.include_router(agents.router, prefix="/api/v1")
+app.include_router(mcp_server.router, prefix="/api/v1")
+app.include_router(project_members.router, prefix="/api/v1")
+app.include_router(impact_analysis.router, prefix="/api/v1")
+app.include_router(visual_ai.router, prefix="/api/v1")
+app.include_router(oidc_endpoints.router, prefix="/api/v1/auth")
+app.include_router(saml_endpoints.router, prefix="/api/v1/auth")
+app.include_router(mfa_endpoints.router, prefix="/api/v1/auth")
 
 
 # 根路径

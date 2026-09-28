@@ -1,10 +1,41 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import { visualizer } from 'rollup-plugin-visualizer'
+import legacy from '@vitejs/plugin-legacy'
 import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    // Element Plus 按需引入：
+    // - AutoImport 负责自动注入 ElMessage / ElMessageBox / ElNotification / ElLoading 等样式化 API
+    // - Components 负责自动注册 <el-*> 模板组件
+    // - importStyle: 'css' 按需加载组件对应 CSS，避免整包引入 element-plus/dist/index.css
+    AutoImport({
+      resolvers: [ElementPlusResolver({ importStyle: 'css' })],
+      dts: 'auto-imports.d.ts',
+    }),
+    Components({
+      resolvers: [ElementPlusResolver({ importStyle: 'css' })],
+      dts: 'components.d.ts',
+    }),
+    // P2-2: bundle 体积可视化分析（仅 build 时生成）
+    visualizer({
+      filename: 'dist/stats.html',
+      template: 'treemap',
+      gzipSize: true,
+      brotliSize: true,
+    }),
+    // P2-1: 旧版浏览器 polyfill（为不支持 ES2020 的浏览器生成兼容 bundle）
+    legacy({
+      targets: ['defaults', 'not ie 11'],
+      modernPolyfills: true,
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -58,9 +89,11 @@ export default defineConfig({
     },
   },
   build: {
-    target: 'es2015',
+    target: 'es2020',
     minify: 'esbuild',
     chunkSizeWarningLimit: 1000,
+    // 安全：生产环境禁用 source map，防止源码泄露
+    sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks(id) {

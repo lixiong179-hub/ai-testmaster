@@ -21,9 +21,10 @@ from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base
+from app.core.tenant_context import TenantAwareMixin
 
 
-class TestResult(Base):
+class TestResult(TenantAwareMixin, Base):
     """
     执行结果表
 
@@ -47,6 +48,16 @@ class TestResult(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)                                        # 结果主键ID
     task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="SET NULL"), nullable=True, comment="任务ID")  # 所属任务ID，任务删除时保留结果
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, comment="项目ID")  # 所属项目ID，级联删除
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
     case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, comment="用例ID")  # 所属用例ID，级联删除
     case_no = Column(String(50), nullable=False, comment="用例编号")                                   # 冗余存储用例编号，避免关联查询
     exec_status = Column(Integer, nullable=False, default=0, comment="执行状态：0未执行/1执行成功/2执行失败/3阻塞")  # 0=未执行，1=成功，2=失败，3=阻塞

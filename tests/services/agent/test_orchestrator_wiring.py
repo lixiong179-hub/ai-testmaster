@@ -177,8 +177,7 @@ class TestSpawnFailureAnalysisAgent:
 
         captured = []
 
-        def _capture(coro):
-            """同步钩子：收集协程并返回一个假的 task（随后由测试显式 await）。"""
+        async def _capture(coro):
             captured.append(coro)
             return MagicMock()
 

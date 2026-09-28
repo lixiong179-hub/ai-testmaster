@@ -18,6 +18,12 @@ from datetime import datetime
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
+
+import pytest
+
+# 真实浏览器通过率测试依赖 playwright（requirements 已声明但环境可能未装）；
+# 未安装时跳过整个模块（R4-4 门禁模式）。
+pytest.importorskip("playwright", reason="功能通过率测试需要 playwright 及浏览器二进制")
 os.chdir(project_root)
 
 from app.utils.browser_controller_v2 import BrowserControllerV2, BrowserConfig, ScreenshotConfig

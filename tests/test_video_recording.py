@@ -19,6 +19,12 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 os.chdir(project_root)
 
+import pytest
+
+# 视频录制测试依赖 playwright（requirements 已声明但环境可能未装）；
+# 未安装时跳过整个模块（R4-4 门禁模式）。
+pytest.importorskip("playwright", reason="视频录制测试需要 playwright 及浏览器二进制")
+
 from app.utils.browser_controller_v2 import BrowserControllerV2, BrowserConfig, ScreenshotConfig
 
 

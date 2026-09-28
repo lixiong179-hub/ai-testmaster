@@ -178,10 +178,10 @@ class TestStartTaskErrorPaths:
         assert resp.status_code == 404
 
     @pytest.mark.parametrize("status, label", [
-        (1, "RUNNING"), (2, "COMPLETED"), (4, "STOPPED"),
+        (1, "RUNNING"), (2, "COMPLETED"),
     ])
     async def test_disallowed_status_returns_400(self, status, label, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
-        """任务状态不在 [0, 3] 时应返回 400（L281-285）。"""
+        """任务状态不在 [0, 3, 4] 时应返回 400（端点已允许 STOPPED 重试）。"""
         task = await _make_task(async_db, async_test_project, async_test_user, status=status)
         resp = await async_auth_client.post(
             f"/api/v1/test-task/{task.id}/start",
@@ -202,7 +202,7 @@ class TestStartTaskErrorPaths:
         assert len(mock_executor.calls) == 1
 
     async def test_executor_exception_marks_task_failed(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
-        """executor 抛异常时应将 task.status 标记为 2（FAILED）（L310-314）。"""
+        """executor 抛异常时应将 task.status 标记为 3（FAILED）。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         mock_executor.raise_exc = RuntimeError("executor boom")
 
@@ -218,7 +218,7 @@ class TestStartTaskErrorPaths:
             select(TestTask).where(TestTask.id == task.id)
         )
         task = result.scalars().first()
-        assert task.status == 2
+        assert task.status == 3
         assert task.end_time is not None
 
     async def test_unauthorized_returns_401(self, async_client, mock_executor):

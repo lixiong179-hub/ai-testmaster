@@ -54,8 +54,9 @@ logs/
 
 # Node (if frontend exists)
 node_modules/
-package-lock.json
-yarn.lock
+# 注意：package-lock.json / yarn.lock 应提交入库以保证构建可重现，不再忽略
+# package-lock.json
+# yarn.lock
 
 # OS
 .DS_Store
@@ -96,6 +97,13 @@ test_uploads/
 videos/
 cypress/screenshots/
 cypress/videos/
+
+# Runtime execution screenshots (any location, any name pattern)
+screenshot_step_*.png
+screenshot_*.png
+step_screenshot_*.png
+*_screenshot_*.png
+execution_screenshots/
 
 # Root-level debug/export files
 /*.xlsx
@@ -149,5 +157,13 @@ test-results/
 
 # Debug auth scripts
 scripts/debug_auth*.py
+
+# Incident recovery artifacts (2026-09-24 数据恢复产物，仅本地留存)
+_before_restore_bak/
+_recovered_all_tmp/
+_recovered_wip_tmp/
+_recovered_pyc/
+_recovery_gap_report.txt
+recovery_*.txt
 
 # Misc

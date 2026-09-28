@@ -10,6 +10,11 @@
 注意：这些测试使用真实浏览器和MySQL数据库，需要安装Playwright
 """
 import pytest
+
+# 真实浏览器执行测试依赖 playwright（requirements 已声明但环境可能未装）；
+# 未安装时跳过整个模块，避免 fixture 报 ModuleNotFoundError（R4-4 门禁模式）。
+pytest.importorskip("playwright", reason="真实浏览器执行测试需要 playwright 及浏览器二进制")
+
 import pytest_asyncio
 from app.utils.db_time import utcnow
 from sqlalchemy import create_engine, event

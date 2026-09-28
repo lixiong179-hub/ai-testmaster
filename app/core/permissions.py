@@ -23,7 +23,7 @@
     - app.models.user.User: 用户模型（含is_superuser字段和roles关联）
 """
 from typing import List, Optional, Callable, Any
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from loguru import logger
 
@@ -232,3 +232,105 @@ def can_edit_locator(user: Optional[User]) -> bool:
     if not user:
         return False
     return check_role(user, ViewPermissions.EDIT)
+
+
+# ============================================================================
+# 权限码体系（PermissionCode）与通用权限码依赖工厂
+# 与 RBAC 角色（check_role）并行，提供细粒度权限码校验。
+# role.permissions 存储为 JSON 字符串列表，包含下列权限码。
+# ============================================================================
+
+
+class PermissionCode:
+    """权限码常量：统一遵循 ``<资源>:<操作>`` 命名规范。"""
+
+    PROJECT_CREATE = "project:create"
+    PROJECT_READ = "project:read"
+    PROJECT_UPDATE = "project:update"
+    PROJECT_DELETE = "project:delete"
+    PROJECT_MEMBER_MANAGE = "project:member:manage"
+
+    TEST_CASE_CREATE = "test_case:create"
+    TEST_CASE_READ = "test_case:read"
+    TEST_CASE_UPDATE = "test_case:update"
+    TEST_CASE_DELETE = "test_case:delete"
+    TEST_CASE_EXECUTE = "test_case:execute"
+
+    TEST_TASK_CREATE = "test_task:create"
+    TEST_TASK_READ = "test_task:read"
+    TEST_REPORT_READ = "test_report:read"
+    TEST_REPORT_EXPORT = "test_report:export"
+
+    AGENT_RUN = "agent:run"
+    MCP_READ = "mcp:read"
+    MCP_WRITE = "mcp:write"
+
+    SELF_HEALING_READ = "self_healing:read"
+    SELF_HEALING_APPROVE = "self_healing:approve"
+
+
+# 兼容旧命名：MCP 写权限码（mcp_server.py 的 docstring 引用）
+MCP_SCOPE_WRITE = PermissionCode.MCP_WRITE
+
+
+def _has_permission_code(user: User, code: str) -> bool:
+    """基于预加载的 roles 关系检查用户是否持有指定权限码。
+
+    超级管理员自动放行；否则遍历角色 permissions JSON 列表。
+    """
+    if getattr(user, "is_superuser", False):
+        return True
+    for role in getattr(user, "roles", []) or []:
+        if role.permissions and code in role.permissions:
+            return True
+    return False
+
+
+def require_permission(code: str) -> Callable[..., Any]:
+    """权限码依赖工厂：校验当前用户持有指定权限码。"""
+
+    def checker(current_user: User = Depends(get_current_user)) -> User:
+        if not _has_permission_code(current_user, code):
+            raise PermissionDenied(detail=f"缺少权限: {code}")
+        return current_user
+
+    return checker
+
+
+def require_project_role(required_role: str = "member") -> Callable[..., Any]:
+    """项目角色依赖工厂：校验当前用户的项目成员角色层级不低于 required_role。
+
+    项目 ID 从请求路径参数 ``project_id`` 解析（缺失时仅保留登录态校验，
+    具体项目级层级判定由 verify_project_permission 体系完成）。
+    """
+
+    def checker(
+        request: Request,
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> User:
+        from app.models.project_member import ProjectMember, ROLE_LEVEL
+
+        if getattr(current_user, "is_superuser", False):
+            return current_user
+
+        raw_project_id = request.path_params.get("project_id")
+        if raw_project_id is None:
+            # 无项目上下文：仅校验登录态
+            return current_user
+
+        member = (
+            db.query(ProjectMember)
+            .filter(
+                ProjectMember.project_id == int(raw_project_id),
+                ProjectMember.user_id == current_user.id,
+            )
+            .first()
+        )
+        if not member or ProjectMember.role_level(member.role) < ROLE_LEVEL.get(
+            required_role, 0
+        ):
+            raise PermissionDenied(detail=f"需要项目角色: {required_role}")
+        return current_user
+
+    return checker

@@ -25,6 +25,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, T
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base
+from app.core.tenant_context import TenantAwareMixin
 
 # 用户-角色多对多关联表
 # 级联删除：删除用户或角色时，自动清除关联记录
@@ -59,7 +60,7 @@ class UserRole(Base):
     __table__ = user_role
 
 
-class User(Base):
+class User(TenantAwareMixin, Base):
     """
     用户模型
 
@@ -88,6 +89,16 @@ class User(Base):
     create_time = Column(DateTime, default=utcnow)                              # 创建时间，UTC时区
     update_time = Column(DateTime, onupdate=utcnow, default=utcnow)             # 更新时间，记录变更时自动更新
 
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
+
     # 安全增强字段
     last_login_time = Column(DateTime, nullable=True, comment="最后登录时间")     # 用于安全审计和会话管理
     login_count = Column(Integer, nullable=True, default=0, comment="登录次数")   # 统计用户活跃度
@@ -97,6 +108,7 @@ class User(Base):
     locked_until = Column(DateTime, nullable=True, comment="账户锁定截止时间")    # 超过失败阈值后锁定至该时间
 
     # 关联关系
+    tenant = relationship("Tenant", back_populates="users", foreign_keys=[tenant_id])  # 所属租户
     roles = relationship("Role", secondary=user_role, back_populates="users")    # 用户拥有的角色列表（多对多）
     # 关联项目（用户可以拥有多个项目）
     projects = relationship("Project", back_populates="owner", foreign_keys="Project.user_id")  # 用户创建的项目

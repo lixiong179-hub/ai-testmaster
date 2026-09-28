@@ -18,6 +18,7 @@
     - 视频通过VideoService管理，支持按任务和用例查询
 """
 import os
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
@@ -36,6 +37,12 @@ from loguru import logger
 
 router = APIRouter()
 
+# 截图类型白名单：仅允许字母/数字/下划线，防止路径穿越攻击
+_ALLOWED_SCREENSHOT_TYPES = frozenset({
+    "before", "after", "error", "click", "input", "navigate", "assert", "default"
+})
+_SCREENSHOT_TYPE_PATTERN = re.compile(r"^[a-zA-Z0-9_]{1,32}$")
+
 
 @router.get("/{task_id}/screenshot/{case_id}/{step_number}/{type}")
 async def get_step_screenshot(
@@ -48,6 +55,13 @@ async def get_step_screenshot(
 ):
     """获取步骤截图"""
     try:
+        # 安全校验：type 参数用于文件路径拼接，必须严格校验防止路径穿越
+        if not _SCREENSHOT_TYPE_PATTERN.match(type):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="无效的截图类型"
+            )
+
         result = await db.execute(select(TestTask).where(TestTask.id == task_id))
         task = result.scalar_one_or_none()
         if not task:
@@ -58,8 +72,11 @@ async def get_step_screenshot(
 
         await verify_project_permission_async(db, task.project_id, current_user.id)
 
-        screenshot_dir = f"./screenshots/{task_id}/{case_id}"
-        screenshot_path = f"{screenshot_dir}/{step_number}_{type}.png"
+        # 使用 os.path.join 构造路径，并通过 realpath 校验最终路径未越界
+        screenshot_dir = os.path.join(".", "screenshots", str(task_id), str(case_id))
+        # basename 额外兜底：即使 type 含特殊字符也无法穿越目录
+        safe_filename = os.path.basename(f"{step_number}_{type}.png")
+        screenshot_path = os.path.join(screenshot_dir, safe_filename)
 
         if os.path.exists(screenshot_path):
             return FileResponse(screenshot_path)

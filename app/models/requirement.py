@@ -20,9 +20,10 @@ from app.utils.db_time import utcnow
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.db.database import Base
+from app.core.tenant_context import TenantAwareMixin
 
 
-class Requirement(Base):
+class Requirement(TenantAwareMixin, Base):
     """
     需求模型
 
@@ -45,6 +46,16 @@ class Requirement(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)                            # 需求主键ID
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="关联项目ID")  # 项目ID，级联删除
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
 
     # 需求基本信息
     req_no = Column(String(50), nullable=False, unique=True, index=True, comment="需求编号，如'REQ-PROJ1-001'")  # 需求编号，全局唯一

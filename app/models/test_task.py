@@ -26,6 +26,7 @@ from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 from app.utils.db_time import utcnow
+from app.core.tenant_context import TenantAwareMixin
 
 
 class TaskStatus:
@@ -58,7 +59,7 @@ class TaskStatus:
     }
 
 
-class TestTask(Base):
+class TestTask(TenantAwareMixin, Base):
     """
     测试任务表
 
@@ -83,6 +84,16 @@ class TestTask(Base):
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)                            # 任务主键ID
     task_name = Column(String(255), nullable=False, comment="任务名称")                                # 任务名称，如"登录模块回归测试"
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True, comment="项目ID")  # 所属项目，级联删除
+
+    # 租户隔离：所属租户ID（冗余，加速按租户过滤）
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="所属租户ID（冗余，加速按租户过滤）",
+    )
+
     case_ids = Column(JSON, nullable=False, comment="待执行用例ID列表")                                # JSON数组，存储待执行的用例ID列表
     executor_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="执行用户ID")  # 任务执行人
     status = Column(Integer, nullable=False, default=0, index=True, comment="状态：0等待执行/1执行中/2执行完成/3执行失败/4已停止")  # 任务状态，默认0等待执行
@@ -92,6 +103,7 @@ class TestTask(Base):
     fail_count = Column(Integer, nullable=False, default=0, comment="失败用例数")                       # 执行失败的用例计数
     total_count = Column(Integer, nullable=False, default=0, comment="总用例数")                        # 待执行用例总数
     progress = Column(Integer, nullable=False, default=0, comment="执行进度（0-100）")
+    priority = Column(Integer, nullable=False, default=2, index=True, comment="优先级：1高/2中/3低")
     visibility_config = Column(JSON, nullable=True, comment="可见模式配置")
     create_time = Column(DateTime, default=utcnow, index=True, comment="创建时间")                # 任务创建时间
     update_time = Column(DateTime, default=utcnow, onupdate=utcnow, index=True, comment="更新时间")  # 任务更新时间

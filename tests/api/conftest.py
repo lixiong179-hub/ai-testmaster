@@ -250,7 +250,12 @@ async def async_client(async_db):
         for _mgr in _patch_mgrs:
             _stack.enter_context(_mgr)
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 设置 Origin 头模拟真实浏览器，使 CSRF 中间件 Origin/Referer 校验通过
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"Origin": "http://localhost:5173"},
+        ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
 
@@ -282,7 +287,12 @@ async def async_auth_client(async_db, async_test_user):
         for _mgr in _patch_mgrs:
             _stack.enter_context(_mgr)
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 设置 Origin 头模拟真实浏览器，使 CSRF 中间件 Origin/Referer 校验通过
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"Origin": "http://localhost:5173"},
+        ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
@@ -316,7 +326,12 @@ async def async_admin_client(async_db, async_admin_user):
         for _mgr in _patch_mgrs:
             _stack.enter_context(_mgr)
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 设置 Origin 头模拟真实浏览器，使 CSRF 中间件 Origin/Referer 校验通过
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            headers={"Origin": "http://localhost:5173"},
+        ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
     app.dependency_overrides.pop(get_current_user, None)

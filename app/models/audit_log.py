@@ -26,6 +26,9 @@ from sqlalchemy.orm import Session
 from app.utils.db_time import utcnow
 from app.db.database import Base
 
+# 创世 hash：首条审计记录 prev_hash 的默认值（64 个零）
+_GENESIS_HASH = "0" * 64
+
 
 class AuditLog(Base):
     """
@@ -50,6 +53,8 @@ class AuditLog(Base):
     detail = Column(JSON, nullable=True, comment="变更详情（before/after快照）")
     run_id = Column(Integer, ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True, comment="关联PipelineRun")
     iteration_id = Column(Integer, ForeignKey("iterations.id", ondelete="SET NULL"), nullable=True, comment="关联迭代")
+    prev_hash = Column(String(64), nullable=False, default=_GENESIS_HASH, comment="上一条记录的 hash（首条为创世 hash）")
+    hash = Column(String(64), nullable=True, comment="本条记录的 hash（before_flush 时计算）")
     created_at = Column(DateTime, nullable=False, default=utcnow, comment="操作时间（服务器时间）")
 
     __table_args__ = (
