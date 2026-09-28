@@ -6,6 +6,7 @@ import axios, {
 } from 'axios'
 import { debounce, throttle } from './debounce'
 import { useFlowSortStore } from '@/store/flowSort'
+import { ElMessage } from 'element-plus'
 
 // 接口类型超时配置（毫秒）
 const TIMEOUT_CONFIG = {
@@ -113,6 +114,114 @@ service.interceptors.request.use(
   }
 )
 
+// ========== 401 未授权处理（Task A-03） ==========
+// 认证端点自身返回 401 属业务语义（如登录失败、刷新失败），不走「登录已过期」提示
+const AUTH_ENDPOINTS = ['/auth/login', '/auth/refresh', '/auth/logout']
+// 提示与跳转之间的延迟，保证用户能看清提示
+const UNAUTHORIZED_REDIRECT_DELAY = 1500
+
+/** 清理本地凭据（token / refresh_token / userInfo） */
+function clearLocalCredentials(): void {
+  localStorage.removeItem('token')
+  localStorage.removeItem('refresh_token')
+  localStorage.removeItem('userInfo')
+}
+
+/** 路由对象的最小结构（避免在 utils 层静态依赖 vue-router 类型） */
+interface RouterLike {
+  currentRoute?: { value?: { path?: string; fullPath?: string } }
+  push: (to: { path: string; query?: Record<string, string> }) => unknown
+}
+
+// 按需解析 router：若在模块顶层静态 `import router from '@/router'`，会形成
+// 「router → routes → views/api → utils/request → router」的初始化环，
+// 导致部分单测在收集阶段即失败（0 test）、应用冷启动偶发 TDZ 错误。
+let routerRef: RouterLike | null = null
+
+async function resolveRouter(): Promise<RouterLike | null> {
+  if (routerRef) {
+    return routerRef
+  }
+  try {
+    const mod = await import('@/router')
+    routerRef = (mod.default || mod) as RouterLike
+    return routerRef
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 处理未授权（401 刷新令牌失败）：
+ * 1. 登录页自身不发提示、不跳转（避免干扰用户输入）
+ * 2. 清理本地凭据并重置流程排序缓存
+ * 3. 弹出「登录已过期，请重新登录」
+ * 4. 延迟 1500ms 后跳转登录页，非根路径带上 redirect 便于登录后回跳
+ *    （router 不可用时退化为整页跳转，保证任何环境下都能回到登录页）
+ */
+async function handleUnauthorized(): Promise<void> {
+  const router = await resolveRouter()
+  const current = router?.currentRoute?.value
+  const currentPath = current?.path || (typeof window !== 'undefined' ? window.location.pathname : '/')
+
+  if (currentPath.includes('/login')) {
+    return
+  }
+
+  clearLocalCredentials()
+  try {
+    const flowSortStore = useFlowSortStore()
+    flowSortStore.reset()
+  } catch {
+    // flowSortStore 可能未初始化（如非组件上下文），忽略错误
+  }
+
+  ElMessage.warning('登录已过期，请重新登录')
+
+  const target = {
+    path: '/login',
+    query: currentPath === '/' ? undefined : { redirect: current?.fullPath || currentPath },
+  }
+
+  window.setTimeout(() => {
+    if (router) {
+      router.push(target)
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+  }, UNAUTHORIZED_REDIRECT_DELAY)
+}
+
+/**
+ * 尝试用 refresh_token 换取新的 access_token。
+ *
+ * @returns 新 token；无 refresh_token 或刷新失败/未返回 token 时返回 null
+ */
+async function tryRefreshToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem('refresh_token')
+  if (!refreshToken) {
+    return null
+  }
+  try {
+    const res = await axios.post('/api/v1/auth/refresh', { refresh_token: refreshToken })
+    const payload = (res as { data?: Record<string, unknown> })?.data ?? {}
+    const body = (payload as { data?: Record<string, unknown> }).data ?? payload
+    const newToken = (body as { access_token?: string; token?: string })?.access_token
+      || (body as { token?: string })?.token
+      || null
+    if (newToken) {
+      localStorage.setItem('token', newToken)
+      const rotated = (body as { refresh_token?: string })?.refresh_token
+      if (rotated) {
+        localStorage.setItem('refresh_token', rotated)
+      }
+    }
+    return newToken
+  } catch {
+    return null
+  }
+}
+
 // 响应拦截器
 service.interceptors.response.use(
   ((response: AxiosResponse) => {
@@ -125,18 +234,21 @@ service.interceptors.response.use(
     }
     return { code: 0, msg: 'success', message: 'success', data: res } as ApiResponse
   }) as unknown as Parameters<typeof service.interceptors.response.use>[0],
-  (error) => {
-    // 处理401错误，跳转到登录页面
+  async (error) => {
+    // 处理401错误：优先尝试刷新令牌，刷新失败再走「登录已过期」处理
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token')
-      try {
-        const flowSortStore = useFlowSortStore()
-        flowSortStore.reset()
-      } catch {
-        // flowSortStore 可能未初始化，忽略错误
-      }
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
+      const requestUrl: string = error.config?.url || ''
+      const isAuthEndpoint = AUTH_ENDPOINTS.some((path) => requestUrl.includes(path))
+
+      if (!isAuthEndpoint) {
+        const newToken = await tryRefreshToken()
+        if (newToken) {
+          // 用新令牌重放原请求（保留原配置的其余部分）
+          error.config.headers = error.config.headers || {}
+          error.config.headers.Authorization = `Bearer ${newToken}`
+          return service(error.config)
+        }
+        await handleUnauthorized()
       }
     }
 

@@ -471,8 +471,8 @@ VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {
     "src/constants/__tests__/resource.spec.ts": (8, 8),
     "src/views/report/__tests__/ReportDetail.spec.ts": (7, 7),
     "src/utils/__tests__/websocket.spec.ts": (10, 7),
-    "src/utils/__tests__/request.spec.ts": (5, 4),
     "src/views/login/__tests__/login.spec.ts": (5, 4),
+    # 已修复（G-5a 第 1 项，2026-09-28）：src/utils/__tests__/request.spec.ts 5 passed
 }
 
 
@@ -488,8 +488,19 @@ def render_vitest_spec_section() -> str:
         "`Start-Process node node_modules/vitest/vitest.mjs run --reporter=basic "
         "-RedirectStandardOutput _vitest_out.txt`（进程独立于命令会话，避免被 watch 判定拦截）。",
         "",
-        f"> **结果**：37 个 spec 文件 → **16 failed / 21 passed**；555 个用例 → "
-        f"**{failed} failed / {555 - failed} passed**（14.89s）。",
+        "> **首次结果（2026-09-28 基线）**：37 个 spec 文件 → 16 failed / 21 passed；"
+        "555 个用例 → 168 failed / 387 passed（14.89s）。",
+        "",
+        f"> **G-5a 第 1 项修复后（本次）**：37 文件 → **15 failed / 22 passed**；"
+        f"555 用例 → **{failed} failed / {555 - failed} passed**。"
+        "已修复 `src/utils/__tests__/request.spec.ts`（401 提示优化 Task A-03："
+        "ElMessage 提示 + 凭据清理 + 延迟跳登录页 + 登录页豁免）。",
+        "",
+        "> ⚠️ **修复过程中的一次回归与解决**：初版实现于 `src/utils/request.ts` 顶层静态 "
+        "`import router from '@/router'`，形成「router → routes → views/api → request → router」"
+        "初始化环，导致 `useQuickTestFlow.spec.ts` 收集失败（0 test，26 个用例消失，总数 555→529）。"
+        "已改为**按需动态 `import('@/router')` + 缓存**（并在 router 不可用时降级整页跳转），"
+        "回归消失、总数恢复 555。",
         "",
         "**归因**：失败用例集中在「实现被事故还原、spec 保持较新」的组合上——"
         "断言指向的实现细节（如 `pauseTask` / `resumeTask` 商店动作、"
