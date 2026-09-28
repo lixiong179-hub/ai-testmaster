@@ -1,0 +1,47 @@
+# AI TestMaster HPA（水平自动伸缩）
+# 业务用途：根据 CPU 利用率与自定义指标动态调整副本数
+# 设计说明：
+#   - minReplicas=3 保证高可用基线
+#   - maxReplicas=10 对标 Phase 1 验收指标
+#   - CPU 平均利用率超 70% 触发扩容
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-testmaster-backend
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-testmaster-backend
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60

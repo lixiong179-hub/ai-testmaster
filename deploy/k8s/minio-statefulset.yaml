@@ -1,0 +1,153 @@
+# MinIO StatefulSet（S3 兼容对象存储）
+# 业务用途：替代本地 uploads 目录，实现后端服务无状态化
+# 设计说明：
+#   - S3 协议兼容，应用层无需改造即可切换
+#   - 默认创建 bucket: ai-testmaster-uploads
+#   - 生产环境建议启用 MinIO 分布式模式或直接使用 AWS S3
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: minio
+spec:
+  serviceName: minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio
+    spec:
+      containers:
+        - name: minio
+          # 镜像版本应锁定具体 RELEASE tag，禁止使用 :latest
+          image: minio/minio:RELEASE.2024-06-13T22-53-53Z
+          args:
+            - server
+            - /data
+            - --console-address
+            - ":9001"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ai-testmaster-secret
+                  key: S3_ACCESS_KEY
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-testmaster-secret
+                  key: S3_SECRET_KEY
+          ports:
+            - name: s3
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: s3
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: s3
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          # minio 镜像默认以 root 运行（数据目录初始化需 root），故不设置 runAsNonRoot/runAsUser；
+          # 保留 allowPrivilegeEscalation/readOnlyRootFilesystem/capabilities 收紧。
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: ai-testmaster
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: minio
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3
+    - name: console
+      port: 9001
+      targetPort: console
+---
+# MinIO Bucket 初始化任务：启动后自动创建 bucket
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init-bucket
+  namespace: ai-testmaster
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          # 镜像版本应锁定具体 RELEASE tag，禁止使用 :latest
+          image: minio/mc:RELEASE.2024-06-13T22-53-53Z
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ai-testmaster-secret
+                  key: S3_ACCESS_KEY
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-testmaster-secret
+                  key: S3_SECRET_KEY
+          command:
+            - sh
+            - -c
+            - |
+              mc alias set local http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+              mc mb local/ai-testmaster-uploads --ignore-existing
+              # 安全：保持 bucket 为 private，禁止匿名可读，避免上传内容被未授权访问
+          # 安全收紧：mc 需写入 /root/.mc 配置，挂载 emptyDir 以支持只读根文件系统
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: mc-config
+              mountPath: /root/.mc
+      volumes:
+        - name: mc-config
+          emptyDir: {}

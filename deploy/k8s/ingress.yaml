@@ -1,0 +1,56 @@
+# AI TestMaster Ingress
+# 业务用途：对外暴露 HTTPS 流量入口，转发至 backend Service
+# 设计说明：
+#   - 使用 NGINX Ingress Controller
+#   - 强制 TLS 1.2+，配置 HSTS 安全头
+#   - 启用 gzip 压缩与限流（10 QPS/IP）
+#   - 注解 Prometheus scrape metrics 路径
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-testmaster
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://testmaster.example.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, Accept, Origin, X-Requested-With, X-CSRF-Token, X-Request-ID"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - testmaster.example.com
+      secretName: ai-testmaster-tls
+  rules:
+    - host: testmaster.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-testmaster-backend
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-testmaster-frontend
+                port:
+                  name: http

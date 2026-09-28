@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Agent 会话监控 · 样式预览</title>
+<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+<style>
+  body { margin: 0; background: #f0f2f5; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .agent-monitor { display: flex; flex-direction: column; gap: 12px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+  .toolbar { display: flex; align-items: center; gap: 12px; background: #fff; padding: 14px 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  .toolbar .title { margin-right: auto; font-size: 18px; font-weight: 600; color: #303133; }
+  .detail { display: flex; gap: 12px; align-items: flex-start; }
+  .panel { flex: 1; min-width: 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.04); padding: 14px 16px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #303133; }
+  .stats { display: flex; gap: 12px; margin-bottom: 12px; }
+  .stat { flex: 1; padding: 10px 12px; border: 1px solid #ebeef5; border-radius: 6px; background: #fafafa; }
+  .stat .label { font-size: 12px; color: #909399; }
+  .stat .value { font-size: 16px; font-weight: 600; color: #303133; }
+  .messages { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; }
+  .msg { padding: 8px 10px; border: 1px solid #ebeef5; border-radius: 6px; background: #fff; }
+  .msg.assistant { background: #f0f9ff; border-color: #c6e2ff; }
+  .msg.tool { background: #fafafa; }
+  .msg-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .msg-meta .time { font-size: 12px; color: #909399; margin-left: auto; }
+  .msg-body { margin: 0; white-space: pre-wrap; word-break: break-all; font-size: 13px; line-height: 1.6; color: #303133; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="agent-monitor">
+    <div class="toolbar">
+      <span class="title">Agent 会话监控</span>
+      <el-select v-model="filterType" placeholder="Agent 类型" clearable style="width:160px">
+        <el-option v-for="o in agentTypeOptions" :key="o.value" :label="o.label" :value="o.value"></el-option>
+      </el-select>
+      <el-select v-model="filterStatus" placeholder="会话状态" clearable style="width:160px">
+        <el-option v-for="o in statusOptions" :key="o.value" :label="o.label" :value="o.value"></el-option>
+      </el-select>
+      <el-button type="primary">刷新</el-button>
+    </div>
+
+    <div style="background:#fff;border-radius:8px;padding:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+      <el-table :data="sessions" highlight-current-row height="240"
+                @current-change="(row) => selectedId = row ? row.id : null">
+        <el-table-column prop="id" label="会话ID" width="90"></el-table-column>
+        <el-table-column prop="project_id" label="项目ID" width="90"></el-table-column>
+        <el-table-column label="Agent类型" width="120">
+          <template #default="{ row }"><el-tag size="small" effect="plain">{{ typeLabel(row.agent_type) }}</el-tag></template>
+        </el-table-column>
+        <el-table-column label="状态" width="110">
+          <template #default="{ row }">
+            <el-tag size="small" :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="开始时间" min-width="160">
+          <template #default="{ row }">{{ row.started_at }}</template>
+        </el-table-column>
+        <el-table-column prop="token_cost" label="Token" width="90"></el-table-column>
+        <el-table-column prop="iteration_count" label="迭代" width="80"></el-table-column>
+      </el-table>
+    </div>
+
+    <div class="detail">
+      <div class="panel">
+        <div class="panel-head"><span>消息流</span><el-tag size="small" type="info">会话 #1284 · 3 条</el-tag></div>
+        <div class="messages">
+          <div class="msg"><div class="msg-meta"><el-tag size="small" effect="dark">user</el-tag><span class="time">2026-09-24 16:20:11</span></div><pre class="msg-body">定位器 #login-btn 连续 3 次找不到，怀疑页面结构变更，请分析失败根因。</pre></div>
+          <div class="msg assistant"><div class="msg-meta"><el-tag size="small" effect="dark">assistant</el-tag><span class="time">2026-09-24 16:20:15</span></div><pre class="msg-body">判定为 dom_changed：按钮 class 由 btn-primary 变为 btn-submit，建议改用 role 语义选择器。</pre></div>
+          <div class="msg tool"><div class="msg-meta"><el-tag size="small" effect="dark">tool</el-tag><span>get_dom</span><span class="time">2026-09-24 16:20:13</span></div><pre class="msg-body">{ "viewport": "1440x900", "candidates": 2, "target": "#login-btn" }</pre></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span>工具调用与成本</span><el-tag size="small" type="info">3 条审计</el-tag></div>
+        <div class="stats">
+          <div class="stat"><div class="label">Token 消耗</div><div class="value">1,284</div></div>
+          <div class="stat"><div class="label">耗时</div><div class="value">8.4s</div></div>
+          <div class="stat"><div class="label">迭代轮数</div><div class="value">3</div></div>
+        </div>
+        <el-table :data="audits" size="small" max-height="240">
+          <el-table-column prop="iteration" label="轮次" width="60"></el-table-column>
+          <el-table-column prop="action_type" label="动作" width="130"></el-table-column>
+          <el-table-column prop="target" label="目标" min-width="140"></el-table-column>
+          <el-table-column label="审批" width="100">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.approved === 1 ? 'success' : 'info'">{{ row.approved === 1 ? '已批准' : '待审批' }}</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+<script>
+const { createApp, ref } = Vue;
+createApp({
+  setup() {
+    const filterType = ref('');
+    const filterStatus = ref('');
+    const selectedId = ref(null);
+    const agentTypeOptions = [
+      { label: '用例生成', value: 'test_generation' },
+      { label: '失败分析', value: 'failure_analysis' },
+      { label: '视觉校验', value: 'visual_validation' },
+      { label: '定位自愈', value: 'locator_healing' },
+    ];
+    const statusOptions = [
+      { label: '运行中', value: 'running' },
+      { label: '已完成', value: 'completed' },
+      { label: '失败', value: 'failed' },
+      { label: '已取消', value: 'cancelled' },
+      { label: '循环熔断', value: 'loop_detected' },
+    ];
+    const sessions = [
+      { id: 1284, project_id: 12, agent_type: 'failure_analysis', status: 'completed', started_at: '2026-09-24 16:20:11', token_cost: 1284, iteration_count: 3 },
+      { id: 1283, project_id: 12, agent_type: 'locator_healing', status: 'failed', started_at: '2026-09-24 15:58:02', token_cost: 640, iteration_count: 2 },
+      { id: 1282, project_id: 8, agent_type: 'test_generation', status: 'completed', started_at: '2026-09-24 14:12:47', token_cost: 5210, iteration_count: 6 },
+      { id: 1281, project_id: 8, agent_type: 'visual_validation', status: 'running', started_at: '2026-09-24 16:31:09', token_cost: 0, iteration_count: 0 },
+    ];
+    const audits = [
+      { iteration: 1, action_type: 'tool_call', target: 'get_dom', approved: 1 },
+      { iteration: 2, action_type: 'tool_call', target: 'query_locator_history', approved: 1 },
+      { iteration: 3, action_type: 'update_locator', target: '#login-btn → role=button[name=登录]', approved: 0 },
+    ];
+    const statusTagType = (s) => ({ completed: 'success', running: 'info', failed: 'danger', cancelled: 'info', loop_detected: 'warning' }[s] || 'info');
+    const typeLabel = (t) => agentTypeOptions.find((o) => o.value === t)?.label || t;
+    const statusLabel = (s) => statusOptions.find((o) => o.value === s)?.label || s;
+    return { filterType, filterStatus, selectedId, sessions, audits, agentTypeOptions, statusOptions, statusTagType, typeLabel, statusLabel };
+  },
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>

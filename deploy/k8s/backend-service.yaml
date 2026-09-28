@@ -1,0 +1,42 @@
+# AI TestMaster 后端 Service
+# 业务用途：集群内访问后端，ClusterIP 类型，Ingress 通过此 Service 转发流量
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-testmaster-backend
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
+---
+# Headless Service：用于 Prometheus 服务发现
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-testmaster-backend-metrics
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: backend
+    monitoring: prometheus
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: backend
+  ports:
+    - name: metrics
+      port: 8000
+      targetPort: http
+      protocol: TCP

@@ -1,0 +1,93 @@
+# AI TestMaster 前端 Deployment + Service
+# 业务用途：Vue 3 静态资源服务，通过 NGINX 容器化
+# 设计说明：
+#   - 多阶段构建：Node 构建产物 → NGINX 镜像
+#   - 副本数 2 保证可用性
+#   - 通过 Ingress 流量分流
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-testmaster-frontend
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-testmaster
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-testmaster
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: nginx
+          # 镜像标签应通过 CI 构建时注入的 git sha/tag 替换，禁止使用 :latest
+          image: registry.example.com/ai-testmaster/frontend:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          # nginx 需以 root 绑定 80 端口，故不设置 runAsNonRoot/runAsUser；
+          # 保留 NET_BIND_SERVICE 以绑定特权端口，生产建议改用非特权 nginx(8080) 镜像以启用完整 securityContext。
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_BIND_SERVICE"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-testmaster-frontend
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,222 @@
+# MySQL 主从复制 StatefulSet（Phase 1 Task 2 读写分离前置）
+# 业务用途：提供主从复制架构，主库写入，从库读取
+# 设计说明：
+#   - 使用 StatefulSet 保证稳定网络标识与持久化存储
+#   - 主库 mysql-primary:3306，从库 mysql-replica:3306
+#   - 配置 my.cnf 开启 binlog 与 server-id
+#   - 生产环境建议使用 MySQL Operator 替代自管 StatefulSet
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-primary-config
+  namespace: ai-testmaster
+data:
+  my.cnf: |
+    [mysqld]
+    server-id = 1
+    log-bin = mysql-bin
+    binlog-format = ROW
+    binlog-row-image = MINIMAL
+    sync-binlog = 1
+    innodb-flush-log-at-trx-commit = 1
+    max-connections = 500
+    character-set-server = utf8mb4
+    collation-server = utf8mb4_unicode_ci
+    default-authentication-plugin = mysql_native_password
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-replica-config
+  namespace: ai-testmaster
+data:
+  my.cnf: |
+    [mysqld]
+    server-id = 2
+    log-bin = mysql-bin
+    binlog-format = ROW
+    relay-log = relay-bin
+    read-only = 1
+    max-connections = 500
+    character-set-server = utf8mb4
+    collation-server = utf8mb4_unicode_ci
+    default-authentication-plugin = mysql_native_password
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-primary
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: primary
+spec:
+  serviceName: mysql-primary
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/component: primary
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/component: primary
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - name: mysql
+              containerPort: 3306
+          envFrom:
+            - secretRef:
+                name: ai-testmaster-secret
+          env:
+            - name: MYSQL_DATABASE
+              value: "ai_testmaster"
+            - name: MYSQL_USER
+              value: "aitest"
+            # MYSQL_PWD 供 mysqladmin 健康检查使用，避免在命令行/进程列表中暴露 root 密码
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-testmaster-secret
+                  key: MYSQL_ROOT_PASSWORD
+          volumeMounts:
+            - name: config
+              mountPath: /etc/mysql/conf.d/my.cnf
+              subPath: my.cnf
+            - name: data
+              mountPath: /var/lib/mysql
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h localhost -uroot"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h localhost -uroot"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+      volumes:
+        - name: config
+          configMap:
+            name: mysql-primary-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-primary
+  namespace: ai-testmaster
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: primary
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-replica
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: replica
+spec:
+  serviceName: mysql-replica
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/component: replica
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/component: replica
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - name: mysql
+              containerPort: 3306
+          envFrom:
+            - secretRef:
+                name: ai-testmaster-secret
+          env:
+            - name: MYSQL_DATABASE
+              value: "ai_testmaster"
+            - name: MYSQL_USER
+              value: "aitest"
+            # MYSQL_PWD 供 mysqladmin 健康检查使用，避免在命令行/进程列表中暴露 root 密码
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-testmaster-secret
+                  key: MYSQL_ROOT_PASSWORD
+          volumeMounts:
+            - name: config
+              mountPath: /etc/mysql/conf.d/my.cnf
+              subPath: my.cnf
+            - name: data
+              mountPath: /var/lib/mysql
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h localhost -uroot"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+      volumes:
+        - name: config
+          configMap:
+            name: mysql-replica-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-replica
+  namespace: ai-testmaster
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/component: replica
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql

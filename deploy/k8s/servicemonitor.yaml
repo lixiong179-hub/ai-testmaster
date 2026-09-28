@@ -1,0 +1,19 @@
+# Prometheus ServiceMonitor
+# 业务用途：自动发现后端 Pod 的 /metrics 端点
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ai-testmaster-backend
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: backend
+spec:
+  selector:
+    matchLabels:
+      monitoring: prometheus
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s

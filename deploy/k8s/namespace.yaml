@@ -1,0 +1,9 @@
+# AI TestMaster K8s 命名空间
+# 业务用途：隔离测试/生产环境资源
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-testmaster
+  labels:
+    app.kubernetes.io/part-of: ai-testmaster
+    environment: production

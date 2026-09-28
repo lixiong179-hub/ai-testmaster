@@ -1,0 +1,104 @@
+# AI TestMaster 后端 Deployment
+# 业务用途：FastAPI 后端服务，无状态可水平扩展
+# 设计说明：
+#   - 副本数由 HPA 动态调整，初始 3 副本
+#   - 资源 requests/limits 保证 QoS 为 Burstable
+#   - readinessProbe 检查依赖就绪，livenessProbe 仅检查进程
+#   - 通过 SECRET_PATH 挂载 RSA 密钥（生产建议用 CSI Driver）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-testmaster-backend
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-testmaster
+      app.kubernetes.io/component: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-testmaster
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+        - name: backend
+          # 镜像标签应通过 CI 构建时注入的 git sha/tag 替换，禁止使用 :latest
+          image: registry.example.com/ai-testmaster/backend:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: ai-testmaster-config
+            - secretRef:
+                name: ai-testmaster-secret
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          # liveness：进程存活即返回 200，失败重启容器
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # readiness：依赖就绪才返回 200，否则从负载均衡剔除
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          # 启动探针：避免冷启动期间被 liveness 误判
+          startupProbe:
+            httpGet:
+              path: /live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: jwt-keys
+              mountPath: /etc/jwt-keys
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: jwt-keys
+          secret:
+            # 引用统一 Secret，key 与 deploy/k8s/secret.yaml 中的 JWT_PRIVATE_KEY/JWT_PUBLIC_KEY 一致
+            secretName: ai-testmaster-secret
+            items:
+              - key: JWT_PRIVATE_KEY
+                path: private.pem
+              - key: JWT_PUBLIC_KEY
+                path: public.pem
+      terminationGracePeriodSeconds: 60

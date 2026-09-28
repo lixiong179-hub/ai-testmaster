@@ -1,0 +1,197 @@
+# Celery Worker Deployment（Phase 1 Task 3：分布式测试执行引擎）
+# 业务用途：测试任务分布式调度，≥50 并发，Worker 水平扩展
+# 设计说明：
+#   - Worker 镜像与后端 API 共享，启动命令不同
+#   - 使用 gevent 池提升 IO 并发
+#   - 含 Playwright + Chromium，资源限制 ≥2CPU/4GB
+#   - HPA 基于队列长度自动扩缩（min 2 / max 20）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-testmaster-worker
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-testmaster
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-testmaster
+        app.kubernetes.io/component: worker
+    spec:
+      containers:
+        - name: worker
+          # 镜像标签应通过 CI 构建时注入的 git sha/tag 替换，禁止使用 :latest
+          image: registry.example.com/ai-testmaster/backend:v1.0.0
+          command:
+            - celery
+            - -A
+            - app.tasks.celery_app:celery_app
+            - worker
+            - -Q
+            - test_execution,scheduler
+            - --concurrency=4
+            - --pool=gevent
+            - --loglevel=INFO
+            - --hostname=worker@%h
+          envFrom:
+            - configMapRef:
+                name: ai-testmaster-config
+            - secretRef:
+                name: ai-testmaster-secret
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          # 优雅终止：等待在途任务完成
+          lifecycle:
+            preStop:
+              exec:
+                command: ["celery", "-A", "app.tasks.celery_app:celery_app", "control", "shutdown"]
+          # 就绪探针：检查 Worker 是否连接 Redis broker
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "celery -A app.tasks.celery_app:celery_app inspect ping -d worker@$(hostname) --timeout=5"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          # 存活探针：检查 Worker 进程存活
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "ps aux | grep '[c]elery.*worker'"
+            initialDelaySeconds: 60
+            periodSeconds: 60
+          # 安全收紧：非 root 运行、只读根文件系统、丢弃所有 capabilities（与 backend 一致）
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      terminationGracePeriodSeconds: 600  # 10 分钟，等待长任务完成
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ai-testmaster-worker
+  namespace: ai-testmaster
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ai-testmaster-worker
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+# Celery Beat Deployment（单实例，周期任务调度）
+# 业务用途：周期性触发 pipeline_timeout_check 等任务
+# 设计说明：
+#   - 单实例运行，多实例时需配置分布式锁
+#   - 使用 StatefulSet + 单副本保证唯一性
+#   - 持久化 celerybeat-schedule 文件避免重复触发
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-testmaster-beat
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: ai-testmaster
+    app.kubernetes.io/component: beat
+spec:
+  replicas: 1  # 强制单实例
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-testmaster
+      app.kubernetes.io/component: beat
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-testmaster
+        app.kubernetes.io/component: beat
+    spec:
+      containers:
+        - name: beat
+          # 镜像标签应通过 CI 构建时注入的 git sha/tag 替换，禁止使用 :latest
+          image: registry.example.com/ai-testmaster/backend:v1.0.0
+          command:
+            - celery
+            - -A
+            - app.tasks.celery_app:celery_app
+            - beat
+            - --loglevel=INFO
+            - --schedule=/tmp/celerybeat-schedule
+            - --pidfile=/tmp/celerybeat.pid
+          envFrom:
+            - configMapRef:
+                name: ai-testmaster-config
+            - secretRef:
+                name: ai-testmaster-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # 安全收紧：非 root 运行、只读根文件系统、丢弃所有 capabilities（与 backend 一致）
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: beat-schedule
+              mountPath: /tmp
+      volumes:
+        - name: beat-schedule
+          emptyDir: {}
+---
+# PodDisruptionBudget：保证 Worker 至少 1 个可用
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-testmaster-worker
+  namespace: ai-testmaster
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-testmaster
+      app.kubernetes.io/component: worker

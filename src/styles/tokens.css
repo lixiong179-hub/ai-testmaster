@@ -1,0 +1,116 @@
+/**
+ * 全局语义化设计令牌
+ *
+ * 设计目标：
+ *   1. 统一品牌色系，消除散落在 40+ 文件中的硬编码 #409eff / #1f7aec / #1f2d3d
+ *   2. 提供语义别名（primary / success / warning / danger），便于主题切换与一致性维护
+ *   3. 仅声明 :root 变量，不写组件样式；组件级样式仍由各 .vue scoped 控制
+ *
+ * 使用方式：
+ *   color: var(--color-text-primary);
+ *   background: var(--color-primary);
+ *   border-color: var(--color-border);
+ */
+:root {
+  /* ---- 品牌主色 ---- */
+  --color-primary: #409eff;
+  --color-primary-strong: #1677d2;
+  --color-primary-soft: rgba(64, 158, 255, 0.1);
+  --color-primary-soft-strong: rgba(64, 158, 255, 0.18);
+
+  /* ---- 文本色 ---- */
+  --color-text-primary: #1f2d3d;
+  --color-text-regular: #606266;
+  --color-text-muted: #7a8594;
+  --color-text-placeholder: #909399;
+  --color-text-disabled: #c0c4cc;
+  --color-text-inverse: #ffffff;
+
+  /* ---- 状态色（与 Element Plus 对齐） ---- */
+  --color-success: #67c23a;
+  --color-warning: #e6a23c;
+  --color-danger: #f56c6c;
+  --color-info: #909399;
+
+  /* ---- 背景色 ---- */
+  --color-bg-page: #f5f7fa;
+  --color-bg-card: #ffffff;
+  --color-bg-soft: #f5f7fa;
+  --color-bg-hover: #ecf5ff;
+
+  /* ---- 边框色 ---- */
+  --color-border: #e4e7ed;
+  --color-border-base: #dcdfe6;
+  --color-border-light: #ebeef5;
+  --color-border-lighter: #f0f0f0;
+  --color-border-hover: var(--color-primary);
+
+  /* ---- 圆角 ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* ---- 间距（8px 栅格系统） ---- */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  --spacing-3xl: 48px;
+
+  /* ---- 阴影 ---- */
+  --shadow-sm: 0 2px 8px rgba(31, 45, 61, 0.06);
+  --shadow-md: 0 8px 24px rgba(31, 45, 61, 0.08);
+  --shadow-lg: 0 18px 44px rgba(31, 45, 61, 0.12);
+  --shadow-primary: 0 8px 18px rgba(64, 158, 255, 0.24);
+
+  /* ---- 侧边栏（暗色主题） ---- */
+  --color-bg-sidebar: var(--color-text-primary);
+  --color-bg-sidebar-deep: #151e2a;
+  --color-text-sidebar: #bfcbd9;
+  --color-bg-sidebar-hover: rgba(255, 255, 255, 0.06);
+}
+
+/* ---- 暗色模式预留 ---- */
+/* 通过 document.documentElement.setAttribute('data-theme', 'dark') 激活 */
+:root[data-theme='dark'] {
+  --color-primary: #409eff;
+  --color-primary-strong: #5cadff;
+  --color-primary-soft: rgba(64, 158, 255, 0.15);
+  --color-primary-soft-strong: rgba(64, 158, 255, 0.25);
+
+  --color-text-primary: #e5eaf3;
+  --color-text-regular: #cfd3dc;
+  --color-text-muted: #a3a6ad;
+  --color-text-placeholder: #8d9095;
+  --color-text-disabled: #4c4d4f;
+  --color-text-inverse: #1f2d3d;
+
+  --color-success: #67c23a;
+  --color-warning: #e6a23c;
+  --color-danger: #f56c6c;
+  --color-info: #73767a;
+
+  --color-bg-page: #141414;
+  --color-bg-card: #1d1e1f;
+  --color-bg-soft: #252526;
+  --color-bg-hover: #2a2a2b;
+
+  --color-border: #414243;
+  --color-border-base: #414243;
+  --color-border-light: #414243;
+  --color-border-lighter: #363637;
+  --color-border-hover: var(--color-primary);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.5);
+  --shadow-primary: 0 8px 18px rgba(64, 158, 255, 0.2);
+
+  --color-bg-sidebar: #1d1e1f;
+  --color-bg-sidebar-deep: #141414;
+  --color-text-sidebar: #cfd3dc;
+  --color-bg-sidebar-hover: rgba(255, 255, 255, 0.08);
+}

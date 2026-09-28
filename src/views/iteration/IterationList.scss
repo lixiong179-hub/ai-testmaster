@@ -1,0 +1,91 @@
+.iteration-list-page {
+  padding: 16px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-select {
+  width: 220px;
+}
+
+.status-select {
+  width: 150px;
+}
+
+.loading-container,
+.empty-state {
+  padding: 40px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #303133;
+  margin: 8px 0 0;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: #909399;
+  margin: 0 0 12px;
+}
+
+.iteration-table {
+  margin-top: 4px;
+}
+
+.iter-name {
+  font-weight: 500;
+  color: #303133;
+}
+
+.iter-desc {
+  display: block;
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.time-range {
+  font-size: 12px;
+  color: #606266;
+}
+
+.count-badge {
+  margin: 0 auto;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}

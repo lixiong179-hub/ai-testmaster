@@ -1,0 +1,112 @@
+# Redis StatefulSet
+# 业务用途：缓存、JWT 黑名单、Token 预算、分布式锁、Celery 任务队列
+# 设计说明：
+#   - 启用 AOF 持久化，避免重启丢失
+#   - maxmemory 策略为 allkeys-lru，优先淘汰冷数据
+#   - 单副本部署，生产环境可升级为 Redis Sentinel/Cluster
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: ai-testmaster
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - name: redis
+              containerPort: 6379
+          # 安全：启用密码认证。密码通过 K8s Secret（ai-testmaster-secret）的 REDIS_PASSWORD key 注入，
+          # 部署时需在 ai-testmaster-secret 中新增 REDIS_PASSWORD，并将 REDIS_URL 更新为
+          # redis://:<REDIS_PASSWORD>@redis:6379/0（应用侧连接串同步带上凭据）。
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-testmaster-secret
+                  key: REDIS_PASSWORD
+            # redis-cli 自动读取 REDISCLI_AUTH 进行认证，避免在探针命令行暴露密码到进程列表
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: ai-testmaster-secret
+                  key: REDIS_PASSWORD
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "1gb"
+            - --maxmemory-policy
+            - "allkeys-lru"
+            - --save
+            - "60 1000"
+            - --requirepass
+            - $(REDIS_PASSWORD)
+          # redis:7-alpine 以 root 启动后通过 gosu 降权到 redis(999)，且 PVC 初始化需 root 权限，
+          # 故不设置 runAsNonRoot/runAsUser；保留 allowPrivilegeEscalation/readOnlyRootFilesystem/capabilities 收紧。
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            # readOnlyRootFilesystem 下需为 /tmp 提供可写挂载（AOF/RDB 临时文件）
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+      volumes:
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: ai-testmaster
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
