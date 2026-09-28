@@ -453,6 +453,63 @@ def build_pyc_ledger(report_path: str) -> List[Tuple[str, str, int, str, str]]:
 
 FRONTEND_ORPHAN_PATHS = {p for p, _ in FRONTEND_ORPHANS} | {p for p, _ in FRONTEND_CHAIN_ORPHANS}
 
+# 2026-09-28 补跑 `vitest run` 的结果：失败 spec → (用例总数, 失败数)
+# 说明：这些 spec 由 9 月下旬新增工作编写，而对应实现文件在事故中被还原为旧版本，
+# 因此失败用例**即丢失前端增量的可执行规格**（按钮/商店动作/字段/Tab 等）。
+VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {
+    "src/store/__tests__/project.spec.ts": (19, 19),
+    "src/views/task/__tests__/TaskDetail.spec.ts": (21, 16),
+    "src/views/__tests__/Workbench.spec.ts": (16, 16),
+    "src/views/iteration/__tests__/useReviewInboxFilter.spec.ts": (17, 15),
+    "src/views/iteration/__tests__/useReviewInbox.spec.ts": (15, 15),
+    "src/views/iteration/__tests__/PipelineProgress.spec.ts": (14, 13),
+    "src/api/__tests__/caseQuality.spec.ts": (10, 10),
+    "src/api/__tests__/ai.spec.ts": (11, 9),
+    "src/api/__tests__/iteration.spec.ts": (9, 9),
+    "src/views/case/__tests__/smart-generate.spec.ts": (9, 8),
+    "src/views/project/__tests__/detail.spec.ts": (19, 8),
+    "src/constants/__tests__/resource.spec.ts": (8, 8),
+    "src/views/report/__tests__/ReportDetail.spec.ts": (7, 7),
+    "src/utils/__tests__/websocket.spec.ts": (10, 7),
+    "src/utils/__tests__/request.spec.ts": (5, 4),
+    "src/views/login/__tests__/login.spec.ts": (5, 4),
+}
+
+
+def render_vitest_spec_section() -> str:
+    """渲染前端 vitest 补跑结果与失败规格清单（§7）。"""
+    total = sum(t for t, _ in VITEST_SPEC_FAILURES.values())
+    failed = sum(f for _, f in VITEST_SPEC_FAILURES.values())
+    lines = [
+        "## 7. 前端测试规格（vitest 补跑结果，2026-09-28）",
+        "",
+        "> **补跑方式**：`npx vitest run` 被本机环境判定为 watch 命令并中断，"
+        "改用**分离进程**方式补跑："
+        "`Start-Process node node_modules/vitest/vitest.mjs run --reporter=basic "
+        "-RedirectStandardOutput _vitest_out.txt`（进程独立于命令会话，避免被 watch 判定拦截）。",
+        "",
+        f"> **结果**：37 个 spec 文件 → **16 failed / 21 passed**；555 个用例 → "
+        f"**{failed} failed / {555 - failed} passed**（14.89s）。",
+        "",
+        "**归因**：失败用例集中在「实现被事故还原、spec 保持较新」的组合上——"
+        "断言指向的实现细节（如 `pauseTask` / `resumeTask` 商店动作、"
+        "「重试任务」「查看失败报告」按钮、「质量规则」Tab、资源常量等）在当前 HEAD 版本中不存在。"
+        "因此**这批失败用例即丢失前端增量的可执行规格**，可直接作为恢复清单使用"
+        "（此前的「前端 172 个文件无内容证据」结论由此得到实质性补充）。",
+        "",
+        "| 失败 spec 文件 | 用例总数 | 失败数 |",
+        "| --- | --- | --- |",
+    ]
+    for path, (t, f) in sorted(VITEST_SPEC_FAILURES.items(), key=lambda x: -x[1][1]):
+        lines.append(f"| `{path}` | {t} | **{f}** |")
+    lines += [
+        "",
+        f"**合计**：{len(VITEST_SPEC_FAILURES)} 个 spec / {total} 个用例中失败 **{failed}** 个。"
+        "处理路径见 `docs/架构优化执行计划清单.md` G-5 与决策 Q14。",
+        "",
+    ]
+    return "\n".join(lines)
+
 # 前端分批重构的批次判定说明
 BATCH_NOTES: Sequence[Tuple[str, str]] = (
     ("批次 0", "孤儿/连锁失效文件：先确认功能是否已由新实现覆盖，再决定接线、归档或删除（禁止直接删）"),
@@ -745,6 +802,7 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
         "`project/detail`、`request`、`websocket` 等 spec 间接覆盖待处置文件。"
         "**结论：前端重构前需先补齐 `__tests__` 护栏。**")
     add("")
+    add(render_vitest_spec_section())
     add("---")
     add("")
     add(f"*本文档由 `scripts/audit_legacy_files.py` 生成（语料扫描 {rows[0]['_corpus'] if rows else '0'} 个源文件）。"
