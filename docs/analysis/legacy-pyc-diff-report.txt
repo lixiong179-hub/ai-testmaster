@@ -1,0 +1,1043 @@
+app/api/v1/endpoints/test_case_ai_stream.py   (旧版编译于 2026-07-31 18:06)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+app/api/v1/endpoints/test_point_import.py   (旧版编译于 2026-07-31 18:07)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+app/api/v1/endpoints/test_point_import_stream.py   (旧版编译于 2026-07-31 18:07)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+app/crud/test_report.py   (旧版编译于 2026-07-31 18:27)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+app/crud/test_result.py   (旧版编译于 2026-07-31 18:27)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+app/crud/test_task.py   (旧版编译于 2026-08-03 09:12)
+    仅当前有的函数: ['create_test_task', 'delete_test_task', 'get_test_task_by_id', 'get_test_tasks_by_project', 'get_test_tasks_count', 'update_test_task_progress', 'update_test_task_status']
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+app/crud/test_task.py   (旧版编译于 2026-07-31 18:26)
+    仅当前有的函数: ['create_test_task', 'delete_test_task', 'get_test_task_by_id', 'get_test_tasks_by_project', 'get_test_tasks_count', 'update_test_task_progress', 'update_test_task_status']
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+app/models/test_capability.py   (旧版编译于 2026-07-30 18:14)
+    ~ TestCapability
+        旧版独有字符串: ['tenants.id', '所属租户ID（冗余，加速按租户过滤）']
+        旧版独有调用/属性: ['tenant_id']
+
+app/models/test_case.py   (旧版编译于 2026-07-30 18:14)
+    ~ TestCase
+        旧版独有字符串: ['tenants.id', '所属租户ID（冗余，加速按租户过滤）']
+        旧版独有调用/属性: ['tenant_id']
+
+app/models/test_point.py   (旧版编译于 2026-07-30 18:14)
+    ~ TestPoint
+        旧版独有字符串: ['tenants.id', '所属租户ID（冗余，加速按租户过滤）']
+        旧版独有调用/属性: ['tenant_id']
+
+app/models/test_result.py   (旧版编译于 2026-07-30 18:14)
+    ~ TestResult
+        旧版独有字符串: ['tenants.id', '所属租户ID（冗余，加速按租户过滤）']
+        旧版独有调用/属性: ['tenant_id']
+
+tests/ai/test_openai_client_integration.py   (旧版编译于 2026-07-31 18:34)
+    ~ TestOpenAIClientRealAPI.test_error_handling_invalid_model
+        旧版独有调用/属性: ['app.ai.exceptions']
+        当前独有调用/属性: ['app.utils.ai_client_core']
+
+tests/api/test_ai_invocation_api.py   (旧版编译于 2026-07-31 09:22)
+    仅旧版有的函数: ['TestAIInvocationListAPI.test_list_by_run_id', 'TestAIInvocationListAPI.test_list_by_run_id.<genexpr>', 'TestAIInvocationListAPI.test_list_by_run_id_no_match_returns_empty', '_create_iteration', '_create_pipeline_run']
+    ~ TestAICallLogNewFields.test_record_call_backward_compatible
+        旧版独有字符串: ['assert %(py7)s', 'log', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAICallLogNewFields.test_record_call_failed_with_error_code
+        旧版独有字符串: ['assert %(py7)s', 'log', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAICallLogNewFields.test_record_call_new_fields_default_none
+        旧版独有字符串: ['assert %(py7)s', 'log', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAICallLogNewFields.test_record_call_with_new_fields
+        旧版独有字符串: ['assert %(py7)s', 'assert %(py8)s', 'batch', 'log', 'py7', 'py8']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_assert5', '@py_format6', '@py_format7', '@py_format8', '@py_format9']
+    ~ TestAICallLogNewFields.test_record_call_without_db
+        旧版独有字符串: ['assert %(py7)s', 'log', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAIErrorCode.test_all_error_codes_defined
+        旧版独有字符串: ['AIErrorCode', 'assert %(py7)s', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAIErrorCode.test_error_code_count
+        旧版独有字符串: ['AIErrorCode', 'assert %(py8)s', 'len', 'py8']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert4', '@py_assert5', '@py_format7', '@py_format9']
+    ~ TestAIErrorCode.test_error_code_is_string
+        旧版独有字符串: ['assert %(py6)s\n{%(py6)s = %(py0)s(%(py3)s\n{%(py3)s = %(py1)s.value\n}, %(py4)s)\n}', 'code', 'isinstance', 'str']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert5', '@py_format7']
+    ~ TestAIInvocationListAPI
+        旧版独有调用/属性: ['test_list_by_run_id', 'test_list_by_run_id_no_match_returns_empty']
+    ~ TestAIInvocationListAPI.test_list_by_batch_id
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'batch', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestAIInvocationListAPI.test_list_by_project_id
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestAIInvocationListAPI.test_list_no_auth
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAIInvocationListAPI.test_list_no_filter_returns_empty
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestAIInvocationListAPI.test_list_pagination
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'assert %(py9)s', 'len', 'py6', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6', '@py_format10']
+    ~ TestAIInvocationStatsAPI.test_stats_empty_result
+        旧版独有字符串: ['assert %(py5)s\n{%(py5)s = %(py0)s(%(py2)s, %(py3)s)\n}', 'assert %(py7)s', 'assert %(py9)s', 'isinstance', 'len', 'list']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6', '@py_format10', '@py_format6', '@py_format8']
+    ~ TestAIInvocationStatsAPI.test_stats_group_by_strategy
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py6)s', 'assert %(py7)s', 'assert %(py8)s', 'len', 'py5']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_format4', '@py_format5']
+    ~ TestAIInvocationStatsAPI.test_stats_no_auth
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAIInvocationStatsAPI.test_stats_with_data_group_by_model
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py6)s', 'assert %(py7)s', 'assert %(py8)s', 'len', 'model_row']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_format4', '@py_format5']
+    ~ _create_call_log
+        旧版独有变量: ['run_id']
+
+tests/api/test_auth_integration_legacy_api.py   (旧版编译于 2026-08-06 22:53)
+    ~ TestCaptcha.test_get_captcha
+        旧版独有字符串: ['image']
+        当前独有字符串: ['code']
+    ~ TestCaptcha.test_get_captcha_returns_different_ids
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ _getCaptcha
+        旧版独有字符串: ['testclient', '获取验证码, 返回 (captcha_id, captcha_code)。\n\n    使用 captcha_service 直接生成（HTTP 端点不再返回明文 code）。\n    ']
+        当前独有字符串: ['/api/v1/auth/captcha', 'captcha_id', 'code', 'data', '获取验证码, 返回 (captcha_id, captcha_code)。']
+        旧版独有调用/属性: ['app.services.captcha_service', 'captcha_service', 'generate']
+        当前独有调用/属性: ['assertResponseSuccess', 'get']
+        旧版独有变量: ['captcha_id', 'captcha_service', 'code']
+
+tests/api/test_auth_legacy_api.py   (旧版编译于 2026-08-06 22:53)
+    ~ TestAuthCaptcha.test_get_captcha
+        旧版独有字符串: ['assert %(py5)s', 'image', 'py5']
+        当前独有字符串: ['code']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_format4', '@py_format6']
+    ~ TestAuthCaptcha.test_get_captcha_returns_different_ids
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestAuthGetCurrentUser.test_get_current_user_expired_token
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthGetCurrentUser.test_get_current_user_invalid_token
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthGetCurrentUser.test_get_current_user_no_token
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthGetCurrentUser.test_get_current_user_nonexistent_user_in_token
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthGetCurrentUser.test_get_current_user_success
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py7)s', 'py5', 'py7', 'testUser']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert4', '@py_format4', '@py_format6', '@py_format8']
+    ~ TestAuthLogin.test_login_empty_password
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthLogin.test_login_empty_username
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthLogin.test_login_missing_captcha
+        旧版独有字符串: ['%(py15)s', '%(py30)s', 'assert %(py33)s', 'assert %(py7)s', 'body', 'py15']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_boolop', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert10', '@py_assert12', '@py_assert17', '@py_assert19', '@py_assert2', '@py_assert21']
+    ~ TestAuthLogin.test_login_nonexistent_user
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthLogin.test_login_success
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py7)s', 'py5', 'py7', 'testUser']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert4', '@py_format4', '@py_format6', '@py_format8']
+    ~ TestAuthLogin.test_login_wrong_captcha
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthLogin.test_login_wrong_password
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthRegister.test_register_duplicate_username
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAuthRegister.test_register_normal
+        旧版独有字符串: ['assert %(py5)s', 'py5']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_format4', '@py_format6']
+    ~ TestAuthRegister.test_register_short_password
+        旧版独有字符串: ['%(py15)s', '%(py25)s', 'assert %(py28)s', 'assert %(py7)s', 'body', 'py15']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_boolop', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert10', '@py_assert12', '@py_assert17', '@py_assert19', '@py_assert2', '@py_assert22']
+    ~ TestAuthRegister.test_register_without_email
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ _getCaptcha
+        旧版独有字符串: ['testclient', '获取验证码, 返回 (captcha_id, captcha_code)。\n\n    使用 captcha_service 直接生成（HTTP 端点不再返回明文 code）。\n    ']
+        当前独有字符串: ['/api/v1/auth/captcha', 'captcha_id', 'code', 'data', '获取验证码, 返回 (captcha_id, captcha_code)。']
+        旧版独有调用/属性: ['app.services.captcha_service', 'captcha_service', 'generate']
+        当前独有调用/属性: ['assertResponseSuccess', 'get']
+        旧版独有变量: ['captcha_id', 'captcha_service', 'code']
+
+tests/api/test_bug_api.py   (旧版编译于 2026-07-31 09:22)
+    仅旧版有的函数: ['TestBugListAsyncAPI.test_list_filter_by_task_id', 'TestBugListAsyncAPI.test_list_filter_by_task_id.<setcomp>', 'TestBugListAsyncAPI.test_list_filter_by_task_id_combined_with_severity', 'TestBugListAsyncAPI.test_list_filter_by_task_id_empty', '_make_case', '_make_result', '_make_task']
+    ~ TestBugListAsyncAPI
+        旧版独有调用/属性: ['test_list_filter_by_task_id', 'test_list_filter_by_task_id_combined_with_severity', 'test_list_filter_by_task_id_empty']
+    ~ TestBugListAsyncAPI.test_list_combined_filters
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestBugListAsyncAPI.test_list_empty
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestBugListAsyncAPI.test_list_filter_by_severity
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestBugListAsyncAPI.test_list_filter_by_source
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestBugListAsyncAPI.test_list_filter_by_status
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestBugListAsyncAPI.test_list_filter_by_ux_category
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestBugListAsyncAPI.test_list_invalid_ux_category
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestBugListAsyncAPI.test_list_only_returns_project_bugs
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestBugListAsyncAPI.test_list_order_by_create_time_desc
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'assert %(py8)s', 'len', 'py6', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_format5', '@py_format6']
+    ~ TestBugListAsyncAPI.test_list_pagination
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'assert %(py9)s', 'len', 'py6', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6', '@py_format10']
+    ~ TestBugListAsyncAPI.test_list_project_not_found
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestBugListAsyncAPI.test_list_severity_out_of_range
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestBugListAsyncAPI.test_list_single_bug
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestBugListAsyncAPI.test_unauthenticated
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ _create_bug
+        旧版独有变量: ['test_result_id']
+
+tests/api/test_execution_core_api.py   (旧版编译于 2026-08-07 13:55)
+    仅旧版有的函数: ['TestPauseExecutionAPI.test_pause_non_running_returns_400', 'TestPauseExecutionAPI.test_pause_running_task_sets_status_5', 'TestResumeExecutionAPI.test_resume_non_paused_returns_400', 'TestResumeExecutionAPI.test_resume_paused_task_sets_status_1']
+    ~ TestAnalyzeFailureAPI.test_analyze_failed_result
+        旧版独有字符串: ['\n>assert %(py7)s', 'assert %(py5)s', 'py5', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_assertmsg', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format6', '@py_format8']
+    ~ TestAnalyzeFailureAPI.test_analyze_non_failed_result
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAnalyzeFailureAPI.test_analyze_nonexistent_result
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAnalyzeFailureAPI.test_analyze_unauthenticated
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestAnalyzeFailureAPI.test_analyze_with_ai_analysis
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestListDevicesAPI.test_devices_endpoint
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestListDevicesAPI.test_devices_unauthenticated
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestPauseExecutionAPI
+        旧版独有调用/属性: ['test_pause_non_running_returns_400', 'test_pause_running_task_sets_status_5']
+    ~ TestPauseExecutionAPI.test_pause_nonexistent_task
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestPauseExecutionAPI.test_pause_unauthenticated
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestQuickVerifyAPI.test_quick_verify_nonexistent_case
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestQuickVerifyAPI.test_quick_verify_unauthenticated
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestResumeExecutionAPI
+        旧版独有调用/属性: ['test_resume_non_paused_returns_400', 'test_resume_paused_task_sets_status_1']
+    ~ TestResumeExecutionAPI.test_resume_nonexistent_task
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestResumeExecutionAPI.test_resume_unauthenticated
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestStartExecutionAPI.test_start_nonexistent_task
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestStartExecutionAPI.test_start_unauthenticated
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestStopExecutionAPI.test_stop_nonexistent_task
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestStopExecutionAPI.test_stop_unauthenticated
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+
+tests/api/test_file_sort_api.py   (旧版编译于 2026-08-06 22:53)
+    ~ TestEdgeCases.test_concurrent_sort_overwrite
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp1', 'resp2']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestEdgeCases.test_exact_100_limit_accepted
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestEdgeCases.test_inactive_file_skipped
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'sort_resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestEdgeCases.test_response_structure
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py5)s\n{%(py5)s = %(py0)s(%(py2)s, %(py3)s)\n}', 'assert %(py6)s', 'assert %(py7)s', 'int', 'isinstance']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format5', '@py_format6']
+    ~ TestFileListOrdering.test_global_list_includes_sort_order
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py7)s', 'item', 'py5', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format6', '@py_format8']
+    ~ TestFileListOrdering.test_list_includes_sort_order_field
+        旧版独有字符串: ['\n>assert %(py5)s', 'assert %(py7)s', 'item', 'py5', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_assertmsg', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format6', '@py_format8']
+    ~ TestFileListOrdering.test_list_ordered_by_resource_type_then_sort
+        旧版独有字符串: ['\n>assert %(py7)s', 'assert %(py7)s', 'py7', 'resp', 'sort_orders', 'sorted']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_assertmsg', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestNPlusOneFixVerification.test_update_sort_performance
+        旧版独有字符串: ['\n>assert %(py5)s', 'assert %(py7)s', 'elapsed', 'py5', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_assertmsg', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format6', '@py_format8']
+    ~ TestUpdateSortDeduplication.test_all_same_id
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestUpdateSortDeduplication.test_duplicate_ids_deduplicated
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestUpdateSortFunctionality.test_partial_sort_update
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestUpdateSortFunctionality.test_sort_order_persistence
+        旧版独有字符串: ['\n>assert %(py5)s', '\n>assert %(py5)s\n{%(py5)s = %(py0)s(%(py2)s, %(py3)s)\n}', 'assert %(py7)s', 'int', 'isinstance', 'item']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_assertmsg', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format6', '@py_format8']
+    ~ TestUpdateSortFunctionality.test_sort_order_update_basic
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestUpdateSortFunctionality.test_sort_order_values_sequential
+        旧版独有字符串: ['\n>assert %(py16)s', '%(py13)s', '%(py6)s\n{%(py6)s = %(py2)s(%(py3)s, %(py4)s)\n}', 'assert %(py7)s', 'int', 'isinstance']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_assertmsg', '_format_boolop', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert10', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert9', '@py_format12']
+    ~ TestUpdateSortInputValidation.test_empty_list_rejected
+        旧版独有字符串: ['%(py22)s', '%(py37)s', 'assert %(py40)s', 'assert %(py7)s', 'data', 'py22']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_boolop', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert11', '@py_assert13', '@py_assert15', '@py_assert17', '@py_assert19', '@py_assert2']
+    ~ TestUpdateSortInputValidation.test_non_integer_ids_rejected
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestUpdateSortInputValidation.test_over_100_limit_rejected
+        旧版独有字符串: ['%(py14)s', '%(py7)s', 'assert %(py17)s', 'assert %(py7)s', 'msg_text', 'py14']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_boolop', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert11', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert9', '@py_format13']
+    ~ TestUpdateSortInputValidation.test_single_file_accepted
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestUpdateSortPermission.test_mixed_valid_invalid_ids
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py7)s', 'py5', 'py7', 'resp', 'updated']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format6', '@py_format8']
+    ~ TestUpdateSortPermission.test_nonexistent_file_skipped
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestUpdateSortPermission.test_unauthorized_returns_401
+        旧版独有字符串: ['%(py18)s', '%(py9)s', 'assert %(py21)s', 'py18', 'py21', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_boolop', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert12', '@py_assert14', '@py_assert15', '@py_assert3', '@py_assert5', '@py_assert6']
+    ~ auth_headers
+        旧版独有字符串: ['testclient']
+        当前独有字符串: ['/api/v1/auth/captcha/generate', 'captcha_id', 'code', '验证码生成失败: ']
+        旧版独有调用/属性: ['generate']
+        当前独有调用/属性: ['get']
+        旧版独有变量: ['captcha_code', 'captcha_id']
+
+tests/api/test_integration_legacy_api.py   (旧版编译于 2026-08-06 22:53)
+    ~ TestAuthAPI.test_get_captcha
+        旧版独有字符串: ['image']
+        当前独有字符串: ['code']
+    ~ TestAuthAPI.test_get_captcha_returns_different_ids
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestProjectAPI.test_get_project_detail
+        旧版独有字符串: ['assert %(py5)s', 'py5']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_format4', '@py_format6']
+    ~ TestProjectAPI.test_get_projects_list
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestProjectAPI.test_get_projects_pagination
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestTestCaseAPI.test_batch_delete_empty_list
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestTestCaseAPI.test_batch_delete_nonexistent_ids
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestTestCaseAPI.test_batch_delete_normal
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestTestCaseAPI.test_batch_restore_normal
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestTestCaseAPI.test_create_test_case_no_auth
+        旧版独有字符串: ['%(py18)s', '%(py9)s', 'assert %(py21)s', 'py18', 'py21', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_boolop', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert12', '@py_assert14', '@py_assert15', '@py_assert3', '@py_assert5', '@py_assert6']
+    ~ TestTestCaseAPI.test_create_test_case_normal
+        旧版独有字符串: ['assert %(py5)s', 'py5']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_format4', '@py_format6']
+    ~ TestTestCaseAPI.test_delete_test_case_nonexistent
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestTestCaseAPI.test_delete_test_case_normal
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestTestCaseAPI.test_get_test_case_nonexistent
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestTestCaseAPI.test_get_test_cases_empty
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestTestCaseAPI.test_get_test_cases_list
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestTestCaseAPI.test_get_test_cases_pagination
+        旧版独有字符串: ['assert %(py9)s', 'len', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestTestCaseAPI.test_update_test_case_nonexistent
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ _getCaptcha
+        旧版独有字符串: ['testclient', '获取验证码, 返回 (captcha_id, captcha_code)。\n\n    使用 captcha_service 直接生成（HTTP 端点不再返回明文 code）。\n    ']
+        当前独有字符串: ['/api/v1/auth/captcha', 'captcha_id', 'code', 'data', '获取验证码, 返回 (captcha_id, captcha_code)。']
+        旧版独有调用/属性: ['app.services.captcha_service', 'captcha_service', 'generate']
+        当前独有调用/属性: ['assertResponseSuccess', 'get']
+        旧版独有变量: ['captcha_id', 'captcha_service', 'code']
+
+tests/api/test_smoke_api.py   (旧版编译于 2026-08-06 22:54)
+    ~ APIClient.login
+        旧版独有字符串: ['testclient']
+        当前独有字符串: ['', '/auth/captcha/generate', 'captcha_id', 'code']
+        旧版独有调用/属性: ['app.services.captcha_service', 'captcha_service', 'generate']
+        当前独有调用/属性: ['raise_for_status']
+        旧版独有变量: ['captcha_code', 'captcha_id', 'captcha_service']
+    ~ TestAuth.test_get_current_user
+        旧版独有字符串: ['assert %(py11)s', 'assert %(py13)s', 'assert %(py7)s', 'py11', 'py13', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert10', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6']
+    ~ TestAuth.test_login_invalid_credentials
+        旧版独有字符串: ['assert %(py11)s', 'py11', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert7', '@py_assert8', '@py_format10', '@py_format12']
+    ~ TestAuth.test_login_success
+        旧版独有字符串: ['assert %(py11)s', 'assert %(py13)s', 'py11', 'py13', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert10', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6']
+    ~ TestProject.test_create_project
+        旧版独有字符串: ['assert %(py11)s', 'assert %(py13)s', 'assert %(py7)s', 'py11', 'py13', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert10', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6']
+    ~ TestProject.test_get_project_detail
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestProject.test_get_project_list
+        旧版独有字符串: ['assert %(py11)s', 'assert %(py13)s', 'assert %(py7)s', 'py11', 'py13', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert10', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6']
+    ~ TestReport.test_get_report_list
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestTestCase.test_get_case_list
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestTestPoint.test_get_point_list
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestTestTask.test_create_task
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestTestTask.test_get_task_list
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+
+tests/api/test_xmind_import_api.py   (旧版编译于 2026-08-06 22:54)
+    ~ TestImportXmindAiEnhance.test_ai_auth_error_returns_503
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindAiEnhance.test_ai_empty_result_returns_422
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindAiEnhance.test_ai_permission_error_returns_503
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindAiEnhance.test_ai_rate_limit_returns_429
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindAiEnhance.test_ai_service_error_returns_502
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindAiEnhance.test_ai_success_returns_preview
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindAiEnhance.test_ai_timeout_returns_408
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindAiEnhance.test_ai_unknown_error_returns_500
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindAiReal.test_ai_preview_real_sample_file
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'assert %(py9)s', 'len', 'py6', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6', '@py_format10']
+    ~ TestImportXmindAiReal.test_ai_preview_returns_structured_cases
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py5)s\n{%(py5)s = %(py0)s(%(py2)s, %(py3)s)\n}', 'assert %(py6)s', 'assert %(py7)s', 'assert %(py9)s', 'case_item']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6', '@py_format10']
+    ~ TestImportXmindFull.test_import_case_style_xmind_creates_cases_and_points
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindFull.test_import_deep_point_tree_does_not_switch_to_case_mode
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindFull.test_import_sample_file
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindFull.test_import_saves_to_db
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindFull.test_import_second_level_leaf_becomes_test_point
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestImportXmindFull.test_preview_case_style_xmind_returns_dual_views
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'assert %(py9)s', 'len', 'py6', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6', '@py_format10']
+    ~ TestImportXmindPreview.test_preview_does_not_write_to_db
+        旧版独有字符串: ['assert %(py4)s', 'assert %(py7)s', 'count_after', 'count_before', 'py4', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format3', '@py_format5', '@py_format6', '@py_format8']
+    ~ TestImportXmindPreview.test_preview_returns_parsed_data
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py6)s', 'assert %(py7)s', 'data', 'py5', 'py6']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format5', '@py_format6']
+    ~ TestImportXmindPreview.test_preview_second_level_leaf_becomes_test_point
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'assert %(py9)s', 'len', 'py6', 'py7']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6', '@py_format10']
+    ~ TestImportXmindValidation.test_invalid_file_format
+        旧版独有字符串: ['%(py20)s', '%(py37)s', '%(py40)s', '%(py9)s', 'assert %(py43)s', 'py20']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_boolop', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert11', '@py_assert12', '@py_assert14', '@py_assert16', '@py_assert17', '@py_assert23']
+    ~ TestImportXmindValidation.test_invalid_zip_file
+        旧版独有字符串: ['%(py20)s', '%(py37)s', '%(py40)s', '%(py9)s', 'assert %(py43)s', 'py20']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_boolop', '_format_explanation', '_saferepr', '_should_repr_global_name']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert11', '@py_assert12', '@py_assert14', '@py_assert16', '@py_assert17', '@py_assert23']
+    ~ TestImportXmindValidation.test_no_auth_returns_401
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'resp']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ auth_headers
+        旧版独有字符串: ['testclient']
+        当前独有字符串: ['/api/v1/auth/captcha/generate', 'captcha_id', 'code']
+        旧版独有调用/属性: ['generate']
+        当前独有调用/属性: ['get']
+        旧版独有变量: ['captcha_code', 'captcha_id']
+
+tests/api/test_xmind_import_api.py   (旧版编译于 2026-07-31 18:35)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/services/conftest.py   (旧版编译于 2026-07-30 18:41)
+    ~ async_auth_client
+        旧版独有字符串: ['Origin', 'http://localhost:5173']
+    ~ async_client
+        旧版独有字符串: ['Origin', 'http://localhost:5173']
+
+tests/services/test_ai_client.py   (旧版编译于 2026-07-31 18:08)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/services/test_ai_client_enhanced_svc.py   (旧版编译于 2026-07-31 18:07)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/services/test_ai_client_parser.py   (旧版编译于 2026-07-31 18:07)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/services/test_build_weight_model.py   (旧版编译于 2026-07-31 18:08)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/services/test_case_edit_features.py   (旧版编译于 2026-07-31 18:08)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/utils/test_ai_client_enhanced.py   (旧版编译于 2026-07-31 18:35)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/utils/test_ai_client_stream.py   (旧版编译于 2026-07-31 18:35)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/utils/test_ai_client_test_case.py   (旧版编译于 2026-07-31 18:35)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/test_ai_generation_branches_supplement.py   (旧版编译于 2026-07-31 18:35)
+    ~ TestValidateMixinSaveTestCase.test_save_auto_parse_exception_handled
+        旧版独有字符串: ['app.ai.business_functions.parse_precondition_to_steps']
+        当前独有字符串: ['app.utils.ai_client.parse_precondition_to_steps']
+    ~ TestValidateMixinSaveTestCase.test_save_with_auto_parse_precondition
+        旧版独有字符串: ['app.ai.business_functions.parse_precondition_to_steps']
+        当前独有字符串: ['app.utils.ai_client.parse_precondition_to_steps']
+    ~ _make_ai_client
+        旧版独有字符串: ['app.ai.base.settings']
+        当前独有字符串: ['app.utils.ai_client_core.settings']
+
+tests/test_auth.py   (旧版编译于 2026-08-06 22:53)
+    ~ TestCaptchaEndpoint.test_get_captcha
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'image', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestCaptchaEndpoint.test_get_captcha_generate_alias
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'image', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestHealthEndpoint.test_health_check
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py6)s', 'assert %(py7)s', 'data', 'degraded', 'healthy']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format5', '@py_format6']
+    ~ TestHealthEndpoint.test_root_endpoint
+        旧版独有字符串: ['assert %(py5)s', 'assert %(py7)s', 'data', 'py5', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format4', '@py_format6', '@py_format8']
+    ~ TestJWTUtils.test_create_access_token
+        旧版独有字符串: ['assert %(py4)s\n{%(py4)s = %(py0)s(%(py1)s, %(py2)s)\n}', 'assert %(py8)s', 'isinstance', 'len', 'py8', 'str']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_format5', '@py_format7', '@py_format9']
+    ~ TestJWTUtils.test_create_refresh_token
+        旧版独有字符串: ['assert %(py4)s\n{%(py4)s = %(py0)s(%(py1)s, %(py2)s)\n}', 'assert %(py8)s', 'isinstance', 'len', 'py8', 'str']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_format5', '@py_format7', '@py_format9']
+    ~ TestJWTUtils.test_password_hash_and_verify
+        旧版独有字符串: ['assert %(py10)s', 'assert %(py9)s', 'hashed', 'password', 'py10', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_assert5', '@py_assert6', '@py_assert7', '@py_format10', '@py_format11']
+    ~ TestJWTUtils.test_refresh_access_token
+        旧版独有字符串: ['assert %(py4)s\n{%(py4)s = %(py0)s(%(py1)s, %(py2)s)\n}', 'assert %(py6)s', 'isinstance', 'new_access_token', 'py6', 'str']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestJWTUtils.test_verify_access_token
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestJWTUtils.test_verify_refresh_token
+        旧版独有字符串: ['assert %(py6)s', 'py6']
+        旧版独有调用/属性: ['@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert3', '@py_format5', '@py_format7']
+    ~ TestJWTUtils.test_wrong_token_type_raises_auth_error
+        旧版独有字符串: ['assert %(py10)s', 'exc_info', 'py10', 'str']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_assert5', '@py_assert7', '@py_format11', '@py_format9']
+    ~ TestLoginEndpoint.test_login_disabled_account
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestLoginEndpoint.test_login_missing_password
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestLoginEndpoint.test_login_missing_username
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestLoginEndpoint.test_login_nonexistent_user
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestLoginEndpoint.test_login_success_form
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'response', 'testUser']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestLoginEndpoint.test_login_success_json
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestLoginEndpoint.test_login_wrong_password
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestMeEndpoint.test_get_current_user_expired_token
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestMeEndpoint.test_get_current_user_invalid_token
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestMeEndpoint.test_get_current_user_missing_token
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestMeEndpoint.test_get_current_user_success
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'assert %(py9)s', 'py6', 'py7', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_assert6', '@py_format10', '@py_format5']
+    ~ TestRegisterEndpoint.test_register_duplicate_email
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestRegisterEndpoint.test_register_duplicate_username
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ TestRegisterEndpoint.test_register_password_mismatch
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestRegisterEndpoint.test_register_short_password
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestRegisterEndpoint.test_register_short_username
+        旧版独有字符串: ['assert %(py7)s', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestRegisterEndpoint.test_register_success
+        旧版独有字符串: ['assert %(py6)s', 'assert %(py7)s', 'py6', 'py7', 'response']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format5', '@py_format6', '@py_format7']
+    ~ _getCaptcha
+        旧版独有字符串: ['testclient', '获取验证码, 返回 (captcha_id, captcha_code)。\n\n    使用 captcha_service 直接生成（HTTP 端点不再返回明文 code）。\n    ']
+        当前独有字符串: ['/api/v1/auth/captcha', 'captcha_id', 'code', 'data', '获取验证码, 返回 (captcha_id, captcha_code)。\n\n    登录端点要求 captcha_id + captcha_code, 通过 GET /api/v1/auth/captcha 获取。\n    ']
+        旧版独有调用/属性: ['app.services.captcha_service', 'captcha_service', 'generate']
+        当前独有调用/属性: ['get', 'json']
+        旧版独有变量: ['captcha_id', 'captcha_service', 'code']
+
+tests/test_browser_controller_real.py   (旧版编译于 2026-07-31 18:24)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/test_browser_manual.py   (旧版编译于 2026-07-31 18:24)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/test_browser_visible.py   (旧版编译于 2026-07-31 18:24)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/test_core_config.py   (旧版编译于 2026-08-06 23:29)
+    ~ TestDevSettings.test_dev_settings_defaults
+        旧版独有字符串: ['assert %(py7)s', 'py7', 's']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestEnsureSecretKeys.test_auto_generate_encryption_key
+        旧版独有字符串: ['assert %(py10)s', 'len', 'py10', 's']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert4', '@py_assert6', '@py_assert7', '@py_format11', '@py_format9']
+    ~ TestEnsureSecretKeys.test_auto_generate_encryption_salt
+        旧版独有字符串: ['assert %(py10)s', 'len', 'py10', 's']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert4', '@py_assert6', '@py_assert7', '@py_format11', '@py_format9']
+    ~ TestEnsureSecretKeys.test_auto_generate_jwt_key
+        旧版独有字符串: ['assert %(py10)s', 'len', 'py10', 's']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert4', '@py_assert6', '@py_assert7', '@py_format11', '@py_format9']
+    ~ TestEnsureSecretKeys.test_cache_file_with_empty_value_falls_back
+        旧版独有字符串: ['assert %(py10)s', 'len', 'py10', 's']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert4', '@py_assert6', '@py_assert7', '@py_format11', '@py_format9']
+    ~ TestEnsureSecretKeys.test_cached_key_loading
+        旧版独有字符串: ['assert %(py7)s', 'py7', 's']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestEnsureSecretKeys.test_corrupted_cache_file_falls_back
+        旧版独有字符串: ['assert %(py10)s', 'len', 'py10', 's']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert4', '@py_assert6', '@py_assert7', '@py_format11', '@py_format9']
+    ~ TestEnsureSecretKeys.test_default_value_detection_patterns
+        旧版独有字符串: ['any', 'assert %(py4)s\n{%(py4)s = %(py0)s(%(py2)s)\n}']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_format5']
+    ~ TestEnsureSecretKeys.test_dev_default_api_key_warns
+        旧版独有字符串: ['any', 'assert %(py4)s\n{%(py4)s = %(py0)s(%(py2)s)\n}']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_format5']
+    ~ TestEnsureSecretKeys.test_dev_empty_api_key_warns
+        旧版独有字符串: ['any', 'assert %(py4)s\n{%(py4)s = %(py0)s(%(py2)s)\n}']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_format5']
+    ~ TestEnsureSecretKeys.test_is_default_value_here_pattern
+        旧版独有字符串: ['any', 'assert %(py4)s\n{%(py4)s = %(py0)s(%(py2)s)\n}']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_format5']
+    ~ TestEnsureSecretKeys.test_is_default_value_secret_pattern
+        旧版独有字符串: ['any', 'assert %(py4)s\n{%(py4)s = %(py0)s(%(py2)s)\n}']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_format5']
+    ~ TestEnsureSecretKeys.test_prod_auto_generate_encryption_salt_warns
+        当前独有字符串: ['already_set_key_value']
+    ~ TestGenerateSecretKey.test_generates_non_empty_key
+        旧版独有字符串: ['assert %(py8)s', 'key', 'len', 'py8']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert4', '@py_assert5', '@py_format7', '@py_format9']
+    ~ TestGenerateSecretKey.test_generates_unique_keys
+        旧版独有字符串: ['assert %(py4)s', 'key1', 'key2', 'py4']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_format3', '@py_format5']
+    ~ TestGetSettings.test_get_settings_default_is_dev
+        旧版独有字符串: ['DevSettings', 'assert %(py4)s\n{%(py4)s = %(py0)s(%(py1)s, %(py2)s)\n}', 'isinstance', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert3', '@py_format5']
+    ~ TestGetSettings.test_get_settings_dev
+        旧版独有字符串: ['DevSettings', 'assert %(py4)s\n{%(py4)s = %(py0)s(%(py1)s, %(py2)s)\n}', 'isinstance', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert3', '@py_format5']
+    ~ TestGetSettings.test_get_settings_prod
+        旧版独有字符串: ['ProdSettings', 'assert %(py4)s\n{%(py4)s = %(py0)s(%(py1)s, %(py2)s)\n}', 'isinstance', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert3', '@py_format5']
+    ~ TestGetSettings.test_get_settings_test
+        旧版独有字符串: ['TestSettings', 'assert %(py4)s\n{%(py4)s = %(py0)s(%(py1)s, %(py2)s)\n}', 'isinstance', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert3', '@py_format5']
+    ~ TestInitDirectories.test_init_directories_creates_dirs
+        旧版独有字符串: ['Path', 'assert %(py7)s\n{%(py7)s = %(py5)s\n{%(py5)s = %(py3)s\n{%(py3)s = %(py0)s(%(py1)s)\n}.exists\n}()\n}', 'assert %(py8)s', 'len', 'py8', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert4', '@py_assert5', '@py_assert6', '@py_format7', '@py_format8', '@py_format9']
+    ~ TestInitDirectories.test_init_directories_error_returns_empty
+        旧版独有字符串: ['assert %(py5)s', 'py5', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert2', '@py_format4', '@py_format6']
+    ~ TestInitDirectories.test_init_directories_existing_dirs
+        旧版独有字符串: ['assert %(py8)s', 'len', 'py8', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert4', '@py_assert5', '@py_format7', '@py_format9']
+    ~ TestInitDirectories.test_init_directories_no_ui_prototype_attr
+        旧版独有字符串: ['assert %(py4)s\n{%(py4)s = %(py0)s(%(py1)s, %(py2)s)\n}', 'isinstance', 'list', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert3', '@py_format5']
+    ~ TestParseList.test_comma_separated_string
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestParseList.test_comma_separated_with_empty_items
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestParseList.test_empty_list
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestParseList.test_empty_string
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestParseList.test_int_input
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestParseList.test_invalid_json_falls_back_to_comma
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestParseList.test_json_string_input
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestParseList.test_list_input
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestParseList.test_none_input
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestParseList.test_single_value_string
+        旧版独有字符串: ['assert %(py9)s', 'parse_list', 'py9']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert5', '@py_assert6', '@py_format10', '@py_format8']
+    ~ TestProdSettings.test_prod_settings_defaults
+        旧版独有字符串: ['assert %(py7)s', 'py7', 's']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+    ~ TestSettingsProperties.test_allowed_extensions_list
+        旧版独有字符串: ['assert %(py4)s\n{%(py4)s = %(py0)s(%(py1)s, %(py2)s)\n}', 'assert %(py8)s', 'isinstance', 'len', 'list', 'py8']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert2', '@py_assert3', '@py_assert4', '@py_assert5', '@py_format5', '@py_format7', '@py_format9']
+    ~ TestSettingsProperties.test_cors_allow_headers_default_contains_required_headers
+        旧版独有字符串: ['\n>assert %(py5)s\n{%(py5)s = %(py2)s\n{%(py2)s = %(py0)s.issubset\n}(%(py3)s)\n}', 'required_headers', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_format_assertmsg', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert4', '@py_format6']
+    ~ TestSettingsProperties.test_cors_allow_headers_default_is_explicit_list
+        旧版独有字符串: ['assert %(py5)s', 'field_default', 'py5']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert1', '@py_assert2', '@py_format4', '@py_format6']
+    ~ TestSettingsProperties.test_cors_allow_headers_list
+        旧版独有字符串: ['assert %(py5)s', 'py5', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_format4', '@py_format6']
+    ~ TestSettingsProperties.test_cors_allow_methods_list
+        旧版独有字符串: ['assert %(py5)s', 'py5', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_format4', '@py_format6']
+    ~ TestSettingsProperties.test_cors_origins_list
+        旧版独有字符串: ['assert %(py5)s', 'py5', 'result']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert0', '@py_assert2', '@py_format4', '@py_format6']
+    ~ TestTestSettings.test_test_settings_defaults
+        旧版独有字符串: ['assert %(py7)s', 'py7', 's']
+        旧版独有调用/属性: ['@py_builtins', '@pytest_ar', 'AssertionError', '_call_reprcompare', '_format_explanation', '_saferepr', '_should_repr_global_name', 'locals']
+        旧版独有变量: ['@py_assert1', '@py_assert3', '@py_assert4', '@py_format6', '@py_format8']
+
+tests/test_element_locator_real.py   (旧版编译于 2026-07-31 18:24)
+    (结构一致，差异可能在函数体内的常量值/顺序)
+
+tests/test_precondition_service_real.py   (旧版编译于 2026-07-31 18:24)
+    ~ test_cleanup_real
+        旧版独有调用/属性: ['app.utils.browser_controller_v2']
+        当前独有调用/属性: ['app.utils.browser_controller']
+    ~ test_click_and_type_real
+        旧版独有调用/属性: ['app.utils.browser_controller_v2']
+        当前独有调用/属性: ['app.utils.browser_controller']
+    ~ test_click_and_type_with_special_chars_real
+        旧版独有调用/属性: ['app.utils.browser_controller_v2']
+        当前独有调用/属性: ['app.utils.browser_controller']
+    ~ test_is_browser_ready_property_real
+        旧版独有调用/属性: ['app.utils.browser_controller_v2']
+        当前独有调用/属性: ['app.utils.browser_controller']
+    ~ test_perform_login_incomplete_form_real
+        旧版独有调用/属性: ['app.utils.browser_controller_v2']
+        当前独有调用/属性: ['app.utils.browser_controller']
+    ~ test_perform_login_real
+        旧版独有调用/属性: ['app.utils.browser_controller_v2']
+        当前独有调用/属性: ['app.utils.browser_controller']
+    ~ test_recognize_login_form_real
+        旧版独有调用/属性: ['app.utils.browser_controller_v2']
+        当前独有调用/属性: ['app.utils.browser_controller']
+
+tests/test_precondition_visible.py   (旧版编译于 2026-07-31 18:24)
+    ~ test_visible_browser_login_simulation
+        旧版独有调用/属性: ['app.utils.browser_controller_v2']
+        当前独有调用/属性: ['app.utils.browser_controller']

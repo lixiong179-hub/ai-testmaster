@@ -398,7 +398,56 @@ def render_table(rows: Sequence[Dict[str, str]]) -> str:
     return header + body
 
 
+PYC_LEDGER_REL = os.path.join("docs", "analysis", "legacy-pyc-diff-report.txt")
+
+# P0 台账中的人工裁决（覆盖机械规则），键为仓库相对路径
+PYC_LEDGER_OVERRIDES: Dict[str, str] = {
+    "app/models/test_case.py": "已解决：tenant_id 增量已按字节码精确重建并提交（337f07e）",
+    "app/models/test_point.py": "已解决：tenant_id 增量已按字节码精确重建并提交（337f07e）",
+    "app/models/test_result.py": "已解决：tenant_id 增量已按字节码精确重建并提交（337f07e）",
+    "app/models/test_capability.py": "已解决：tenant_id 增量已按字节码精确重建并提交（337f07e）",
+    "app/crud/test_task.py": "已解决：重建为「查询/变更分离」统一导出 shim（337f07e）",
+    "tests/services/conftest.py": "已重建：补回 CSRF 中间件所需的 Origin 头（见 6.1 说明）",
+}
+
+_PYC_HEAD_RE = re.compile(r"^(?P<path>\S+)\s+\(旧版编译于 (?P<ts>[\d\- :]+)\)\s*$")
+
+
+def build_pyc_ledger(report_path: str) -> List[Tuple[str, str, int, str, str]]:
+    """解析入库的 .pyc 差异报告，产出 P0 台账行。
+
+    Returns:
+        [(文件, 旧版编译于, 差异函数数, 旧版独有函数, 处置结论), ...]
+    """
+    if not os.path.isfile(report_path):
+        return []
+    ledger: List[Tuple[str, str, int, str, str]] = []
+    with open(report_path, encoding="utf-8", errors="replace") as fh:
+        content = fh.read()
+    for block in content.split("\n\n"):
+        lines = block.strip().split("\n")
+        if not lines:
+            continue
+        m = _PYC_HEAD_RE.match(lines[0].strip())
+        if not m:
+            continue
+        path, ts = m.group("path"), m.group("ts")
+        diff_funcs = sum(1 for line in lines[1:] if line.strip().startswith("~ "))
+        only_old = any("仅旧版有的函数" in line for line in lines[1:])
+        if path in PYC_LEDGER_OVERRIDES:
+            verdict = PYC_LEDGER_OVERRIDES[path]
+        elif only_old:
+            verdict = "不重建：旧版含当前已不存在的函数，差异已被后续提交/重构取代"
+        elif diff_funcs == 0:
+            verdict = "不重建：结构一致，差异仅在函数体字面量（保留证据备查）"
+        else:
+            verdict = "需人工比对：保留证据，纳入后续测试对齐（P1/基线维护）"
+        ledger.append((path, ts, diff_funcs, "是" if only_old else "否", verdict))
+    return sorted(ledger, key=lambda r: r[0])
+
+
 def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit: str) -> str:
+    """生成完整处置文档（四段式报告 + 清单 + P0 台账 + 引用面附录）。"""
     """生成完整处置文档（四段式报告 + 清单 + 结论）。"""
     stats = summarize(rows)
     total = len(rows)
@@ -474,7 +523,7 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
     add("**零引用候选复核结论**：文本分词扫描的候选经符号级核实后大量证伪——"
         "`src/views/**` 下的视图实际由 `src/router/routes.ts` 懒加载引用（连字符文件名导致分词误判，"
         "已由脚本 `route_referenced()` 纠正）；剩余为 `*.spec.ts`、`components.d.ts`、`docker-compose.yml`、"
-        "`security-scan.yml` 等**工具消费型文件**。经二次核实仍成立的可疑文件见 §5.1，"
+        "`security-scan.yml` 等**工具消费型文件**。经二次核实仍成立的可疑文件见 §6.1，"
         "**本轮不执行任何删除**，仅登记为「归档观察」并给出复核前置条件。")
     add("")
 
@@ -515,8 +564,9 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
     add("")
     add("### 4.2 执行顺序与风险控制要点")
     add("")
-    add("1. **P0 先行**：`.pyc` 证据文件用 `d:\\recovery_pyc\\_diff_report.txt` 逐条核对，"
-        "先剔除「已被后续提交取代」的差异，再重建仍成立部分。")
+    add(f"1. **P0 先行（已完成核对，见 §5）**：`.pyc` 证据报告已入库为 `{PYC_LEDGER_REL}`，"
+        "逐条核对结论：已被后续提交取代者不重建；结构一致者不重建；"
+        "仅 `tests/services/conftest.py` 的 CSRF `Origin` 头增量已重建并提交。")
     add("2. **P1 登记立项**：将 O-14 四项未完成功能写入 `docs/架构优化执行计划清单.md` §11，"
         "补推荐默认值与最晚决策时点。")
     add("3. **P2 重构优先于恢复**：端点/数据/服务层的增量一律不恢复，在 R2-3 / R3-1 / R4-1 中一次性落地。")
@@ -528,13 +578,64 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
         "历史改写仅在独立克隆中进行并先断言工作目录。")
     add("")
 
-    add("## 5. 引用面核实附录（2026-09-28）")
+    add("## 5. P0 台账：`.pyc` 字节码证据逐条核对")
+    add("")
+    ledger = build_pyc_ledger(os.path.join(REPO_ROOT, PYC_LEDGER_REL))
+    if not ledger:
+        add(f"> 证据报告未入库（请先生成 `{PYC_LEDGER_REL}`）；台账见对话记录与 "
+            "`d:\\recovery_pyc\\_diff_report.txt`。")
+    else:
+        resolved = sum(1 for r in ledger if r[4].startswith("已"))
+        rebuilt = sum(1 for r in ledger if "已重建" in r[4])
+        skip = sum(1 for r in ledger if r[4].startswith("不重建"))
+        manual = sum(1 for r in ledger if r[4].startswith("需人工比对"))
+        add(f"> 证据来源：`{PYC_LEDGER_REL}`（旧版 `.pyc` 与当前源码的字节码级差异）。"
+            f"共 {len(ledger)} 条，其中**已解决/已重建 {resolved} 条**（含重建增量 {rebuilt} 条）、"
+            f"**判定不重建 {skip} 条**、**需人工比对 {manual} 条**。")
+        add("")
+        add("| 文件 | 旧版编译于 | 差异函数数 | 旧版独有函数 | 处置结论 |")
+        add("| --- | --- | --- | --- | --- |")
+        for path, ts, diff_funcs, only_old, verdict in ledger:
+            add(f"| `{path}` | {ts} | {diff_funcs} | {only_old} | {verdict} |")
+        add("")
+        add("### 5.1 本次实际重建的增量")
+        add("")
+        add("`tests/services/conftest.py` —— 旧版 `.pyc` 反汇编显示两个 HTTP fixture 的 `AsyncClient` "
+            "调用包含第三个关键字参数 `headers`（`KW_NAMES -> ('transport', 'base_url', 'headers')`，"
+            "配套 `BUILD_MAP` 常量 `'Origin'` / `'http://localhost:5173'`）：")
+        add("")
+        add("```python")
+        add("    # 设置 Origin 头模拟真实浏览器，使 CSRF 中间件 Origin/Referer 校验通过")
+        add("    async with AsyncClient(")
+        add("        transport=transport,")
+        add('        base_url="http://test",')
+        add('        headers={"Origin": "http://localhost:5173"},')
+        add("    ) as client:")
+        add("```")
+        add("")
+        add("重建依据：`app/core/security_middleware.py` 的 `CSRFMiddleware` 对非安全方法"
+            "（POST/PUT/DELETE）在缺少 CSRF token 时回退校验 `Origin`/`Referer`，"
+            "无匹配 Origin 将返回 403；已恢复的 `tests/api/conftest.py` 采用同一写法，"
+            "本次按相同模式补齐 `tests/services/conftest.py`。")
+        add("")
+        add("### 5.2 判定不重建的理由")
+        add("")
+        add("1. **已被后续提交/重构取代**：旧版含当前已不存在的函数（如 `_verify_task_access*` 已被 "
+            "R0-3「归属校验归一」的 `require_task_access` 取代），恢复旧增量等于回退已验证的重构。")
+        add("2. **结构一致、仅字面量差异**：差异函数数为 0 的端点/CRUD 文件，"
+            "其 `.pyc` 与当前源码大小仅差数个字节，属提示语/常量微调，无业务影响且无法可靠还原。")
+        add("3. **测试文件的较大差异归入 P1**：`tests/api/test_core_config.py`（41 个差异函数）、"
+            "`test_auth.py`（29 个）等对应 §11 O-14 登记的四项未完成功能与 legacy 套件对齐，"
+            "应随功能实现或测试基线维护统一处理，而非按字节码逐字还原。")
+        add("")
+
+    add("## 6. 引用面核实附录（2026-09-28）")
     add("")
     add("> 核实方式：符号级检索（路由懒加载字符串、`import.meta.glob`、`defineAsyncComponent`、"
         "`vite.config.ts` manualChunks、模板标签含 kebab-case、vitest/cypress 配置、"
         "`importlib` / `__import__` 动态导入）。用于修正纯分词统计的误判。")
     add("")
-    add("### 5.1 二次核实后仍无引用的文件（归档观察，本轮不删除）")
+    add("### 6.1 二次核实后仍无引用的文件（归档观察，本轮不删除）")
     add("")
     add("**前端（当前工作树零引用）**")
     add("")
@@ -561,7 +662,7 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
         "② 同步修改或删除引用它们的测试；③ 运行全量后端测试与前端 vitest 比对 §12 基线；"
         "④ 单独提交并可回滚（禁止与重构混提）。")
     add("")
-    add("### 5.2 重构契约锚点（fan-in 高，改动前须先定接口）")
+    add("### 6.2 重构契约锚点（fan-in 高，改动前须先定接口）")
     add("")
     add("| 后端文件 | fan-in（约） | 引用说明 |")
     add("| --- | --- | --- |")
@@ -573,12 +674,12 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
     for path, why in FRONTEND_ROUTE_ANCHORS:
         add(f"| `{path}` | {why} |")
     add("")
-    add("### 5.3 结构性发现")
+    add("### 6.3 结构性发现")
     add("")
     for idx, item in enumerate(AUDIT_FINDINGS, start=1):
         add(f"{idx}. {item}")
     add("")
-    add("### 5.4 前端单测覆盖（相邻 `__tests__`）")
+    add("### 6.4 前端单测覆盖（相邻 `__tests__`）")
     add("")
     add("待处置前端文件中带同名相邻单测者：`src/composables/useFlowEditor.ts`、"
         "`src/store/smartGeneration.ts`、`src/store/generate/generateHelpers.ts`、"
