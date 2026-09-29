@@ -42,6 +42,57 @@ export const ITERATION_STATUS_OPTIONS = [
   { label: '已归档', value: 'archived' },
 ] as const
 
+/**
+ * 测试用例生命周期状态选项（与后端 TestCaseLifecycleStatus 对齐）
+ *
+ * 顺序与后端字段注释一致：
+ * draft / active / pending_review / needs_modify / locator_broken / deprecated / archived
+ * 注意：历史值 `reviewed` 已废弃，不再出现在选项中。
+ */
+export const LIFECYCLE_STATUS_OPTIONS = [
+  { label: '草稿', value: 'draft' },
+  { label: '已激活', value: 'active' },
+  { label: '待审核', value: 'pending_review' },
+  { label: '需修改', value: 'needs_modify' },
+  { label: '定位失效', value: 'locator_broken' },
+  { label: '已弃用', value: 'deprecated' },
+  { label: '已归档', value: 'archived' },
+] as const
+
+/** 生命周期状态对应的 Element Plus Tag 类型 */
+export const LIFECYCLE_STATUS_TAG_MAP: Record<string, TagType> = {
+  draft: 'info',
+  active: 'success',
+  pending_review: 'warning',
+  needs_modify: 'danger',
+  locator_broken: 'danger',
+  deprecated: 'info',
+  archived: 'info',
+}
+
+/**
+ * 获取生命周期状态的中文文案
+ * @param status 状态值；空值返回占位符 `-`，未知状态回退为原始值
+ */
+export function getLifecycleStatusLabel(status?: string | null): string {
+  if (!status) {
+    return '-'
+  }
+  const opt = LIFECYCLE_STATUS_OPTIONS.find((o) => o.value === status)
+  return opt?.label ?? status
+}
+
+/**
+ * 获取生命周期状态对应的 Tag 类型
+ * @param status 状态值；空值或未知状态统一返回 `info`
+ */
+export function getLifecycleStatusTagType(status?: string | null): TagType {
+  if (!status) {
+    return 'info'
+  }
+  return LIFECYCLE_STATUS_TAG_MAP[status] ?? 'info'
+}
+
 /** 单文件上传支持的格式 */
 export const SINGLE_FILE_ACCEPT =
   '.txt,.doc,.docx,.pdf,.md,.xlsx,.xls,.csv,.json,.yaml,.yml,.png,.jpg,.jpeg,.gif,.zip,.rar'
