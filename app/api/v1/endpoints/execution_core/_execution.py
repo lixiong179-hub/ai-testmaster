@@ -83,7 +83,8 @@ async def start_test_execution(
                 detail="无权限操作此项目"
             )
 
-        if task.status not in [0, 3]:
+        # 0=等待执行、3=执行失败、5=已暂停 均允许（重新）开始执行
+        if task.status not in [0, 3, 5]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"任务状态不允许开始执行 (当前状态: {task.status})"
@@ -191,7 +192,8 @@ async def pause_test_execution(
         if task.status != 1:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在执行中，无法暂停")
 
-        task.status = 3
+        # 5 = PAUSED（此前误用 3，与 FAILED 冲突，导致前端无法区分"失败"与"暂停"）
+        task.status = 5
         await db.commit()
 
         return create_response(data={"task_id": task_id, "status": "paused"})
@@ -226,7 +228,7 @@ async def resume_test_execution(
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
-        if task.status != 3:
+        if task.status != 5:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在暂停状态，无法恢复")
 
         task.status = 1
@@ -264,7 +266,8 @@ async def stop_test_execution(
         if not project:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
-        if task.status not in [1, 3]:
+        # 1=执行中、3=执行失败、5=已暂停 均允许停止
+        if task.status not in [1, 3, 5]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在执行中，无法停止")
 
         task.status = 4

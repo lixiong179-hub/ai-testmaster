@@ -104,6 +104,19 @@
         </div>
       </div>
 
+      <div class="report-entry" style="margin-top: 20px" v-if="ctx.taskDetail.value && ctx.reportEntryVisible.value">
+        <span v-if="ctx.taskDetail.value.status === 4" class="report-hint"
+          >任务已停止，暂无测试报告</span
+        >
+        <el-button
+          v-else
+          :type="ctx.reportButtonType.value"
+          size="large"
+          @click="ctx.goToReport"
+          >{{ ctx.reportButtonText.value }}</el-button
+        >
+      </div>
+
       <div class="action-buttons" style="margin-top: 20px" v-if="ctx.taskDetail.value">
         <el-space>
           <el-button
@@ -119,6 +132,27 @@
             @click="ctx.stopTask"
             :loading="ctx.actionLoading.value"
             ><el-icon><VideoPause /></el-icon>停止任务</el-button
+          >
+          <el-button
+            v-if="ctx.canPause.value"
+            type="info"
+            @click="ctx.pauseTask"
+            :loading="ctx.actionLoading.value"
+            ><el-icon><VideoPause /></el-icon>暂停任务</el-button
+          >
+          <el-button
+            v-if="ctx.canResume.value"
+            type="success"
+            @click="ctx.resumeTask"
+            :loading="ctx.actionLoading.value"
+            ><el-icon><VideoPlay /></el-icon>恢复任务</el-button
+          >
+          <el-button
+            v-if="ctx.canRetry.value"
+            type="primary"
+            @click="ctx.retryTask"
+            :loading="ctx.actionLoading.value"
+            ><el-icon><Refresh /></el-icon>重试任务</el-button
           >
           <el-button @click="ctx.fetchTaskResults" :loading="ctx.loading.value"
             ><el-icon><Refresh /></el-icon>刷新结果</el-button
@@ -296,6 +330,19 @@ onUnmounted(ctx.cleanup)
   font-size: 12px;
   color: #909399;
   margin-top: 5px;
+}
+.report-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f5f7fa;
+  border: 1px solid #e4e8ef;
+  border-radius: 8px;
+}
+.report-hint {
+  color: #909399;
+  font-size: 14px;
 }
 .action-buttons {
   display: flex;

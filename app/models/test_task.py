@@ -49,13 +49,15 @@ class TaskStatus:
     COMPLETED = 2     # 执行完成
     FAILED = 3        # 执行失败
     STOPPED = 4       # 已停止
+    PAUSED = 5        # 已暂停（可由 /execution/{id}/resume 恢复）
     
     LABELS = {
         0: "等待执行",
         1: "执行中",
         2: "执行完成",
         3: "执行失败",
-        4: "已停止"
+        4: "已停止",
+        5: "已暂停"
     }
 
 
@@ -96,7 +98,7 @@ class TestTask(TenantAwareMixin, Base):
 
     case_ids = Column(JSON, nullable=False, comment="待执行用例ID列表")                                # JSON数组，存储待执行的用例ID列表
     executor_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, comment="执行用户ID")  # 任务执行人
-    status = Column(Integer, nullable=False, default=0, index=True, comment="状态：0等待执行/1执行中/2执行完成/3执行失败/4已停止")  # 任务状态，默认0等待执行
+    status = Column(Integer, nullable=False, default=0, index=True, comment="状态：0等待执行/1执行中/2执行完成/3执行失败/4已停止/5已暂停")  # 任务状态，默认0等待执行
     start_time = Column(DateTime, nullable=True, index=True, comment="开始执行时间")                    # 任务开始执行的时间
     end_time = Column(DateTime, nullable=True, index=True, comment="结束执行时间")                      # 任务结束执行的时间
     success_count = Column(Integer, nullable=False, default=0, comment="成功用例数")                    # 执行通过的用例计数

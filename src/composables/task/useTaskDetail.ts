@@ -1,17 +1,19 @@
 import { type InjectionKey, inject, provide, ref, computed, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { TagType, ProgressStatus } from '@/types/element-plus'
 import { useTaskStore } from '@/store/task'
 import type { TestResult, ExecutionLog } from '@/store/taskTypes'
 import { wsClient } from '@/utils/websocket'
 import { getConnectedDevices } from '@/api/testExecution'
+import { TaskStatus } from '@/api/testTask'
 
 export type TaskDetailContext = ReturnType<typeof createTaskDetailContext>
 export const TASK_DETAIL_KEY: InjectionKey<TaskDetailContext> = Symbol('taskDetail')
 
 function createTaskDetailContext() {
   const route = useRoute()
+  const router = useRouter()
   const taskStore = useTaskStore()
 
   const taskId = computed(() => Number(route.params.taskId) || 0)
@@ -159,6 +161,106 @@ function createTaskDetailContext() {
         const err = error as { message?: string }
         ElMessage.error(err.message || '停止任务失败')
       }
+    } finally {
+      actionLoading.value = false
+    }
+  }
+
+  /** 报告入口：仅终态（完成/失败/已停止）展示 */
+  const reportEntryVisible = computed(() => {
+    const status = taskDetail.value?.status
+    return (
+      status === TaskStatus.COMPLETED ||
+      status === TaskStatus.FAILED ||
+      status === TaskStatus.STOPPED
+    )
+  })
+
+  /** 报告按钮类型：失败态 danger，其余 primary */
+  const reportButtonType = computed<'primary' | 'danger'>(() =>
+    taskDetail.value?.status === TaskStatus.FAILED ? 'danger' : 'primary'
+  )
+
+  /** 报告按钮文案 */
+  const reportButtonText = computed(() =>
+    taskDetail.value?.status === TaskStatus.FAILED ? '查看失败报告' : '查看测试报告'
+  )
+
+  /** 跳转执行报告详情（失败态额外带 status=failed） */
+  const goToReport = () => {
+    const query: Record<string, string> = { task_id: String(taskId.value) }
+    if (taskDetail.value?.status === TaskStatus.FAILED) {
+      query.status = 'failed'
+    }
+    router.push({ name: 'ExecutionReportDetail', query })
+  }
+
+  /** 可重试：失败 / 已停止 */
+  const canRetry = computed(() => {
+    const status = taskDetail.value?.status
+    return status === TaskStatus.FAILED || status === TaskStatus.STOPPED
+  })
+
+  /** 重试任务：确认后清空日志并以当前执行模式重新启动 */
+  const retryTask = async () => {
+    try {
+      await ElMessageBox.confirm('确定要重新执行此任务吗？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
+      actionLoading.value = true
+      taskStore.clearExecutionLogs()
+      await taskStore.startTask(
+        taskId.value,
+        projectId.value,
+        executionMode.value,
+        executionMode.value.startsWith('mobile_') ? mobileDeviceId.value : undefined
+      )
+      ElMessage.success('任务已重新启动')
+      await fetchTaskDetail()
+      startPolling()
+    } catch (error: unknown) {
+      if (error !== 'cancel') {
+        const err = error as { message?: string }
+        ElMessage.error(err.message || '重试任务失败')
+      }
+    } finally {
+      actionLoading.value = false
+    }
+  }
+
+  /** 可暂停：执行中 */
+  const canPause = computed(() => taskDetail.value?.status === TaskStatus.RUNNING)
+
+  /** 可恢复：已暂停 */
+  const canResume = computed(() => taskDetail.value?.status === TaskStatus.PAUSED)
+
+  const pauseTask = async () => {
+    try {
+      actionLoading.value = true
+      await taskStore.pauseTask(taskId.value, projectId.value)
+      ElMessage.success('任务已暂停')
+      await fetchTaskDetail()
+      stopPolling()
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      ElMessage.error(err.message || '暂停任务失败')
+    } finally {
+      actionLoading.value = false
+    }
+  }
+
+  const resumeTask = async () => {
+    try {
+      actionLoading.value = true
+      await taskStore.resumeTask(taskId.value, projectId.value)
+      ElMessage.success('任务已恢复')
+      await fetchTaskDetail()
+      startPolling()
+    } catch (error: unknown) {
+      const err = error as { message?: string }
+      ElMessage.error(err.message || '恢复任务失败')
     } finally {
       actionLoading.value = false
     }
@@ -368,6 +470,16 @@ function createTaskDetailContext() {
     loadConnectedDevices,
     startTask,
     stopTask,
+    reportEntryVisible,
+    reportButtonType,
+    reportButtonText,
+    goToReport,
+    canRetry,
+    retryTask,
+    canPause,
+    canResume,
+    pauseTask,
+    resumeTask,
     exportResults,
     viewCaseLog,
     copyLog,

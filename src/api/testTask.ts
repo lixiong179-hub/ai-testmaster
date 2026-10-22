@@ -7,6 +7,7 @@ export enum TaskStatus {
   COMPLETED = 2, // 执行完成
   FAILED = 3, // 执行失败
   STOPPED = 4, // 已停止
+  PAUSED = 5, // 已暂停（与后端 /execution/{id}/pause 置位保持一致）
 }
 
 // 执行状态枚举
@@ -75,6 +76,22 @@ const testTaskApi = {
   // 后端：POST /api/v1/execution/{task_id}/stop
   stopTask: (taskId: number, projectId?: number) => {
     return request.post(`/api/v1/execution/${taskId}/stop`, null, {
+      params: projectId ? { project_id: projectId } : {},
+    })
+  },
+
+  // 暂停执行
+  // 后端：POST /api/v1/execution/{task_id}/pause（任务置为 PAUSED=5）
+  pauseTask: (taskId: number, projectId?: number) => {
+    return request.post(`/api/v1/execution/${taskId}/pause`, null, {
+      params: projectId ? { project_id: projectId } : {},
+    })
+  },
+
+  // 恢复执行
+  // 后端：POST /api/v1/execution/{task_id}/resume（PAUSED=5 → RUNNING=1）
+  resumeTask: (taskId: number, projectId?: number) => {
+    return request.post(`/api/v1/execution/${taskId}/resume`, null, {
       params: projectId ? { project_id: projectId } : {},
     })
   },

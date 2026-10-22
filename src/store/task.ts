@@ -59,6 +59,7 @@ export const useTaskStore = defineStore('task', {
           [TaskStatus.COMPLETED]: '执行完成',
           [TaskStatus.FAILED]: '执行失败',
           [TaskStatus.STOPPED]: '已停止',
+          [TaskStatus.PAUSED]: '已暂停',
         }
         return statusMap[status] || '未知状态'
       }
@@ -71,6 +72,7 @@ export const useTaskStore = defineStore('task', {
           [TaskStatus.COMPLETED]: 'success',
           [TaskStatus.FAILED]: 'danger',
           [TaskStatus.STOPPED]: 'warning',
+          [TaskStatus.PAUSED]: 'warning',
         }
         return colorMap[status] || 'info'
       }
@@ -233,6 +235,34 @@ export const useTaskStore = defineStore('task', {
       this.error = null
       try {
         const response = await testTaskApi.stopTask(taskId, projectId)
+        await this.fetchTaskDetail(taskId, projectId)
+        return extractTaskResponseData<Record<string, unknown>>(response)
+      } catch (error: unknown) {
+        this.error = error instanceof Error ? error.message : String(error)
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async pauseTask(taskId: number, projectId?: number) {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await testTaskApi.pauseTask(taskId, projectId)
+        await this.fetchTaskDetail(taskId, projectId)
+        return extractTaskResponseData<Record<string, unknown>>(response)
+      } catch (error: unknown) {
+        this.error = error instanceof Error ? error.message : String(error)
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+    async resumeTask(taskId: number, projectId?: number) {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await testTaskApi.resumeTask(taskId, projectId)
         await this.fetchTaskDetail(taskId, projectId)
         return extractTaskResponseData<Record<string, unknown>>(response)
       } catch (error: unknown) {

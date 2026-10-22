@@ -457,7 +457,6 @@ FRONTEND_ORPHAN_PATHS = {p for p, _ in FRONTEND_ORPHANS} | {p for p, _ in FRONTE
 # 说明：这些 spec 由 9 月下旬新增工作编写，而对应实现文件在事故中被还原为旧版本，
 # 因此失败用例**即丢失前端增量的可执行规格**（按钮/商店动作/字段/Tab 等）。
 VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {
-    "src/views/task/__tests__/TaskDetail.spec.ts": (21, 16),
     "src/views/iteration/__tests__/useReviewInboxFilter.spec.ts": (17, 15),
     "src/views/iteration/__tests__/useReviewInbox.spec.ts": (15, 15),
     "src/views/iteration/__tests__/PipelineProgress.spec.ts": (14, 13),
@@ -474,6 +473,8 @@ VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {
     #   src/api/__tests__/ai.spec.ts             11 passed（generateCasesViaPipeline 统一 Pipeline）
     #   src/utils/__tests__/websocket.spec.ts    10 passed（断线 warning/恢复 success/3 次失败 error）
     #   顺带修复：src/views/__tests__/Workbench.spec.ts 16 passed（依赖 store 的 currentProjectId）
+    # G-5b 第 1 项（2026-10-22）：
+    #   src/views/task/__tests__/TaskDetail.spec.ts 21 passed（报告入口/重试/暂停恢复）
     # 注：src/views/quick-test/__tests__/QuickHistoryList.spec.ts 在全量并发下偶发 5s 超时，
     #     单跑 10/10 通过，属负载敏感 flaky，不计入失败清单。
 }
@@ -494,7 +495,7 @@ def render_vitest_spec_section() -> str:
         "> **首次结果（2026-09-28 基线）**：37 个 spec 文件 → 16 failed / 21 passed；"
         "555 个用例 → 168 failed / 387 passed（14.89s）。",
         "",
-        f"> **G-5a 全部完成（7 项，2026-09-29）**：37 文件 → **9 failed / 28 passed**；"
+        f"> **G-5a 全部完成 + G-5b 第 1 项（2026-10-22）**：37 文件 → **7 failed / 30 passed**；"
         f"555 用例 → **{failed} failed / {555 - failed} passed**（总数保持 555，无新增失败）。"
         "已修复：`request.spec.ts`（401 提示优化）、`resource.spec.ts`（生命周期状态常量）、"
         "`iteration.spec.ts`（迭代终态 API）、`caseQuality.spec.ts`（后验评分 API）、"
