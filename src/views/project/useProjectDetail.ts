@@ -6,6 +6,31 @@ import { ProjectAPI, type WebEnvConfigs, type DeviceConfig, type Project } from 
 
 const PASSWORD_MASK = '******'
 
+/**
+ * 解析项目详情页的初始项目 ID
+ *
+ * 优先级：URL 查询参数（正整数）> store 中的全局项目 > 0（表示无有效值）
+ * 用于分享链接、页面刷新（URL 保留参数）与站内跳转（仅 store 有值）两种场景。
+ */
+export function resolveInitialProjectId(
+  urlProjectId: string | null | undefined,
+  storeProjectId: number | null | undefined
+): number {
+  if (urlProjectId !== null && urlProjectId !== undefined && urlProjectId !== '') {
+    const fromUrl = Number(urlProjectId)
+    if (Number.isInteger(fromUrl) && fromUrl > 0) {
+      return fromUrl
+    }
+  }
+  if (storeProjectId !== null && storeProjectId !== undefined) {
+    const fromStore = Number(storeProjectId)
+    if (Number.isInteger(fromStore) && fromStore > 0) {
+      return fromStore
+    }
+  }
+  return 0
+}
+
 export function useProjectDetail() {
   const route = useRoute()
   const router = useRouter()
@@ -162,10 +187,14 @@ export function useProjectDetail() {
   }
 
   onMounted(async () => {
-    const id = route.query.id
-    if (id) {
-      projectId.value = Number(id)
-      await projectStore.fetchProjectDetail(projectId.value)
+    // URL 参数优先（分享链接/刷新），其次继承 store 的全局项目上下文
+    const initialId = resolveInitialProjectId(
+      route.query.id as string | null | undefined,
+      projectStore.currentProjectId
+    )
+    if (initialId > 0) {
+      projectId.value = initialId
+      await projectStore.fetchProjectDetail(initialId)
       loadConfig()
     } else {
       ElMessage.error('项目ID不能为空')

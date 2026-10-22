@@ -19,6 +19,8 @@ export const useProjectStore = defineStore('project', {
     projects: [] as Project[],
     currentProject: null as Project | null,
     projectFiles: [] as ProjectFile[],
+    /** 全局当前项目 ID（跨页面继承，详情页卸载不清空） */
+    currentProjectId: null as number | null,
     loading: false,
     currentPage: 1,
     pageSize: 10,
@@ -29,9 +31,29 @@ export const useProjectStore = defineStore('project', {
     getProjectById: (state) => (id: number) => {
       return state.projects.find((project) => project.id === id)
     },
+
+    /**
+     * 当前项目名称：优先取详情对象（与 currentProjectId 一致时），
+     * 其次从列表查找，均未命中返回空字符串。
+     */
+    currentProjectName: (state): string => {
+      if (state.currentProject && state.currentProject.id === state.currentProjectId) {
+        return state.currentProject.name
+      }
+      if (state.currentProjectId === null) {
+        return ''
+      }
+      const found = state.projects.find((project) => project.id === state.currentProjectId)
+      return found?.name ?? ''
+    },
   },
 
   actions: {
+    /** 设置全局当前项目（传 null 表示清空） */
+    setCurrentProject(projectId: number | null) {
+      this.currentProjectId = projectId
+    },
+
     async fetchProjects() {
       this.loading = true
       try {
@@ -69,6 +91,8 @@ export const useProjectStore = defineStore('project', {
       try {
         const response: ProjectDetailResponse = await ProjectAPI.getProjectDetail(projectId)
         this.currentProject = response?.data || null
+        // 详情拉取成功后同步全局上下文（失败时保持原值，避免打断其他页面）
+        this.currentProjectId = projectId
         const rawFiles = response?.data?.files || []
         this.projectFiles = rawFiles.map((f) => ({
           id: f.id,
@@ -139,8 +163,13 @@ export const useProjectStore = defineStore('project', {
       }
     },
 
+    /**
+     * 重置详情级状态（详情页卸载时调用）
+     *
+     * 保留 `currentProjectId` 与 `projects`：全局项目上下文需要被其他页面继承，
+     * 清空列表会导致 `currentProjectName` 在卸载后失效。
+     */
     resetState() {
-      this.projects = []
       this.currentProject = null
       this.projectFiles = []
       this.loading = false

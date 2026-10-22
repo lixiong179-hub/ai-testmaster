@@ -2,6 +2,10 @@
  * WebSocket工具类
  * 用于测试执行过程实时更新
  */
+import { ElMessage } from 'element-plus'
+
+/** 最大自动重连次数（超过后提示用户刷新） */
+const MAX_RECONNECT_ATTEMPTS = 3
 
 export interface WebSocketOptions {
   onMessage?: (data: unknown) => void
@@ -33,23 +37,33 @@ class WebSocketClient {
 
   /**
    * 连接WebSocket
+   * @param isReconnect 是否由自动重连触发（内部使用）：重连不重置重连计数
    */
-  connect(taskId: number, projectId: number, token: string): void {
-    this.disconnect(true)
+  connect(taskId: number, projectId: number, token: string, isReconnect: boolean = false): void {
+    this.teardown()
 
     this.currentTaskId = taskId
     this.currentProjectId = projectId
     this.isManualDisconnect = false
+    if (!isReconnect) {
+      this.reconnectAttempts = 0
+    }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = window.location.host
     const wsUrl = `${protocol}//${host}/ws/task/${taskId}`
 
     try {
-      this.ws = new WebSocket(wsUrl, [token])
+      const socket = new WebSocket(wsUrl, [token])
+      this.ws = socket
 
-      this.ws.onopen = () => {
+      socket.onopen = () => {
+        if (this.ws !== socket) return
+        const wasReconnecting = this.reconnectAttempts > 0
         this.reconnectAttempts = 0
+        if (wasReconnecting) {
+          ElMessage.success('连接已恢复')
+        }
         this.send({
           type: 'subscribe',
           task_id: taskId,
@@ -57,7 +71,7 @@ class WebSocketClient {
         })
       }
 
-      this.ws.onmessage = (event) => {
+      socket.onmessage = (event) => {
         try {
           const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
 
@@ -77,17 +91,31 @@ class WebSocketClient {
         }
       }
 
-      this.ws.onclose = () => {
+      socket.onclose = () => {
+        // 旧连接（已被新连接替换）的回调直接忽略，避免误触发重连
+        if (this.ws !== socket) return
         if (!this.isManualDisconnect) {
           this.scheduleReconnect()
         }
       }
 
-      this.ws.onerror = (_error) => {
+      socket.onerror = (_error) => {
         // WebSocket错误
       }
     } catch (error) {
       // 创建WebSocket连接失败
+    }
+  }
+
+  /** 关闭当前连接与重连定时器（不改变重连计数） */
+  private teardown(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
     }
   }
 
@@ -97,18 +125,10 @@ class WebSocketClient {
    */
   disconnect(manual: boolean = false): void {
     this.isManualDisconnect = manual
-
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
-
-    if (this.ws) {
-      this.ws.close()
-      this.ws = null
-    }
+    this.teardown()
 
     if (manual) {
+      this.reconnectAttempts = 0
       this.currentTaskId = null
       this.currentProjectId = null
     }
@@ -148,22 +168,33 @@ class WebSocketClient {
   }
 
   /**
-   * 定时重连
+   * 定时重连（指数退避：1s → 2s → 4s，超过上限提示刷新）
+   *
+   * 提示规则：首次断线 warning 一次；重连成功 success；连续 3 次失败后 error 并停止。
    */
   private scheduleReconnect(): void {
     if (this.reconnectTimer || this.isManualDisconnect) return
 
     this.reconnectAttempts++
+    if (this.reconnectAttempts === 1) {
+      ElMessage.warning('连接已断开，正在重连...')
+    }
+    if (this.reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+      ElMessage.error('连接失败，请刷新页面重试')
+      this.reconnectAttempts = 0
+      return
+    }
+
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), this.MAX_RECONNECT_DELAY)
 
     this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
       if (this.currentTaskId && this.currentProjectId) {
         const token = localStorage.getItem('token')
         if (token) {
-          this.connect(this.currentTaskId, this.currentProjectId, token)
+          this.connect(this.currentTaskId, this.currentProjectId, token, true)
         }
       }
-      this.reconnectTimer = null
     }, delay)
   }
 
@@ -210,34 +241,83 @@ export function connectWebSocket(
   const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : ''
   const wsUrl = `${protocol}//${host}/ws${path}${tokenQuery}`
 
-  const ws = new WebSocket(wsUrl)
+  let current: WebSocket | null = null
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let reconnectAttempts = 0
+  let manualClosed = false
 
-  ws.onopen = () => {
-    options.onOpen?.()
+  const scheduleReconnect = (): void => {
+    if (reconnectTimer || manualClosed) return
+
+    reconnectAttempts += 1
+    if (reconnectAttempts === 1) {
+      ElMessage.warning('连接已断开，正在重连...')
+    }
+    if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+      ElMessage.error('连接失败，请刷新页面重试')
+      reconnectAttempts = 0
+      return
+    }
+
+    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000)
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null
+      if (!manualClosed) {
+        open()
+      }
+    }, delay)
   }
 
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data)
-      options.onMessage?.(data)
-    } catch (error) {
-      options.onMessage?.(event.data)
+  const open = (): void => {
+    const socket = new WebSocket(wsUrl)
+    current = socket
+
+    socket.onopen = () => {
+      if (current !== socket) return
+      const wasReconnecting = reconnectAttempts > 0
+      reconnectAttempts = 0
+      if (wasReconnecting) {
+        ElMessage.success('连接已恢复')
+      }
+      options.onOpen?.()
+    }
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        options.onMessage?.(data)
+      } catch (error) {
+        options.onMessage?.(event.data)
+      }
+    }
+
+    socket.onclose = () => {
+      if (current !== socket) return
+      options.onClose?.()
+      if (!manualClosed) {
+        scheduleReconnect()
+      }
+    }
+
+    socket.onerror = (error) => {
+      options.onError?.(error)
     }
   }
 
-  ws.onclose = () => {
-    options.onClose?.()
-  }
-
-  ws.onerror = (error) => {
-    options.onError?.(error)
-  }
+  open()
 
   return {
-    ws,
+    get ws() {
+      return current as WebSocket
+    },
     close: () => {
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        ws.close()
+      manualClosed = true
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+      }
+      if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) {
+        current.close()
       }
     },
   }

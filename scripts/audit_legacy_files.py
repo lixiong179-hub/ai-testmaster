@@ -457,23 +457,25 @@ FRONTEND_ORPHAN_PATHS = {p for p, _ in FRONTEND_ORPHANS} | {p for p, _ in FRONTE
 # 说明：这些 spec 由 9 月下旬新增工作编写，而对应实现文件在事故中被还原为旧版本，
 # 因此失败用例**即丢失前端增量的可执行规格**（按钮/商店动作/字段/Tab 等）。
 VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {
-    "src/store/__tests__/project.spec.ts": (19, 19),
     "src/views/task/__tests__/TaskDetail.spec.ts": (21, 16),
-    "src/views/__tests__/Workbench.spec.ts": (16, 16),
     "src/views/iteration/__tests__/useReviewInboxFilter.spec.ts": (17, 15),
     "src/views/iteration/__tests__/useReviewInbox.spec.ts": (15, 15),
     "src/views/iteration/__tests__/PipelineProgress.spec.ts": (14, 13),
-    "src/api/__tests__/ai.spec.ts": (11, 9),
     "src/views/case/__tests__/smart-generate.spec.ts": (9, 8),
     "src/views/project/__tests__/detail.spec.ts": (19, 8),
     "src/views/report/__tests__/ReportDetail.spec.ts": (7, 7),
-    "src/utils/__tests__/websocket.spec.ts": (10, 7),
     "src/views/login/__tests__/login.spec.ts": (5, 4),
-    # 已修复（G-5a 前 4 项，2026-09-28/29）：
+    # 已修复（G-5a 全部 7 项，2026-09-28/29）：
     #   src/utils/__tests__/request.spec.ts       5 passed（401 提示优化 Task A-03）
     #   src/constants/__tests__/resource.spec.ts  8 passed（生命周期状态常量）
     #   src/api/__tests__/iteration.spec.ts       9 passed（finalize/runPipeline/archive）
     #   src/api/__tests__/caseQuality.spec.ts    10 passed（后验评分 trigger/get）
+    #   src/store/__tests__/project.spec.ts      19 passed（currentProjectId/名称 getter/ID 解析）
+    #   src/api/__tests__/ai.spec.ts             11 passed（generateCasesViaPipeline 统一 Pipeline）
+    #   src/utils/__tests__/websocket.spec.ts    10 passed（断线 warning/恢复 success/3 次失败 error）
+    #   顺带修复：src/views/__tests__/Workbench.spec.ts 16 passed（依赖 store 的 currentProjectId）
+    # 注：src/views/quick-test/__tests__/QuickHistoryList.spec.ts 在全量并发下偶发 5s 超时，
+    #     单跑 10/10 通过，属负载敏感 flaky，不计入失败清单。
 }
 
 
@@ -492,12 +494,14 @@ def render_vitest_spec_section() -> str:
         "> **首次结果（2026-09-28 基线）**：37 个 spec 文件 → 16 failed / 21 passed；"
         "555 个用例 → 168 failed / 387 passed（14.89s）。",
         "",
-        f"> **G-5a 已完成 4 项后（当前）**：37 文件 → **12 failed / 25 passed**；"
+        f"> **G-5a 全部完成（7 项，2026-09-29）**：37 文件 → **9 failed / 28 passed**；"
         f"555 用例 → **{failed} failed / {555 - failed} passed**（总数保持 555，无新增失败）。"
-        "已修复：`request.spec.ts`（401 提示优化 Task A-03：ElMessage 提示 + 凭据清理 + 延迟跳登录页 + 登录页豁免）、"
-        "`resource.spec.ts`（生命周期状态 7 值 + Tag 映射 + 取值函数）、"
-        "`iteration.spec.ts`（`finalizeIteration` / `runPipeline` / `archiveIteration` 三个导出 + 统一错误兜底）、"
-        "`caseQuality.spec.ts`（`triggerPosteriorScoring` / `getPosteriorResult` + 后验评分类型，失败向上抛出）。",
+        "已修复：`request.spec.ts`（401 提示优化）、`resource.spec.ts`（生命周期状态常量）、"
+        "`iteration.spec.ts`（迭代终态 API）、`caseQuality.spec.ts`（后验评分 API）、"
+        "`project.spec.ts`（全局项目上下文 + URL ID 解析）、`ai.spec.ts`（生成统一走 Pipeline）、"
+        "`websocket.spec.ts`（断线重连提示）；顺带 `Workbench.spec.ts` 16 项转绿。"
+        f"另注：`QuickHistoryList.spec.ts` 全量并发下偶发 5s 超时（单跑 10/10），不计入失败清单；"
+        f"按剔除该 flaky 计，稳定失败为 {failed - 1} 项 / 8 个文件。",
         "",
         "> ⚠️ **修复过程中的一次回归与解决**：初版实现于 `src/utils/request.ts` 顶层静态 "
         "`import router from '@/router'`，形成「router → routes → views/api → request → router」"
