@@ -24,6 +24,8 @@
       </template>
 
       <div v-if="report" class="report-content">
+        <el-tabs v-model="activeTab" class="report-tabs">
+          <el-tab-pane label="报告详情" name="detail">
         <!-- 报告基本信息 -->
         <el-card shadow="hover" class="mb-4">
           <el-form :model="report" label-width="120px">
@@ -439,6 +441,25 @@
             </el-collapse-item>
           </el-collapse>
         </el-card>
+          </el-tab-pane>
+
+          <el-tab-pane label="关联缺陷" name="bugs">
+            <BugList
+              v-if="linkedTaskId > 0"
+              :project-id="projectId"
+              :task-id="linkedTaskId"
+              embedded
+              empty-description="本次执行未发现缺陷"
+            >
+              <template #empty-action>
+                <el-button @click="goToBugCreate">手动提缺陷</el-button>
+              </template>
+            </BugList>
+            <el-empty v-else description="当前报告未关联任务，无法展示缺陷">
+              <el-button @click="goToBugCreate">手动提缺陷</el-button>
+            </el-empty>
+          </el-tab-pane>
+        </el-tabs>
       </div>
 
       <div v-else class="loading">
@@ -455,6 +476,7 @@ import { ElMessage, ElLoading } from 'element-plus'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { useReportStore } from '@/store/report'
 import ReportTable from '@/components/report/ReportTable.vue'
+import BugList from '@/views/bug/BugList.vue'
 import type {
   Report,
   DefectOverview,
@@ -504,6 +526,22 @@ const projectId = computed(() => {
 })
 
 const report = computed(() => reportStore.currentReport)
+
+/** 当前激活 Tab（默认「报告详情」） */
+const activeTab = ref<'detail' | 'bugs'>('detail')
+
+/**
+ * 关联任务 ID：优先取路由 `task_id`（列表跳转携带），
+ * 其次回退报告自身的 `test_task_id`；均为空时返回 0（不渲染缺陷列表）。
+ */
+const linkedTaskId = computed(() => {
+  const fromRoute = Number(route.query.task_id)
+  if (Number.isFinite(fromRoute) && fromRoute > 0) {
+    return fromRoute
+  }
+  const fromReport = Number(report.value?.test_task_id ?? 0)
+  return Number.isFinite(fromReport) && fromReport > 0 ? fromReport : 0
+})
 
 /** 从 report.content 安全提取缺陷维度数据 */
 const reportContent = computed<ReportContent | null>(() => {
@@ -730,6 +768,11 @@ const goBack = () => {
   router.push('/home/report')
 }
 
+/** 跳转缺陷管理页并携带当前项目（手动提缺陷入口） */
+const goToBugCreate = () => {
+  router.push({ path: '/home/execution/bug', query: { project_id: projectId.value } })
+}
+
 const handlePageChange = (_page: number, _pageSize: number) => {}
 
 const handleExportPDF = async () => {
@@ -836,6 +879,10 @@ onUnmounted(() => {
 
 .report-content {
   margin-top: 20px;
+}
+
+.report-tabs {
+  margin-top: -6px;
 }
 
 .loading {
