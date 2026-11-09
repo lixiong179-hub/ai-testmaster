@@ -3,6 +3,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { TagType } from '@/types/element-plus'
 import { reviewApi, type ReviewDecision } from '@/api/review'
+import { useProjectStore } from '@/store/project'
+import type { GuideAction } from '@/components/common/NextStepGuide.vue'
 
 interface TabDef {
   key: string
@@ -15,7 +17,10 @@ export function useReviewInbox() {
   const route = useRoute()
   const router = useRouter()
   const reviewId = computed(() => Number(route.params.reviewId))
+  const projectStore = useProjectStore()
   const decisions = ref<ReviewDecision[]>([])
+  /** 最终化成功后的下一步引导条可见性 */
+  const showFinalizeGuide = ref(false)
   const loading = ref(false)
   const finalizing = ref(false)
   const errorMsg = ref('')
@@ -46,6 +51,21 @@ export function useReviewInbox() {
     })
   })
 
+  /** 统计卡片数据（不受筛选器影响，始终反映整体状态） */
+  const stats = computed(() => {
+    const total = decisions.value.length
+    const decided = decisions.value.filter((d) => Boolean(d.human_verdict)).length
+    return {
+      total,
+      decided,
+      undecided: total - decided,
+      conflict: decisions.value.filter((d) => d.conflict_marker).length,
+    }
+  })
+
+  /** 筛选器：AI 结论 / 人工结论（含 undecided）/ 冲突 */
+  const filter = ref({ aiVerdict: '', humanVerdict: '', conflict: '' })
+
   const filteredDecisions = computed(() => {
     let result = decisions.value
     if (
@@ -55,8 +75,45 @@ export function useReviewInbox() {
     )
       result = result.filter((d) => d.ai_verdict === activeTab.value)
     else if (activeTab.value === 'conflict') result = result.filter((d) => d.conflict_marker)
+
+    if (filter.value.aiVerdict) {
+      result = result.filter((d) => d.ai_verdict === filter.value.aiVerdict)
+    }
+    if (filter.value.humanVerdict) {
+      result =
+        filter.value.humanVerdict === 'undecided'
+          ? result.filter((d) => !d.human_verdict)
+          : result.filter((d) => d.human_verdict === filter.value.humanVerdict)
+    }
+    if (filter.value.conflict) {
+      result =
+        filter.value.conflict === 'true'
+          ? result.filter((d) => d.conflict_marker)
+          : result.filter((d) => !d.conflict_marker)
+    }
+
     return [...result].sort((a, b) => (b.conflict_marker ? 1 : 0) - (a.conflict_marker ? 1 : 0))
   })
+
+  /** 重置全部筛选条件 */
+  function resetFilter() {
+    filter.value = { aiVerdict: '', humanVerdict: '', conflict: '' }
+  }
+
+  /** 冲突快速筛选（再次点击取消） */
+  function quickFilterConflict() {
+    if (filter.value.conflict === 'true') {
+      filter.value = { ...filter.value, conflict: '' }
+      return
+    }
+    activeTab.value = 'all'
+    filter.value = { aiVerdict: '', humanVerdict: '', conflict: 'true' }
+  }
+
+  /** 表格行样式：冲突项高亮 */
+  function tableRowClass({ row }: { row: ReviewDecision }): string {
+    return row?.conflict_marker ? 'conflict-row' : ''
+  }
 
   const statusTagType = computed<TagType>(() => {
     const m: Record<string, TagType> = {
@@ -255,6 +312,8 @@ export function useReviewInbox() {
           const res = await reviewApi.finalizeReview(reviewId.value)
           reviewStatus.value = res.data.status
           ElMessage.success('评审已最终化')
+          // Task3: 最终化成功后展示下一步引导
+          showFinalizeGuide.value = true
           await fetchDecisions()
         } catch (e: unknown) {
           const err = e as {
@@ -271,6 +330,69 @@ export function useReviewInbox() {
       .catch(() => {})
   }
 
+  // ==================== Task3: 最终化后的下一步引导 ====================
+
+  /** 当前迭代 ID（引导跳转用例列表时透传） */
+  const iterationId = computed(() => route.query.iteration_id as string | undefined)
+
+  /** 最终通过（keep / modify）的用例 ID */
+  const approvedCaseIds = computed<number[]>(() =>
+    decisions.value
+      .filter(
+        (item) =>
+          item.target_kind === 'case' &&
+          (item.final_verdict === 'keep' || item.final_verdict === 'modify')
+      )
+      .map((item) => item.target_id)
+  )
+
+  /** 关闭引导条 */
+  function closeFinalizeGuide() {
+    showFinalizeGuide.value = false
+  }
+
+  /** 引导①：查看用例列表（带 iteration_id） */
+  function guideToCaseList() {
+    router.push({
+      name: 'CaseList',
+      query: iterationId.value ? { iteration_id: iterationId.value } : {},
+    })
+    closeFinalizeGuide()
+  }
+
+  /** 引导②：用已通过用例创建执行任务 */
+  function guideToTaskCenter() {
+    const projectId = projectStore.currentProjectId
+    if (!projectId) {
+      ElMessage.warning('请先选择项目后再创建执行任务')
+      return
+    }
+    const caseIds = approvedCaseIds.value
+    if (caseIds.length === 0) {
+      ElMessage.warning('没有可用于创建任务的用例')
+      return
+    }
+    router.push({
+      name: 'TaskCreate',
+      params: { projectId: String(projectId) },
+      query: { case_ids: caseIds.join(',') },
+    })
+    closeFinalizeGuide()
+  }
+
+  /** 引导③：返回迭代列表 */
+  function guideToIterationList() {
+    router.push({ name: 'IterationList' })
+    closeFinalizeGuide()
+  }
+
+  /** 引导条选项配置 */
+  const guideActions = computed<GuideAction[]>(() => [
+    { label: '查看用例列表', type: 'primary', onClick: guideToCaseList },
+    { label: '创建执行任务', type: 'success', onClick: guideToTaskCenter },
+    { label: '返回迭代列表', type: 'info', onClick: guideToIterationList },
+  ])
+
   onMounted(fetchDecisions)
 
   return {
@@ -279,6 +401,11 @@ export function useReviewInbox() {
     finalizing,
     errorMsg,
     reviewStatus,
+    stats,
+    filter,
+    resetFilter,
+    quickFilterConflict,
+    tableRowClass,
     activeTab,
     expandedHints,
     tabs,
@@ -302,5 +429,12 @@ export function useReviewInbox() {
     handleUndoFinalize,
     handleBatchAcceptHighConfidence,
     handleFinalize,
+    showFinalizeGuide,
+    approvedCaseIds,
+    guideActions,
+    guideToCaseList,
+    guideToTaskCenter,
+    guideToIterationList,
+    closeFinalizeGuide,
   }
 }

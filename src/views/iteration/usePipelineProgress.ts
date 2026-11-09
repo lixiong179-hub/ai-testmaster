@@ -9,6 +9,8 @@ import {
   type InferredSummary,
   type ArtifactDetail,
 } from '@/api/pipeline'
+import { reviewApi } from '@/api/review'
+import { aiInvocationApi, usdToCny } from '@/api/aiInvocation'
 
 /** WebSocket 推送的 Pipeline 进度消息格式 */
 interface PipelineProgressMessage {
@@ -374,8 +376,113 @@ export function usePipelineProgress() {
     router.back()
   }
 
+  // ==================== Task2: 终态主操作横幅 ====================
+
+  /** 终态横幅信息（completed / failed / cancelled 才显示） */
+  const terminalBanner = computed(() => {
+    const status = runData.value?.status
+    if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+      return { status, cls: `terminal-${status}` }
+    }
+    return null
+  })
+
+  /** 步骤状态 → el-step status */
+  function stepElStatus(status: string): 'success' | 'process' | 'error' | 'wait' {
+    if (status === 'done' || status === 'degraded') return 'success'
+    if (status === 'running') return 'process'
+    if (status === 'failed') return 'error'
+    return 'wait'
+  }
+
+  /** 当前运行步骤索引（用于 el-steps active） */
+  const activeStepIndex = computed(() => {
+    const steps = runData.value?.steps ?? []
+    const index = steps.findIndex((step) => step.status === 'running')
+    return index >= 0 ? index : steps.length
+  })
+
+  /** 前往评审 Inbox：定位该迭代最新一条评审记录 */
+  async function goToReviewInbox() {
+    const iterationId = runData.value?.iteration_id
+    if (!iterationId) {
+      ElMessage.warning('缺少迭代信息，无法跳转评审')
+      return
+    }
+    try {
+      const res = await reviewApi.getReviewsByIteration(iterationId)
+      const reviews = res?.data?.reviews ?? []
+      const latest = reviews[0]
+      if (latest?.id) {
+        router.push({
+          name: 'IterationReviewInbox',
+          params: { reviewId: String(latest.id) },
+          query: { iteration_id: String(iterationId) },
+        })
+        return
+      }
+    } catch {
+      // 查询失败时回退到评审列表
+    }
+    router.push('/home/iteration/review/0')
+  }
+
+  /** 以场景 4（缺陷回归）重新启动 Pipeline */
+  async function retryPipeline() {
+    const iterationId = runData.value?.iteration_id
+    if (!iterationId) {
+      ElMessage.warning('缺少迭代信息，无法重试')
+      return
+    }
+    try {
+      const res = await pipelineApi.runPipeline(iterationId, { scenario: 4 })
+      const newRunId = res?.data?.run_id
+      if (!newRunId) {
+        ElMessage.error('重试失败：未返回运行 ID')
+        return
+      }
+      ElMessage.success('已重新启动 Pipeline')
+      router.push({ name: 'IterationPipelineProgress', params: { runId: newRunId } })
+    } catch {
+      ElMessage.error('重试 Pipeline 失败')
+    }
+  }
+
+  /** 取消态重新启动（同样以场景 4 拉起） */
+  const restartPipeline = retryPipeline
+
+  /** 滚动到错误详情 */
+  function scrollToError() {
+    const el = document.querySelector('.error-alert')
+    el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+  }
+
+  // ==================== Task16: Token 用量与成本 ====================
+
+  const tokenUsage = ref<{ totalTokens: number; costCny: number } | null>(null)
+
+  /** 右上角 Token 标签文案 */
+  const tokenUsageText = computed(() => {
+    if (!tokenUsage.value) return 'Token: — | 成本: —'
+    return `Token: ${tokenUsage.value.totalTokens.toLocaleString('en-US')} | 成本: ¥${tokenUsage.value.costCny.toFixed(2)}`
+  })
+
+  /** 按运行 ID 拉取 AI 调用账单 */
+  async function fetchTokenUsage() {
+    try {
+      const res = await aiInvocationApi.getRunCost(runId.value)
+      const payload = (res as { data?: Record<string, number> } | undefined)?.data ?? res
+      const totalTokens = Number(payload?.totalTokens ?? 0)
+      const totalCostUsd = Number(payload?.totalCostUsd ?? 0)
+      tokenUsage.value = { totalTokens, costCny: usdToCny(totalCostUsd) }
+    } catch {
+      tokenUsage.value = null
+    }
+  }
+
   onMounted(async () => {
     await fetchRunData(true)
+    fetchTokenUsage()
     connectWs()
     startPolling()
   })
@@ -389,6 +496,15 @@ export function usePipelineProgress() {
     loading,
     initialLoading,
     isPolling,
+    terminalBanner,
+    stepElStatus,
+    activeStepIndex,
+    goToReviewInbox,
+    retryPipeline,
+    restartPipeline,
+    scrollToError,
+    tokenUsageText,
+    fetchTokenUsage,
     showConfirmDialog,
     confirmReason,
     confirmSchema,

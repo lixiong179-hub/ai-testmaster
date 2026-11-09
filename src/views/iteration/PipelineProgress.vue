@@ -9,6 +9,7 @@
             <el-tag v-if="runData" :type="runStatusType">{{ runStatusText }}</el-tag>
           </div>
           <div class="header-right">
+            <el-tag class="token-usage-tag" type="info" effect="plain">{{ tokenUsageText }}</el-tag>
             <el-button
               v-if="runData?.status === 'waiting_for_user'"
               type="primary"
@@ -27,6 +28,32 @@
       </div>
 
       <div v-else-if="runData" class="pipeline-content">
+        <!-- Task2: 终态主操作横幅 -->
+        <div v-if="terminalBanner" class="terminal-state-banner" :class="terminalBanner.cls">
+          <div class="terminal-text">
+            <span v-if="terminalBanner.status === 'completed'"
+              >Pipeline 已完成，可前往评审 Inbox 处理生成结果</span
+            >
+            <span v-else-if="terminalBanner.status === 'failed'"
+              >Pipeline 执行失败，可查看错误详情后重试</span
+            >
+            <span v-else>Pipeline 已取消，可重新启动</span>
+          </div>
+          <div class="terminal-actions">
+            <el-button
+              v-if="terminalBanner.status === 'completed'"
+              type="primary"
+              @click="goToReviewInbox"
+              >前往评审 Inbox</el-button
+            >
+            <template v-else-if="terminalBanner.status === 'failed'">
+              <el-button type="danger" plain @click="scrollToError">查看错误</el-button>
+              <el-button type="primary" @click="retryPipeline">重试 Pipeline</el-button>
+            </template>
+            <el-button v-else type="primary" @click="restartPipeline">重新启动</el-button>
+          </div>
+        </div>
+
         <el-descriptions :column="3" border class="run-info">
           <el-descriptions-item label="运行 ID">{{ runData.id }}</el-descriptions-item>
           <el-descriptions-item label="迭代 ID">{{ runData.iteration_id }}</el-descriptions-item>
@@ -52,6 +79,29 @@
         />
 
         <h3 class="section-title">步骤列表</h3>
+        <!-- Task16: 横向进度条 -->
+        <el-steps
+          v-if="runData.steps.length > 0"
+          class="steps-bar"
+          :active="activeStepIndex"
+          finish-status="success"
+          align-center
+        >
+          <el-step
+            v-for="step in runData.steps"
+            :key="step.id"
+            :status="stepElStatus(step.status)"
+          >
+            <template #title>
+              <span class="step-title">{{ stepNameMap[step.step_name] || step.step_name }}</span>
+            </template>
+            <template #description>
+              <span class="step-desc">{{ stepStatusText(step.status) }}</span>
+            </template>
+          </el-step>
+        </el-steps>
+        <el-empty v-else description="暂无步骤数据" :image-size="80" />
+
         <el-table :data="runData.steps" stripe class="steps-table">
           <el-table-column label="步骤名称" prop="step_name" min-width="160">
             <template #default="{ row }">
@@ -252,6 +302,14 @@ const {
   runData,
   initialLoading,
   isPolling,
+  terminalBanner,
+  stepElStatus,
+  activeStepIndex,
+  goToReviewInbox,
+  retryPipeline,
+  restartPipeline,
+  scrollToError,
+  tokenUsageText,
   showConfirmDialog,
   confirmReason,
   confirmSchema,
@@ -281,4 +339,60 @@ const {
 
 <style scoped lang="scss">
 @use './PipelineProgress.scss';
+
+.token-usage-tag {
+  margin-right: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.terminal-state-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  border-left: 4px solid transparent;
+  background: #f5f7fa;
+
+  .terminal-text {
+    font-size: 14px;
+    color: #303133;
+  }
+
+  .terminal-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  &.terminal-completed {
+    background: #f0f9eb;
+    border-left-color: #67c23a;
+  }
+
+  &.terminal-failed {
+    background: #fef0f0;
+    border-left-color: #f56c6c;
+  }
+
+  &.terminal-cancelled {
+    background: #f4f4f5;
+    border-left-color: #909399;
+  }
+}
+
+.steps-bar {
+  margin: 12px 0 20px;
+}
+
+.step-title {
+  font-weight: 600;
+}
+
+.step-desc {
+  font-size: 12px;
+  color: #909399;
+}
 </style>
