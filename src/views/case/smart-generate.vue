@@ -870,6 +870,15 @@
             </div>
           </template>
 
+          <!-- Task4: 保存成功后引导条 -->
+          <NextStepGuide
+            :visible="saveGuideVisible"
+            title="用例保存成功"
+            description="用例已写入用例库，接下来可以查看列表或直接发起执行任务。"
+            :actions="guideActions"
+            @close="closeSaveGuide"
+          />
+
           <div class="step-actions">
             <el-button @click="handleRegenerate">返回重新生成</el-button>
             <el-button type="primary" :loading="store.saving" @click="handleSave">保存</el-button>
@@ -906,6 +915,8 @@ import ErrorState from './components/ErrorState.vue'
 import QualityDonutChart from './components/QualityDonutChart.vue'
 import PreviewCaseItem from './components/PreviewCaseItem.vue'
 import SmartGenerateDialogs from './components/SmartGenerateDialogs.vue'
+import NextStepGuide from '@/components/common/NextStepGuide.vue'
+import type { GuideAction } from '@/components/common/NextStepGuide.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -1389,6 +1400,47 @@ function openEditDialog(c: SmartPreviewCase) {
   editDialogVisible.value = true
 }
 
+// ==================== Task4: 保存成功后的下一步引导 ====================
+
+/** 引导条是否可见（保存成功 / 部分成功时展示，失败不展示） */
+const saveGuideVisible = ref(false)
+
+/** 引导条选项：查看用例列表 / 创建执行任务 */
+const guideActions = computed<GuideAction[]>(() => [
+  {
+    label: '查看用例列表',
+    type: 'primary',
+    onClick: () => {
+      router.push({
+        name: 'CaseList',
+        query: { project_id: String(store.selectedProjectId ?? '') },
+      })
+    },
+  },
+  {
+    label: '创建执行任务',
+    type: 'success',
+    onClick: () => {
+      const projectId = store.selectedProjectId
+      if (!projectId) {
+        ElMessage.warning('请先选择项目后再创建执行任务')
+        return
+      }
+      const savedIds = store.saveResult?.saved_case_ids ?? []
+      router.push({
+        name: 'TaskCreate',
+        params: { projectId: String(projectId) },
+        query: savedIds.length > 0 ? { case_ids: savedIds.join(',') } : {},
+      })
+    },
+  },
+])
+
+/** 关闭引导条 */
+function closeSaveGuide() {
+  saveGuideVisible.value = false
+}
+
 async function handleSave() {
   if (saveMode.value === 'formal') {
     try {
@@ -1402,6 +1454,9 @@ async function handleSave() {
     }
   }
   await store.saveBatch(saveMode.value)
+  // Task4: 保存成功/部分成功时展示下一步引导（failed 或未产生结果时不展示）
+  const status = store.saveResult?.status
+  saveGuideVisible.value = status === 'saved' || status === 'partial_saved'
   // Task2: 保存结果用弹窗展示（合并 save_result 步骤）
   if (store.saveResult || store.saveError) saveResultDialogVisible.value = true
 }
@@ -1411,6 +1466,7 @@ function handleReset() {
   saveMode.value = 'draft'
   qualityFilter.value = null
   saveResultDialogVisible.value = false
+  saveGuideVisible.value = false
   generationFailed.value = false
   contextError.value = ''
 }
