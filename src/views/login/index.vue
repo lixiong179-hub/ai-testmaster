@@ -112,7 +112,12 @@
             </el-form>
           </el-tab-pane>
 
-          <el-tab-pane label="手机登录" name="phone">
+          <el-tab-pane label="手机登录" name="phone" disabled>
+            <template #label>
+              <el-tooltip content="手机验证码登录即将上线，敬请期待" placement="top">
+                <span class="phone-tab-label">手机登录</span>
+              </el-tooltip>
+            </template>
             <el-form
               :ref="setPhoneFormRef"
               :model="phoneForm"

@@ -462,7 +462,6 @@ VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {
     "src/views/iteration/__tests__/PipelineProgress.spec.ts": (14, 13),
     "src/views/case/__tests__/smart-generate.spec.ts": (9, 8),
     "src/views/report/__tests__/ReportDetail.spec.ts": (7, 7),
-    "src/views/login/__tests__/login.spec.ts": (5, 4),
     # 已修复（G-5a 全部 7 项，2026-09-28/29）：
     #   src/utils/__tests__/request.spec.ts       5 passed（401 提示优化 Task A-03）
     #   src/constants/__tests__/resource.spec.ts  8 passed（生命周期状态常量）
@@ -476,6 +475,8 @@ VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {
     #   src/views/task/__tests__/TaskDetail.spec.ts 21 passed（报告入口/重试/暂停恢复）
     # G-5b 第 2 项（2026-11-09）：
     #   src/views/project/__tests__/detail.spec.ts  19 passed（Tab 布局 + URL tab + project_id 兼容）
+    # G-5b 第 3 项（2026-11-09）：
+    #   src/views/login/__tests__/login.spec.ts      5 passed（手机登录 Tab 禁用 + 即将上线 tooltip）
     # 注：src/views/quick-test/__tests__/QuickHistoryList.spec.ts 在全量并发下偶发 5s 超时，
     #     单跑 10/10 通过，属负载敏感 flaky，不计入失败清单。
 }
@@ -496,14 +497,17 @@ def render_vitest_spec_section() -> str:
         "> **首次结果（2026-09-28 基线）**：37 个 spec 文件 → 16 failed / 21 passed；"
         "555 个用例 → 168 failed / 387 passed（14.89s）。",
         "",
-        f"> **G-5a 全部完成 + G-5b 前 2 项（2026-11-09）**：37 文件 → **6 failed / 31 passed**；"
+        f"> **G-5a 全部完成 + G-5b 前 3 项（2026-11-09）**：37 文件 → **5 failed / 32 passed**；"
         f"555 用例 → **{failed} failed / {555 - failed} passed**（总数保持 555，无新增失败）。"
         "已修复：`request.spec.ts`（401 提示优化）、`resource.spec.ts`（生命周期状态常量）、"
         "`iteration.spec.ts`（迭代终态 API）、`caseQuality.spec.ts`（后验评分 API）、"
         "`project.spec.ts`（全局项目上下文 + URL ID 解析）、`ai.spec.ts`（生成统一走 Pipeline）、"
         "`websocket.spec.ts`（断线重连提示）；顺带 `Workbench.spec.ts` 16 项转绿。"
+        "G-5b 已修复：`TaskDetail.spec.ts`（报告入口/重试/暂停恢复 + 后端 PAUSED 状态）、"
+        "`detail.spec.ts`（Tab 布局 + `query.tab` + `project_id` 兼容）、"
+        "`login.spec.ts`（手机登录 Tab 禁用 + 即将上线 tooltip）。"
         f"另注：`QuickHistoryList.spec.ts` 全量并发下偶发 5s 超时（单跑 10/10），不计入失败清单；"
-        f"按剔除该 flaky 计，稳定失败为 {failed - 1} 项 / 8 个文件。",
+        f"按剔除该 flaky 计，稳定失败为 {failed} 项 / {len(VITEST_SPEC_FAILURES)} 个文件。",
         "",
         "> ⚠️ **修复过程中的一次回归与解决**：初版实现于 `src/utils/request.ts` 顶层静态 "
         "`import router from '@/router'`，形成「router → routes → views/api → request → router」"
