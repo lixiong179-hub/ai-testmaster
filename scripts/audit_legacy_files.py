@@ -456,10 +456,9 @@ FRONTEND_ORPHAN_PATHS = {p for p, _ in FRONTEND_ORPHANS} | {p for p, _ in FRONTE
 # 2026-09-28 补跑 `vitest run` 的结果：失败 spec → (用例总数, 失败数)
 # 说明：这些 spec 由 9 月下旬新增工作编写，而对应实现文件在事故中被还原为旧版本，
 # 因此失败用例**即丢失前端增量的可执行规格**（按钮/商店动作/字段/Tab 等）。
-VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {
-    "src/views/iteration/__tests__/useReviewInboxFilter.spec.ts": (17, 15),
-    "src/views/iteration/__tests__/useReviewInbox.spec.ts": (15, 15),
-    "src/views/iteration/__tests__/PipelineProgress.spec.ts": (14, 13),
+VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {}
+# 已修复全部 16 个失败 spec（G-5 完成，2026-11-09），历史记录如下：
+VITEST_SPEC_FAILURE_HISTORY: Dict[str, Tuple[int, int]] = {
     # 已修复（G-5a 全部 7 项，2026-09-28/29）：
     #   src/utils/__tests__/request.spec.ts       5 passed（401 提示优化 Task A-03）
     #   src/constants/__tests__/resource.spec.ts  8 passed（生命周期状态常量）
@@ -479,8 +478,12 @@ VITEST_SPEC_FAILURES: Dict[str, Tuple[int, int]] = {
     #   src/views/report/__tests__/ReportDetail.spec.ts 7 passed（报告详情/关联缺陷 Tab + 降级空状态）
     # G-5b 第 5 项 / G-5b 收官（2026-11-09）：
     #   src/views/case/__tests__/smart-generate.spec.ts  9 passed（NextStepGuide 保存后引导）
-    # 注：src/views/quick-test/__tests__/QuickHistoryList.spec.ts 在全量并发下偶发 5s 超时，
-    #     单跑 10/10 通过，属负载敏感 flaky，不计入失败清单。
+    # G-5c 全部 3 项 / G-5 收官（2026-11-09）：
+    #   src/views/iteration/__tests__/useReviewInbox.spec.ts        15 passed（最终化后引导）
+    #   src/views/iteration/__tests__/useReviewInboxFilter.spec.ts  17 passed（stats/filter/冲突快速筛选）
+    #   src/views/iteration/__tests__/PipelineProgress.spec.ts      14 passed（终态横幅/横向步骤条/Token 用量）
+    # 注：src/views/quick-test/__tests__/QuickHistoryList.spec.ts 等在全量并发下偶发 5s 超时，
+    #     单跑均通过，属负载敏感 flaky，不计入失败清单。
 }
 
 
@@ -499,19 +502,16 @@ def render_vitest_spec_section() -> str:
         "> **首次结果（2026-09-28 基线）**：37 个 spec 文件 → 16 failed / 21 passed；"
         "555 个用例 → 168 failed / 387 passed（14.89s）。",
         "",
-        f"> **G-5a + G-5b 全部完成（2026-11-09）**：37 文件 → **3 failed / 34 passed**；"
-        f"555 用例 → **{failed} failed / {555 - failed} passed**（总数保持 555，无新增失败）。"
-        "已修复：`request.spec.ts`（401 提示优化）、`resource.spec.ts`（生命周期状态常量）、"
-        "`iteration.spec.ts`（迭代终态 API）、`caseQuality.spec.ts`（后验评分 API）、"
-        "`project.spec.ts`（全局项目上下文 + URL ID 解析）、`ai.spec.ts`（生成统一走 Pipeline）、"
-        "`websocket.spec.ts`（断线重连提示）；顺带 `Workbench.spec.ts` 16 项转绿。"
-        "G-5b 已修复：`TaskDetail.spec.ts`（报告入口/重试/暂停恢复 + 后端 PAUSED 状态）、"
-        "`detail.spec.ts`（Tab 布局 + `query.tab` + `project_id` 兼容）、"
-        "`login.spec.ts`（手机登录 Tab 禁用 + 即将上线 tooltip）、"
-        "`ReportDetail.spec.ts`（报告详情/关联缺陷双 Tab + 任务缺失降级）、"
-        "`smart-generate.spec.ts`（保存后 NextStepGuide 引导）。"
-        f"另注：`QuickHistoryList.spec.ts` 全量并发下偶发 5s 超时（单跑 10/10），不计入失败清单；"
-        f"按剔除该 flaky 计，稳定失败为 {failed} 项 / {len(VITEST_SPEC_FAILURES)} 个文件。",
+        "> **G-5 全部完成（2026-11-09）**：37 个 spec 文件 → **37 passed / 0 failed**；"
+        "555 个用例 → **555 passed / 0 failed**（收官 14.09s；当日独立复跑 13.61s，两次均全绿，总数保持 555）。"
+        "已修复 16 个失败 spec：`request`（401 提示）、`resource`（生命周期常量）、`iteration`（终态 API）、"
+        "`caseQuality`（后验评分）、`project`（全局项目上下文）、`ai`（生成统一 Pipeline）、"
+        "`websocket`（断线重连提示）、`Workbench`（依赖 currentProjectId，顺带转绿）、"
+        "`TaskDetail`（报告/重试/暂停恢复 + 后端 PAUSED 状态）、`detail`（Tab 布局 + project_id 兼容）、"
+        "`login`（手机 Tab 禁用）、`ReportDetail`（关联缺陷 Tab）、`smart-generate`（保存后引导）、"
+        "`useReviewInbox`（最终化后引导）、`useReviewInboxFilter`（统计与冲突筛选）、"
+        "`PipelineProgress`（终态横幅/横向步骤条/Token 用量）。"
+        "注：`QuickHistoryList`、`PipelineProgress` 在全量并发下偶发 5s 超时（单跑均通过），属负载敏感 flaky。",
         "",
         "> ⚠️ **修复过程中的一次回归与解决**：初版实现于 `src/utils/request.ts` 顶层静态 "
         "`import router from '@/router'`，形成「router → routes → views/api → request → router」"
@@ -525,15 +525,25 @@ def render_vitest_spec_section() -> str:
         "因此**这批失败用例即丢失前端增量的可执行规格**，可直接作为恢复清单使用"
         "（此前的「前端 172 个文件无内容证据」结论由此得到实质性补充）。",
         "",
-        "| 失败 spec 文件 | 用例总数 | 失败数 |",
-        "| --- | --- | --- |",
     ]
-    for path, (t, f) in sorted(VITEST_SPEC_FAILURES.items(), key=lambda x: -x[1][1]):
-        lines.append(f"| `{path}` | {t} | **{f}** |")
+    if VITEST_SPEC_FAILURES:
+        lines += [
+            "| 失败 spec 文件 | 用例总数 | 失败数 |",
+            "| --- | --- | --- |",
+        ]
+        for path, (t, f) in sorted(VITEST_SPEC_FAILURES.items(), key=lambda x: -x[1][1]):
+            lines.append(f"| `{path}` | {t} | **{f}** |")
+        lines += [
+            "",
+            f"**合计**：{len(VITEST_SPEC_FAILURES)} 个 spec / {total} 个用例中失败 **{failed}** 个。"
+            "处理路径见 `docs/架构优化执行计划清单.md` G-5 与决策 Q14。",
+        ]
+    else:
+        lines += [
+            "**当前无失败 spec**（G-5 已完成）：16 个历史失败 spec 的原始分布见脚本内 "
+            "`VITEST_SPEC_FAILURE_HISTORY` 注释与 G-5 系列提交记录。",
+        ]
     lines += [
-        "",
-        f"**合计**：{len(VITEST_SPEC_FAILURES)} 个 spec / {total} 个用例中失败 **{failed}** 个。"
-        "处理路径见 `docs/架构优化执行计划清单.md` G-5 与决策 Q14。",
         "",
     ]
     return "\n".join(lines)
