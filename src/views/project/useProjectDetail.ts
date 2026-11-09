@@ -6,6 +6,29 @@ import { ProjectAPI, type WebEnvConfigs, type DeviceConfig, type Project } from 
 
 const PASSWORD_MASK = '******'
 
+/** 项目详情页 Tab 白名单（顺序即展示顺序） */
+export const PROJECT_DETAIL_TABS = [
+  'basic-info',
+  'env-config',
+  'file',
+  'self-healing',
+  'quality-rule',
+  'test-capability',
+] as const
+
+export type ProjectDetailTab = (typeof PROJECT_DETAIL_TABS)[number]
+
+/**
+ * 解析 URL 中的 `tab` 参数
+ * 非法值（如 `invalid-tab`）回退到「基本信息」，保证页面始终有可用 Tab。
+ */
+export function resolveInitialTab(tab?: string | null): ProjectDetailTab {
+  if (tab && (PROJECT_DETAIL_TABS as readonly string[]).includes(tab)) {
+    return tab as ProjectDetailTab
+  }
+  return 'basic-info'
+}
+
 /**
  * 解析项目详情页的初始项目 ID
  *
@@ -52,6 +75,11 @@ export function useProjectDetail() {
   })
 
   const projectId = ref<number>(0)
+
+  /** 当前激活的 Tab（由 URL `tab` 参数初始化，非法值回退到基本信息） */
+  const activeTab = ref<ProjectDetailTab>(
+    resolveInitialTab(route.query.tab as string | null | undefined)
+  )
 
   const getStatusText = (status: number) => {
     const statusMap: Record<number, string> = { 0: '未激活', 1: '正常', 2: '归档' }
@@ -188,10 +216,9 @@ export function useProjectDetail() {
 
   onMounted(async () => {
     // URL 参数优先（分享链接/刷新），其次继承 store 的全局项目上下文
-    const initialId = resolveInitialProjectId(
-      route.query.id as string | null | undefined,
-      projectStore.currentProjectId
-    )
+    // 兼容两种参数名：`id`（旧链接）与 `project_id`（列表页/重定向统一使用）
+    const urlProjectId = (route.query.id ?? route.query.project_id) as string | null | undefined
+    const initialId = resolveInitialProjectId(urlProjectId, projectStore.currentProjectId)
     if (initialId > 0) {
       projectId.value = initialId
       await projectStore.fetchProjectDetail(initialId)
@@ -212,6 +239,7 @@ export function useProjectDetail() {
     webEnvForm,
     deviceForm,
     projectId,
+    activeTab,
     getStatusText,
     saveWebEnvConfig,
     saveDeviceConfig,
