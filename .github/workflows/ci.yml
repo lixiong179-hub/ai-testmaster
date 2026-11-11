@@ -73,6 +73,21 @@ jobs:
           pytest tests/api tests/crud tests/models tests/schemas tests/services \
             --tb=short --cov=app --cov-fail-under=80 -q
 
+  # ── 部署编排校验（R5-1 阶段二，2026-11-11）──
+  # 目的：executor 服务的增删/命令变更属于部署级改动，用 compose 解析做静态门禁，
+  # 避免「代码合入但 compose 语法/服务缺失」的回归。运行时扩容（--scale）在 K4 人工验收。
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker-compose.yml
+        run: docker compose -f docker-compose.yml config -q
+      - name: Assert executor service wiring
+        run: |
+          docker compose -f docker-compose.yml config --services | grep -qx executor
+          docker compose -f docker-compose.yml config | grep -q "scripts/run_executor.py"
+          docker compose -f docker-compose.yml config | grep -q 'EXECUTOR_MODE: worker'
+
   # 【必阻断】前端门禁：ESLint → vue-tsc 类型检查 → 构建 → 单测
   frontend-build:
     runs-on: ubuntu-latest

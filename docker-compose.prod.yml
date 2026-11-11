@@ -37,6 +37,17 @@ services:
       - LOG_LEVEL=WARNING
     restart: always   # 生产环境崩溃立即重启，区别于 unless-stopped
 
+  # -------------------- Executor：生产环境强化（R5-1 阶段二）--------------------
+  # 执行进程不对外暴露端口；生产建议常驻 + 按需 --scale 扩容
+  executor:
+    ports: !reset []
+    environment:
+      - ENVIRONMENT=prod
+      - DEBUG=false
+      - LOG_LEVEL=WARNING
+      - EXECUTOR_MODE=worker
+    restart: always
+
   # -------------------- Nginx：仅保留 80 端口对外 --------------------
   nginx:
     restart: always

@@ -1,0 +1,15 @@
+# K4 容器化验收专用 override（验收后删除）
+# 目的：避免与宿主机已运行的服务端口冲突；容器间仍通过服务名 + 内部端口通信。
+services:
+  mysql:
+    ports: !override
+      - "13306:3306"
+  backend:
+    ports: !override
+      - "18000:8000"
+  executor:
+    # 容器验收只推进状态机，不启动浏览器（镜像未装 Chromium）
+    command: ["python", "scripts/run_executor.py", "--dry-run"]
+    environment:
+      # 拉长轮询，便于「入队 → kill Web → executor 领取」的时序验证
+      - EXECUTOR_POLL_INTERVAL_SECONDS=20
