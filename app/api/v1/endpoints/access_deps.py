@@ -7,8 +7,14 @@
     - app/api/v1/endpoints/test_task_helpers.py（4 个：project/task × sync/async）
     - app/api/v1/endpoints/test_task_exec.py     （2 个副本，且 sync 版无调用点）
     - app/api/v1/endpoints/pipeline_deps.py      （project 级 sync + async）
+    - app/api/v1/endpoints/pipeline_deps.py      （iteration 级 sync + async，2026-11-11 归口）
+    - app/services/pipeline_artifacts_helpers.py （iteration 级 async 第二副本，2026-11-11 归口）
 
 本模块作为**唯一实现源**，其余位置改为引用这里。
+
+2026-11-11（O-4 收口）：iteration 级校验也并入本模块，`pipeline_deps` 与
+`pipeline_artifacts_helpers` 中原有的三份拷贝（sync ×1 + async ×2，其中
+`pipeline_deps.verify_iteration_access_async` 为 0 调用点死代码）全部删除。
 
 ## 校验语义
 
@@ -30,6 +36,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth_deps import get_current_user
 from app.db.database import async_get_db
+from app.models.iteration import Iteration
 from app.models.project import Project
 from app.models.test_task import TestTask
 from app.models.user import User
@@ -37,6 +44,8 @@ from app.models.user import User
 __all__ = [
     "verify_project_access",
     "verify_project_access_async",
+    "verify_iteration_access",
+    "verify_iteration_access_async",
     "require_task_access",
 ]
 
@@ -79,6 +88,62 @@ async def verify_project_access_async(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
         )
+
+
+def verify_iteration_access(
+    db: Session, iteration_id: int, current_user: User
+) -> Iteration:
+    """sync 版迭代归属校验：返回迭代对象；不存在 404、非本人项目 403。
+
+    语义与 R0-3 重构前 `pipeline_deps.verify_iteration_access` 逐字一致
+    （404「迭代不存在」/ 403「无权限操作此迭代的 Pipeline」），调用方无感。
+    """
+    iteration = db.query(Iteration).filter(Iteration.id == iteration_id).first()
+    if iteration is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="迭代不存在"
+        )
+    project = db.query(Project).filter(
+        Project.id == iteration.project_id,
+        Project.user_id == current_user.id,
+    ).first()
+    if project is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此迭代的 Pipeline",
+        )
+    return iteration
+
+
+async def verify_iteration_access_async(
+    db: AsyncSession, iteration_id: int, current_user: User
+) -> Iteration:
+    """async 版迭代归属校验：语义与 sync 版完全一致。
+
+    归口前 `pipeline_deps` 与 `pipeline_artifacts_helpers` 各存一份逐字拷贝，
+    本函数为唯一实现。
+    """
+    iteration = (
+        await db.execute(select(Iteration).where(Iteration.id == iteration_id))
+    ).scalar_one_or_none()
+    if iteration is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="迭代不存在"
+        )
+    project = (
+        await db.execute(
+            select(Project).where(
+                Project.id == iteration.project_id,
+                Project.user_id == current_user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="无权限操作此迭代的 Pipeline",
+        )
+    return iteration
 
 
 async def require_task_access(
