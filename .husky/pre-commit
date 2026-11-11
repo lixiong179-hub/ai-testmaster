@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# 仅处理暂存文件：ESLint 修复 + Prettier 重排（增量，零冲突，不触碰历史文件）
+npx lint-staged
