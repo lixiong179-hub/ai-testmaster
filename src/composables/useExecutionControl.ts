@@ -67,14 +67,25 @@ export function useExecutionControl(options: UseExecutionControlOptions) {
       })
       const body = unwrapApiResponse<Record<string, unknown>>(res)
       if (body.code === 200) {
-        options.syncTaskInfoStatus(1)
+        // 后端同步等待执行结束，返回的是真实终态：task_status 为状态码，status 为字符串
+        const data = (body.data as Record<string, unknown>) || {}
+        const finalStatus = Number(data.task_status ?? 1)
+        options.syncTaskInfoStatus(finalStatus)
         options.executionStatus.value = {
           ...options.executionStatus.value,
-          status: (body.data as Record<string, unknown>)?.status || 'running',
+          status: (data.status as string) || 'running',
           current_step: Number(options.executionStatus.value?.current_step || 0),
           total_steps: Number(options.executionStatus.value?.total_steps || 0),
         }
-        ElMessage.success('开始执行')
+        if (finalStatus === 3) {
+          ElMessage.error('执行失败')
+        } else if (finalStatus === 4) {
+          ElMessage.info('执行已停止')
+        } else if (finalStatus === 2) {
+          ElMessage.success('执行完成')
+        } else {
+          ElMessage.success('开始执行')
+        }
         await options.loadTaskInfo()
         await options.loadExecutionStatus()
         options.connectWebSocketForRealtimeUpdate()
