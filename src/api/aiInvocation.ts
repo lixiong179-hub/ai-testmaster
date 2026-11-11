@@ -49,6 +49,8 @@ export interface AIInvocationStatsResponse {
 export interface AIInvocationListParams {
   batch_id?: number
   project_id?: number
+  /** Pipeline 运行 ID（后端 AICallLog.run_id） */
+  run_id?: number
   page?: number
   page_size?: number
 }
@@ -131,6 +133,46 @@ export const aiInvocationApi = {
 
     return {
       totalCalls: items.length,
+      totalPromptTokens,
+      totalCompletionTokens,
+      totalTokens: totalPromptTokens + totalCompletionTokens,
+      totalCostUsd,
+    }
+  },
+
+  /**
+   * 按 Pipeline 运行 ID 查询累计 Token/成本
+   *
+   * 后端 /list 支持 run_id 过滤；按页拉全后本地汇总，
+   * 避免单页 100 条上限导致长 Pipeline 漏算（上限 20 页防异常数据死循环）。
+   *
+   * @param runId - Pipeline 运行 ID
+   * @returns 成本汇总信息
+   */
+  getRunCost: async (runId: number): Promise<BatchCostInfo> => {
+    const pageSize = 100
+    let totalPromptTokens = 0
+    let totalCompletionTokens = 0
+    let totalCostUsd = 0
+    let totalCalls = 0
+
+    for (let page = 1; page <= 20; page += 1) {
+      const response = await request.get('/api/v1/ai-invocation/list', {
+        params: { run_id: runId, page, page_size: pageSize },
+      })
+      const data = extractData<AIInvocationListResponse>(response)
+      const items = data?.items || []
+      for (const item of items) {
+        totalPromptTokens += item.prompt_tokens || 0
+        totalCompletionTokens += item.completion_tokens || 0
+        totalCostUsd += item.cost_usd || 0
+      }
+      totalCalls += items.length
+      if (items.length < pageSize) break
+    }
+
+    return {
+      totalCalls,
       totalPromptTokens,
       totalCompletionTokens,
       totalTokens: totalPromptTokens + totalCompletionTokens,

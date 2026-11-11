@@ -113,7 +113,12 @@ export const fileApi = {
   getFileListByProject: async (projectId: number) => {
     return request.get(`/api/v1/file/list/${projectId}`)
   },
-  extractContent: async (data: { file_ids: number[]; project_id: number }) => {
+  extractContent: async (data: {
+    file_ids: number[]
+    project_id: number
+    /** 强制重新提取（忽略已完成的缓存内容）；后端 ExtractRequest 支持该字段 */
+    force_refresh?: boolean
+  }) => {
     return request.post('/api/v1/file/extract-content', data)
   },
 

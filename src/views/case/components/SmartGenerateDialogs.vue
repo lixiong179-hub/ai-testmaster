@@ -20,11 +20,7 @@
       </el-form-item>
       <el-form-item label="步骤" required>
         <div class="edit-steps">
-          <div
-            v-for="(step, i) in editingCaseLocal.steps"
-            :key="i"
-            class="edit-step-row"
-          >
+          <div v-for="(step, i) in editingCaseLocal.steps" :key="i" class="edit-step-row">
             <el-input-number :model-value="i + 1" disabled :controls="false" style="width: 48px" />
             <el-input
               :model-value="(step as Record<string, unknown>).action as string"
@@ -162,12 +158,7 @@
   </el-dialog>
 
   <!-- 系统用例选择对话框 -->
-  <el-dialog
-    v-model="systemCaseVisibleLocal"
-    title="从系统用例导入"
-    width="700px"
-    destroy-on-close
-  >
+  <el-dialog v-model="systemCaseVisibleLocal" title="从系统用例导入" width="700px" destroy-on-close>
     <el-table
       :data="systemCases"
       size="small"
@@ -195,7 +186,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { Loading, Upload } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useSmartGenerationStore } from '@/store/smartGeneration'
 import type { SmartPreviewCase } from '@/store/smartGeneration'
 import { extractErrorDetail } from '@/store/smartGenerationHelpers'
@@ -308,6 +299,8 @@ async function handleUIUploadSubmit() {
   }
   await store.uploadUIScreens(uiUploadFiles.value)
   uiUploadFiles.value = []
+  // 清空 el-upload 内部文件列表，避免下次打开对话框仍显示已上传文件
+  uiUploadRef.value?.clearFiles()
   store.uiUploadDialogVisible = false
   ElMessage.success('上传成功，正在后台解析')
 }

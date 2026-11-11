@@ -133,6 +133,7 @@ async def get_ai_invocation_stats(
 async def get_ai_invocation_list(
     batch_id: Optional[int] = Query(None, description="生成批次ID"),
     project_id: Optional[int] = Query(None, gt=0, description="项目ID"),
+    run_id: Optional[int] = Query(None, description="Pipeline 运行ID"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
     db: AsyncSession = Depends(async_get_db),
@@ -140,12 +141,13 @@ async def get_ai_invocation_list(
 ):
     """AI 调用记录分页查询
 
-    支持按 batch_id 或 project_id 筛选，
+    支持按 run_id / batch_id / project_id 筛选，
     project_id 通过 generation_batch 间接关联。
 
     Args:
         batch_id: 生成批次ID
         project_id: 项目ID
+        run_id: Pipeline 运行ID（AICallLog.run_id，用于成本累计查询）
         page: 页码
         page_size: 每页条数
         db: 异步数据库会话
@@ -155,11 +157,13 @@ async def get_ai_invocation_list(
         分页调用记录列表
     """
     # 未提供筛选条件时返回空列表，避免全表扫描
-    if batch_id is None and project_id is None:
+    if batch_id is None and project_id is None and run_id is None:
         return create_response(data={"items": [], "total": 0, "page": page, "page_size": page_size})
 
     # 构建过滤条件
     filters = []
+    if run_id is not None:
+        filters.append(AICallLog.run_id == run_id)
     if batch_id is not None:
         filters.append(AICallLog.generation_batch_id == batch_id)
     elif project_id is not None:

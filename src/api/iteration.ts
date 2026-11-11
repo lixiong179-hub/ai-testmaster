@@ -59,6 +59,8 @@ export interface IterationInputRequest {
 /** Pipeline 启动响应（后端 POST /iteration/{id}/pipeline/run） */
 export interface PipelineRunResponse {
   run_id: number
+  /** 与 run_id 同值，后端为兼容旧调用方保留的别名（见 pipeline.run_pipeline） */
+  pipeline_run_id?: number
   iteration_id: number
   status: string
   /** 场景编号：1=冒烟 2=… 3=回归 4=UI 回归 */

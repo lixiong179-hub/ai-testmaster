@@ -36,6 +36,26 @@ export interface DecisionListResponse {
   }
 }
 
+/** 迭代下的评审记录（GET /review/by-iteration/{iteration_id}） */
+export interface IterationReview {
+  id: number
+  iteration_id: number
+  kind: string
+  status: string
+  created_at: string
+  finalized_at: string | null
+  finalized_by: number | null
+}
+
+export interface IterationReviewListResponse {
+  code: number
+  message: string
+  data: {
+    reviews: IterationReview[]
+    total: number
+  }
+}
+
 export interface DecideRequest {
   human_verdict: string
   human_reason?: string
@@ -63,6 +83,20 @@ export interface FinalizeResponse {
 }
 
 export const reviewApi = {
+  /**
+   * 按迭代查询评审记录（后端 GET /review/by-iteration/{iteration_id}）
+   *
+   * 返回按 created_at 倒序排列的评审列表，调用方如需「最新一条评审」取 reviews[0]。
+   */
+  getReviewsByIteration: async (
+    iterationId: number,
+    status?: string
+  ): Promise<IterationReviewListResponse> => {
+    return request.get(`/api/v1/review/by-iteration/${iterationId}`, {
+      params: status ? { status } : undefined,
+    })
+  },
+
   getDecisions: async (
     reviewId: number,
     params?: {

@@ -18,6 +18,8 @@ import pytest
 from app.ai.call_log import AICallLog, record_call
 from app.ai.error_codes import AIErrorCode
 from app.models.generation_batch import GenerationBatch
+from app.models.iteration import Iteration
+from app.models.pipeline import PipelineRun
 
 
 class TestAIErrorCode:
@@ -166,10 +168,32 @@ async def _create_batch(
     return batch
 
 
+async def _create_iteration(db, *, project_id: int, name: str = "runid_iter") -> Iteration:
+    """辅助：创建一条 Iteration 记录。"""
+    iteration = Iteration(project_id=project_id, name=name, status="draft")
+    db.add(iteration)
+    await db.flush()
+    return iteration
+
+
+async def _create_run(db, *, iteration_id: int) -> PipelineRun:
+    """辅助：创建一条 PipelineRun 记录（AICallLog.run_id 的外键目标）。"""
+    run = PipelineRun(
+        iteration_id=iteration_id,
+        input_hash="runid-test-hash",
+        pipeline_version="1.0",
+        status="running",
+    )
+    db.add(run)
+    await db.flush()
+    return run
+
+
 async def _create_call_log(
     db,
     *,
     batch_id: int,
+    run_id: int | None = None,
     model: str = "deepseek-v4",
     prompt_tokens: int = 100,
     completion_tokens: int = 50,
@@ -184,6 +208,7 @@ async def _create_call_log(
 ) -> AICallLog:
     """辅助：在 async_db 中创建一条 AICallLog 记录。"""
     log = AICallLog(
+        run_id=run_id,
         model=model,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
@@ -387,6 +412,41 @@ class TestAIInvocationListAPI:
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["total"] >= 1
+
+    async def test_list_by_run_id(
+        self, async_auth_client, async_db, async_test_project, async_test_user
+    ):
+        """按 run_id 筛选：只返回该运行下的调用记录（供 Pipeline 成本累计）
+
+        前端 usePipelineTokenUsage 轮询 getRunCost(runId)，依赖该过滤生效；
+        未实现时会退化到「无筛选条件直接返回空列表」，成本恒为 0。
+        """
+        iteration = await _create_iteration(async_db, project_id=async_test_project.id)
+        run = await _create_run(async_db, iteration_id=iteration.id)
+        batch = await _create_batch(
+            async_db,
+            project_id=async_test_project.id,
+            user_id=async_test_user.id,
+            batch_no="GB-LIST-RUN",
+        )
+        await _create_call_log(
+            async_db, batch_id=batch.id, run_id=run.id,
+            prompt_tokens=120, completion_tokens=80, cost_usd=0.004,
+        )
+        # 同一 batch 下另一条无 run_id 的记录不应被命中
+        await _create_call_log(async_db, batch_id=batch.id, run_id=None)
+
+        resp = await async_auth_client.get(
+            "/api/v1/ai-invocation/list",
+            params={"run_id": run.id},
+        )
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["total"] == 1
+        item = data["items"][0]
+        assert item["run_id"] == run.id
+        assert item["prompt_tokens"] == 120
+        assert item["completion_tokens"] == 80
 
     async def test_list_pagination(
         self, async_auth_client, async_db, async_test_project, async_test_user

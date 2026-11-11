@@ -200,6 +200,29 @@ class Settings(BaseSettings):
     AI_SELF_HEALING_CONFIDENCE_THRESHOLD: float = 0.7
     # load_delay 失败类型的重试等待秒数：避免瞬时加载抖动误判为定位失败
     AI_SELF_HEALING_RETRY_WAIT_SECONDS: int = 2
+    # 视觉自愈置信度权重（R3-1 外置）：坐标命中 / 属性命中 / 模型输出，三项加权求和后裁剪到 [0,1]
+    AI_SELF_HEALING_CONF_WEIGHT_COORD: float = 0.4
+    AI_SELF_HEALING_CONF_WEIGHT_ATTR: float = 0.4
+    AI_SELF_HEALING_CONF_WEIGHT_MODEL: float = 0.2
+    # 置信度门控开关：默认关闭以保持既有行为；开启后低于 AI_SELF_HEALING_CONFIDENCE_THRESHOLD 的视觉自愈直接失败
+    AI_SELF_HEALING_CONFIDENCE_GATE_ENABLED: bool = False
+
+    # ========== 视觉校验（R3-3，Q4 = 按项目配置、默认关） ==========
+    # 全局开关：关闭时不查项目配置、不建会话，执行链路零开销
+    AI_VISUAL_VALIDATION_ENABLED: bool = False
+    # 差异阈值（%）：低于该值判定为视觉噪声，仅供 Agent 参考
+    AI_VISUAL_VALIDATION_DIFF_THRESHOLD: float = 5.0
+    # 单次执行最多校验的页面数（成本上限，防止逐页采样拖长执行时长）
+    AI_VISUAL_VALIDATION_MAX_SAMPLES: int = 5
+
+    # ========== 执行进程隔离（R5-1 阶段二） ==========
+    # inprocess = Web 进程内同步执行（默认，保留为部署级兜底开关）
+    # worker    = Web 侧仅入队，由独立 executor 容器领取执行
+    EXECUTOR_MODE: str = "inprocess"
+    # executor 空闲轮询间隔（秒）
+    EXECUTOR_POLL_INTERVAL_SECONDS: float = 1.0
+    # 单次领取扫描上限（避免长事务）
+    EXECUTOR_SCAN_LIMIT: int = 10
 
     # ========== Agent 架构 Phase 1 配置（add-agent-architecture Task 2） ==========
     # 全局总开关：False 时所有 Agent 端点返回 503，已运行的会话仍可查询
@@ -441,6 +464,10 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+        # 同一份 .env 需同时服务 docker compose 的变量插值（MYSQL_ROOT_PASSWORD /
+        # MYSQL_DATABASE / MYSQL_USER / MYSQL_PASSWORD 等），这些键不属于应用配置。
+        # 默认 extra='forbid' 会让应用启动与 pytest 直接失败，故显式忽略未知键。
+        extra = "ignore"
 
     @property
     def allowed_extensions_list(self) -> List[str]:
@@ -553,11 +580,33 @@ class Settings(BaseSettings):
 
 
 from app.core.key_management import generate_secret_key as _generate_secret_key
-from app.core.settings_profiles import DevSettings, TestSettings, ProdSettings
+
+
+_PROFILE_CLASS_NAMES = {"DevSettings", "TestSettings", "ProdSettings"}
+
+
+def __getattr__(name: str):
+    """R4-7：延迟暴露环境配置类，保留 `from app.core.config import DevSettings` 的历史用法。
+
+    模块内不再模块级导入 `settings_profiles`（否则与它反向依赖本模块的 `Settings`
+    形成运行时循环）。改为按需导入，`import` 语义与原先完全一致。
+    """
+    if name in _PROFILE_CLASS_NAMES:
+        from app.core import settings_profiles
+
+        return getattr(settings_profiles, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def get_settings() -> Settings:
-    """根据ENVIRONMENT环境变量获取对应环境的配置实例。"""
+    """根据ENVIRONMENT环境变量获取对应环境的配置实例。
+
+    R4-7：`settings_profiles` 需继承本模块的 `Settings`（运行时必需），
+    故改为函数内导入，消除 `config ↔ settings_profiles` 的模块级循环。
+    此时 `Settings` 已在下方定义完成，运行时行为与模块级导入完全一致。
+    """
+    from app.core.settings_profiles import DevSettings, ProdSettings, TestSettings
+
     env = os.getenv("ENVIRONMENT", "dev")
     if env == "prod":
         return ProdSettings()
