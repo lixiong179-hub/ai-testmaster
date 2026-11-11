@@ -47,6 +47,12 @@ SELF_HEAL_FAILURE_TYPE = Counter(
     "Self-healing failures by type",
     labelnames=("type",),
 )
+# R3-1：置信度命中层级分布，label 区分 coordinate / attribute / model（非互斥，命中即计数）
+SELF_HEAL_LAYER_HITS = Counter(
+    "self_heal_layer_hits_total",
+    "Self-healing confidence layer hits",
+    labelnames=("layer",),
+)
 
 
 def record_attempt() -> None:
@@ -64,6 +70,11 @@ def record_success(token_cost: int, duration: float) -> None:
     SELF_HEAL_SUCCESS.inc()
     SELF_HEAL_TOKEN_COST.inc(token_cost)
     SELF_HEAL_DURATION.observe(duration)
+
+
+def record_layer_hit(layer: str) -> None:
+    """记录一次置信度层级命中（coordinate / attribute / model）。"""
+    SELF_HEAL_LAYER_HITS.labels(layer=layer).inc()
 
 
 def record_failure(failure_type: str, duration: float) -> None:

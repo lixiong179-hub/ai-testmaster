@@ -183,9 +183,17 @@ class AgentRuntime:
     async def _create_session(
         self, agent_type: str, project_id: int, created_by: Optional[int],
     ) -> AgentSession:
-        if self.session_service is not None:
+        """创建会话：有会话语义服务且已绑定 db 时持久化，否则降级为内存对象。
+
+        `SessionService` 的方法以 `db` 为第一个位置参数（无内部状态），
+        因此这里必须显式传入 `self.db`；`db` 为 None 时降级为内存 AgentSession。
+        """
+        if self.session_service is not None and self.db is not None:
             return await self.session_service.create_session(
-                agent_type=agent_type, project_id=project_id, created_by=created_by,
+                self.db,
+                agent_type=agent_type,
+                project_id=project_id,
+                created_by=created_by,
             )
         return AgentSession(
             project_id=project_id, agent_type=agent_type, status="running",
@@ -286,10 +294,10 @@ class AgentRuntime:
         tool_name: Optional[str] = None, tool_call_id: Optional[str] = None,
         token_cost: int = 0,
     ) -> None:
-        if self.session_service is None:
+        if self.session_service is None or self.db is None or session_id is None:
             return
         await self.session_service.append_message(
-            session_id=session_id, role=role, content=content,
+            self.db, session_id=session_id, role=role, content=content,
             tool_name=tool_name, tool_call_id=tool_call_id, token_cost=token_cost,
         )
 
@@ -310,9 +318,9 @@ class AgentRuntime:
         session.status = status
         if status == "loop_detected":
             session.loop_detected = True
-        if self.session_service is not None:
+        if self.session_service is not None and self.db is not None and session.id is not None:
             await self.session_service.complete_session(
-                session_id=session.id, status=status,
+                self.db, session_id=session.id, status=status,
                 token_cost=session.token_cost,
                 iteration_count=session.iteration_count,
                 loop_detected=session.loop_detected,

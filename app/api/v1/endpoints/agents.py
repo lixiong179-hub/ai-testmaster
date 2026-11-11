@@ -28,7 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.execution_core._helpers import (
+from app.services.execution_core.helpers import (
     verify_project_permission_async,
 )
 from app.core.exception import create_response

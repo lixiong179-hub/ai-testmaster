@@ -92,18 +92,24 @@ class TestSchedulerUnits:
             lifecycle.shutdown_scheduler()
         mock_shutdown.assert_called_once()
 
+    def test_startup_lag_monitor_calls_replica_lag(self):
+        with patch("app.db.replica_lag.start_lag_monitor") as mock_start:
+            lifecycle.startup_lag_monitor()
+        mock_start.assert_called_once()
+
 
 class TestLifecycleOrchestration:
     async def test_startup_runs_units_in_order(self):
-        """startup() 必须按 目录 → 数据库 → 管理员 → 调度器 的顺序执行。"""
+        """startup() 必须按 目录 → 数据库 → 管理员 → 调度器 → 延迟监控 的顺序执行。"""
         calls = []
         with patch.object(lifecycle, "startup_init_directories", lambda: calls.append("directories")), \
                 patch.object(lifecycle, "startup_init_db", lambda: calls.append("db")), \
                 patch.object(lifecycle, "startup_ensure_default_admin", lambda: calls.append("admin")), \
-                patch.object(lifecycle, "startup_scheduler", lambda: calls.append("scheduler")):
+                patch.object(lifecycle, "startup_scheduler", lambda: calls.append("scheduler")), \
+                patch.object(lifecycle, "startup_lag_monitor", lambda: calls.append("lag_monitor")):
             await lifecycle.startup()
 
-        assert calls == ["directories", "db", "admin", "scheduler"]
+        assert calls == ["directories", "db", "admin", "scheduler", "lag_monitor"]
 
     def test_shutdown_stops_scheduler(self):
         with patch.object(lifecycle, "shutdown_scheduler") as mock_shutdown:

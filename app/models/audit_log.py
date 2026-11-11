@@ -21,6 +21,10 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
+import hashlib
+import json
+from datetime import timedelta
+
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, Index, event
 from sqlalchemy.orm import Session
 from app.utils.db_time import utcnow
@@ -62,6 +66,40 @@ class AuditLog(Base):
         Index("ix_audit_log_action", "action"),
         Index("ix_audit_log_created_at", "created_at"),
     )
+
+    def compute_hash(self, prev_hash: str) -> str:
+        """计算本条审计记录的 SHA256 链式哈希（G-1 / O-16）。
+
+        载荷为「全部业务字段 + created_at + prev_hash」的 canonical JSON
+        （``sort_keys=True``，保证字段顺序无关）。因此任一字段被篡改，
+        重算结果都会与存储值不一致，`AuditChainService.verify_chain_integrity`
+        即可检出。
+
+        Args:
+            prev_hash: 上一条记录的 hash（首条为 `_GENESIS_HASH`）。
+
+        Returns:
+            str: 64 字符小写十六进制 SHA256 摘要。
+        """
+        # created_at 必须按「入库精度」参与计算：MySQL DATETIME(0) 不保留微秒，
+        # 且写入时对微秒做**四舍五入**（不是截断）。用带微秒的原值计算会导致
+        # 回读后重算不一致（假断裂），故这里对齐 MySQL 语义做 half-up 归整。
+        created_at = self.created_at
+        if created_at is not None and created_at.microsecond:
+            created_at = (created_at + timedelta(microseconds=500000)).replace(microsecond=0)
+        payload = {
+            "action": self.action,
+            "actor_id": self.actor_id,
+            "target_kind": self.target_kind,
+            "target_id": self.target_id,
+            "detail": self.detail,
+            "run_id": self.run_id,
+            "iteration_id": self.iteration_id,
+            "created_at": created_at.isoformat() if created_at else None,
+            "prev_hash": prev_hash,
+        }
+        canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 @event.listens_for(Session, "before_flush")

@@ -30,7 +30,7 @@ from app.models.user import User
 from app.models.test_task import TestTask
 from app.models.video_record import VideoRecord
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.execution_core._helpers import verify_project_permission_async
+from app.services.execution_core.helpers import verify_project_permission_async
 from app.services.video import get_video_service
 from app.core.exception import create_response
 from loguru import logger

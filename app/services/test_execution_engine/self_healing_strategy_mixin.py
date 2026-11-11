@@ -126,6 +126,28 @@ class SelfHealingStrategyMixin:
         if element_attrs:
             new_selector = self._build_healed_selector(element_attrs)
 
+        # R3-1：置信度评估（权重来自 settings）+ 层级命中埋点
+        # 门控默认关闭（AI_SELF_HEALING_CONFIDENCE_GATE_ENABLED=False），开启后低置信度直接失败
+        from app.core.config import settings
+        from app.services.test_execution_engine.self_healing_strategy_helpers import (
+            explain_confidence,
+        )
+
+        confidence_detail = explain_confidence(element_info, element_attrs)
+        record_confidence = getattr(self, "_record_healing_confidence", None)
+        if callable(record_confidence):
+            record_confidence(confidence_detail)
+
+        if (
+            settings.AI_SELF_HEALING_CONFIDENCE_GATE_ENABLED
+            and confidence_detail["confidence"] < settings.AI_SELF_HEALING_CONFIDENCE_THRESHOLD
+        ):
+            raise StepExecutionError(
+                f"视觉自愈置信度不足: {confidence_detail['confidence']:.2f} < "
+                f"{settings.AI_SELF_HEALING_CONFIDENCE_THRESHOLD}，"
+                f"元素描述: {nl_description}"
+            )
+
         center_x, center_y = x + width // 2, y + height // 2
 
         if action_type == ActionType.INPUT:

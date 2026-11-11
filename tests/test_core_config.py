@@ -260,7 +260,7 @@ class TestEnsureSecretKeys:
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
-            ENCRYPTION_KEY="already_set_key_value",
+            ENCRYPTION_KEY="k" * 32,
             ENCRYPTION_SALT="",
             CORS_ORIGINS="https://prod.com",
         )

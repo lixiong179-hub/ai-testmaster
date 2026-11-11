@@ -27,7 +27,7 @@ class _HistoryScoringMixin:
         history_limit: int = 10,
     ) -> None:
         """注入历史用例并基于信任度过滤，计算上下文完整性评分。"""
-        from app.api.v1.endpoints.test_case_ai_generate._context import (
+        from app.services.test_case_generation.history_context import (
             _extract_terms as _extract_history_terms, _score_terms as _score_history_terms,
             _assess_history_trust, _summarize_history_case,
         )

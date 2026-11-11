@@ -69,10 +69,10 @@ class TestScenario1HistoryCaseCorruptionGovernance:
             "evidence_refs": {"requirements": [], "ui_screens": [], "history_cases": []},
         }
 
-        with patch("app.api.v1.endpoints.test_case_ai_generate._context._assess_history_trust") as mock_assess:
+        with patch("app.services.test_case_generation.history_context._assess_history_trust") as mock_assess:
             mock_assess.side_effect = lambda case, *a, **kw: trust_map[case.id]
 
-            with patch("app.api.v1.endpoints.test_case_ai_generate._context._summarize_history_case") as mock_sum:
+            with patch("app.services.test_case_generation.history_context._summarize_history_case") as mock_sum:
                 mock_sum.side_effect = lambda case, *a, **kw: summarize_map[case.id]
 
                 with patch.object(mixin, '_compute_completeness_score') as mock_score:

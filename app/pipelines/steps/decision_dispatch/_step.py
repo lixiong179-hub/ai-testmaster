@@ -6,15 +6,9 @@ from loguru import logger
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
-from app.pipelines.steps.decision_dispatch._builders import (
-    _build_deprecation_suggestion,
-    _build_modify_task,
-    _build_locator_fix_task,
-    _build_create_task,
-    _build_skip_task,
-    _validate_task_field,
-)
+from app.pipelines.steps.decision_dispatch._builders import _validate_task_field
 from app.pipelines.steps.decision_dispatch._fallback import _dispatch_fallback
+from app.pipelines.steps.decision_dispatch._rules import get_action_rule
 
 
 _KEEP = "keep"
@@ -111,85 +105,27 @@ class DecisionDispatch(PipelineStep):
             candidate_index = verdict.get("candidate_index")
             reason = verdict.get("reason", "")
 
-            if action == _KEEP:
-                stats["keep_count"] += 1
-                continue
-
-            elif action == _DEPRECATE:
-                deprecation = _build_deprecation_suggestion(
-                    case_id=case_id,
-                    reason=reason,
-                    fp_by_case_id=fp_by_case_id,
-                )
-                deprecation_suggestions.append(deprecation)
-                stats["deprecate_count"] += 1
-                continue
-
-            elif action == _NEEDS_MODIFY:
-                task = _build_modify_task(
-                    case_id=case_id,
-                    reason=reason,
-                    fp_by_case_id=fp_by_case_id,
-                    need_locator_fix=False,
-                    db=ctx.db,
-                )
-                generation_tasks.append(task)
-                stats["modify_count"] += 1
-
-            elif action == _LOCATOR_BROKEN:
-                task = _build_locator_fix_task(
-                    case_id=case_id,
-                    reason=reason,
-                    fp_by_case_id=fp_by_case_id,
-                    db=ctx.db,
-                )
-                generation_tasks.append(task)
-                stats["locator_fix_count"] += 1
-
-            elif action == _LOCATOR_AND_MODIFY:
-                task = _build_modify_task(
-                    case_id=case_id,
-                    reason=reason,
-                    fp_by_case_id=fp_by_case_id,
-                    need_locator_fix=True,
-                    db=ctx.db,
-                )
-                generation_tasks.append(task)
-                stats["modify_count"] += 1
-
-            elif action == _ADD_NEW:
-                task = _build_create_task(
-                    candidate_index=candidate_index,
-                    cands=cands,
-                    reason=reason,
-                )
-                generation_tasks.append(task)
-                stats["create_count"] += 1
-
-            elif action == _CONFLICT:
-                task = _build_skip_task(
-                    case_id=case_id,
-                    skip_reason=f"冲突: {reason}" if reason else "合并冲突，需人工决策",
-                    fp_by_case_id=fp_by_case_id,
-                    db=ctx.db,
-                )
-                generation_tasks.append(task)
-                stats["skip_count"] += 1
-                stats["conflict_count"] += 1
-
-            elif action == _PENDING_REVIEW:
-                task = _build_skip_task(
-                    case_id=case_id,
-                    skip_reason="pending_review deferred",
-                    fp_by_case_id=fp_by_case_id,
-                    db=ctx.db,
-                )
-                generation_tasks.append(task)
-                stats["skip_count"] += 1
-
-            else:
+            # R3-2：规则外置——分派查表，不再有 if/elif 动作判断链
+            rule = get_action_rule(action)
+            if rule is None:
                 logger.warning("未知裁决动作 action={}, case_id={}，跳过", action, case_id)
                 stats["skip_count"] += 1
+                continue
+
+            task, deprecation = rule["handler"](
+                case_id=case_id,
+                reason=reason,
+                candidate_index=candidate_index,
+                cands=cands,
+                fp_by_case_id=fp_by_case_id,
+                db=ctx.db,
+            )
+            if task is not None:
+                generation_tasks.append(task)
+            if deprecation is not None:
+                deprecation_suggestions.append(deprecation)
+            for stat_key in rule["stats"]:
+                stats[stat_key] += 1
 
         project_id = merged.get("project_id", 0)
 

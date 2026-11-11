@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
-from app.api.v1.endpoints.test_point._helpers import check_project_permission_async
+from app.services.test_point.helpers import check_project_permission_async
 from app.services.xmind_parser import XmindParser, XmindParseError
 from app.services.xmind_ai_parser import XmindAIParser
 from app.services.xmind_import_service import (

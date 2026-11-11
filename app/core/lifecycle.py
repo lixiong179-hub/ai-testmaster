@@ -10,6 +10,8 @@
     3. ``startup_ensure_default_admin`` —— 确保存在默认管理员（非致命容错）
     4. ``startup_scheduler``          —— 启动 APScheduler 定时任务
     5. ``shutdown_scheduler``         —— 优雅关闭 APScheduler
+    6. ``startup_task_recovery``      —— 启动孤儿 RUNNING 巡检（R5-2）
+    7. ``shutdown_task_recovery``     —— 停止孤儿 RUNNING 巡检
 
 设计约束：
     - 所有单元均**不接收 FastAPI 实例**，可直接在测试中调用；
@@ -92,17 +94,49 @@ def shutdown_scheduler() -> None:
     _shutdown_scheduler()
 
 
+def startup_lag_monitor() -> None:
+    """启动从库延迟监控（R2-2：读写分离降级为配置预留）。
+
+    未配置 `DATABASE_URL_SLAVE` 时立即返回，不起线程、不建连接（零开销）。
+    """
+    from app.db.replica_lag import start_lag_monitor
+
+    start_lag_monitor()
+
+
+def startup_task_recovery() -> None:
+    """启动孤儿 RUNNING 任务巡检（R5-2）。
+
+    `TIMEOUT_CHECK_INTERVAL<=0` 时不启动（灰度关闭）；首轮扫描在一个巡检
+    周期后执行（默认 60s），避免与「刚启动 / 测试夹具持锁」窗口重叠。
+    需要立即收尾时可显式调用 `TaskRecoveryService(db).scan_orphan_running()`。
+    """
+    from app.services.task_recovery_service import start_task_recovery
+
+    start_task_recovery()
+
+
+def shutdown_task_recovery() -> None:
+    """停止孤儿 RUNNING 任务巡检（幂等）。"""
+    from app.services.task_recovery_service import shutdown_task_recovery as _stop
+
+    _stop()
+
+
 async def startup() -> None:
-    """启动阶段编排：按固定顺序执行 4 个启动单元。"""
+    """启动阶段编排：按固定顺序执行启动单元。"""
     logger.info(f"{settings.APP_NAME} v{settings.APP_VERSION} 正在启动...")
     startup_init_directories()
     startup_init_db()
     startup_ensure_default_admin()
     logger.info(f"{settings.APP_NAME} v{settings.APP_VERSION} 启动成功 (环境: {settings.ENVIRONMENT})")
     startup_scheduler()
+    startup_lag_monitor()
+    startup_task_recovery()
 
 
 def shutdown() -> None:
-    """关闭阶段编排：关闭调度器并记录日志。"""
+    """关闭阶段编排：停止后台巡检、关闭调度器并记录日志。"""
+    shutdown_task_recovery()
     shutdown_scheduler()
     logger.info("应用正在关闭...")

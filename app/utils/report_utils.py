@@ -248,6 +248,17 @@ class ReportUtils:
             # Optional dependency not available; keep report generation working.
             return ReportUtils._TRANSPARENT_PNG_BASE64
 
+        # 空数据或全零数据（如无任何用例的报告）会导致百分比计算除以 0，
+        # matplotlib 在 pie() 内部得到 NaN 角度并抛
+        # ValueError: cannot convert float NaN to integer。
+        # 此处提前返回占位图，保证报告在任何统计口径下都能生成。
+        try:
+            total = sum(data) if data else 0
+        except TypeError:
+            total = 0
+        if total <= 0:
+            return ReportUtils._TRANSPARENT_PNG_BASE64
+
         # 创建饼图
         plt.figure(figsize=(8, 6))
         colors = ['#4CAF50', '#F44336', '#FF9800']

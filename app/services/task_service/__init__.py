@@ -1,3 +1,4 @@
+# [R4-5 冻结 2026-11-10] 生产代码零引用（仅测试引用），保留备用；接线或删除前请先在《架构优化执行计划清单》登记。
 from app.services.task_service.core_mixin import TaskCoreMixin
 from app.services.task_service.execution_mixin import TaskExecutionMixin
 from app.services.task_service.push_mixin import TaskPushMixin

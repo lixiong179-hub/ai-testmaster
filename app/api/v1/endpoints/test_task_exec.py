@@ -29,6 +29,43 @@ from loguru import logger
 router = APIRouter()
 
 
+async def _enqueue_test_task(task_id: int, task: TestTask) -> dict:
+    """R5-1 阶段二：worker 模式下只入队，立即返回 queued。
+
+    Web 进程不再执行任务，执行由独立 `executor` 容器领取（见
+    `app/services/execution_dispatcher.py` 与 `scripts/run_executor.py`）。
+    """
+    from app.services.execution_dispatcher import ExecutionDispatcher
+
+    task_name = task.task_name
+    total_count = task.total_count or 0
+    sync_db = PrimarySessionLocal()
+    try:
+        dispatcher = ExecutionDispatcher(sync_db)
+        queued = await asyncio.to_thread(dispatcher.enqueue, task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    finally:
+        sync_db.close()
+
+    return {
+        "task": {
+            "id": task_id,
+            "task_name": task_name,
+            "status": queued["status"],
+            "status_label": queued["status_label"],
+        },
+        "summary": {
+            "task_id": task_id,
+            "status": "queued",
+            "progress": 0,
+            "total_count": total_count,
+            "queued_at": queued["queued_at"],
+        },
+        "executor_mode": "worker",
+    }
+
+
 @router.post("/{task_id}/run")
 async def run_test_task(
     task_id: int,
@@ -39,7 +76,16 @@ async def run_test_task(
 
     任务「存在性 + 归属」校验已由 require_task_access 依赖完成
     （不存在 404、非本人项目 403），并直接注入 task 对象。
+
+    执行位置由 `settings.EXECUTOR_MODE` 决定：
+        - `inprocess`（默认）：Web 进程内同步执行，行为与 R5-1 前一致；
+        - `worker`：仅入队并返回 `queued`，由独立 executor 领取执行。
     """
+    from app.core.config import settings
+
+    if settings.EXECUTOR_MODE == "worker":
+        return await _enqueue_test_task(task_id, task)
+
     # 提前提取 project_id，避免 task 对象跨会话访问属性
     project_id = task.project_id
 

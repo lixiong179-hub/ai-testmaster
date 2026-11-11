@@ -214,5 +214,13 @@ class TestTaskStatus:
         assert TaskStatus.LABELS[3] == "执行失败"
         assert TaskStatus.LABELS[4] == "已停止"
 
+    def test_paused(self):
+        assert TaskStatus.PAUSED == 5
+
     def test_labels_completeness(self):
-        assert len(TaskStatus.LABELS) == 5
+        assert len(TaskStatus.LABELS) == 6
+        assert TaskStatus.LABELS[5] == "已暂停"
+        # 每个状态码都必须有中文标签，避免前端展示空值
+        for status in (TaskStatus.PENDING, TaskStatus.RUNNING, TaskStatus.COMPLETED,
+                       TaskStatus.FAILED, TaskStatus.STOPPED, TaskStatus.PAUSED):
+            assert TaskStatus.LABELS[status]

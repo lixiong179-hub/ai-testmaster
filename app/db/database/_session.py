@@ -75,6 +75,13 @@ def get_read_db_context() -> Generator[Session, None, None]:
 # =============================================================
 # 异步会话依赖 - 供 async def endpoint / service 使用
 # -------------------------------------------------------------
+# ⚠️ DEPRECATED（R2-1 / Q1，2026-11-10）：项目已决定收敛为
+#    「全 sync + asyncio.to_thread」单范式。以下 4 个 async_* 入口
+#    仅为过渡期兼容而保留，**禁止新增调用**；存量调用按 R2-1 阶段三
+#    分批迁移为 await asyncio.to_thread(sync_fn, ...)。
+#    阶段四完成前不物理删除（删除会立即打断 88 个仍 await 的端点）。
+#    决策依据：docs/architecture/paradigm-convergence-decision.md
+# -------------------------------------------------------------
 # 用法（FastAPI 依赖注入）：
 #   from app.db.database import async_get_db
 #
@@ -92,6 +99,10 @@ def get_read_db_context() -> Generator[Session, None, None]:
 
 async def async_get_db() -> AsyncGenerator[AsyncSession, None]:
     """异步数据库会话依赖，供 FastAPI async endpoint 注入使用。
+
+    .. deprecated:: R2-1
+        单范式收敛后应改用 ``Depends(get_db)`` + ``await asyncio.to_thread(...)``；
+        本入口仅过渡期兼容，禁止新增调用。
 
     异常处理与同步 get_db 对齐：异常时回滚，最终关闭会话归还连接池。
     """

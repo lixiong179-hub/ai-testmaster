@@ -123,7 +123,7 @@ class TestBuildPriorityRules:
 
 class TestAssessHistoryTrust:
     def test_high_trust_fresh_case(self):
-        from app.api.v1.endpoints.test_case_ai_generate._context import _assess_history_trust
+        from app.services.test_case_generation.history_context import _assess_history_trust
         case = MagicMock()
         case.test_point_id = None
         case.update_time = datetime.now(timezone.utc)
@@ -134,7 +134,7 @@ class TestAssessHistoryTrust:
         assert reason == ""
 
     def test_low_trust_requirement_mismatch(self):
-        from app.api.v1.endpoints.test_case_ai_generate._context import _assess_history_trust
+        from app.services.test_case_generation.history_context import _assess_history_trust
         db_mock = MagicMock()
         tp_mock = MagicMock()
         tp_mock.requirement_id = 999
@@ -149,7 +149,7 @@ class TestAssessHistoryTrust:
         assert reason == "HISTORY_REQUIREMENT_MISMATCH"
 
     def test_medium_trust_stale_case(self):
-        from app.api.v1.endpoints.test_case_ai_generate._context import _assess_history_trust
+        from app.services.test_case_generation.history_context import _assess_history_trust
         db_mock = MagicMock()
         tp_mock = MagicMock()
         tp_mock.requirement_id = 1
@@ -172,7 +172,7 @@ class TestAssessHistoryTrust:
         assert "HISTORY_POTENTIALLY_STALE" in reason
 
     def test_medium_trust_no_summary(self):
-        from app.api.v1.endpoints.test_case_ai_generate._context import _assess_history_trust
+        from app.services.test_case_generation.history_context import _assess_history_trust
         case = MagicMock()
         case.test_point_id = None
         case.update_time = datetime.now(timezone.utc)
@@ -185,7 +185,7 @@ class TestAssessHistoryTrust:
 
 class TestSummarizeHistoryCaseWithTrust:
     def test_includes_trust_fields(self):
-        from app.api.v1.endpoints.test_case_ai_generate._context import _summarize_history_case
+        from app.services.test_case_generation.history_context import _summarize_history_case
         case = MagicMock()
         case.id = 1
         case.case_no = "TC-001"
@@ -200,7 +200,7 @@ class TestSummarizeHistoryCaseWithTrust:
         assert result["similarity"] == 0.85
 
     def test_low_trust_fields(self):
-        from app.api.v1.endpoints.test_case_ai_generate._context import _summarize_history_case
+        from app.services.test_case_generation.history_context import _summarize_history_case
         case = MagicMock()
         case.id = 2
         case.case_no = "TC-002"

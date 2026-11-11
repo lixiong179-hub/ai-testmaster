@@ -32,49 +32,17 @@ from app.models.project import ProjectFile
 from app.utils.db_time import utcnow
 
 
-class IterationStatusTransitionError(ValueError):
-    """非法迭代状态迁移"""
-
-    def __init__(self, from_status: str, to_status: str, detail: str = ""):
-        self.from_status = from_status
-        self.to_status = to_status
-        msg = f"Illegal iteration status transition: {from_status} → {to_status}"
-        if detail:
-            msg += f" — {detail}"
-        super().__init__(msg)
-
-
-class BaseIterationValidationError(ValueError):
-    """基线迭代校验失败"""
-
-    def __init__(self, detail: str):
-        super().__init__(f"Base iteration validation failed: {detail}")
-
-
-class DuplicateInputHashError(ValueError):
-    """重复输入哈希（幂等校验失败）"""
-
-    def __init__(self, hash_value: str):
-        super().__init__(f"Duplicate input hash: {hash_value}")
-
-
-class IterationInputValidationError(ValueError):
-    """迭代输入校验失败"""
-
-    def __init__(self, detail: str):
-        super().__init__(f"Iteration input validation failed: {detail}")
-
-
-# 合法状态迁移路径
-ITERATION_STATUS_TRANSITIONS = {
-    (IterationPipelineStatus.DRAFT.value, IterationPipelineStatus.IN_PIPELINE.value),
-    (IterationPipelineStatus.IN_PIPELINE.value, IterationPipelineStatus.IN_REVIEW.value),
-    (IterationPipelineStatus.IN_REVIEW.value, IterationPipelineStatus.FINALIZED.value),
-    (IterationPipelineStatus.FINALIZED.value, IterationPipelineStatus.ARCHIVED.value),
-}
-
-# IterationInputKind 合法值集合
-VALID_INPUT_KINDS = {k.value for k in IterationInputKind}
+# R4-7：异常类与状态迁移常量已下沉到 app.services.iteration_types，
+# 打破 `iteration_service ↔ iteration_async_mixin` 的循环导入。
+# 此处 re-export，既有导入路径与名字保持不变。
+from app.services.iteration_types import (  # noqa: E402
+    ITERATION_STATUS_TRANSITIONS,
+    VALID_INPUT_KINDS,
+    BaseIterationValidationError,
+    DuplicateInputHashError,
+    IterationInputValidationError,
+    IterationStatusTransitionError,
+)
 
 
 def create_iteration(

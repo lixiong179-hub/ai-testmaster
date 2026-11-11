@@ -18,6 +18,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.models.audit_log import AuditLog
+from app.utils.db_time import utcnow
 
 
 VALID_ACTIONS = {
@@ -78,6 +79,11 @@ def log_action(
             f"Valid actions: {sorted(VALID_ACTIONS)}"
         )
 
+    # G-1：写入时即接入 hash chain（prev_hash 取上一条记录的 hash，首条为创世 hash）。
+    # 延迟导入避免与 audit_chain_service 形成模块级循环依赖。
+    from app.services.audit_chain_service import AuditChainService
+
+    prev_hash = AuditChainService(db).get_last_hash()
     record = AuditLog(
         action=action,
         actor_id=actor_id,
@@ -86,7 +92,12 @@ def log_action(
         detail=detail,
         run_id=run_id,
         iteration_id=iteration_id,
+        prev_hash=prev_hash,
+        # created_at 参与 hash 计算，必须在 flush 前显式赋值（列默认值要到 flush 才生效）；
+        # 去掉微秒以避免 MySQL DATETIME(0) 的四舍五入让存储值与计算值偏移
+        created_at=utcnow().replace(microsecond=0),
     )
+    record.hash = record.compute_hash(prev_hash)
     db.add(record)
     try:
         db.flush()

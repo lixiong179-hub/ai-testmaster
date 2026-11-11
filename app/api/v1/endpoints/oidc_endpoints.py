@@ -36,6 +36,7 @@ from app.services.oidc_service import (
     get_oidc_service,
 )
 
+# [R4-6 冻结 2026-11-10] 「OIDC SSO 适配」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
 router = APIRouter()
 
 

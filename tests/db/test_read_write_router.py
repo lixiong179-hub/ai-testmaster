@@ -189,17 +189,6 @@ class TestUrlParser:
         assert _find_lag_column(["foo", "bar"]) is None
 
 
-class TestRequireMaster:
-    """require_master 依赖标记测试。"""
-
-    def test_sets_force_master_state(self):
-        from app.db.router import require_master
-        request = MagicMock()
-        request.state = MagicMock()
-        require_master(request)
-        assert request.state.force_master is True
-
-
 class TestWriteTimestampFallback:
     """写时间戳进程内兜底逻辑测试。"""
 

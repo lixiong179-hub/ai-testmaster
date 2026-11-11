@@ -65,6 +65,22 @@ class AuditChainService:
         """
         self._db = db
 
+    @staticmethod
+    def compute_record_hash(record: AuditLog, prev_hash: str) -> str:
+        """计算单条审计记录的 hash（静态工具方法，G-1 补齐）。
+
+        与 `AuditLog.compute_hash` 等价，供不需要会话的调用方
+        （如写入链路、离线校验脚本）直接使用。
+
+        Args:
+            record: 审计记录实例。
+            prev_hash: 上一条记录的 hash。
+
+        Returns:
+            str: 64 字符小写十六进制 SHA256 摘要。
+        """
+        return record.compute_hash(prev_hash)
+
     def get_last_hash(self) -> str:
         """获取最后一条审计日志的 hash。
 

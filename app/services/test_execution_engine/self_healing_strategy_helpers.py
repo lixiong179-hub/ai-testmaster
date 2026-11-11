@@ -2,16 +2,93 @@
 
 从 SelfHealingStrategyMixin 抽离的纯函数，避免 mixin 文件超 350 行。
 仅依赖标准类型，无外部服务耦合，可独立单测。
-"""
-from typing import Any, Dict, Optional
 
-# 置信度评分权重：坐标匹配 + 属性匹配 + 模型输出
+R3-1：置信度权重已外置到 `settings.AI_SELF_HEALING_CONF_WEIGHT_*`，
+模块级常量仅作为「配置缺失/非法值」时的回落默认值。
+"""
+from typing import Any, Dict, Optional, Tuple
+
+# 置信度评分权重默认值（坐标匹配 + 属性匹配 + 模型输出）
+# 实际取值优先来自 settings；此处仅作回落，保证纯函数在无配置环境下仍可调用
 _CONF_WEIGHT_COORD = 0.4
 _CONF_WEIGHT_ATTR = 0.4
 _CONF_WEIGHT_MODEL = 0.2
 # Token 预估固定开销与最低值
 _TOKEN_BASE_OVERHEAD = 200
 _TOKEN_MINIMUM = 100
+
+_CONF_LAYERS = ("coordinate", "attribute", "model")
+
+
+def get_confidence_weights() -> Tuple[float, float, float]:
+    """读取置信度权重配置 (coord, attr, model)。
+
+    配置项缺失、类型非法或导入失败时回落到模块级默认值，
+    保证本模块在无 app 配置上下文（如独立单测）下仍可运行。
+    """
+    try:
+        from app.core.config import settings
+
+        weights = (
+            float(settings.AI_SELF_HEALING_CONF_WEIGHT_COORD),
+            float(settings.AI_SELF_HEALING_CONF_WEIGHT_ATTR),
+            float(settings.AI_SELF_HEALING_CONF_WEIGHT_MODEL),
+        )
+    except Exception:
+        return _CONF_WEIGHT_COORD, _CONF_WEIGHT_ATTR, _CONF_WEIGHT_MODEL
+
+    if any(w < 0 for w in weights):
+        return _CONF_WEIGHT_COORD, _CONF_WEIGHT_ATTR, _CONF_WEIGHT_MODEL
+    if sum(weights) <= 0:
+        return _CONF_WEIGHT_COORD, _CONF_WEIGHT_ATTR, _CONF_WEIGHT_MODEL
+    return weights
+
+
+def explain_confidence(
+    element_info: Dict[str, Any],
+    element_attrs: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """计算置信度并返回各层级命中情况（供埋点使用）。
+
+    Returns:
+        dict: {
+            "confidence": float,            # 裁剪到 [0,1] 的综合置信度
+            "weights": (coord, attr, model),# 本次计算使用的权重
+            "hits": {"coordinate": bool, "attribute": bool, "model": bool},
+        }
+    """
+    w_coord, w_attr, w_model = get_confidence_weights()
+    score = 0.0
+
+    coord_keys = ("x", "y", "width", "height")
+    coord_valid = all(
+        isinstance(element_info.get(k), (int, float)) and element_info.get(k, 0) > 0
+        for k in coord_keys
+    )
+    if coord_valid:
+        score += w_coord
+
+    attr_hit = False
+    if element_attrs:
+        attr_keys = ("id", "name", "class")
+        attr_hit = any(element_attrs.get(k) for k in attr_keys)
+        if attr_hit:
+            score += w_attr
+
+    model_conf = element_info.get("confidence", 0.5)
+    if not isinstance(model_conf, (int, float)):
+        model_conf = 0.5
+    score += w_model * float(model_conf)
+
+    return {
+        "confidence": max(0.0, min(1.0, score)),
+        "weights": (w_coord, w_attr, w_model),
+        "hits": {
+            "coordinate": coord_valid,
+            "attribute": attr_hit,
+            "model": True,
+        },
+    }
 
 
 def compute_confidence(
@@ -20,7 +97,7 @@ def compute_confidence(
 ) -> float:
     """计算视觉自愈的综合置信度。
 
-    评分构成:
+    评分构成（权重来自配置，默认权重见下）:
         - 坐标匹配度 0.4: element_info 含 x/y/width/height 且均 > 0
         - 属性匹配度 0.4: element_attrs 非空且含 id/name/class 任一
         - 模型输出置信度 0.2: element_info 含 confidence 字段则用，否则默认 0.5
@@ -32,26 +109,7 @@ def compute_confidence(
     Returns:
         float: 0.0-1.0 的综合置信度。
     """
-    score = 0.0
-    coord_keys = ("x", "y", "width", "height")
-    coord_valid = all(
-        isinstance(element_info.get(k), (int, float)) and element_info.get(k, 0) > 0
-        for k in coord_keys
-    )
-    if coord_valid:
-        score += _CONF_WEIGHT_COORD
-
-    if element_attrs:
-        attr_keys = ("id", "name", "class")
-        if any(element_attrs.get(k) for k in attr_keys):
-            score += _CONF_WEIGHT_ATTR
-
-    model_conf = element_info.get("confidence", 0.5)
-    if not isinstance(model_conf, (int, float)):
-        model_conf = 0.5
-    score += _CONF_WEIGHT_MODEL * float(model_conf)
-
-    return max(0.0, min(1.0, score))
+    return explain_confidence(element_info, element_attrs)["confidence"]
 
 
 def estimate_token_cost(nl_description: str) -> int:

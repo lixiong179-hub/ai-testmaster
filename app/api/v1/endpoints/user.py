@@ -2,8 +2,9 @@ from typing import List, Any
 """
 用户管理端点模块
 
-本模块定义用户管理的API端点，提供用户认证、用户CRUD功能。
-角色管理和权限管理端点已拆分至 _user_role_routes 和 _user_perm_routes。
+本模块定义用户管理的API端点，提供用户认证、用户CRUD功能，
+以及角色管理（CRUD + 分配/移除）与权限管理（CRUD）端点
+（原 _user_role_routes / _user_perm_routes 已内联回本模块）。
 
 路由前缀: /user
 标签: 用户管理
@@ -23,7 +24,7 @@ from typing import List, Any
 
 权限要求: 所有端点需要Bearer令牌认证
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,11 +32,13 @@ from app.db.database import async_get_db
 from app.schemas.common import ApiResponse
 from app.schemas.user import (
     User, UserCreate, UserUpdate, UserWithRoles,
-    Token,
+    Token, Role, RoleCreate, RoleUpdate,
+    Permission, PermissionCreate, PermissionUpdate,
 )
 from app.services.user_service import (
-    UserService, UserRoleService,
+    UserService, UserRoleService, RoleService, PermissionService,
 )
+from app.api.v1.endpoints._deps import _require_superuser
 from app.api.v1.endpoints.auth import get_current_user
 from app.utils.jwt_utils import create_access_token
 from app.core.config import settings
@@ -44,14 +47,9 @@ from loguru import logger
 router = APIRouter(prefix="/user", tags=["用户管理"])
 
 
-def _require_superuser(current_user: User) -> User:
-    """要求当前用户为超级管理员"""
-    if not getattr(current_user, 'is_superuser', False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="需要超级管理员权限"
-        )
-    return current_user
+# R4-7：依赖实现已下沉至 app.api.v1.endpoints._deps，
+# 打破 `user ↔ _user_perm_routes/_user_role_routes` 的循环导入；此处保留同名绑定。
+from app.api.v1.endpoints._deps import _require_superuser  # noqa: E402
 
 
 @router.post("/login", response_model=Token)
@@ -117,12 +115,182 @@ async def get_users(
     return users
 
 
-# 注册角色和权限子模块路由（在 /{user_id} 路由之前，避免路径参数误匹配）
-from app.api.v1.endpoints._user_role_routes import router as role_router
-from app.api.v1.endpoints._user_perm_routes import router as perm_router
+# 角色与权限端点内联注册（原 _user_role_routes / _user_perm_routes 已合并，
+# 位置保持在 /{user_id} 路由之前，避免路径参数误匹配）
+@router.post("/role", response_model=Role)
+async def create_role(
+    role_in: RoleCreate,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> Role:
+    """创建角色（需超级管理员）"""
+    _require_superuser(current_user)
+    service = RoleService(db)
+    role = await service.create_role_async(role_in)
+    logger.info(f"管理员 {current_user.username} 创建了角色 {role.name}")
+    return role
 
-router.include_router(role_router)
-router.include_router(perm_router)
+
+@router.get("/role", response_model=List[Role])
+async def get_roles(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> List[Role]:
+    """获取角色列表（需认证）"""
+    service = RoleService(db)
+    roles = await service.get_roles_async(skip=skip, limit=limit)
+    return roles
+
+
+@router.get("/role/{role_id}", response_model=Role)
+async def get_role(
+    role_id: int,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> Role:
+    """获取角色详情（需认证）"""
+    service = RoleService(db)
+    role = await service.get_role_by_id_async(role_id)
+    if not role:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="角色不存在"
+        )
+    return role
+
+
+@router.put("/role/{role_id}", response_model=Role)
+async def update_role(
+    role_id: int,
+    role_in: RoleUpdate,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> Role:
+    """更新角色（需超级管理员）"""
+    _require_superuser(current_user)
+    service = RoleService(db)
+    role = await service.update_role_async(role_id, role_in)
+    logger.info(f"管理员 {current_user.username} 更新了角色 ID={role_id}")
+    return role
+
+
+@router.delete("/role/{role_id}", response_model=ApiResponse)
+async def delete_role(
+    role_id: int,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> dict[str, str]:
+    """删除角色（需超级管理员）"""
+    _require_superuser(current_user)
+    service = RoleService(db)
+    await service.delete_role_async(role_id)
+    logger.warning(f"管理员 {current_user.username} 删除了角色 ID={role_id}")
+    return {"message": "角色删除成功"}
+
+
+@router.post("/role/assign", response_model=ApiResponse)
+async def assign_role(
+    user_id: int = Body(...),
+    role_id: int = Body(...),
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> dict[str, str]:
+    """分配角色给用户（需超级管理员）"""
+    _require_superuser(current_user)
+    service = UserRoleService(db)
+    await service.assign_role_async(user_id, role_id)
+    logger.info(f"管理员 {current_user.username} 为用户 ID={user_id} 分配了角色 ID={role_id}")
+    return {"message": "角色分配成功"}
+
+
+@router.post("/role/remove", response_model=ApiResponse)
+async def remove_role(
+    user_id: int = Body(...),
+    role_id: int = Body(...),
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> dict[str, str]:
+    """移除用户角色（需超级管理员）"""
+    _require_superuser(current_user)
+    service = UserRoleService(db)
+    await service.remove_role_async(user_id, role_id)
+    logger.info(f"管理员 {current_user.username} 移除了用户 ID={user_id} 的角色 ID={role_id}")
+    return {"message": "角色移除成功"}
+
+
+@router.post("/permission", response_model=Permission)
+async def create_permission(
+    permission_in: PermissionCreate,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> Permission:
+    """创建权限（需超级管理员）"""
+    _require_superuser(current_user)
+    service = PermissionService(db)
+    permission = await service.create_permission_async(permission_in)
+    logger.info(f"管理员 {current_user.username} 创建了权限 {permission.name}")
+    return permission
+
+
+@router.get("/permission", response_model=List[Permission])
+async def get_permissions(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> List[Permission]:
+    """获取权限列表（需认证）"""
+    service = PermissionService(db)
+    permissions = await service.get_permissions_async(skip=skip, limit=limit)
+    return permissions
+
+
+@router.get("/permission/{perm_id}", response_model=Permission)
+async def get_permission(
+    perm_id: int,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> Permission:
+    """获取权限详情（需认证）"""
+    service = PermissionService(db)
+    permission = await service.get_permission_by_id_async(perm_id)
+    if not permission:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="权限不存在"
+        )
+    return permission
+
+
+@router.put("/permission/{perm_id}", response_model=Permission)
+async def update_permission(
+    perm_id: int,
+    permission_in: PermissionUpdate,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> Permission:
+    """更新权限（需超级管理员）"""
+    _require_superuser(current_user)
+    service = PermissionService(db)
+    permission = await service.update_permission_async(perm_id, permission_in)
+    logger.info(f"管理员 {current_user.username} 更新了权限 ID={perm_id}")
+    return permission
+
+
+@router.delete("/permission/{perm_id}", response_model=ApiResponse)
+async def delete_permission(
+    perm_id: int,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+) -> dict[str, str]:
+    """删除权限（需超级管理员）"""
+    _require_superuser(current_user)
+    service = PermissionService(db)
+    await service.delete_permission_async(perm_id)
+    logger.warning(f"管理员 {current_user.username} 删除了权限 ID={perm_id}")
+    return {"message": "权限删除成功"}
 
 
 @router.get("/{user_id}", response_model=UserWithRoles)

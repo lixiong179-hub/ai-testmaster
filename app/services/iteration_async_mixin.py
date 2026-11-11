@@ -25,7 +25,8 @@ from app.models.iteration import Iteration, IterationInput
 from app.models.enums import IterationPipelineStatus
 from app.models.project import ProjectFile
 from app.utils.db_time import utcnow
-from app.services.iteration_service import (
+# R4-7：异常与常量从 iteration_types 导入（原 iteration_service 会形成循环依赖）
+from app.services.iteration_types import (
     IterationStatusTransitionError,
     BaseIterationValidationError,
     DuplicateInputHashError,

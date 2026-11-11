@@ -1,6 +1,4 @@
 import asyncio
-import os
-import secrets
 import sys
 from typing import AsyncGenerator
 
@@ -17,16 +15,14 @@ from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import Response, JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
-from app.core.config import settings, init_directories
+from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.exception import register_exception_handlers
 from app.core.rate_limit import RateLimitMiddleware
-from app.db.database import init_db
-from app.db.database import PrimarySessionLocal
-from app.models.user import User
-from app.utils.jwt_utils import get_password_hash
+# R4-2：lifespan 的启动/关闭逻辑已拆分为可独立测试的单元
+from app.core.lifecycle import shutdown as lifecycle_shutdown, startup as lifecycle_startup
 from app.api.v1.endpoints import auth, project, file, test_task, report, test_point
 from app.api.v1.endpoints import user, websocket, test_case, batch_locator, test_data
 from app.api.v1.endpoints import execution_visualization, case_quality, execution, visibility
@@ -43,67 +39,20 @@ from app.api.v1.endpoints import ui_screens_batch
 from app.api.v1.endpoints import quick_test
 from app.api.v1.endpoints import agents, mcp_server, project_members, self_healing, impact_analysis, visual_ai
 from app.api.v1.endpoints import oidc_endpoints, saml_endpoints, mfa_endpoints
-from loguru import logger
 
 setup_logging(log_level=settings.LOG_LEVEL)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """P3-6: 应用生命周期管理（替代已弃用的 on_event startup）"""
-    # 启动阶段
-    logger.info(f"{settings.APP_NAME} v{settings.APP_VERSION} 正在启动...")
+    """P3-6/R4-2: 应用生命周期管理。
 
-    # 初始化目录结构
-    init_directories()
-
-    # 初始化数据库
-    init_db()
-
-    # 确保存在默认管理员
-    db = None
-    try:
-        db = PrimarySessionLocal()
-        admin = db.query(User).filter(User.username == "admin").first()
-        if not admin:
-            admin_password = settings.ADMIN_INITIAL_PASSWORD or os.getenv("ADMIN_INITIAL_PASSWORD")
-            if not admin_password:
-                admin_password = secrets.token_urlsafe(16)
-                logger.warning(
-                    "未设置 ADMIN_INITIAL_PASSWORD，已生成随机管理员密码。"
-                    "请通过环境变量 ADMIN_INITIAL_PASSWORD 配置！"
-                )
-            admin = User(
-                username="admin",
-                email="admin@example.com",
-                password_hash=get_password_hash(admin_password),
-                is_active=True,
-                is_superuser=True,
-            )
-            db.add(admin)
-            db.commit()
-    except Exception as e:
-        logger.warning(f"初始化默认管理员失败（非致命）: {e}")
-        if db:
-            db.rollback()
-    finally:
-        if db:
-            db.close()
-
-    logger.info(f"{settings.APP_NAME} v{settings.APP_VERSION} 启动成功 (环境: {settings.ENVIRONMENT})")
-
-    # 启动 APScheduler 定时任务调度器
-    from app.services.scheduler_service import start_scheduler
-    start_scheduler()
-
+    具体启动/关闭单元见 `app/core/lifecycle.py`，此处只负责顺序编排，
+    使每个单元都能脱离 FastAPI 实例单独测试。
+    """
+    await lifecycle_startup()
     yield  # 应用运行中
-
-    # 关闭阶段（清理资源）
-    # 关闭 APScheduler 调度器
-    from app.services.scheduler_service import shutdown_scheduler
-    shutdown_scheduler()
-
-    logger.info("应用正在关闭...")
+    lifecycle_shutdown()
 
 
 # OpenAPI 标签元数据（按功能域分组排序，用于 Swagger UI 文档组织）
@@ -279,3 +228,45 @@ def health_check() -> dict[str, object]:
     health_status["services"]["ai_api"] = "configured" if ai_configured else "not_configured"
 
     return health_status
+
+
+# 存活探针（Kubernetes livenessProbe）：仅表示进程可响应，不探测任何外部依赖
+@app.get("/live", summary="存活探针", description="进程存活检查。仅返回进程可响应状态，不探测数据库、Redis 等外部依赖，避免依赖抖动导致容器被误重启。")
+def live_check() -> dict[str, str]:
+    """存活探针：永远返回 200，只要事件循环仍在调度。"""
+    return {"status": "alive"}
+
+
+# 就绪探针（Kubernetes readinessProbe）：关键依赖不可用时返回 503，从流量中摘除
+@app.get("/ready", summary="就绪探针", description="就绪检查。探测数据库与 Redis 等关键依赖，全部可用返回 200，任一不可用返回 503。")
+def ready_check() -> JSONResponse:
+    """就绪探针：依赖不可用时返回 503，使实例从负载均衡中摘除。
+
+    安全约束：失败时仅返回通用提示，不披露具体哪个依赖不可用，防止信息探测。
+    """
+    from app.db.database import check_db_connection
+    db_ok = bool(check_db_connection())
+
+    redis_ok = False
+    try:
+        import redis
+        r = redis.from_url(settings.REDIS_URL, socket_timeout=2, socket_connect_timeout=2)
+        r.ping()
+        r.close()
+        redis_ok = True
+    except Exception:
+        redis_ok = False
+
+    if db_ok and redis_ok:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "ready",
+                "services": {"database": True, "redis": True},
+            },
+        )
+
+    return JSONResponse(
+        status_code=503,
+        content={"status": "not_ready", "msg": "服务暂不可用，请稍后重试"},
+    )

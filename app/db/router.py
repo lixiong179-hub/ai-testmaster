@@ -8,8 +8,13 @@
 
 路由策略：
 - `get_async_write_session` / `get_async_read_session`：FastAPI 依赖注入
-- `require_master`：写后读场景标记依赖
 - `mark_write_timestamp`：写操作后记录时间戳，触发读主库窗口
+
+配置预留（R2-2 / Q2）：读写分离降级为「配置预留」——仅保留 `DATABASE_URL_SLAVE`
+与懒加载退化（未配置从库时全部读请求走主库，零行为变更）。按端点强制走主库的
+旧依赖已删除（全仓零使用点，且路由层从未读取其标记，属死代码）；如需写后读强一致，
+请使用 `READ_AFTER_WRITE_WINDOW_SECONDS` 写后读窗口（已生效）。
+决策与删除理由见 `docs/architecture/paradigm-convergence-decision.md`。
 
 依赖：app.db.database._engine 懒加载 secondary 引擎层
 """
@@ -17,7 +22,7 @@ import logging
 import time
 from typing import AsyncIterator, Optional
 
-from fastapi import Depends, Request
+from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -85,15 +90,6 @@ def _select_read_factory(request: Request):
         logger.warning("主从延迟超阈值，读请求降级走主库")
         return AsyncPrimarySessionLocal
     return get_async_secondary_session_local()
-
-
-def require_master(request: Request) -> None:
-    """依赖标记：强制该端点读请求走主库（写后读场景）。
-
-    用法：`@router.get("/...", dependencies=[Depends(require_master)])`
-    实现：通过 request.state 标记，被 get_async_read_session 识别。
-    """
-    request.state.force_master = True
 
 
 def _is_within_write_window() -> bool:

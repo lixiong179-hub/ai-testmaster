@@ -3,6 +3,12 @@ from unittest.mock import patch
 
 from app.core.config import Settings
 
+# prod 环境对 ENCRYPTION_KEY / ENCRYPTION_SALT 有「≥32 字符 + 非弱默认值」双重硬校验，
+# 因此占位密钥不能再用短字符串（如 already_set_key_value），否则会先触发长度校验，
+# 掩盖本文件真正要验证的 CORS / 弱默认值 / 缺失项分支。
+_STRONG_ENCRYPTION_KEY = "k" * 32
+_STRONG_ENCRYPTION_SALT = "s" * 32
+
 
 class TestProdWildcardCorsAllowHeaders:
     """生产环境 CORS_ALLOW_HEADERS 安全校验测试。"""
@@ -14,8 +20,8 @@ class TestProdWildcardCorsAllowHeaders:
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
-            ENCRYPTION_KEY="already_set_key_value",
-            ENCRYPTION_SALT="already_set_salt_value",
+            ENCRYPTION_KEY=_STRONG_ENCRYPTION_KEY,
+            ENCRYPTION_SALT=_STRONG_ENCRYPTION_SALT,
             CORS_ORIGINS="https://prod.example.com",
             CORS_ALLOW_HEADERS="*",
         )
@@ -30,8 +36,8 @@ class TestProdWildcardCorsAllowHeaders:
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
-            ENCRYPTION_KEY="already_set_key_value",
-            ENCRYPTION_SALT="already_set_salt_value",
+            ENCRYPTION_KEY=_STRONG_ENCRYPTION_KEY,
+            ENCRYPTION_SALT=_STRONG_ENCRYPTION_SALT,
             CORS_ORIGINS="https://prod.example.com",
             CORS_ALLOW_HEADERS="",
         )
@@ -46,8 +52,8 @@ class TestProdWildcardCorsAllowHeaders:
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
-            ENCRYPTION_KEY="already_set_key_value",
-            ENCRYPTION_SALT="already_set_salt_value",
+            ENCRYPTION_KEY=_STRONG_ENCRYPTION_KEY,
+            ENCRYPTION_SALT=_STRONG_ENCRYPTION_SALT,
             CORS_ORIGINS="https://prod.example.com",
             CORS_ALLOW_HEADERS="Authorization,Content-Type,Accept,Origin",
         )
@@ -93,7 +99,7 @@ class TestProdMissingEncryptionSalt:
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
-            ENCRYPTION_KEY="already_set_key_value",
+            ENCRYPTION_KEY=_STRONG_ENCRYPTION_KEY,
             ENCRYPTION_SALT="",
             CORS_ORIGINS="https://prod.example.com",
         )
@@ -117,8 +123,8 @@ class TestProdWeakDefaultKeyPattern:
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="your-secret-key-here-padding-to-32-chars",
-            ENCRYPTION_KEY="already_set_key_value",
-            ENCRYPTION_SALT="already_set_salt_value",
+            ENCRYPTION_KEY=_STRONG_ENCRYPTION_KEY,
+            ENCRYPTION_SALT=_STRONG_ENCRYPTION_SALT,
             CORS_ORIGINS="https://prod.example.com",
             CORS_ALLOW_HEADERS="Authorization,Content-Type",
         )
@@ -149,7 +155,7 @@ class TestProdWeakDefaultKeyPattern:
             ENVIRONMENT="prod",
             DEEPSEEK_API_KEY="sk-real-key-not-default",
             JWT_SECRET_KEY="a" * 32,
-            ENCRYPTION_KEY="already_set_key_value",
+            ENCRYPTION_KEY=_STRONG_ENCRYPTION_KEY,
             ENCRYPTION_SALT="my-secret-salt-value-padding-here",
             CORS_ORIGINS="https://prod.example.com",
             CORS_ALLOW_HEADERS="Authorization,Content-Type",

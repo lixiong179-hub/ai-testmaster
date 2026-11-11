@@ -1,25 +1,50 @@
 """自愈执行Mixin - 在步骤执行中集成自愈修复逻辑。
 
-当元素定位失败时，自动触发AI自愈机制，尝试通过多种策略
-重新定位元素并执行操作，成功后回写新定位器到数据库。
+当元素定位失败时，先做失败分类，再按分类选择策略（retry / skip / ai_heal），
+只有 ai_heal 策略才会进入 AI 自愈；全程写审计并埋点。
 
-自愈流程:
+自愈流程（R3-1 / G-2 三段式）:
     1. 使用已有定位器尝试执行操作
-    2. 捕获定位相关异常（超时、元素不存在等）
-    3. 若自愈开关开启，使用AI自愈重试
-    4. 自愈成功后回写新定位器到数据库（含乐观锁）
+    2. 捕获定位相关异常（超时、元素不存在等）→ 非定位错误直接抛出
+    3. 灰度闸门：全局开关 AND 项目级 `self_healing_config.enabled`
+    4. 失败分类 `FailureAnalyzer`（error 关键词 + DOM 快照校正）
+    5. 策略路由：
+       - `retry`（load_delay）：等待 `AI_SELF_HEALING_RETRY_WAIT_SECONDS` 后重执行一次
+       - `skip`（env_noise）：写审计（strategy=skip）后抛原始异常，不进 AI
+       - `ai_heal`（element_gone / dom_changed）：Token 预算双控 → AI 自愈
+    6. AI 自愈结果拆包（`HealResult`）→ 置信度门控 → 回写定位器（含乐观锁）
+    7. 全路径埋点：attempts / success / failure(type)
 """
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 from loguru import logger
 
 from app.models.element_locator import ElementLocator
+from app.services.self_healing.failure_analyzer import FailureAnalyzer
+from app.services.self_healing.metrics import (
+    record_attempt,
+    record_failure,
+    record_success,
+)
 from app.services.test_execution_engine.models import (
     ActionType, StepExecutionError,
 )
+from app.services.test_execution_engine.self_healing_policy_mixin import (
+    SelfHealingPolicyMixin,
+)
+from app.services.test_execution_engine.self_healing_strategy_helpers import (
+    estimate_token_cost,
+)
+
+# 视觉/语义定位相关错误关键词：命中才进入自愈判定，其余异常直接抛出
+_LOCATOR_ERROR_KEYWORDS = (
+    "timeout", "waiting", "not found", "no element",
+    "selector", "等待", "超时", "未找到", "不存在",
+    "stale", "detached", "not attached",
+)
 
 
-class SelfHealingExecuteMixin:
+class SelfHealingExecuteMixin(SelfHealingPolicyMixin):
 
     async def _execute_with_self_healing(
         self,
@@ -29,13 +54,7 @@ class SelfHealingExecuteMixin:
         action_info: Dict[str, Any],
         step_test_data: Optional[Dict[str, str]] = None
     ) -> None:
-        """带自愈兜底的步骤执行包装器。
-
-        流程:
-        1. 尝试使用 locator_record 的选择器执行操作
-        2. 捕获 Playwright 超时/元素不存在异常
-        3. 若自愈开关开启，使用AI自愈重试
-        4. 自愈成功后回写新定位器到数据库
+        """带自愈兜底的步骤执行包装器（失败分类 → 策略路由 → 自愈）。
 
         Args:
             step: 测试步骤对象
@@ -54,169 +73,155 @@ class SelfHealingExecuteMixin:
                 old_selector = best.get("value")
 
         try:
-            await self._execute_action_directly(action_type, action_info, locator_record, step_test_data)
+            await self._execute_action_directly(
+                action_type, action_info, locator_record, step_test_data
+            )
             if locator_record and old_selector:
-                ElementLocator.atomic_record_success(self.db, locator_record.id, locator_record.version)
+                ElementLocator.atomic_record_success(
+                    self.db, locator_record.id, locator_record.version
+                )
             return
         except Exception as primary_error:
             error_str = str(primary_error).lower()
-            is_locator_error = any(kw in error_str for kw in [
-                "timeout", "waiting", "not found", "no element",
-                "selector", "等待", "超时", "未找到", "不存在",
-                "stale", "detached", "not attached"
-            ])
-
-            if not is_locator_error:
+            if not any(kw in error_str for kw in _LOCATOR_ERROR_KEYWORDS):
                 raise
 
-            from app.core.config import settings
-            if not settings.AI_SELF_HEALING_ENABLED:
-                logger.info(f"定位器失效但自愈开关已关闭 | 旧选择器: {old_selector}")
+            if not self._is_self_healing_enabled(step, locator_record):
+                logger.info(
+                    f"定位器失效但自愈未启用（全局或项目级） | 旧选择器: {old_selector}"
+                )
                 raise
 
-            nl_description = await self._get_nl_description(step.id)
+            analysis = FailureAnalyzer().analyze(
+                primary_error,
+                await self._capture_dom_snapshot(),
+                old_selector,
+            )
+            failure_type = analysis.failure_type.value
+            strategy = analysis.suggested_strategy
+            heal_started = asyncio.get_running_loop().time()
+            self._self_healing_attempts += 1
+            record_attempt()
+            logger.info(
+                f"定位器失效，失败分类={failure_type} 建议策略={strategy} | "
+                f"旧选择器: {old_selector} | 步骤ID: {getattr(step, 'id', None)}"
+            )
+
+            if strategy == "retry":
+                if await self._retry_after_locator_failure(
+                    action_type, action_info, locator_record, step_test_data, old_selector
+                ):
+                    duration = asyncio.get_running_loop().time() - heal_started
+                    self._self_healing_successes += 1
+                    self._self_healing_total_duration += duration
+                    record_success(0, duration)
+                    logger.info("load_delay 重试成功，跳过 AI 自愈")
+                    return
+                logger.info("load_delay 重试仍失败，升级为 AI 自愈")
+
+            if strategy == "skip":
+                duration = asyncio.get_running_loop().time() - heal_started
+                self._self_healing_total_duration += duration
+                self._audit_healing_decision(
+                    step=step, locator_record=locator_record,
+                    old_selector=old_selector, new_selector=None,
+                    failure_type=failure_type, strategy="skip",
+                    confidence=None, token_cost=0,
+                )
+                record_failure(failure_type, duration)
+                logger.warning(
+                    f"环境噪声类失败，跳过自愈 | 失败类型: {failure_type} | "
+                    f"错误: {primary_error}"
+                )
+                raise primary_error
+
+            nl_description = await self._get_nl_description(getattr(step, "id", None))
             if not nl_description:
                 nl_description = action_info.get("text", "")
 
-            self._self_healing_attempts += 1
-            logger.info(
-                f"定位器失效，启动AI自愈 | 旧选择器: {old_selector} | "
-                f"步骤描述: {nl_description} | 步骤ID: {step.id}"
-            )
+            token_estimate = estimate_token_cost(nl_description)
+            guard = self._get_token_guard()
+            if guard.check_single_call(token_estimate) or guard.is_daily_budget_exhausted():
+                duration = asyncio.get_running_loop().time() - heal_started
+                self._self_healing_total_duration += duration
+                self._audit_healing_decision(
+                    step=step, locator_record=locator_record,
+                    old_selector=old_selector, new_selector=None,
+                    failure_type=failure_type, strategy="ai_heal",
+                    confidence=None, token_cost=0,
+                )
+                record_failure(failure_type, duration)
+                logger.warning(
+                    f"Token 预算熔断，跳过 AI 自愈 | 预估: {token_estimate} | "
+                    f"失败类型: {failure_type}"
+                )
+                raise primary_error
 
+            logger.info(
+                f"启动AI自愈 | 步骤描述: {nl_description} | 失败类型: {failure_type}"
+            )
             try:
-                new_selector = await self._ai_self_heal_action(
+                heal_output = await self._ai_self_heal_action(
                     nl_description, action_type, action_info, step_test_data
                 )
-
-                if new_selector and locator_record:
-                    await self._update_locator_after_healing(
-                        locator_record.id, new_selector, old_selector
-                    )
-
-                self._self_healing_successes += 1
-                logger.info(f"自愈成功，新选择器已回写 | 新选择器: {new_selector}")
-                return
-
             except Exception as heal_error:
+                duration = asyncio.get_running_loop().time() - heal_started
+                self._self_healing_total_duration += duration
+                self._audit_healing_decision(
+                    step=step, locator_record=locator_record,
+                    old_selector=old_selector, new_selector=None,
+                    failure_type=failure_type, strategy="ai_heal",
+                    confidence=None, token_cost=0,
+                )
+                record_failure(failure_type, duration)
                 logger.error(
                     f"自愈失败，AI无法解析步骤 | 步骤描述: {nl_description} | "
                     f"自愈错误: {heal_error}"
                 )
                 raise primary_error
 
-    async def _execute_action_directly(
-        self,
-        action_type: ActionType,
-        action_info: Dict[str, Any],
-        locator_record: Optional[ElementLocator],
-        step_test_data: Optional[Dict[str, str]] = None
-    ) -> None:
-        """使用已有定位器直接执行操作（不含自愈逻辑）。
+            selector, confidence, token_cost, heal_strategy = self._normalize_heal_result(
+                heal_output
+            )
+            low_confidence = (
+                confidence is not None
+                and confidence < self._healing_confidence_threshold()
+            )
 
-        Args:
-            action_type: 操作类型
-            action_info: 操作信息
-            locator_record: 元素定位记录
-            step_test_data: 测试数据
-        """
-        if not self.browser:
-            raise StepExecutionError("浏览器未初始化")
+            if selector and locator_record and not low_confidence:
+                await self._update_locator_after_healing(
+                    locator_record.id, selector, old_selector
+                )
+            elif low_confidence:
+                logger.warning(
+                    f"自愈置信度 {confidence} 低于阈值，跳过定位器回写 | "
+                    f"新选择器: {selector}"
+                )
 
-        selector = None
-        if locator_record:
-            best = locator_record.get_best_locator()
-            if best:
-                loc_type = best.get("type")
-                loc_value = best.get("value")
+            duration = asyncio.get_running_loop().time() - heal_started
+            self._self_healing_total_duration += duration
+            self._audit_healing_decision(
+                step=step, locator_record=locator_record,
+                old_selector=old_selector, new_selector=selector,
+                failure_type=failure_type, strategy=heal_strategy,
+                confidence=confidence, token_cost=token_cost,
+                low_confidence=low_confidence,
+            )
 
-                if loc_type == "css":
-                    selector = loc_value
-                elif loc_type == "xpath":
-                    selector = f"xpath={loc_value}"
-                elif loc_type == "id":
-                    selector = f"#{loc_value}"
-                elif loc_type == "name":
-                    selector = f"[name='{loc_value}']"
-                elif loc_type == "ai" and isinstance(loc_value, dict):
-                    loc_x = loc_value.get("x", 0)
-                    loc_y = loc_value.get("y", 0)
-                    if loc_x < 0 or loc_y < 0:
-                        raise StepExecutionError(
-                            f"AI定位器存储的坐标无效: ({loc_x}, {loc_y})"
-                            f"，定位器ID: {locator_record.id if locator_record else 'N/A'}"
-                        )
-                    x = loc_x + loc_value.get("width", 0) // 2
-                    y = loc_y + loc_value.get("height", 0) // 2
-                    if action_type == ActionType.INPUT:
-                        input_text = (
-                        action_info.get("input_value", "")
-                        or self._extract_input_text(action_info.get("text", ""))
-                    )
-                        await self.browser.click(x, y)
-                        await asyncio.sleep(0.3)
-                        await self.browser.execute_javascript("""
-                            (function() {
-                                var el = document.activeElement;
-                                if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                                    var desc = Object.getOwnPropertyDescriptor(
-                                        window.HTMLInputElement.prototype, 'value'
-                                    );
-                                    desc.set.call(el, arguments[0]);
-                                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                                }
-                            })()
-                        """, input_text)
-                        return
-                    else:
-                        await self.browser.click(x, y)
-                        return
+            if not selector:
+                record_failure(failure_type, duration)
+                logger.error(f"AI 自愈未产出可用选择器 | 步骤描述: {nl_description}")
+                raise primary_error
 
-        if selector:
-            if action_type == ActionType.INPUT:
-                input_text = action_info.get("input_value", "") or self._extract_input_text(action_info.get("text", ""))
-                if step_test_data:
-                    for field_name, value in step_test_data.items():
-                        if field_name in (action_info.get("text") or "").lower():
-                            input_text = value
-                            break
-                await self.browser.fill(selector, input_text)
-                logger.info(f"使用选择器输入: {selector} -> {input_text}")
-                return
-            elif action_type == ActionType.CLICK:
-                await self.browser.click_element(selector)
-                logger.info(f"使用选择器点击: {selector}")
-                return
-            elif action_type == ActionType.HOVER:
-                safe_selector = selector.replace("\\", "\\\\").replace("'", "\\'")
-                await self.browser.execute_javascript("""
-                    var el = document.querySelector(arguments[0]);
-                    if (el) {{ el.dispatchEvent(new MouseEvent('mouseover', {{bubbles: true}})); }}
-                """, safe_selector)
-                return
-            elif action_type == ActionType.SELECT:
-                await self.browser.click_element(selector)
-                return
-
-        raise StepExecutionError(f"无法使用定位器执行操作: action_type={action_type}, selector={selector}")
-
-    async def _execute_action_by_type(
-        self,
-        action_type: ActionType,
-        action_info: Dict[str, Any],
-        step,
-        step_test_data: Optional[Dict[str, str]] = None
-    ) -> None:
-        """根据操作类型分发到对应的执行方法（不含自愈逻辑）。"""
-        step_id = getattr(step, 'id', None)
-        if action_type == ActionType.INPUT:
-            await self._execute_input(action_info, step_id, step_test_data)
-        elif action_type == ActionType.CLICK:
-            await self._execute_click(action_info, step_id, step_test_data)
-        elif action_type == ActionType.HOVER:
-            await self._execute_hover(action_info, step_id, step_test_data)
-        elif action_type == ActionType.SELECT:
-            await self._execute_select(action_info, step_id, step_test_data)
-        else:
-            await self._execute_click(action_info, step_id, step_test_data)
+            self._self_healing_successes += 1
+            if token_cost:
+                try:
+                    guard.consume(token_cost)
+                except Exception:
+                    logger.debug("自愈 Token 消耗累计失败", exc_info=True)
+            record_success(token_cost, duration)
+            logger.info(
+                f"自愈成功 | 策略: {heal_strategy} | 新选择器: {selector} | "
+                f"置信度: {confidence} | Token: {token_cost}"
+            )
+            return

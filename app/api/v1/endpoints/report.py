@@ -30,7 +30,11 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.models.project import Project
 from app.models.report import TestReport
-from typing import Optional
+from app.models.agent_message import AgentMessage
+from app.models.agent_session import AgentSession
+from app.models.test_result import TestResult
+from typing import Any, Optional
+import json
 from loguru import logger
 
 router = APIRouter(prefix="/report", tags=["测试报告管理"])
@@ -138,6 +142,112 @@ async def get_test_reports_list(
             total=0
         )
 
+def _extract_final_answer(content: Any) -> Optional[str]:
+    """从 Agent 的 final_answer 消息内容提取结论文本（截断 500 字符）。"""
+    data = content
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except (json.JSONDecodeError, TypeError):
+            return data[:500]
+    if not isinstance(data, dict):
+        return None
+
+    arguments = data.get("arguments")
+    if isinstance(arguments, str):
+        try:
+            data = json.loads(arguments)
+        except (json.JSONDecodeError, TypeError):
+            return arguments[:500]
+    if not isinstance(data, dict):
+        return None
+
+    for key in ("conclusion", "summary", "final_answer", "visual_result"):
+        value = data.get(key)
+        if not value:
+            continue
+        return value if isinstance(value, str) else str(value)[:500]
+    return json.dumps(data, ensure_ascii=False)[:500]
+
+
+async def _load_visual_validation_summary(
+    db: AsyncSession, project_id: int
+) -> Optional[dict]:
+    """汇总最近一次视觉校验会话的结论与截图引用（R3-3）。
+
+    数据来源：`agent_sessions`（agent_type=visual_validation）+
+    `agent_messages`（tool_name=final_answer）+ 最近一次执行结果截图。
+    未启用视觉校验的项目不存在会话，返回 None（报告无该区块）。
+    """
+    try:
+        session = (
+            await db.execute(
+                select(AgentSession)
+                .where(
+                    AgentSession.project_id == project_id,
+                    AgentSession.agent_type == "visual_validation",
+                )
+                .order_by(AgentSession.id.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        if session is None:
+            return None
+
+        message = (
+            await db.execute(
+                select(AgentMessage)
+                .where(
+                    AgentMessage.session_id == session.id,
+                    AgentMessage.tool_name == "final_answer",
+                )
+                .order_by(AgentMessage.id.desc())
+                .limit(1)
+            )
+        ).scalars().first()
+        conclusion = _extract_final_answer(message.content) if message else None
+
+        screenshot_url = (
+            await db.execute(
+                select(TestResult.screenshot_url)
+                .where(
+                    TestResult.project_id == project_id,
+                    TestResult.screenshot_url.isnot(None),
+                )
+                .order_by(TestResult.id.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+        checked_at = session.completed_at or session.started_at
+        return {
+            "session_id": session.id,
+            "status": session.status,
+            "conclusion": conclusion,
+            "screenshot_url": screenshot_url,
+            "checked_at": checked_at.isoformat() if checked_at else None,
+            "token_cost": session.token_cost,
+            "iterations": session.iteration_count,
+        }
+    except Exception as exc:
+        # 报告主体可用性优先：视觉校验区块异常仅告警
+        logger.warning(f"汇总视觉校验结论失败（不影响报告输出）: {exc}")
+        return None
+
+
+async def _attach_visual_validation(
+    db: AsyncSession, report: TestReport
+) -> TestReportResponse:
+    """在报告详情中附加视觉校验结论与截图引用。"""
+    data = TestReportResponse.model_validate(report)
+    summary = await _load_visual_validation_summary(db, report.project_id)
+    if summary:
+        content = dict(data.content or {})
+        content["visual_validation"] = summary
+        data.content = content
+    return data
+
+
 @router.get("/{report_id}", response_model=TestReportResponse)
 async def get_test_report_detail(
     report_id: int,
@@ -173,7 +283,7 @@ async def get_test_report_detail(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="测试报告不存在"
         )
-    return TestReportResponse.model_validate(report)
+    return await _attach_visual_validation(db, report)
 
 @router.post("/{report_id}/export")
 async def export_test_report(

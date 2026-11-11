@@ -40,6 +40,7 @@ from app.schemas.project import (
 )
 from app.services.project_access_service import ProjectAccessService
 
+# [R4-6 冻结 2026-11-10] 「项目成员管理」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
 router = APIRouter(prefix="/projects", tags=["项目成员管理"])
 
 

@@ -23,7 +23,7 @@ from loguru import logger
 from openai import AsyncOpenAI
 
 from app.ai.client import AIResponse, TokenUsage
-from app.ai.openai_client import _COST_PER_1K_COMPLETION, _COST_PER_1K_PROMPT
+from app.ai._costs import _COST_PER_1K_COMPLETION, _COST_PER_1K_PROMPT
 from app.core.config import settings
 
 

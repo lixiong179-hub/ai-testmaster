@@ -1,6 +1,6 @@
 """R1-1: AgentOrchestrator 接入失败分析链路的接线测试。
 
-接线点：`app/api/v1/endpoints/execution_core/_analysis.py`
+接线点：`app/api/v1/endpoints/execution_core/__init__.py`
   - `analyze_failure`（@L59 附近）在脱敏后调用 `_spawn_failure_analysis_agent`
   - `_spawn_failure_analysis_agent` 以 fire-and-forget 方式在**独立会话**中
     执行 `AgentOrchestrator.execute_pipeline(pipeline=["failure_analysis"], ...)`
@@ -19,13 +19,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.api.v1.endpoints.execution_core._analysis import (
+from app.api.v1.endpoints.execution_core import (
     _spawn_failure_analysis_agent,
     analyze_failure,
 )
 from app.models.enums import ExecStatus
 
-_ANALYSIS = "app.api.v1.endpoints.execution_core._analysis"
+_ANALYSIS = "app.api.v1.endpoints.execution_core"
 _ORCHESTRATOR = "app.services.agent.orchestrator.AgentOrchestrator"
 _SESSION_LOCAL = "app.db.database.AsyncPrimarySessionLocal"
 
@@ -177,7 +177,12 @@ class TestSpawnFailureAnalysisAgent:
 
         captured = []
 
-        async def _capture(coro):
+        def _capture(coro):
+            """同步钩子：收集协程并返回一个假的 task（随后由测试显式 await）。
+
+            注意：必须为同步函数。若写成 async def，`asyncio.create_task(_run())`
+            只会创建协程对象而不执行函数体，captured 将始终为空。
+            """
             captured.append(coro)
             return MagicMock()
 

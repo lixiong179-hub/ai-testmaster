@@ -1,5 +1,10 @@
 """自愈体系 Token 预算守卫。
 
+**解冻说明（G-2，2026-11-10）**：本模块原被 R4-5 标注为「仅测试引用」冻结，
+因 G-2（自愈 12 项集成测试）需要真实接线而解冻；接线点为
+`app/services/test_execution_engine/self_healing_execute_mixin.py` 的
+`_get_token_guard()`（AI 自愈前置熔断）。已在《架构优化执行计划清单》§13 登记。
+
 实现自愈体系的单次与日预算双控：
     - 单次超限（AI_SELF_HEALING_TOKEN_LIMIT）：熔断 AI 推理，避免单步拖垮整体。
     - 日预算耗尽（AI_SELF_HEALING_DAILY_TOKEN_BUDGET）：降级为 rollback/skip 策略。

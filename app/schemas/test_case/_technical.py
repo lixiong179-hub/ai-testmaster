@@ -52,6 +52,19 @@ class TechnicalTestCaseView(BaseModel):
         from_attributes = True
 
 
-from app.schemas.test_case._precondition import PreconditionStepResponse  # noqa: E402
+def _rebuild_technical_view() -> None:
+    """R4-7：以函数内导入 + 显式命名空间完成前向引用重建。
 
-TechnicalTestCaseView.model_rebuild()
+    `precondition_steps` 使用字符串前向引用 `"PreconditionStepResponse"`，
+    与 `_precondition`（导入本模块的 `TechnicalLocatorInfo`）构成互相依赖。
+    把导入放进函数并显式传入 `_types_namespace`，运行时行为不变，
+    但消除模块级循环依赖。
+    """
+    from app.schemas.test_case._precondition import PreconditionStepResponse
+
+    TechnicalTestCaseView.model_rebuild(
+        _types_namespace={"PreconditionStepResponse": PreconditionStepResponse}
+    )
+
+
+_rebuild_technical_view()

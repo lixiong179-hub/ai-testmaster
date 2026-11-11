@@ -30,6 +30,7 @@ from app.services.mfa_service import MFAService
 from app.utils.db_time import utcnow
 from app.utils.jwt_utils import create_access_token, decode_token
 
+# [R4-6 冻结 2026-11-10] 「MFA 多因子认证」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
 router = APIRouter()
 
 # MFA pending token 的 TTL（分钟）：密码验证后等待 MFA 验证的窗口

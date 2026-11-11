@@ -93,10 +93,9 @@ class _FinalAnswerTool(Tool):
 class _DbBoundSessionService:
     """绑定 db 的 SessionService 适配器。
 
-    AgentRuntime 调用 session_service.create_session(agent_type=...) 时不传 db，
-    但 SessionService.create_session(self, db, *, ...) 要求 db 位置参数。
-    本适配器持有 db 与真实 SessionService 实例，转发调用并注入 db，
-    保证真实服务逻辑（校验/写入/flush）被完整执行。
+    R3-3 起 `AgentRuntime` 按 `SessionService` 的公开契约显式传入 db
+    （`create_session(self, db, *, ...)`），因此本适配器同时接受位置参数 db；
+    未传时回落到构造时绑定的 db，保证真实服务逻辑（校验/写入/flush）被完整执行。
     """
 
     def __init__(self, db: Any, service: SessionService) -> None:
@@ -104,29 +103,31 @@ class _DbBoundSessionService:
         self._service = service
 
     async def create_session(
-        self, *, agent_type: str, project_id: int, created_by: Optional[int] = None,
+        self, db: Any = None, *, agent_type: str, project_id: int,
+        created_by: Optional[int] = None,
     ) -> AgentSession:
         return await self._service.create_session(
-            self._db, agent_type=agent_type, project_id=project_id, created_by=created_by,
+            db or self._db, agent_type=agent_type, project_id=project_id,
+            created_by=created_by,
         )
 
     async def append_message(
-        self, *, session_id: int, role: str, content: dict,
+        self, db: Any = None, *, session_id: int, role: str, content: dict,
         tool_name: Optional[str] = None, tool_call_id: Optional[str] = None,
         token_cost: int = 0,
     ) -> AgentMessage:
         return await self._service.append_message(
-            self._db, session_id=session_id, role=role, content=content,
+            db or self._db, session_id=session_id, role=role, content=content,
             tool_name=tool_name, tool_call_id=tool_call_id, token_cost=token_cost,
         )
 
     async def complete_session(
-        self, *, session_id: int, status: str,
+        self, db: Any = None, *, session_id: int, status: str,
         token_cost: Optional[int] = None, iteration_count: Optional[int] = None,
         loop_detected: Optional[bool] = None,
     ) -> AgentSession:
         return await self._service.complete_session(
-            self._db, session_id=session_id, status=status,
+            db or self._db, session_id=session_id, status=status,
             token_cost=token_cost, iteration_count=iteration_count, loop_detected=loop_detected,
         )
 

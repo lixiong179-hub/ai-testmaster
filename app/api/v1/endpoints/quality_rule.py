@@ -30,6 +30,7 @@ from app.schemas.quality_rule import (
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 
+# [R4-6 冻结 2026-11-10] 「质量规则配置」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
 router = APIRouter(tags=["质量规则"])
 
 

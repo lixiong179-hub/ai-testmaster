@@ -11,6 +11,7 @@ Mixin组合（MRO顺序）:
     - DependencyResolutionMixin: 依赖解析与快照容错
     - PreconditionMixin: 前置条件执行
     - SelfHealingExecuteMixin: 自愈执行
+    - SelfHealingPolicyMixin: 自愈策略决策辅助（灰度闸门 / 重试 / Token 预算 / 审计）
     - SelfHealingStagehandMixin: Stagehand云服务自愈
     - SelfHealingStrategyMixin: 自愈策略
     - SelfHealingUtilsMixin: 自愈工具方法
@@ -150,6 +151,11 @@ class TestExecutionEngineV2(
         self._stagehand_session_id = None
         self._self_healing_attempts = 0
         self._self_healing_successes = 0
+        # G-2：自愈 Token 预算守卫（惰性构造，允许测试直接替换为替身）
+        self._token_guard = None
+        # R3-1：自愈耗时累计与置信度命中层级计数（供 get_self_healing_summary 查询）
+        self._self_healing_total_duration = 0.0
+        self._self_healing_layer_hits = {"coordinate": 0, "attribute": 0, "model": 0}
         self._self_healing_stats = {
             "total_attempts": 0,
             "total_healed": 0,

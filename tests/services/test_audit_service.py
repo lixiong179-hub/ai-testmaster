@@ -75,6 +75,41 @@ class TestLogAction:
         assert record.actor_id is None
 
 
+class TestHashChainWrite:
+    """G-1：写入链路即接入 hash chain。"""
+
+    def test_log_action_sets_hash(self, db, testUser):
+        record = log_action(db, "lifecycle_transition", testUser.id, "test_case", 1)
+        assert record.hash is not None
+        assert len(record.hash) == 64
+        int(record.hash, 16)
+
+    def test_hash_matches_recomputation(self, db, testUser):
+        record = log_action(db, "config_change", testUser.id, "pipeline_config", 1)
+        assert record.hash == record.compute_hash(record.prev_hash)
+
+    def test_consecutive_records_form_chain(self, db, testUser):
+        """后一条的 prev_hash 必须等于前一条的 hash。"""
+        first = log_action(db, "pipeline_start", testUser.id, "pipeline_run", 1)
+        second = log_action(db, "pipeline_pause", testUser.id, "pipeline_run", 1)
+        assert second.prev_hash == first.hash
+        assert second.hash != first.hash
+
+    def test_hash_survives_db_round_trip(self, db, testUser):
+        """回读后重算仍一致（防「数据库精度截断 → 假断裂」回归）。
+
+        历史遗留记录（启用哈希链之前入库，`hash` 为 NULL）无法回溯补齐，
+        因此这里逐条校验本条记录，而不做全区间链校验。
+        """
+        record = log_action(db, "pipeline_resume", testUser.id, "pipeline_run", 1)
+        db.flush()
+        db.expire_all()
+
+        reloaded = db.get(AuditLog, record.id)
+        assert reloaded is not None
+        assert reloaded.hash == reloaded.compute_hash(reloaded.prev_hash)
+
+
 class TestQueryLogs:
     def test_query_all(self, db, testUser):
         log_action(db, "lifecycle_transition", testUser.id, "test_case", 1)

@@ -1,7 +1,7 @@
 """用例质量报告端点模块。
 
-提供用例审核、编辑和待审核列表端点。
-成本统计端点已拆分至 _case_quality_cost_routes。
+提供用例审核、编辑和待审核列表端点，以及项目/用例成本统计端点
+（成本统计原先拆在 _case_quality_cost_routes.py，已合并回本文件）。
 
 路由前缀: /quality（由父模块 case_quality.py 注册）
 标签: 用例质量
@@ -18,12 +18,15 @@
 
 权限要求: 所有端点需要Bearer令牌认证
 """
+import asyncio
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from app.db.database import async_get_db
+from app.db.database import async_get_db, PrimarySessionLocal
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.models.test_case import TestCase, TestStep
@@ -32,11 +35,10 @@ from app.api.v1.endpoints.case_quality_check import (
     CaseEditRequest,
     StepEditRequest,
 )
-from app.api.v1.endpoints._case_quality_cost_routes import router as cost_router
+from app.services.cost_statistics_service import CostStatisticsService
 from app.utils.db_time import utcnow
 
 router = APIRouter()
-router.include_router(cost_router)
 
 
 @router.post("/cases/{case_id}/review")
@@ -277,3 +279,112 @@ async def edit_case_step(
         await db.rollback()
         logger.error(f"编辑步骤失败 {case_id}/{step_id}: {e}")
         raise HTTPException(status_code=500, detail="编辑失败")
+
+
+async def _run_cost_service(fn):
+    """在独立线程中执行 sync CostStatisticsService 方法，释放事件循环。
+
+    使用 PrimarySessionLocal 创建独立 sync 会话，避免与 AsyncSession 事务冲突。
+    """
+    sync_db = PrimarySessionLocal()
+    try:
+        return await asyncio.to_thread(fn, sync_db)
+    finally:
+        sync_db.close()
+
+
+@router.get("/projects/{project_id}/cost-statistics")
+async def get_project_cost_statistics(
+    project_id: int,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        def _do_get_summary(sync_db):
+            service = CostStatisticsService(sync_db)
+            return service.get_cost_summary(project_id)
+
+        summary = await _run_cost_service(_do_get_summary)
+        return summary
+    except Exception as e:
+        logger.error(f"获取成本统计失败: {e}")
+        raise HTTPException(status_code=500, detail="获取成本统计失败")
+
+
+@router.get("/projects/{project_id}/cost-report")
+async def get_project_cost_report(
+    project_id: int,
+    days: int = Query(default=30, ge=1, le=365),
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        end_date = utcnow()
+        start_date = end_date - timedelta(days=days)
+
+        def _do_gen_report(sync_db):
+            service = CostStatisticsService(sync_db)
+            return service.generate_cost_report(project_id, start_date, end_date)
+
+        report = await _run_cost_service(_do_gen_report)
+
+        return {
+            "report_id": report.report_id,
+            "project_id": report.project_id,
+            "start_date": report.start_date.isoformat(),
+            "end_date": report.end_date.isoformat(),
+            "overall_statistics": {
+                "total_steps": report.overall_statistics.total_steps,
+                "ai_vision_calls": report.overall_statistics.ai_vision_calls,
+                "cache_hits": report.overall_statistics.cache_hits,
+                "css_selector_used": report.overall_statistics.css_selector_used,
+                "xpath_used": report.overall_statistics.xpath_used,
+                "estimated_cost": report.overall_statistics.estimated_cost,
+                "actual_cost": report.overall_statistics.actual_cost,
+                "cost_savings": report.overall_statistics.cost_savings,
+                "savings_rate": report.overall_statistics.savings_rate,
+                "cache_hit_rate": report.overall_statistics.cache_hit_rate,
+                "ai_dependency_rate": report.overall_statistics.ai_dependency_rate
+            },
+            "case_statistics": report.case_statistics,
+            "daily_statistics": report.daily_statistics,
+            "optimization_suggestions": report.optimization_suggestions,
+            "trend_data": report.trend_data,
+            "generated_at": report.generated_at.isoformat()
+        }
+    except Exception as e:
+        logger.error(f"生成成本报表失败: {e}")
+        raise HTTPException(status_code=500, detail="生成成本报表失败")
+
+
+@router.get("/cases/{case_id}/cost-statistics")
+async def get_case_cost_statistics(
+    case_id: int,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        def _do_get_case_stats(sync_db):
+            service = CostStatisticsService(sync_db)
+            return service.get_case_cost_statistics(case_id)
+
+        stats = await _run_cost_service(_do_get_case_stats)
+        return {
+            "case_id": case_id,
+            "total_steps": stats.total_steps,
+            "ai_vision_calls": stats.ai_vision_calls,
+            "cache_hits": stats.cache_hits,
+            "css_selector_used": stats.css_selector_used,
+            "xpath_used": stats.xpath_used,
+            "estimated_cost": stats.estimated_cost,
+            "actual_cost": stats.actual_cost,
+            "cost_savings": stats.cost_savings,
+            "savings_rate": stats.savings_rate,
+            "cache_hit_rate": stats.cache_hit_rate,
+            "ai_dependency_rate": stats.ai_dependency_rate
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"获取成本统计失败: {e}")
+        raise HTTPException(status_code=500, detail="获取成本统计失败")

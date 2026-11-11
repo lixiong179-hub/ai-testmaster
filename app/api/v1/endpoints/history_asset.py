@@ -18,15 +18,15 @@ from app.schemas.history_asset import (
     HistoryClassificationResponse,
     HistoryClassificationSummary,
 )
-from app.api.v1.endpoints._history_asset_helpers import (
+from app.services.history_asset_helpers import (
     _asset_to_detail_response,
     _asset_to_upload_response,
 )
-from app.api.v1.endpoints._history_asset_parsers import (
+from app.services.history_asset_parsing import (
     _parse_excel_cases,
     _parse_xmind_cases,
 )
-from app.api.v1.endpoints._history_asset_classification import _classify_history_cases
+from app.services.history_asset_classification import _classify_history_cases
 
 router = APIRouter(tags=["历史资产"])
 

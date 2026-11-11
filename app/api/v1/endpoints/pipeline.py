@@ -61,7 +61,7 @@ from app.api.v1.endpoints.pipeline_precheck import router as _precheck_router
 from app.api.v1.endpoints.pipeline_resume import router as _resume_router
 from app.api.v1.endpoints.pipeline_artifacts import router as _artifacts_router
 from app.api.v1.endpoints.pipeline_dashboard import router as _dashboard_router
-from app.api.v1.endpoints.pipeline_dashboard._trends import router as _dashboard_trends_router
+from app.api.v1.endpoints.pipeline_dashboard import trends_router as _dashboard_trends_router
 from app.api.v1.endpoints.pipeline_metrics import router as _metrics_router
 
 router.include_router(_precheck_router)

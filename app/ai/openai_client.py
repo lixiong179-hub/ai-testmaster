@@ -28,9 +28,9 @@ from app.ai.client import AIResponse, TokenUsage
 from app.core.config import settings
 
 
-# DeepSeek 定价（美元/1K tokens），可按实际模型调整
-_COST_PER_1K_PROMPT = 0.0014
-_COST_PER_1K_COMPLETION = 0.0028
+# DeepSeek 定价（美元/1K tokens），定义已下沉至 app.ai._costs（R4-7 打破循环导入），
+# 此处保留同名绑定，兼容既有 `from app.ai.openai_client import _COST_PER_1K_*` 用法
+from app.ai._costs import _COST_PER_1K_COMPLETION, _COST_PER_1K_PROMPT  # noqa: E402
 
 
 class OpenAIClient:

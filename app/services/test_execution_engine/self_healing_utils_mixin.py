@@ -154,17 +154,65 @@ class SelfHealingUtilsMixin:
             logger.error(f"定位器回写异常 | ID: {locator_record_id} | 错误: {e}")
             return False
 
+    def _record_healing_confidence(self, detail: Dict[str, Any]) -> None:
+        """记录一次置信度计算的层级命中（R3-1）。
+
+        内存计数供 `get_self_healing_summary()` 查询，同时上报 Prometheus
+        `self_heal_layer_hits_total`。三者为「命中即计数」，非互斥。
+
+        Args:
+            detail: `explain_confidence()` 的返回值，需含 `hits` 字典。
+        """
+        hits = detail.get("hits") or {}
+        layer_hits = getattr(self, "_self_healing_layer_hits", None)
+        if layer_hits is None:
+            layer_hits = {"coordinate": 0, "attribute": 0, "model": 0}
+            self._self_healing_layer_hits = layer_hits
+
+        for layer in ("coordinate", "attribute", "model"):
+            if not hits.get(layer):
+                continue
+            layer_hits[layer] = layer_hits.get(layer, 0) + 1
+            try:
+                from app.services.self_healing.metrics import record_layer_hit
+                record_layer_hit(layer)
+            except Exception:
+                logger.debug("上报自愈层级命中指标失败", exc_info=True)
+
     def get_self_healing_summary(self) -> Dict[str, Any]:
-        """获取自愈统计摘要。"""
+        """获取自愈统计摘要。
+
+        R3-1 起额外返回三项可查询指标：
+            - `healing_success_rate`：自愈成功率（与 self_healing_success_rate 同值）
+            - `healing_layer_hit_distribution`：置信度命中层级分布（coordinate/attribute/model）
+            - `avg_healing_duration_seconds`：单次自愈平均耗时（秒）
+        """
         from app.core.config import settings
         success_rate = 0.0
         if self._self_healing_attempts > 0:
             success_rate = self._self_healing_successes / self._self_healing_attempts
 
+        layer_counts = dict(getattr(self, "_self_healing_layer_hits", {}) or {})
+        total_hits = sum(layer_counts.values())
+        layer_distribution = {
+            layer: (round(layer_counts.get(layer, 0) / total_hits, 4) if total_hits else 0.0)
+            for layer in ("coordinate", "attribute", "model")
+        }
+
+        total_duration = float(getattr(self, "_self_healing_total_duration", 0.0) or 0.0)
+        avg_duration = (
+            total_duration / self._self_healing_attempts
+            if self._self_healing_attempts > 0 else 0.0
+        )
+
         return {
             "self_healing_attempts": self._self_healing_attempts,
             "self_healing_successes": self._self_healing_successes,
             "self_healing_success_rate": round(success_rate, 4),
+            "healing_success_rate": round(success_rate, 4),
+            "healing_layer_hit_counts": layer_counts,
+            "healing_layer_hit_distribution": layer_distribution,
+            "avg_healing_duration_seconds": round(avg_duration, 4),
             "self_healing_enabled": settings.AI_SELF_HEALING_ENABLED,
             "stagehand_available": bool(settings.BROWSERBASE_API_KEY and settings.BROWSERBASE_PROJECT_ID)
         }
