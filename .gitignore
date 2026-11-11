@@ -166,4 +166,8 @@ _recovered_pyc/
 _recovery_gap_report.txt
 recovery_*.txt
 
+# IDE / assistant workspace data (local only)
+.codebuddy/
+.workbuddy/
+
 # Misc
