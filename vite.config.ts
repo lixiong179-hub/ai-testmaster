@@ -4,7 +4,6 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { visualizer } from 'rollup-plugin-visualizer'
-import legacy from '@vitejs/plugin-legacy'
 import path from 'path'
 
 // https://vitejs.dev/config/
@@ -29,11 +28,6 @@ export default defineConfig({
       template: 'treemap',
       gzipSize: true,
       brotliSize: true,
-    }),
-    // P2-1: 旧版浏览器 polyfill（为不支持 ES2020 的浏览器生成兼容 bundle）
-    legacy({
-      targets: ['defaults', 'not ie 11'],
-      modernPolyfills: true,
     }),
   ],
   resolve: {
@@ -101,7 +95,8 @@ export default defineConfig({
             if (id.includes('echarts')) return 'echarts'
             if (id.includes('element-plus')) return 'element'
             if (id.includes('vue-flow') || id.includes('@vue-flow')) return 'vue-flow'
-            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router')) return 'vendor'
+            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router'))
+              return 'vendor'
             return 'vendor'
           }
         },
