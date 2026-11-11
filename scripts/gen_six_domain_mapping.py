@@ -32,6 +32,8 @@ DIR_RULES = {
     "services/self_healing": "execution",
     "services/test_execution_engine": "execution",
     "services/execution_replay": "execution",
+    "services/execution_core": "execution",
+    "services/test_point": "test_point",
     "services/mobile_ai_executor": "execution",
     "services/visual_ai": "execution",
     "services/element_locator": "execution",
