@@ -48,6 +48,7 @@ class TestTaskUpdate(BaseModel):
     progress: Optional[int] = Field(None, ge=0, le=100, description="执行进度")  # 可选，0-100百分比
     success_count: Optional[int] = Field(None, ge=0, description="成功用例数")  # 可选，执行成功的用例计数
     fail_count: Optional[int] = Field(None, ge=0, description="失败用例数")  # 可选，执行失败的用例计数
+    error_message: Optional[str] = Field(None, description="任务级失败/超时原因")  # 可选，执行引擎写入的任务级失败原因
 
 
 class TestTaskResponse(BaseModel):
@@ -70,6 +71,7 @@ class TestTaskResponse(BaseModel):
     fail_count: int  # 失败用例数，与TestTask.fail_count对应
     total_count: int  # 总用例数，与TestTask.total_count对应
     progress: int  # 执行进度0-100，与TestTask.progress对应
+    error_message: Optional[str] = None  # 任务级失败/超时原因，与TestTask.error_message对应
     visibility_config: Optional[Dict[str, Any]] = None  # 可见模式配置，与TestTask.visibility_config(JSON)对应
     create_time: datetime  # 创建时间，与TestTask.create_time对应
     update_time: datetime  # 更新时间，与TestTask.update_time对应

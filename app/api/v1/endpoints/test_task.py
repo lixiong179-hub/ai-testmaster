@@ -309,6 +309,7 @@ async def start_test_task(
         running_task.status = 1
         running_task.start_time = utcnow()
         running_task.end_time = None
+        running_task.error_message = None
         running_task.progress = 0
         running_task.success_count = 0
         running_task.fail_count = 0
@@ -341,6 +342,7 @@ async def start_test_task(
                 failed_task = failed_result.scalars().first()
                 if failed_task:
                     failed_task.status = 3
+                    failed_task.error_message = f"任务执行异常：{e}"
                     failed_task.end_time = utcnow()
                     await db.commit()
         finally:

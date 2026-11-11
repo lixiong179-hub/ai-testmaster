@@ -180,3 +180,80 @@ class TestQuickVerifyAPI:
             json={"case_id": case.id, "step_indices": []},
         )
         assert response.status_code == 401
+
+
+class TestStartExecutionFailureSemantics:
+    """`.start` 引擎异常时任务必须落 FAILED（3），不得误记为 COMPLETED（2）。"""
+
+    async def test_engine_exception_marks_task_failed(
+        self, async_auth_client, async_db, async_test_project, async_test_user, monkeypatch
+    ):
+        from sqlalchemy import select
+
+        from app.api.v1.endpoints import execution_core as execution_core_ep
+
+        task = await _make_task(async_db, async_test_project.id, async_test_user.id)
+        await async_db.flush()
+
+        class _BoomEngine:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def execute_test_task(self, **kwargs):
+                raise RuntimeError("engine boom")
+
+        monkeypatch.setattr(execution_core_ep, "TestExecutionEngineV2", _BoomEngine)
+
+        response = await async_auth_client.post(
+            f"/api/v1/execution/{task.id}/start",
+            json={},
+        )
+        assert response.status_code == 200, response.text
+
+        # 响应用真实终态（此前固定返回 "running"）
+        data = response.json()["data"]
+        assert data["status"] == "failed"
+        assert data["task_status"] == 3
+        assert "engine boom" in (data["error_message"] or "")
+
+        # 端点 commit 后 async_db 中的实例已过期，用 populate_existing 在
+        # 绿色上下文内刷新，避免访问过期属性触发同步懒加载（MissingGreenlet）
+        refreshed = (
+            await async_db.execute(
+                select(TestTask)
+                .where(TestTask.id == task.id)
+                .execution_options(populate_existing=True)
+            )
+        ).scalars().first()
+        assert refreshed.status == 3
+        assert refreshed.end_time is not None
+        assert "engine boom" in (refreshed.error_message or "")
+
+    async def test_response_reflects_still_running_task(
+        self, async_auth_client, async_db, async_test_project, async_test_user, monkeypatch
+    ):
+        """引擎正常返回但任务仍为 RUNNING 时，响应应如实返回 running（不硬编码）。"""
+        from app.api.v1.endpoints import execution_core as execution_core_ep
+
+        task = await _make_task(async_db, async_test_project.id, async_test_user.id)
+        await async_db.flush()
+
+        class _NoopEngine:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def execute_test_task(self, **kwargs):
+                return {"task_id": kwargs.get("task_id")}
+
+        monkeypatch.setattr(execution_core_ep, "TestExecutionEngineV2", _NoopEngine)
+
+        response = await async_auth_client.post(
+            f"/api/v1/execution/{task.id}/start",
+            json={},
+        )
+        assert response.status_code == 200, response.text
+
+        data = response.json()["data"]
+        assert data["status"] == "running"
+        assert data["task_status"] == 1
+        assert data["error_message"] is None

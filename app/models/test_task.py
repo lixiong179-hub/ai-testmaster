@@ -21,7 +21,7 @@
     本模块使用 datetime.now 而非 utcnow 作为时间默认值，
     与其他模型模块保持一致需评估是否迁移为UTC时间。
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.orm import relationship
 from app.db.database import Base
@@ -33,7 +33,7 @@ class TaskStatus:
     """
     任务状态常量类
 
-    定义测试任务的5种状态码及对应的中文标签，
+    定义测试任务的6种状态码及对应的中文标签，
     供业务层统一引用，避免硬编码状态值。
 
     Attributes:
@@ -42,6 +42,7 @@ class TaskStatus:
         COMPLETED : 执行完成（状态码 2）
         FAILED    : 执行失败（状态码 3）
         STOPPED   : 已停止（状态码 4）
+        PAUSED    : 已暂停（状态码 5，可由 /execution/{id}/resume 恢复）
         LABELS    : 状态码到中文标签的映射字典
     """
     PENDING = 0       # 等待执行
@@ -105,6 +106,7 @@ class TestTask(TenantAwareMixin, Base):
     fail_count = Column(Integer, nullable=False, default=0, comment="失败用例数")                       # 执行失败的用例计数
     total_count = Column(Integer, nullable=False, default=0, comment="总用例数")                        # 待执行用例总数
     progress = Column(Integer, nullable=False, default=0, comment="执行进度（0-100）")
+    error_message = Column(Text, nullable=True, comment="任务级失败/超时原因")                        # 任务级失败/超时原因（超时中断、批量失败、引擎异常），供前端展示与排障
     priority = Column(Integer, nullable=False, default=2, index=True, comment="优先级：1高/2中/3低")
     visibility_config = Column(JSON, nullable=True, comment="可见模式配置")
     create_time = Column(DateTime, default=utcnow, index=True, comment="创建时间")                # 任务创建时间

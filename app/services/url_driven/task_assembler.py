@@ -276,6 +276,7 @@ class TaskAssembler:
         """
         task.status = TaskStatus.RUNNING
         task.start_time = utcnow()
+        task.error_message = None
         try:
             session.commit()
         except Exception as exc:

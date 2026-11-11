@@ -53,6 +53,7 @@ class _ExecutorMixin:
 
         task.status = TaskStatus.RUNNING
         task.start_time = utcnow()
+        task.error_message = None
         self.db.commit()
 
         owns_precondition_service = False
@@ -221,6 +222,15 @@ class _ExecutorMixin:
                 self.db.commit()
 
             task.status = TaskStatus.COMPLETED if failed_cases == 0 and blocked_cases == 0 else TaskStatus.FAILED
+            if task.status == TaskStatus.FAILED:
+                reasons = []
+                if failed_cases:
+                    reasons.append(f"{failed_cases} 个用例失败")
+                if blocked_cases:
+                    reasons.append(f"{blocked_cases} 个用例阻塞")
+                task.error_message = "任务未通过：" + "，".join(reasons)
+            else:
+                task.error_message = None
             task.end_time = utcnow()
             self.db.commit()
 
@@ -230,6 +240,7 @@ class _ExecutorMixin:
             logger.error(f"测试任务执行失败: {e}")
             from app.models.test_task import TaskStatus
             task.status = TaskStatus.FAILED
+            task.error_message = f"任务执行异常中断：{e}"
             task.end_time = utcnow()
             self.db.commit()
             raise ExecutionError("任务执行失败") from e

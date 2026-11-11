@@ -49,6 +49,7 @@ async def run_executor_safely(
             task = session.query(TestTask).filter(TestTask.id == task_id).first()
             if task and task.status == TaskStatus.RUNNING:
                 task.status = TaskStatus.FAILED
+                task.error_message = f"执行引擎异常中断：{exc}"
                 task.end_time = utcnow()
                 session.commit()
         except Exception as inner:
