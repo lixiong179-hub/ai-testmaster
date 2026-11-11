@@ -1,11 +1,6 @@
 <template>
   <div class="quality-rule-tab" v-loading="loading">
-    <el-alert
-      type="info"
-      :closable="false"
-      show-icon
-      class="config-tip"
-    >
+    <el-alert type="info" :closable="false" show-icon class="config-tip">
       项目级质量规则配置，影响该项目用例的质量评分、覆盖率统计与质量门禁判定。修改后立即生效。
     </el-alert>
 
@@ -44,15 +39,13 @@
             type="warning"
             :disabled="isDefaultValue(scope.row)"
             @click="resetToDefault(scope.row)"
-          >恢复默认</el-button>
+            >恢复默认</el-button
+          >
         </template>
       </el-table-column>
     </el-table>
 
-    <el-empty
-      v-if="!loading && rules.length === 0"
-      description="暂无质量规则数据"
-    />
+    <el-empty v-if="!loading && rules.length === 0" description="暂无质量规则数据" />
 
     <!-- 编辑对话框 -->
     <el-dialog v-model="dialogVisible" title="编辑规则" width="520px" destroy-on-close>
@@ -69,11 +62,7 @@
           />
         </el-form-item>
         <el-form-item v-if="currentRule?.value_type === 'boolean'" label="规则值">
-          <el-switch
-            v-model="formData.rule_value_bool"
-            active-text="是"
-            inactive-text="否"
-          />
+          <el-switch v-model="formData.rule_value_bool" active-text="是" inactive-text="否" />
         </el-form-item>
         <el-form-item v-else-if="currentRule?.value_type === 'number'" label="规则值">
           <el-input-number
@@ -86,7 +75,7 @@
         <el-form-item v-else-if="currentRule?.value_type === 'enum'" label="规则值">
           <el-select v-model="formData.rule_value_str" placeholder="请选择" style="width: 100%">
             <el-option
-              v-for="opt in (currentRule?.enum_options ?? [])"
+              v-for="opt in currentRule?.enum_options ?? []"
               :key="opt"
               :label="opt"
               :value="opt"

@@ -7,11 +7,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import {
-  abTestApi,
-  AB_TEST_METRIC_LABELS,
-  AB_TEST_METRIC_DIRECTION,
-} from '@/api/abTest'
+import { abTestApi, AB_TEST_METRIC_LABELS, AB_TEST_METRIC_DIRECTION } from '@/api/abTest'
 import type {
   AbTestExperiment,
   AbTestSummary,
@@ -69,8 +65,7 @@ export function useAbTestDashboard() {
     return ALL_METRIC_NAMES.map((name): MetricComparisonRow => {
       const c = pickMean(controlStats, name)
       const t = pickMean(treatmentStats, name)
-      const diff =
-        c.mean !== null && t.mean !== null ? calcDiffPercent(c.mean, t.mean) : null
+      const diff = c.mean !== null && t.mean !== null ? calcDiffPercent(c.mean, t.mean) : null
       let improved: boolean | null = null
       if (diff !== null) {
         const direction = AB_TEST_METRIC_DIRECTION[name]
@@ -93,9 +88,7 @@ export function useAbTestDashboard() {
 
   /** 是否存在可展示的汇总数据 */
   const hasData = computed(
-    () =>
-      summary.value !== null &&
-      Object.keys(summary.value.variants ?? {}).length > 0
+    () => summary.value !== null && Object.keys(summary.value.variants ?? {}).length > 0
   )
 
   const goBack = (): void => {

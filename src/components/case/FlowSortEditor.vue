@@ -167,7 +167,10 @@
       />
       <FlowTypeConfigDialog
         v-model:visible="ctx.flowTypeConfigVisible.value"
-        :flow-type="(ctx.pendingFlowTypeChange.value?.type as unknown as 'branch' | 'exception' | 'bypass') || 'branch'"
+        :flow-type="
+          (ctx.pendingFlowTypeChange.value?.type as unknown as 'branch' | 'exception' | 'bypass') ||
+          'branch'
+        "
         :main-node-options="ctx.mainNodeOptions.value"
         :initial-data="ctx.pendingFlowMeta.value"
         @confirm="ctx.handleFlowTypeConfigConfirm"

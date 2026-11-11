@@ -127,16 +127,8 @@ import { Refresh } from '@element-plus/icons-vue'
 import { useAbTestDashboard } from './useAbTestDashboard'
 import type { AbTestVariantStats } from '@/api/abTest'
 
-const {
-  loading,
-  experiments,
-  experimentId,
-  summary,
-  comparisonRows,
-  hasData,
-  goBack,
-  refreshAll,
-} = useAbTestDashboard()
+const { loading, experiments, experimentId, summary, comparisonRows, hasData, goBack, refreshAll } =
+  useAbTestDashboard()
 
 /** 变体元信息列表：用于 el-descriptions 遍历展示各变体指标数 */
 const variantMetaList = computed(() => {

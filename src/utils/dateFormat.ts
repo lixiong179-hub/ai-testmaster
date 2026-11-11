@@ -12,7 +12,10 @@ const INVALID_PLACEHOLDER = '—'
  * @param placeholder 无效值时的占位符，默认 '—'
  * @returns 如 "2026/07/28 14:30:00"
  */
-export function formatTime(iso: string | null | undefined, placeholder = INVALID_PLACEHOLDER): string {
+export function formatTime(
+  iso: string | null | undefined,
+  placeholder = INVALID_PLACEHOLDER
+): string {
   if (!iso) return placeholder
   try {
     const d = new Date(iso)
@@ -29,7 +32,10 @@ export function formatTime(iso: string | null | undefined, placeholder = INVALID
  * @param placeholder 无效值时的占位符，默认 '—'
  * @returns 如 "2026/07/28"
  */
-export function formatDate(iso: string | null | undefined, placeholder = INVALID_PLACEHOLDER): string {
+export function formatDate(
+  iso: string | null | undefined,
+  placeholder = INVALID_PLACEHOLDER
+): string {
   if (!iso) return placeholder
   try {
     const d = new Date(iso)

@@ -346,13 +346,17 @@
 .overview-mode .graph-mode :deep(.vue-flow__controls) {
   opacity: 0.5;
   transition: opacity 0.2s ease;
-  &:hover { opacity: 1; }
+  &:hover {
+    opacity: 1;
+  }
 }
 
 .overview-mode .graph-mode :deep(.vue-flow__minimap) {
   opacity: 0.5;
   transition: opacity 0.2s ease;
-  &:hover { opacity: 1; }
+  &:hover {
+    opacity: 1;
+  }
 }
 
 .graph-mode :deep(.vue-flow__edge) {
@@ -484,13 +488,17 @@
 .graph-mode :deep(.edge-path-highlighted .vue-flow__edge-path) {
   stroke-width: 3 !important;
   filter: drop-shadow(0 0 6px rgba(64, 158, 255, 0.5));
-  transition: stroke-width 0.2s ease, filter 0.2s ease;
+  transition:
+    stroke-width 0.2s ease,
+    filter 0.2s ease;
 }
 
 .graph-mode :deep(.edge-path-dimmed .vue-flow__edge-path) {
   opacity: 0.12;
   stroke-width: 1 !important;
-  transition: opacity 0.3s ease, stroke-width 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    stroke-width 0.3s ease;
 }
 
 .graph-mode :deep(.edge-path-highlighted .vue-flow__edge-label) {

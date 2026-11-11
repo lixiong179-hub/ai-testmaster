@@ -80,7 +80,10 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
       isProgrammaticEdgeChange.value = true
       vueFlowEdges.value = vueFlowEdges.value.filter(
         (e: FlowGraphEdge) =>
-          !(e.target === nodeId && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string))
+          !(
+            e.target === nodeId &&
+            ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string)
+          )
       )
       const nextMainOrder =
         getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[]).length + 1
@@ -229,12 +232,7 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
     flowTypeConfigVisible.value = false
     pendingFlowTypeChange.value = null
     pendingFlowMeta.value = null
-    vueFlowNodes.value = autoLayout(
-      'focused-path',
-      vueFlowNodes.value,
-      vueFlowEdges.value,
-      nodeId
-    )
+    vueFlowNodes.value = autoLayout('focused-path', vueFlowNodes.value, vueFlowEdges.value, nodeId)
     emitSortData()
     nextTick(() => {
       fitView?.({ duration: 300, padding: 0.15 })

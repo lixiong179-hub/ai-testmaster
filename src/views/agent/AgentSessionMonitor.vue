@@ -1,18 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import {
-  agentApi,
-  agentStatusOptions,
-  agentTypeOptions,
-} from '@/api/agent'
-import type {
-  AgentAudit,
-  AgentMessage,
-  AgentSession,
-  AgentStatus,
-  AgentType,
-} from '@/api/agent'
+import { agentApi, agentStatusOptions, agentTypeOptions } from '@/api/agent'
+import type { AgentAudit, AgentMessage, AgentSession, AgentStatus, AgentType } from '@/api/agent'
 
 /**
  * Agent 会话监控（R1-3 可观测性闭环）。
@@ -28,8 +18,8 @@ const filterType = ref<AgentType | ''>('')
 const filterStatus = ref<AgentStatus | ''>('')
 const selectedId = ref<number | null>(null)
 
-const selectedSession = computed(() =>
-  sessions.value.find((item) => item.id === selectedId.value) ?? null
+const selectedSession = computed(
+  () => sessions.value.find((item) => item.id === selectedId.value) ?? null
 )
 
 async function loadSessions() {
@@ -124,8 +114,7 @@ function durationText(session: AgentSession | null) {
   if (!session.started_at) return '—'
   if (!session.completed_at) return '进行中'
   const seconds =
-    (new Date(session.completed_at).getTime() -
-      new Date(session.started_at).getTime()) / 1000
+    (new Date(session.completed_at).getTime() - new Date(session.started_at).getTime()) / 1000
   if (Number.isNaN(seconds)) return '—'
   return `${seconds.toFixed(1)}s`
 }
@@ -149,12 +138,7 @@ function auditDetailText(audit: AgentAudit) {
     <el-card class="agent-monitor__toolbar" shadow="never">
       <div class="agent-monitor__toolbar-inner">
         <span class="agent-monitor__title">Agent 会话监控</span>
-        <el-select
-          v-model="filterType"
-          placeholder="Agent 类型"
-          clearable
-          style="width: 160px"
-        >
+        <el-select v-model="filterType" placeholder="Agent 类型" clearable style="width: 160px">
           <el-option
             v-for="opt in agentTypeOptions"
             :key="opt.value"
@@ -162,12 +146,7 @@ function auditDetailText(audit: AgentAudit) {
             :value="opt.value"
           />
         </el-select>
-        <el-select
-          v-model="filterStatus"
-          placeholder="会话状态"
-          clearable
-          style="width: 160px"
-        >
+        <el-select v-model="filterStatus" placeholder="会话状态" clearable style="width: 160px">
           <el-option
             v-for="opt in agentStatusOptions"
             :key="opt.value"
@@ -222,16 +201,8 @@ function auditDetailText(audit: AgentAudit) {
             </el-tag>
           </div>
         </template>
-        <el-empty
-          v-if="!selectedSession"
-          description="请选择上方会话查看消息流"
-          :image-size="60"
-        />
-        <el-empty
-          v-else-if="messages.length === 0"
-          description="该会话暂无消息"
-          :image-size="60"
-        />
+        <el-empty v-if="!selectedSession" description="请选择上方会话查看消息流" :image-size="60" />
+        <el-empty v-else-if="messages.length === 0" description="该会话暂无消息" :image-size="60" />
         <div v-else class="agent-monitor__messages">
           <div
             v-for="msg in messages"
@@ -295,10 +266,7 @@ function auditDetailText(audit: AgentAudit) {
             </el-table-column>
             <el-table-column label="审批" width="100">
               <template #default="{ row }">
-                <el-tag
-                  size="small"
-                  :type="row.human_approved === 1 ? 'success' : 'info'"
-                >
+                <el-tag size="small" :type="row.human_approved === 1 ? 'success' : 'info'">
                   {{ APPROVAL_TEXT[row.human_approved] ?? '未知' }}
                 </el-tag>
               </template>

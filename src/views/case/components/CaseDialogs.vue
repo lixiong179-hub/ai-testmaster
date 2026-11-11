@@ -34,9 +34,7 @@
     </div>
     <div v-else>
       <div class="version-compare-bar">
-        <span class="compare-hint">
-          已选择 {{ selectedVersionIds.length }}/2 个版本进行对比
-        </span>
+        <span class="compare-hint"> 已选择 {{ selectedVersionIds.length }}/2 个版本进行对比 </span>
         <el-button
           type="primary"
           size="small"
@@ -139,18 +137,11 @@
       </div>
       <div v-else-if="compareResult">
         <div class="compare-version-header">
-          <el-tag type="info">
-            v{{ compareResult.from_version.version_number }}
-          </el-tag>
+          <el-tag type="info"> v{{ compareResult.from_version.version_number }} </el-tag>
           <el-icon class="compare-arrow"><Right /></el-icon>
-          <el-tag type="success">
-            v{{ compareResult.to_version.version_number }}
-          </el-tag>
+          <el-tag type="success"> v{{ compareResult.to_version.version_number }} </el-tag>
         </div>
-        <CaseVersionDiff
-          :diff-data="compareResult.diff"
-          :steps-diff="compareResult.stepsDiff"
-        />
+        <CaseVersionDiff :diff-data="compareResult.diff" :steps-diff="compareResult.stepsDiff" />
       </div>
     </el-dialog>
   </el-dialog>
@@ -237,9 +228,7 @@ const handleCompare = async () => {
     return
   }
   // 按 version_number 排序，小的作为 from
-  const sorted = [...selectedVersionRows.value].sort(
-    (a, b) => a.version_number - b.version_number
-  )
+  const sorted = [...selectedVersionRows.value].sort((a, b) => a.version_number - b.version_number)
   const fromVersion = sorted[0]
   const toVersion = sorted[1]
   const caseId = ctx.caseId.value
@@ -255,8 +244,7 @@ const handleCompare = async () => {
       toVersion.id
     )
   } catch (error: unknown) {
-    const msg =
-      error instanceof Error ? error.message : '版本对比失败'
+    const msg = error instanceof Error ? error.message : '版本对比失败'
     console.error('版本对比失败:', error)
     ElMessage.error(msg)
     compareDialogVisible.value = false
@@ -265,7 +253,7 @@ const handleCompare = async () => {
   }
 }
 
-const versionTableRef = ref<InstanceType<typeof import('element-plus')['ElTable']>>()
+const versionTableRef = ref<InstanceType<(typeof import('element-plus'))['ElTable']>>()
 
 watch(
   () => ctx.batchLocatorVisible.value,

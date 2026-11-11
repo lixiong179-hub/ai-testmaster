@@ -104,17 +104,17 @@
         </div>
       </div>
 
-      <div class="report-entry" style="margin-top: 20px" v-if="ctx.taskDetail.value && ctx.reportEntryVisible.value">
+      <div
+        class="report-entry"
+        style="margin-top: 20px"
+        v-if="ctx.taskDetail.value && ctx.reportEntryVisible.value"
+      >
         <span v-if="ctx.taskDetail.value.status === 4" class="report-hint"
           >任务已停止，暂无测试报告</span
         >
-        <el-button
-          v-else
-          :type="ctx.reportButtonType.value"
-          size="large"
-          @click="ctx.goToReport"
-          >{{ ctx.reportButtonText.value }}</el-button
-        >
+        <el-button v-else :type="ctx.reportButtonType.value" size="large" @click="ctx.goToReport">{{
+          ctx.reportButtonText.value
+        }}</el-button>
       </div>
 
       <div class="action-buttons" style="margin-top: 20px" v-if="ctx.taskDetail.value">

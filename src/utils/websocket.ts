@@ -316,7 +316,10 @@ export function connectWebSocket(
         clearTimeout(reconnectTimer)
         reconnectTimer = null
       }
-      if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) {
+      if (
+        current &&
+        (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)
+      ) {
         current.close()
       }
     },

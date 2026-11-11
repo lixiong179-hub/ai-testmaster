@@ -73,9 +73,9 @@ export interface PosteriorApiResponse<T> {
 export function triggerPosteriorScoring(
   projectId: number
 ): Promise<PosteriorApiResponse<PosteriorResult>> {
-  return request.post(
-    `/api/v1/quality/posterior/${projectId}`
-  ) as unknown as Promise<PosteriorApiResponse<PosteriorResult>>
+  return request.post(`/api/v1/quality/posterior/${projectId}`) as unknown as Promise<
+    PosteriorApiResponse<PosteriorResult>
+  >
 }
 
 /**
@@ -87,7 +87,7 @@ export function triggerPosteriorScoring(
 export function getPosteriorResult(
   projectId: number
 ): Promise<PosteriorApiResponse<PosteriorStats>> {
-  return request.get(
-    `/api/v1/quality/posterior/${projectId}/result`
-  ) as unknown as Promise<PosteriorApiResponse<PosteriorStats>>
+  return request.get(`/api/v1/quality/posterior/${projectId}/result`) as unknown as Promise<
+    PosteriorApiResponse<PosteriorStats>
+  >
 }

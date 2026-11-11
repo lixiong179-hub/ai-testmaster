@@ -1,11 +1,6 @@
 <template>
   <div class="test-capability-tab" v-loading="loading">
-    <el-alert
-      type="info"
-      :closable="false"
-      show-icon
-      class="config-tip"
-    >
+    <el-alert type="info" :closable="false" show-icon class="config-tip">
       项目级测试能力定义该项目支持的测试能力点（与测试点关联），用于能力维度的覆盖度统计与执行编排。
     </el-alert>
 
@@ -43,10 +38,7 @@
       </el-table-column>
     </el-table>
 
-    <el-empty
-      v-if="!loading && capabilities.length === 0"
-      description="暂无测试能力数据"
-    />
+    <el-empty v-if="!loading && capabilities.length === 0" description="暂无测试能力数据" />
 
     <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="520px" destroy-on-close>

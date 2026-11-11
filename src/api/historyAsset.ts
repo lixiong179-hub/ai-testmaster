@@ -27,7 +27,12 @@ export interface HistoryAssetDetail extends HistoryAssetItem {
   parsed_cases: HistoryParsedCase[]
 }
 
-export type HistoryClassification = 'REUSE_CASE' | 'UPDATE_CASE' | 'NEW_CASE' | 'DEPRECATED_CASE' | 'CONFIRM_REQUIRED'
+export type HistoryClassification =
+  | 'REUSE_CASE'
+  | 'UPDATE_CASE'
+  | 'NEW_CASE'
+  | 'DEPRECATED_CASE'
+  | 'CONFIRM_REQUIRED'
 
 export interface HistoryClassificationItem {
   client_id: string
@@ -73,7 +78,9 @@ export const historyAssetApi = {
   },
 
   getList: async (projectId: number): Promise<HistoryAssetItem[]> => {
-    const response = await request.get('/api/v1/history-assets', { params: { project_id: projectId } })
+    const response = await request.get('/api/v1/history-assets', {
+      params: { project_id: projectId },
+    })
     return extractData<HistoryAssetItem[]>(response)
   },
 
@@ -91,7 +98,8 @@ export const historyAssetApi = {
     const formData = new FormData()
     formData.append('project_id', String(params.project_id))
     formData.append('history_asset_ids', JSON.stringify(params.history_asset_ids))
-    if (params.requirement_file_ids) formData.append('requirement_file_ids', JSON.stringify(params.requirement_file_ids))
+    if (params.requirement_file_ids)
+      formData.append('requirement_file_ids', JSON.stringify(params.requirement_file_ids))
     if (params.ui_screen_ids) formData.append('ui_screen_ids', JSON.stringify(params.ui_screen_ids))
     const response = await request.post('/api/v1/history-assets/align', formData)
     return extractData<HistoryClassificationResponse>(response)

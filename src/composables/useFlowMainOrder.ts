@@ -103,7 +103,10 @@ export function useFlowMainOrder(options: UseFlowMainOrderOptions) {
     const selectedNode = vueFlowNodes.value.find((n) => n.id === selectedNodeId)
     if (!selectedNode) return
 
-    const orderedMainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
+    const orderedMainNodes = getMainNodesInOrder(
+      vueFlowNodes.value,
+      vueFlowEdges.value as unknown as Edge[]
+    )
     const currentIndex = orderedMainNodes.findIndex((node) => node.id === selectedNode.id)
     const targetIndex = currentIndex + direction
     if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedMainNodes.length) return

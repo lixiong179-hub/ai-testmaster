@@ -346,9 +346,7 @@ export const routes: RouteRecordRaw[] = [
         path: 'report',
         name: 'ReportManagement',
         redirect: { name: 'ExecutionReportList' },
-        children: [
-          { path: 'detail', redirect: { name: 'ExecutionReportDetail' } },
-        ],
+        children: [{ path: 'detail', redirect: { name: 'ExecutionReportDetail' } }],
       },
       // 旧 URL 兼容：/home/bug → /home/execution/bug
       {

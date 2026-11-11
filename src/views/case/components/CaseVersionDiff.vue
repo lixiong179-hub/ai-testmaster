@@ -23,11 +23,7 @@
             {{ formatValue(change.new) }}
           </span>
         </div>
-        <el-tag
-          :type="changeTagType(change.changeType)"
-          size="small"
-          class="diff-tag"
-        >
+        <el-tag :type="changeTagType(change.changeType)" size="small" class="diff-tag">
           {{ changeTagLabel(change.changeType) }}
         </el-tag>
       </el-descriptions-item>
@@ -36,11 +32,7 @@
     <!-- 步骤变更 -->
     <div v-if="stepsDiff.length > 0" class="diff-section">
       <h4 class="section-title">步骤变更</h4>
-      <div
-        v-for="step in stepsDiff"
-        :key="step.stepNumber"
-        class="step-diff-card"
-      >
+      <div v-for="step in stepsDiff" :key="step.stepNumber" class="step-diff-card">
         <div class="step-diff-header">
           <el-tag type="info" size="small">步骤 {{ step.stepNumber }}</el-tag>
         </div>
@@ -60,11 +52,7 @@
                 {{ formatValue(change.new) }}
               </span>
             </div>
-            <el-tag
-              :type="changeTagType(change.changeType)"
-              size="small"
-              class="diff-tag"
-            >
+            <el-tag :type="changeTagType(change.changeType)" size="small" class="diff-tag">
               {{ changeTagLabel(change.changeType) }}
             </el-tag>
           </el-descriptions-item>

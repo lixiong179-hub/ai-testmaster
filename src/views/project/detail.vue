@@ -62,7 +62,10 @@
           </el-tab-pane>
 
           <el-tab-pane label="环境配置" name="env-config" lazy>
-            <div v-if="projectStore.currentProject.project_type === 'web'" class="env-config-section">
+            <div
+              v-if="projectStore.currentProject.project_type === 'web'"
+              class="env-config-section"
+            >
               <el-divider content-position="left">Web端多环境配置</el-divider>
               <el-form :model="webEnvForm" label-width="100px">
                 <el-form-item label="测试环境">

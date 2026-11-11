@@ -178,15 +178,11 @@ export function useFeatureFlag() {
 
   /** 删除 FeatureFlag */
   const deleteFlag = (row: FeatureFlagItem): void => {
-    ElMessageBox.confirm(
-      `确定要删除 FeatureFlag「${row.name}」吗？此操作不可恢复。`,
-      '确认删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
+    ElMessageBox.confirm(`确定要删除 FeatureFlag「${row.name}」吗？此操作不可恢复。`, '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
       .then(async () => {
         try {
           await featureFlagApi.deleteFeatureFlag(row.key)

@@ -26,421 +26,451 @@
       <div v-if="report" class="report-content">
         <el-tabs v-model="activeTab" class="report-tabs">
           <el-tab-pane label="报告详情" name="detail">
-        <!-- 报告基本信息 -->
-        <el-card shadow="hover" class="mb-4">
-          <el-form :model="report" label-width="120px">
-            <el-row :gutter="20">
-              <el-col :span="8">
-                <el-form-item label="报告名称">
-                  <el-input v-model="report.name" disabled />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="项目">
-                  <el-input v-model="report.project_name" disabled />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="创建时间">
-                  <el-input v-model="report.create_time" disabled />
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </el-form>
-        </el-card>
+            <!-- 报告基本信息 -->
+            <el-card shadow="hover" class="mb-4">
+              <el-form :model="report" label-width="120px">
+                <el-row :gutter="20">
+                  <el-col :span="8">
+                    <el-form-item label="报告名称">
+                      <el-input v-model="report.name" disabled />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="项目">
+                      <el-input v-model="report.project_name" disabled />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="创建时间">
+                      <el-input v-model="report.create_time" disabled />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </el-form>
+            </el-card>
 
-        <!-- ==================== 1. 缺陷概览卡片（首屏核心） ==================== -->
-        <el-card shadow="hover" class="mb-4">
-          <template #header>
-            <div class="section-header">
-              <span class="section-title">缺陷概览</span>
-              <el-tag v-if="defectOverview" :type="defectOverview.total_count > 0 ? 'danger' : 'success'" size="large">
-                共 {{ defectOverview.total_count }} 个缺陷
-              </el-tag>
-            </div>
-          </template>
-
-          <template v-if="defectOverview">
-            <!-- 覆盖不足警告 -->
-            <el-alert
-              v-if="defectOverview.coverage_insufficient_warning"
-              title="所有用例通过但未发现缺陷，可能覆盖不足"
-              type="warning"
-              show-icon
-              :closable="false"
-              class="mb-4"
-            />
-
-            <!-- 4 个严重度统计卡片 -->
-            <el-row :gutter="16" class="mb-4">
-              <el-col :span="6">
-                <el-card shadow="hover" class="stat-card stat-card--danger">
-                  <div class="stat-item">
-                    <div class="stat-label">P0 致命</div>
-                    <div class="stat-value">{{ defectOverview.p0_count }}</div>
-                  </div>
-                </el-card>
-              </el-col>
-              <el-col :span="6">
-                <el-card shadow="hover" class="stat-card stat-card--danger">
-                  <div class="stat-item">
-                    <div class="stat-label">P1 严重</div>
-                    <div class="stat-value">{{ defectOverview.p1_count }}</div>
-                  </div>
-                </el-card>
-              </el-col>
-              <el-col :span="6">
-                <el-card shadow="hover" class="stat-card stat-card--warning">
-                  <div class="stat-item">
-                    <div class="stat-label">P2 一般</div>
-                    <div class="stat-value">{{ defectOverview.p2_count }}</div>
-                  </div>
-                </el-card>
-              </el-col>
-              <el-col :span="6">
-                <el-card shadow="hover" class="stat-card stat-card--info">
-                  <div class="stat-item">
-                    <div class="stat-label">P3 轻微</div>
-                    <div class="stat-value">{{ defectOverview.p3_count }}</div>
-                  </div>
-                </el-card>
-              </el-col>
-            </el-row>
-
-            <!-- 关键指标行 -->
-            <el-row :gutter="16">
-              <el-col :span="8">
-                <div class="metric-item">
-                  <span class="metric-label">缺陷密度</span>
-                  <span class="metric-value">{{ defectOverview.defect_density.toFixed(2) }}</span>
-                  <span class="metric-unit">缺陷/用例</span>
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="metric-item">
-                  <span class="metric-label">高严重度占比</span>
-                  <span class="metric-value">{{ (defectOverview.high_severity_ratio * 100).toFixed(1) }}%</span>
-                  <span class="metric-unit">P0+P1</span>
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="metric-item">
-                  <span class="metric-label">缺陷发现覆盖率</span>
-                  <span class="metric-value">{{ (defectOverview.defect_coverage_rate * 100).toFixed(1) }}%</span>
-                </div>
-              </el-col>
-            </el-row>
-          </template>
-
-          <!-- 无缺陷数据时的占位 -->
-          <el-empty v-else description="暂无缺陷概览数据" :image-size="80" />
-        </el-card>
-
-        <!-- ==================== 2. 缺陷清单（按严重度排序） ==================== -->
-        <el-card shadow="hover" class="mb-4">
-          <template #header>
-            <div class="section-header">
-              <span class="section-title">缺陷清单</span>
-              <el-tag v-if="sortedDefectList.length > 0" type="info" size="small">
-                共 {{ sortedDefectList.length }} 条
-              </el-tag>
-            </div>
-          </template>
-
-          <el-table
-            v-if="sortedDefectList.length > 0"
-            :data="sortedDefectList"
-            style="width: 100%"
-            border
-            stripe
-            row-key="bug_no"
-            :default-sort="{ prop: 'severity', order: 'ascending' }"
-          >
-            <el-table-column type="expand">
-              <template #default="{ row }">
-                <div class="expand-content">
-                  <div v-if="row.reproduction_steps" class="expand-section">
-                    <h4>复现步骤</h4>
-                    <pre class="expand-pre">{{ row.reproduction_steps }}</pre>
-                  </div>
-                  <div v-if="row.evidence && Object.keys(row.evidence).length > 0" class="expand-section">
-                    <h4>缺陷证据</h4>
-                    <pre class="expand-pre">{{ formatJson(row.evidence) }}</pre>
-                  </div>
-                  <div v-if="row.ai_analysis" class="expand-section">
-                    <h4>AI 分析</h4>
-                    <p>{{ row.ai_analysis }}</p>
-                  </div>
-                  <div v-if="row.fix_suggestion" class="expand-section">
-                    <h4>修复建议</h4>
-                    <p>{{ row.fix_suggestion }}</p>
-                  </div>
+            <!-- ==================== 1. 缺陷概览卡片（首屏核心） ==================== -->
+            <el-card shadow="hover" class="mb-4">
+              <template #header>
+                <div class="section-header">
+                  <span class="section-title">缺陷概览</span>
+                  <el-tag
+                    v-if="defectOverview"
+                    :type="defectOverview.total_count > 0 ? 'danger' : 'success'"
+                    size="large"
+                  >
+                    共 {{ defectOverview.total_count }} 个缺陷
+                  </el-tag>
                 </div>
               </template>
-            </el-table-column>
-            <el-table-column prop="bug_no" label="Bug编号" width="150" />
-            <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="severity" label="严重度" width="100" sortable>
-              <template #default="{ row }">
-                <el-tag :type="severityTagType(row.severity)" size="small">
-                  {{ severityLabel(row.severity) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="ux_category" label="分类" width="160">
-              <template #default="{ row }">
-                <span>{{ row.ux_category || '-' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="module" label="功能模块" width="150" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span>{{ row.module || '-' }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="bugStatusType(row.status)" size="small" effect="plain">
-                  {{ bugStatusLabel(row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
 
-          <el-empty v-else description="暂无缺陷记录" :image-size="80" />
-        </el-card>
+              <template v-if="defectOverview">
+                <!-- 覆盖不足警告 -->
+                <el-alert
+                  v-if="defectOverview.coverage_insufficient_warning"
+                  title="所有用例通过但未发现缺陷，可能覆盖不足"
+                  type="warning"
+                  show-icon
+                  :closable="false"
+                  class="mb-4"
+                />
 
-        <!-- ==================== 3. 缺陷分布图表 ==================== -->
-        <el-card v-if="defectDistribution" shadow="hover" class="mb-4">
-          <template #header>
-            <div class="section-header">
-              <span class="section-title">缺陷分布</span>
-            </div>
-          </template>
+                <!-- 4 个严重度统计卡片 -->
+                <el-row :gutter="16" class="mb-4">
+                  <el-col :span="6">
+                    <el-card shadow="hover" class="stat-card stat-card--danger">
+                      <div class="stat-item">
+                        <div class="stat-label">P0 致命</div>
+                        <div class="stat-value">{{ defectOverview.p0_count }}</div>
+                      </div>
+                    </el-card>
+                  </el-col>
+                  <el-col :span="6">
+                    <el-card shadow="hover" class="stat-card stat-card--danger">
+                      <div class="stat-item">
+                        <div class="stat-label">P1 严重</div>
+                        <div class="stat-value">{{ defectOverview.p1_count }}</div>
+                      </div>
+                    </el-card>
+                  </el-col>
+                  <el-col :span="6">
+                    <el-card shadow="hover" class="stat-card stat-card--warning">
+                      <div class="stat-item">
+                        <div class="stat-label">P2 一般</div>
+                        <div class="stat-value">{{ defectOverview.p2_count }}</div>
+                      </div>
+                    </el-card>
+                  </el-col>
+                  <el-col :span="6">
+                    <el-card shadow="hover" class="stat-card stat-card--info">
+                      <div class="stat-item">
+                        <div class="stat-label">P3 轻微</div>
+                        <div class="stat-value">{{ defectOverview.p3_count }}</div>
+                      </div>
+                    </el-card>
+                  </el-col>
+                </el-row>
 
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <div class="chart-container">
-                <h4 class="chart-title">按功能模块分布</h4>
-                <div ref="moduleChartRef" class="chart"></div>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="chart-container">
-                <h4 class="chart-title">按缺陷类型分布</h4>
-                <div ref="categoryChartRef" class="chart"></div>
-              </div>
-            </el-col>
-          </el-row>
-        </el-card>
-
-        <!-- ==================== 4. 隐性缺陷 ==================== -->
-        <el-card v-if="hasImplicitDefects" shadow="hover" class="mb-4">
-          <template #header>
-            <div class="section-header">
-              <span class="section-title">隐性缺陷</span>
-              <el-tag type="warning" size="small">即使所有用例通过仍展示</el-tag>
-            </div>
-          </template>
-
-          <el-collapse v-model="implicitActiveNames">
-            <!-- 控制台错误 -->
-            <el-collapse-item
-              v-if="implicitDefects!.console_errors.length > 0"
-              :name="'console'"
-            >
-              <template #title>
-                <span class="collapse-title">
-                  控制台错误
-                  <el-badge :value="implicitDefects!.console_errors.length" type="danger" />
-                </span>
+                <!-- 关键指标行 -->
+                <el-row :gutter="16">
+                  <el-col :span="8">
+                    <div class="metric-item">
+                      <span class="metric-label">缺陷密度</span>
+                      <span class="metric-value">{{
+                        defectOverview.defect_density.toFixed(2)
+                      }}</span>
+                      <span class="metric-unit">缺陷/用例</span>
+                    </div>
+                  </el-col>
+                  <el-col :span="8">
+                    <div class="metric-item">
+                      <span class="metric-label">高严重度占比</span>
+                      <span class="metric-value"
+                        >{{ (defectOverview.high_severity_ratio * 100).toFixed(1) }}%</span
+                      >
+                      <span class="metric-unit">P0+P1</span>
+                    </div>
+                  </el-col>
+                  <el-col :span="8">
+                    <div class="metric-item">
+                      <span class="metric-label">缺陷发现覆盖率</span>
+                      <span class="metric-value"
+                        >{{ (defectOverview.defect_coverage_rate * 100).toFixed(1) }}%</span
+                      >
+                    </div>
+                  </el-col>
+                </el-row>
               </template>
-              <el-table :data="implicitDefects!.console_errors" border stripe size="small">
-                <el-table-column prop="error_type" label="错误类型" width="180" />
-                <el-table-column prop="message" label="消息" min-width="250" show-overflow-tooltip />
-                <el-table-column prop="source" label="来源" width="200" show-overflow-tooltip />
-                <el-table-column prop="timestamp" label="时间" width="180" />
-              </el-table>
-            </el-collapse-item>
 
-            <!-- 网络失败 -->
-            <el-collapse-item
-              v-if="implicitDefects!.network_failures.length > 0"
-              :name="'network'"
-            >
-              <template #title>
-                <span class="collapse-title">
-                  网络失败
-                  <el-badge :value="implicitDefects!.network_failures.length" type="danger" />
-                </span>
-              </template>
-              <el-table :data="implicitDefects!.network_failures" border stripe size="small">
-                <el-table-column prop="method" label="方法" width="80" />
-                <el-table-column prop="url" label="URL" min-width="250" show-overflow-tooltip />
-                <el-table-column prop="status_code" label="状态码" width="90" />
-                <el-table-column prop="duration" label="耗时(ms)" width="100" />
-                <el-table-column prop="timestamp" label="时间" width="180" />
-              </el-table>
-            </el-collapse-item>
+              <!-- 无缺陷数据时的占位 -->
+              <el-empty v-else description="暂无缺陷概览数据" :image-size="80" />
+            </el-card>
 
-            <!-- 内存泄漏嫌疑 -->
-            <el-collapse-item
-              v-if="implicitDefects!.memory_leaks.length > 0"
-              :name="'memory'"
-            >
-              <template #title>
-                <span class="collapse-title">
-                  内存泄漏嫌疑
-                  <el-badge :value="implicitDefects!.memory_leaks.length" type="warning" />
-                </span>
+            <!-- ==================== 2. 缺陷清单（按严重度排序） ==================== -->
+            <el-card shadow="hover" class="mb-4">
+              <template #header>
+                <div class="section-header">
+                  <span class="section-title">缺陷清单</span>
+                  <el-tag v-if="sortedDefectList.length > 0" type="info" size="small">
+                    共 {{ sortedDefectList.length }} 条
+                  </el-tag>
+                </div>
               </template>
-              <el-table :data="implicitDefects!.memory_leaks" border stripe size="small">
-                <el-table-column prop="description" label="描述" min-width="250" />
-                <el-table-column prop="evidence" label="证据" min-width="200" show-overflow-tooltip />
-                <el-table-column prop="severity" label="严重程度" width="100">
+
+              <el-table
+                v-if="sortedDefectList.length > 0"
+                :data="sortedDefectList"
+                style="width: 100%"
+                border
+                stripe
+                row-key="bug_no"
+                :default-sort="{ prop: 'severity', order: 'ascending' }"
+              >
+                <el-table-column type="expand">
                   <template #default="{ row }">
-                    <el-tag :type="row.severity === 'high' ? 'danger' : 'warning'" size="small">
-                      {{ row.severity }}
+                    <div class="expand-content">
+                      <div v-if="row.reproduction_steps" class="expand-section">
+                        <h4>复现步骤</h4>
+                        <pre class="expand-pre">{{ row.reproduction_steps }}</pre>
+                      </div>
+                      <div
+                        v-if="row.evidence && Object.keys(row.evidence).length > 0"
+                        class="expand-section"
+                      >
+                        <h4>缺陷证据</h4>
+                        <pre class="expand-pre">{{ formatJson(row.evidence) }}</pre>
+                      </div>
+                      <div v-if="row.ai_analysis" class="expand-section">
+                        <h4>AI 分析</h4>
+                        <p>{{ row.ai_analysis }}</p>
+                      </div>
+                      <div v-if="row.fix_suggestion" class="expand-section">
+                        <h4>修复建议</h4>
+                        <p>{{ row.fix_suggestion }}</p>
+                      </div>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="bug_no" label="Bug编号" width="150" />
+                <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="severity" label="严重度" width="100" sortable>
+                  <template #default="{ row }">
+                    <el-tag :type="severityTagType(row.severity)" size="small">
+                      {{ severityLabel(row.severity) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="ux_category" label="分类" width="160">
+                  <template #default="{ row }">
+                    <span>{{ row.ux_category || '-' }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="module" label="功能模块" width="150" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span>{{ row.module || '-' }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="bugStatusType(row.status)" size="small" effect="plain">
+                      {{ bugStatusLabel(row.status) }}
                     </el-tag>
                   </template>
                 </el-table-column>
               </el-table>
-            </el-collapse-item>
-          </el-collapse>
-        </el-card>
 
-        <!-- ==================== 5. 安全发现 ==================== -->
-        <el-card v-if="securityFindings.length > 0" shadow="hover" class="mb-4">
-          <template #header>
-            <div class="section-header">
-              <span class="section-title" style="color: #f56c6c;">安全发现</span>
-              <el-badge :value="securityFindings.length" type="danger" />
-            </div>
-          </template>
+              <el-empty v-else description="暂无缺陷记录" :image-size="80" />
+            </el-card>
 
-          <el-alert
-            v-for="(finding, idx) in securityFindings"
-            :key="idx"
-            :title="`[${finding.type}] ${finding.description}`"
-            type="error"
-            show-icon
-            :closable="false"
-            class="mb-3"
-          >
-            <template #default>
-              <div class="security-detail">
-                <p v-if="finding.evidence"><strong>证据：</strong>{{ finding.evidence }}</p>
-                <p><strong>严重程度：</strong>
-                  <el-tag :type="finding.severity === 'critical' ? 'danger' : 'warning'" size="small">
-                    {{ finding.severity }}
-                  </el-tag>
-                </p>
-              </div>
-            </template>
-          </el-alert>
-        </el-card>
-
-        <!-- ==================== 6. 覆盖评估 ==================== -->
-        <el-card v-if="coverageAssessment" shadow="hover" class="mb-4">
-          <template #header>
-            <div class="section-header">
-              <span class="section-title">覆盖评估</span>
-              <el-progress
-                :percentage="Number((coverageAssessment.coverage_rate * 100).toFixed(1))"
-                :color="coverageColor"
-                :stroke-width="18"
-                :text-inside="true"
-                style="width: 200px;"
-              />
-            </div>
-          </template>
-
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <h4 class="sub-title">已发现缺陷的模块</h4>
-              <div v-if="coverageAssessment.covered_modules.length > 0" class="tag-group">
-                <el-tag
-                  v-for="mod in coverageAssessment.covered_modules"
-                  :key="mod"
-                  type="success"
-                  class="module-tag"
-                >
-                  {{ mod }}
-                </el-tag>
-              </div>
-              <el-empty v-else description="暂无" :image-size="40" />
-            </el-col>
-            <el-col :span="12">
-              <h4 class="sub-title">未发现缺陷的模块</h4>
-              <div v-if="coverageAssessment.uncovered_modules.length > 0" class="tag-group">
-                <el-tag
-                  v-for="mod in coverageAssessment.uncovered_modules"
-                  :key="mod"
-                  type="warning"
-                  class="module-tag"
-                >
-                  {{ mod }}
-                </el-tag>
-              </div>
-              <el-empty v-else description="所有模块均已覆盖" :image-size="40" />
-            </el-col>
-          </el-row>
-        </el-card>
-
-        <!-- ==================== 7. 用例执行摘要（折叠面板，非首屏） ==================== -->
-        <el-card shadow="hover" class="mb-4">
-          <el-collapse v-model="executionActiveNames">
-            <el-collapse-item name="execution">
-              <template #title>
-                <span class="collapse-title">
-                  用例执行摘要
-                  <el-tag type="info" size="small" effect="plain">参考指标</el-tag>
-                </span>
+            <!-- ==================== 3. 缺陷分布图表 ==================== -->
+            <el-card v-if="defectDistribution" shadow="hover" class="mb-4">
+              <template #header>
+                <div class="section-header">
+                  <span class="section-title">缺陷分布</span>
+                </div>
               </template>
 
-              <el-row :gutter="16" class="mb-4">
-                <el-col :span="4">
-                  <div class="metric-item">
-                    <span class="metric-label">用例总数</span>
-                    <span class="metric-value">{{ report.total_cases }}</span>
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <div class="chart-container">
+                    <h4 class="chart-title">按功能模块分布</h4>
+                    <div ref="moduleChartRef" class="chart"></div>
                   </div>
                 </el-col>
-                <el-col :span="4">
-                  <div class="metric-item">
-                    <span class="metric-label">通过</span>
-                    <span class="metric-value" style="color: #67c23a;">{{ report.passed_cases }}</span>
-                  </div>
-                </el-col>
-                <el-col :span="4">
-                  <div class="metric-item">
-                    <span class="metric-label">失败</span>
-                    <span class="metric-value" style="color: #f56c6c;">{{ report.failed_cases }}</span>
-                  </div>
-                </el-col>
-                <el-col :span="4">
-                  <div class="metric-item">
-                    <span class="metric-label">阻塞</span>
-                    <span class="metric-value" style="color: #e6a23c;">{{ report.blocked_cases }}</span>
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="metric-item">
-                    <span class="metric-label">通过率（参考指标）</span>
-                    <span class="metric-value" style="color: #409eff;">
-                      {{ report.pass_rate.toFixed(2) }}%
-                    </span>
+                <el-col :span="12">
+                  <div class="chart-container">
+                    <h4 class="chart-title">按缺陷类型分布</h4>
+                    <div ref="categoryChartRef" class="chart"></div>
                   </div>
                 </el-col>
               </el-row>
+            </el-card>
 
-              <!-- 用例详情表格 -->
-              <ReportTable
-                :testCases="report.test_cases || []"
-                :total="report.total_cases || 0"
-                @pageChange="handlePageChange"
-              />
-            </el-collapse-item>
-          </el-collapse>
-        </el-card>
+            <!-- ==================== 4. 隐性缺陷 ==================== -->
+            <el-card v-if="hasImplicitDefects" shadow="hover" class="mb-4">
+              <template #header>
+                <div class="section-header">
+                  <span class="section-title">隐性缺陷</span>
+                  <el-tag type="warning" size="small">即使所有用例通过仍展示</el-tag>
+                </div>
+              </template>
+
+              <el-collapse v-model="implicitActiveNames">
+                <!-- 控制台错误 -->
+                <el-collapse-item
+                  v-if="implicitDefects!.console_errors.length > 0"
+                  :name="'console'"
+                >
+                  <template #title>
+                    <span class="collapse-title">
+                      控制台错误
+                      <el-badge :value="implicitDefects!.console_errors.length" type="danger" />
+                    </span>
+                  </template>
+                  <el-table :data="implicitDefects!.console_errors" border stripe size="small">
+                    <el-table-column prop="error_type" label="错误类型" width="180" />
+                    <el-table-column
+                      prop="message"
+                      label="消息"
+                      min-width="250"
+                      show-overflow-tooltip
+                    />
+                    <el-table-column prop="source" label="来源" width="200" show-overflow-tooltip />
+                    <el-table-column prop="timestamp" label="时间" width="180" />
+                  </el-table>
+                </el-collapse-item>
+
+                <!-- 网络失败 -->
+                <el-collapse-item
+                  v-if="implicitDefects!.network_failures.length > 0"
+                  :name="'network'"
+                >
+                  <template #title>
+                    <span class="collapse-title">
+                      网络失败
+                      <el-badge :value="implicitDefects!.network_failures.length" type="danger" />
+                    </span>
+                  </template>
+                  <el-table :data="implicitDefects!.network_failures" border stripe size="small">
+                    <el-table-column prop="method" label="方法" width="80" />
+                    <el-table-column prop="url" label="URL" min-width="250" show-overflow-tooltip />
+                    <el-table-column prop="status_code" label="状态码" width="90" />
+                    <el-table-column prop="duration" label="耗时(ms)" width="100" />
+                    <el-table-column prop="timestamp" label="时间" width="180" />
+                  </el-table>
+                </el-collapse-item>
+
+                <!-- 内存泄漏嫌疑 -->
+                <el-collapse-item v-if="implicitDefects!.memory_leaks.length > 0" :name="'memory'">
+                  <template #title>
+                    <span class="collapse-title">
+                      内存泄漏嫌疑
+                      <el-badge :value="implicitDefects!.memory_leaks.length" type="warning" />
+                    </span>
+                  </template>
+                  <el-table :data="implicitDefects!.memory_leaks" border stripe size="small">
+                    <el-table-column prop="description" label="描述" min-width="250" />
+                    <el-table-column
+                      prop="evidence"
+                      label="证据"
+                      min-width="200"
+                      show-overflow-tooltip
+                    />
+                    <el-table-column prop="severity" label="严重程度" width="100">
+                      <template #default="{ row }">
+                        <el-tag :type="row.severity === 'high' ? 'danger' : 'warning'" size="small">
+                          {{ row.severity }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </el-collapse-item>
+              </el-collapse>
+            </el-card>
+
+            <!-- ==================== 5. 安全发现 ==================== -->
+            <el-card v-if="securityFindings.length > 0" shadow="hover" class="mb-4">
+              <template #header>
+                <div class="section-header">
+                  <span class="section-title" style="color: #f56c6c">安全发现</span>
+                  <el-badge :value="securityFindings.length" type="danger" />
+                </div>
+              </template>
+
+              <el-alert
+                v-for="(finding, idx) in securityFindings"
+                :key="idx"
+                :title="`[${finding.type}] ${finding.description}`"
+                type="error"
+                show-icon
+                :closable="false"
+                class="mb-3"
+              >
+                <template #default>
+                  <div class="security-detail">
+                    <p v-if="finding.evidence"><strong>证据：</strong>{{ finding.evidence }}</p>
+                    <p>
+                      <strong>严重程度：</strong>
+                      <el-tag
+                        :type="finding.severity === 'critical' ? 'danger' : 'warning'"
+                        size="small"
+                      >
+                        {{ finding.severity }}
+                      </el-tag>
+                    </p>
+                  </div>
+                </template>
+              </el-alert>
+            </el-card>
+
+            <!-- ==================== 6. 覆盖评估 ==================== -->
+            <el-card v-if="coverageAssessment" shadow="hover" class="mb-4">
+              <template #header>
+                <div class="section-header">
+                  <span class="section-title">覆盖评估</span>
+                  <el-progress
+                    :percentage="Number((coverageAssessment.coverage_rate * 100).toFixed(1))"
+                    :color="coverageColor"
+                    :stroke-width="18"
+                    :text-inside="true"
+                    style="width: 200px"
+                  />
+                </div>
+              </template>
+
+              <el-row :gutter="20">
+                <el-col :span="12">
+                  <h4 class="sub-title">已发现缺陷的模块</h4>
+                  <div v-if="coverageAssessment.covered_modules.length > 0" class="tag-group">
+                    <el-tag
+                      v-for="mod in coverageAssessment.covered_modules"
+                      :key="mod"
+                      type="success"
+                      class="module-tag"
+                    >
+                      {{ mod }}
+                    </el-tag>
+                  </div>
+                  <el-empty v-else description="暂无" :image-size="40" />
+                </el-col>
+                <el-col :span="12">
+                  <h4 class="sub-title">未发现缺陷的模块</h4>
+                  <div v-if="coverageAssessment.uncovered_modules.length > 0" class="tag-group">
+                    <el-tag
+                      v-for="mod in coverageAssessment.uncovered_modules"
+                      :key="mod"
+                      type="warning"
+                      class="module-tag"
+                    >
+                      {{ mod }}
+                    </el-tag>
+                  </div>
+                  <el-empty v-else description="所有模块均已覆盖" :image-size="40" />
+                </el-col>
+              </el-row>
+            </el-card>
+
+            <!-- ==================== 7. 用例执行摘要（折叠面板，非首屏） ==================== -->
+            <el-card shadow="hover" class="mb-4">
+              <el-collapse v-model="executionActiveNames">
+                <el-collapse-item name="execution">
+                  <template #title>
+                    <span class="collapse-title">
+                      用例执行摘要
+                      <el-tag type="info" size="small" effect="plain">参考指标</el-tag>
+                    </span>
+                  </template>
+
+                  <el-row :gutter="16" class="mb-4">
+                    <el-col :span="4">
+                      <div class="metric-item">
+                        <span class="metric-label">用例总数</span>
+                        <span class="metric-value">{{ report.total_cases }}</span>
+                      </div>
+                    </el-col>
+                    <el-col :span="4">
+                      <div class="metric-item">
+                        <span class="metric-label">通过</span>
+                        <span class="metric-value" style="color: #67c23a">{{
+                          report.passed_cases
+                        }}</span>
+                      </div>
+                    </el-col>
+                    <el-col :span="4">
+                      <div class="metric-item">
+                        <span class="metric-label">失败</span>
+                        <span class="metric-value" style="color: #f56c6c">{{
+                          report.failed_cases
+                        }}</span>
+                      </div>
+                    </el-col>
+                    <el-col :span="4">
+                      <div class="metric-item">
+                        <span class="metric-label">阻塞</span>
+                        <span class="metric-value" style="color: #e6a23c">{{
+                          report.blocked_cases
+                        }}</span>
+                      </div>
+                    </el-col>
+                    <el-col :span="8">
+                      <div class="metric-item">
+                        <span class="metric-label">通过率（参考指标）</span>
+                        <span class="metric-value" style="color: #409eff">
+                          {{ report.pass_rate.toFixed(2) }}%
+                        </span>
+                      </div>
+                    </el-col>
+                  </el-row>
+
+                  <!-- 用例详情表格 -->
+                  <ReportTable
+                    :testCases="report.test_cases || []"
+                    :total="report.total_cases || 0"
+                    @pageChange="handlePageChange"
+                  />
+                </el-collapse-item>
+              </el-collapse>
+            </el-card>
           </el-tab-pane>
 
           <el-tab-pane label="关联缺陷" name="bugs">
@@ -581,11 +611,7 @@ const implicitDefects = computed<ImplicitDefects | null>(() => {
 const hasImplicitDefects = computed(() => {
   const d = implicitDefects.value
   if (!d) return false
-  return (
-    d.console_errors.length > 0 ||
-    d.network_failures.length > 0 ||
-    d.memory_leaks.length > 0
-  )
+  return d.console_errors.length > 0 || d.network_failures.length > 0 || d.memory_leaks.length > 0
 })
 
 const securityFindings = computed<SecurityFinding[]>(() => {
@@ -710,10 +736,10 @@ const handleResize = () => {
 /** 严重度 -> Tag 类型 */
 const severityTagType = (severity: number): 'danger' | 'warning' | 'info' => {
   const map: Record<number, 'danger' | 'warning' | 'info'> = {
-    1: 'danger',   // P0 致命
-    2: 'danger',   // P1 严重
-    3: 'warning',  // P2 一般
-    4: 'info',     // P3 轻微
+    1: 'danger', // P0 致命
+    2: 'danger', // P1 严重
+    3: 'warning', // P2 一般
+    4: 'info', // P3 轻微
   }
   return map[severity] ?? 'info'
 }

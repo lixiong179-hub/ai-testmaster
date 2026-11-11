@@ -48,9 +48,7 @@ export function useQualityRule() {
 
   /** 表单校验规则 */
   const formRules = computed(() => ({
-    rule_value_str: [
-      { required: true, message: '请输入规则值', trigger: 'blur' },
-    ],
+    rule_value_str: [{ required: true, message: '请输入规则值', trigger: 'blur' }],
   }))
 
   /** 加载项目列表 */

@@ -73,10 +73,9 @@ export const promptTemplateApi = {
 
   /** 获取指定 key 的全部版本（一次性拉满，前端分组展示用） */
   getVersionsByKey: async (key: string): Promise<PromptTemplate[]> => {
-    const response = await request.get<PromptTemplateListResponse>(
-      '/api/v1/prompt-templates/',
-      { params: { prompt_key: key, page: 1, page_size: 100 } }
-    )
+    const response = await request.get<PromptTemplateListResponse>('/api/v1/prompt-templates/', {
+      params: { prompt_key: key, page: 1, page_size: 100 },
+    })
     return response.data?.items ?? []
   },
 

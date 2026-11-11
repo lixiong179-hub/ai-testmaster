@@ -142,9 +142,7 @@ export const abTestApi = {
    *
    * 后端按变体分组聚合，前端据此计算差异百分比与改善判定。
    */
-  getExperimentSummary: async (
-    experimentId: string
-  ): Promise<ApiResponse<AbTestSummary>> => {
+  getExperimentSummary: async (experimentId: string): Promise<ApiResponse<AbTestSummary>> => {
     return request.get(
       `/api/v1/ab-test/experiments/${encodeURIComponent(experimentId)}/summary`
     ) as unknown as Promise<ApiResponse<AbTestSummary>>

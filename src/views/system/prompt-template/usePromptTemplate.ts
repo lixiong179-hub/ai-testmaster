@@ -61,9 +61,7 @@ export function usePromptTemplate() {
   /** 当前选中 key 的版本列表（按版本号降序，最新在前） */
   const currentVersions = computed<PromptTemplate[]>(() => {
     if (!currentRegistry.value) return []
-    return [...currentRegistry.value.versions].sort(
-      (a, b) => b.prompt_version - a.prompt_version
-    )
+    return [...currentRegistry.value.versions].sort((a, b) => b.prompt_version - a.prompt_version)
   })
 
   /** 将扁平列表按 prompt_key 分组为注册表 */

@@ -29,7 +29,11 @@ export interface UseFlowEdgeOpsOptions {
   /** 是否为总览模式 */
   isOverviewMode: Ref<boolean>
   /** 标准化边列表（附加样式/标记） */
-  normalizeEdges: (edges: Edge[], styleMap?: Record<string, EdgeStyleConfig>, isOverview?: boolean) => Edge[]
+  normalizeEdges: (
+    edges: Edge[],
+    styleMap?: Record<string, EdgeStyleConfig>,
+    isOverview?: boolean
+  ) => Edge[]
   /** 共享的程序化边变更标志（与 useFlowTypeOps/useFlowMainOrder 共用） */
   isProgrammaticEdgeChange: Ref<boolean>
 }

@@ -5,13 +5,7 @@ import bugApi from '@/api/bug'
 import projectApi from '@/api/project'
 import { useProjectStore } from '@/store/project'
 import type { TagType } from '@/types/element-plus'
-import type {
-  BugItem,
-  BugSeverity,
-  BugSource,
-  BugStatus,
-  BugUxCategory,
-} from '@/api/bug'
+import type { BugItem, BugSeverity, BugSource, BugStatus, BugUxCategory } from '@/api/bug'
 import type { Project } from '@/api/project'
 
 /** 严重级别选项：value 与后端 severity(1-4) 对齐 */
@@ -67,12 +61,8 @@ const severityTagTypeMap = new Map<number, TagType>([
   [3, 'primary'],
   [4, 'info'],
 ])
-const sourceLabelMap = new Map<string, string>(
-  sourceOptions.map((opt) => [opt.value, opt.label])
-)
-const statusLabelMap = new Map<string, string>(
-  statusOptions.map((opt) => [opt.value, opt.label])
-)
+const sourceLabelMap = new Map<string, string>(sourceOptions.map((opt) => [opt.value, opt.label]))
+const statusLabelMap = new Map<string, string>(statusOptions.map((opt) => [opt.value, opt.label]))
 const statusTagTypeMap = new Map<string, TagType>([
   ['open', 'info'],
   ['in_progress', 'primary'],

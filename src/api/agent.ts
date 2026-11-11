@@ -122,9 +122,7 @@ export const agentStatusOptions = [
 
 export const agentApi = {
   /** 分页查询会话列表，支持按项目/Agent类型/状态过滤 */
-  getSessions: async (
-    params: SessionListParams
-  ): Promise<ApiResponse<SessionListData>> => {
+  getSessions: async (params: SessionListParams): Promise<ApiResponse<SessionListData>> => {
     return request.get('/api/v1/agents/sessions', { params })
   },
 
@@ -134,10 +132,7 @@ export const agentApi = {
   },
 
   /** 按时间升序查询会话消息流（limit 上限 500） */
-  getMessages: async (
-    sessionId: number,
-    limit = 100
-  ): Promise<ApiResponse<AgentMessage[]>> => {
+  getMessages: async (sessionId: number, limit = 100): Promise<ApiResponse<AgentMessage[]>> => {
     return request.get(`/api/v1/agents/sessions/${sessionId}/messages`, {
       params: { limit },
     })
@@ -149,9 +144,7 @@ export const agentApi = {
   },
 
   /** 创建并驱动 Agent 会话运行（R1-2 新增端点，会真实调用 LLM） */
-  runSession: async (
-    payload: SessionRunPayload
-  ): Promise<ApiResponse<AgentSession>> => {
+  runSession: async (payload: SessionRunPayload): Promise<ApiResponse<AgentSession>> => {
     return request.post('/api/v1/agents/sessions/run', payload)
   },
 }

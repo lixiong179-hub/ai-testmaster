@@ -193,7 +193,8 @@ export const testPointApi = {
         const currentData = currentDataParts.join('\n')
         try {
           const parsed = JSON.parse(currentData)
-          if (currentEvent === 'progress') callbacks.onProgress?.(parsed as XmindImportProgressEvent)
+          if (currentEvent === 'progress')
+            callbacks.onProgress?.(parsed as XmindImportProgressEvent)
           else if (currentEvent === 'result')
             callbacks.onResult?.(parsed as XmindPreviewResponse | XmindImportResponse)
           else if (currentEvent === 'error')

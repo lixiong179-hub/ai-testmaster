@@ -87,11 +87,7 @@
           finish-status="success"
           align-center
         >
-          <el-step
-            v-for="step in runData.steps"
-            :key="step.id"
-            :status="stepElStatus(step.status)"
-          >
+          <el-step v-for="step in runData.steps" :key="step.id" :status="stepElStatus(step.status)">
             <template #title>
               <span class="step-title">{{ stepNameMap[step.step_name] || step.step_name }}</span>
             </template>

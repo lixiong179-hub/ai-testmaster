@@ -3,18 +3,8 @@
     <el-page-header @back="goBack" title="返回" content="AI 成本仪表盘" />
 
     <div class="dashboard-filters">
-      <el-select
-        v-model="projectId"
-        placeholder="全部项目"
-        clearable
-        style="width: 200px"
-      >
-        <el-option
-          v-for="p in projects"
-          :key="p.id"
-          :label="p.name"
-          :value="p.id"
-        />
+      <el-select v-model="projectId" placeholder="全部项目" clearable style="width: 200px">
+        <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
       </el-select>
       <el-select v-model="days" style="width: 120px; margin-left: 12px">
         <el-option label="近7天" :value="7" />
@@ -37,8 +27,7 @@
         <el-card shadow="hover" class="metric-card" :class="card.color">
           <div class="metric-title">{{ card.title }}</div>
           <div class="metric-value">
-            {{ card.value
-            }}<span class="metric-suffix">{{ card.suffix }}</span>
+            {{ card.value }}<span class="metric-suffix">{{ card.suffix }}</span>
           </div>
         </el-card>
       </el-col>
@@ -94,10 +83,7 @@
         <el-table-column prop="latency_ms" label="耗时(ms)" width="100" align="right" />
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
-            <el-tag
-              :type="row.status === 'success' ? 'success' : 'danger'"
-              size="small"
-            >
+            <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">
               {{ row.status === 'success' ? '成功' : '失败' }}
             </el-tag>
           </template>

@@ -1,22 +1,11 @@
 <template>
   <div class="self-healing-config-tab" v-loading="loading">
-    <el-alert
-      type="info"
-      :closable="false"
-      show-icon
-      class="config-tip"
-    >
+    <el-alert type="info" :closable="false" show-icon class="config-tip">
       项目级自愈配置，启用后将在用例执行时自动修复失效元素定位器。
       项目开关受全局开关约束：全局关闭时项目级启用亦不生效。
     </el-alert>
 
-    <el-form
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      label-width="120px"
-      class="config-form"
-    >
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="120px" class="config-form">
       <el-form-item label="启用自愈" prop="enabled">
         <el-switch v-model="form.enabled" />
         <span class="form-hint">关闭后该项目不触发自动修复</span>
@@ -45,9 +34,7 @@
       </el-form-item>
 
       <el-form-item>
-        <el-button type="primary" :loading="saving" @click="handleSave">
-          保存配置
-        </el-button>
+        <el-button type="primary" :loading="saving" @click="handleSave"> 保存配置 </el-button>
       </el-form-item>
     </el-form>
   </div>

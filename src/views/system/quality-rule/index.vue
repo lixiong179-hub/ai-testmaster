@@ -58,7 +58,8 @@
               type="warning"
               :disabled="isDefaultValue(scope.row)"
               @click="resetToDefault(scope.row)"
-            >恢复默认</el-button>
+              >恢复默认</el-button
+            >
           </template>
         </el-table-column>
       </el-table>
@@ -86,11 +87,7 @@
         </el-form-item>
         <!-- 根据规则类型动态生成表单字段 -->
         <el-form-item v-if="currentRule?.value_type === 'boolean'" label="规则值">
-          <el-switch
-            v-model="formData.rule_value_bool"
-            active-text="是"
-            inactive-text="否"
-          />
+          <el-switch v-model="formData.rule_value_bool" active-text="是" inactive-text="否" />
         </el-form-item>
         <el-form-item v-else-if="currentRule?.value_type === 'number'" label="规则值">
           <el-input-number
@@ -100,10 +97,14 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item v-else-if="currentRule?.value_type === 'enum'" label="规则值" prop="rule_value_str">
+        <el-form-item
+          v-else-if="currentRule?.value_type === 'enum'"
+          label="规则值"
+          prop="rule_value_str"
+        >
           <el-select v-model="formData.rule_value_str" placeholder="请选择" style="width: 100%">
             <el-option
-              v-for="opt in (currentRule?.enum_options ?? [])"
+              v-for="opt in currentRule?.enum_options ?? []"
               :key="opt"
               :label="opt"
               :value="opt"

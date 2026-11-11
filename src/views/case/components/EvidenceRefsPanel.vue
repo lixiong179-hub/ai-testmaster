@@ -7,20 +7,10 @@
         <el-tag size="small" type="info" round>{{ requirementCount }}条</el-tag>
       </div>
       <div class="evidence-list">
-        <div
-          v-for="req in allRequirements"
-          :key="'req-' + req.id"
-          class="evidence-item"
-        >
+        <div v-for="req in allRequirements" :key="'req-' + req.id" class="evidence-item">
           <el-icon class="evidence-icon"><Document /></el-icon>
           <span class="evidence-title">{{ getEvidenceTitle(req) }}</span>
-          <el-tag
-            v-if="getEvidenceNo(req)"
-            size="small"
-            type="primary"
-            effect="plain"
-            round
-          >
+          <el-tag v-if="getEvidenceNo(req)" size="small" type="primary" effect="plain" round>
             {{ getEvidenceNo(req) }}
           </el-tag>
         </div>
@@ -77,19 +67,10 @@
           >
             相似度 {{ (hc.similarity * 100).toFixed(0) }}%
           </el-tag>
-          <el-tag
-            size="small"
-            :type="trustLevelTagType(hc.trust_level)"
-            effect="plain"
-            round
-          >
+          <el-tag size="small" :type="trustLevelTagType(hc.trust_level)" effect="plain" round>
             {{ trustLevelLabel(hc.trust_level) }}
           </el-tag>
-          <el-tooltip
-            v-if="hc.staleness_reason"
-            :content="hc.staleness_reason"
-            placement="top"
-          >
+          <el-tooltip v-if="hc.staleness_reason" :content="hc.staleness_reason" placement="top">
             <el-icon class="staleness-icon"><Warning /></el-icon>
           </el-tooltip>
         </div>
@@ -97,10 +78,7 @@
     </div>
 
     <!-- 无数据提示 -->
-    <div
-      class="evidence-empty"
-      v-if="!hasRequirements && !hasUiScreens && !hasHistoryCases"
-    >
+    <div class="evidence-empty" v-if="!hasRequirements && !hasUiScreens && !hasHistoryCases">
       <el-empty description="暂无证据引用数据" :image-size="48" />
     </div>
   </div>

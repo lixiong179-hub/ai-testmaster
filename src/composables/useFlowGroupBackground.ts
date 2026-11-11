@@ -84,7 +84,10 @@ export function useFlowGroupBackground(
 
     // Group by parent main node (for branch/exception/bypass children)
     const groups = new Map<string, FlowEditorNode[]>()
-    const mainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
+    const mainNodes = getMainNodesInOrder(
+      vueFlowNodes.value,
+      vueFlowEdges.value as unknown as Edge[]
+    )
 
     mainNodes.forEach((mainNode) => {
       const children = branchChildrenMap.value.get(mainNode.id)

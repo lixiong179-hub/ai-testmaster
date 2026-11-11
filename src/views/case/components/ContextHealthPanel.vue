@@ -37,10 +37,7 @@
     </div>
 
     <!-- 缺失上下文 -->
-    <div
-      class="missing-context-section"
-      v-if="hasMissingContext || hasLowConfidence"
-    >
+    <div class="missing-context-section" v-if="hasMissingContext || hasLowConfidence">
       <div class="section-label">缺失与低置信度</div>
       <div class="missing-tags" v-if="hasMissingContext">
         <span class="tag-group-label">缺失核心上下文:</span>
@@ -71,7 +68,14 @@
     </div>
 
     <!-- 后端 warnings 分组展示 -->
-    <div class="warnings-section" v-if="groupedWarnings.danger.length > 0 || groupedWarnings.warning.length > 0 || groupedWarnings.info.length > 0">
+    <div
+      class="warnings-section"
+      v-if="
+        groupedWarnings.danger.length > 0 ||
+        groupedWarnings.warning.length > 0 ||
+        groupedWarnings.info.length > 0
+      "
+    >
       <div class="section-label">后端警告</div>
       <!-- 阻断类 -->
       <div class="warning-group" v-if="groupedWarnings.danger.length > 0">
@@ -90,9 +94,7 @@
           <template #title>{{ w.message }}</template>
           <template #default v-if="w.detail && Object.keys(w.detail).length > 0">
             <div class="warning-detail">
-              <span v-for="(val, key) in w.detail" :key="String(key)">
-                {{ key }}: {{ val }}
-              </span>
+              <span v-for="(val, key) in w.detail" :key="String(key)"> {{ key }}: {{ val }} </span>
             </div>
           </template>
         </el-alert>
@@ -114,9 +116,7 @@
           <template #title>{{ w.message }}</template>
           <template #default v-if="w.detail && Object.keys(w.detail).length > 0">
             <div class="warning-detail">
-              <span v-for="(val, key) in w.detail" :key="String(key)">
-                {{ key }}: {{ val }}
-              </span>
+              <span v-for="(val, key) in w.detail" :key="String(key)"> {{ key }}: {{ val }} </span>
             </div>
           </template>
         </el-alert>
@@ -138,9 +138,7 @@
           <template #title>{{ w.message }}</template>
           <template #default v-if="w.detail && Object.keys(w.detail).length > 0">
             <div class="warning-detail">
-              <span v-for="(val, key) in w.detail" :key="String(key)">
-                {{ key }}: {{ val }}
-              </span>
+              <span v-for="(val, key) in w.detail" :key="String(key)"> {{ key }}: {{ val }} </span>
             </div>
           </template>
         </el-alert>

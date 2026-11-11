@@ -42,12 +42,7 @@
             </el-select>
           </el-col>
           <el-col :xs="24" :sm="12" :md="6">
-            <el-select
-              v-model="filters.source"
-              placeholder="来源"
-              clearable
-              style="width: 100%"
-            >
+            <el-select v-model="filters.source" placeholder="来源" clearable style="width: 100%">
               <el-option
                 v-for="opt in sourceOptions"
                 :key="opt.value"
@@ -72,12 +67,7 @@
             </el-select>
           </el-col>
           <el-col :xs="24" :sm="12" :md="6">
-            <el-select
-              v-model="filters.status"
-              placeholder="状态"
-              clearable
-              style="width: 100%"
-            >
+            <el-select v-model="filters.status" placeholder="状态" clearable style="width: 100%">
               <el-option
                 v-for="opt in statusOptions"
                 :key="opt.value"
@@ -105,14 +95,7 @@
       />
 
       <!-- 数据表格 -->
-      <el-table
-        v-else
-        v-loading="loading"
-        :data="bugs"
-        style="width: 100%"
-        border
-        stripe
-      >
+      <el-table v-else v-loading="loading" :data="bugs" style="width: 100%" border stripe>
         <el-table-column prop="bug_no" label="Bug编号" width="170" />
         <el-table-column prop="title" label="缺陷标题" min-width="220" show-overflow-tooltip />
         <el-table-column v-if="!embedded" label="所属项目" width="160">
@@ -288,18 +271,21 @@ import {
  * 2. 嵌入式（embedded）：由父组件传入 taskId/projectId，挂载即按任务筛选，
  *    隐藏项目选择列与"所属项目"列，并暴露 empty-action 插槽用于自定义空状态操作。
  */
-const props = withDefaults(defineProps<{
-  taskId?: number
-  projectId?: number
-  embedded?: boolean
-  /** 空状态描述文案，嵌入式场景下默认"本次执行未发现缺陷" */
-  emptyDescription?: string
-}>(), {
-  taskId: undefined,
-  projectId: undefined,
-  embedded: false,
-  emptyDescription: '暂无缺陷数据',
-})
+const props = withDefaults(
+  defineProps<{
+    taskId?: number
+    projectId?: number
+    embedded?: boolean
+    /** 空状态描述文案，嵌入式场景下默认"本次执行未发现缺陷" */
+    emptyDescription?: string
+  }>(),
+  {
+    taskId: undefined,
+    projectId: undefined,
+    embedded: false,
+    emptyDescription: '暂无缺陷数据',
+  }
+)
 
 const {
   loading,

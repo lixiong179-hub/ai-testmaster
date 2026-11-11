@@ -16,10 +16,7 @@
         <el-table-column prop="name" label="名称" width="160" show-overflow-tooltip />
         <el-table-column label="状态" width="100">
           <template #default="scope">
-            <el-switch
-              v-model="scope.row.enabled"
-              @change="handleToggle(scope.row)"
-            />
+            <el-switch v-model="scope.row.enabled" @change="handleToggle(scope.row)" />
           </template>
         </el-table-column>
         <el-table-column label="灰度比例" width="200">
@@ -43,7 +40,11 @@
         </el-table-column>
         <el-table-column label="目标项目" min-width="180" show-overflow-tooltip>
           <template #default="scope">
-            {{ scope.row.target_type === 'all' ? '全部' : getProjectNames(scope.row.target_project_ids) }}
+            {{
+              scope.row.target_type === 'all'
+                ? '全部'
+                : getProjectNames(scope.row.target_project_ids)
+            }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
@@ -54,10 +55,7 @@
         </el-table-column>
       </el-table>
 
-      <el-empty
-        v-if="!loading && flags.length === 0"
-        description="暂无 FeatureFlag 数据"
-      />
+      <el-empty v-if="!loading && flags.length === 0" description="暂无 FeatureFlag 数据" />
     </el-card>
 
     <!-- 新增/编辑对话框 -->
@@ -95,11 +93,7 @@
         </el-form-item>
         <el-form-item label="目标类型" prop="target_type">
           <el-radio-group v-model="formData.target_type">
-            <el-radio
-              v-for="opt in TARGET_TYPE_OPTIONS"
-              :key="opt.value"
-              :value="opt.value"
-            >
+            <el-radio v-for="opt in TARGET_TYPE_OPTIONS" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </el-radio>
           </el-radio-group>

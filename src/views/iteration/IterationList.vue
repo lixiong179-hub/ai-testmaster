@@ -66,21 +66,18 @@
         <el-icon :size="48" color="#c0c4cc"><Plus /></el-icon>
         <p class="empty-title">{{ statusFilter ? '该状态下暂无迭代' : '该项目暂无迭代' }}</p>
         <p class="empty-hint">
-          {{ statusFilter ? '更换筛选条件或刷新列表' : '创建迭代以组织需求文档、UI 原型与回归 Pipeline' }}
+          {{
+            statusFilter
+              ? '更换筛选条件或刷新列表'
+              : '创建迭代以组织需求文档、UI 原型与回归 Pipeline'
+          }}
         </p>
         <el-button v-if="!statusFilter" type="primary" :icon="Plus" @click="handleAdd">
           创建第一个迭代
         </el-button>
       </div>
 
-      <el-table
-        v-else
-        :data="iterations"
-        stripe
-        border
-        class="iteration-table"
-        row-key="id"
-      >
+      <el-table v-else :data="iterations" stripe border class="iteration-table" row-key="id">
         <el-table-column label="迭代名称" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="iter-name">{{ row.name }}</span>
@@ -230,11 +227,9 @@
       </el-form>
       <template #footer>
         <el-button @click="iterationManager.iterationDialogVisible = false">取消</el-button>
-        <el-button
-          type="primary"
-          :loading="iterationManager.isSubmitting"
-          @click="handleSubmit"
-        >确定</el-button>
+        <el-button type="primary" :loading="iterationManager.isSubmitting" @click="handleSubmit"
+          >确定</el-button
+        >
       </template>
     </el-dialog>
   </div>
@@ -248,48 +243,48 @@ import { formatTime } from '@/utils/dateFormat'
 import { useIterationList, type IterationAction } from './useIterationList'
 
 const {
-    loading,
-    selectedProjectId,
-    currentProjectName,
-    iterations,
-    statusFilter,
-    pagination,
-    projectStore,
-    iterationManager,
-    statusOptions,
-    getStatusType,
-    getStatusText,
-    getStats,
-    getPipelineStatusType,
-    getPipelineStatusText,
-    getAvailableActions,
-    loadData,
-    handleCommand,
+  loading,
+  selectedProjectId,
+  currentProjectName,
+  iterations,
+  statusFilter,
+  pagination,
+  projectStore,
+  iterationManager,
+  statusOptions,
+  getStatusType,
+  getStatusText,
+  getStats,
+  getPipelineStatusType,
+  getPipelineStatusText,
+  getAvailableActions,
+  loadData,
+  handleCommand,
 } = useIterationList()
 
 const iterationFormRef = ref<FormInstance>()
 
 function formatDate(dateStr: string): string {
-    return formatTime(dateStr)
+  return formatTime(dateStr)
 }
 
 function handleAdd(): void {
-    if (!selectedProjectId.value) return
-    iterationManager.handleAddIteration(selectedProjectId.value)
+  if (!selectedProjectId.value) return
+  iterationManager.handleAddIteration(selectedProjectId.value)
 }
 
 async function handleSubmit(): Promise<void> {
-    const success = await iterationManager.handleIterationSubmit(iterationFormRef.value)
-    if (success) await loadData()
+  const success = await iterationManager.handleIterationSubmit(iterationFormRef.value)
+  if (success) await loadData()
 }
 
 function handlePageChange(page: number): void {
-    pagination.page = page
+  pagination.page = page
 }
 
 function handleSizeChange(size: number): void {
-    pagination.pageSize = size
-    pagination.page = 1
+  pagination.pageSize = size
+  pagination.page = 1
 }
 </script>
 

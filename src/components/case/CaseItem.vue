@@ -68,7 +68,9 @@
                   >{{ step.display_action || step.description || step.step || step.action
                   }}{{ step.param ? ` (${step.param})` : '' }}</span
                 >
-                <span v-if="(step as unknown as { expected?: string }).expected" class="step-expected"
+                <span
+                  v-if="(step as unknown as { expected?: string }).expected"
+                  class="step-expected"
                   >→ {{ (step as unknown as { expected?: string }).expected }}</span
                 >
               </li>

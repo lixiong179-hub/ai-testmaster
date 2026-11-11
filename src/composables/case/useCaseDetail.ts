@@ -266,7 +266,8 @@ function createCaseDetailContext() {
     if (query.correction !== 'true') return
     isCorrectionMode.value = true
     correctionStepIndex.value = Number(query.stepIndex) || -1
-    issueType.value = (query.issueType as 'case_issue' | 'product_bug' | 'needs_review') || 'case_issue'
+    issueType.value =
+      (query.issueType as 'case_issue' | 'product_bug' | 'needs_review') || 'case_issue'
     failureReason.value = query.failureReason
       ? decodeURIComponent(query.failureReason as string)
       : ''

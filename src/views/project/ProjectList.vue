@@ -42,11 +42,7 @@
               <el-form-item label="登录凭据（仅登录页场景）">
                 <el-row :gutter="10">
                   <el-col :span="12">
-                    <el-input
-                      v-model="quickUsername"
-                      placeholder="账号"
-                      autocomplete="off"
-                    />
+                    <el-input v-model="quickUsername" placeholder="账号" autocomplete="off" />
                   </el-col>
                   <el-col :span="12">
                     <el-input
@@ -64,12 +60,7 @@
         </el-collapse>
 
         <div class="quick-test-actions">
-          <el-button
-            type="primary"
-            size="large"
-            :loading="quickLoading"
-            @click="quickSubmit"
-          >
+          <el-button type="primary" size="large" :loading="quickLoading" @click="quickSubmit">
             开始测试
           </el-button>
         </div>
@@ -363,14 +354,14 @@ const {
 // 顶部置顶"快速测试"卡片表单逻辑（校验/提交/跳转/错误提示均在 composable 内）
 // 解构为顶层绑定，模板中 ref 自动解包；重命名加 quick 前缀避免与 useProjectList 同名冲突
 const {
-    url: quickUrl,
-    description: quickDescription,
-    username: quickUsername,
-    password: quickPassword,
-    error: quickError,
-    loading: quickLoading,
-    clearError: quickClearError,
-    submitCard: quickSubmit,
+  url: quickUrl,
+  description: quickDescription,
+  username: quickUsername,
+  password: quickPassword,
+  error: quickError,
+  loading: quickLoading,
+  clearError: quickClearError,
+  submitCard: quickSubmit,
 } = useQuickTestCard()
 // el-collapse v-model 接收展开面板 name 数组，纯 UI 态故留在组件本地
 const advancedCollapse = ref<string[]>([])

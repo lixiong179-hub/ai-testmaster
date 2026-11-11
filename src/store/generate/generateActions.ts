@@ -192,9 +192,10 @@ export function createGenerateActions(
           context = {
             requirement_content: data.requirement_content || '',
             ui_descriptions: data.ui_descriptions || [],
-            ui_description: Array.isArray(data.ui_descriptions) && data.ui_descriptions.length > 0
-              ? JSON.stringify(data.ui_descriptions)
-              : '',
+            ui_description:
+              Array.isArray(data.ui_descriptions) && data.ui_descriptions.length > 0
+                ? JSON.stringify(data.ui_descriptions)
+                : '',
             ui_specs: data.ui_specs || [],
             test_points: contextTestPoints,
             project_config: data.project_config || null,
@@ -204,7 +205,9 @@ export function createGenerateActions(
 
           // 提取上下文健康检查信息
           state.contextStats.value = (data.context_stats as unknown as ContextStats) || null
-          state.serverWarnings.value = Array.isArray(data.warnings) ? (data.warnings as unknown as ServerWarning[]) : []
+          state.serverWarnings.value = Array.isArray(data.warnings)
+            ? (data.warnings as unknown as ServerWarning[])
+            : []
           state.evidenceRefs.value = (data.evidence_refs as unknown as EvidenceRefs) || null
 
           state.progress.value = 15

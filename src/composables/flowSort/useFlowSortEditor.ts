@@ -352,7 +352,8 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     const hasChange =
       vueFlowNodes.value.some((n) => n.hidden !== hiddenNodeIds.has(n.id)) ||
       vueFlowEdges.value.some(
-        (e: FlowGraphEdge) => e.hidden !== (hiddenNodeIds.has(e.source) || hiddenNodeIds.has(e.target))
+        (e: FlowGraphEdge) =>
+          e.hidden !== (hiddenNodeIds.has(e.source) || hiddenNodeIds.has(e.target))
       )
     if (!hasChange) return
     vueFlowNodes.value = vueFlowNodes.value.map((node) => ({
@@ -366,7 +367,10 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
   }
 
   const mainNodeOptions = computed(() => {
-    const mainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
+    const mainNodes = getMainNodesInOrder(
+      vueFlowNodes.value,
+      vueFlowEdges.value as unknown as Edge[]
+    )
     const nonMainNodes = vueFlowNodes.value.filter((n) => getNodeData(n).flow_type !== 'main')
     const mainOpts = mainNodes.map((node) => ({
       id: node.id,
@@ -380,7 +384,8 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
       const d = getNodeData(node)
       const parentEdge = vueFlowEdges.value.find(
         (e: FlowGraphEdge) =>
-          e.target === node.id && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string)
+          e.target === node.id &&
+          ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string)
       )
       let depth = 1
       if (parentEdge) {
@@ -498,7 +503,10 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     const filter = flowFilter.value
     if (filter === 'all') {
       vueFlowNodes.value = vueFlowNodes.value.map((node) => ({ ...node, hidden: false }))
-      vueFlowEdges.value = vueFlowEdges.value.map((edge: FlowGraphEdge) => ({ ...edge, hidden: false }))
+      vueFlowEdges.value = vueFlowEdges.value.map((edge: FlowGraphEdge) => ({
+        ...edge,
+        hidden: false,
+      }))
       applyCollapsedHidden()
       return
     }
@@ -546,7 +554,9 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     const draggedNode = vueFlowNodes.value.find((n) => n.id === draggedId)
     if (!draggedNode) return
     const existingEdges = new Set(
-      vueFlowEdges.value.filter((e: FlowGraphEdge) => !e.hidden).map((e: FlowGraphEdge) => `${e.source}->${e.target}`)
+      vueFlowEdges.value
+        .filter((e: FlowGraphEdge) => !e.hidden)
+        .map((e: FlowGraphEdge) => `${e.source}->${e.target}`)
     )
     const newEdges: FlowGraphEdge[] = []
     vueFlowNodes.value.forEach((other) => {

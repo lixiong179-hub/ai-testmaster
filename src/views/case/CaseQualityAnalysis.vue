@@ -96,7 +96,8 @@
     </div>
     <el-empty v-else-if="!loading" description="请选择项目后查看质量分析" />
     <el-dialog v-model="dialogVisible" title="详细分析" width="600px"
-      ><div style="white-space: pre-wrap">{{ dialogContent }}</div></el-dialog>
+      ><div style="white-space: pre-wrap">{{ dialogContent }}</div></el-dialog
+    >
   </div>
 </template>
 

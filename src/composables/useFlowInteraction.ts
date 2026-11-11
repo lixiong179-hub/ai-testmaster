@@ -200,7 +200,11 @@ export interface UseFlowEdgeOpsOptions {
   /** 是否为总览模式 */
   isOverviewMode: Ref<boolean>
   /** 标准化边列表（附加样式/标记） */
-  normalizeEdges: (edges: Edge[], styleMap?: Record<string, EdgeStyleConfig>, isOverview?: boolean) => Edge[]
+  normalizeEdges: (
+    edges: Edge[],
+    styleMap?: Record<string, EdgeStyleConfig>,
+    isOverview?: boolean
+  ) => Edge[]
   /** 共享的程序化边变更标志（与 useFlowTypeOps/useFlowMainOrder 共用） */
   isProgrammaticEdgeChange: Ref<boolean>
 }
@@ -572,10 +576,14 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
       isProgrammaticEdgeChange.value = true
       vueFlowEdges.value = vueFlowEdges.value.filter(
         (e: FlowGraphEdge) =>
-          !(e.target === nodeId && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string))
+          !(
+            e.target === nodeId &&
+            ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string)
+          )
       )
       const nextMainOrder =
-        getMainNodesInOrderFn(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[]).length + 1
+        getMainNodesInOrderFn(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[]).length +
+        1
       vueFlowNodes.value = normalizeMainNodeOrdersFn(
         vueFlowNodes.value.map((node) => {
           if (node.id !== nodeId) return node
@@ -721,12 +729,7 @@ export function useFlowTypeOps(options: UseFlowTypeOpsOptions) {
     flowTypeConfigVisible.value = false
     pendingFlowTypeChange.value = null
     pendingFlowMeta.value = null
-    vueFlowNodes.value = autoLayout(
-      'focused-path',
-      vueFlowNodes.value,
-      vueFlowEdges.value,
-      nodeId
-    )
+    vueFlowNodes.value = autoLayout('focused-path', vueFlowNodes.value, vueFlowEdges.value, nodeId)
     emitSortData()
     nextTick(() => {
       fitView?.({ duration: 300, padding: 0.15 })

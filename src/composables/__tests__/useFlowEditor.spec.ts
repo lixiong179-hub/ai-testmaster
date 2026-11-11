@@ -195,15 +195,21 @@ describe('normalizeEdges', () => {
       { id: 'e2', source: 'a', target: 'c', data: { edge_type: 'normal' } },
     ]
     const result = normalizeEdges(edges as unknown as Edge[])
-    expect((result[0].style as unknown as { stroke?: string })?.stroke).toBe(EDGE_STYLES.branch.stroke)
+    expect((result[0].style as unknown as { stroke?: string })?.stroke).toBe(
+      EDGE_STYLES.branch.stroke
+    )
     expect(result[0].animated).toBe(true)
-    expect((result[1].style as unknown as { stroke?: string })?.stroke).toBe(EDGE_STYLES.normal.stroke)
+    expect((result[1].style as unknown as { stroke?: string })?.stroke).toBe(
+      EDGE_STYLES.normal.stroke
+    )
     expect(result[1].animated).toBe(false)
   })
 
   it('should create arrow marker with correct color', () => {
     const edges = [{ id: 'e1', source: 'a', target: 'b', data: { edge_type: 'exception' } }]
     const result = normalizeEdges(edges as unknown as Edge[])
-    expect((result[0].markerEnd as unknown as { color?: string })?.color).toBe(EDGE_STYLES.exception.stroke)
+    expect((result[0].markerEnd as unknown as { color?: string })?.color).toBe(
+      EDGE_STYLES.exception.stroke
+    )
   })
 })

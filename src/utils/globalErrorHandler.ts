@@ -63,8 +63,7 @@ export function setupGlobalErrorHandler(app: App): void {
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason
     const message =
-      (reason as Error)?.message ||
-      (typeof reason === 'string' ? reason : '异步操作异常')
+      (reason as Error)?.message || (typeof reason === 'string' ? reason : '异步操作异常')
     if (import.meta.env.DEV) {
       console.error('[Unhandled Rejection]', reason)
     }

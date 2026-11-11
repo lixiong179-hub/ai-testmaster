@@ -22,7 +22,9 @@
             :class="{ active: store.selectedTask === 'new_feature' }"
             @click="selectTask('new_feature')"
           >
-            <div class="task-icon"><el-icon :size="40"><MagicStick /></el-icon></div>
+            <div class="task-icon">
+              <el-icon :size="40"><MagicStick /></el-icon>
+            </div>
             <h3>新功能生成用例</h3>
             <p>我有新需求或测试点，要生成测试用例</p>
             <div class="task-tags">
@@ -36,7 +38,9 @@
             :class="{ active: store.selectedTask === 'history_update' }"
             @click="selectTask('history_update')"
           >
-            <div class="task-icon"><el-icon :size="40"><Document /></el-icon></div>
+            <div class="task-icon">
+              <el-icon :size="40"><Document /></el-icon>
+            </div>
             <h3>历史资产更新用例</h3>
             <p>我有旧用例，要基于新版本更新</p>
             <div class="task-tags">
@@ -47,7 +51,9 @@
             <div class="task-btn-hint">点击卡片即选择此任务</div>
           </div>
           <div class="task-card disabled">
-            <div class="task-icon"><el-icon :size="40"><Download /></el-icon></div>
+            <div class="task-icon">
+              <el-icon :size="40"><Download /></el-icon>
+            </div>
             <h3>导入测试资产</h3>
             <p>我只想先把旧资产导入系统</p>
             <div class="task-tags">
@@ -422,7 +428,8 @@
           <el-card v-if="store.warnings.length > 0" class="warning-card">
             <template #header><span>风险提示</span></template>
             <div v-for="w in store.warningUserTexts" :key="w.code" class="warning-item">
-              <el-icon color="var(--color-warning)"><WarningFilled /></el-icon><span>{{ w.text }}</span>
+              <el-icon color="var(--color-warning)"><WarningFilled /></el-icon
+              ><span>{{ w.text }}</span>
             </div>
           </el-card>
           <el-card
@@ -904,7 +911,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, WarningFilled, Loading, Upload, Picture, MagicStick, Document, Download } from '@element-plus/icons-vue'
+import {
+  ArrowLeft,
+  WarningFilled,
+  Loading,
+  Upload,
+  Picture,
+  MagicStick,
+  Document,
+  Download,
+} from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSmartGenerationStore } from '@/store/smartGeneration'
 import type { QualityStatus, SmartPreviewCase } from '@/store/smartGeneration'

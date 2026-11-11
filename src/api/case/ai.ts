@@ -126,7 +126,9 @@ function emitProgress(
   }
   const steps: PipelineStep[] = run?.steps ?? []
   const running = steps.find((step) => step.status === 'running')
-  const finished = steps.filter((step) => step.status === 'done' || step.status === 'skipped').length
+  const finished = steps.filter(
+    (step) => step.status === 'done' || step.status === 'skipped'
+  ).length
   onProgress({
     stepName: running?.step_name,
     percent: steps.length > 0 ? Math.round((finished / steps.length) * 100) : null,
@@ -229,7 +231,12 @@ export async function generateCasesViaPipeline(
   const cached = run?.status === 'completed'
 
   let attempts = 0
-  while (run && run.status !== 'completed' && run.status !== 'failed' && run.status !== 'cancelled') {
+  while (
+    run &&
+    run.status !== 'completed' &&
+    run.status !== 'failed' &&
+    run.status !== 'cancelled'
+  ) {
     if (attempts >= MAX_POLL_ATTEMPTS) {
       throw new Error('Pipeline 执行超时')
     }

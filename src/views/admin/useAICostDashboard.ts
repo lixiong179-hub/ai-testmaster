@@ -182,10 +182,7 @@ export function useAICostDashboard() {
       0
     )
     totalCostCny.value = usdToCny(
-      items.reduce(
-        (sum: number, r: AIInvocationStatsItem) => sum + r.total_cost_usd,
-        0
-      )
+      items.reduce((sum: number, r: AIInvocationStatsItem) => sum + r.total_cost_usd, 0)
     )
     totalCalls.value = items.reduce(
       (sum: number, r: AIInvocationStatsItem) => sum + r.total_calls,
@@ -212,13 +209,9 @@ export function useAICostDashboard() {
 
       // 统计成功率
       if (invocationList.value.length > 0) {
-        const successCount = invocationList.value.filter(
-          (item) => item.status === 'success'
-        ).length
+        const successCount = invocationList.value.filter((item) => item.status === 'success').length
         successRate.value =
-          invocationTotal.value > 0
-            ? (successCount / invocationList.value.length) * 100
-            : 0
+          invocationTotal.value > 0 ? (successCount / invocationList.value.length) * 100 : 0
       }
     } catch (e) {
       console.warn('获取调用记录失败:', e)
@@ -231,9 +224,7 @@ export function useAICostDashboard() {
     if (!costTrendChart) {
       costTrendChart = echarts.init(costTrendChartRef.value)
     }
-    const sorted = [...dateStats.value].sort((a, b) =>
-      a.group_key.localeCompare(b.group_key)
-    )
+    const sorted = [...dateStats.value].sort((a, b) => a.group_key.localeCompare(b.group_key))
     costTrendChart.setOption({
       tooltip: {
         trigger: 'axis',
@@ -275,9 +266,7 @@ export function useAICostDashboard() {
     if (!tokenDailyChart) {
       tokenDailyChart = echarts.init(tokenDailyChartRef.value)
     }
-    const sorted = [...dateStats.value].sort((a, b) =>
-      a.group_key.localeCompare(b.group_key)
-    )
+    const sorted = [...dateStats.value].sort((a, b) => a.group_key.localeCompare(b.group_key))
     tokenDailyChart.setOption({
       tooltip: { trigger: 'axis' },
       legend: { data: ['Prompt Tokens', 'Completion Tokens'] },
@@ -372,9 +361,7 @@ export function useAICostDashboard() {
         {
           name: '成本（元）',
           type: 'bar',
-          data: strategyStats.value.map((r: AIInvocationStatsItem) =>
-            usdToCny(r.total_cost_usd)
-          ),
+          data: strategyStats.value.map((r: AIInvocationStatsItem) => usdToCny(r.total_cost_usd)),
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
               { offset: 0, color: '#9b59b6' },

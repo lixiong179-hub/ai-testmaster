@@ -120,12 +120,18 @@ export const generationBatchApi = {
     return extractData<GenerationBatchResponse>(response)
   },
 
-  update: async (batchId: number, data: GenerationBatchUpdatePayload): Promise<GenerationBatchResponse> => {
+  update: async (
+    batchId: number,
+    data: GenerationBatchUpdatePayload
+  ): Promise<GenerationBatchResponse> => {
     const response = await request.patch(`/api/v1/generation-batches/${batchId}`, data)
     return extractData<GenerationBatchResponse>(response)
   },
 
-  save: async (batchId: number, data: GenerationBatchSavePayload): Promise<GenerationBatchSaveResponse> => {
+  save: async (
+    batchId: number,
+    data: GenerationBatchSavePayload
+  ): Promise<GenerationBatchSaveResponse> => {
     const response = await request.post(`/api/v1/generation-batches/${batchId}/save`, data)
     return extractData<GenerationBatchSaveResponse>(response)
   },

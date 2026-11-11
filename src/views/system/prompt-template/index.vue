@@ -97,7 +97,9 @@
                 <div v-if="ver.description" class="version-desc">{{ ver.description }}</div>
 
                 <div class="version-content">
-                  <pre v-if="isExpanded(ver.id) || !needCollapse(ver.content)">{{ ver.content }}</pre>
+                  <pre v-if="isExpanded(ver.id) || !needCollapse(ver.content)">{{
+                    ver.content
+                  }}</pre>
                   <pre v-else>{{ getPreview(ver.content) }}</pre>
                   <el-button
                     v-if="needCollapse(ver.content)"
@@ -119,11 +121,7 @@
                   >
                     设为默认
                   </el-button>
-                  <el-button
-                    size="small"
-                    :disabled="ver.is_default"
-                    @click="rollback(ver)"
-                  >
+                  <el-button size="small" :disabled="ver.is_default" @click="rollback(ver)">
                     回滚到此版本
                   </el-button>
                 </div>
@@ -137,12 +135,7 @@
     </el-card>
 
     <!-- 注册新版本对话框 -->
-    <el-dialog
-      v-model="registerDialogVisible"
-      title="注册新版本"
-      width="700px"
-      destroy-on-close
-    >
+    <el-dialog v-model="registerDialogVisible" title="注册新版本" width="700px" destroy-on-close>
       <el-form
         :ref="setRegisterFormRef"
         :model="registerForm"
@@ -223,69 +216,192 @@ const setRegisterFormRef = (el: unknown): void => {
 </script>
 
 <style scoped>
-.prompt-template-management { padding: 20px; }
-.page-card { margin-bottom: 20px; }
-.card-header { display: flex; justify-content: space-between; align-items: center; }
-.card-header h2 { margin: 0; font-size: 18px; color: #303133; }
+.prompt-template-management {
+  padding: 20px;
+}
+.page-card {
+  margin-bottom: 20px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #303133;
+}
 
-.split-layout { display: flex; gap: 16px; min-height: 520px; }
+.split-layout {
+  display: flex;
+  gap: 16px;
+  min-height: 520px;
+}
 
 /* 左侧 Key 列表面板 */
 .key-panel {
-  width: 280px; flex-shrink: 0; border: 1px solid #ebeef5; border-radius: 4px;
-  display: flex; flex-direction: column; overflow: hidden;
+  width: 280px;
+  flex-shrink: 0;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .panel-title {
-  padding: 10px 12px; font-weight: 600; font-size: 14px; color: #303133;
-  border-bottom: 1px solid #ebeef5; background: #fafafa;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #303133;
+  border-bottom: 1px solid #ebeef5;
+  background: #fafafa;
 }
-.filter-input { padding: 8px 12px; }
-.key-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
-.key-item { padding: 8px 10px; border-radius: 4px; cursor: pointer; transition: background 0.2s; }
-.key-item:hover { background: #f5f7fa; }
-.key-item.active { background: #ecf5ff; }
+.filter-input {
+  padding: 8px 12px;
+}
+.key-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 8px;
+}
+.key-item {
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.key-item:hover {
+  background: #f5f7fa;
+}
+.key-item.active {
+  background: #ecf5ff;
+}
 .key-name {
-  font-size: 14px; color: #303133;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 14px;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.key-meta { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+.key-meta {
+  margin-top: 4px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 
 /* 右侧版本详情面板 */
-.detail-panel { flex: 1; min-width: 0; overflow-y: auto; }
+.detail-panel {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
 .detail-header {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.detail-title { display: flex; align-items: center; gap: 8px; }
-.title-text { font-size: 16px; font-weight: 600; color: #303133; }
-.version-list { display: flex; flex-direction: column; gap: 12px; }
+.detail-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.title-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+.version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
-.version-card { border-left: 3px solid transparent; }
-.version-card.is-default { border-left-color: #67c23a; }
-.version-card.is-disabled { opacity: 0.7; }
+.version-card {
+  border-left: 3px solid transparent;
+}
+.version-card.is-default {
+  border-left-color: #67c23a;
+}
+.version-card.is-disabled {
+  opacity: 0.7;
+}
 .version-head {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 8px; flex-wrap: wrap;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.version-head-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.version-no { font-weight: 600; color: #303133; }
-.version-hash, .version-time { font-size: 12px; color: #909399; }
-.version-hash { font-family: monospace; }
-.version-desc { margin-top: 6px; font-size: 13px; color: #606266; }
+.version-head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.version-no {
+  font-weight: 600;
+  color: #303133;
+}
+.version-hash,
+.version-time {
+  font-size: 12px;
+  color: #909399;
+}
+.version-hash {
+  font-family: monospace;
+}
+.version-desc {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #606266;
+}
 
-.version-content { margin-top: 8px; }
-.version-content pre {
-  margin: 0 0 8px 0; padding: 8px 10px; background: #f5f7fa; border-radius: 4px;
-  font-size: 12px; color: #303133; white-space: pre-wrap; word-break: break-word;
-  max-height: 320px; overflow-y: auto;
+.version-content {
+  margin-top: 8px;
 }
-.version-actions { display: flex; gap: 8px; }
-.dialog-footer { width: 100%; display: flex; justify-content: flex-end; gap: 10px; }
+.version-content pre {
+  margin: 0 0 8px 0;
+  padding: 8px 10px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #303133;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.version-actions {
+  display: flex;
+  gap: 8px;
+}
+.dialog-footer {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
 
 @media (max-width: 768px) {
-  .prompt-template-management { padding: 10px; }
-  .card-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .split-layout { flex-direction: column; }
-  .key-panel { width: 100%; max-height: 240px; }
+  .prompt-template-management {
+    padding: 10px;
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .split-layout {
+    flex-direction: column;
+  }
+  .key-panel {
+    width: 100%;
+    max-height: 240px;
+  }
 }
 </style>

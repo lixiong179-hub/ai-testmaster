@@ -19,12 +19,7 @@
               filterable
               style="width: 100%"
             >
-              <el-option
-                v-for="p in projects"
-                :key="p.id"
-                :label="p.name"
-                :value="p.id"
-              />
+              <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
             </el-select>
           </el-col>
           <el-col :span="4">
@@ -85,13 +80,7 @@
             <el-button @click="handleReset">重置</el-button>
           </el-col>
         </el-row>
-        <el-alert
-          v-if="hasClientFilter"
-          type="info"
-          :closable="false"
-          show-icon
-          class="filter-tip"
-        >
+        <el-alert v-if="hasClientFilter" type="info" :closable="false" show-icon class="filter-tip">
           失败类型/置信度/日期范围基于当前页数据前端过滤，如未匹配请调整分页或项目筛选。
         </el-alert>
       </div>
@@ -126,11 +115,7 @@
         <el-table-column label="置信度" width="100">
           <template #default="{ row }">
             <span v-if="row.confidence == null" class="text-muted">-</span>
-            <el-tag
-              v-else
-              :type="row.low_confidence ? 'warning' : 'success'"
-              size="small"
-            >
+            <el-tag v-else :type="row.low_confidence ? 'warning' : 'success'" size="small">
               {{ (row.confidence * 100).toFixed(1) }}%
             </el-tag>
           </template>
@@ -173,12 +158,7 @@
     </el-card>
 
     <!-- 详情弹窗 -->
-    <el-dialog
-      v-model="detailVisible"
-      title="自愈审计详情"
-      width="640px"
-      @close="closeDetail"
-    >
+    <el-dialog v-model="detailVisible" title="自愈审计详情" width="640px" @close="closeDetail">
       <el-descriptions v-if="currentAudit" :column="2" border>
         <el-descriptions-item label="审计ID">{{ currentAudit.id }}</el-descriptions-item>
         <el-descriptions-item label="用例ID">{{ currentAudit.test_case_id }}</el-descriptions-item>
@@ -192,10 +172,7 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="策略">
-          <el-tag
-            :type="currentAudit.strategy === 'rollback' ? 'success' : 'info'"
-            size="small"
-          >
+          <el-tag :type="currentAudit.strategy === 'rollback' ? 'success' : 'info'" size="small">
             {{ currentAudit.strategy }}
           </el-tag>
         </el-descriptions-item>

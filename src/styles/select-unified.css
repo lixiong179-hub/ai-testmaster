@@ -358,7 +358,11 @@
 .el-checkbox__input.is-checked .el-checkbox__inner,
 .el-checkbox__input.is-indeterminate .el-checkbox__inner {
   border-color: var(--app-control-accent);
-  background: linear-gradient(135deg, var(--app-control-accent) 0%, var(--app-control-accent-strong) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--app-control-accent) 0%,
+    var(--app-control-accent-strong) 100%
+  );
   box-shadow: 0 8px 16px rgba(64, 158, 255, 0.22);
 }
 
@@ -400,7 +404,11 @@
 .el-radio-button__original-radio:checked + .el-radio-button__inner {
   color: #ffffff;
   border-color: var(--app-control-accent);
-  background: linear-gradient(135deg, var(--app-control-accent) 0%, var(--app-control-accent-strong) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--app-control-accent) 0%,
+    var(--app-control-accent-strong) 100%
+  );
   box-shadow: 0 10px 22px rgba(64, 158, 255, 0.24);
 }
 
@@ -425,13 +433,21 @@
 .el-slider__bar {
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--app-control-accent) 0%, var(--app-control-accent-strong) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--app-control-accent) 0%,
+    var(--app-control-accent-strong) 100%
+  );
   box-shadow: 0 6px 14px rgba(64, 158, 255, 0.22);
 }
 
 .el-slider__button {
   border: 3px solid #ffffff;
-  background: linear-gradient(135deg, var(--app-control-accent) 0%, var(--app-control-accent-strong) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--app-control-accent) 0%,
+    var(--app-control-accent-strong) 100%
+  );
   box-shadow:
     0 8px 16px rgba(64, 158, 255, 0.26),
     0 0 0 4px var(--app-control-soft);
@@ -501,7 +517,11 @@
 
 .el-button--primary {
   border-color: var(--app-control-accent);
-  background: linear-gradient(135deg, var(--app-control-accent) 0%, var(--app-control-accent-strong) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--app-control-accent) 0%,
+    var(--app-control-accent-strong) 100%
+  );
   box-shadow: 0 12px 24px rgba(64, 158, 255, 0.22);
 }
 
@@ -622,7 +642,11 @@
 }
 
 .el-tag.el-tag--dark.el-tag--primary {
-  background: linear-gradient(135deg, var(--app-control-accent) 0%, var(--app-control-accent-strong) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--app-control-accent) 0%,
+    var(--app-control-accent-strong) 100%
+  );
 }
 
 .el-alert {
@@ -828,7 +852,11 @@
 
 .el-pagination .el-pager li.is-active {
   color: #ffffff;
-  background: linear-gradient(135deg, var(--app-control-accent) 0%, var(--app-control-accent-strong) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--app-control-accent) 0%,
+    var(--app-control-accent-strong) 100%
+  );
   box-shadow: 0 10px 20px rgba(64, 158, 255, 0.22);
 }
 

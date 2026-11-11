@@ -162,7 +162,8 @@ async function resolveRouter(): Promise<RouterLike | null> {
 async function handleUnauthorized(): Promise<void> {
   const router = await resolveRouter()
   const current = router?.currentRoute?.value
-  const currentPath = current?.path || (typeof window !== 'undefined' ? window.location.pathname : '/')
+  const currentPath =
+    current?.path || (typeof window !== 'undefined' ? window.location.pathname : '/')
 
   if (currentPath.includes('/login')) {
     return
@@ -206,9 +207,10 @@ async function tryRefreshToken(): Promise<string | null> {
     const res = await axios.post('/api/v1/auth/refresh', { refresh_token: refreshToken })
     const payload = (res as { data?: Record<string, unknown> })?.data ?? {}
     const body = (payload as { data?: Record<string, unknown> }).data ?? payload
-    const newToken = (body as { access_token?: string; token?: string })?.access_token
-      || (body as { token?: string })?.token
-      || null
+    const newToken =
+      (body as { access_token?: string; token?: string })?.access_token ||
+      (body as { token?: string })?.token ||
+      null
     if (newToken) {
       localStorage.setItem('token', newToken)
       const rotated = (body as { refresh_token?: string })?.refresh_token

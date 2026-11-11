@@ -14,9 +14,7 @@
           <div v-if="!hasProject" class="wb-guide">
             <el-icon class="wb-guide-icon"><Plus /></el-icon>
             <p class="wb-guide-text">还没有项目，立即创建第一个项目开始测试</p>
-            <el-button type="primary" :icon="Plus" @click="goToCreateProject">
-              创建项目
-            </el-button>
+            <el-button type="primary" :icon="Plus" @click="goToCreateProject"> 创建项目 </el-button>
           </div>
           <!-- 骨架屏 -->
           <el-skeleton v-else-if="overviewLoading" :rows="4" animated />
@@ -149,191 +147,191 @@ import { useWorkbench } from './useWorkbench'
 import { TaskStatus } from '@/api/testTask'
 
 const {
-    hasProject,
-    overview,
-    overviewLoading,
-    pendingReviews,
-    reviewsLoading,
-    recentTasks,
-    tasksLoading,
-    aiCostTrend,
-    costLoading,
-    totalCostCny,
-    totalCalls,
-    setCostChartRef,
-    goToCreateProject,
-    goToProjectList,
-    goToTaskList,
-    goToTaskDetail,
-    goToReviewInbox,
-    goToAICostDashboard,
+  hasProject,
+  overview,
+  overviewLoading,
+  pendingReviews,
+  reviewsLoading,
+  recentTasks,
+  tasksLoading,
+  aiCostTrend,
+  costLoading,
+  totalCostCny,
+  totalCalls,
+  setCostChartRef,
+  goToCreateProject,
+  goToProjectList,
+  goToTaskList,
+  goToTaskDetail,
+  goToReviewInbox,
+  goToAICostDashboard,
 } = useWorkbench()
 
 type TagType = 'info' | 'primary' | 'success' | 'danger' | 'warning'
 
 /** 评审类型文案映射 */
 function reviewKindLabel(kind: string): string {
-    const map: Record<string, string> = {
-        case: '用例评审',
-        point: '测试点评审',
-        flow: '流程评审',
-    }
-    return map[kind] || '评审'
+  const map: Record<string, string> = {
+    case: '用例评审',
+    point: '测试点评审',
+    flow: '流程评审',
+  }
+  return map[kind] || '评审'
 }
 
 /** 任务状态文案 */
 function taskStatusText(status: number): string {
-    const map: Record<number, string> = {
-        [TaskStatus.WAITING]: '等待执行',
-        [TaskStatus.RUNNING]: '执行中',
-        [TaskStatus.COMPLETED]: '执行完成',
-        [TaskStatus.FAILED]: '执行失败',
-        [TaskStatus.STOPPED]: '已停止',
-    }
-    return map[status] || '未知'
+  const map: Record<number, string> = {
+    [TaskStatus.WAITING]: '等待执行',
+    [TaskStatus.RUNNING]: '执行中',
+    [TaskStatus.COMPLETED]: '执行完成',
+    [TaskStatus.FAILED]: '执行失败',
+    [TaskStatus.STOPPED]: '已停止',
+  }
+  return map[status] || '未知'
 }
 
 /** 任务状态标签颜色 */
 function taskStatusTagType(status: number): TagType {
-    const map: Record<number, TagType> = {
-        [TaskStatus.WAITING]: 'info',
-        [TaskStatus.RUNNING]: 'primary',
-        [TaskStatus.COMPLETED]: 'success',
-        [TaskStatus.FAILED]: 'danger',
-        [TaskStatus.STOPPED]: 'warning',
-    }
-    return map[status] || 'info'
+  const map: Record<number, TagType> = {
+    [TaskStatus.WAITING]: 'info',
+    [TaskStatus.RUNNING]: 'primary',
+    [TaskStatus.COMPLETED]: 'success',
+    [TaskStatus.FAILED]: 'danger',
+    [TaskStatus.STOPPED]: 'warning',
+  }
+  return map[status] || 'info'
 }
 
 /** 格式化时间为 MM-DD HH:mm */
 function formatTime(timeStr: string): string {
-    if (!timeStr) return '-'
-    const d = new Date(timeStr)
-    if (isNaN(d.getTime())) return timeStr
-    return d.toLocaleString('zh-CN', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-    })
+  if (!timeStr) return '-'
+  const d = new Date(timeStr)
+  if (isNaN(d.getTime())) return timeStr
+  return d.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 </script>
 
 <style scoped>
 .workbench {
-    padding: 16px;
+  padding: 16px;
 }
 .wb-row {
-    margin-top: 16px;
+  margin-top: 16px;
 }
 .wb-card {
-    height: 100%;
+  height: 100%;
 }
 .wb-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .wb-card-title {
-    font-weight: 600;
-    color: var(--color-text-primary, #303133);
+  font-weight: 600;
+  color: var(--color-text-primary, #303133);
 }
 /* 无项目引导 */
 .wb-guide {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 8px 8px;
-    text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 8px 8px;
+  text-align: center;
 }
 .wb-guide-icon {
-    font-size: 40px;
-    color: var(--color-primary, #409eff);
-    margin-bottom: 12px;
+  font-size: 40px;
+  color: var(--color-primary, #409eff);
+  margin-bottom: 12px;
 }
 .wb-guide-text {
-    margin: 0 0 16px;
-    color: var(--color-text-secondary, #909399);
-    font-size: 14px;
+  margin: 0 0 16px;
+  color: var(--color-text-secondary, #909399);
+  font-size: 14px;
 }
 /* 项目概览 */
 .wb-project-body {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .wb-project-name {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-text-primary, #303133);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary, #303133);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .wb-project-stats .wb-stat {
-    text-align: center;
-    padding: 8px 0;
-    background: var(--color-fill-light, #f5f7fa);
-    border-radius: 6px;
+  text-align: center;
+  padding: 8px 0;
+  background: var(--color-fill-light, #f5f7fa);
+  border-radius: 6px;
 }
 .wb-stat-label {
-    font-size: 12px;
-    color: var(--color-text-secondary, #909399);
-    margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary, #909399);
+  margin-bottom: 4px;
 }
 .wb-stat-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--color-primary, #409eff);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-primary, #409eff);
 }
 /* 列表区块 */
 .wb-list {
-    display: flex;
-    flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 .wb-list-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 4px;
-    border-bottom: 1px solid var(--color-border-light, #ebeef5);
-    cursor: pointer;
-    transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--color-border-light, #ebeef5);
+  cursor: pointer;
+  transition: background 0.2s;
 }
 .wb-list-item:last-child {
-    border-bottom: none;
+  border-bottom: none;
 }
 .wb-list-item:hover {
-    background: var(--color-fill-light, #f5f7fa);
+  background: var(--color-fill-light, #f5f7fa);
 }
 .wb-list-main {
-    overflow: hidden;
+  overflow: hidden;
 }
 .wb-list-title {
-    font-size: 14px;
-    color: var(--color-text-primary, #303133);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  font-size: 14px;
+  color: var(--color-text-primary, #303133);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .wb-list-sub {
-    font-size: 12px;
-    color: var(--color-text-secondary, #909399);
-    margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-secondary, #909399);
+  margin-top: 2px;
 }
 /* 成本图表 */
 .wb-chart {
-    width: 100%;
-    height: 220px;
+  width: 100%;
+  height: 220px;
 }
 .wb-cost-summary {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 8px;
-    font-size: 13px;
-    color: var(--color-text-secondary, #909399);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary, #909399);
 }
 .wb-cost-calls {
-    color: var(--color-warning, #e6a23c);
+  color: var(--color-warning, #e6a23c);
 }
 </style>

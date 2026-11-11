@@ -15,10 +15,18 @@
         </template>
         <div class="log-toolbar">
           <el-checkbox v-model="ctx.autoScroll.value">自动滚动</el-checkbox>
-          <el-button size="small" :icon="Download" @click="ctx.exportLogs" :disabled="ctx.executionLogs.value.length === 0"
+          <el-button
+            size="small"
+            :icon="Download"
+            @click="ctx.exportLogs"
+            :disabled="ctx.executionLogs.value.length === 0"
             >导出日志</el-button
           >
-          <el-button size="small" :icon="Delete" @click="ctx.clearLogs" :disabled="ctx.executionLogs.value.length === 0"
+          <el-button
+            size="small"
+            :icon="Delete"
+            @click="ctx.clearLogs"
+            :disabled="ctx.executionLogs.value.length === 0"
             >清空</el-button
           >
         </div>
@@ -36,7 +44,11 @@
               <span v-if="log.case_no" class="log-case">[{{ log.case_no }}]</span>
               <span class="log-text">{{ log.log }}</span>
             </div>
-            <el-empty v-if="ctx.executionLogs.value.length === 0" description="暂无执行日志" :image-size="60" />
+            <el-empty
+              v-if="ctx.executionLogs.value.length === 0"
+              description="暂无执行日志"
+              :image-size="60"
+            />
           </div>
         </el-scrollbar>
       </el-collapse-item>

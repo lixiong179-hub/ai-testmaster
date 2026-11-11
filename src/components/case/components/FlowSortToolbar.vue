@@ -251,7 +251,10 @@
                 @click="
                   ctx.isPlaying.value
                     ? ctx.stopPlayback()
-                    : ctx.startPlayback(ctx.vueFlowNodes.value, ctx.vueFlowEdges.value as unknown as Edge[])
+                    : ctx.startPlayback(
+                        ctx.vueFlowNodes.value,
+                        ctx.vueFlowEdges.value as unknown as Edge[]
+                      )
                 "
               >
                 <el-icon><VideoPlay v-if="!ctx.isPlaying.value" /><VideoPause v-else /></el-icon>

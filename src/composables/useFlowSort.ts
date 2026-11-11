@@ -7,7 +7,17 @@
  * 提供流程排序数据序列化、提交、完整度统计、FlowSortEditor 上下文与同步逻辑。
  * 单向依赖 useFlowCore 与 useFlowInteraction，不形成循环。
  */
-import { type InjectionKey, inject, provide, ref, computed, watch, onMounted, nextTick, type Ref } from 'vue'
+import {
+  type InjectionKey,
+  inject,
+  provide,
+  ref,
+  computed,
+  watch,
+  onMounted,
+  nextTick,
+  type Ref,
+} from 'vue'
 import { useVueFlow, type Node, type Edge } from '@vue-flow/core'
 import { ElMessage } from 'element-plus'
 import { useFlowSortStore } from '@/store/flowSort'
@@ -78,7 +88,14 @@ export interface UseFlowSortDataReturn {
 
 /** 流程排序数据序列化与提交 composable */
 export function useFlowSortData(options: UseFlowSortDataOptions): UseFlowSortDataReturn {
-  const { vueFlowNodes, vueFlowEdges, emit, flowSortStore, getNodeData: getNodeDataFn, moduleInfo } = options
+  const {
+    vueFlowNodes,
+    vueFlowEdges,
+    emit,
+    flowSortStore,
+    getNodeData: getNodeDataFn,
+    moduleInfo,
+  } = options
 
   /** 将 FlowGraphEdge 序列化为 FlowEdgeData */
   function serializeEdge(edge: FlowGraphEdge): FlowEdgeData | null {
@@ -104,7 +121,10 @@ export function useFlowSortData(options: UseFlowSortDataOptions): UseFlowSortDat
   /** 序列化所有节点和边数据，emit 事件并同步到 flowSort store */
   function emitSortData(): void {
     // 在序列化前从边推导主干顺序并同步 main_order，确保 store 中的 main_order 与画布连线一致
-    const normalizedNodes = normalizeMainNodeOrders(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
+    const normalizedNodes = normalizeMainNodeOrders(
+      vueFlowNodes.value,
+      vueFlowEdges.value as unknown as Edge[]
+    )
 
     // 将边推导的 main_order 同步回 vueFlowNodes，避免后续代码路径读到旧值
     normalizedNodes.forEach((normalized) => {
@@ -136,7 +156,10 @@ export function useFlowSortData(options: UseFlowSortDataOptions): UseFlowSortDat
 
   /** 获取提交给后端的完整流程数据 */
   function getFlowSortSubmitData(): { flow_sort_data: FlowSortSubmitData } {
-    const sortedNodes = getOrderedNodesForSubmit(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
+    const sortedNodes = getOrderedNodesForSubmit(
+      vueFlowNodes.value,
+      vueFlowEdges.value as unknown as Edge[]
+    )
     return {
       flow_sort_data: {
         nodes: sortedNodes.map((node, index) => ({
@@ -677,7 +700,8 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     const hasChange =
       vueFlowNodes.value.some((n) => n.hidden !== hiddenNodeIds.has(n.id)) ||
       vueFlowEdges.value.some(
-        (e: FlowGraphEdge) => e.hidden !== (hiddenNodeIds.has(e.source) || hiddenNodeIds.has(e.target))
+        (e: FlowGraphEdge) =>
+          e.hidden !== (hiddenNodeIds.has(e.source) || hiddenNodeIds.has(e.target))
       )
     if (!hasChange) return
     vueFlowNodes.value = vueFlowNodes.value.map((node) => ({
@@ -691,7 +715,10 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
   }
 
   const mainNodeOptions = computed(() => {
-    const mainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
+    const mainNodes = getMainNodesInOrder(
+      vueFlowNodes.value,
+      vueFlowEdges.value as unknown as Edge[]
+    )
     const nonMainNodes = vueFlowNodes.value.filter((n) => getNodeData(n).flow_type !== 'main')
     const mainOpts = mainNodes.map((node) => ({
       id: node.id,
@@ -705,7 +732,8 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
       const d = getNodeData(node)
       const parentEdge = vueFlowEdges.value.find(
         (e: FlowGraphEdge) =>
-          e.target === node.id && ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string)
+          e.target === node.id &&
+          ['branch', 'exception', 'bypass'].includes(e.data?.edge_type as string)
       )
       let depth = 1
       if (parentEdge) {
@@ -823,7 +851,10 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     const filter = flowFilter.value
     if (filter === 'all') {
       vueFlowNodes.value = vueFlowNodes.value.map((node) => ({ ...node, hidden: false }))
-      vueFlowEdges.value = vueFlowEdges.value.map((edge: FlowGraphEdge) => ({ ...edge, hidden: false }))
+      vueFlowEdges.value = vueFlowEdges.value.map((edge: FlowGraphEdge) => ({
+        ...edge,
+        hidden: false,
+      }))
       applyCollapsedHidden()
       return
     }
@@ -871,7 +902,9 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
     const draggedNode = vueFlowNodes.value.find((n) => n.id === draggedId)
     if (!draggedNode) return
     const existingEdges = new Set(
-      vueFlowEdges.value.filter((e: FlowGraphEdge) => !e.hidden).map((e: FlowGraphEdge) => `${e.source}->${e.target}`)
+      vueFlowEdges.value
+        .filter((e: FlowGraphEdge) => !e.hidden)
+        .map((e: FlowGraphEdge) => `${e.source}->${e.target}`)
     )
     const newEdges: FlowGraphEdge[] = []
     vueFlowNodes.value.forEach((other) => {

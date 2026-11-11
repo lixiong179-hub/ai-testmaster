@@ -1041,7 +1041,10 @@ export function useFlowMainOrder(options: UseFlowMainOrderOptions) {
     const selectedNode = vueFlowNodes.value.find((n) => n.id === selectedNodeId)
     if (!selectedNode) return
 
-    const orderedMainNodes = getMainNodesInOrderFn(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
+    const orderedMainNodes = getMainNodesInOrderFn(
+      vueFlowNodes.value,
+      vueFlowEdges.value as unknown as Edge[]
+    )
     const currentIndex = orderedMainNodes.findIndex((node) => node.id === selectedNode.id)
     const targetIndex = currentIndex + direction
     if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedMainNodes.length) return
@@ -1190,7 +1193,10 @@ export function useFlowGroupBackground(
 
     // Group by parent main node (for branch/exception/bypass children)
     const groups = new Map<string, FlowEditorNode[]>()
-    const mainNodes = getMainNodesInOrder(vueFlowNodes.value, vueFlowEdges.value as unknown as Edge[])
+    const mainNodes = getMainNodesInOrder(
+      vueFlowNodes.value,
+      vueFlowEdges.value as unknown as Edge[]
+    )
 
     mainNodes.forEach((mainNode) => {
       const children = branchChildrenMap.value.get(mainNode.id)

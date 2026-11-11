@@ -42,10 +42,7 @@ vi.mock('axios', () => {
       request: { use: vi.fn() },
       response: {
         // 捕获 request.ts 注册的响应拦截器，便于测试手动触发
-        use: (
-          fulfilled: (arg: unknown) => unknown,
-          rejected: (arg: unknown) => unknown
-        ) => {
+        use: (fulfilled: (arg: unknown) => unknown, rejected: (arg: unknown) => unknown) => {
           mocks.interceptorStore.fulfilled = fulfilled
           mocks.interceptorStore.rejected = rejected
         },
