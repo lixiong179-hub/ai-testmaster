@@ -12,6 +12,7 @@
 import sys
 import os
 import unittest
+import pytest
 import requests
 import time
 from datetime import datetime
@@ -45,6 +46,12 @@ def _backend_available():
 
 
 _BACKEND_OK = _backend_available()
+
+# B-07：本套件依赖**已启动**的 FastAPI 服务与真实 MySQL，属手工/联调类。
+# 显式标记 real_api，由 pytest.ini 的 `-m "not real_api"` 排除在默认运行之外，
+# 避免 CI 中以「silent skip」形式冒充零信号（原 71 项全部静默跳过）。
+# 本地起服务后显式执行：pytest tests -m real_api
+pytestmark = pytest.mark.real_api
 
 
 def _login_with_captcha():

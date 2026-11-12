@@ -1,247 +1,195 @@
+"""API 契约冒烟测试（B-07，2026-11-12 由 live-server 冒烟改为进程内契约测试）。
+
+**改造原因**：原实现用 `requests` 直连 `http://localhost:8000`，未启动后端时 11 项全部
+`skip`（CI 中零信号）。现改为复用 `tests/conftest.py` 的 `client` fixture
+（`fastapi.testclient.TestClient` + DB 依赖覆写 + `Origin` 头），在进程内走 ASGI，
+**无后端服务也照跑**，且断言的是真实契约（路由存在性 + 鉴权生效 + 响应包络/关键字段），
+契约一旦被改坏就会真实失败。
+
+覆盖模块：认证 / 项目 / 测试任务 / 测试用例 / 测试点 / 测试报告。
+统一响应包络：`{"code": 200, "msg": ..., "message": ..., "data": ..., "timestamp": ...}`
+（例外：`GET /api/v1/report/` 直接返回 `TestReportList`，无 `code/data` 包络）。
 """
-AI TestMaster API集成测试套件
+from typing import Any
+from uuid import uuid4
 
-运行: python -m pytest tests/test_api.py -v
-"""
-import pytest
-import sys
-import os
-import time
-from datetime import datetime
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import requests
-from typing import Optional
-
-# API基础URL
-BASE_URL = "http://localhost:8000"
-API_PREFIX = "/api/v1"
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+API = "/api/v1"
 
 
-def _backend_available():
-    try:
-        return requests.get(f"{BASE_URL}{API_PREFIX}/auth/login", timeout=2).status_code < 500
-    except (requests.ConnectionError, requests.Timeout):
-        return False
+# ==================== 契约辅助 ====================
+
+def _fetch_captcha(client) -> tuple[str, str]:
+    """从进程内端点取验证码（captcha 服务为内存单例，测试无需外部依赖）。"""
+    resp = client.get(f"{API}/auth/captcha/generate")
+    assert resp.status_code == 200, f"验证码端点异常: {resp.status_code} {resp.text}"
+    data = resp.json()["data"]
+    assert data.get("captcha_id") and data.get("code")
+    return data["captcha_id"], data["code"]
 
 
-_BACKEND_OK = _backend_available()
-skip_if_no_backend = pytest.mark.skipif(
-    not _BACKEND_OK, reason=f"后端服务不可用 ({BASE_URL})，请先启动 FastAPI 服务"
-)
+def _login(client, username: str, password: str):
+    captcha_id, code = _fetch_captcha(client)
+    return client.post(
+        f"{API}/auth/login",
+        data={
+            "username": username,
+            "password": password,
+            "captcha_id": captcha_id,
+            "captcha_code": code,
+        },
+    )
 
 
-class APIClient:
-    """API测试客户端"""
-
-    def __init__(self, base_url: str = BASE_URL):
-        self.base_url = base_url
-        self.token: Optional[str] = None
-        self.session = requests.Session()
-
-    def login(self, username: str, password: str) -> dict:
-        """登录获取Token - 使用Form表单格式"""
-        captcha_response = self.session.get(
-            f"{self.base_url}{API_PREFIX}/auth/captcha/generate"
-        )
-        captcha_response.raise_for_status()
-        captcha = captcha_response.json().get("data", {})
-        response = self.session.post(
-            f"{self.base_url}{API_PREFIX}/auth/login",
-            data={
-                "username": username,
-                "password": password,
-                "captcha_id": captcha.get("captcha_id", ""),
-                "captcha_code": captcha.get("code", ""),
-            }
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            self.token = data.get("data", {}).get("access_token") or data.get("access_token")
-            if self.token:
-                self.session.headers.update({"Authorization": f"Bearer {self.token}"})
-
-        return response.json()
-
-    def post(self, path: str, json: dict = None, **kwargs):
-        """POST请求"""
-        headers = {"Content-Type": "application/json"}
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
-        return self.session.post(f"{self.base_url}{API_PREFIX}{path}", json=json, headers=headers, **kwargs)
-
-    def put(self, path: str, json: dict = None, **kwargs):
-        """PUT请求"""
-        headers = {"Content-Type": "application/json"}
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
-        return self.session.put(f"{self.base_url}{API_PREFIX}{path}", json=json, headers=headers, **kwargs)
-
-    def get(self, path: str, **kwargs):
-        """GET请求"""
-        headers = {}
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
-        return self.session.get(f"{self.base_url}{API_PREFIX}{path}", headers=headers, **kwargs)
-
-    def delete(self, path: str, **kwargs):
-        """DELETE请求"""
-        headers = {}
-        if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
-        return self.session.delete(f"{self.base_url}{API_PREFIX}{path}", headers=headers, **kwargs)
+def _assert_envelope(resp, expected_code: int = 200) -> dict[str, Any]:
+    """断言统一响应包络，并返回 data 部分。"""
+    assert resp.status_code == expected_code, f"HTTP {resp.status_code}: {resp.text[:400]}"
+    body = resp.json()
+    assert body.get("code") == expected_code, f"业务码异常: {body}"
+    return body.get("data") or {}
 
 
-# ==================== Fixtures ====================
+# ==================== 认证模块 ====================
 
-@pytest.fixture(scope="session")
-def api_client():
-    """API客户端Fixture"""
-    client = APIClient()
-    yield client
-
-
-@pytest.fixture(scope="session")
-def auth_client(api_client):
-    """已认证的API客户端"""
-    api_client.login(ADMIN_USERNAME, ADMIN_PASSWORD)
-    return api_client
-
-
-# ==================== 认证测试 ====================
-
-@skip_if_no_backend
 class TestAuth:
-    """认证模块测试"""
+    """认证模块契约。"""
 
-    def test_login_success(self, api_client):
-        """测试登录成功"""
-        response = api_client.login(ADMIN_USERNAME, ADMIN_PASSWORD)
-        assert response.get("code") == 200
-        assert "access_token" in response.get("data", {})
+    def test_login_success(self, client, testUser):
+        """登录成功：返回 Bearer token 与用户信息。"""
+        resp = _login(client, testUser.username, "Test@123456")
+        data = _assert_envelope(resp)
+        assert data.get("access_token"), f"缺少 access_token: {data}"
+        assert data.get("token_type", "").lower() == "bearer"
+        assert (data.get("user") or {}).get("username") == testUser.username
 
-    def test_login_invalid_credentials(self, api_client):
-        """测试登录失败-错误密码"""
-        response = api_client.login("admin", "wrongpassword")
-        assert response.get("code") == 401
+    def test_login_requires_captcha(self, client, testUser):
+        """登录必须携带验证码：缺失时 400 且给出明确原因。"""
+        resp = client.post(
+            f"{API}/auth/login",
+            data={"username": testUser.username, "password": "Test@123456"},
+        )
+        assert resp.status_code == 400, resp.text
+        body = resp.json()
+        assert body.get("code") == 400
+        # 全局异常处理器把 HTTPException 归一为包络，原因在 message/msg 字段
+        reason = body.get("message") or body.get("msg") or ""
+        assert "验证码" in reason, f"错误原因未说明验证码缺失: {body}"
 
-    def test_get_current_user(self, auth_client):
-        """测试获取当前用户信息"""
-        response = auth_client.get("/auth/me")
-        assert response.status_code == 200
-        data = response.json()
-        assert data.get("code") == 200
-        assert "username" in data.get("data", {})
+    def test_get_current_user(self, client, authHeaders, testUser):
+        """当前用户信息：token 有效时返回本人 username。"""
+        resp = client.get(f"{API}/auth/me", headers=authHeaders)
+        data = _assert_envelope(resp)
+        assert data.get("username") == testUser.username
+        assert data.get("id") == testUser.id
 
 
-# ==================== 项目管理测试 ====================
+# ==================== 项目管理 ====================
 
-@skip_if_no_backend
 class TestProject:
-    """项目管理测试"""
+    """项目模块契约。"""
 
-    def test_get_project_list(self, auth_client):
-        """测试获取项目列表"""
-        response = auth_client.get("/project/list")
-        assert response.status_code == 200
-        data = response.json()
-        assert data.get("code") == 200
-        assert "items" in data.get("data", {})
+    def test_get_project_list(self, client, authHeaders, testProject):
+        """项目列表：分页包络 + items/total。"""
+        resp = client.get(f"{API}/project/list", headers=authHeaders)
+        data = _assert_envelope(resp)
+        assert isinstance(data.get("items"), list)
+        assert isinstance(data.get("total"), int)
+        assert data["total"] >= 1
+        assert {"id", "name", "project_type"} <= set(data["items"][0])
 
-    def test_create_project(self, auth_client):
-        """测试创建项目"""
-        timestamp = int(time.time())
-        project_data = {
-            "name": f"测试项目_{timestamp}",
-            "description": "单元测试创建的项目",
-            "project_type": "web",
-            "web_env_configs": {
-                "test": {
-                    "url": "https://test.example.com",
-                    "username": "tester",
-                    "password": "test123"
-                }
-            }
-        }
+    def test_create_project(self, client, authHeaders):
+        """创建项目：返回 project_id。"""
+        resp = client.post(
+            f"{API}/project/create",
+            headers=authHeaders,
+            json={
+                "name": f"smoke_project_{uuid4().hex[:12]}",
+                "description": "契约冒烟创建",
+                "project_type": "web",
+            },
+        )
+        data = _assert_envelope(resp)
+        assert isinstance(data.get("project_id"), int)
 
-        response = auth_client.post("/project/create", json=project_data)
-        assert response.status_code == 200
-        data = response.json()
-        assert data.get("code") == 200
-        assert "project_id" in data.get("data", {})
+    def test_get_project_detail(self, client, authHeaders, testProject):
+        """项目详情：本人项目可读，非本人项目 403（越权防护）。"""
+        resp = client.get(f"{API}/project/{testProject.id}", headers=authHeaders)
+        data = _assert_envelope(resp)
+        assert data.get("id", data.get("project_id")) == testProject.id
 
-    def test_get_project_detail(self, auth_client):
-        """测试获取项目详情"""
-        response = auth_client.get("/project/1")
-        assert response.status_code in [200, 403]
+        forbidden = client.get(f"{API}/project/0", headers=authHeaders)
+        assert forbidden.status_code in (403, 404), forbidden.text
 
 
-# ==================== 测试任务测试 ====================
+# ==================== 测试任务 ====================
 
-@skip_if_no_backend
 class TestTestTask:
-    """测试任务测试"""
+    """测试任务模块契约。"""
 
-    def test_create_task(self, auth_client):
-        """测试创建测试任务"""
-        task_data = {
-            "project_id": 1,
-            "task_name": f"测试任务_{int(time.time())}",
-            "description": "单元测试创建的任务",
-            "case_ids": []
-        }
+    def test_create_task(self, client, authHeaders, testProject):
+        """创建任务：返回 task_id 且初始 total_count 与入参一致。"""
+        resp = client.post(
+            f"{API}/test-task/",
+            headers=authHeaders,
+            json={
+                "project_id": testProject.id,
+                "task_name": "契约冒烟任务",
+                "description": "B-07 冒烟",
+                "case_ids": [],
+            },
+        )
+        data = _assert_envelope(resp)
+        assert isinstance(data.get("task_id"), int)
+        assert data.get("total_count") == 0
 
-        response = auth_client.post("/test_task", json=task_data)
-        # 项目可能不存在或服务器错误
-        assert response.status_code in [200, 400, 403, 500]
+    def test_get_task_list(self, client, authHeaders, testProject):
+        """任务列表：按项目过滤，返回 items/total。"""
+        resp = client.get(
+            f"{API}/test-task/", headers=authHeaders, params={"project_id": testProject.id}
+        )
+        data = _assert_envelope(resp)
+        assert isinstance(data.get("items"), list)
+        assert isinstance(data.get("total"), int)
 
-    def test_get_task_list(self, auth_client):
-        """测试获取任务列表"""
-        response = auth_client.get("/test_task")
-        assert response.status_code == 200
 
+# ==================== 测试用例 ====================
 
-# ==================== 测试用例测试 ====================
-
-@skip_if_no_backend
 class TestTestCase:
-    """测试用例测试"""
+    """测试用例模块契约。"""
 
-    def test_get_case_list(self, auth_client):
-        """测试获取用例列表"""
-        response = auth_client.get("/testCase/?project_id=1")
-        assert response.status_code in [200, 400, 403]
+    def test_get_case_list(self, client, authHeaders, testProject):
+        """用例列表：分页包络 + items/total。"""
+        resp = client.get(
+            f"{API}/test-case/", headers=authHeaders, params={"project_id": testProject.id}
+        )
+        data = _assert_envelope(resp)
+        assert isinstance(data.get("items"), list)
+        assert isinstance(data.get("total"), int)
 
 
-# ==================== 测试点测试 ====================
+# ==================== 测试点 ====================
 
-@skip_if_no_backend
 class TestTestPoint:
-    """测试点测试"""
+    """测试点模块契约。"""
 
-    def test_get_point_list(self, auth_client):
-        """测试获取测试点列表"""
-        response = auth_client.get("/test-point/list/1")
-        assert response.status_code in [200, 400, 403]
+    def test_get_point_list(self, client, authHeaders, testProject):
+        """测试点列表：按项目路径参数返回 items/total。"""
+        resp = client.get(f"{API}/test-point/list/{testProject.id}", headers=authHeaders)
+        data = _assert_envelope(resp)
+        assert isinstance(data.get("items"), list)
+        assert isinstance(data.get("total"), int)
 
 
-# ==================== 测试报告测试 ====================
+# ==================== 测试报告 ====================
 
-@skip_if_no_backend
 class TestReport:
-    """测试报告测试"""
+    """测试报告模块契约。"""
 
-    def test_get_report_list(self, auth_client):
-        """测试获取报告列表"""
-        response = auth_client.get("/report?project_id=1")
-        assert response.status_code in [200, 400]
-
-
-# ==================== 运行测试 ====================
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--tb=short"])
+    def test_get_report_list(self, client, authHeaders, testProject):
+        """报告列表：该端点直接返回 TestReportList（无 code/data 包络，列表键为 reports）。"""
+        resp = client.get(
+            f"{API}/report/", headers=authHeaders, params={"project_id": testProject.id}
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert isinstance(body.get("reports"), list), body
+        assert isinstance(body.get("total"), int)

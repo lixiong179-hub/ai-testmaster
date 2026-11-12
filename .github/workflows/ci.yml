@@ -7,10 +7,19 @@ on:
     branches: [main, develop]
 
 jobs:
-  # ── 门禁分层（2026-09-24，R5-3）──
-  # 必阻断（失败即阻断合入）：backend-test、frontend-build、Ruff lint、vue-tsc
-  # 提示类（不阻断）：daily-regression.yml 的全量回归、security-scan.yml 的审计类
-  # 需在 GitHub 仓库 Settings → Branches → Branch protection 中勾选本文件必阻断 job 为 required
+  # ── 门禁分层（2026-09-24 R5-3 建立；2026-11-12 B-09 收口）──
+  # 【必阻断】本文件全部 4 个 job（失败即阻断合入）：
+  #   backend-test        —— ruff 门禁 + alembic 迁移校验 + 子集 pytest + 覆盖率 ≥80%
+  #   backend-full        —— 全量测试 4 分片（matrix，check 名为 "backend-full (shard N/4)"）
+  #   compose-config      —— 部署编排静态校验
+  #   frontend-build      —— ESLint + vue-tsc + build + vitest
+  # 【提示类】不阻断，位于独立 workflow（等价于 continue-on-error，B-09 已据此修订判据文字）：
+  #   daily-regression.yml 的 full-regression（仅 schedule）
+  #   security-scan.yml 的 python-dependencies / npm-audit / secret-scan
+  #   docker-publish.yml 的 build-and-push（tag 触发）
+  # 🤝 人工项：Branch protection 需在 Settings → Branches 勾选上面 4 类共 8 个 check 名，
+  #    勾选清单见《架构优化执行计划清单》R5-3 条目「🤝 人工项」表。
+  # 【必阻断】backend-test：
   backend-test:
     runs-on: ubuntu-latest
     services:
@@ -40,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-asyncio ruff mypy
+          pip install pytest pytest-cov pytest-asyncio pytest-split ruff mypy
       - name: Ruff lint
         run: ruff check app
       - name: Alembic migrations
@@ -54,18 +63,9 @@ jobs:
         run: |
           python scripts/verify_migrations.py --check-downgrade
           python scripts/verify_migrations.py --full
-      # 【必阻断】后端核心子集。覆盖范围与排除项说明（2026-09-24，R5-3）：
-      # 覆盖：tests/api tests/crud tests/models tests/schemas tests/services
-      # 排除项及理由（实测基线 `pytest tests/ -q` = 73 failed / 10191 passed / 59 errors）：
-      #   1. tests/regression —— 由 pr-regression.yml（快速）+ daily-regression.yml（全量）承担，避免重复
-      #   2. tests/ 其余目录（tests/test_*.py、tests/utils、tests/migrations、tests/db 部分）——
-      #      含 63 failed + 59 errors 的**既有欠账**，与 CI 环境无关，不在本波修复范围：
-      #        - Excel / 报表依赖 34（test_view_service_coverage 13、test_functional_excel_real 7 等）
-      #        - 真实浏览器 / 录制 16（test_functional_pass_rate 11、test_video_recording 4 等）
-      #        - 配置与代码规范 9（test_core_config_prod_security 5、service 文件行数规范 2 等）
-      #        - 装置错误 59（test_ai_generation_full_coverage ~40、test_execution_engine_real ~17）
-      #      待上述欠账清零后，逐步把对应目录并入本 job；进度见《架构优化执行计划清单》§11 O-12
-      # 成本约束：本 job 目标 < 20 分钟；若超时须启用 pytest-xdist(-n auto) 或改为按 paths 分层触发
+      # 【必阻断】后端核心子集 —— 保留为**覆盖率门禁**（--cov-fail-under=80）：
+      # 覆盖率需单进程统计，故仍由本 job 承担；全量回归由下方 backend-full 分片 job 承担。
+      # 目录排除项说明：tests/regression 由 pr-regression.yml（快速）+ daily-regression.yml（全量）承担。
       - name: Backend pytest
         env:
           TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
@@ -73,7 +73,64 @@ jobs:
           pytest tests/api tests/crud tests/models tests/schemas tests/services \
             --tb=short --cov=app --cov-fail-under=80 -q
 
-  # ── 部署编排校验（R5-1 阶段二，2026-11-11）──
+  # ── 【必阻断】后端全量测试（B-06，2026-11-12）──
+  # 判据：全量纳入 CI 且测试步骤 wall time < 10 分钟。
+  # 实现选择：pytest-split 按 `.test_durations` 时长权重切 4 片并行 job（单片实测 ≈ 5 分钟）。
+  #
+  # ❗为什么不用 pytest-xdist `-n auto`（已实测，勿重复尝试）：
+  #   测试共享同一个 MySQL 库，多进程并发会互相制造行锁/死锁；MySQL 在事务被回滚后
+  #   会销毁 SAVEPOINT，表现为大量 `(1305) SAVEPOINT sa_savepoint_1 does not exist`。
+  #   实测 12 worker：11 failed / 106 errors / 5:35；`--dist loadfile` 仍有 6 failed / 78 errors。
+  #   单 worker（-n 1）与串行结果完全一致（244 passed），确认根因是**跨进程共享库**而非用例本身。
+  #   彻底解法需 per-worker 独立库（CI 的 test_user 无 CREATE DATABASE 权限）或让异步用例
+  #   全部走同一事务 fixture（大改测试基建），故本波采用「同库 + 分片串行」。
+  backend-full:
+    name: backend-full (shard ${{ matrix.group }}/4)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test_root_pw
+          MYSQL_DATABASE: ai_testmaster_test
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_pw
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      OPENBLAS_NUM_THREADS: 1
+      OMP_NUM_THREADS: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-split
+      - name: Alembic migrations
+        env:
+          DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+        run: alembic upgrade head
+      - name: Backend pytest (shard ${{ matrix.group }}/4)
+        env:
+          TEST_DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
+        run: |
+          pytest tests -q --tb=short \
+            --splits 4 --group ${{ matrix.group }}
+
+  # 【必阻断】部署编排校验（R5-1 阶段二，2026-11-11）
   # 目的：executor 服务的增删/命令变更属于部署级改动，用 compose 解析做静态门禁，
   # 避免「代码合入但 compose 语法/服务缺失」的回归。运行时扩容（--scale）在 K4 人工验收。
   compose-config:

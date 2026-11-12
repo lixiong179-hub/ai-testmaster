@@ -137,6 +137,23 @@ def resetAiSemaphore():
     yield
 
 
+def _schema_already_ready(engine) -> bool:
+    """测试库表已存在时跳过建表/同步 DDL。
+
+    原因（B-06 实测）：`sync_all_tables(auto_fix=True)` 会执行 ALTER 等 DDL，
+    MySQL 的 DDL 带隐式提交，在 pytest-xdist 多 worker 并发启动时会销毁其它
+    worker 事务内的 SAVEPOINT，表现为 `(1305) SAVEPOINT sa_savepoint_1 does not exist`。
+    串行执行时不存在该问题，故仅在「首次建库」场景做 DDL。
+
+    需要强制重建/补列（本地库结构漂移）时设置 `TEST_DB_FORCE_SYNC=1`。
+    """
+    if os.getenv("TEST_DB_FORCE_SYNC") == "1":
+        return False
+    from sqlalchemy import inspect as sa_inspect
+
+    return sa_inspect(engine).has_table("test_cases")
+
+
 @pytest.fixture(scope="session")
 def testEngine():
     engine = create_engine(
@@ -146,9 +163,10 @@ def testEngine():
         pool_pre_ping=True,
         connect_args={"init_command": "SET sql_mode='NO_ENGINE_SUBSTITUTION'"},
     )
-    Base.metadata.create_all(engine)
-    sync_tool = DatabaseSyncTool(engine=engine)
-    sync_tool.sync_all_tables(Base, auto_fix=True)
+    if not _schema_already_ready(engine):
+        Base.metadata.create_all(engine)
+        sync_tool = DatabaseSyncTool(engine=engine)
+        sync_tool.sync_all_tables(Base, auto_fix=True)
     yield engine
     engine.dispose()
 

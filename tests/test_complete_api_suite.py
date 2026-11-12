@@ -43,6 +43,11 @@ skip_if_no_backend = pytest.mark.skipif(
     not _BACKEND_OK, reason=f"后端服务不可用 ({BASE_URL})，请先启动 FastAPI 服务"
 )
 
+# B-07：本套件是「对已启动服务的端到端验收」，属手工/联调类。
+# 显式标记 real_api，由 pytest.ini 的 `-m "not real_api"` 排除在默认运行之外，
+# 避免 CI 里以 silent skip 形式充数（原实现无服务时全部静默跳过）。
+pytestmark = pytest.mark.real_api
+
 
 def login_with_captcha(username: str, password: str, *, json_body: bool = False) -> requests.Response:
     captcha_resp = requests.get(f"{API_BASE}/auth/captcha/generate")
