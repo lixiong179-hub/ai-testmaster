@@ -12,7 +12,7 @@ target_element 与被测页面 PageSnapshot 真实元素做锚定校验，量化
 
 设计要点：单文件聚焦校验算法，与生成主流程/Prompt 文案解耦，便于独立单测与调优。
 """
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -24,7 +24,7 @@ _INPUT_ROLES = frozenset({"textbox", "searchbox", "combobox", "textbox"})
 # 可点击角色：action_type=click 仅能锚定这些角色的元素
 _CLICK_ROLES = frozenset({"button", "link", "menuitem", "tab", "treeitem", "checkbox", "radio"})
 # action_type → 兼容角色集合映射，未列出的 action_type 默认接受任意元素
-_ACTION_ROLE_COMPAT: Dict[str, frozenset] = {
+_ACTION_ROLE_COMPAT: dict[str, frozenset] = {
     "input": _INPUT_ROLES,
     "click": _CLICK_ROLES,
 }
@@ -37,7 +37,7 @@ class ValidationMixin:
     状态，依赖宿主传入 case 字典与 PageSnapshot。算法常量集中在本模块。
     """
 
-    def _validate_elements(self, case: Dict[str, Any], page_snapshot: "PageSnapshot") -> float:
+    def _validate_elements(self, case: dict[str, Any], page_snapshot: "PageSnapshot") -> float:
         """计算用例的 element_verified_ratio（0.0-1.0）。
 
         校验对象为 case["steps"] 中每个含 target_element 的步骤：
@@ -81,13 +81,13 @@ class ValidationMixin:
         return max(0.0, min(1.0, ratio))
 
     def _build_element_index(
-        self, elements: List[Dict[str, Any]]
-    ) -> Dict[str, Dict[str, Any]]:
+        self, elements: list[dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
         """以小写 name 为主键构建元素索引，locator 作为副键反查。
 
         name 为空元素不进索引（避免空键碰撞），同名元素后写覆盖（取首条更稳定）。
         """
-        index: Dict[str, Dict[str, Any]] = {}
+        index: dict[str, dict[str, Any]] = {}
         for element in elements or []:
             if not isinstance(element, dict):
                 continue
@@ -100,8 +100,8 @@ class ValidationMixin:
         return index
 
     def _match_element(
-        self, target: str, element_index: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, target: str, element_index: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         """精确匹配 target_element 到页面元素，命中返回元素字典否则 None。
 
         匹配优先级：

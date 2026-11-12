@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import secrets
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -49,7 +49,7 @@ def _get_redis_client():
 
 # 进程内 RelayState 存储（Redis 不可用时的降级方案）
 # 结构：{relay_state: {"provider": str, "redirect_to": str, "expires_at": float}}
-_memory_relay_store: Dict[str, Dict[str, Any]] = {}
+_memory_relay_store: dict[str, dict[str, Any]] = {}
 
 
 class RelayStateStore:
@@ -78,7 +78,7 @@ class RelayStateStore:
         self,
         relay_state: str,
         provider: str,
-        redirect_to: Optional[str] = None,
+        redirect_to: str | None = None,
     ) -> None:
         """存储 RelayState → (provider, redirect_to) 映射，带 TTL。
 
@@ -107,7 +107,7 @@ class RelayStateStore:
         _memory_relay_store[relay_state] = payload
         self._cleanup_memory()
 
-    def consume(self, relay_state: str) -> Optional[Dict[str, Any]]:
+    def consume(self, relay_state: str) -> dict[str, Any] | None:
         """消费 RelayState（一次性读取后删除），返回存储的 payload。
 
         Args:

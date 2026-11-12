@@ -25,7 +25,8 @@
     通过BatchTaskManager管理并发任务，BatchExecutorMixin
     实现具体的批量执行逻辑。
 """
-from typing import Optional, Callable, Dict, Any
+from typing import Any
+from collections.abc import Callable
 
 from app.services.batch_locator import BatchLocatorService
 from app.services.batch_locator.models import (
@@ -42,9 +43,9 @@ async def batch_record_locators(
     case_id: int,
     skip_existing: bool = True,
     execute_precondition: bool = True,
-    progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
-    config: Optional[BatchLocatorConfig] = None,
-    use_mcp: Optional[bool] = None
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
+    config: BatchLocatorConfig | None = None,
+    use_mcp: bool | None = None
 ) -> BatchRecordReport:
     """便捷异步函数 - 快速执行批量元素定位。
 

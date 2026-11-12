@@ -21,8 +21,6 @@
 """
 from __future__ import annotations
 
-import uuid
-from typing import List, Optional
 
 from loguru import logger
 from sqlalchemy import select, update, func
@@ -62,9 +60,9 @@ class BaselineService:
         viewport_height: int,
         image_bytes: bytes,
         match_level: str = "strict",
-        test_case_id: Optional[int] = None,
-        dom_snapshot_bytes: Optional[bytes] = None,
-        created_by: Optional[int] = None,
+        test_case_id: int | None = None,
+        dom_snapshot_bytes: bytes | None = None,
+        created_by: int | None = None,
     ) -> VisualBaseline:
         """创建新基线。
 
@@ -95,13 +93,13 @@ class BaselineService:
 
         # 上传截图到 StorageBackend
         image_key = self._build_image_key(project_id, page_url, viewport_width, viewport_height, new_version)
-        image_obj = await self._storage.save(image_key, image_bytes, content_type="image/png")
+        await self._storage.save(image_key, image_bytes, content_type="image/png")
 
         # 获取图片尺寸
         image_width, image_height = self._get_image_dimensions(image_bytes)
 
         # 上传 DOM 快照（可选）
-        dom_snapshot_key: Optional[str] = None
+        dom_snapshot_key: str | None = None
         if dom_snapshot_bytes:
             dom_snapshot_key = self._build_dom_key(project_id, page_url, viewport_width, viewport_height, new_version)
             await self._storage.save(dom_snapshot_key, dom_snapshot_bytes, content_type="application/json")
@@ -138,7 +136,7 @@ class BaselineService:
         page_url: str,
         viewport_width: int,
         viewport_height: int,
-    ) -> Optional[VisualBaseline]:
+    ) -> VisualBaseline | None:
         """查询当前活跃基线（status=active）。
 
         Args:
@@ -165,7 +163,7 @@ class BaselineService:
         result = await self._db.execute(stmt)
         return result.scalars().first()
 
-    async def get_baseline_by_id(self, baseline_id: int) -> Optional[VisualBaseline]:
+    async def get_baseline_by_id(self, baseline_id: int) -> VisualBaseline | None:
         """按主键查询基线。"""
         stmt = select(VisualBaseline).where(VisualBaseline.id == baseline_id)
         result = await self._db.execute(stmt)
@@ -174,11 +172,11 @@ class BaselineService:
     async def list_baselines(
         self,
         project_id: int,
-        status: Optional[str] = None,
-        test_case_id: Optional[int] = None,
+        status: str | None = None,
+        test_case_id: int | None = None,
         offset: int = 0,
         limit: int = 50,
-    ) -> List[VisualBaseline]:
+    ) -> list[VisualBaseline]:
         """按项目列出基线，支持状态与用例过滤。"""
         stmt = select(VisualBaseline).where(VisualBaseline.project_id == project_id)
         if status:
@@ -193,8 +191,8 @@ class BaselineService:
         self,
         baseline_id: int,
         new_image_bytes: bytes,
-        match_level: Optional[str] = None,
-        dom_snapshot_bytes: Optional[bytes] = None,
+        match_level: str | None = None,
+        dom_snapshot_bytes: bytes | None = None,
     ) -> VisualBaseline:
         """更新基线截图，旧版本归档，创建新版本。
 
@@ -275,7 +273,7 @@ class BaselineService:
         page_url: str,
         viewport_width: int,
         viewport_height: int,
-    ) -> List[VisualBaseline]:
+    ) -> list[VisualBaseline]:
         """获取页面+视口的基线版本历史（按版本号降序）。"""
         stmt = (
             select(VisualBaseline)

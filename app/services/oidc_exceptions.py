@@ -8,7 +8,6 @@
         ├── OIDCTokenError      id_token / access_token 校验异常（401）
         └── OIDCUserNotBoundError 用户未绑定且不允许自动注册（403）
 """
-from typing import Optional
 
 from app.core.exception._base import BaseAPIException
 
@@ -16,7 +15,7 @@ from app.core.exception._base import BaseAPIException
 class OIDCServiceError(BaseAPIException):
     """OIDC 服务异常基类。"""
 
-    def __init__(self, msg: str, code: int = 400, details: Optional[dict] = None) -> None:
+    def __init__(self, msg: str, code: int = 400, details: dict | None = None) -> None:
         super().__init__(msg=msg, code=code, details=details)
 
 

@@ -67,10 +67,10 @@ class UnifiedVisionModel(
 
     def __init__(
         self,
-        model_type: Optional[VisionModelType] = None,
-        api_key: Optional[str] = None,
-        api_url: Optional[str] = None,
-        model_name: Optional[str] = None,
+        model_type: VisionModelType | None = None,
+        api_key: str | None = None,
+        api_url: str | None = None,
+        model_name: str | None = None,
         max_tokens: int = 4096,
         temperature: float = 0.1,
         timeout: int = 60,
@@ -91,7 +91,7 @@ class UnifiedVisionModel(
 
 
 # 全局默认视觉模型实例 — 延迟初始化
-_default_vision_model: Optional[UnifiedVisionModel] = None
+_default_vision_model: UnifiedVisionModel | None = None
 
 
 def get_default_vision_model() -> UnifiedVisionModel:

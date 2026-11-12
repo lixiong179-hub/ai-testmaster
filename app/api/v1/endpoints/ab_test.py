@@ -12,7 +12,7 @@ A/B测试指标端点模块
     - GET  /experiments/{experiment_id}/summary  — 获取实验汇总
     - GET  /experiments                          — 列出所有实验
 """
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
@@ -35,9 +35,9 @@ class MetricCreateRequest(BaseModel):
     variant: str = Field(..., max_length=32, description="变体标识: control/treatment")
     metric_name: str = Field(..., max_length=64, description="指标名称")
     metric_value: float = Field(..., description="指标值")
-    project_id: Optional[int] = Field(None, description="项目ID")
-    test_point_id: Optional[int] = Field(None, description="测试点ID")
-    detail: Optional[Dict[str, Any]] = Field(None, description="指标详情JSON")
+    project_id: int | None = Field(None, description="项目ID")
+    test_point_id: int | None = Field(None, description="测试点ID")
+    detail: dict[str, Any] | None = Field(None, description="指标详情JSON")
 
 
 async def _verify_project_ownership(
@@ -56,7 +56,7 @@ async def _verify_project_ownership(
     return project
 
 
-async def _get_user_project_ids(db: AsyncSession, user_id: int) -> List[int]:
+async def _get_user_project_ids(db: AsyncSession, user_id: int) -> list[int]:
     """获取用户拥有的所有项目ID"""
     rows = (
         await db.execute(select(Project.id).where(Project.user_id == user_id))
@@ -70,7 +70,7 @@ async def record_metric(
     body: MetricCreateRequest,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     if body.project_id is not None:
         await _verify_project_ownership(body.project_id, current_user, db)
     try:
@@ -114,7 +114,7 @@ async def get_experiment_summary(
     experiment_id: str,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     try:
         user_project_ids = await _get_user_project_ids(db, current_user.id)
         service = ABTestService(db)
@@ -136,11 +136,11 @@ async def list_experiments(
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     try:
         user_project_ids = await _get_user_project_ids(db, current_user.id)
         service = ABTestService(db)
-        experiments: List[Dict[str, Any]] = await service.list_experiments_async(
+        experiments: list[dict[str, Any]] = await service.list_experiments_async(
             project_ids=user_project_ids,
         )
         total = len(experiments)

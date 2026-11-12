@@ -16,7 +16,7 @@ quality_validator.py + _quality_field_validators.py + _quality_step_validators.p
 落在本模块命名空间。
 """
 import inspect
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy.exc import IntegrityError
@@ -78,9 +78,9 @@ class CaseValidator(UIElementValidationMixin, QualityGateMixin):
     async def _save_test_case(
         self,
         project_id: int,
-        generated_case: Dict[str, Any],
-        test_point: Dict[str, Any],
-        requirement_file_id: Optional[int] = None
+        generated_case: dict[str, Any],
+        test_point: dict[str, Any],
+        requirement_file_id: int | None = None
     ) -> TestCase:
         """保存测试用例到数据库。
 

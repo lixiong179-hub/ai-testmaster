@@ -16,7 +16,7 @@ action 枚举与 TestStep.action_type 注释保持一致
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from loguru import logger
 
@@ -32,10 +32,10 @@ VALID_ACTIONS: frozenset[str] = frozenset({
 })
 
 # 工具入参 priority(字符串) → 模型 priority(1高/2中/3低)
-_PRIORITY_MAP: Dict[str, int] = {"high": 1, "medium": 2, "low": 3}
+_PRIORITY_MAP: dict[str, int] = {"high": 1, "medium": 2, "low": 3}
 
 
-def _normalize_step(step_data: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_step(step_data: dict[str, Any]) -> dict[str, Any]:
     """将工具入参 step（action/target/value/expected）归一化为模型字段。
 
     兼容两种 key 风格：Agent 友好型（action/target/value/expected）与
@@ -82,7 +82,7 @@ class CreateTestCaseTool(Tool):
         "required": ["project_id", "title", "steps"],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         """写入一条测试用例及其结构化步骤。
 
         case_no 通过 CaseNumberService.generate_async 并发安全生成；
@@ -97,8 +97,8 @@ class CreateTestCaseTool(Tool):
         title: str = params.get("title") or ""
         if not title:
             return ToolResult(success=False, error="title 不可为空")
-        steps: List[Dict[str, Any]] = params.get("steps", []) or []
-        preconditions: List[str] = params.get("preconditions", []) or []
+        steps: list[dict[str, Any]] = params.get("steps", []) or []
+        preconditions: list[str] = params.get("preconditions", []) or []
         priority = _PRIORITY_MAP.get(params.get("priority", "medium"), 2)
         try:
             case_no = await CaseNumberService.generate_async(project_id, context.db)
@@ -131,7 +131,7 @@ class CreateTestCaseTool(Tool):
             return ToolResult(success=False, error=f"{type(e).__name__}: {e}")
 
     @staticmethod
-    def _derive_expected(steps: List[Dict[str, Any]]) -> str:
+    def _derive_expected(steps: list[dict[str, Any]]) -> str:
         """推导用例整体预期结果：取最后一步 expected，缺失则用默认文案。"""
         last_expected = next(
             (s.get("expected") for s in reversed(steps)
@@ -141,7 +141,7 @@ class CreateTestCaseTool(Tool):
         return last_expected or "所有步骤执行成功"
 
     @staticmethod
-    async def _persist_steps(db: Any, case_id: int, steps: List[Dict[str, Any]]) -> None:
+    async def _persist_steps(db: Any, case_id: int, steps: list[dict[str, Any]]) -> None:
         """将步骤列表写入 test_steps 表，与 create_test_case CRUD 逻辑对齐。"""
         for idx, raw in enumerate(steps, start=1):
             if not isinstance(raw, dict):
@@ -177,10 +177,10 @@ class ValidateTestCaseSyntaxTool(Tool):
         "required": ["steps"],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         """纯内存校验：action 必填且须在合法枚举内，target/value/expected 可选。"""
-        steps: List[Dict[str, Any]] = params.get("steps", []) or []
-        warnings: List[str] = []
+        steps: list[dict[str, Any]] = params.get("steps", []) or []
+        warnings: list[str] = []
         if not steps:
             warnings.append("步骤列表为空")
         for idx, step in enumerate(steps):

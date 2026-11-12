@@ -23,12 +23,11 @@
 - IterationInputKind -> IterationInput.kind 字段的枚举值
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime, date
-from enum import Enum
+from enum import StrEnum
 
 
-class IterationPipelineStatus(str, Enum):
+class IterationPipelineStatus(StrEnum):
     """
     迭代流水线状态枚举
 
@@ -42,7 +41,7 @@ class IterationPipelineStatus(str, Enum):
     ARCHIVED = "archived"               # 已归档
 
 
-class IterationInputKind(str, Enum):
+class IterationInputKind(StrEnum):
     """
     迭代输入类型枚举
     """
@@ -63,11 +62,11 @@ class IterationCreate(BaseModel):
     project_id: int = Field(..., description="项目ID")
     name: str = Field(..., min_length=1, max_length=200, description="迭代名称")
     version: str = Field(default="v1.0", max_length=50, description="版本号")
-    description: Optional[str] = Field(None, description="迭代描述")
-    base_iteration_id: Optional[int] = Field(None, description="基线迭代ID，必须属于同project且status=finalized")
-    start_date: Optional[date] = Field(None, description="开始日期")
-    end_date: Optional[date] = Field(None, description="结束日期")
-    target_device: Optional[str] = Field(None, max_length=20, description="迭代目标设备：tablet/phone/desktop/web")
+    description: str | None = Field(None, description="迭代描述")
+    base_iteration_id: int | None = Field(None, description="基线迭代ID，必须属于同project且status=finalized")
+    start_date: date | None = Field(None, description="开始日期")
+    end_date: date | None = Field(None, description="结束日期")
+    target_device: str | None = Field(None, max_length=20, description="迭代目标设备：tablet/phone/desktop/web")
 
 
 class IterationUpdate(BaseModel):
@@ -76,12 +75,12 @@ class IterationUpdate(BaseModel):
 
     验证规则：所有字段可选；status 由系统自动驱动，不允许用户手动修改
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=200, description="迭代名称")
-    version: Optional[str] = Field(None, max_length=50, description="版本号")
-    description: Optional[str] = Field(None, description="迭代描述")
-    start_date: Optional[date] = Field(None, description="开始日期")
-    end_date: Optional[date] = Field(None, description="结束日期")
-    target_device: Optional[str] = Field(None, max_length=20, description="迭代目标设备")
+    name: str | None = Field(None, min_length=1, max_length=200, description="迭代名称")
+    version: str | None = Field(None, max_length=50, description="版本号")
+    description: str | None = Field(None, description="迭代描述")
+    start_date: date | None = Field(None, description="开始日期")
+    end_date: date | None = Field(None, description="结束日期")
+    target_device: str | None = Field(None, max_length=20, description="迭代目标设备")
 
 
 class IterationInputCreate(BaseModel):
@@ -91,8 +90,8 @@ class IterationInputCreate(BaseModel):
     验证规则：kind必填；file_id和payload至少提供一个；hash必填用于幂等校验
     """
     kind: IterationInputKind = Field(..., description="输入类型")
-    file_id: Optional[int] = Field(None, description="关联项目文件ID")
-    payload: Optional[dict] = Field(None, description="非文件型输入的JSON载荷")
+    file_id: int | None = Field(None, description="关联项目文件ID")
+    payload: dict | None = Field(None, description="非文件型输入的JSON载荷")
     hash: str = Field(..., min_length=1, max_length=64, description="输入内容哈希，用于幂等校验（映射到 content_hash 列）")
 
 
@@ -103,8 +102,8 @@ class IterationInputResponse(BaseModel):
     id: int
     iteration_id: int
     kind: str
-    file_id: Optional[int]
-    payload: Optional[dict]
+    file_id: int | None
+    payload: dict | None
     content_hash: str
     uploaded_at: datetime
 
@@ -120,17 +119,17 @@ class IterationResponse(BaseModel):
     project_id: int
     name: str
     version: str
-    description: Optional[str]
+    description: str | None
     status: str
-    start_date: Optional[date]
-    end_date: Optional[date]
-    base_iteration_id: Optional[int]
-    target_device: Optional[str] = None
-    created_by: Optional[int]
-    finalized_at: Optional[datetime]
+    start_date: date | None
+    end_date: date | None
+    base_iteration_id: int | None
+    target_device: str | None = None
+    created_by: int | None
+    finalized_at: datetime | None
     create_time: datetime
     update_time: datetime
-    inputs: Optional[List[IterationInputResponse]] = None
+    inputs: list[IterationInputResponse] | None = None
 
     class Config:
         from_attributes = True

@@ -34,7 +34,6 @@
 - Permission系列 -> app.models.user.Permission
 """
 from datetime import datetime
-from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field, validator
 
 
@@ -48,7 +47,7 @@ class UserBase(BaseModel):
     """
     username: str = Field(..., min_length=3, max_length=50, description="用户名")  # 必填，唯一标识，与User.username对应
     email: EmailStr = Field(..., description="邮箱")  # 必填，EmailStr自动校验格式，与User.email对应
-    phone: Optional[str] = Field(None, min_length=11, max_length=20, description="手机号")  # 可选，11-20位，默认None表示未填写
+    phone: str | None = Field(None, min_length=11, max_length=20, description="手机号")  # 可选，11-20位，默认None表示未填写
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -86,9 +85,9 @@ class UserUpdate(BaseModel):
     对应API：PUT/PATCH /api/v1/users/{user_id}
     与Model映射：字段对应 User Model 的 email/phone/is_active
     """
-    email: Optional[EmailStr] = None  # 可选，更新邮箱
-    phone: Optional[str] = None  # 可选，更新手机号
-    is_active: Optional[bool] = None  # 可选，更新激活状态，True=启用/False=禁用
+    email: EmailStr | None = None  # 可选，更新邮箱
+    phone: str | None = None  # 可选，更新手机号
+    is_active: bool | None = None  # 可选，更新激活状态，True=启用/False=禁用
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -143,7 +142,7 @@ class UserWithRoles(User):
     嵌套关系：继承User，额外包含roles列表（嵌套Role Schema）
     对应API：GET /api/v1/users/{user_id}（含角色信息时）
     """
-    roles: List['Role'] = []  # 用户关联的角色列表，默认空列表，通过User.roles关系获取
+    roles: list['Role'] = []  # 用户关联的角色列表，默认空列表，通过User.roles关系获取
 
 
 class RoleBase(BaseModel):
@@ -155,7 +154,7 @@ class RoleBase(BaseModel):
     与Model映射：对应 Role Model 的 name/desc 字段
     """
     name: str = Field(..., min_length=1, max_length=50, description="角色名称")  # 必填，如"管理员"/"测试人员"
-    desc: Optional[str] = Field(None, max_length=200, description="角色描述")  # 可选，角色功能说明
+    desc: str | None = Field(None, max_length=200, description="角色描述")  # 可选，角色功能说明
 
 
 class RoleCreate(RoleBase):
@@ -167,7 +166,7 @@ class RoleCreate(RoleBase):
     对应API：POST /api/v1/roles/
     与Model映射：permissions字段对应 Role Model 的 JSON 类型 permissions 列
     """
-    permissions: Optional[List[str]] = Field(None, description="权限列表")  # 可选，权限编码列表，如["user:read", "user:write"]
+    permissions: list[str] | None = Field(None, description="权限列表")  # 可选，权限编码列表，如["user:read", "user:write"]
 
 
 class RoleUpdate(RoleBase):
@@ -179,9 +178,9 @@ class RoleUpdate(RoleBase):
     对应API：PUT/PATCH /api/v1/roles/{role_id}
     """
     # 更新场景允许部分字段缺省，因此覆盖父类字段为Optional
-    name: Optional[str] = Field(None, min_length=1, max_length=50, description="角色名称")  # 可选，更新角色名称
-    desc: Optional[str] = Field(None, max_length=200, description="角色描述")  # 可选，更新角色描述
-    permissions: Optional[List[str]] = Field(None, description="权限列表")  # 可选，更新权限编码列表
+    name: str | None = Field(None, min_length=1, max_length=50, description="角色名称")  # 可选，更新角色名称
+    desc: str | None = Field(None, max_length=200, description="角色描述")  # 可选，更新角色描述
+    permissions: list[str] | None = Field(None, description="权限列表")  # 可选，更新权限编码列表
 
 
 class Role(RoleBase):
@@ -193,7 +192,7 @@ class Role(RoleBase):
     与Model映射：映射 Role Model 的 id/name/desc/permissions/create_time
     """
     id: int  # 角色主键ID
-    permissions: Optional[List[str]] = None  # 权限编码列表，JSON存储，可能为空
+    permissions: list[str] | None = None  # 权限编码列表，JSON存储，可能为空
     create_time: datetime  # 创建时间
 
     class Config:
@@ -212,7 +211,7 @@ class PermissionBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=50, description="权限名称")  # 必填，如"用户管理"/"创建项目"
     code: str = Field(..., min_length=1, max_length=50, description="权限编码")  # 必填，唯一标识，如"user:manage"/"project:create"
     type: str = Field(..., description="权限类型：api/menu/data")  # 必填，区分菜单权限/按钮权限/接口权限
-    parent_id: Optional[int] = Field(None, description="父权限ID")  # 可选，支持树形权限结构，None表示顶级权限
+    parent_id: int | None = Field(None, description="父权限ID")  # 可选，支持树形权限结构，None表示顶级权限
 
 
 class PermissionCreate(PermissionBase):
@@ -235,10 +234,10 @@ class PermissionUpdate(PermissionBase):
     对应API：PUT/PATCH /api/v1/permissions/{permission_id}
     """
     # 更新场景允许部分字段缺省，因此覆盖父类字段为Optional
-    name: Optional[str] = Field(None, min_length=1, max_length=50, description="权限名称")  # 可选
-    code: Optional[str] = Field(None, min_length=1, max_length=50, description="权限编码")  # 可选
-    type: Optional[str] = Field(None, description="权限类型：menu/button/api")  # 可选
-    parent_id: Optional[int] = Field(None, description="父权限ID")  # 可选
+    name: str | None = Field(None, min_length=1, max_length=50, description="权限名称")  # 可选
+    code: str | None = Field(None, min_length=1, max_length=50, description="权限编码")  # 可选
+    type: str | None = Field(None, description="权限类型：menu/button/api")  # 可选
+    parent_id: int | None = Field(None, description="父权限ID")  # 可选
 
 
 class Permission(PermissionBase):
@@ -286,7 +285,7 @@ class TokenData(BaseModel):
     业务用途：JWT令牌解码后提取的数据，用于身份识别
     仅包含user_id，服务端根据user_id查询完整用户信息
     """
-    user_id: Optional[int] = None  # 令牌中携带的用户ID，None表示无效令牌
+    user_id: int | None = None  # 令牌中携带的用户ID，None表示无效令牌
 
 
 # 解决UserWithRoles中Role前向引用的循环依赖问题

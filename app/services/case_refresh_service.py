@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import func, select
@@ -59,9 +59,9 @@ class CaseRefreshService:
         self,
         case_id: int,
         trigger_reason: str,
-        requirement_id: Optional[int] = None,
-        ai_result: Optional[Dict[str, Any]] = None,
-        model_version: Optional[str] = None,
+        requirement_id: int | None = None,
+        ai_result: dict[str, Any] | None = None,
+        model_version: str | None = None,
     ) -> CaseRefreshSuggestion:
         """创建保鲜建议记录。
 
@@ -112,7 +112,7 @@ class CaseRefreshService:
             case_expected_result=case.expected_result or "",
         )
 
-    def parse_refresh_response(self, response_text: str) -> Dict[str, Any]:
+    def parse_refresh_response(self, response_text: str) -> dict[str, Any]:
         """解析 AI 保鲜响应文本为字典，失败时返回兜底结果。"""
         import re
         text = response_text.strip()
@@ -130,7 +130,7 @@ class CaseRefreshService:
                     pass
         return {"is_valid": True, "diff_description": "AI响应解析失败，需人工判断"}
 
-    async def get_suggestion_by_id(self, suggestion_id: int) -> Optional[CaseRefreshSuggestion]:
+    async def get_suggestion_by_id(self, suggestion_id: int) -> CaseRefreshSuggestion | None:
         """根据ID获取保鲜建议。"""
         result = await self.db.execute(
             select(CaseRefreshSuggestion).where(
@@ -139,7 +139,7 @@ class CaseRefreshService:
         )
         return result.scalar_one_or_none()
 
-    async def get_case_by_id(self, case_id: int) -> Optional[TestCase]:
+    async def get_case_by_id(self, case_id: int) -> TestCase | None:
         """根据ID获取测试用例。"""
         result = await self.db.execute(
             select(TestCase).where(TestCase.id == case_id)
@@ -151,9 +151,9 @@ class CaseRefreshService:
         project_id: int,
         page: int = 1,
         page_size: int = 20,
-        suggestion_status: Optional[str] = None,
-        review_status: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        suggestion_status: str | None = None,
+        review_status: str | None = None,
+    ) -> dict[str, Any]:
         """分页查询项目下的保鲜建议列表。"""
         query = (
             select(CaseRefreshSuggestion)
@@ -196,7 +196,7 @@ class CaseRefreshService:
             "page_size": page_size,
         }
 
-    async def get_suggestions_stats(self, project_id: int) -> Dict[str, Any]:
+    async def get_suggestions_stats(self, project_id: int) -> dict[str, Any]:
         """统计项目下保鲜建议按状态的分布。
 
         业务边界：未知状态（如 expired）需累加进 total，不能丢弃。
@@ -228,7 +228,7 @@ class CaseRefreshService:
         action: str,
         reviewer_id: int,
         reviewer_name: str,
-        reject_reason: Optional[str] = None,
+        reject_reason: str | None = None,
     ) -> CaseRefreshSuggestion:
         """审核保鲜建议，委托至 _case_refresh_apply.review_suggestion。"""
         return await _review_suggestion_impl(
@@ -243,7 +243,7 @@ class CaseRefreshService:
         """创建版本快照（内部方法）。"""
         return await _create_version_snapshot_impl(self.db, case, change_type)
 
-    def _suggestion_to_dict(self, suggestion: CaseRefreshSuggestion) -> Dict[str, Any]:
+    def _suggestion_to_dict(self, suggestion: CaseRefreshSuggestion) -> dict[str, Any]:
         """将保鲜建议实例序列化为字典。"""
         return {
             "id": suggestion.id,
@@ -266,7 +266,7 @@ class CaseRefreshService:
             "created_at": suggestion.created_at.isoformat() if suggestion.created_at else None,
         }
 
-    async def auto_scan_and_suggest(self, project_id: int, max_cases: int = 10) -> Dict[str, Any]:
+    async def auto_scan_and_suggest(self, project_id: int, max_cases: int = 10) -> dict[str, Any]:
         """自动扫描过期用例并生成保鲜建议。
 
         扫描项目中需求已变更但用例未同步更新的过期用例，
@@ -280,8 +280,8 @@ class CaseRefreshService:
             包含created（已创建建议ID列表）、errors（失败列表）、total_scanned（扫描总数）的字典
         """
         stale_cases = await self.scan_stale_cases(project_id)
-        created: List[int] = []
-        errors: List[Dict[str, Any]] = []
+        created: list[int] = []
+        errors: list[dict[str, Any]] = []
         for stale_info in stale_cases[:max_cases]:
             case = await self.get_case_by_id(stale_info["case_id"])
             if not case:
@@ -317,7 +317,7 @@ class CaseRefreshService:
                 errors.append({"case_id": stale_info["case_id"], "error": str(e)})
         return {"created": created, "errors": errors, "total_scanned": len(stale_cases)}
 
-    async def scan_stale_cases(self, project_id: int) -> List[Dict[str, Any]]:
+    async def scan_stale_cases(self, project_id: int) -> list[dict[str, Any]]:
         """扫描项目下需求已变更但用例未同步的过期用例。"""
         cases_result = await self.db.execute(
             select(TestCase).where(
@@ -327,7 +327,7 @@ class CaseRefreshService:
             )
         )
         cases = cases_result.scalars().all()
-        stale_cases: List[Dict[str, Any]] = []
+        stale_cases: list[dict[str, Any]] = []
         for case in cases:
             if not case.test_point_id:
                 continue

@@ -19,7 +19,6 @@
     - 批量录制基于测试用例步骤，自动识别页面元素并生成定位器
     - 录制过程异步执行，通过状态接口轮询进度
 """
-from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,14 +40,14 @@ router.include_router(tasks_router)
 class BatchRecordRequest(BaseModel):
     """批量录制请求模型"""
     project_id: int = 0
-    case_ids: List[int] = Field(default_factory=list)
-    execution_mode: Optional[str] = "smart"
+    case_ids: list[int] = Field(default_factory=list)
+    execution_mode: str | None = "smart"
     skip_existing: bool = True
     execute_precondition: bool = True
 
     @field_validator('case_ids')
     @classmethod
-    def validate_case_ids(cls, v: List[int]) -> List[int]:
+    def validate_case_ids(cls, v: list[int]) -> list[int]:
         if not v:
             return v
         if len(v) > 100:
@@ -70,7 +69,7 @@ class BatchRecordResponse(BaseModel):
     success: bool
     message: str
     case_id: int
-    task_id: Optional[str] = None
+    task_id: str | None = None
 
 
 class BatchRecordStatusResponse(BaseModel):
@@ -80,8 +79,8 @@ class BatchRecordStatusResponse(BaseModel):
     status: str
     progress: float
     total_steps: int
-    current_step: Optional[int] = None
-    message: Optional[str] = None
+    current_step: int | None = None
+    message: str | None = None
 
 
 @router.post("/batch-record")

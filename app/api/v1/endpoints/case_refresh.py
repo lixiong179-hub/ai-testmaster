@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
@@ -20,7 +20,7 @@ router = APIRouter(tags=["用例保鲜"])
 
 class ReviewSuggestionRequest(BaseModel):
     action: str = Field(..., description="审核操作: approve/reject")
-    reject_reason: Optional[str] = Field(None, description="驳回原因")
+    reject_reason: str | None = Field(None, description="驳回原因")
 
 
 class ScanStaleRequest(BaseModel):
@@ -47,8 +47,8 @@ async def list_refresh_suggestions(
     project_id: int,
     page: int = 1,
     page_size: int = 20,
-    suggestion_status: Optional[str] = None,
-    review_status: Optional[str] = None,
+    suggestion_status: str | None = None,
+    review_status: str | None = None,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:

@@ -1,6 +1,5 @@
 import hashlib
 import json
-from typing import Optional, List
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -15,7 +14,7 @@ from app.services.pipeline_service._errors import (
 )
 
 
-def compute_input_hash(iteration_inputs: List[IterationInput]) -> str:
+def compute_input_hash(iteration_inputs: list[IterationInput]) -> str:
     pairs = sorted(
         [(inp.kind, inp.content_hash) for inp in iteration_inputs],
         key=lambda p: (p[0], p[1]),
@@ -30,7 +29,7 @@ def create_run(
     input_hash: str,
     pipeline_version: str = "1.0",
     reuse_existing: bool = False,
-    triggered_by: Optional[int] = None,
+    triggered_by: int | None = None,
 ) -> PipelineRun:
     iteration = db.query(Iteration).filter(Iteration.id == iteration_id).first()
     if iteration is None:
@@ -62,7 +61,7 @@ def create_run(
     return run
 
 
-def get_run(db: Session, run_id: int) -> Optional[PipelineRun]:
+def get_run(db: Session, run_id: int) -> PipelineRun | None:
     return (
         db.query(PipelineRun)
         .options(
@@ -80,7 +79,7 @@ def list_runs(
     *,
     skip: int = 0,
     limit: int = 100,
-) -> List[PipelineRun]:
+) -> list[PipelineRun]:
     return (
         db.query(PipelineRun)
         .filter(PipelineRun.iteration_id == iteration_id)
@@ -96,8 +95,8 @@ def update_run_status(
     run_id: int,
     status: str,
     *,
-    error: Optional[str] = None,
-) -> Optional[PipelineRun]:
+    error: str | None = None,
+) -> PipelineRun | None:
     run = db.query(PipelineRun).filter(PipelineRun.id == run_id).first()
     if run is None:
         return None

@@ -11,7 +11,6 @@
     - 版本列表/详情/恢复
 """
 import json
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
@@ -19,7 +18,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import async_get_db
-from app.models.test_case import TestCase, TestStep
+from app.models.test_case import TestCase
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.utils.test_case_helpers import build_test_case_response

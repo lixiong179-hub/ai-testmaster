@@ -3,7 +3,6 @@
 纯计算 + 后台 Agent 编排，保持原函数名以兼容既有调用点与测试 patch 目标。
 """
 import asyncio
-from typing import Optional
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -17,9 +16,9 @@ from app.utils.db_time import utcnow
 def _spawn_failure_analysis_agent(
     *,
     project_id: int,
-    created_by: Optional[int],
-    last_error: Optional[str],
-    screenshot_url: Optional[str],
+    created_by: int | None,
+    last_error: str | None,
+    screenshot_url: str | None,
 ) -> None:
     """R1-1：fire-and-forget 触发 AgentOrchestrator 的失败分析管线。
 

@@ -4,13 +4,13 @@
     - _build_test_data_prompt: 测试数据生成的结构化 Prompt
 """
 import json
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 
 def _build_test_data_prompt(
-    field_definitions: List[Dict[str, Any]],
+    field_definitions: list[dict[str, Any]],
     count: int,
-    context: Optional[str],
+    context: str | None,
     data_type: str
 ) -> str:
     """构建数据生成的结构化 Prompt。

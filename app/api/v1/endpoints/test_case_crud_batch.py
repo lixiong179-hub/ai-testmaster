@@ -18,7 +18,6 @@
     create_steps_and_test_data 已在 test_case_crud.py 中改为 async，此处直接 await 调用。
 """
 from datetime import datetime
-from typing import Optional
 
 from app.utils.db_time import utcnow
 from fastapi import APIRouter, Depends
@@ -156,7 +155,7 @@ async def batch_create_test_cases(
 
 class BatchRestoreRequest(BaseModel):
     """批量恢复请求模型，限制单次最多恢复500个用例"""
-    project_id: Optional[int] = None
+    project_id: int | None = None
     caseIds: list[int]
 
     @field_validator('caseIds')
@@ -171,7 +170,7 @@ class BatchRestoreRequest(BaseModel):
 
 class BatchDeleteRequest(BaseModel):
     """批量删除请求模型，限制单次最多删除500个用例"""
-    project_id: Optional[int] = None
+    project_id: int | None = None
     caseIds: list[int]
 
     @field_validator('caseIds')

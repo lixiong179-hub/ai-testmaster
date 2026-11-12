@@ -18,7 +18,7 @@ AI Client 抽象接口模块
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @dataclass
@@ -49,7 +49,7 @@ class AIResponse:
         degraded: 是否由 fallback 模型生成
     """
     content: str = ""
-    parsed: Optional[Dict[str, Any]] = None
+    parsed: dict[str, Any] | None = None
     usage: TokenUsage = field(default_factory=TokenUsage)
     model_version: str = ""
     latency_ms: int = 0
@@ -72,11 +72,11 @@ class AIClient(Protocol):
         self,
         prompt: str,
         *,
-        system: Optional[str] = None,
-        schema: Optional[Dict[str, Any]] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        system: str | None = None,
+        schema: dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AIResponse:
         """执行 AI 补全调用
 

@@ -10,8 +10,6 @@
     - 客户端在构造时创建，线程安全可共享
 """
 import asyncio
-import io
-from typing import Optional
 
 from app.services.storage.base import StorageBackend, StorageObject
 
@@ -63,7 +61,7 @@ class S3Storage(StorageBackend):
         except Exception:
             self._client.create_bucket(Bucket=self._bucket)
 
-    async def save(self, key: str, data: bytes, content_type: Optional[str] = None) -> StorageObject:
+    async def save(self, key: str, data: bytes, content_type: str | None = None) -> StorageObject:
         if not key:
             raise ValueError("key 不能为空")
         if data is None:
@@ -98,7 +96,7 @@ class S3Storage(StorageBackend):
                 "404",
             ):
                 raise FileNotFoundError(f"对象不存在: {key}") from exc
-            raise IOError(f"读取 S3 对象失败: {key}") from exc
+            raise OSError(f"读取 S3 对象失败: {key}") from exc
         return await asyncio.to_thread(response["Body"].read)
 
     async def delete(self, key: str) -> bool:
@@ -122,7 +120,7 @@ class S3Storage(StorageBackend):
         except Exception:
             return False
 
-    async def url(self, key: str, expires: int = 3600) -> Optional[str]:
+    async def url(self, key: str, expires: int = 3600) -> str | None:
         if not key:
             raise ValueError("key 不能为空")
         if not await self.exists(key):

@@ -6,7 +6,7 @@
 以及跨 Mixin 的 self._get_active_page。
 """
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 from app.services.test_execution_engine.models import VerificationError
 
@@ -68,7 +68,7 @@ class StructuredExtendedAssertionMixin:
     ``_get_active_page``。
     """
 
-    def _get_defect_evidence(self) -> Dict[str, Any]:
+    def _get_defect_evidence(self) -> dict[str, Any]:
         """获取浏览器缺陷证据，browser 或 get_defect_evidence 不可用时返回空结构。"""
         if not self.browser or not hasattr(self.browser, "get_defect_evidence"):
             return {
@@ -83,7 +83,7 @@ class StructuredExtendedAssertionMixin:
                 "memory_leak_suspect": None, "uncaught_exceptions": [],
             }
 
-    async def _assert_loading_visible(self, params: Dict[str, Any]) -> None:
+    async def _assert_loading_visible(self, params: dict[str, Any]) -> None:
         """检查加载指示器当前可见。"""
         locator = params.get("locator")
         if not locator:
@@ -96,7 +96,7 @@ class StructuredExtendedAssertionMixin:
         if not visible:
             raise VerificationError(f"加载指示器不可见: {locator}")
 
-    async def _assert_loading_hidden(self, params: Dict[str, Any]) -> None:
+    async def _assert_loading_hidden(self, params: dict[str, Any]) -> None:
         """等待加载指示器不可见，超时10秒则失败。"""
         locator = params.get("locator")
         if not locator:
@@ -107,7 +107,7 @@ class StructuredExtendedAssertionMixin:
         except Exception as exc:
             raise VerificationError(f"加载指示器未在10秒内隐藏: {locator}") from exc
 
-    async def _assert_response_time_lt(self, params: Dict[str, Any]) -> None:
+    async def _assert_response_time_lt(self, params: dict[str, Any]) -> None:
         """断言步骤响应时间低于阈值（毫秒）。"""
         threshold_ms = params.get("threshold_ms", 0)
         if threshold_ms <= 0:
@@ -126,11 +126,11 @@ class StructuredExtendedAssertionMixin:
                 f"响应时间断言失败: 实际耗时 {elapsed_ms:.0f}ms, 阈值 {threshold_ms}ms"
             )
 
-    async def _assert_no_console_errors(self, params: Dict[str, Any]) -> None:
+    async def _assert_no_console_errors(self, params: dict[str, Any]) -> None:
         """断言无控制台错误，支持 exclude: 模式排除特定错误。"""
         evidence = self._get_defect_evidence()
-        console_errors: List[Dict[str, str]] = evidence.get("console_errors", [])
-        exclude_patterns: List[str] = params.get("exclude_patterns", [])
+        console_errors: list[dict[str, str]] = evidence.get("console_errors", [])
+        exclude_patterns: list[str] = params.get("exclude_patterns", [])
         if exclude_patterns:
             console_errors = [
                 err for err in console_errors
@@ -142,10 +142,10 @@ class StructuredExtendedAssertionMixin:
             )
             raise VerificationError(f"控制台存在错误: {error_details}")
 
-    async def _assert_no_network_errors(self, params: Dict[str, Any]) -> None:
+    async def _assert_no_network_errors(self, params: dict[str, Any]) -> None:
         """断言无网络请求失败。"""
         evidence = self._get_defect_evidence()
-        network_failures: List[Dict[str, Any]] = evidence.get("network_failures", [])
+        network_failures: list[dict[str, Any]] = evidence.get("network_failures", [])
         if network_failures:
             failure_details = "; ".join(
                 f"[{f.get('method', '')} {f.get('url', '')} status={f.get('status', 0)}]"
@@ -153,7 +153,7 @@ class StructuredExtendedAssertionMixin:
             )
             raise VerificationError(f"网络请求失败: {failure_details}")
 
-    async def _assert_text_not_empty(self, params: Dict[str, Any]) -> None:
+    async def _assert_text_not_empty(self, params: dict[str, Any]) -> None:
         """断言元素文本非空且非纯空白。"""
         locator = params.get("locator")
         if not locator:
@@ -171,10 +171,10 @@ class StructuredExtendedAssertionMixin:
         if text_content is None or text_content.strip() == "":
             raise VerificationError(f"元素文本为空: {locator}")
 
-    async def _assert_no_sensitive_data(self, params: Dict[str, Any]) -> None:
+    async def _assert_no_sensitive_data(self, params: dict[str, Any]) -> None:
         """断言页面无敏感数据暴露（P0缺陷）。"""
         page = self._get_active_page()
-        findings: List[Dict[str, str]] = []
+        findings: list[dict[str, str]] = []
         try:
             dom_findings = await page.evaluate(_SENSITIVE_DATA_CHECK_JS)
             if isinstance(dom_findings, list):
@@ -195,10 +195,10 @@ class StructuredExtendedAssertionMixin:
             )
             raise VerificationError(f"敏感数据暴露: {detail_str}")
 
-    async def _assert_no_xss(self, params: Dict[str, Any]) -> None:
+    async def _assert_no_xss(self, params: dict[str, Any]) -> None:
         """断言页面无XSS漏洞（检查DOM中未转义的脚本标签）。"""
         page = self._get_active_page()
-        findings: List[Dict[str, str]] = []
+        findings: list[dict[str, str]] = []
         try:
             xss_findings = await page.evaluate(_XSS_CHECK_JS)
             if isinstance(xss_findings, list):

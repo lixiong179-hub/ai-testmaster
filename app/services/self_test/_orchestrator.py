@@ -5,7 +5,7 @@
 patch 替换的是 shim 模块属性，运行时 _stm._step_* 从 shim 查找得到被 patch 版本。
 """
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +17,7 @@ async def run_defect_discovery_self_test(
     db: AsyncSession,
     project_id: int,
     user_id: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """执行缺陷挖掘导向的自测全链路，返回执行摘要。
 
     全链路包含 9 个步骤，每个步骤失败时记录错误并继续（不中断全链路），
@@ -54,14 +54,14 @@ async def run_defect_discovery_self_test(
     # 使 @patch("app.services.self_test_service._step_*") 装饰器生效。
     from app.services import self_test_service as _stm
 
-    steps: List[Dict[str, Any]] = []
-    task_id: Optional[int] = None
-    report_id: Optional[int] = None
-    defect_summary: Dict[str, int] = {"p0_count": 0, "p1_count": 0, "p2_count": 0, "p3_count": 0, "total_defects": 0}
+    steps: list[dict[str, Any]] = []
+    task_id: int | None = None
+    report_id: int | None = None
+    defect_summary: dict[str, int] = {"p0_count": 0, "p1_count": 0, "p2_count": 0, "p3_count": 0, "total_defects": 0}
 
     # 中间状态，步骤间传递
-    test_point_ids: List[int] = []
-    case_ids: List[int] = []
+    test_point_ids: list[int] = []
+    case_ids: list[int] = []
 
     logger.info(f"开始缺陷挖掘全链路自测: project_id={project_id}, user_id={user_id}")
 
@@ -264,9 +264,9 @@ async def run_defect_discovery_self_test(
 async def _notify_pipeline_summary(
     db: AsyncSession,
     project_id: int,
-    steps: List[Dict[str, Any]],
-    defect_summary: Dict[str, int],
-    report_id: Optional[int],
+    steps: list[dict[str, Any]],
+    defect_summary: dict[str, int],
+    report_id: int | None,
 ) -> None:
     """全链路执行完成后，通过 WebSocket 推送缺陷发现摘要通知。
 

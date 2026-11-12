@@ -1,8 +1,9 @@
 import functools
 import traceback
-from typing import Optional, Dict, Any, Tuple, Callable, List
+from typing import Any
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from loguru import logger
 import asyncio
 import gc
@@ -10,7 +11,7 @@ import gc
 from app.utils.browser_controller_defects import DefectCaptureMixin
 
 
-class BrowserType(str, Enum):
+class BrowserType(StrEnum):
     CHROMIUM = "chromium"
     FIREFOX = "firefox"
     WEBKIT = "webkit"
@@ -39,19 +40,19 @@ class BrowserConfig:
     viewport_width: int = 1920
     viewport_height: int = 1080
     device_scale_factor: float = 1.0
-    user_agent: Optional[str] = None
+    user_agent: str | None = None
     locale: str = "zh-CN"
     timezone_id: str = "Asia/Shanghai"
-    proxy_server: Optional[str] = None
-    proxy_username: Optional[str] = None
-    proxy_password: Optional[str] = None
+    proxy_server: str | None = None
+    proxy_username: str | None = None
+    proxy_password: str | None = None
     navigation_timeout: int = 30000
     action_timeout: int = 10000
     window_maximized: bool = True
     disable_animations: bool = True
     record_video: bool = False
-    video_dir: Optional[str] = None
-    video_size: Tuple[int, int] = (1920, 1080)
+    video_dir: str | None = None
+    video_size: tuple[int, int] = (1920, 1080)
 
 
 @dataclass
@@ -65,7 +66,7 @@ class ElementInfo:
     class_name: str = ""
     name: str = ""
     text: str = ""
-    attributes: Dict[str, str] = field(default_factory=dict)
+    attributes: dict[str, str] = field(default_factory=dict)
 
     @property
     def center_x(self) -> float:
@@ -113,25 +114,25 @@ def handle_browser_errors(func: Callable) -> Callable:
 
 
 class BrowserControllerV2(DefectCaptureMixin):
-    def __init__(self, config: Optional[BrowserConfig] = None):
+    def __init__(self, config: BrowserConfig | None = None):
         self.config = config or BrowserConfig()
-        self._playwright: Optional[Any] = None
-        self._browser: Optional[Any] = None
-        self._context: Optional[Any] = None
-        self._page: Optional[Any] = None
-        self._current_frame: Optional[Any] = None
+        self._playwright: Any | None = None
+        self._browser: Any | None = None
+        self._context: Any | None = None
+        self._page: Any | None = None
+        self._current_frame: Any | None = None
         self._is_initialized: bool = False
         self._window_size_fixed: bool = False
         self._last_screenshot_time: float = 0
-        self._screenshot_cache: Optional[bytes] = None
+        self._screenshot_cache: bytes | None = None
 
         # 缺陷捕获相关状态
-        self._console_errors: List[Dict[str, str]] = []
-        self._network_failures: List[Dict[str, Any]] = []
-        self._uncaught_exceptions: List[Dict[str, str]] = []
-        self._memory_samples: List[float] = []
-        self._memory_leak_suspect: Optional[Dict[str, Any]] = None
-        self._request_start_times: Dict[str, float] = {}
+        self._console_errors: list[dict[str, str]] = []
+        self._network_failures: list[dict[str, Any]] = []
+        self._uncaught_exceptions: list[dict[str, str]] = []
+        self._memory_samples: list[float] = []
+        self._memory_leak_suspect: dict[str, Any] | None = None
+        self._request_start_times: dict[str, float] = {}
         self._defect_listeners_registered: bool = False
 
     async def initialize(self) -> 'BrowserControllerV2':
@@ -148,7 +149,7 @@ class BrowserControllerV2(DefectCaptureMixin):
                 BrowserType.WEBKIT: self._playwright.webkit
             }
             browser_launcher = browser_type_map[self.config.browser_type]
-            launch_options: Dict[str, Any] = {
+            launch_options: dict[str, Any] = {
                 "headless": self.config.headless,
                 "args": [
                     "--disable-web-security",
@@ -175,7 +176,7 @@ class BrowserControllerV2(DefectCaptureMixin):
                         proxy_config["username"] = self.config.proxy_username
                         proxy_config["password"] = self.config.proxy_password
             self._browser = await browser_launcher.launch(**launch_options)
-            context_options: Dict[str, Any] = {
+            context_options: dict[str, Any] = {
                 "viewport": {
                     "width": self.config.viewport_width,
                     "height": self.config.viewport_height
@@ -284,7 +285,7 @@ class BrowserControllerV2(DefectCaptureMixin):
             await asyncio.sleep(0.15)
             gc.collect()
 
-    async def close(self) -> Optional[str]:
+    async def close(self) -> str | None:
         if (
             not self._is_initialized
             and self._page is None
@@ -323,7 +324,7 @@ class BrowserControllerV2(DefectCaptureMixin):
         return ""
 
     @property
-    def active_page(self) -> Optional[Any]:
+    def active_page(self) -> Any | None:
         return self._current_frame or self._page
 
     def switch_to_frame(self, frame: Any) -> None:

@@ -6,7 +6,7 @@
 辅助函数已拆分至 _signal_gatherer_helpers，本模块通过重新导出保持 import 路径不变。
 """
 import hashlib
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from loguru import logger
 
@@ -48,8 +48,8 @@ class SignalGatherer(PipelineStep):
 
     name: ClassVar[str] = "signal_gatherer"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = []
-    produces: ClassVar[List[str]] = ["raw_signals"]
+    requires: ClassVar[list[str]] = []
+    produces: ClassVar[list[str]] = ["raw_signals"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         return True
@@ -93,11 +93,11 @@ class SignalGatherer(PipelineStep):
         project_id = iteration.project_id
 
         prd_content = ""
-        ui_descriptions: List[Dict[str, Any]] = []
-        ui_specs: List[Dict[str, Any]] = []
-        test_points: List[Dict[str, Any]] = []
-        change_notes_parts: List[str] = []
-        file_ids_used: List[int] = []
+        ui_descriptions: list[dict[str, Any]] = []
+        ui_specs: list[dict[str, Any]] = []
+        test_points: list[dict[str, Any]] = []
+        change_notes_parts: list[str] = []
+        file_ids_used: list[int] = []
 
         for inp in iteration.inputs:
             try:
@@ -177,11 +177,11 @@ class SignalGatherer(PipelineStep):
             },
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         required = ["iteration_id", "project_id", "prd_content", "test_points"]
         return all(k in payload for k in required)
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         return StepResult(
             success=False,
             error=f"信号采集降级: {error}",

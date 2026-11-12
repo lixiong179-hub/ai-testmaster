@@ -18,7 +18,8 @@
     （参考 app/api/v1/endpoints/audit_log.py 的既有模式）。
 """
 import asyncio
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger

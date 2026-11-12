@@ -27,7 +27,6 @@ from fastapi import (
     Form,
     Body,
 )
-from typing import List, Optional
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -93,7 +92,7 @@ async def upload_file(
     file: UploadFile = File(...),
     resource_type: str = Form("other"),
     description: str = Form(""),
-    iteration_id: Optional[int] = Form(None),
+    iteration_id: int | None = Form(None),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -215,7 +214,7 @@ async def submit_url(
 
 @router.post("/update-sort")
 async def update_file_sort(
-    file_ids: List[int] = Body(..., description="文件ID列表（按新顺序排列）"),
+    file_ids: list[int] = Body(..., description="文件ID列表（按新顺序排列）"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -257,10 +256,10 @@ async def update_file_sort(
         await db.commit()
 
         logger.info(
-            (
+
                 f"更新文件排序: 用户={current_user.username}, "
                 f"更新{updated_count}/{len(unique_file_ids)}个"
-            )
+
         )
 
         return {

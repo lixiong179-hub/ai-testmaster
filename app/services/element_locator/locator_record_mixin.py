@@ -1,6 +1,5 @@
 """定位记录Mixin - 记录和更新元素定位结果。
 """
-from typing import Optional, Dict, Any
 from loguru import logger
 
 from app.models.element_locator import ElementLocator
@@ -14,9 +13,9 @@ class LocatorRecordMixin:
         self,
         step_id: int,
         action_description: str,
-        screenshot: Optional[bytes] = None,
+        screenshot: bytes | None = None,
         source: str = "ai"
-    ) -> Optional[ElementLocator]:
+    ) -> ElementLocator | None:
         logger.info(f"开始记录步骤 {step_id} 的元素定位信息")
 
         if screenshot is None:
@@ -70,9 +69,9 @@ class LocatorRecordMixin:
         self,
         precondition_step_id: int,
         action_description: str,
-        action_type: Optional[str] = None,
-        screenshot: Optional[bytes] = None
-    ) -> Optional[ElementLocator]:
+        action_type: str | None = None,
+        screenshot: bytes | None = None
+    ) -> ElementLocator | None:
         logger.info(f"开始记录前置条件步骤 {precondition_step_id} 的元素定位信息")
 
         if screenshot is None:

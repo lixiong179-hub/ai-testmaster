@@ -176,8 +176,11 @@ async def align_history_assets(
     try:
         asset_ids = json.loads(history_asset_ids)
         req_file_ids = json.loads(requirement_file_ids) if requirement_file_ids else None
-        tp_ids = json.loads(test_point_ids) if test_point_ids else None
-        ui_ids = json.loads(ui_screen_ids) if ui_screen_ids else None
+        # test_point_ids / ui_screen_ids 目前仅做入参 JSON 合法性校验，暂未参与筛选
+        if test_point_ids:
+            json.loads(test_point_ids)
+        if ui_screen_ids:
+            json.loads(ui_screen_ids)
     except (json.JSONDecodeError, TypeError) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -11,7 +11,7 @@ AI 客户端基类与工厂模块
     - app.core.config.settings: 全局配置（API 地址、密钥、模型名）
 """
 import time
-from typing import Any, Optional
+from typing import Any
 
 from openai import OpenAI
 from loguru import logger
@@ -63,7 +63,7 @@ class AIClientBase:
         key_data = f"{function_name}:{str(args)}:{str(kwargs)}"
         return hashlib.md5(key_data.encode()).hexdigest()
 
-    def _get_from_cache(self, key: str) -> Optional[Any]:
+    def _get_from_cache(self, key: str) -> Any | None:
         """从缓存中获取数据
 
         如果缓存命中且未过期则返回数据，否则删除过期条目并返回None。

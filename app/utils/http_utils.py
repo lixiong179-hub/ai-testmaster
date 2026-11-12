@@ -10,10 +10,10 @@
     - AUTH_FAILURE_KEYWORDS: 认证失败关键词（从constants导入）
 """
 import base64
-from typing import Dict, Any
+from typing import Any
 
 
-def build_auth_headers(auth_type: str, auth_config: Dict[str, Any]) -> Dict[str, str]:
+def build_auth_headers(auth_type: str, auth_config: dict[str, Any]) -> dict[str, str]:
     """根据认证类型构建HTTP请求头。
 
     支持Basic Auth、Bearer Token、API Key、Cookie四种认证方式，

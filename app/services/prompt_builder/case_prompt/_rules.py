@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 from app.services.prompt_builder.comparison_examples import (
     get_comparison_examples,
@@ -9,8 +8,8 @@ from app.services.prompt_builder.comparison_examples import (
 
 
 def _append_generation_rules(
-    parts: List[str],
-    case_type: Optional[str] = None,
+    parts: list[str],
+    case_type: str | None = None,
     has_history: bool = False,
     min_case_count: int = 3,
 ) -> None:

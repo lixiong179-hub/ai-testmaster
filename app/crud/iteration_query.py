@@ -16,12 +16,11 @@
     - 列表查询使用 order_by+offset+limit 实现分页，依赖 create_time 索引
     - count 查询仅返回整型，不加载完整对象，开销低
 """
-from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.iteration import Iteration
 
 
-def get_iteration(db: Session, iteration_id: int) -> Optional[Iteration]:
+def get_iteration(db: Session, iteration_id: int) -> Iteration | None:
     """
     根据ID获取迭代
 
@@ -43,7 +42,7 @@ def get_iterations_by_project(
     project_id: int,
     skip: int = 0,
     limit: int = 100
-) -> List[Iteration]:
+) -> list[Iteration]:
     """
     获取项目的迭代列表（按创建时间倒序+分页）
 

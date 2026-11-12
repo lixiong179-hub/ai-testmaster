@@ -10,13 +10,11 @@
 依赖：app.tasks.celery_app、app.tasks.base、app.pipelines.runner
 """
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
-from app.tasks._async_bridge import async_task
 from app.tasks.base import (
     BaseTask,
     calculate_retry_backoff,
-    TASK_STATE_STARTED,
 )
 from app.tasks.celery_app import get_celery_app
 
@@ -43,8 +41,8 @@ def execute_pipeline_task(
     user_id: int,
     scenario: str = "default",
     dry_run: bool = False,
-    ai_model: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    ai_model: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """执行 Pipeline 任务（Celery Worker 入口）。
 
     业务用途：将端点同步执行改为异步分布式执行，支持 ≥50 并发。
@@ -113,8 +111,8 @@ def _run_pipeline_sync(
     user_id: int,
     scenario: str,
     dry_run: bool,
-    ai_model: Optional[Dict[str, Any]],
-) -> Dict[str, Any]:
+    ai_model: dict[str, Any] | None,
+) -> dict[str, Any]:
     """同步执行 Pipeline（在 Celery Worker 进程内调用）。
 
     实现：从 DB 加载 PipelineRun 记录，重建 PipelineContext，调用 PipelineRunner.run()。
@@ -176,7 +174,7 @@ def _run_pipeline_sync(
         db.close()
 
 
-def _create_ai_client_from_config(ai_model: Optional[Dict[str, Any]]):
+def _create_ai_client_from_config(ai_model: dict[str, Any] | None):
     """根据传入的 AI 模型配置创建 AI 客户端。
 
     边界场景：ai_model=None 时返回 None（场景无 AI 调用）。

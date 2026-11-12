@@ -12,7 +12,7 @@
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from app.models.agent_session import AgentSession
 from app.services.agent.artifacts.base import Artifact
@@ -73,13 +73,13 @@ class TestExecutionAgent(AgentBase):
 
     async def run(
         self,
-        artifacts: List[Artifact],
-        execution_callback: Optional[Any] = None,
+        artifacts: list[Artifact],
+        execution_callback: Any | None = None,
         *,
-        db: Optional[Any] = None,
-        project_id: Optional[int] = None,
-        created_by: Optional[int] = None,
-        runtime: Optional["AgentRuntime"] = None,
+        db: Any | None = None,
+        project_id: int | None = None,
+        created_by: int | None = None,
+        runtime: AgentRuntime | None = None,
     ) -> AgentSession:
         """执行测试用例，委托 AgentRuntime 驱动多轮 function calling。
 

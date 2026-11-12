@@ -23,7 +23,7 @@
 """
 import asyncio
 from datetime import datetime
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -57,8 +57,8 @@ class TaskAssembler:
 
     def __init__(
         self,
-        executor_factory: Optional[Callable[[Session], TestExecutionEngineV2]] = None,
-        push_service: Optional[PushService] = None,
+        executor_factory: Callable[[Session], TestExecutionEngineV2] | None = None,
+        push_service: PushService | None = None,
     ) -> None:
         """注入执行引擎工厂与推送服务。
 
@@ -132,10 +132,10 @@ class TaskAssembler:
     async def assemble(
         self,
         project_id: int,
-        case_ids: List[int],
+        case_ids: list[int],
         user_id: int,
         session: Session,
-        task_id: Optional[int] = None,
+        task_id: int | None = None,
     ) -> TestTask:
         """一键任务编排主方法：创建/更新任务 + 关联用例 + 启动执行。
 
@@ -162,7 +162,7 @@ class TaskAssembler:
         return task
 
     def _create_task(
-        self, project_id: int, case_ids: List[int], user_id: int, session: Session
+        self, project_id: int, case_ids: list[int], user_id: int, session: Session
     ) -> TestTask:
         """创建新 TestTask + TestResult（复刻 test_task.py 端点 create_test_task 逻辑）。"""
         project = self._get_project(project_id, session)
@@ -200,7 +200,7 @@ class TaskAssembler:
         return task
 
     def _update_existing_task(
-        self, task_id: int, case_ids: List[int], session: Session
+        self, task_id: int, case_ids: list[int], session: Session
     ) -> TestTask:
         """更新占位任务的 case_ids 与 total_count，补齐 TestResult。"""
         task = session.query(TestTask).filter(TestTask.id == task_id).first()
@@ -226,7 +226,7 @@ class TaskAssembler:
         return task
 
     def _build_test_results(
-        self, task: TestTask, case_ids: List[int], session: Session
+        self, task: TestTask, case_ids: list[int], session: Session
     ) -> None:
         """批量创建 TestResult（每条用例一条，NOT_EXECUTED），避免 N+1。
 

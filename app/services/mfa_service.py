@@ -18,9 +18,7 @@
 """
 from __future__ import annotations
 
-import json
 import secrets
-from typing import List, Optional, Tuple
 
 import pyotp
 from loguru import logger
@@ -68,7 +66,7 @@ class MFAService:
         *,
         secret: str,
         account: str,
-        issuer: Optional[str] = None,
+        issuer: str | None = None,
     ) -> str:
         """构造 otpauth:// URI（供 QR 码扫描）。
 
@@ -110,7 +108,7 @@ class MFAService:
             logger.warning(f"[MFA] TOTP 校验异常: {e}")
             return False
 
-    def generate_backup_codes(self) -> Tuple[List[str], List[str]]:
+    def generate_backup_codes(self) -> tuple[list[str], list[str]]:
         """生成一次性备份码。
 
         生成 10 个 8 位字母数字备份码，返回明文列表与 bcrypt 哈希列表。
@@ -119,8 +117,8 @@ class MFAService:
         Returns:
             Tuple[List[str], List[str]]: (明文备份码列表, bcrypt 哈希列表)
         """
-        plaintext_codes: List[str] = []
-        hashed_codes: List[str] = []
+        plaintext_codes: list[str] = []
+        hashed_codes: list[str] = []
         for _ in range(_BACKUP_CODE_COUNT):
             # 8 位字母数字（大写，去除易混淆字符 0/O/1/I/L）
             alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -132,9 +130,9 @@ class MFAService:
     def verify_and_consume_backup_code(
         self,
         *,
-        stored_hashed_codes: List[str],
+        stored_hashed_codes: list[str],
         submitted_code: str,
-    ) -> Tuple[bool, List[str]]:
+    ) -> tuple[bool, list[str]]:
         """校验并消费备份码（一次性）。
 
         遍历已存储的哈希备份码，找到匹配项后从列表中移除（一次性使用）。

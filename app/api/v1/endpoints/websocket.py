@@ -38,21 +38,21 @@ router = APIRouter()
 
 @router.websocket("/ws/execution/{execution_id}")
 async def execution_websocket(
-    websocket: WebSocket, 
+    websocket: WebSocket,
     execution_id: str,
     token: str = Query(..., description="JWT Token用于身份验证")
 ):
     """
     WebSocket连接端点 - 用于实时接收测试执行状态
-    
+
     连接URL: ws://host/api/v1/ws/execution/{execution_id}?token=xxx
-    
+
     消息格式:
     - 日志消息: {"type": "log", "step_number": 1, "action": "点击按钮", "status": "success", "message": ""}
     - 截图消息: {"type": "screenshot", "step_number": 1, "screenshot": "base64...", "highlight_region": {...}}
     - 进度消息: {"type": "progress", "current_step": 1, "total_steps": 5, "percentage": 20.0}
     - 状态消息: {"type": "status", "status": "running", "message": "执行中"}
-    
+
     Args:
         websocket: WebSocket对象
         execution_id: 执行ID
@@ -67,12 +67,12 @@ async def execution_websocket(
     except Exception:
         await websocket.close(code=1008, reason="Token validation failed")
         return
-    
+
     # 建立连接（带连接数限制检查）
     connected = await manager.connect(websocket, execution_id)
     if not connected:
         return  # 连接数超限，已自动关闭
-    
+
     try:
         # 发送连接成功消息
         success = await manager.send_message(websocket, {
@@ -80,11 +80,11 @@ async def execution_websocket(
             "execution_id": execution_id,
             "message": "WebSocket连接成功"
         })
-        
+
         if not success:
             manager.disconnect(websocket, execution_id)
             return
-        
+
         # 保持连接，接收客户端消息
         while True:
             try:
@@ -93,7 +93,7 @@ async def execution_websocket(
                     websocket.receive_text(),
                     timeout=30.0
                 )
-                
+
                 try:
                     message = json.loads(data)
                 except json.JSONDecodeError:
@@ -102,13 +102,13 @@ async def execution_websocket(
                         "message": "Invalid JSON format"
                     })
                     continue
-                
+
                 # 处理心跳
                 if message.get("type") == "ping":
                     success = await manager.send_message(websocket, {"type": "pong"})
                     if not success:
                         break  # 发送失败，退出循环
-                
+
                 # 处理其他客户端消息
                 elif message.get("type") == "subscribe":
                     # 客户端订阅特定消息类型
@@ -116,17 +116,17 @@ async def execution_websocket(
                         "type": "subscribed",
                         "channels": message.get("channels", [])
                     })
-                
+
                 elif message.get("type") == "close":
                     # 客户端主动关闭
                     break
-                    
-            except asyncio.TimeoutError:
+
+            except TimeoutError:
                 # 超时，发送心跳检测
                 success = await manager.send_message(websocket, {"type": "ping"})
                 if not success:
                     break  # 发送失败，退出循环
-                
+
     except WebSocketDisconnect:
         logger.debug("WebSocket连接断开")
     except Exception:
@@ -203,7 +203,7 @@ async def pipeline_progress_websocket(
                 elif message.get("type") == "close":
                     break
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 success = await manager.send_message(websocket, {"type": "ping"})
                 if not success:
                     break
@@ -286,7 +286,7 @@ async def quick_test_websocket(
                 elif message.get("type") == "close":
                     break
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 success = await manager.send_message(websocket, {"type": "ping"})
                 if not success:
                     break
@@ -303,7 +303,7 @@ async def quick_test_websocket(
 async def get_websocket_stats() -> dict:
     """
     获取WebSocket连接统计
-    
+
     Returns:
         连接统计信息
     """

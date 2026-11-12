@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 
 @dataclass
@@ -8,8 +8,8 @@ class RecognitionResult:
     locator_type: str
     locator_value: str
     confidence: float = 0.0
-    raw_result: Optional[Dict[str, Any]] = None
-    element_info: Optional[Dict[str, Any]] = None
+    raw_result: dict[str, Any] | None = None
+    element_info: dict[str, Any] | None = None
 
     @property
     def is_valid(self) -> bool:
@@ -19,11 +19,11 @@ class RecognitionResult:
 class ElementRecognizer(ABC):
 
     @abstractmethod
-    async def recognize(self, browser, operation_description: str, action_type: Optional[str] = None) -> RecognitionResult:
+    async def recognize(self, browser, operation_description: str, action_type: str | None = None) -> RecognitionResult:
         pass
 
     @abstractmethod
-    async def batch_recognize(self, browser, operations: List[str]) -> List[RecognitionResult]:
+    async def batch_recognize(self, browser, operations: list[str]) -> list[RecognitionResult]:
         pass
 
     @property

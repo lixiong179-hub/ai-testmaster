@@ -25,7 +25,7 @@
 """
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 
 class TestReportBase(BaseModel):
@@ -38,9 +38,9 @@ class TestReportBase(BaseModel):
     """
     __test__ = False
     name: str = Field(..., description="报告名称")  # 必填，如"登录模块测试报告_v1.0"
-    description: Optional[str] = Field(None, description="报告描述")  # 可选，报告内容概述
+    description: str | None = Field(None, description="报告描述")  # 可选，报告内容概述
     project_id: int = Field(..., description="项目ID")  # 必填，报告所属项目
-    test_task_id: Optional[int] = Field(None, description="测试任务ID")  # 可选，关联的测试任务，为空则汇总项目所有结果
+    test_task_id: int | None = Field(None, description="测试任务ID")  # 可选，关联的测试任务，为空则汇总项目所有结果
 
 
 class TestReportCreate(TestReportBase):
@@ -63,10 +63,10 @@ class TestReportUpdate(BaseModel):
     对应API：PUT/PATCH /api/v1/reports/{report_id}
     """
     __test__ = False
-    name: Optional[str] = Field(None, description="报告名称")  # 可选，更新报告名称
-    description: Optional[str] = Field(None, description="报告描述")  # 可选，更新报告描述
-    status: Optional[str] = Field(None, description="报告状态")  # 可选，如pending/running/completed/failed
-    summary: Optional[str] = Field(None, description="报告摘要")  # 可选，AI生成的报告摘要
+    name: str | None = Field(None, description="报告名称")  # 可选，更新报告名称
+    description: str | None = Field(None, description="报告描述")  # 可选，更新报告描述
+    status: str | None = Field(None, description="报告状态")  # 可选，如pending/running/completed/failed
+    summary: str | None = Field(None, description="报告摘要")  # 可选，AI生成的报告摘要
 
 
 class TestCaseResult(BaseModel):
@@ -81,9 +81,9 @@ class TestCaseResult(BaseModel):
     case_id: int  # 用例ID
     case_name: str  # 用例名称/标题
     status: str  # 执行状态：passed/failed/blocked
-    execution_time: Optional[float] = None  # 可选，执行耗时（秒）
-    error_message: Optional[str] = None  # 可选，失败时的错误信息
-    steps: Optional[List[Dict[str, Any]]] = None  # 可选，步骤级别的执行详情
+    execution_time: float | None = None  # 可选，执行耗时（秒）
+    error_message: str | None = None  # 可选，失败时的错误信息
+    steps: list[dict[str, Any]] | None = None  # 可选，步骤级别的执行详情
 
 
 class TestReportDetail(BaseModel):
@@ -95,9 +95,9 @@ class TestReportDetail(BaseModel):
     与Model映射：对应 TestReport.content JSON字段的结构化表示
     """
     __test__ = False
-    test_cases: List[TestCaseResult]  # 所有用例的执行结果列表
-    statistics: Dict[str, Any]  # 统计数据，如通过率、失败率、按模块统计等
-    environment: Optional[Dict[str, Any]] = None  # 可选，测试环境信息，如浏览器版本/操作系统等
+    test_cases: list[TestCaseResult]  # 所有用例的执行结果列表
+    statistics: dict[str, Any]  # 统计数据，如通过率、失败率、按模块统计等
+    environment: dict[str, Any] | None = None  # 可选，测试环境信息，如浏览器版本/操作系统等
 
 
 class TestReportResponse(TestReportBase):
@@ -116,11 +116,11 @@ class TestReportResponse(TestReportBase):
     failed_cases: int  # 失败用例数
     blocked_cases: int  # 阻塞用例数
     pass_rate: float = 0.0  # 通过率（百分比）
-    start_time: Optional[datetime] = None  # 测试开始时间，可能为空
-    end_time: Optional[datetime] = None  # 测试结束时间，可能为空
-    execution_time: Optional[int] = None  # 总执行时间（秒），可能为空
-    summary: Optional[str] = None  # 报告摘要，AI生成的总结
-    content: Optional[Dict[str, Any]] = None  # 详细报告内容(JSON)
+    start_time: datetime | None = None  # 测试开始时间，可能为空
+    end_time: datetime | None = None  # 测试结束时间，可能为空
+    execution_time: int | None = None  # 总执行时间（秒），可能为空
+    summary: str | None = None  # 报告摘要，AI生成的总结
+    content: dict[str, Any] | None = None  # 详细报告内容(JSON)
     create_time: datetime  # 创建时间
     update_time: datetime  # 更新时间
 
@@ -137,7 +137,7 @@ class TestReportList(BaseModel):
     对应API：GET /api/v1/reports/ 的响应
     """
     __test__ = False
-    reports: List[TestReportResponse]  # 报告列表
+    reports: list[TestReportResponse]  # 报告列表
     total: int  # 报告总数
 
 
@@ -161,6 +161,6 @@ class ReportGenerateRequest(BaseModel):
     对应API：POST /api/v1/reports/generate
     """
     project_id: int  # 必填，项目ID
-    test_task_id: Optional[int] = None  # 可选，指定任务则只汇总该任务结果
+    test_task_id: int | None = None  # 可选，指定任务则只汇总该任务结果
     name: str  # 必填，报告名称
-    description: Optional[str] = None  # 可选，报告描述
+    description: str | None = None  # 可选，报告描述

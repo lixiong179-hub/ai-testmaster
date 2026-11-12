@@ -5,7 +5,7 @@
 """
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -78,13 +78,17 @@ def _assess_history_trust(
             staleness_reasons.append("requirement_mismatch")
         if tp and tp.requirement_id:
             req = db.query(Requirement).filter(Requirement.id == tp.requirement_id).first()
-            if req and isinstance(req.update_time, datetime) and isinstance(case.update_time, datetime):
-                if req.update_time > case.update_time:
-                    staleness_reasons.append("requirement_newer_than_case")
+            if (
+                req
+                and isinstance(req.update_time, datetime)
+                and isinstance(case.update_time, datetime)
+                and req.update_time > case.update_time
+            ):
+                staleness_reasons.append("requirement_newer_than_case")
 
     if isinstance(case.update_time, datetime):
-        now = datetime.now(timezone.utc)
-        case_update = case.update_time.replace(tzinfo=timezone.utc) if case.update_time.tzinfo is None else case.update_time
+        now = datetime.now(UTC)
+        case_update = case.update_time.replace(tzinfo=UTC) if case.update_time.tzinfo is None else case.update_time
         case_age_days = (now - case_update).days
         if case_age_days > 90:
             staleness_reasons.append("case_older_than_90_days")

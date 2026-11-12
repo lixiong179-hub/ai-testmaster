@@ -11,12 +11,12 @@
     - StepRecordResult: 步骤定位结果
     - BatchRecordReport: 批量定位报告
 """
-from enum import Enum
+from enum import StrEnum
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 
-class BatchRecordStatus(str, Enum):
+class BatchRecordStatus(StrEnum):
     """批量记录状态枚举 - 标识批量定位任务的执行状态。"""
     PENDING = "pending"      # 待执行
     RUNNING = "running"      # 执行中
@@ -62,13 +62,13 @@ class StepRecordResult:
     step_id: int
     step_number: int
     status: BatchRecordStatus = BatchRecordStatus.PENDING
-    locator_type: Optional[str] = None
-    locator_value: Optional[str] = None
-    confidence: Optional[float] = None
-    error_message: Optional[str] = None
+    locator_type: str | None = None
+    locator_value: str | None = None
+    confidence: float | None = None
+    error_message: str | None = None
     duration_ms: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式，用于API响应序列化。"""
         return {
             "step_id": self.step_id,
@@ -102,10 +102,10 @@ class BatchRecordReport:
     completed_steps: int = 0
     failed_steps: int = 0
     skipped_steps: int = 0
-    results: List[StepRecordResult] = field(default_factory=list)
+    results: list[StepRecordResult] = field(default_factory=list)
     duration_ms: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式，用于API响应序列化。"""
         return {
             "case_id": self.case_id,

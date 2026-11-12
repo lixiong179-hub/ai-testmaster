@@ -9,7 +9,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from app.services.agent.tools.base_tool import Tool, ToolContext, ToolResult
 
@@ -17,7 +17,7 @@ from app.services.agent.tools.base_tool import Tool, ToolContext, ToolResult
 class _BaseExternalTool(Tool):
     """外部工具基类，execute 统一抛 NotImplementedError。"""
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         raise NotImplementedError(
             f"外部工具 {self.name} 尚未实现，待 add-external-issue-tracker spec 落地"
         )

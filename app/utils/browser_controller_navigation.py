@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Any
 from dataclasses import dataclass
 from loguru import logger
 import asyncio
@@ -12,9 +12,9 @@ from app.utils.browser_controller_base import (
 @dataclass
 class ScreenshotConfig:
     full_page: bool = False
-    clip: Optional[Dict[str, int]] = None
+    clip: dict[str, int] | None = None
     type: str = "png"
-    quality: Optional[int] = None
+    quality: int | None = None
 
     def __post_init__(self) -> None:
         if self.type not in ("png", "jpeg"):
@@ -44,9 +44,9 @@ class NavigationMixin:
 
     @require_initialized
     @handle_browser_errors
-    async def take_screenshot(self, config: Optional[ScreenshotConfig] = None) -> bytes:
+    async def take_screenshot(self, config: ScreenshotConfig | None = None) -> bytes:
         config = config or ScreenshotConfig()
-        screenshot_options: Dict[str, Any] = {"type": config.type}
+        screenshot_options: dict[str, Any] = {"type": config.type}
         if config.full_page:
             screenshot_options["full_page"] = True
         if config.clip:

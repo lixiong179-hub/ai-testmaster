@@ -9,7 +9,7 @@
     - SingleGenerateRequest: 基于单个测试点生成请求
     - BatchGenerateRequest: AI批量生成请求
 """
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -38,17 +38,17 @@ class AIGenerateEnhancedRequest(BaseModel):
     """AI增强模式生成请求。"""
     project_id: int
     description: str
-    case_type: Optional[str] = None
+    case_type: str | None = None
     exec_mode: str = "all"
     priority: int = 2
     enhanced_mode: bool = True
-    extra_requirements: Optional[str] = None
-    context: Optional[dict] = None
-    ui_screen_ids: Optional[List[int]] = None
+    extra_requirements: str | None = None
+    context: dict | None = None
+    ui_screen_ids: list[int] | None = None
     mode: Literal["linear", "graph"] = Field(
         default="linear", description="排序模式：linear=线性/graph=流程图"
     )
-    flow_sort_data: Optional[FlowSortDataSchema] = Field(
+    flow_sort_data: FlowSortDataSchema | None = Field(
         None, description="流程图排序数据（graph模式必填）"
     )
 
@@ -86,8 +86,8 @@ class AIGenerateEnhancedRequest(BaseModel):
     @field_validator("flow_sort_data")
     @classmethod
     def validate_flow_sort_data_size(
-        cls, v: Optional[FlowSortDataSchema]
-    ) -> Optional[FlowSortDataSchema]:
+        cls, v: FlowSortDataSchema | None
+    ) -> FlowSortDataSchema | None:
         if v is None:
             return v
         if len(v.nodes) > MAX_FLOW_NODES:
@@ -100,18 +100,18 @@ class AIGenerateEnhancedRequest(BaseModel):
 class GenerateContextRequest(BaseModel):
     """获取AI生成上下文请求。"""
     project_id: int
-    requirement_file_ids: Optional[List[int]] = None
-    ui_file_ids: Optional[List[int]] = None
-    ui_screen_ids: Optional[List[int]] = None
-    test_point_ids: Optional[List[int]] = None
-    history_case_ids: Optional[List[int]] = None
+    requirement_file_ids: list[int] | None = None
+    ui_file_ids: list[int] | None = None
+    ui_screen_ids: list[int] | None = None
+    test_point_ids: list[int] | None = None
+    history_case_ids: list[int] | None = None
     force_refresh: bool = False
     test_point_page: int = 1
     test_point_page_size: int = 100
 
     @field_validator("requirement_file_ids", "ui_file_ids", "ui_screen_ids", "test_point_ids")
     @classmethod
-    def ensure_list(cls, v: List[int] | None) -> List[int]:
+    def ensure_list(cls, v: list[int] | None) -> list[int]:
         return v if v is not None else []
 
     @field_validator("project_id")
@@ -126,11 +126,11 @@ class SingleGenerateRequest(BaseModel):
     """基于单个测试点生成请求。"""
     project_id: int
     test_point_id: int
-    requirement_file_ids: Optional[List[int]] = None
-    ui_file_ids: Optional[List[int]] = None
-    ui_screen_ids: Optional[List[int]] = None
+    requirement_file_ids: list[int] | None = None
+    ui_file_ids: list[int] | None = None
+    ui_screen_ids: list[int] | None = None
     force_refresh: bool = False
-    case_type: Optional[str] = None
+    case_type: str | None = None
 
     @field_validator("case_type")
     @classmethod
@@ -148,7 +148,7 @@ class SingleGenerateRequest(BaseModel):
 
     @field_validator("requirement_file_ids", "ui_file_ids", "ui_screen_ids")
     @classmethod
-    def ensure_list(cls, v: List[int] | None) -> List[int]:
+    def ensure_list(cls, v: list[int] | None) -> list[int]:
         return v if v is not None else []
 
     @field_validator("project_id")
@@ -169,14 +169,14 @@ class SingleGenerateRequest(BaseModel):
 class BatchGenerateRequest(BaseModel):
     """AI批量生成请求。"""
     project_id: int
-    test_point_ids: Optional[List[int]] = None
-    requirement_file_ids: Optional[List[int]] = None
-    ui_file_ids: Optional[List[int]] = None
-    ui_screen_ids: Optional[List[int]] = None
+    test_point_ids: list[int] | None = None
+    requirement_file_ids: list[int] | None = None
+    ui_file_ids: list[int] | None = None
+    ui_screen_ids: list[int] | None = None
     force_refresh: bool = False
     test_point_page: int = 1
     test_point_page_size: int = 100
-    case_type: Optional[str] = None
+    case_type: str | None = None
 
     @field_validator("case_type")
     @classmethod
@@ -194,12 +194,12 @@ class BatchGenerateRequest(BaseModel):
 
     @field_validator("test_point_ids", "requirement_file_ids", "ui_file_ids", "ui_screen_ids")
     @classmethod
-    def ensure_list(cls, v: List[int] | None) -> List[int]:
+    def ensure_list(cls, v: list[int] | None) -> list[int]:
         return v if v is not None else []
 
     @field_validator("test_point_ids", "requirement_file_ids", "ui_file_ids", "ui_screen_ids")
     @classmethod
-    def validate_list_size(cls, v: List[int] | None) -> List[int] | None:
+    def validate_list_size(cls, v: list[int] | None) -> list[int] | None:
         if v is not None and len(v) > 200:
             raise ValueError(f"列表长度不能超过200，当前: {len(v)}")
         return v

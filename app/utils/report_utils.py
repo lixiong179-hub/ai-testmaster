@@ -20,7 +20,7 @@ HTML报告包含测试摘要、结果分布饼图、用例详情表格和环境�
     - loguru.logger: 日志记录（通过延迟导入避免循环依赖）
 """
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 from io import BytesIO
 import base64
 
@@ -47,7 +47,7 @@ class ReportUtils:
     )
 
     @staticmethod
-    def generate_html_report(report_data: Dict[str, Any], report_name: str) -> str:
+    def generate_html_report(report_data: dict[str, Any], report_name: str) -> str:
         """生成HTML格式报告
 
         将报告数据填充到HTML模板中，生成包含测试摘要、饼图、
@@ -119,12 +119,12 @@ class ReportUtils:
                 </div>
                 <p>{summary}</p>
             </div>
-            
+
             <div class="chart-container">
                 <h2>测试结果分布</h2>
                 <img src="data:image/png;base64,{chart_base64}" alt="测试结果分布图">
             </div>
-            
+
             <h2>测试用例详情</h2>
             <table>
                 <tr>
@@ -135,7 +135,7 @@ class ReportUtils:
                 </tr>
                 {test_cases_rows}
             </table>
-            
+
             <h2>环境信息</h2>
             <p>生成时间: {generate_time}</p>
             <p>平台: {platform}</p>
@@ -212,7 +212,7 @@ class ReportUtils:
             from weasyprint import HTML, CSS
         except ImportError:
             raise ImportError("weasyprint is not available, cannot generate PDF reports")
-        
+
         # 添加中文字体支持
         css = CSS(string="""
             @font-face {
@@ -223,7 +223,7 @@ class ReportUtils:
                 font-family: 'SimHei', Arial, sans-serif;
             }
         """)
-        
+
         # 生成PDF
         pdf_bytes = HTML(string=html_content).write_pdf(stylesheets=[css])
         return pdf_bytes
@@ -276,14 +276,14 @@ class ReportUtils:
         return image_base64
 
     @staticmethod
-    def export_report(report_data: Dict[str, Any], report_name: str, format: str) -> tuple:
+    def export_report(report_data: dict[str, Any], report_name: str, format: str) -> tuple:
         """导出报告
-        
+
         Args:
             report_data: 报告数据
             report_name: 报告名称
             format: 导出格式，支持 'pdf' 和 'html'
-            
+
         Returns:
             (content, content_type, filename): 报告内容、内容类型、文件名
         """

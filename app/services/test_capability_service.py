@@ -3,7 +3,6 @@
 
 提供 TestCapability 的增删改查操作。删除操作通过 LifecycleService 走 archived 软删除。
 """
-from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.models.test_capability import TestCapability
@@ -21,7 +20,7 @@ def create_capability(
     project_id: int,
     key: str,
     title: str,
-    description: Optional[str] = None,
+    description: str | None = None,
     status: str = "active",
 ) -> TestCapability:
     """创建业务能力"""
@@ -45,7 +44,7 @@ def create_capability(
     return capability
 
 
-def get_capability_by_id(db: Session, capability_id: int) -> Optional[TestCapability]:
+def get_capability_by_id(db: Session, capability_id: int) -> TestCapability | None:
     """按 ID 获取能力"""
     return db.query(TestCapability).filter(TestCapability.id == capability_id).first()
 
@@ -53,9 +52,9 @@ def get_capability_by_id(db: Session, capability_id: int) -> Optional[TestCapabi
 def get_capabilities_by_project(
     db: Session,
     project_id: int,
-    status: Optional[str] = None,
+    status: str | None = None,
     include_archived: bool = False,
-) -> List[TestCapability]:
+) -> list[TestCapability]:
     """按项目列出能力，可选按 status 过滤。
 
     Args:
@@ -82,7 +81,7 @@ def update_capability(
     db: Session,
     capability_id: int,
     **kwargs,
-) -> Optional[TestCapability]:
+) -> TestCapability | None:
     """更新能力字段，支持将可选字段清空为 None（显式传 None）"""
     capability = get_capability_by_id(db, capability_id)
     if capability is None:
@@ -106,8 +105,8 @@ def delete_capability(
     db: Session,
     capability_id: int,
     *,
-    actor_id: Optional[int] = None,
-) -> Optional[TestCapability]:
+    actor_id: int | None = None,
+) -> TestCapability | None:
     """软删除能力：将 status 置为 archived。
 
     Args:

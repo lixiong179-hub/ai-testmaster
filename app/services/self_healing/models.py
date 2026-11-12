@@ -4,7 +4,7 @@
 """
 import enum
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 
 class FailureType(enum.Enum):
@@ -48,7 +48,7 @@ class HealResult:
         token_cost: 本次自愈消耗的 Token 数量。
         strategy: 实际命中的自愈策略，取值为 "mcp" / "vision" / "stagehand" / "retry" / "skip"。
     """
-    selector: Optional[str]
+    selector: str | None
     confidence: float
     token_cost: int
     strategy: str

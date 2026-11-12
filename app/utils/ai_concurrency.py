@@ -24,14 +24,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import threading
-from typing import Optional
 
 from app.core.config import settings
 
 # 默认并发数兜底（settings 缺失字段时使用）
 _DEFAULT_AI_CONCURRENCY = 3
 
-_ai_gen_semaphore: Optional[threading.Semaphore] = None
+_ai_gen_semaphore: threading.Semaphore | None = None
 _init_lock = threading.Lock()
 
 

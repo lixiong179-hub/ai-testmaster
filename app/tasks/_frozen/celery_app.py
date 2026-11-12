@@ -10,7 +10,6 @@
 依赖：celery[redis]==5.4.0、app.core.config
 """
 import logging
-from typing import Optional
 
 from app.core.config import settings
 

@@ -1,11 +1,11 @@
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
 
-def _parse_case_response(content: str) -> Optional[List[Dict[str, Any]]]:
+def _parse_case_response(content: str) -> list[dict[str, Any]] | None:
     from app.utils.ai_client_parser import fix_common_json_issues, clean_json_string
 
     content = content.strip()
@@ -47,9 +47,8 @@ def _parse_case_response(content: str) -> Optional[List[Dict[str, Any]]]:
             result = json.loads(cleaned)
             if isinstance(result, list):
                 return result
-            if isinstance(result, dict):
-                if result.get("title") or result.get("steps"):
-                    return [result]
+            if isinstance(result, dict) and (result.get("title") or result.get("steps")):
+                return [result]
         except json.JSONDecodeError:
             pass
 
@@ -66,7 +65,7 @@ def _parse_case_response(content: str) -> Optional[List[Dict[str, Any]]]:
     return None
 
 
-def _validate_test_data(case: Dict[str, Any]) -> None:
+def _validate_test_data(case: dict[str, Any]) -> None:
     if "test_data" not in case:
         case["test_data"] = {}
         return
@@ -81,7 +80,7 @@ def _validate_test_data(case: Dict[str, Any]) -> None:
         return
 
     valid_keys = {"normal", "boundary", "abnormal"}
-    has_valid_key = any(k in valid_keys for k in td.keys())
+    has_valid_key = any(k in valid_keys for k in td)
     if not has_valid_key and len(td) > 0:
         logger.warning(
             "test_data 缺少 normal/boundary/abnormal 键, 保留原值, title={}",
@@ -98,8 +97,8 @@ def _validate_test_data(case: Dict[str, Any]) -> None:
 
 
 def _enrich_case_data(
-    parsed: List[Dict[str, Any]], tp: Dict[str, Any], has_ui: bool
-) -> List[Dict[str, Any]]:
+    parsed: list[dict[str, Any]], tp: dict[str, Any], has_ui: bool
+) -> list[dict[str, Any]]:
     tp_module = tp.get("module", "")
     tp_point = tp.get("point", "")
     tp_id = tp.get("id")
@@ -120,7 +119,7 @@ def _enrich_case_data(
     return parsed
 
 
-def _fill_depends_on(parsed: List[Dict[str, Any]]) -> None:
+def _fill_depends_on(parsed: list[dict[str, Any]]) -> None:
     """根据 case_category 自动填充 depends_on 和 anchor_step。
 
     对于 boundary/exception 类型的用例，自动关联到同组的 positive 用例，
@@ -148,8 +147,8 @@ def _fill_depends_on(parsed: List[Dict[str, Any]]) -> None:
 
 
 def _infer_anchor_step(
-    case: Dict[str, Any], main_steps: List[Dict[str, Any]]
-) -> Optional[int]:
+    case: dict[str, Any], main_steps: list[dict[str, Any]]
+) -> int | None:
     """根据分支/异常用例的前置条件和标题推断 anchor_step。
 
     匹配策略：
@@ -196,7 +195,7 @@ def _infer_anchor_step(
     return None
 
 
-def _extract_page_name(precond: str) -> Optional[str]:
+def _extract_page_name(precond: str) -> str | None:
     """从前置条件中提取页面名称。
 
     匹配模式："已处于XX页"、"在XX页面"、"处于XX页"
@@ -215,7 +214,7 @@ def _extract_page_name(precond: str) -> Optional[str]:
     return None
 
 
-def _extract_action_keywords(text: str) -> List[str]:
+def _extract_action_keywords(text: str) -> list[str]:
     """从文本中提取操作关键词用于匹配。"""
     keywords = []
     for kw in ["提交订单", "确认支付", "立即购买", "使用优惠券",
@@ -227,8 +226,8 @@ def _extract_action_keywords(text: str) -> List[str]:
 
 
 def _build_fallback_steps(
-    main_steps: List[Dict[str, Any]], anchor_step: int
-) -> List[Dict[str, Any]]:
+    main_steps: list[dict[str, Any]], anchor_step: int
+) -> list[dict[str, Any]]:
     """从主干用例步骤中提取到 anchor_step 为止的导航步骤子集。
 
     作为快照不可用时的降级方案，执行引擎可以用这些步骤
@@ -263,10 +262,10 @@ def _build_fallback_steps(
 
 
 def _enrich_case_data_with_task(
-    parsed: List[Dict[str, Any]],
-    task: Dict[str, Any],
+    parsed: list[dict[str, Any]],
+    task: dict[str, Any],
     has_ui: bool,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     tp_module = task.get("candidate_module", task.get("module", ""))
     tp_point = (
         task.get("candidate_description", "")

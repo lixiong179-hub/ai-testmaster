@@ -10,7 +10,7 @@ _EXTENDED_ASSERTION_PATTERN），保持原有导入路径兼容。
    no_network_errors/text_not_empty/no_sensitive_data/no_xss
 """
 import re
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from app.services.test_execution_engine.action_executor_verify_captcha_mixin import (
     ActionExecutorVerifyCaptchaMixin,
@@ -55,14 +55,14 @@ class StructuredAssertionMixin(
     活动页面获取等编排逻辑。
     """
 
-    async def _execute_verify(self, action_info: Dict[str, Any], step_id: Optional[int]) -> None:
+    async def _execute_verify(self, action_info: dict[str, Any], step_id: int | None) -> None:
         text = action_info.get("text", "")
         if text.strip().startswith(_STRUCTURED_ASSERTION_PREFIXES):
             await self._execute_structured_assertion(text, action_info)
             return
         await super()._execute_verify(action_info, step_id)
 
-    def _parse_assertion_syntax(self, text: str) -> Optional[Tuple[str, Optional[str], str]]:
+    def _parse_assertion_syntax(self, text: str) -> tuple[str, str | None, str] | None:
         text = (text or "").strip()
         match = _ASSERTION_PATTERN.match(text)
         if not match:
@@ -83,7 +83,7 @@ class StructuredAssertionMixin(
                     expected = tail
         return assertion_type, locator, expected
 
-    def _parse_extended_assertion_syntax(self, text: str) -> Optional[Tuple[str, Dict[str, Any]]]:
+    def _parse_extended_assertion_syntax(self, text: str) -> tuple[str, dict[str, Any]] | None:
         """解析扩展断言语法，返回 (assertion_type, params) 或 None。"""
         text = (text or "").strip()
         match = _EXTENDED_ASSERTION_PATTERN.match(text)
@@ -91,7 +91,7 @@ class StructuredAssertionMixin(
             return None
         assertion_type = match.group(1)
         rest = match.group(2)
-        params: Dict[str, Any] = {}
+        params: dict[str, Any] = {}
 
         if assertion_type in ("loading_visible", "loading_hidden", "text_not_empty"):
             if rest.startswith("["):
@@ -106,15 +106,14 @@ class StructuredAssertionMixin(
                     f"response_time_lt 阈值必须为正整数，实际: '{threshold_str}'"
                 )
             params["threshold_ms"] = int(threshold_str)
-        elif assertion_type == "no_console_errors":
-            if rest.startswith("exclude:"):
-                exclude_str = rest[8:]
-                params["exclude_patterns"] = [
-                    p.strip() for p in exclude_str.split(",") if p.strip()
-                ]
+        elif assertion_type == "no_console_errors" and rest.startswith("exclude:"):
+            exclude_str = rest[8:]
+            params["exclude_patterns"] = [
+                p.strip() for p in exclude_str.split(",") if p.strip()
+            ]
         return assertion_type, params
 
-    async def _execute_structured_assertion(self, text: str, action_info: Dict[str, Any]) -> None:
+    async def _execute_structured_assertion(self, text: str, action_info: dict[str, Any]) -> None:
         extended = self._parse_extended_assertion_syntax(text)
         if extended:
             assertion_type, params = extended
@@ -134,7 +133,7 @@ class StructuredAssertionMixin(
             raise VerificationError("无法解析结构化断言语法")
 
     async def _dispatch_extended_assertion(
-        self, assertion_type: str, params: Dict[str, Any],
+        self, assertion_type: str, params: dict[str, Any],
     ) -> None:
         """分发扩展断言到对应的处理方法。"""
         dispatch_map = {

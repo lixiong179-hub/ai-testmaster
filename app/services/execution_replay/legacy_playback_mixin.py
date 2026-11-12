@@ -1,6 +1,7 @@
 """Legacy 回放控制Mixin - execution_replay_service.py 原始回放控制逻辑。"""
 import asyncio
-from typing import Optional, Dict, Any, Callable
+from typing import Any
+from collections.abc import Callable
 from loguru import logger
 
 from app.services.execution_replay.legacy_models import ReplayEvent
@@ -14,7 +15,7 @@ class LegacyPlaybackMixin:
         execution_id: str,
         start_time: float = 0.0,
         speed: float = 1.0,
-        event_callback: Optional[Callable[[ReplayEvent], None]] = None
+        event_callback: Callable[[ReplayEvent], None] | None = None
     ) -> bool:
         session = self._active_replays.get(execution_id)
         if not session:
@@ -33,7 +34,7 @@ class LegacyPlaybackMixin:
     async def _replay_loop(
         self,
         execution_id: str,
-        event_callback: Optional[Callable[[ReplayEvent], None]] = None
+        event_callback: Callable[[ReplayEvent], None] | None = None
     ):
         session = self._active_replays.get(execution_id)
         if not session:
@@ -102,7 +103,7 @@ class LegacyPlaybackMixin:
         logger.info(f"回放跳转: {execution_id} -> {timestamp}s")
         return True
 
-    async def get_replay_status(self, execution_id: str) -> Optional[Dict[str, Any]]:
+    async def get_replay_status(self, execution_id: str) -> dict[str, Any] | None:
         session = self._active_replays.get(execution_id)
         if not session:
             return None

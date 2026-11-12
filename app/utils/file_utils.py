@@ -39,7 +39,7 @@ import time
 import ipaddress
 import socket
 import requests
-from typing import Optional, Dict, Any
+from typing import Any
 from urllib.parse import urlparse
 
 # 支持的文件格式白名单 — 扩展名到MIME类型的映射
@@ -113,13 +113,13 @@ EXTENSION_RESOURCE_MAP = {
 }
 
 
-def validate_file_format(file_name: str) -> Optional[str]:
+def validate_file_format(file_name: str) -> str | None:
     """
     验证文件格式是否支持
-    
+
     Args:
         file_name: 文件名
-    
+
     Returns:
         Optional[str]: 支持的文件类型，否则返回None
     """
@@ -157,7 +157,7 @@ def detect_resource_type(filename: str, file_ext: str) -> str:
     return EXTENSION_RESOURCE_MAP.get(file_ext, "other")
 
 
-def validate_file_mime(file_ext: str, detected_mime: str) -> Optional[str]:
+def validate_file_mime(file_ext: str, detected_mime: str) -> str | None:
     """
     验证文件MIME类型是否与扩展名匹配
 
@@ -244,10 +244,10 @@ def validate_url(url: str) -> bool:
 def get_file_size(file_path: str) -> int:
     """
     获取文件大小（单位KB）
-    
+
     Args:
         file_path: 文件路径
-    
+
     Returns:
         int: 文件大小（KB）
     """
@@ -285,14 +285,14 @@ def clean_old_files(dir_path: str, max_age_seconds: int = 24 * 60 * 60) -> int:
     return removed_count
 
 
-def parse_file(file_path: str, file_type: str) -> Dict[str, Any]:
+def parse_file(file_path: str, file_type: str) -> dict[str, Any]:
     """
     解析文件内容
-    
+
     Args:
         file_path: 文件路径
         file_type: 文件类型
-    
+
     Returns:
         Dict[str, Any]: 解析结果
     """
@@ -305,13 +305,13 @@ def parse_file(file_path: str, file_type: str) -> Dict[str, Any]:
     }
 
 
-def parse_url(url: str) -> Dict[str, Any]:
+def parse_url(url: str) -> dict[str, Any]:
     """
     解析URL内容
-    
+
     Args:
         url: URL链接
-    
+
     Returns:
         Dict[str, Any]: 解析结果
     """

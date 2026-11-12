@@ -25,9 +25,7 @@ def _score_title(title: str) -> float:
     title = title.strip()
     base_score: float
 
-    if TITLE_VAGUE_PATTERNS.match(title):
-        base_score = 5.0
-    elif TITLE_ATOMICITY_VIOLATION_PATTERN.search(title):
+    if TITLE_VAGUE_PATTERNS.match(title) or TITLE_ATOMICITY_VIOLATION_PATTERN.search(title):
         base_score = 5.0
     else:
         length = len(title)
@@ -95,10 +93,7 @@ def _score_steps(steps: Any, case_type: str = "") -> float:
 
     completeness_ratio = complete_count / count if count > 0 else 0.0
 
-    if count == 2:
-        score = round(10.0 + 10.0 * completeness_ratio, 1)
-    else:
-        score = round(15.0 + 10.0 * completeness_ratio, 1)
+    score = round(10.0 + 10.0 * completeness_ratio, 1) if count == 2 else round(15.0 + 10.0 * completeness_ratio, 1)
 
     if count > 7:
         excess = count - 7

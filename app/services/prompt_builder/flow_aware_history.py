@@ -6,9 +6,8 @@
     - _find_uncovered_flow_nodes: 查找未被历史用例覆盖的流程节点
     - _append_flow_aware_history_cases: 追加流程感知的历史用例评审部分
 """
-from typing import List, Dict, Any, Optional
+from typing import Any
 
-from loguru import logger
 
 from app.services.prompt_builder.helpers import _safe_int
 
@@ -22,12 +21,12 @@ _CHILD_TYPE_CONFIG = [
 
 def _match_flow_nodes(
     combined_text: str,
-    main_nodes: List[Dict[str, Any]],
-    branch_by_source: Dict[int, List[Dict[str, Any]]],
-    exception_by_source: Dict[int, List[Dict[str, Any]]],
-    bypass_by_source: Dict[int, List[Dict[str, Any]]],
-    node_map: Dict[Any, Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    main_nodes: list[dict[str, Any]],
+    branch_by_source: dict[int, list[dict[str, Any]]],
+    exception_by_source: dict[int, list[dict[str, Any]]],
+    bypass_by_source: dict[int, list[dict[str, Any]]],
+    node_map: dict[Any, dict[str, Any]],
+) -> list[dict[str, Any]]:
     """匹配文本与流程节点，返回匹配结果列表。
 
     将 combined_text 与流程结构中的主干/分支/异常/旁路节点进行关键词匹配，
@@ -53,7 +52,7 @@ def _match_flow_nodes(
         'exception': exception_by_source,
         'bypass': bypass_by_source,
     }
-    matched: List[Dict[str, Any]] = []
+    matched: list[dict[str, Any]] = []
 
     for i, node in enumerate(main_nodes, 1):
         screen_name = (node.get('screen_name') or '').lower()
@@ -92,12 +91,12 @@ def _match_flow_nodes(
 
 
 def _infer_history_case_flow_coverage(
-    case: Dict[str, Any],
-    main_nodes: List[Dict[str, Any]],
-    branch_by_source: Dict[int, List[Dict[str, Any]]],
-    exception_by_source: Dict[int, List[Dict[str, Any]]],
-    bypass_by_source: Dict[int, List[Dict[str, Any]]],
-    node_map: Dict[Any, Dict[str, Any]],
+    case: dict[str, Any],
+    main_nodes: list[dict[str, Any]],
+    branch_by_source: dict[int, list[dict[str, Any]]],
+    exception_by_source: dict[int, list[dict[str, Any]]],
+    bypass_by_source: dict[int, list[dict[str, Any]]],
+    node_map: dict[Any, dict[str, Any]],
 ) -> str:
     """推断历史用例覆盖的流程节点，生成流程归属标注。
 
@@ -133,13 +132,13 @@ def _infer_history_case_flow_coverage(
 
 
 def _find_uncovered_flow_nodes(
-    history_cases: List[Dict[str, Any]],
-    main_nodes: List[Dict[str, Any]],
-    branch_by_source: Dict[int, List[Dict[str, Any]]],
-    exception_by_source: Dict[int, List[Dict[str, Any]]],
-    bypass_by_source: Dict[int, List[Dict[str, Any]]],
-    node_map: Dict[Any, Dict[str, Any]],
-) -> List[str]:
+    history_cases: list[dict[str, Any]],
+    main_nodes: list[dict[str, Any]],
+    branch_by_source: dict[int, list[dict[str, Any]]],
+    exception_by_source: dict[int, list[dict[str, Any]]],
+    bypass_by_source: dict[int, list[dict[str, Any]]],
+    node_map: dict[Any, dict[str, Any]],
+) -> list[str]:
     """查找未被任何历史用例覆盖的流程节点。
 
     Args:
@@ -168,7 +167,7 @@ def _find_uncovered_flow_nodes(
             key = f"{m['node_type']}_{m['step_index']}_{m['child_index']}"
             covered_keys.add(key)
 
-    uncovered: List[str] = []
+    uncovered: list[str] = []
     child_sources = {
         'branch': branch_by_source,
         'exception': exception_by_source,
@@ -204,13 +203,13 @@ def _find_uncovered_flow_nodes(
 
 
 def _append_flow_aware_history_cases(
-    parts: List[str],
-    history_cases: List[Dict[str, Any]],
-    main_nodes: List[Dict[str, Any]],
-    branch_by_source: Dict[int, List[Dict[str, Any]]],
-    exception_by_source: Dict[int, List[Dict[str, Any]]],
-    bypass_by_source: Dict[int, List[Dict[str, Any]]],
-    node_map: Dict[Any, Dict[str, Any]],
+    parts: list[str],
+    history_cases: list[dict[str, Any]],
+    main_nodes: list[dict[str, Any]],
+    branch_by_source: dict[int, list[dict[str, Any]]],
+    exception_by_source: dict[int, list[dict[str, Any]]],
+    bypass_by_source: dict[int, list[dict[str, Any]]],
+    node_map: dict[Any, dict[str, Any]],
 ) -> None:
     """追加历史用例覆盖摘要/避重部分到 parts 列表。
 

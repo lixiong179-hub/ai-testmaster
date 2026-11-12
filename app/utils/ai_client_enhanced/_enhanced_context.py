@@ -1,12 +1,12 @@
 import json
-from typing import Dict, Any, List
+from typing import Any
 
 
 AI_GENERATE_MAX_TOKENS = 8192
 AI_GENERATE_MAX_TOKENS_FULL = 16384
 
 
-def _as_dict_list(value: Any) -> List[Dict[str, Any]]:
+def _as_dict_list(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, dict):
         return [value]
     if isinstance(value, list):
@@ -14,9 +14,9 @@ def _as_dict_list(value: Any) -> List[Dict[str, Any]]:
     return []
 
 
-def _normalize_test_points(context: Dict[str, Any]) -> List[Dict[str, Any]]:
-    points_by_id: Dict[str, Dict[str, Any]] = {}
-    anonymous_points: List[Dict[str, Any]] = []
+def _normalize_test_points(context: dict[str, Any]) -> list[dict[str, Any]]:
+    points_by_id: dict[str, dict[str, Any]] = {}
+    anonymous_points: list[dict[str, Any]] = []
 
     for key in ("test_points", "test_points_data", "test_point", "current_test_point"):
         for point in _as_dict_list(context.get(key)):
@@ -34,7 +34,7 @@ def _normalize_test_points(context: Dict[str, Any]) -> List[Dict[str, Any]]:
     return list(points_by_id.values()) + anonymous_points
 
 
-def _normalize_ui_specs(value: Any) -> List[Dict[str, Any]]:
+def _normalize_ui_specs(value: Any) -> list[dict[str, Any]]:
     if isinstance(value, dict):
         return [value]
     if isinstance(value, list):
@@ -48,7 +48,7 @@ def _stringify_ui_description(value: Any) -> str:
     if isinstance(value, dict):
         return json.dumps(value, ensure_ascii=False)
     if isinstance(value, list):
-        parts: List[str] = []
+        parts: list[str] = []
         for item in value:
             if isinstance(item, dict):
                 name = item.get("screen_name") or item.get("file_name") or item.get("name") or "未命名"
@@ -60,7 +60,7 @@ def _stringify_ui_description(value: Any) -> str:
     return ""
 
 
-def _resolve_max_tokens(context: Dict[str, Any], *, graph_mode: bool) -> int:
+def _resolve_max_tokens(context: dict[str, Any], *, graph_mode: bool) -> int:
     test_points = _normalize_test_points(context)
     if graph_mode or len(test_points) > 1 or context.get("history_cases"):
         return AI_GENERATE_MAX_TOKENS_FULL

@@ -27,7 +27,7 @@ from app.models.test_case import TestCase
 from app.models.enums import ExecStatus
 from app.schemas.test_report import TestReportCreate, TestCaseResult, TestReportDetail
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any
 from loguru import logger
 
 from app.services._report_defect_builder import _ReportDefectDimensionBuilder
@@ -148,7 +148,7 @@ class ReportService(_ReportDefectDimensionBuilder):
         return report
 
     @staticmethod
-    def _calculate_statistics(test_results: List[TestResult]) -> Dict[str, int]:
+    def _calculate_statistics(test_results: list[TestResult]) -> dict[str, int]:
         """计算测试结果统计数据。
 
         统计指标:
@@ -178,7 +178,7 @@ class ReportService(_ReportDefectDimensionBuilder):
         }
 
     @staticmethod
-    def _generate_report_content(test_results: List[TestResult], statistics: Dict[str, int]) -> Dict[str, Any]:
+    def _generate_report_content(test_results: list[TestResult], statistics: dict[str, int]) -> dict[str, Any]:
         """生成报告内容，包含用例明细、统计和环境信息。
 
         内容结构:
@@ -220,7 +220,7 @@ class ReportService(_ReportDefectDimensionBuilder):
         }
 
     @staticmethod
-    def _generate_summary(statistics: Dict[str, int]) -> str:
+    def _generate_summary(statistics: dict[str, int]) -> str:
         """生成报告摘要文本，概括测试执行结果。
 
         Args:

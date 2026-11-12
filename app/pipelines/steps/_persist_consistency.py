@@ -3,7 +3,7 @@
 校验持久化数量与预期数量的一致性，并验证 deprecation 旧用例状态。
 批量查询旧用例避免循环内 N+1 查询。
 """
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -12,8 +12,8 @@ from app.pipelines.context import PipelineContext
 
 def _run_consistency_check(
     ctx: PipelineContext,
-    persisted_ids: List[int],
-) -> Tuple[Dict[str, Any], float]:
+    persisted_ids: list[int],
+) -> tuple[dict[str, Any], float]:
     """执行一致性校验，返回 (consistency_check, artifact_confidence)。
 
     校验逻辑：
@@ -68,7 +68,7 @@ def _run_consistency_check(
             ds.get("case_id") for ds in check_items
             if ds.get("case_id") is not None
         ]
-        old_cases_map: Dict[int, _TC] = {}
+        old_cases_map: dict[int, _TC] = {}
         if case_ids_to_check:
             old_cases = ctx.db.query(_TC).filter(
                 _TC.id.in_(case_ids_to_check)

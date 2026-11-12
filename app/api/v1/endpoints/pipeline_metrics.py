@@ -14,7 +14,6 @@
 """
 import logging
 from datetime import timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +33,7 @@ router = APIRouter(prefix="/metrics", tags=["Pipeline监控指标"])
 
 @router.get("/summary", response_model=ApiResponse)
 async def get_metrics_summary(
-    project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
+    project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=365, description="统计天数"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
@@ -53,10 +52,10 @@ async def get_metrics_summary(
 
 @router.get("/query", response_model=ApiResponse)
 async def query_metrics(
-    metric_name: Optional[str] = Query(None, description="指标名过滤"),
-    project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
-    iteration_id: Optional[int] = Query(None, description="迭代 ID 过滤"),
-    run_id: Optional[int] = Query(None, description="运行 ID 过滤"),
+    metric_name: str | None = Query(None, description="指标名过滤"),
+    project_id: int | None = Query(None, description="项目 ID 过滤"),
+    iteration_id: int | None = Query(None, description="迭代 ID 过滤"),
+    run_id: int | None = Query(None, description="运行 ID 过滤"),
     days: int = Query(30, ge=1, le=365, description="统计天数"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
@@ -81,7 +80,7 @@ async def query_metrics(
 @router.get("/timeseries", response_model=ApiResponse)
 async def get_metric_timeseries(
     metric_name: str = Query(..., description="指标名（必填）"),
-    project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
+    project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=365, description="统计天数"),
     interval: str = Query("day", pattern="^(day|hour)$", description="聚合间隔: day/hour"),
     db: AsyncSession = Depends(async_get_db),

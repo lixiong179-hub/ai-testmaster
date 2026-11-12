@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -135,9 +135,9 @@ primary_scoped_session = scoped_session(PrimarySessionLocal)
 # 模块属性保留为 property-like 兼容入口，但实际使用应通过 get_secondary_*。
 # =============================================================
 
-_secondary_engine_cache: Optional[Engine] = None
-_secondary_session_local_cache: Optional[sessionmaker] = None
-_secondary_scoped_session_cache: Optional[scoped_session] = None
+_secondary_engine_cache: Engine | None = None
+_secondary_session_local_cache: sessionmaker | None = None
+_secondary_scoped_session_cache: scoped_session | None = None
 
 
 def _has_slave_url() -> bool:
@@ -145,7 +145,7 @@ def _has_slave_url() -> bool:
     return bool(settings.DATABASE_URL_SLAVE)
 
 
-def get_secondary_engine() -> Optional[Engine]:
+def get_secondary_engine() -> Engine | None:
     """懒加载 secondary 同步引擎，未配置 slave 时返回 None。"""
     global _secondary_engine_cache
     if not _has_slave_url():
@@ -257,11 +257,11 @@ AsyncPrimarySessionLocal = async_sessionmaker(
 
 
 # Secondary 异步引擎懒加载（同同步引擎策略）
-_async_secondary_engine_cache: Optional[AsyncEngine] = None
-_async_secondary_session_local_cache: Optional[async_sessionmaker] = None
+_async_secondary_engine_cache: AsyncEngine | None = None
+_async_secondary_session_local_cache: async_sessionmaker | None = None
 
 
-def get_async_secondary_engine() -> Optional[AsyncEngine]:
+def get_async_secondary_engine() -> AsyncEngine | None:
     """懒加载 secondary 异步引擎，未配置 slave 时返回 None。"""
     global _async_secondary_engine_cache
     if not _has_slave_url():

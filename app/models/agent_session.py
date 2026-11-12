@@ -21,7 +21,7 @@ Agent 会话模型模块
     - iteration_count : 已执行迭代轮数
     - loop_detected   : 是否触发循环检测熔断
 """
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -104,7 +104,7 @@ class AgentSession(Base):
             f"status={self.status}, iterations={self.iteration_count})>"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """返回会话核心字段字典，供 API 响应与日志输出使用。"""
         return {
             "id": self.id,

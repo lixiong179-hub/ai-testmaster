@@ -18,7 +18,7 @@
     - app.services.metrics_service : record_metric
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
@@ -32,7 +32,7 @@ REVIEW_REJECTION_RATE_THRESHOLD = 0.30
 POSTERIOR_MIN_EXECUTIONS = 3
 
 
-def compute_posterior_quality(db: Session, project_id: int) -> Dict[str, Any]:
+def compute_posterior_quality(db: Session, project_id: int) -> dict[str, Any]:
     """计算单个项目的后验质量分。
 
     公式:
@@ -143,7 +143,7 @@ def compute_posterior_quality(db: Session, project_id: int) -> Dict[str, Any]:
     }
 
 
-def compute_and_persist_posterior(db: Session, project_id: int) -> Dict[str, Any]:
+def compute_and_persist_posterior(db: Session, project_id: int) -> dict[str, Any]:
     """计算后验质量分并回填到 test_cases.posterior_quality_score。
 
     仅对满足最低执行次数要求的用例回填后验质量分。
@@ -178,9 +178,9 @@ def compute_and_persist_posterior(db: Session, project_id: int) -> Dict[str, Any
         .all()
     )
     updated = 0
-    for case in cases:
-        if case.posterior_quality_score != posterior_score:
-            case.posterior_quality_score = posterior_score
+    for test_case in cases:
+        if test_case.posterior_quality_score != posterior_score:
+            test_case.posterior_quality_score = posterior_score
             updated += 1
 
     db.flush()
@@ -257,7 +257,7 @@ def check_review_rejection_alert(db: Session, project_id: int) -> bool:
     return False
 
 
-def run_posterior_quality_batch(db: Session, project_ids: Optional[List[int]] = None) -> List[Dict[str, Any]]:
+def run_posterior_quality_batch(db: Session, project_ids: list[int] | None = None) -> list[dict[str, Any]]:
     """批量执行后验质量分采集和告警检查。
 
     可由定时任务调用，对指定项目（或所有有用例的项目）执行采集。

@@ -1,8 +1,8 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Optional
 
 
-class ExecutionStatus(str, Enum):
+class ExecutionStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     PASSED = "passed"
@@ -11,7 +11,7 @@ class ExecutionStatus(str, Enum):
     ERROR = "error"
 
 
-class FailureCategory(str, Enum):
+class FailureCategory(StrEnum):
     PRODUCT_BUG = "product_bug"
     UPSTREAM_BLOCKED = "upstream_blocked"
     NAVIGATION_FAILURE = "navigation_failure"
@@ -46,7 +46,7 @@ class FailureCategory(str, Enum):
         )
 
 
-class ActionType(str, Enum):
+class ActionType(StrEnum):
     CLICK = "click"
     INPUT = "input"
     SELECT = "select"
@@ -73,7 +73,7 @@ class ActionType(str, Enum):
     CUSTOM = "custom"
 
 
-class ExecutionMode(str, Enum):
+class ExecutionMode(StrEnum):
     AI_VISION = "ai_vision"
     API = "api"
     UNKNOWN = "unknown"

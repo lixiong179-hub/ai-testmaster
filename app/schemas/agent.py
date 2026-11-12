@@ -11,7 +11,6 @@
 所有模型 extra="forbid"，响应模型额外开启 from_attributes 以支持 ORM 直接转换。
 """
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -27,7 +26,7 @@ class SessionCreateRequest(BaseModel):
 
     agent_type: str = Field(..., description="Agent 类型，需在 AGENT_TYPE_VALUES 内")
     project_id: int = Field(..., description="项目 ID")
-    initial_artifacts: List[dict] = Field(
+    initial_artifacts: list[dict] = Field(
         default_factory=list, description="初始 Artifacts 输入，Runtime 触发时消费"
     )
 
@@ -41,12 +40,12 @@ class SessionResponse(BaseModel):
     project_id: int
     agent_type: str
     status: str
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     token_cost: int
     iteration_count: int
     loop_detected: bool
-    created_by: Optional[int] = None
+    created_by: int | None = None
 
 
 class SessionListResponse(BaseModel):
@@ -54,7 +53,7 @@ class SessionListResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    items: List[SessionResponse]
+    items: list[SessionResponse]
     total: int
 
 
@@ -67,11 +66,11 @@ class MessageResponse(BaseModel):
     session_id: int
     role: str
     content: dict
-    artifact_refs: Optional[List[dict]] = None
-    tool_call_id: Optional[str] = None
-    tool_name: Optional[str] = None
+    artifact_refs: list[dict] | None = None
+    tool_call_id: str | None = None
+    tool_name: str | None = None
     token_cost: int
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 class AuditResponse(BaseModel):
@@ -87,11 +86,11 @@ class AuditResponse(BaseModel):
     iteration: int
     action_type: str
     action_detail: dict
-    decision_confidence: Optional[float] = None
+    decision_confidence: float | None = None
     human_approved: int
-    approved_by: Optional[int] = None
-    approved_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
+    approved_by: int | None = None
+    approved_at: datetime | None = None
+    created_at: datetime | None = None
 
 
 class AuditListResponse(BaseModel):
@@ -99,7 +98,7 @@ class AuditListResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    items: List[AuditResponse]
+    items: list[AuditResponse]
     total: int
 
 
@@ -109,7 +108,7 @@ class ApprovalRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     approved: bool = Field(True, description="True=批准, False=拒绝")
-    reason: Optional[str] = Field(None, description="审批备注")
+    reason: str | None = Field(None, description="审批备注")
 
 
 class RollbackRequest(BaseModel):

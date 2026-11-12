@@ -1,12 +1,12 @@
 import json
 import re
-from typing import Dict, Any, Optional, List
+from typing import Any
 from loguru import logger
 
 from app.utils.ai_client_parser._json_fixer import clean_json_string
 
 
-def extract_json_objects_fallback(content: str) -> List[Dict[str, Any]]:
+def extract_json_objects_fallback(content: str) -> list[dict[str, Any]]:
     MAX_CONTENT_LENGTH = 50000
     if len(content) > MAX_CONTENT_LENGTH:
         logger.warning(f"JSON fallback内容过大({len(content)}字符)，截断至{MAX_CONTENT_LENGTH}字符")
@@ -103,7 +103,7 @@ def extract_json_objects_fallback(content: str) -> List[Dict[str, Any]]:
     return []
 
 
-def parse_test_point_object(text: str) -> Optional[Dict]:
+def parse_test_point_object(text: str) -> dict | None:
     result = {}
     module_match = re.search(r'"module"\s*:\s*"([^"]*)"', text)
     if module_match:
@@ -122,7 +122,7 @@ def parse_test_point_object(text: str) -> Optional[Dict]:
     return None
 
 
-def extract_value(value_part: str) -> Optional[Any]:
+def extract_value(value_part: str) -> Any | None:
     if not value_part or value_part == ',':
         return None
     value_part = value_part.rstrip(',')

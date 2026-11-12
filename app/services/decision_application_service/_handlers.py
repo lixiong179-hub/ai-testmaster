@@ -1,4 +1,3 @@
-from typing import Optional, List
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -22,7 +21,7 @@ from app.services.decision_application_service._core import (
 def _handle_locator_and_modify(
     db: Session,
     decision: ApplyDecision,
-    actor_id: Optional[int],
+    actor_id: int | None,
 ) -> ApplyResult:
     target_id = decision.target_id
     if target_id is None:
@@ -77,7 +76,7 @@ def _handle_locator_and_modify(
 def _handle_deprecate(
     db: Session,
     decision: ApplyDecision,
-    actor_id: Optional[int],
+    actor_id: int | None,
 ) -> ApplyResult:
     target_id = decision.target_id
     if target_id is None:
@@ -104,7 +103,7 @@ def _handle_deprecate(
 def _handle_add_new(
     db: Session,
     decision: ApplyDecision,
-    actor_id: Optional[int],
+    actor_id: int | None,
 ) -> ApplyResult:
     import hashlib
     import json
@@ -208,7 +207,7 @@ def _handle_pending_review(decision: ApplyDecision) -> ApplyResult:
     )
 
 
-def _load_decisions_from_review(review_id: int, db: Session) -> List[ApplyDecision]:
+def _load_decisions_from_review(review_id: int, db: Session) -> list[ApplyDecision]:
     from app.models.review import IterationReview, ReviewDecision
     review = db.get(IterationReview, review_id)
     if review is None:
@@ -216,7 +215,7 @@ def _load_decisions_from_review(review_id: int, db: Session) -> List[ApplyDecisi
     review_decisions = db.query(ReviewDecision).filter(
         ReviewDecision.review_id == review_id,
     ).all()
-    result: List[ApplyDecision] = []
+    result: list[ApplyDecision] = []
     for rd in review_decisions:
         merged_action = _verdict_to_action(rd.final_verdict, rd.conflict_marker)
         ad = ApplyDecision(

@@ -4,7 +4,6 @@
 指标记录失败不阻塞业务流程。
 """
 import logging
-from typing import Optional
 
 from app.models.iteration import Iteration
 from app.pipelines.context import PipelineContext
@@ -16,8 +15,8 @@ def _record_fmea_metric(
     ctx: PipelineContext,
     metric_name: str,
     *,
-    step_name: Optional[str] = None,
-    detail: Optional[dict] = None,
+    step_name: str | None = None,
+    detail: dict | None = None,
 ) -> None:
     """在 Pipeline 运行中记录 FMEA 监控指标（失败不阻塞业务）。"""
     try:

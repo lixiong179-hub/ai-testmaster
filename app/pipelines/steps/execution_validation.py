@@ -16,7 +16,7 @@
     - assertion_failed  : 验证步骤失败（VERIFY 类型步骤失败）
     - other             : 其他失败（环境错误、前置条件失败等）
 """
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from loguru import logger
 
@@ -59,8 +59,8 @@ class ExecutionValidation(PipelineStep):
 
     name: ClassVar[str] = "execution_validation"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = ["generated_cases"]
-    produces: ClassVar[List[str]] = ["execution_validation_applied"]
+    requires: ClassVar[list[str]] = ["generated_cases"]
+    produces: ClassVar[list[str]] = ["execution_validation_applied"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         """仅当存在执行验证结果产物且有用例待持久化时才执行。
@@ -145,7 +145,7 @@ class ExecutionValidation(PipelineStep):
             },
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         """校验产物格式是否合法。
 
         Args:
@@ -156,7 +156,7 @@ class ExecutionValidation(PipelineStep):
         """
         return "matched_count" in payload and "total_results" in payload
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         """失败兜底：不写入任何验证字段，用例正常落库（验证字段为 None）。
 
         Args:
@@ -182,8 +182,8 @@ class ExecutionValidation(PipelineStep):
         )
 
     def _build_results_by_title(
-        self, validation_results: Dict[str, Any],
-    ) -> Dict[str, Dict[str, Any]]:
+        self, validation_results: dict[str, Any],
+    ) -> dict[str, dict[str, Any]]:
         """将执行验证结果列表转为 case_title -> result 映射。
 
         Args:
@@ -196,8 +196,8 @@ class ExecutionValidation(PipelineStep):
         """
         from loguru import logger
 
-        results_by_title: Dict[str, Dict[str, Any]] = {}
-        duplicate_titles: List[str] = []
+        results_by_title: dict[str, dict[str, Any]] = {}
+        duplicate_titles: list[str] = []
         for result in validation_results.get("results", []):
             if not isinstance(result, dict):
                 continue
@@ -218,8 +218,8 @@ class ExecutionValidation(PipelineStep):
 
     def _apply_results_to_cases(
         self,
-        cases_artifact: Dict[str, Any],
-        results_by_title: Dict[str, Dict[str, Any]],
+        cases_artifact: dict[str, Any],
+        results_by_title: dict[str, dict[str, Any]],
     ) -> int:
         """将执行验证结果写入 generated_cases 的 case_data 字典。
 
@@ -254,8 +254,8 @@ class ExecutionValidation(PipelineStep):
 
     def _write_validation_fields(
         self,
-        case_data: Dict[str, Any],
-        result: Dict[str, Any],
+        case_data: dict[str, Any],
+        result: dict[str, Any],
     ) -> None:
         """将单个验证结果字段写入 case_data 字典（含防御性校验）。
 
@@ -283,10 +283,10 @@ class ExecutionValidation(PipelineStep):
     @staticmethod
     def _build_payload(
         ctx: PipelineContext,
-        cases_artifact: Dict[str, Any],
+        cases_artifact: dict[str, Any],
         total_results: int,
         matched_count: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """构建 StepResult 产物载荷。
 
         Args:
@@ -307,7 +307,7 @@ class ExecutionValidation(PipelineStep):
         }
 
     @staticmethod
-    def _sanitize_verified(value: Any) -> Optional[bool]:
+    def _sanitize_verified(value: Any) -> bool | None:
         """校验 execution_verified 字段。
 
         Args:
@@ -327,7 +327,7 @@ class ExecutionValidation(PipelineStep):
         return None
 
     @staticmethod
-    def _sanitize_ratio(value: Any) -> Optional[float]:
+    def _sanitize_ratio(value: Any) -> float | None:
         """校验 element_verified_ratio 字段，约束在 [0.0, 1.0] 范围内。
 
         Args:
@@ -351,7 +351,7 @@ class ExecutionValidation(PipelineStep):
         return ratio
 
     @staticmethod
-    def _sanitize_failure_type(value: Any) -> Optional[str]:
+    def _sanitize_failure_type(value: Any) -> str | None:
         """校验 execution_failure_type 字段，必须是合法枚举值。
 
         Args:

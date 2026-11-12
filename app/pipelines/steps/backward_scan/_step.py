@@ -1,8 +1,7 @@
 import hashlib
 import json
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
-from loguru import logger
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
@@ -23,8 +22,8 @@ class BackwardScan(PipelineStep):
 
     name: ClassVar[str] = "backward_scan"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = ["history_fingerprints", "raw_signals"]
-    produces: ClassVar[List[str]] = ["backward_verdicts"]
+    requires: ClassVar[list[str]] = ["history_fingerprints", "raw_signals"]
+    produces: ClassVar[list[str]] = ["backward_verdicts"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         fingerprints = ctx.get_artifact("history_fingerprints")
@@ -96,11 +95,11 @@ class BackwardScan(PipelineStep):
             },
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         required = ["project_id", "verdicts", "total_count", "stats"]
         return all(k in payload for k in required)
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         fingerprints = ctx.get_artifact("history_fingerprints")
         project_id = 0
         if fingerprints:

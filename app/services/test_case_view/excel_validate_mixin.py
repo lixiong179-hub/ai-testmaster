@@ -1,12 +1,12 @@
 """Excel验证Mixin - 标准格式和功能用例格式的Excel验证。"""
-from typing import Dict, Any
+from typing import Any
 from loguru import logger
 
 
 class ExcelValidateMixin:
     """Excel格式验证：标准双Sheet格式、第三方功能用例格式。"""
 
-    def validate_excel_format(self, file_path: str) -> Dict[str, Any]:
+    def validate_excel_format(self, file_path: str) -> dict[str, Any]:
         result = {"valid": False, "errors": [], "warnings": []}
         try:
             import pandas as pd
@@ -53,7 +53,7 @@ class ExcelValidateMixin:
             result["errors"].append("验证失败")
             return result
 
-    def validate_functional_excel(self, file_path: str) -> Dict[str, Any]:
+    def validate_functional_excel(self, file_path: str) -> dict[str, Any]:
         result = {"valid": False, "errors": [], "warnings": [], "format_type": "functional"}
         try:
             import pandas as pd

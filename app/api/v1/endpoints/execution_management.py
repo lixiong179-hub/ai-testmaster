@@ -121,13 +121,12 @@ async def get_execution_video(
         video_infos = [service._to_video_info(v) for v in videos]
 
         for video in video_infos:
-            if video.case_id == case_id and video.file_path:
-                if os.path.exists(video.file_path):
-                    return FileResponse(
-                        video.file_path,
-                        media_type="video/mp4",
-                        filename=f"task_{task_id}_case_{case_id}.mp4"
-                    )
+            if video.case_id == case_id and video.file_path and os.path.exists(video.file_path):
+                return FileResponse(
+                    video.file_path,
+                    media_type="video/mp4",
+                    filename=f"task_{task_id}_case_{case_id}.mp4"
+                )
 
         return create_response(code=404, message="视频不存在或未启用录制")
 

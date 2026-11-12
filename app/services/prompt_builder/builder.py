@@ -10,7 +10,7 @@ DB 有记录则使用 DB 内容，否则使用现有硬编码逻辑。
 
 extra_context 的渲染逻辑（task_type 分支）拆分至 _extra_context_renderer 模块。
 """
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 from app.services.prompt_builder.case_prompt import _build_graph_prompt
 from app.services.prompt_builder.linear_prompt import _build_linear_prompt
@@ -61,9 +61,9 @@ class PromptBuilder:
     def for_test_case(
         self,
         mode: str = 'linear',
-        nodes: Optional[List[Dict[str, Any]]] = None,
-        edges: Optional[List[Dict[str, Any]]] = None,
-        module_info: Optional[Dict[str, Any]] = None,
+        nodes: list[dict[str, Any]] | None = None,
+        edges: list[dict[str, Any]] | None = None,
+        module_info: dict[str, Any] | None = None,
         requirement_content: str = "",
         test_point_json: str = "",
         ui_specs_text: str = "",
@@ -73,17 +73,17 @@ class PromptBuilder:
         function: str = "",
         point: str = "",
         priority: int = 2,
-        ui_specs: Optional[List[Dict[str, Any]]] = None,
-        case_type: Optional[str] = None,
+        ui_specs: list[dict[str, Any]] | None = None,
+        case_type: str | None = None,
         test_username: str = "testuser",
         test_password: str = "TestPass123",
         min_case_count: int = 3,
-        history_cases: Optional[List[Dict[str, Any]]] = None,
-        project_id: Optional[int] = None,
+        history_cases: list[dict[str, Any]] | None = None,
+        project_id: int | None = None,
         db: Any = None,
-        execution_feedback: Optional[str] = None,
-        extra_context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        execution_feedback: str | None = None,
+        extra_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """构建测试用例生成 Prompt，支持 graph 和 linear 两种模式。
 
         Args:
@@ -150,9 +150,9 @@ class PromptBuilder:
 
     def for_test_data(
         self,
-        field_definitions: List[Dict[str, Any]],
+        field_definitions: list[dict[str, Any]],
         count: int = 1,
-        context: Optional[str] = None,
+        context: str | None = None,
         data_type: str = "normal"
     ) -> str:
         """构建测试数据生成 Prompt。
@@ -176,10 +176,10 @@ class PromptBuilder:
         function: str = "",
         point: str = "",
         priority: int = 2,
-        ui_specs: Optional[List[Dict[str, Any]]] = None,
-        history_cases: Optional[List[Dict[str, Any]]] = None,
-        extra_context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        ui_specs: list[dict[str, Any]] | None = None,
+        history_cases: list[dict[str, Any]] | None = None,
+        extra_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         from app.services.prompt_builder.self_test_prompt import build_self_test_prompt
 
         prompt = build_self_test_prompt(
@@ -201,15 +201,15 @@ class PromptBuilder:
 
     @staticmethod
     def build_graph_prompt(
-        nodes: List[Dict[str, Any]],
-        edges: List[Dict[str, Any]],
-        module_info: Optional[Dict[str, Any]] = None,
+        nodes: list[dict[str, Any]],
+        edges: list[dict[str, Any]],
+        module_info: dict[str, Any] | None = None,
         requirement_content: str = "",
         test_point_json: str = "",
         ui_specs_text: str = "",
         include_images: bool = False,
-        history_cases: Optional[List[Dict[str, Any]]] = None,
-        case_type: Optional[str] = None,
+        history_cases: list[dict[str, Any]] | None = None,
+        case_type: str | None = None,
         test_username: str = "testuser",
         test_password: str = "TestPass123",
         min_case_count: int = 3,
@@ -245,13 +245,13 @@ class PromptBuilder:
 
     @staticmethod
     def build_multimodal_prompt(
-        nodes: List[Dict[str, Any]],
-        edges: List[Dict[str, Any]],
-        module_info: Optional[Dict[str, Any]] = None,
+        nodes: list[dict[str, Any]],
+        edges: list[dict[str, Any]],
+        module_info: dict[str, Any] | None = None,
         requirement_content: str = "",
         test_point_json: str = "",
         ui_specs_text: str = "",
-        history_cases: Optional[List[Dict[str, Any]]] = None,
+        history_cases: list[dict[str, Any]] | None = None,
         min_case_count: int = 3,
     ) -> str:
         """构建多模态 Prompt（自动包含图片 URL，向后兼容接口）。
@@ -286,14 +286,14 @@ class PromptBuilder:
         function: str,
         point: str,
         priority: int,
-        ui_specs: Optional[List[Dict[str, Any]]] = None,
-        extra_context: Optional[Dict[str, Any]] = None,
-        case_type: Optional[str] = None,
+        ui_specs: list[dict[str, Any]] | None = None,
+        extra_context: dict[str, Any] | None = None,
+        case_type: str | None = None,
         min_case_count: int = 3,
-        history_cases: Optional[List[Dict[str, Any]]] = None,
-        project_id: Optional[int] = None,
+        history_cases: list[dict[str, Any]] | None = None,
+        project_id: int | None = None,
         db: Any = None,
-        execution_feedback: Optional[str] = None,
+        execution_feedback: str | None = None,
     ) -> str:
         """构建线性模式 Prompt（向后兼容接口）。
 

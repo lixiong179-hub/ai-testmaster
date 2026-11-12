@@ -5,7 +5,7 @@ FailureAnalysisAgent 的核心输入/输出载体。
 """
 from __future__ import annotations
 
-from typing import ClassVar, List, Optional
+from typing import ClassVar
 
 from app.services.agent.artifacts.base import Artifact
 
@@ -23,10 +23,10 @@ class TestCaseArtifact(Artifact):
     artifact_type: ClassVar[str] = "test_case"
     description: ClassVar[str] = "测试用例上下文，含标题、步骤、前置条件"
 
-    id: Optional[int] = None
+    id: int | None = None
     title: str
-    steps: List[dict]
-    preconditions: List[str] = []
+    steps: list[dict]
+    preconditions: list[str] = []
 
 
 __all__ = ["TestCaseArtifact"]

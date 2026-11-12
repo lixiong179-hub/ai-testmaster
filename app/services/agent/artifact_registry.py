@@ -12,9 +12,7 @@
 """
 from __future__ import annotations
 
-from typing import Dict, List, Type
 
-from pydantic import ValidationError
 
 from app.services.agent.artifacts.base import Artifact
 
@@ -30,9 +28,9 @@ class ArtifactRegistry:
     """
 
     def __init__(self) -> None:
-        self._registry: Dict[str, Type[Artifact]] = {}
+        self._registry: dict[str, type[Artifact]] = {}
 
-    def register(self, artifact_class: Type[Artifact]) -> None:
+    def register(self, artifact_class: type[Artifact]) -> None:
         """注册 artifact 类。
 
         Args:
@@ -72,11 +70,11 @@ class ArtifactRegistry:
             raise KeyError(f"Artifact 类型未注册: {artifact_type}")
         return artifact_class.model_validate(data)
 
-    def get_class(self, artifact_type: str) -> Type[Artifact]:
+    def get_class(self, artifact_type: str) -> type[Artifact]:
         """查询 artifact 类。"""
         return self._registry[artifact_type]
 
-    def list_artifacts(self) -> List[str]:
+    def list_artifacts(self) -> list[str]:
         """列出所有已注册 artifact 类型，按字典序排序。"""
         return sorted(self._registry.keys())
 

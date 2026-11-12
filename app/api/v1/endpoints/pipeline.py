@@ -250,6 +250,7 @@ async def get_pipeline_run(
         except HTTPException:
             raise
         except Exception as e:
+            logger.error("获取 Pipeline 状态失败: {}", e)
             raise HTTPException(status_code=500, detail="获取 Pipeline 状态失败")
 
     return await db.run_sync(_get)

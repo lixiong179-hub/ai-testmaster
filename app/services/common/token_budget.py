@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -52,7 +52,7 @@ class BaseTokenBudgetGuard(ABC):
 
     def __init__(
         self,
-        redis_client: Optional[Any],
+        redis_client: Any | None,
         *,
         namespace: str,
         ttl_seconds: int = _DEFAULT_TTL_SECONDS,

@@ -8,17 +8,17 @@ run_quality_feedback_loop 在第 N+1 轮注入重生成 Prompt。
   让 AI 在下一轮针对具体问题修复，而非无信息地重复生成。
 - 与 QualityScoringService 共享维度名，保证信号与评分口径一致。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # 维度得分低于此阈值视为低分维度，需在信号中重点标注修复
 LOW_DIMENSION_THRESHOLD = 7.0
 
 
 def build_quality_signals(
-    issues: List[str],
-    dim_scores: Optional[Dict[str, float]] = None,
-    case: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    issues: list[str],
+    dim_scores: dict[str, float] | None = None,
+    case: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """构建质量信号字典。
 
     Args:
@@ -31,7 +31,7 @@ def build_quality_signals(
         {"issues": [...], "dim_scores": {...}, "low_dimensions": [...]}
         issues 为去空后的字符串列表；low_dimensions 为得分低于阈值的维度名列表。
     """
-    clean_issues: List[str] = []
+    clean_issues: list[str] = []
     for issue in issues or []:
         text = str(issue).strip()
         if text:
@@ -44,7 +44,7 @@ def build_quality_signals(
     if not scores:
         scores = {}
 
-    low_dimensions: List[str] = [
+    low_dimensions: list[str] = [
         name for name, score in scores.items()
         if isinstance(score, (int, float)) and score < LOW_DIMENSION_THRESHOLD
     ]
@@ -56,7 +56,7 @@ def build_quality_signals(
     }
 
 
-def format_quality_signals(signals: Optional[Dict[str, Any]]) -> str:
+def format_quality_signals(signals: dict[str, Any] | None) -> str:
     """将质量信号格式化为 Prompt 文本段。
 
     Args:
@@ -76,7 +76,7 @@ def format_quality_signals(signals: Optional[Dict[str, Any]]) -> str:
     if not issues and not dim_scores:
         return ""
 
-    lines: List[str] = [
+    lines: list[str] = [
         "## 质量信号（上轮生成的具体问题，本轮必须逐条修复）"
     ]
 

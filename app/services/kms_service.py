@@ -29,8 +29,7 @@ from __future__ import annotations
 import base64
 import os
 import time
-from dataclasses import dataclass, field
-from typing import Dict, Optional, Tuple
+from dataclasses import dataclass
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from loguru import logger
@@ -74,8 +73,8 @@ class KMSService:
     def __init__(self) -> None:
         """初始化 KMS 服务，加载 KEK。"""
         self._enabled: bool = settings.KMS_ENABLED
-        self._kek: Optional[bytes] = None
-        self._dek_cache: Dict[str, _DEKCacheEntry] = {}
+        self._kek: bytes | None = None
+        self._dek_cache: dict[str, _DEKCacheEntry] = {}
         self._cache_ttl: int = settings.KMS_DEK_CACHE_TTL
 
         if self._enabled:
@@ -92,7 +91,7 @@ class KMSService:
         """KMS 是否已启用。"""
         return self._enabled
 
-    def _load_kek(self) -> Optional[bytes]:
+    def _load_kek(self) -> bytes | None:
         """加载 KEK（主密钥）。
 
         根据 KMS_KEK_SOURCE 选择加载方式：
@@ -125,7 +124,7 @@ class KMSService:
             logger.error(f"[KMS] 未知 KEK 来源: {source}")
             return None
 
-    def encrypt(self, plaintext: bytes) -> Tuple[bytes, bytes]:
+    def encrypt(self, plaintext: bytes) -> tuple[bytes, bytes]:
         """信封加密：生成 DEK → 用 DEK 加密数据 → 用 KEK 加密 DEK。
 
         Args:
@@ -198,7 +197,7 @@ class KMSService:
         except Exception as e:
             raise ValueError(f"数据解密失败: {e}") from e
 
-    def _get_cached_dek(self, cache_key: str) -> Optional[bytes]:
+    def _get_cached_dek(self, cache_key: str) -> bytes | None:
         """从缓存读取 DEK。
 
         Args:

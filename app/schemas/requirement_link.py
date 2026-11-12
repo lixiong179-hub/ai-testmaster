@@ -33,12 +33,12 @@
 - 缓存内容 -> RequirementLink.cached_content (Text字段)
 """
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Any
+from typing import Any
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 
-class LinkTypeEnum(str, Enum):
+class LinkTypeEnum(StrEnum):
     """
     链接类型枚举
 
@@ -51,7 +51,7 @@ class LinkTypeEnum(str, Enum):
     OTHER = "other"  # 其他
 
 
-class AuthTypeEnum(str, Enum):
+class AuthTypeEnum(StrEnum):
     """
     认证类型枚举
 
@@ -80,7 +80,7 @@ class RequirementLinkBase(BaseModel):
     link_type: LinkTypeEnum = Field(..., description="链接类型")  # 必填，区分资源类型
     link_url: str = Field(..., min_length=1, max_length=1000, description="链接地址")  # 必填，外部资源URL
     auth_type: AuthTypeEnum = Field(default=AuthTypeEnum.NONE, description="认证类型")  # 默认无认证
-    description: Optional[str] = Field(None, max_length=1000, description="链接描述")  # 可选，链接说明
+    description: str | None = Field(None, max_length=1000, description="链接描述")  # 可选，链接说明
     cache_expire_minutes: int = Field(default=60, ge=5, le=1440, description="缓存过期时间（分钟）")  # 默认60分钟，最少5分钟，最多24小时
 
     @field_validator('link_url')
@@ -109,16 +109,16 @@ class RequirementLinkCreate(RequirementLinkBase):
 
     # 认证配置（根据auth_type提供不同的字段）
     # Basic Auth
-    username: Optional[str] = Field(None, max_length=100, description="Basic Auth 用户名")  # 可选，auth_type=basic时使用
-    password: Optional[str] = Field(None, max_length=200, description="Basic Auth 密码")  # 可选，auth_type=basic时使用
+    username: str | None = Field(None, max_length=100, description="Basic Auth 用户名")  # 可选，auth_type=basic时使用
+    password: str | None = Field(None, max_length=200, description="Basic Auth 密码")  # 可选，auth_type=basic时使用
 
     # Bearer Token / API Key
-    token: Optional[str] = Field(None, max_length=500, description="Token/Bearer Token")  # 可选，auth_type=bearer时使用
-    api_key: Optional[str] = Field(None, max_length=500, description="API Key")  # 可选，auth_type=api_key时使用
+    token: str | None = Field(None, max_length=500, description="Token/Bearer Token")  # 可选，auth_type=bearer时使用
+    api_key: str | None = Field(None, max_length=500, description="API Key")  # 可选，auth_type=api_key时使用
     api_key_header: str = Field("X-API-Key", max_length=50, description="API Key的Header名称")  # 默认X-API-Key，auth_type=api_key时使用
 
     # Cookie认证
-    cookie: Optional[str] = Field(None, max_length=1000, description="Cookie字符串")  # 可选，auth_type=cookie时使用
+    cookie: str | None = Field(None, max_length=1000, description="Cookie字符串")  # 可选，auth_type=cookie时使用
 
 
 class RequirementLinkUpdate(BaseModel):
@@ -129,21 +129,21 @@ class RequirementLinkUpdate(BaseModel):
     验证规则：所有字段可选
     对应API：PUT/PATCH /api/v1/requirement-links/{link_id}
     """
-    link_name: Optional[str] = Field(None, min_length=1, max_length=200, description="链接名称")  # 可选
-    link_type: Optional[LinkTypeEnum] = Field(None, description="链接类型")  # 可选
-    link_url: Optional[str] = Field(None, min_length=1, max_length=1000, description="链接地址")  # 可选
-    auth_type: Optional[AuthTypeEnum] = Field(None, description="认证类型")  # 可选
-    description: Optional[str] = Field(None, max_length=1000, description="链接描述")  # 可选
-    is_active: Optional[bool] = Field(None, description="是否启用")  # 可选，软删除/恢复
-    cache_expire_minutes: Optional[int] = Field(None, ge=5, le=1440, description="缓存过期时间")  # 可选
+    link_name: str | None = Field(None, min_length=1, max_length=200, description="链接名称")  # 可选
+    link_type: LinkTypeEnum | None = Field(None, description="链接类型")  # 可选
+    link_url: str | None = Field(None, min_length=1, max_length=1000, description="链接地址")  # 可选
+    auth_type: AuthTypeEnum | None = Field(None, description="认证类型")  # 可选
+    description: str | None = Field(None, max_length=1000, description="链接描述")  # 可选
+    is_active: bool | None = Field(None, description="是否启用")  # 可选，软删除/恢复
+    cache_expire_minutes: int | None = Field(None, ge=5, le=1440, description="缓存过期时间")  # 可选
 
     # 认证配置
-    username: Optional[str] = Field(None, max_length=100, description="Basic Auth 用户名")  # 可选
-    password: Optional[str] = Field(None, max_length=200, description="Basic Auth 密码")  # 可选
-    token: Optional[str] = Field(None, max_length=500, description="Token")  # 可选
-    api_key: Optional[str] = Field(None, max_length=500, description="API Key")  # 可选
-    api_key_header: Optional[str] = Field(None, max_length=50, description="API Key的Header名称")  # 可选
-    cookie: Optional[str] = Field(None, max_length=1000, description="Cookie字符串")  # 可选
+    username: str | None = Field(None, max_length=100, description="Basic Auth 用户名")  # 可选
+    password: str | None = Field(None, max_length=200, description="Basic Auth 密码")  # 可选
+    token: str | None = Field(None, max_length=500, description="Token")  # 可选
+    api_key: str | None = Field(None, max_length=500, description="API Key")  # 可选
+    api_key_header: str | None = Field(None, max_length=50, description="API Key的Header名称")  # 可选
+    cookie: str | None = Field(None, max_length=1000, description="Cookie字符串")  # 可选
 
 
 class AuthConfigResponse(BaseModel):
@@ -175,14 +175,14 @@ class RequirementLinkResponse(BaseModel):
     link_type: str  # 链接类型
     link_url: str  # 链接地址
     auth_type: str  # 认证类型
-    auth_config: Optional[AuthConfigResponse] = None  # 脱敏后的认证配置，仅显示是否有凭据
-    description: Optional[str]  # 链接描述
+    auth_config: AuthConfigResponse | None = None  # 脱敏后的认证配置，仅显示是否有凭据
+    description: str | None  # 链接描述
     is_active: bool  # 是否启用
-    last_fetch_time: Optional[datetime]  # 最后获取时间
-    last_fetch_status: Optional[str]  # 最后获取状态：success/failed
-    cached_content: Optional[str] = None  # 缓存内容预览（可能为空或截断）
+    last_fetch_time: datetime | None  # 最后获取时间
+    last_fetch_status: str | None  # 最后获取状态：success/failed
+    cached_content: str | None = None  # 缓存内容预览（可能为空或截断）
     cache_expire_minutes: int  # 缓存过期时间
-    created_by: Optional[int]  # 创建人ID
+    created_by: int | None  # 创建人ID
     create_time: datetime  # 创建时间
     update_time: datetime  # 更新时间
 
@@ -199,7 +199,7 @@ class RequirementLinkDetailResponse(RequirementLinkResponse):
     安全考虑：此响应包含敏感信息，仅限管理员权限访问
     对应API：GET /api/v1/requirement-links/{link_id}/detail（需管理员权限）
     """
-    auth_config: Optional[Dict[str, Any]] = None  # 完整认证配置，包含凭据详情
+    auth_config: dict[str, Any] | None = None  # 完整认证配置，包含凭据详情
 
     class Config:
         # 启用ORM模式
@@ -215,8 +215,8 @@ class RequirementLinkListRequest(BaseModel):
     对应API：GET /api/v1/requirement-links/
     """
     project_id: int = Field(..., description="项目ID")  # 必填，项目隔离查询
-    link_type: Optional[LinkTypeEnum] = Field(None, description="链接类型筛选")  # 可选，按类型筛选
-    is_active: Optional[bool] = Field(None, description="是否启用筛选")  # 可选，按启用状态筛选
+    link_type: LinkTypeEnum | None = Field(None, description="链接类型筛选")  # 可选，按类型筛选
+    is_active: bool | None = Field(None, description="是否启用筛选")  # 可选，按启用状态筛选
     page: int = Field(1, ge=1, description="页码")  # 页码，默认第1页
     page_size: int = Field(10, ge=1, le=100, description="每页数量")  # 每页数量，默认10，最大100
 
@@ -229,7 +229,7 @@ class RequirementLinkListResponse(BaseModel):
     对应API：GET /api/v1/requirement-links/ 的响应
     """
     total: int  # 符合条件的链接总数
-    items: List[RequirementLinkResponse]  # 当前页的链接列表
+    items: list[RequirementLinkResponse]  # 当前页的链接列表
     page: int  # 当前页码
     page_size: int  # 每页数量
 
@@ -253,8 +253,8 @@ class FetchContentResponse(BaseModel):
     对应API：POST /api/v1/requirement-links/fetch 的响应
     """
     success: bool  # 是否获取成功
-    content: Optional[str] = None  # 可选，获取到的内容
-    content_type: Optional[str] = None  # 可选，内容类型：html/markdown/json/text
+    content: str | None = None  # 可选，获取到的内容
+    content_type: str | None = None  # 可选，内容类型：html/markdown/json/text
     message: str  # 结果消息
     cached: bool = False  # 是否来自缓存，默认False
 
@@ -267,9 +267,9 @@ class LinkContextRequest(BaseModel):
     对应API：POST /api/v1/requirement-links/context
     """
     project_id: int = Field(..., description="项目ID")  # 必填，项目隔离
-    requirement_link_ids: Optional[List[int]] = Field(None, description="需求文档链接ID列表")  # 可选，指定需求链接
-    ui_link_ids: Optional[List[int]] = Field(None, description="UI原型图链接ID列表")  # 可选，指定UI链接
-    test_point_ids: Optional[List[int]] = Field(None, description="测试点ID列表")  # 可选，指定测试点
+    requirement_link_ids: list[int] | None = Field(None, description="需求文档链接ID列表")  # 可选，指定需求链接
+    ui_link_ids: list[int] | None = Field(None, description="UI原型图链接ID列表")  # 可选，指定UI链接
+    test_point_ids: list[int] | None = Field(None, description="测试点ID列表")  # 可选，指定测试点
     force_refresh: bool = Field(default=False, description="是否强制刷新缓存")  # 默认False
 
 
@@ -282,8 +282,8 @@ class LinkContextResponse(BaseModel):
     嵌套关系：整合了需求文档内容、UI描述和测试点信息
     """
     requirement_content: str = Field(default="", description="需求文档内容汇总")  # 所有需求文档的合并内容
-    ui_descriptions: List[Dict[str, Any]] = Field(default_factory=list, description="UI原型图描述列表")  # 各UI原型的描述信息
-    test_points: List[Dict[str, Any]] = Field(default_factory=list, description="测试点列表")  # 测试点信息
-    links_used: List[int] = Field(default_factory=list, description="使用的链接ID列表")  # 实际使用的链接ID
+    ui_descriptions: list[dict[str, Any]] = Field(default_factory=list, description="UI原型图描述列表")  # 各UI原型的描述信息
+    test_points: list[dict[str, Any]] = Field(default_factory=list, description="测试点列表")  # 测试点信息
+    links_used: list[int] = Field(default_factory=list, description="使用的链接ID列表")  # 实际使用的链接ID
     message: str  # 结果消息
     success: bool  # 是否成功

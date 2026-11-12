@@ -13,8 +13,7 @@
     对 sync 依赖（lifecycle_transition / CaseVersionService.create_snapshot）
     使用 db.run_sync() 桥接，避免越界迁移外部服务。
 """
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime, UTC
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +33,7 @@ async def review_suggestion(
     action: str,
     reviewer_id: int,
     reviewer_name: str,
-    reject_reason: Optional[str] = None,
+    reject_reason: str | None = None,
 ) -> CaseRefreshSuggestion:
     """审核保鲜建议，根据动作应用或驳回。
 
@@ -65,7 +64,7 @@ async def review_suggestion(
 
     suggestion.reviewer_id = reviewer_id
     suggestion.reviewer_name = reviewer_name
-    suggestion.reviewed_at = datetime.now(timezone.utc)
+    suggestion.reviewed_at = datetime.now(UTC)
 
     if action == "approve":
         suggestion.review_status = "approved"

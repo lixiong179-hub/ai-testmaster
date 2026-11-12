@@ -60,38 +60,38 @@ def _sanitize_filename_component(component: str) -> str:
 def _validate_image_file(filepath: str) -> tuple[bool, str]:
     """
     验证图片文件是否有效
-    
+
     检查项：
     1. 文件是否存在
     2. 文件大小是否合理（至少1KB）
     3. 能否成功解码为图片
-    
+
     Args:
         filepath: 图片文件路径
-    
+
     Returns:
         (是否有效, 错误信息)
     """
     if not os.path.exists(filepath):
         return False, "文件不存在"
-    
+
     file_size = os.path.getsize(filepath)
     if file_size < MIN_IMAGE_SIZE:
         return False, f"文件太小（{file_size} bytes），可能是损坏的文件"
-    
+
     try:
         with open(filepath, "rb") as f:
             image_bytes = f.read()
-        
+
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
+
         if img is None:
             return False, "图片解码失败，文件格式可能已损坏"
-        
+
         if img.shape[0] < 10 or img.shape[1] < 10:
             return False, f"图片尺寸过小（{img.shape[1]}x{img.shape[0]}），无法进行OCR识别"
-        
+
         return True, ""
     except Exception as e:
         return False, f"图片验证异常: {str(e)}"

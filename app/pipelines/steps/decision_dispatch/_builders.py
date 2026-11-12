@@ -1,13 +1,13 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
 
 def _resolve_original_case(
-    case_id: Optional[int],
-    fp_by_case_id: Dict[int, Dict[str, Any]],
-    db: Optional[Any] = None,
-) -> Optional[Dict[str, Any]]:
+    case_id: int | None,
+    fp_by_case_id: dict[int, dict[str, Any]],
+    db: Any | None = None,
+) -> dict[str, Any] | None:
     if case_id is None:
         return None
 
@@ -15,7 +15,7 @@ def _resolve_original_case(
     if fp is None:
         return None
 
-    original: Dict[str, Any] = {
+    original: dict[str, Any] = {
         "title": fp.get("title", ""),
         "module": fp.get("module", ""),
         "steps_json": None,
@@ -53,14 +53,14 @@ def _safe_json(value: Any) -> Any:
 
 
 def _build_modify_task(
-    case_id: Optional[int],
+    case_id: int | None,
     reason: str,
-    fp_by_case_id: Dict[int, Dict[str, Any]],
+    fp_by_case_id: dict[int, dict[str, Any]],
     need_locator_fix: bool,
-    db: Optional[Any] = None,
-) -> Dict[str, Any]:
+    db: Any | None = None,
+) -> dict[str, Any]:
     task_id = f"modify_{case_id}" if case_id is not None else "modify_unknown"
-    task: Dict[str, Any] = {
+    task: dict[str, Any] = {
         "task_type": "modify",
         "task_id": task_id,
         "case_id": case_id,
@@ -74,11 +74,11 @@ def _build_modify_task(
 
 
 def _build_locator_fix_task(
-    case_id: Optional[int],
+    case_id: int | None,
     reason: str,
-    fp_by_case_id: Dict[int, Dict[str, Any]],
-    db: Optional[Any] = None,
-) -> Dict[str, Any]:
+    fp_by_case_id: dict[int, dict[str, Any]],
+    db: Any | None = None,
+) -> dict[str, Any]:
     task_id = f"locator_{case_id}" if case_id is not None else "locator_unknown"
     return {
         "task_type": "locator_fix",
@@ -91,14 +91,11 @@ def _build_locator_fix_task(
 
 
 def _build_create_task(
-    candidate_index: Optional[int],
-    cands: List[Dict[str, Any]],
+    candidate_index: int | None,
+    cands: list[dict[str, Any]],
     reason: str,
-) -> Dict[str, Any]:
-    if candidate_index is not None and 0 <= candidate_index < len(cands):
-        cand = cands[candidate_index]
-    else:
-        cand = {}
+) -> dict[str, Any]:
+    cand = cands[candidate_index] if candidate_index is not None and 0 <= candidate_index < len(cands) else {}
 
     task_id = f"create_{candidate_index}" if candidate_index is not None else "create_unknown"
     return {
@@ -114,13 +111,13 @@ def _build_create_task(
 
 
 def _build_skip_task(
-    case_id: Optional[int],
+    case_id: int | None,
     skip_reason: str,
-    fp_by_case_id: Dict[int, Dict[str, Any]],
-    db: Optional[Any] = None,
-) -> Dict[str, Any]:
+    fp_by_case_id: dict[int, dict[str, Any]],
+    db: Any | None = None,
+) -> dict[str, Any]:
     task_id = f"skip_{case_id}" if case_id is not None else "skip_unknown"
-    task: Dict[str, Any] = {
+    task: dict[str, Any] = {
         "task_type": "skip",
         "task_id": task_id,
         "case_id": case_id,
@@ -134,10 +131,10 @@ def _build_skip_task(
 
 
 def _build_deprecation_suggestion(
-    case_id: Optional[int],
+    case_id: int | None,
     reason: str,
-    fp_by_case_id: Dict[int, Dict[str, Any]],
-) -> Dict[str, Any]:
+    fp_by_case_id: dict[int, dict[str, Any]],
+) -> dict[str, Any]:
     title = ""
     if case_id is not None:
         fp = fp_by_case_id.get(case_id)
@@ -150,5 +147,5 @@ def _build_deprecation_suggestion(
     }
 
 
-def _validate_task_field(task: Dict[str, Any]) -> bool:
+def _validate_task_field(task: dict[str, Any]) -> bool:
     return isinstance(task, dict) and "task_type" in task

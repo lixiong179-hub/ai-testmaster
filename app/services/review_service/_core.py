@@ -1,4 +1,3 @@
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +29,7 @@ def create_review(
     return review
 
 
-def start_review(db: Session, review_id: int) -> Optional[IterationReview]:
+def start_review(db: Session, review_id: int) -> IterationReview | None:
     review = db.get(IterationReview, review_id)
     if review is None:
         return None
@@ -48,10 +47,10 @@ def add_decision(
     target_id: int,
     ai_verdict: str,
     ai_confidence: int,
-    ai_reason: Optional[str] = None,
-    modification_hint: Optional[str] = None,
-    deprecate_reason: Optional[str] = None,
-    target_version: Optional[int] = None,
+    ai_reason: str | None = None,
+    modification_hint: str | None = None,
+    deprecate_reason: str | None = None,
+    target_version: int | None = None,
 ) -> ReviewDecision:
     review = db.get(IterationReview, review_id)
     if review is None:
@@ -97,8 +96,8 @@ def set_human_verdict(
     decision_id: int,
     human_verdict: str,
     human_user_id: int,
-    human_reason: Optional[str] = None,
-) -> Optional[ReviewDecision]:
+    human_reason: str | None = None,
+) -> ReviewDecision | None:
     decision = db.get(ReviewDecision, decision_id)
     if decision is None:
         return None
@@ -132,7 +131,7 @@ def rollback_decision(
     db: Session,
     decision_id: int,
     user_id: int,
-) -> Optional[ReviewDecision]:
+) -> ReviewDecision | None:
     decision = db.get(ReviewDecision, decision_id)
     if decision is None:
         return None
@@ -172,7 +171,7 @@ def finalize_review(
     db: Session,
     review_id: int,
     finalized_by: int,
-) -> Optional[IterationReview]:
+) -> IterationReview | None:
     review = db.get(IterationReview, review_id)
     if review is None:
         return None
@@ -207,7 +206,7 @@ def finalize_review(
 def cancel_review(
     db: Session,
     review_id: int,
-) -> Optional[IterationReview]:
+) -> IterationReview | None:
     review = db.get(IterationReview, review_id)
     if review is None:
         return None
@@ -252,7 +251,7 @@ async def create_review_async(
 async def start_review_async(
     db: AsyncSession,
     review_id: int,
-) -> Optional[IterationReview]:
+) -> IterationReview | None:
     """start_review 的异步版本。将评审状态从 DRAFT 切换到 IN_PROGRESS。"""
     review = await db.get(IterationReview, review_id)
     if review is None:
@@ -271,10 +270,10 @@ async def add_decision_async(
     target_id: int,
     ai_verdict: str,
     ai_confidence: int,
-    ai_reason: Optional[str] = None,
-    modification_hint: Optional[str] = None,
-    deprecate_reason: Optional[str] = None,
-    target_version: Optional[int] = None,
+    ai_reason: str | None = None,
+    modification_hint: str | None = None,
+    deprecate_reason: str | None = None,
+    target_version: int | None = None,
 ) -> ReviewDecision:
     """add_decision 的异步版本。向评审添加 AI 决策并 flush。"""
     review = await db.get(IterationReview, review_id)
@@ -320,7 +319,7 @@ async def finalize_review_async(
     db: AsyncSession,
     review_id: int,
     finalized_by: int,
-) -> Optional[IterationReview]:
+) -> IterationReview | None:
     """finalize_review 的异步版本。
 
     终结评审并应用决策。apply_decisions 内部有深层同步依赖

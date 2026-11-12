@@ -26,9 +26,9 @@ from __future__ import annotations
 import asyncio
 import queue
 import threading
-from typing import Any, AsyncGenerator, Awaitable, Callable, Coroutine, TypeVar
+from typing import Any, TypeVar
+from collections.abc import AsyncGenerator, Callable, Coroutine
 
-from loguru import logger
 
 T = TypeVar("T")
 
@@ -74,7 +74,7 @@ async def iter_async_gen_in_thread(
         generator 内抛出的异常会通过队列传递到主线程并重新抛出
     """
     # 使用 queue.Queue 而非 asyncio.Queue，因为生产者在线程中
-    item_queue: "queue.Queue[Any]" = queue.Queue()
+    item_queue: queue.Queue[Any] = queue.Queue()
     # 哨兵对象，标识 generator 结束
     _SENTINEL = object()
     # 异常传递容器

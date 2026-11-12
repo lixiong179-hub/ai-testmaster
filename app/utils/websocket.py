@@ -21,7 +21,7 @@ WebSocket连接管理模块
     - fastapi.WebSocket: WebSocket连接对象
     - loguru.logger: 日志记录
 """
-from typing import Dict, Any
+from typing import Any
 from fastapi import WebSocket, WebSocketDisconnect
 from loguru import logger
 
@@ -44,29 +44,29 @@ class ConnectionManager:
     def __init__(self):
         # 存储活动的WebSocket连接
         # 格式: {task_id: {user_id: websocket}}
-        self.active_connections: Dict[int, Dict[int, WebSocket]] = {}
-    
+        self.active_connections: dict[int, dict[int, WebSocket]] = {}
+
     async def connect(self, websocket: WebSocket, task_id: int, user_id: int):
         """
         建立WebSocket连接
-        
+
         Args:
             websocket: WebSocket连接
             task_id: 任务ID
             user_id: 用户ID
         """
         await websocket.accept()
-        
+
         if task_id not in self.active_connections:
             self.active_connections[task_id] = {}
-        
+
         self.active_connections[task_id][user_id] = websocket
         logger.info(f"WebSocket连接建立: 任务 {task_id}, 用户 {user_id}")
-    
+
     def disconnect(self, task_id: int, user_id: int):
         """
         断开WebSocket连接
-        
+
         Args:
             task_id: 任务ID
             user_id: 用户ID
@@ -75,15 +75,15 @@ class ConnectionManager:
             if user_id in self.active_connections[task_id]:
                 del self.active_connections[task_id][user_id]
                 logger.info(f"WebSocket连接断开: 任务 {task_id}, 用户 {user_id}")
-            
+
             # 如果任务没有活跃连接，删除任务条目
             if not self.active_connections[task_id]:
                 del self.active_connections[task_id]
-    
-    async def send_personal_message(self, message: Dict[str, Any], websocket: WebSocket):
+
+    async def send_personal_message(self, message: dict[str, Any], websocket: WebSocket):
         """
         发送个人消息
-        
+
         Args:
             message: 消息内容
             websocket: WebSocket连接
@@ -92,8 +92,8 @@ class ConnectionManager:
             await websocket.send_json(message)
         except WebSocketDisconnect:
             logger.error("WebSocket连接已断开，无法发送消息")
-    
-    async def broadcast(self, message: Dict[str, Any], task_id: int):
+
+    async def broadcast(self, message: dict[str, Any], task_id: int):
         """广播消息给指定任务的所有连接
 
         向同一任务下的所有WebSocket连接发送消息。

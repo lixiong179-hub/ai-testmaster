@@ -1,7 +1,5 @@
 import hashlib
-import json
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.pipelines.steps.reverse_infer._helpers import (
     _hash_dict,
@@ -30,8 +28,8 @@ class ReverseInfer(PipelineStep):
 
     name: str = "reverse_infer"
     version: str = "1.0"
-    requires: List[str] = ["raw_signals"]
-    produces: List[str] = ["inferred_business_summary"]
+    requires: list[str] = ["raw_signals"]
+    produces: list[str] = ["inferred_business_summary"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         raw_signals = ctx.get_artifact("raw_signals")
@@ -174,7 +172,7 @@ class ReverseInfer(PipelineStep):
 
         return result
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         required = ["iteration_id", "project_id", "parsed"]
         if not all(k in payload for k in required):
             return False
@@ -183,7 +181,7 @@ class ReverseInfer(PipelineStep):
             return False
         return "overall_confidence" in parsed
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         from loguru import logger
         logger.error("ReverseInfer fallback: {}", error)
         return StepResult(

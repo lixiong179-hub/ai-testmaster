@@ -20,7 +20,6 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from typing import Dict, List
 
 from sqlalchemy import (
     BigInteger, Column, DateTime, ForeignKey, Integer, String,
@@ -33,7 +32,7 @@ from app.utils.db_time import utcnow
 
 
 # 角色层级映射，数值越大权限越高，用于角色比较与访问校验
-ROLE_LEVEL: Dict[str, int] = {
+ROLE_LEVEL: dict[str, int] = {
     "viewer": 1,
     "member": 2,
     "admin": 3,
@@ -41,7 +40,7 @@ ROLE_LEVEL: Dict[str, int] = {
 }
 
 # 所有合法角色列表
-VALID_ROLES: List[str] = list(ROLE_LEVEL.keys())
+VALID_ROLES: list[str] = list(ROLE_LEVEL.keys())
 
 
 class ProjectMember(Base):

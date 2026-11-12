@@ -95,7 +95,7 @@ async def list_connected_devices(
 @router.post("/{task_id}/start")
 async def start_test_execution(
     task_id: int,
-    config: Optional[dict] = None,
+    config: dict | None = None,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):

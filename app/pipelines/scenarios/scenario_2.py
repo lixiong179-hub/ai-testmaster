@@ -6,7 +6,6 @@
 
 Pipeline = [S1 SignalGatherer, S11 CaseGeneration, S12 QualityGate, S13 Persist]
 """
-from typing import List, Type
 
 from app.pipelines.base import PipelineStep
 from app.pipelines.steps.signal_gatherer import SignalGatherer
@@ -14,7 +13,7 @@ from app.pipelines.steps.case_generation import CaseGeneration
 from app.pipelines.steps.quality_gate import QualityGate
 from app.pipelines.steps.persist import Persist
 
-SCENARIO_2_STEPS: List[Type[PipelineStep]] = [
+SCENARIO_2_STEPS: list[type[PipelineStep]] = [
     SignalGatherer,
     CaseGeneration,
     QualityGate,

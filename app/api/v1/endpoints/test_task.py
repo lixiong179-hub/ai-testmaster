@@ -21,7 +21,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func, insert, asc, desc
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 from app.utils.db_time import utcnow
 from app.db.database import async_get_db, PrimarySessionLocal
 from app.models.test_task import TestTask
@@ -135,8 +134,8 @@ async def create_test_task(
 
 @router.get("/", response_model=ApiResponse)
 async def get_test_tasks(
-    project_id: Optional[int] = Query(None, description="项目ID"),
-    task_status: Optional[int] = Query(None, description="任务状态"),
+    project_id: int | None = Query(None, description="项目ID"),
+    task_status: int | None = Query(None, description="任务状态"),
     sort_by: str = Query("create_time", description="排序字段: create_time/status/priority/start_time/end_time"),
     sort_order: str = Query("desc", description="排序方向: asc/desc"),
     page: int = Query(1, ge=1, description="页码"),
@@ -268,7 +267,7 @@ async def get_test_task(
 async def start_test_task(
     task_id: int,
     task: TestTask = Depends(require_task_access),
-    config: Optional[TaskStartConfig] = None,
+    config: TaskStartConfig | None = None,
     db: AsyncSession = Depends(async_get_db)
 ):
     """开始执行测试任务（支持执行模式和设备参数）

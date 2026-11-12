@@ -3,7 +3,7 @@
 """
 import json
 import re
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 from loguru import logger
 
@@ -24,7 +24,7 @@ class VisionRecognizer(ElementRecognizer):
     async def is_available(self) -> bool:
         return self.vision_model is not None
 
-    async def recognize(self, browser, operation_description: str, action_type: Optional[str] = None) -> RecognitionResult:
+    async def recognize(self, browser, operation_description: str, action_type: str | None = None) -> RecognitionResult:
         page = browser._page if hasattr(browser, '_page') else browser
         try:
             screenshot = await browser.take_screenshot()
@@ -96,14 +96,14 @@ class VisionRecognizer(ElementRecognizer):
             logger.error(f"元素识别发生错误: {e}")
             return RecognitionResult(locator_type="vision", locator_value="", confidence=0, raw_result={"error": "识别失败"})
 
-    async def batch_recognize(self, browser, operations: List[str]) -> List[RecognitionResult]:
+    async def batch_recognize(self, browser, operations: list[str]) -> list[RecognitionResult]:
         results = []
         for op in operations:
             result = await self.recognize(browser, op)
             results.append(result)
         return results
 
-    def _build_recognition_prompt(self, action_description: str, action_type: Optional[str] = None) -> str:
+    def _build_recognition_prompt(self, action_description: str, action_type: str | None = None) -> str:
         base_prompt = f"请仔细分析这个页面截图，精确定位以下操作的目标元素：\n\n操作描述: {action_description}\n\n"
 
         login_keywords = ["登录", "用户名", "密码", "验证码", "login", "username", "password"]
@@ -151,7 +151,7 @@ class VisionRecognizer(ElementRecognizer):
         return base_prompt
 
     @staticmethod
-    def _normalize_coordinate(element_info: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_coordinate(element_info: dict[str, Any]) -> dict[str, Any]:
         result = {}
         for key in ["x", "y", "width", "height"]:
             val = element_info.get(key, 0)
@@ -163,7 +163,7 @@ class VisionRecognizer(ElementRecognizer):
             result[key] = val
         return result
 
-    async def _get_element_attributes(self, page, coordinate: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _get_element_attributes(self, page, coordinate: dict[str, Any]) -> dict[str, Any] | None:
         x = coordinate.get("x", 0) + coordinate.get("width", 0) // 2
         y = coordinate.get("y", 0) + coordinate.get("height", 0) // 2
         js_code = """
@@ -191,7 +191,7 @@ class VisionRecognizer(ElementRecognizer):
             return {}
 
     @staticmethod
-    def _generate_css_selector(element_attrs: Dict[str, Any]) -> Optional[str]:
+    def _generate_css_selector(element_attrs: dict[str, Any]) -> str | None:
         if not element_attrs:
             return None
         tag = element_attrs.get("tag", "")

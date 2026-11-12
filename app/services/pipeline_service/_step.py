@@ -1,6 +1,5 @@
 import hashlib
 import json
-from typing import Optional, List
 
 from sqlalchemy.orm import Session
 
@@ -17,7 +16,7 @@ from app.services.pipeline_service._errors import (
 def compute_cache_key(
     step_name: str,
     step_version: str,
-    input_artifact_hashes: List[str],
+    input_artifact_hashes: list[str],
 ) -> str:
     parts = [step_name, step_version] + sorted(input_artifact_hashes)
     raw = json.dumps(parts, separators=(",", ":"))
@@ -29,8 +28,8 @@ def create_step(
     run_id: int,
     step_name: str,
     step_version: str = "1.0",
-    cache_key: Optional[str] = None,
-    input_artifact_ids: Optional[List[int]] = None,
+    cache_key: str | None = None,
+    input_artifact_ids: list[int] | None = None,
 ) -> PipelineStep:
     from app.models.pipeline import PipelineRun
     run = db.query(PipelineRun).filter(PipelineRun.id == run_id).first()
@@ -50,7 +49,7 @@ def create_step(
     return step
 
 
-def find_cached_step(db: Session, cache_key: str) -> Optional[PipelineStep]:
+def find_cached_step(db: Session, cache_key: str) -> PipelineStep | None:
     return (
         db.query(PipelineStep)
         .filter(
@@ -66,11 +65,11 @@ def update_step_status(
     step_id: int,
     status: str,
     *,
-    error: Optional[str] = None,
-    output_artifact_ids: Optional[List[int]] = None,
-    retried_count: Optional[int] = None,
-    degraded: Optional[bool] = None,
-) -> Optional[PipelineStep]:
+    error: str | None = None,
+    output_artifact_ids: list[int] | None = None,
+    retried_count: int | None = None,
+    degraded: bool | None = None,
+) -> PipelineStep | None:
     step = db.query(PipelineStep).filter(PipelineStep.id == step_id).first()
     if step is None:
         return None
@@ -111,7 +110,7 @@ def increment_step_retried_count(db: Session, step_id: int) -> None:
 
 
 def update_step_output_artifact_ids(
-    db: Session, step_id: int, artifact_ids: List[int],
+    db: Session, step_id: int, artifact_ids: list[int],
 ) -> None:
     step = db.query(PipelineStep).filter(PipelineStep.id == step_id).first()
     if step is not None:

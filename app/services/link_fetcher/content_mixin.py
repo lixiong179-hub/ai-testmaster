@@ -8,7 +8,7 @@
 """
 import re
 import json
-from typing import Any, Tuple
+from typing import Any
 from bs4 import BeautifulSoup
 from loguru import logger
 from app.core.constants import AUTH_FAILURE_KEYWORDS
@@ -26,7 +26,7 @@ class LinkFetcherContentMixin:
         - self.timeout: 由CoreMixin.__init__设置的超时时间
     """
 
-    def _process_json(self, content: str) -> Tuple[bool, str, str]:
+    def _process_json(self, content: str) -> tuple[bool, str, str]:
         """处理JSON内容"""
         try:
             data = json.loads(content)
@@ -57,7 +57,7 @@ class LinkFetcherContentMixin:
                     return True
         return False
 
-    def _process_html(self, content: str) -> Tuple[bool, str, str]:
+    def _process_html(self, content: str) -> tuple[bool, str, str]:
         """处理HTML内容，提取文本"""
         try:
             soup = BeautifulSoup(content, 'html.parser')
@@ -82,14 +82,14 @@ class LinkFetcherContentMixin:
             logger.warning(f"HTML解析失败: {str(e)}")
             return True, content[:5000], "text"
 
-    def _process_markdown(self, content: str) -> Tuple[bool, str, str]:
+    def _process_markdown(self, content: str) -> tuple[bool, str, str]:
         """处理Markdown内容"""
         cleaned = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', content)
         if len(cleaned) > 5000:
             cleaned = cleaned[:5000] + "\n\n[内容已截断]"
         return True, cleaned, "markdown"
 
-    def _process_auto(self, content: str) -> Tuple[bool, str, str]:
+    def _process_auto(self, content: str) -> tuple[bool, str, str]:
         """自动识别并处理内容"""
         try:
             json.loads(content)
@@ -99,7 +99,10 @@ class LinkFetcherContentMixin:
         if '<html' in content.lower() or '<!doctype' in content.lower():
             return self._process_html(content)
         lower = content.strip().lower()
-        if any(kw in lower for kw in ('unauthorized', 'forbidden', 'invalid token', 'token失效', '认证失败', '登录', 'login')):
-            if len(content.strip()) < 500:
-                return False, "", "认证失败：响应内容包含错误标识"
+        auth_error_keywords = (
+            'unauthorized', 'forbidden', 'invalid token',
+            'token失效', '认证失败', '登录', 'login',
+        )
+        if any(kw in lower for kw in auth_error_keywords) and len(content.strip()) < 500:
+            return False, "", "认证失败：响应内容包含错误标识"
         return True, content[:5000], "text"

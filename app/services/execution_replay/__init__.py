@@ -19,7 +19,8 @@ Mixin组合:
     4. 支持播放/暂停/跳转/调速
     5. 会话超时自动清理
 """
-from typing import Optional, Dict, Callable
+from typing import Optional
+from collections.abc import Callable
 from sqlalchemy.orm import Session
 
 from app.services.execution_replay.models import (
@@ -54,7 +55,7 @@ class ExecutionReplayService(
         db: Session,
         session_timeout: int = 1800,
         default_speed: float = 1.0,
-        event_callback: Optional[Callable] = None,
+        event_callback: Callable | None = None,
     ):
         """初始化执行回放服务。
 
@@ -65,7 +66,7 @@ class ExecutionReplayService(
             event_callback: 事件回调函数，可选。
         """
         self.db = db
-        self._sessions: Dict[str, ReplaySession] = {}  # 会话缓存
+        self._sessions: dict[str, ReplaySession] = {}  # 会话缓存
         self._session_timeout = session_timeout
         self._default_speed = default_speed
         self._event_callback = event_callback

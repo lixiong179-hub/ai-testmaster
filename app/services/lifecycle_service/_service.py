@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -27,10 +26,10 @@ def transition(
     case_id: int,
     to_status: str,
     *,
-    review_id: Optional[int] = None,
-    reason: Optional[str] = None,
-    actor_id: Optional[int] = None,
-    modification_hint: Optional[str] = None,
+    review_id: int | None = None,
+    reason: str | None = None,
+    actor_id: int | None = None,
+    modification_hint: str | None = None,
     auto_approve: bool = False,
 ) -> TestCase:
     test_case = db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
@@ -125,8 +124,8 @@ def _check_cooldown(test_case: TestCase) -> None:
 def _create_new_version_case(
     db: Session,
     old_case: TestCase,
-    modification_hint: Optional[str],
-    actor_id: Optional[int],
+    modification_hint: str | None,
+    actor_id: int | None,
 ) -> None:
     _ = db.query(TestCase).filter(
         TestCase.parent_case_id == old_case.id,
@@ -180,10 +179,10 @@ def _write_audit_log(
     case_id: int,
     old_status: str,
     new_status: str,
-    review_id: Optional[int],
-    reason: Optional[str],
-    actor_id: Optional[int],
-    modification_hint: Optional[str],
+    review_id: int | None,
+    reason: str | None,
+    actor_id: int | None,
+    modification_hint: str | None,
     auto_approve: bool,
 ) -> None:
     detail = {

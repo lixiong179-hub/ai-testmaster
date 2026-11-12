@@ -17,7 +17,7 @@
     - app.utils.unified_vision.model_types: 模型类型枚举和配置
 """
 import base64
-from typing import Optional, Dict, Any
+from typing import Any
 
 from app.utils.unified_vision.model_types import VisionModelType
 
@@ -33,8 +33,8 @@ class RequestBuilderMixin:
         self,
         image: bytes,
         prompt: str,
-        model_type: Optional[VisionModelType] = None
-    ) -> Dict[str, Any]:
+        model_type: VisionModelType | None = None
+    ) -> dict[str, Any]:
         """构建API请求Payload
 
         根据model_type选择对应的构建策略：
@@ -74,7 +74,7 @@ class RequestBuilderMixin:
             "temperature": self.temperature,
         }
 
-    def _build_baidu_payload(self, image: bytes, prompt: str) -> Dict[str, Any]:
+    def _build_baidu_payload(self, image: bytes, prompt: str) -> dict[str, Any]:
         """构建百度文心大模型的请求Payload
 
         百度API与OpenAI格式的差异：

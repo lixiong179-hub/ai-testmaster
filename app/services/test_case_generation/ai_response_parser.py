@@ -2,7 +2,7 @@
 """
 import json
 import re
-from typing import Dict, Any, List
+from typing import Any
 
 
 def _repair_truncated_json(text: str) -> str:
@@ -66,7 +66,7 @@ def _strip_code_block(text: str) -> str:
     return text.strip()
 
 
-def parse_ai_response(content: str) -> Dict[str, Any]:
+def parse_ai_response(content: str) -> dict[str, Any]:
     """解析AI响应内容，支持JSON对象、JSON数组和截断JSON。
 
     Args:
@@ -93,7 +93,7 @@ def parse_ai_response(content: str) -> Dict[str, Any]:
     except (json.JSONDecodeError, ValueError):
         pass
 
-    def _parse_embedded_object() -> Dict[str, Any] | None:
+    def _parse_embedded_object() -> dict[str, Any] | None:
         json_match = re.search(r'\{[\s\S]*\}', cleaned)
         if not json_match:
             return None
@@ -111,7 +111,7 @@ def parse_ai_response(content: str) -> Dict[str, Any]:
                 pass
         return None
 
-    def _parse_embedded_array() -> Dict[str, Any] | None:
+    def _parse_embedded_array() -> dict[str, Any] | None:
         json_match = re.search(r'\[[\s\S]*\]', cleaned)
         if not json_match:
             return None

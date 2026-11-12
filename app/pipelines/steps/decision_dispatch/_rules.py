@@ -8,7 +8,8 @@
     handler : 构造器，统一签名 `(**kw) -> (task | None, deprecation | None)`
     stats   : 命中该动作时需要累加的 stats 键（顺序无关）
 """
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any
+from collections.abc import Callable
 
 from app.pipelines.steps.decision_dispatch._builders import (
     _build_create_task,
@@ -18,7 +19,7 @@ from app.pipelines.steps.decision_dispatch._builders import (
     _build_skip_task,
 )
 
-HandlerReturn = Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]
+HandlerReturn = tuple[dict[str, Any] | None, dict[str, Any] | None]
 Handler = Callable[..., HandlerReturn]
 
 
@@ -91,7 +92,7 @@ def _make_pending_skip(**_kw: Any) -> HandlerReturn:
     ), None
 
 
-ACTION_RULES: Dict[str, Dict[str, Any]] = {
+ACTION_RULES: dict[str, dict[str, Any]] = {
     "keep": {"kind": "keep", "handler": _no_task, "stats": ("keep_count",)},
     "deprecate": {
         "kind": "deprecate", "handler": _make_deprecation, "stats": ("deprecate_count",),
@@ -117,7 +118,7 @@ ACTION_RULES: Dict[str, Dict[str, Any]] = {
 }
 
 
-def get_action_rule(action: str) -> Optional[Dict[str, Any]]:
+def get_action_rule(action: str) -> dict[str, Any] | None:
     """按 action 取规则；未知 action 返回 None（由调用方计 skip）。"""
     return ACTION_RULES.get(action)
 

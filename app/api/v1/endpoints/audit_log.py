@@ -13,7 +13,7 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, Any
+from typing import Any
 from datetime import datetime
 
 from app.db.database import async_get_db
@@ -43,12 +43,12 @@ def _require_admin(db: AsyncSession, user_id: int) -> None:
 
 @router.get("/logs", response_model=ApiResponse)
 async def get_audit_logs(
-    target_kind: Optional[str] = Query(None, description="目标实体类型过滤"),
-    target_id: Optional[int] = Query(None, description="目标实体ID过滤"),
-    actor_id: Optional[int] = Query(None, description="操作人ID过滤"),
-    action: Optional[str] = Query(None, description="操作类型过滤"),
-    since: Optional[datetime] = Query(None, description="起始时间（含）"),
-    until: Optional[datetime] = Query(None, description="截止时间（含）"),
+    target_kind: str | None = Query(None, description="目标实体类型过滤"),
+    target_id: int | None = Query(None, description="目标实体ID过滤"),
+    actor_id: int | None = Query(None, description="操作人ID过滤"),
+    action: str | None = Query(None, description="操作类型过滤"),
+    since: datetime | None = Query(None, description="起始时间（含）"),
+    until: datetime | None = Query(None, description="截止时间（含）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),

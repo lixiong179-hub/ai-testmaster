@@ -25,7 +25,7 @@ HITL（Human-in-the-Loop）审批、回滚操作与事后回溯。
     3. 回滚操作写入新审计记录，action_type 标记为 rollback_<原action_type>，
        action_detail 中含原审计 ID 与回滚原因。
 """
-from typing import Any, Dict, Optional
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -106,7 +106,7 @@ class AgentAudit(Base):
             f"iter={self.iteration}, action={self.action_type})>"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """返回审计核心字段字典，供 API 响应使用。"""
         return {
             "id": self.id,
@@ -127,7 +127,7 @@ class AgentAudit(Base):
         return action_type in ACTION_TYPE_VALUES
 
     @staticmethod
-    def validate_confidence(confidence: Optional[float]) -> bool:
+    def validate_confidence(confidence: float | None) -> bool:
         """校验置信度取值范围是否合法（0.00-1.00）。"""
         if confidence is None:
             return True

@@ -6,7 +6,7 @@
     - get_view_statistics: 获取视图统计信息
     - get_locator_coverage: 获取定位覆盖率统计
 """
-from typing import Dict, Any, Optional
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestStep
@@ -18,8 +18,8 @@ class ViewConfigMixin:
     def update_step_view_config(
         self,
         step_id: int,
-        is_business_view: Optional[int] = None,
-        is_technical_view: Optional[int] = None
+        is_business_view: int | None = None,
+        is_technical_view: int | None = None
     ) -> bool:
         """更新单个步骤的视图可见性配置。
 
@@ -79,7 +79,7 @@ class ViewConfigMixin:
         logger.info(f"批量更新测试用例 {test_case_id} 的 {view_type} 视图配置: {count} 个步骤")
         return count
 
-    def get_view_statistics(self, test_case_id: int) -> Dict[str, Any]:
+    def get_view_statistics(self, test_case_id: int) -> dict[str, Any]:
         """获取测试用例的视图统计信息。"""
         steps = self.db.query(TestStep).filter(
             TestStep.test_case_id == test_case_id
@@ -98,7 +98,7 @@ class ViewConfigMixin:
             "locator_coverage": f"{has_locator_count / total * 100:.1f}%" if total > 0 else "0%"
         }
 
-    def get_locator_coverage(self, test_case_id: int) -> Dict[str, Any]:
+    def get_locator_coverage(self, test_case_id: int) -> dict[str, Any]:
         """获取测试用例的定位覆盖率统计。"""
         steps = self.db.query(TestStep).filter(
             TestStep.test_case_id == test_case_id

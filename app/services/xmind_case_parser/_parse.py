@@ -1,18 +1,18 @@
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
 from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE
 from app.services.xmind_parser import XmindParseError
-from app.services.xmind_case_parser._classify import TopicNode, _ClassifyMixin
+from app.services.xmind_case_parser._classify import TopicNode
 
 
 class _ParseMixin:
 
-    def parse(self, file_path: str) -> List[Dict[str, Any]]:
+    def parse(self, file_path: str) -> list[dict[str, Any]]:
         root_topics = self._load_all_root_topics(file_path)
-        cases: List[Dict[str, Any]] = []
+        cases: list[dict[str, Any]] = []
 
         for root_topic in root_topics:
             module_nodes = self._get_child_topics(root_topic)
@@ -31,7 +31,7 @@ class _ParseMixin:
         logger.info(f"XMind 场景解析完成，共提取 {len(deduped)} 条测试用例")
         return deduped
 
-    def _load_all_root_topics(self, file_path: str) -> List[ET.Element]:
+    def _load_all_root_topics(self, file_path: str) -> list[ET.Element]:
         from app.services.xmind_parser import XmindParser
         xml_loader = XmindParser()
         content = xml_loader._extract_content_xml(file_path)
@@ -47,7 +47,7 @@ class _ParseMixin:
             sheets = root.findall(f"{{{self.XMAP_NS}}}sheet")
         if not sheets:
             raise XmindParseError("XMind 文件中未找到 sheet 元素")
-        topics: List[ET.Element] = []
+        topics: list[ET.Element] = []
         for sheet in sheets:
             topic = self._find_element(sheet, "topic")
             if topic is not None:
@@ -67,13 +67,13 @@ class _ParseMixin:
     def _collect_leaf_paths(
         self,
         node: TopicNode,
-        path: Optional[List[TopicNode]] = None,
-    ) -> List[List[TopicNode]]:
+        path: list[TopicNode] | None = None,
+    ) -> list[list[TopicNode]]:
         current_path = (path or []) + [node]
         if not node.children:
             return [current_path]
 
-        leaf_paths: List[List[TopicNode]] = []
+        leaf_paths: list[list[TopicNode]] = []
         for child in node.children:
             leaf_paths.extend(self._collect_leaf_paths(child, current_path))
         return leaf_paths
@@ -81,8 +81,8 @@ class _ParseMixin:
     def _build_case_from_path(
         self,
         module_name: str,
-        path: List[TopicNode],
-    ) -> Optional[Dict[str, Any]]:
+        path: list[TopicNode],
+    ) -> dict[str, Any] | None:
         if len(path) < 2:
             return None
 
@@ -91,10 +91,10 @@ class _ParseMixin:
         if not texts:
             return None
 
-        preconditions: List[str] = []
-        actions: List[str] = []
-        expectations: List[str] = []
-        deferred_context: List[str] = []
+        preconditions: list[str] = []
+        actions: list[str] = []
+        expectations: list[str] = []
+        deferred_context: list[str] = []
         ignored_count = 0
 
         for text in texts:
@@ -154,8 +154,8 @@ class _ParseMixin:
             "ignored_count": ignored_count,
         }
 
-    def _dedupe_cases(self, cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        unique: List[Dict[str, Any]] = []
+    def _dedupe_cases(self, cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        unique: list[dict[str, Any]] = []
         seen = set()
         for case in cases:
             step_signature = tuple(

@@ -29,7 +29,7 @@ Pipeline 监控指标服务模块
     AsyncSession 均有效，故 _date_trunc_* 兼容两种 Session 类型。
 """
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from loguru import logger
 
 from sqlalchemy import func, and_, select
@@ -43,12 +43,12 @@ def record_metric(
     metric_name: str,
     *,
     value: float = 1.0,
-    project_id: Optional[int] = None,
-    iteration_id: Optional[int] = None,
-    run_id: Optional[int] = None,
-    step_name: Optional[str] = None,
-    detail: Optional[Dict[str, Any]] = None,
-) -> Optional[PipelineMetric]:
+    project_id: int | None = None,
+    iteration_id: int | None = None,
+    run_id: int | None = None,
+    step_name: str | None = None,
+    detail: dict[str, Any] | None = None,
+) -> PipelineMetric | None:
     """记录单条监控指标（使用独立 Session 提交，不随主事务回滚丢失）。
 
     Args:
@@ -94,8 +94,8 @@ def record_metric(
 
 
 def record_metrics(
-    metrics: List[Dict[str, Any]],
-) -> List[PipelineMetric]:
+    metrics: list[dict[str, Any]],
+) -> list[PipelineMetric]:
     """批量记录监控指标（使用独立 Session 提交）。
 
     Args:
@@ -126,13 +126,13 @@ def record_metrics(
 async def query_metrics(
     db: AsyncSession,
     *,
-    metric_name: Optional[str] = None,
-    project_id: Optional[int] = None,
-    iteration_id: Optional[int] = None,
-    run_id: Optional[int] = None,
-    since: Optional[datetime] = None,
-    until: Optional[datetime] = None,
-) -> List[Dict[str, Any]]:
+    metric_name: str | None = None,
+    project_id: int | None = None,
+    iteration_id: int | None = None,
+    run_id: int | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> list[dict[str, Any]]:
     """聚合查询指标（按 metric_name 分组统计 count/sum/avg）。
 
     Args:
@@ -186,11 +186,11 @@ async def get_metric_timeseries(
     db: AsyncSession,
     metric_name: str,
     *,
-    project_id: Optional[int] = None,
-    since: Optional[datetime] = None,
-    until: Optional[datetime] = None,
+    project_id: int | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
     interval: str = "day",
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """时序查询指标（按天/小时聚合，用于仪表盘绘图）。
 
     Args:
@@ -241,9 +241,9 @@ async def get_metric_timeseries(
 async def get_dashboard_summary(
     db: AsyncSession,
     *,
-    project_id: Optional[int] = None,
-    since: Optional[datetime] = None,
-) -> Dict[str, Any]:
+    project_id: int | None = None,
+    since: datetime | None = None,
+) -> dict[str, Any]:
     """获取仪表盘摘要（所有 FMEA 指标的当前值）。
 
     Args:
@@ -282,13 +282,13 @@ async def get_dashboard_summary(
 
 
 def _build_filters(
-    metric_name: Optional[str] = None,
-    project_id: Optional[int] = None,
-    iteration_id: Optional[int] = None,
-    run_id: Optional[int] = None,
-    since: Optional[datetime] = None,
-    until: Optional[datetime] = None,
-) -> List[Any]:
+    metric_name: str | None = None,
+    project_id: int | None = None,
+    iteration_id: int | None = None,
+    run_id: int | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> list[Any]:
     """构建查询过滤条件列表。"""
     filters = []
     if metric_name is not None:

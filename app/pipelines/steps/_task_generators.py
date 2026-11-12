@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -9,13 +9,13 @@ from app.pipelines.steps._parsing import _parse_case_response
 
 def _generate_create_case(
     ctx: PipelineContext,
-    task: Dict[str, Any],
+    task: dict[str, Any],
     prd_content: str,
     ui_description: str,
-    ui_specs: List[Dict[str, Any]],
+    ui_specs: list[dict[str, Any]],
     has_ui: bool,
-    history_cases: Optional[List[Dict[str, Any]]] = None,
-) -> Optional[List[Dict[str, Any]]]:
+    history_cases: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]] | None:
     tp = {
         "module": task.get("candidate_module", task.get("module", "")),
         "function": task.get("candidate_description", ""),
@@ -63,12 +63,12 @@ def _generate_create_case(
 
 def _generate_modify_case(
     ctx: PipelineContext,
-    task: Dict[str, Any],
+    task: dict[str, Any],
     prd_content: str,
     ui_description: str,
-    ui_specs: List[Dict[str, Any]],
+    ui_specs: list[dict[str, Any]],
     has_ui: bool,
-) -> Optional[List[Dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     original = task.get("original_case", {})
     tp = {
         "module": original.get("module", task.get("module", "")),
@@ -117,12 +117,12 @@ def _generate_modify_case(
 
 def _generate_locator_fix(
     ctx: PipelineContext,
-    task: Dict[str, Any],
+    task: dict[str, Any],
     prd_content: str,
     ui_description: str,
-    ui_specs: List[Dict[str, Any]],
+    ui_specs: list[dict[str, Any]],
     has_ui: bool,
-) -> Optional[List[Dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     original = task.get("original_case", {})
     tp = {
         "module": original.get("module", task.get("module", "")),

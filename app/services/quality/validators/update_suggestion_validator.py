@@ -4,7 +4,6 @@
     - diff_fields 非空
     - history_case_id 存在
 """
-from typing import Dict, List, Optional
 
 from app.services.quality.validators.base import (
     BaseValidator,
@@ -18,11 +17,11 @@ class UpdateSuggestionValidator(BaseValidator):
 
     def validate(
         self,
-        case_data: Dict,
-        context: Optional[Dict] = None,
+        case_data: dict,
+        context: dict | None = None,
     ) -> ValidationResult:
         """校验更新建议的完整性和合法性。"""
-        issues: List[ValidationIssue] = []
+        issues: list[ValidationIssue] = []
         ctx = context or {}
 
         change_type = case_data.get("change_type") or case_data.get("ai_change_type") or ""

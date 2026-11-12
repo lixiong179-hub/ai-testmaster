@@ -16,7 +16,7 @@
     通过先获取timezone-aware时间再移除tzinfo，既保证了
     时间的正确性，又保证了数据库兼容性。
 """
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 
 def utcnow() -> datetime:
@@ -28,4 +28,4 @@ def utcnow() -> datetime:
     Returns:
         datetime: 无时区信息的当前UTC时间
     """
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)

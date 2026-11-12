@@ -6,7 +6,7 @@
     - BusinessTestCaseView: 业务视图用例
     - TechnicalTestCaseView: 技术视图用例
 """
-from typing import List, Dict, Any, Optional
+from typing import Any
 from dataclasses import dataclass, field
 
 
@@ -17,7 +17,7 @@ class BusinessStepView:
     action: str
     expected_result: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式，用于API响应序列化。"""
         return {
             "step_number": self.step_number,
@@ -34,12 +34,12 @@ class TechnicalStepView:
     expected_result: str
     has_locator: bool
     locator_status: str
-    css_selector: Optional[str] = None
-    xpath: Optional[str] = None
-    ai_coordinate: Optional[Dict[str, float]] = None
-    element_type: Optional[str] = None
+    css_selector: str | None = None
+    xpath: str | None = None
+    ai_coordinate: dict[str, float] | None = None
+    element_type: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式，仅包含非空的技术字段。"""
         result = {
             "step_number": self.step_number,
@@ -65,11 +65,11 @@ class BusinessTestCaseView:
     case_id: int
     case_no: str
     title: str
-    description: Optional[str]
-    precondition: Optional[str]
-    steps: List[BusinessStepView] = field(default_factory=list)
+    description: str | None
+    precondition: str | None
+    steps: list[BusinessStepView] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式，包含步骤总数统计。"""
         return {
             "case_id": self.case_id,
@@ -88,10 +88,10 @@ class TechnicalTestCaseView:
     case_id: int
     case_no: str
     title: str
-    steps: List[TechnicalStepView] = field(default_factory=list)
+    steps: list[TechnicalStepView] = field(default_factory=list)
     locator_coverage: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典格式，覆盖率保留一位小数。"""
         return {
             "case_id": self.case_id,

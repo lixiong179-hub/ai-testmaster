@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from typing import Optional, List, TypeVar, Type
+from typing import TypeVar
 from loguru import logger
 
 T = TypeVar('T')
@@ -7,28 +7,28 @@ T = TypeVar('T')
 
 class DatabaseHelper:
     @staticmethod
-    def get_by_id(db: Session, model: Type[T], id: int) -> Optional[T]:
+    def get_by_id(db: Session, model: type[T], id: int) -> T | None:
         return db.query(model).filter(model.id == id).first()
 
     @staticmethod
-    def get_by_ids(db: Session, model: Type[T], ids: List[int]) -> List[T]:
+    def get_by_ids(db: Session, model: type[T], ids: list[int]) -> list[T]:
         if not ids:
             return []
         return db.query(model).filter(model.id.in_(ids)).all()
 
     @staticmethod
-    def get_all(db: Session, model: Type[T], skip: int = 0, limit: int = 100) -> List[T]:
+    def get_all(db: Session, model: type[T], skip: int = 0, limit: int = 100) -> list[T]:
         return db.query(model).offset(skip).limit(limit).all()
 
     @staticmethod
-    def count(db: Session, model: Type[T], **filters) -> int:
+    def count(db: Session, model: type[T], **filters) -> int:
         query = db.query(model)
         if filters:
             query = query.filter_by(**filters)
         return query.count()
 
     @staticmethod
-    def create(db: Session, model: Type[T], **kwargs) -> T:
+    def create(db: Session, model: type[T], **kwargs) -> T:
         instance = model(**kwargs)
         db.add(instance)
         db.commit()

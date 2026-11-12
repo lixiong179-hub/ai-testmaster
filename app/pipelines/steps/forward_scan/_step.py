@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
@@ -16,8 +16,8 @@ from app.pipelines.steps.forward_scan._parsing import (
 class ForwardScan(PipelineStep):
     name: ClassVar[str] = "forward_scan"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = ["scenario_candidates", "history_fingerprints"]
-    produces: ClassVar[List[str]] = ["forward_verdicts"]
+    requires: ClassVar[list[str]] = ["scenario_candidates", "history_fingerprints"]
+    produces: ClassVar[list[str]] = ["forward_verdicts"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         candidates = ctx.get_artifact("scenario_candidates")
@@ -97,11 +97,11 @@ class ForwardScan(PipelineStep):
             },
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         required = ["project_id", "verdicts", "total_count", "stats"]
         return all(k in payload for k in required) and payload["total_count"] == len(payload["verdicts"])
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         candidates = ctx.get_artifact("scenario_candidates")
         project_id = 0
         if candidates:

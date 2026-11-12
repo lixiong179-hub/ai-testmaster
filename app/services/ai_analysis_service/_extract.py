@@ -1,5 +1,4 @@
-import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any
 from loguru import logger
 
 from app.core.config import settings
@@ -11,9 +10,9 @@ class _ExtractMixin:
     async def extract_test_points_from_content(
         self,
         content: str,
-        project_id: Optional[int] = None,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+        project_id: int | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         if not content or not content.strip():
             logger.warning("提取测试点：内容为空")
             return []
@@ -34,7 +33,7 @@ class _ExtractMixin:
                 timeout=float(settings.AI_CALL_TIMEOUT_SECONDS),
             )
             return self._parse_test_points_response(response.content)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"AI提取测试点超时（>{settings.AI_CALL_TIMEOUT_SECONDS}s）")
             return []
         except AIServiceError as e:
@@ -46,9 +45,9 @@ class _ExtractMixin:
 
     async def extract_test_points_from_ui_specs(
         self,
-        ui_specs: List[Dict[str, Any]],
-        project_id: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        ui_specs: list[dict[str, Any]],
+        project_id: int | None = None,
+    ) -> list[dict[str, Any]]:
         if not ui_specs:
             return []
 
@@ -69,7 +68,7 @@ class _ExtractMixin:
                 timeout=float(settings.AI_CALL_TIMEOUT_SECONDS),
             )
             return self._parse_test_points_response(response.content)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"AI从UI提取测试点超时（>{settings.AI_CALL_TIMEOUT_SECONDS}s）")
             return []
         except AIServiceError as e:
@@ -82,7 +81,7 @@ class _ExtractMixin:
     def _build_extract_prompt(
         self,
         content: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> str:
         prompt = f"""请从以下需求内容中提取结构化测试点：
 
@@ -112,7 +111,7 @@ class _ExtractMixin:
                 prompt += f"\n\n额外要求：\n{extra}"
         return prompt
 
-    def _build_ui_extract_content(self, ui_specs: List[Dict[str, Any]]) -> str:
+    def _build_ui_extract_content(self, ui_specs: list[dict[str, Any]]) -> str:
         parts = []
         for spec in ui_specs:
             screen_name = spec.get("screen_name", "未知屏幕")
@@ -148,7 +147,7 @@ UI设计信息：
   }}
 ]"""
 
-    def _parse_test_points_response(self, content: str) -> List[Dict[str, Any]]:
+    def _parse_test_points_response(self, content: str) -> list[dict[str, Any]]:
         import json
         import re
 

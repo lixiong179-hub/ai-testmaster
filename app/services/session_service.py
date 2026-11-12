@@ -12,14 +12,11 @@
     - 黑名单写入失败仅记录日志，不阻断主流程（降级为 DB revoked_at 兜底）
     - refresh 时同时校验 DB revoked_at 与 Redis 黑名单，双重保险
 """
-from datetime import timedelta
-from typing import List, Optional
 
 from loguru import logger
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.models.user_session import UserSession
 from app.utils.db_time import utcnow
 from app.utils.jwt_utils import blacklist_token
@@ -41,8 +38,8 @@ class SessionService:
         user_id: int,
         refresh_jti: str,
         expires_at,
-        user_agent: Optional[str] = None,
-        ip_address: Optional[str] = None,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
     ) -> UserSession:
         """登录成功后创建会话记录。
 
@@ -69,7 +66,7 @@ class SessionService:
         logger.info(f"创建会话: user_id={user_id} jti={refresh_jti[:8]}...")
         return session
 
-    async def get_session(self, session_id: int) -> Optional[UserSession]:
+    async def get_session(self, session_id: int) -> UserSession | None:
         """按 ID 查询单个会话记录（不修改状态）。
 
         供端点层在撤销前做归属校验，避免先撤销后鉴权导致的越权问题。
@@ -85,7 +82,7 @@ class SessionService:
         )
         return result.scalar_one_or_none()
 
-    async def revoke_session(self, session_id: int) -> Optional[UserSession]:
+    async def revoke_session(self, session_id: int) -> UserSession | None:
         """撤销指定会话（写入 revoked_at）。
 
         幂等：已撤销的会话重复撤销不报错，返回原对象。
@@ -175,7 +172,7 @@ class SessionService:
 
     async def get_user_sessions(
         self, user_id: int, include_revoked: bool = False
-    ) -> List[UserSession]:
+    ) -> list[UserSession]:
         """查询用户会话列表。
 
         Args:
@@ -192,7 +189,7 @@ class SessionService:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_session_by_jti(self, refresh_jti: str) -> Optional[UserSession]:
+    async def get_session_by_jti(self, refresh_jti: str) -> UserSession | None:
         """通过 refresh_jti 查询会话（refresh 端点校验使用）。
 
         Args:

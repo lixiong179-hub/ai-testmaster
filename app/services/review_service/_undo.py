@@ -1,5 +1,4 @@
 from datetime import timedelta
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
 from loguru import logger
@@ -21,7 +20,7 @@ def undo_decision(
     db: Session,
     decision_id: int,
     user_id: int,
-) -> Optional[ReviewDecision]:
+) -> ReviewDecision | None:
     decision = db.get(ReviewDecision, decision_id)
     if decision is None:
         return None
@@ -83,7 +82,7 @@ def undo_decision(
 
 
 def _reverse_lifecycle(db: Session, case_id: int) -> None:
-    case: Optional[TestCase] = (
+    case: TestCase | None = (
         db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
     )
     if case is None:
@@ -166,7 +165,7 @@ def undo_finalize(
     db: Session,
     review_id: int,
     user_id: int,
-) -> Optional[IterationReview]:
+) -> IterationReview | None:
     review = db.get(IterationReview, review_id)
     if review is None:
         return None
@@ -240,7 +239,7 @@ def undo_finalize(
     return review
 
 
-def _record_undo_metric(db: Session, target_id: Optional[int]) -> None:
+def _record_undo_metric(db: Session, target_id: int | None) -> None:
     try:
         from app.services.metrics_service import record_metric
         record_metric(

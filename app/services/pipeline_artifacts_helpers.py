@@ -4,7 +4,7 @@
 供路由处理函数与外部模块复用。保持原 `_` 前缀函数名以兼容既有调用点。
 """
 import json
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -19,7 +19,7 @@ from app.models.user import User
 PAYLOAD_TRUNCATE_THRESHOLD = 10 * 1024  # 10KB 截断阈值
 
 
-def _truncate_payload(payload: Any) -> tuple[Any, bool, Optional[str]]:
+def _truncate_payload(payload: Any) -> tuple[Any, bool, str | None]:
     """截断大 payload，超过阈值时仅保留前 N 条并标记截断。
 
     Args:
@@ -97,8 +97,8 @@ def _check_cancel_permission(
 
 def record_version_rerun_metric(
     db: Session,
-    iteration_id: Optional[int] = None,
-    detail: Optional[dict] = None,
+    iteration_id: int | None = None,
+    detail: dict | None = None,
 ) -> None:
     """记录 F14 Pipeline 版本升级强制重跑指标（失败不阻塞业务）。"""
     try:
@@ -114,7 +114,7 @@ def record_version_rerun_metric(
 
 async def _get_run_async(
     db: AsyncSession, run_id: int
-) -> Optional[PipelineRun]:
+) -> PipelineRun | None:
     """async 版本的 pipeline_service.get_run，joinedload steps/artifacts。"""
     result = await db.execute(
         select(PipelineRun)
@@ -131,10 +131,10 @@ async def _get_artifact_async(
     db: AsyncSession,
     run_id: int,
     *,
-    artifact_id: Optional[int] = None,
-    kind: Optional[str] = None,
+    artifact_id: int | None = None,
+    kind: str | None = None,
     order_by_created_desc: bool = False,
-) -> Optional[Artifact]:
+) -> Artifact | None:
     """async 版本的 Artifact 查询，支持按 artifact_id 或 kind 过滤。
 
     Args:

@@ -2,7 +2,7 @@
 负责初始化和HTTP请求，内容处理委托给ContentMixin
 """
 import requests
-from typing import Optional, Dict, Any, Tuple
+from typing import Any
 from loguru import logger
 from app.utils.http_utils import build_auth_headers
 
@@ -36,8 +36,8 @@ class LinkFetcherCoreMixin:
         self,
         url: str,
         auth_type: str = "none",
-        auth_config: Optional[Dict[str, Any]] = None
-    ) -> Tuple[bool, str, str]:
+        auth_config: dict[str, Any] | None = None
+    ) -> tuple[bool, str, str]:
         """获取链接内容（主入口）
 
         根据Content-Type头分发到对应的处理方法（定义在ContentMixin中）。

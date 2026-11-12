@@ -7,7 +7,7 @@
 - _dispatch_step_action: 分发步骤动作到对应的执行方法
 - _finalize_step_result: 完成步骤结果的时间记录
 """
-from typing import Any, Dict
+from typing import Any
 
 from loguru import logger
 
@@ -79,7 +79,8 @@ class StepHelpersMixin:
         if self.locator_service and step.id:
             locator_record = self.locator_service.get_locator(step.id)
 
-        if execution_mode in ("realtime", "smart"):
+        # 保留嵌套：内层分支体量大，合并后整体缩进重排会显著抬高 diff 噪声
+        if execution_mode in ("realtime", "smart"):  # noqa: SIM102
             if not locator_record and self.locator_service and self.browser:
                 logger.info(f"步骤 {step.step_number}: 无预存定位，尝试AI实时识别 (mode={execution_mode})")
                 try:
@@ -104,8 +105,8 @@ class StepHelpersMixin:
         return locator_record, element_info, direct_executed
 
     async def _dispatch_step_action(
-        self, step, action_type: ActionType, action_info: Dict[str, Any],
-        step_test_data: Dict[str, str], locator_record, element_info, direct_executed: bool
+        self, step, action_type: ActionType, action_info: dict[str, Any],
+        step_test_data: dict[str, str], locator_record, element_info, direct_executed: bool
     ) -> None:
         """分发步骤动作到对应的执行方法。"""
         if action_type == ActionType.NAVIGATE:

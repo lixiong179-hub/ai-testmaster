@@ -14,7 +14,7 @@ Redis key 约定：
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from app.core.config import settings
 from app.services.common.token_budget import BaseTokenBudgetGuard
@@ -45,7 +45,7 @@ class AgentTokenBudgetGuard(BaseTokenBudgetGuard):
 
     def __init__(
         self,
-        redis_client: Optional[Any],
+        redis_client: Any | None,
         *,
         agent_type: str,
         project_id: int,

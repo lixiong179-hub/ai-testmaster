@@ -14,7 +14,6 @@
         service = RoleService(db)  # db 为 AsyncSession
         role = await service.create_role_async(role_in)
 """
-from typing import Optional, List
 
 from sqlalchemy import select, delete
 
@@ -54,7 +53,7 @@ class RoleServiceAsyncMixin:
         await self.db.refresh(db_role)
         return db_role
 
-    async def get_role_by_id_async(self, role_id: int) -> Optional[Role]:
+    async def get_role_by_id_async(self, role_id: int) -> Role | None:
         """根据角色ID查询角色（异步版本）。"""
         result = await self.db.execute(
             select(Role).where(Role.id == role_id)
@@ -104,7 +103,7 @@ class RoleServiceAsyncMixin:
 
     async def get_roles_async(
         self, skip: int = 0, limit: int = 100
-    ) -> List[Role]:
+    ) -> list[Role]:
         """分页查询角色列表（异步版本）。"""
         result = await self.db.execute(
             select(Role).offset(skip).limit(limit)

@@ -4,13 +4,13 @@
     - _build_linear_prompt: 线性模式 Prompt 构建
 """
 import json
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from app.services.prompt_builder.ui_spec_formatter import format_ui_specs_list
 from app.services.prompt_builder.comparison_examples import get_comparison_examples
 
 
-def _build_history_cases_section(history_cases: Optional[List[Dict[str, Any]]]) -> str:
+def _build_history_cases_section(history_cases: list[dict[str, Any]] | None) -> str:
     """构建历史参考用例章节，非空时返回章节文本，空时返回空字符串。
 
     业务原因：_scoring_mixin 填充的历史用例需注入 Prompt 供 AI 参考风格与结构，
@@ -63,7 +63,7 @@ def _extract_ui_supplement_info(ui_description: str) -> str:
     if not ui_description or not ui_description.strip():
         return ""
 
-    supplement_parts: List[str] = []
+    supplement_parts: list[str] = []
     stripped = ui_description.strip()
 
     # 优先尝试 JSON 解析（结构化场景）
@@ -102,13 +102,13 @@ def _build_linear_prompt(
     function: str,
     point: str,
     priority: int,
-    ui_specs: Optional[List[Dict[str, Any]]] = None,
-    case_type: Optional[str] = None,
+    ui_specs: list[dict[str, Any]] | None = None,
+    case_type: str | None = None,
     min_case_count: int = 3,
-    history_cases: Optional[List[Dict[str, Any]]] = None,
-    project_id: Optional[int] = None,
+    history_cases: list[dict[str, Any]] | None = None,
+    project_id: int | None = None,
     db: Any = None,
-    execution_feedback: Optional[str] = None,
+    execution_feedback: str | None = None,
 ) -> str:
     """构建线性模式的 Prompt。
 

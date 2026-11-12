@@ -11,7 +11,6 @@
 依赖关系：
     - app.models.audit_log : AuditLog
 """
-from typing import Optional, List
 from loguru import logger
 from datetime import datetime
 
@@ -47,13 +46,13 @@ VALID_ACTIONS = {
 def log_action(
     db: Session,
     action: str,
-    actor_id: Optional[int],
+    actor_id: int | None,
     target_kind: str,
     target_id: int,
     *,
-    detail: Optional[dict] = None,
-    run_id: Optional[int] = None,
-    iteration_id: Optional[int] = None,
+    detail: dict | None = None,
+    run_id: int | None = None,
+    iteration_id: int | None = None,
 ) -> AuditLog:
     """写入审计日志。
 
@@ -108,12 +107,12 @@ def log_action(
 
 
 def _build_filters(
-    target_kind: Optional[str] = None,
-    target_id: Optional[int] = None,
-    actor_id: Optional[int] = None,
-    action: Optional[str] = None,
-    since: Optional[datetime] = None,
-    until: Optional[datetime] = None,
+    target_kind: str | None = None,
+    target_id: int | None = None,
+    actor_id: int | None = None,
+    action: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
 ) -> list:
     """构建审计日志查询过滤条件。"""
     filters = []
@@ -135,15 +134,15 @@ def _build_filters(
 def query_logs(
     db: Session,
     *,
-    target_kind: Optional[str] = None,
-    target_id: Optional[int] = None,
-    actor_id: Optional[int] = None,
-    action: Optional[str] = None,
-    since: Optional[datetime] = None,
-    until: Optional[datetime] = None,
+    target_kind: str | None = None,
+    target_id: int | None = None,
+    actor_id: int | None = None,
+    action: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
     limit: int = 100,
     offset: int = 0,
-) -> List[AuditLog]:
+) -> list[AuditLog]:
     """查询审计日志（支持多维度过滤+分页）。
 
     Args:
@@ -176,12 +175,12 @@ def query_logs(
 def count_logs(
     db: Session,
     *,
-    target_kind: Optional[str] = None,
-    target_id: Optional[int] = None,
-    actor_id: Optional[int] = None,
-    action: Optional[str] = None,
-    since: Optional[datetime] = None,
-    until: Optional[datetime] = None,
+    target_kind: str | None = None,
+    target_id: int | None = None,
+    actor_id: int | None = None,
+    action: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
 ) -> int:
     """统计审计日志条数（用于分页计算）。
 

@@ -1,5 +1,5 @@
 import ipaddress
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -11,7 +11,7 @@ class _ApiSetupHelpersMixin:
     def _extract_api_vars(
         self,
         response: httpx.Response,
-        extract_config: Dict[str, str],
+        extract_config: dict[str, str],
     ) -> None:
         try:
             response_data = response.json()
@@ -43,7 +43,7 @@ class _ApiSetupHelpersMixin:
                 return None
         return current
 
-    def _substitute_api_vars(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _substitute_api_vars(self, data: dict[str, Any]) -> dict[str, Any]:
         result = {}
         for key, value in data.items():
             if isinstance(value, str) and "{{" in value and "}}" in value:
@@ -58,7 +58,7 @@ class _ApiSetupHelpersMixin:
                 result[key] = value
         return result
 
-    def _get_base_url(self) -> Optional[str]:
+    def _get_base_url(self) -> str | None:
         if hasattr(self, '_project_base_url') and self._project_base_url:
             return self._project_base_url
 
@@ -72,8 +72,8 @@ class _ApiSetupHelpersMixin:
 
         return None
 
-    async def _get_auth_headers(self) -> Dict[str, str]:
-        headers: Dict[str, str] = {"Content-Type": "application/json"}
+    async def _get_auth_headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {"Content-Type": "application/json"}
 
         if not self.browser or not getattr(self.browser, '_context', None):
             return headers
@@ -97,9 +97,9 @@ class _ApiSetupHelpersMixin:
 
     def _build_setup_api_calls_from_main_steps(
         self,
-        main_steps: List[Dict[str, Any]],
+        main_steps: list[dict[str, Any]],
         anchor_step: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         api_calls = []
         for step in main_steps:
             step_num = step.get("step") or step.get("step_number")

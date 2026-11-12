@@ -3,12 +3,12 @@
 
 提供统一的步骤转换、响应构建等功能，避免代码重复
 """
-from typing import Optional, List, Dict, Any
+from typing import Any
 from datetime import datetime
 from loguru import logger
 
 
-def _build_step_response(step: Dict, step_number: Optional[int] = None) -> Dict[str, Any]:
+def _build_step_response(step: dict, step_number: int | None = None) -> dict[str, Any]:
     """
     构建单个步骤的响应格式（内部辅助函数）
 
@@ -52,7 +52,7 @@ def _build_step_response(step: Dict, step_number: Optional[int] = None) -> Dict[
     return response
 
 
-def convert_steps_to_response(steps_json: Optional[List[Dict]]) -> List[Dict[str, Any]]:
+def convert_steps_to_response(steps_json: list[dict] | None) -> list[dict[str, Any]]:
     """
     将数据库steps_json转换为API响应格式
 
@@ -82,7 +82,7 @@ def convert_steps_to_response(steps_json: Optional[List[Dict]]) -> List[Dict[str
     return result
 
 
-def build_test_case_response(test_case) -> Dict[str, Any]:
+def build_test_case_response(test_case) -> dict[str, Any]:
     """
     构建统一的测试用例响应格式
 
@@ -126,7 +126,7 @@ def build_test_case_response(test_case) -> Dict[str, Any]:
     }
 
 
-def convert_ai_steps_to_response(steps: List[Dict]) -> List[Dict[str, Any]]:
+def convert_ai_steps_to_response(steps: list[dict]) -> list[dict[str, Any]]:
     """
     转换AI生成的步骤数据为标准格式
 

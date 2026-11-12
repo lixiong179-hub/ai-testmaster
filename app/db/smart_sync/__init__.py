@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Any
 
 from sqlalchemy import inspect
 
@@ -20,7 +20,7 @@ class DatabaseSyncTool(_ValidationMixin, _InspectorMixin, _ExecutorMixin):
         self.inspector = inspect(self.engine)
 
 
-def smart_sync_database(Base, auto_fix: bool = True) -> Dict:
+def smart_sync_database(Base, auto_fix: bool = True) -> dict:
     tool = DatabaseSyncTool()
     report = tool.sync_all_tables(Base, auto_fix=auto_fix)
 

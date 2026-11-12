@@ -29,7 +29,6 @@ import os
 import random
 import string
 import time
-from typing import Tuple
 from collections import defaultdict
 from loguru import logger
 
@@ -66,7 +65,7 @@ class CaptchaService:
             cls._instance._ip_limits = defaultdict(list)  # IP频率限制
         return cls._instance
 
-    def generate(self, length: int = 4, ip: str = "") -> Tuple[str, str]:
+    def generate(self, length: int = 4, ip: str = "") -> tuple[str, str]:
         """生成验证码，返回唯一ID和验证码文本。
 
         生成流程:

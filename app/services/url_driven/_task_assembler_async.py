@@ -7,7 +7,7 @@
 业务原因：task_assembler.py 单文件超过 350 行限制，按职责将后台执行
 与终态推送逻辑集中到独立文件，主类聚焦于任务创建与编排。
 """
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -99,7 +99,6 @@ async def push_final_status(
 
 
 __all__ = [
-    "_CHANNEL_TEMPLATE",
     "run_executor_safely",
     "push_final_status",
 ]

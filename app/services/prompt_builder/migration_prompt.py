@@ -1,6 +1,6 @@
 """跨设备用例迁移Prompt构建器。"""
 import json
-from typing import Dict, Any
+from typing import Any
 
 
 DEVICE_DIFF_RULES = {
@@ -28,7 +28,7 @@ DEVICE_DIFF_RULES = {
 
 
 def _build_migration_prompt(
-    source_case: Dict[str, Any],
+    source_case: dict[str, Any],
     source_device: str = "tablet",
     target_device: str = "phone",
     target_ui_specs: str = "",
@@ -136,7 +136,7 @@ def _build_migration_prompt(
 
 
 def build_migration_prompt(
-    source_case: Dict[str, Any],
+    source_case: dict[str, Any],
     source_device: str = "tablet",
     target_device: str = "phone",
     target_ui_specs: str = "",

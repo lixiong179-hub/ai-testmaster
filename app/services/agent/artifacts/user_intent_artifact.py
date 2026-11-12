@@ -5,7 +5,7 @@ Agent 的输入起点，所有迭代围绕满足 user_intent 展开。
 """
 from __future__ import annotations
 
-from typing import ClassVar, List
+from typing import ClassVar
 
 from app.services.agent.artifacts.base import Artifact
 
@@ -26,7 +26,7 @@ class UserIntentArtifact(Artifact):
     natural_language_request: str
     origin: str = "user"
     priority: str = "normal"
-    constraints: List[str] = []
+    constraints: list[str] = []
 
 
 __all__ = ["UserIntentArtifact"]

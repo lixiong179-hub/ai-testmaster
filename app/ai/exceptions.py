@@ -9,7 +9,6 @@ AI 服务异常体系模块
 依赖：
     - 仅依赖标准库 typing，无外部 IO/网络依赖，可被任意模块安全导入。
 """
-from typing import Optional
 
 
 class AIServiceError(Exception):
@@ -18,7 +17,7 @@ class AIServiceError(Exception):
     所有AI相关业务异常的基类，携带可读的错误信息和标准错误码。
     子类应通过 error_code 提供机器可读的标识，便于上层统一处理。
     """
-    def __init__(self, message: str, error_code: Optional[str] = None) -> None:
+    def __init__(self, message: str, error_code: str | None = None) -> None:
         self.message = message
         self.error_code = error_code
         super().__init__(self.message)

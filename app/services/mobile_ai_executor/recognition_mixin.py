@@ -1,5 +1,5 @@
 """移动端AI元素识别Mixin - AI视觉识别与缓存管理。"""
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.utils.adb_controller import AdbError
@@ -13,7 +13,7 @@ class MobileRecognitionMixin:
     MIN_CONFIDENCE_THRESHOLD = 0.7
     CACHE_CONFIDENCE_THRESHOLD = 0.8
 
-    async def _recognize_element(self, description: str) -> Optional[Dict[str, Any]]:
+    async def _recognize_element(self, description: str) -> dict[str, Any] | None:
         try:
             screenshot = await self.adb.take_screenshot()
             elements = self.vision_model.recognize_elements(screenshot, description)
@@ -36,8 +36,8 @@ class MobileRecognitionMixin:
             return None
 
     async def _try_cached_click(
-        self, cached: Dict[str, Any], description: str
-    ) -> Optional[Any]:
+        self, cached: dict[str, Any], description: str
+    ) -> Any | None:
         from app.services.mobile_ai_executor.types import MobileActionResult, MobileActionType
         try:
             accessibility_id = cached.get("accessibility_id")
@@ -56,7 +56,7 @@ class MobileRecognitionMixin:
             logger.warning(f"缓存定位执行失败: {e}")
         return None
 
-    def _get_cached_locator(self, step_id: int) -> Optional[Dict[str, Any]]:
+    def _get_cached_locator(self, step_id: int) -> dict[str, Any] | None:
         locator = self.db.query(ElementLocator).filter(
             ElementLocator.step_id == step_id
         ).first()
@@ -74,8 +74,8 @@ class MobileRecognitionMixin:
         return cached if cached else None
 
     async def _cache_locator(
-        self, step_id: int, description: str, element_info: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, step_id: int, description: str, element_info: dict[str, Any]
+    ) -> dict[str, Any] | None:
         try:
             x = element_info.get("x", 0)
             y = element_info.get("y", 0)

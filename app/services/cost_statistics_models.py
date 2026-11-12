@@ -1,7 +1,7 @@
 # [R4-5 冻结 2026-11-10] 生产代码零引用（仅测试引用），保留备用；接线或删除前请先在《架构优化执行计划清单》登记。
 """成本统计模型 - 定义成本统计的数据结构和枚举。
 """
-from typing import Dict, Any, List
+from typing import Any
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -29,10 +29,10 @@ class CostReport:
     start_date: datetime
     end_date: datetime
     overall_statistics: CostStatistics
-    case_statistics: List[Dict[str, Any]]
-    daily_statistics: List[Dict[str, Any]]
-    optimization_suggestions: List[Dict[str, Any]]
-    trend_data: List[Dict[str, Any]]
+    case_statistics: list[dict[str, Any]]
+    daily_statistics: list[dict[str, Any]]
+    optimization_suggestions: list[dict[str, Any]]
+    trend_data: list[dict[str, Any]]
     generated_at: datetime = field(default_factory=datetime.now)
 
 

@@ -4,7 +4,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -20,9 +20,9 @@ class BaselineCreateRequest(BaseModel):
     viewport_width: int = Field(..., gt=0, description="视口宽度")
     viewport_height: int = Field(..., gt=0, description="视口高度")
     match_level: str = Field("strict", description="对比模式: strict/layout/ignore_colors")
-    test_case_id: Optional[int] = Field(None, description="关联测试用例ID")
+    test_case_id: int | None = Field(None, description="关联测试用例ID")
     image_base64: str = Field(..., description="基线截图（base64编码）")
-    dom_snapshot_base64: Optional[str] = Field(None, description="DOM快照（base64编码）")
+    dom_snapshot_base64: str | None = Field(None, description="DOM快照（base64编码）")
 
     class Config:
         json_schema_extra = {
@@ -42,7 +42,7 @@ class BaselineResponse(BaseModel):
 
     id: int
     project_id: int
-    test_case_id: Optional[int] = None
+    test_case_id: int | None = None
     name: str
     page_url: str
     viewport_width: int
@@ -51,12 +51,12 @@ class BaselineResponse(BaseModel):
     image_width: int
     image_height: int
     match_level: str
-    dom_snapshot_key: Optional[str] = None
+    dom_snapshot_key: str | None = None
     status: str
     version: int
-    created_by: Optional[int] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_by: int | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
     class Config:
         from_attributes = True
@@ -66,15 +66,15 @@ class BaselineUpdateRequest(BaseModel):
     """更新基线请求。"""
 
     image_base64: str = Field(..., description="新基线截图（base64编码）")
-    match_level: Optional[str] = Field(None, description="新对比模式（可空，默认沿用原基线）")
-    dom_snapshot_base64: Optional[str] = Field(None, description="新DOM快照（base64编码）")
+    match_level: str | None = Field(None, description="新对比模式（可空，默认沿用原基线）")
+    dom_snapshot_base64: str | None = Field(None, description="新DOM快照（base64编码）")
 
 
 class BaselineListResponse(BaseModel):
     """基线列表响应。"""
 
     total: int
-    items: List[BaselineResponse]
+    items: list[BaselineResponse]
 
 
 # ── 对比相关 Schema ──
@@ -89,24 +89,24 @@ class CompareRequest(BaseModel):
     match_level: str = Field("strict", description="对比模式")
     current_image_base64: str = Field(..., description="当前截图（base64编码）")
     enable_llm_analysis: bool = Field(True, description="是否启用LLM语义分析")
-    test_case_id: Optional[int] = Field(None, description="关联测试用例ID")
-    test_result_id: Optional[int] = Field(None, description="关联测试结果ID")
+    test_case_id: int | None = Field(None, description="关联测试用例ID")
+    test_result_id: int | None = Field(None, description="关联测试结果ID")
 
 
 class DiffResponse(BaseModel):
     """差异对比响应。"""
 
-    diff_id: Optional[int] = None
+    diff_id: int | None = None
     baseline_id: int
     diff_percentage: float
     diff_pixel_count: int
     total_pixel_count: int
     match_level: str
     status: str = "pending"
-    llm_analysis: Optional[Dict[str, Any]] = None
+    llm_analysis: dict[str, Any] | None = None
     llm_token_cost: int = 0
-    diff_image_base64: Optional[str] = None
-    diff_report: Optional[str] = None
+    diff_image_base64: str | None = None
+    diff_report: str | None = None
 
     class Config:
         from_attributes = True
@@ -119,7 +119,7 @@ class ApprovalRequest(BaseModel):
     """审批请求。"""
 
     action: str = Field(..., description="审批动作: approve/reject/update_baseline")
-    comment: Optional[str] = Field(None, description="审批意见")
+    comment: str | None = Field(None, description="审批意见")
 
 
 class ApprovalResponse(BaseModel):
@@ -130,10 +130,10 @@ class ApprovalResponse(BaseModel):
     diff_id: int
     baseline_id: int
     action: str
-    comment: Optional[str] = None
-    reviewer_id: Optional[int] = None
-    reviewed_at: Optional[str] = None
-    created_at: Optional[str] = None
+    comment: str | None = None
+    reviewer_id: int | None = None
+    reviewed_at: str | None = None
+    created_at: str | None = None
 
     class Config:
         from_attributes = True
@@ -143,7 +143,7 @@ class DiffListResponse(BaseModel):
     """差异列表响应。"""
 
     total: int
-    items: List[DiffResponse]
+    items: list[DiffResponse]
 
 
 __all__ = [

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 from collections import deque
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -39,9 +39,9 @@ class LoopDetector:
 
     def __init__(
         self,
-        redis_client: Optional[Any] = None,
+        redis_client: Any | None = None,
         *,
-        threshold: Optional[int] = None,
+        threshold: int | None = None,
         window_size: int = 10,
     ) -> None:
         """注入 Redis 客户端与检测参数。
@@ -54,15 +54,15 @@ class LoopDetector:
         self._redis = redis_client
         self._threshold = threshold if threshold is not None else settings.AI_AGENT_LOOP_DETECTION_THRESHOLD
         self._window_size = window_size
-        self._memory_windows: Dict[str, Deque[str]] = {}
+        self._memory_windows: dict[str, deque[str]] = {}
 
     @staticmethod
-    def _build_signature(tool_name: str, args: Dict[str, Any]) -> str:
+    def _build_signature(tool_name: str, args: dict[str, Any]) -> str:
         """构造工具调用签名：tool_name:sorted_args_json。sorted_keys 保证字典顺序无关。"""
         args_json = json.dumps(args, sort_keys=True, ensure_ascii=False, default=str)
         return f"{tool_name}:{args_json}"
 
-    def _build_key(self, agent_type: str, session_id: Optional[int]) -> str:
+    def _build_key(self, agent_type: str, session_id: int | None) -> str:
         """构造 Redis key，session_id 为 None 时使用 'global' 占位。"""
         sid = session_id if session_id is not None else "global"
         return _LOOP_KEY_TEMPLATE.format(agent_type=agent_type, session_id=sid)
@@ -71,7 +71,7 @@ class LoopDetector:
         self,
         *,
         agent_type: str,
-        session_id: Optional[int],
+        session_id: int | None,
         tool_call_signature: str,
     ) -> bool:
         """检测当前签名是否触发循环。
@@ -94,7 +94,7 @@ class LoopDetector:
                 pipe.lpush(key, tool_call_signature)
                 pipe.ltrim(key, 0, self._window_size - 1)
                 pipe.lrange(key, 0, self._window_size - 1)
-                window: List[str] = pipe.execute()[2] or []
+                window: list[str] = pipe.execute()[2] or []
                 count = sum(1 for sig in window if sig == tool_call_signature)
                 return count >= self._threshold
             except Exception as e:
@@ -103,7 +103,7 @@ class LoopDetector:
         window_deque.append(tool_call_signature)
         return window_deque.count(tool_call_signature) >= self._threshold
 
-    async def reset(self, *, agent_type: str, session_id: Optional[int]) -> None:
+    async def reset(self, *, agent_type: str, session_id: int | None) -> None:
         """清空指定会话的循环检测窗口，用于会话结束或循环熔断后重置。"""
         key = self._build_key(agent_type, session_id)
         if self._redis is not None:

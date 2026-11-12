@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -6,7 +6,7 @@ from app.pipelines.base import StepResult
 from app.pipelines.context import PipelineContext
 
 
-def _empty_stats() -> Dict[str, int]:
+def _empty_stats() -> dict[str, int]:
     return {
         "keep_count": 0, "modify_count": 0, "create_count": 0,
         "locator_fix_count": 0, "deprecate_count": 0,
@@ -19,7 +19,7 @@ def _dispatch_fallback(
     step_version: str,
     ctx: PipelineContext,
     error: Exception,
-) -> Optional[StepResult]:
+) -> StepResult | None:
     merged = ctx.get_artifact("merged_verdicts")
     if merged is not None:
         logger.warning(
@@ -66,7 +66,7 @@ def _dispatch_fallback(
         )
 
     aligned_tps = aligned.get("aligned_testpoints", [])
-    fallback_tasks: List[Dict[str, Any]] = []
+    fallback_tasks: list[dict[str, Any]] = []
     for idx, entry in enumerate(aligned_tps):
         tp = entry.get("test_point", {}) if isinstance(entry, dict) else {}
         task = {

@@ -6,7 +6,7 @@ FailureAnalysisAgent 跨会话经验复用，避免重复试错。
 from __future__ import annotations
 
 from datetime import datetime
-from typing import ClassVar, List, Optional
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -26,8 +26,8 @@ class FailureRecord(BaseModel):
     """
 
     failure_type: str
-    selector: Optional[str] = None
-    healed_selector: Optional[str] = None
+    selector: str | None = None
+    healed_selector: str | None = None
     confidence: float = 0.0
     occurred_at: datetime = Field(default_factory=datetime.utcnow)
     strategy: str = ""
@@ -43,7 +43,7 @@ class FailureHistoryArtifact(Artifact):
     artifact_type: ClassVar[str] = "failure_history"
     description: ClassVar[str] = "近期同类失败记录与修复策略，用于经验复用"
 
-    recent_failures: List[FailureRecord] = []
+    recent_failures: list[FailureRecord] = []
 
 
 __all__ = ["FailureHistoryArtifact", "FailureRecord"]

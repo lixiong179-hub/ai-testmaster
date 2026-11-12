@@ -16,7 +16,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from loguru import logger
 from sqlalchemy import select, update
@@ -76,8 +75,8 @@ class ExecutionDispatcher:
         }
 
     def claim_next(
-        self, *, scan_limit: int = 10, task_id: Optional[int] = None
-    ) -> Optional[int]:
+        self, *, scan_limit: int = 10, task_id: int | None = None
+    ) -> int | None:
         """领取一个排队任务并置为 RUNNING。
 
         通过「条件更新 + rowcount」实现原子占用：同一任务被多个 executor

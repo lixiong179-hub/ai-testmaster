@@ -14,7 +14,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
@@ -36,7 +35,8 @@ from app.services.oidc_service import (
     get_oidc_service,
 )
 
-# [R4-6 冻结 2026-11-10] 「OIDC SSO 适配」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
+# [B-08 结论 2026-11-12] 「OIDC SSO 适配」**明确不做前端接线**：企业 IdP 集成，前端无任何
+# SSO 入口（src/ 内 oidc 命中 0，无 SSO 设置页）。接口保留供外部系统/脚本调用。
 router = APIRouter()
 
 
@@ -70,7 +70,7 @@ async def list_oidc_providers() -> dict:
     description="返回指定 IdP 的元数据（issuer/client_id/scopes/redirect_uri），脱敏隐藏 client_secret。",
 )
 async def get_oidc_metadata(
-    provider: Optional[str] = Query(None, description="IdP 标识；不传返回所有 IdP 列表"),
+    provider: str | None = Query(None, description="IdP 标识；不传返回所有 IdP 列表"),
 ) -> dict:
     """获取单个或全部 IdP 元数据。"""
     service = _oidc_service_or_503()
@@ -87,8 +87,8 @@ async def get_oidc_metadata(
     description="生成 state 与 nonce 后 302 重定向到 IdP 授权端点。IdP 登录完成后回调 /auth/oidc/callback。",
 )
 async def oidc_login(
-    provider: Optional[str] = Query(None, description="IdP 标识；不传使用 OIDC_DEFAULT_PROVIDER"),
-    redirect_to: Optional[str] = Query(
+    provider: str | None = Query(None, description="IdP 标识；不传使用 OIDC_DEFAULT_PROVIDER"),
+    redirect_to: str | None = Query(
         None, description="登录成功后前端跳转目标路径（如 /dashboard），存入 state 上下文"
     ),
 ) -> RedirectResponse:
@@ -112,11 +112,11 @@ async def oidc_login(
     description="IdP 授权后回调此端点，校验 state 与 code，完成用户映射后返回本平台 access_token/refresh_token。",
 )
 async def oidc_callback(
-    code: Optional[str] = Query(None, description="IdP 返回的授权码"),
-    state: Optional[str] = Query(None, description="授权请求时发送的 state，用于 CSRF 防护"),
-    error: Optional[str] = Query(None, description="IdP 返回的错误码（如 access_denied）"),
-    error_description: Optional[str] = Query(None, description="IdP 返回的错误描述"),
-    provider: Optional[str] = Query(
+    code: str | None = Query(None, description="IdP 返回的授权码"),
+    state: str | None = Query(None, description="授权请求时发送的 state，用于 CSRF 防护"),
+    error: str | None = Query(None, description="IdP 返回的错误码（如 access_denied）"),
+    error_description: str | None = Query(None, description="IdP 返回的错误描述"),
+    provider: str | None = Query(
         None, description="IdP 标识；若 IdP 未在 state 中回传 provider，需调用方显式传入"
     ),
     db: AsyncSession = Depends(async_get_db),

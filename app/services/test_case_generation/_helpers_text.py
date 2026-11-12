@@ -5,7 +5,7 @@
 """
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from app.services.test_case_generation._helpers_constants import (
     REQUIRED_UI_ELEMENT_HINTS,
@@ -27,7 +27,7 @@ def _safe_json_text(value: Any) -> str:
         return str(value)
 
 
-def _extract_function_from_ai_prompt(ai_prompt: Optional[str]) -> str:
+def _extract_function_from_ai_prompt(ai_prompt: str | None) -> str:
     """从 ai_prompt JSON 字符串提取 function 字段，失败返回空串。"""
     if not ai_prompt:
         return ""
@@ -62,16 +62,16 @@ def _score_terms(terms: set[str], *parts: Any) -> int:
     return sum(1 for term in terms if term and term in text)
 
 
-def _warning(code: str, message: str, detail: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def _warning(code: str, message: str, detail: dict[str, Any] | None = None) -> dict[str, Any]:
     """构造警告字典。"""
     return {"code": code, "message": message, "detail": detail or {}}
 
 
-def _dedupe_ints(values: List[int]) -> List[int]:
+def _dedupe_ints(values: list[int]) -> list[int]:
     """整数去重保序。"""
     if not values:
         return []
-    result: List[int] = []
+    result: list[int] = []
     seen = set()
     for value in values:
         try:
@@ -84,9 +84,9 @@ def _dedupe_ints(values: List[int]) -> List[int]:
     return result
 
 
-def _dedupe_strings(values: List[str]) -> List[str]:
+def _dedupe_strings(values: list[str]) -> list[str]:
     """字符串去重保序，过滤空值。"""
-    result: List[str] = []
+    result: list[str] = []
     seen = set()
     for value in values:
         item = str(value or "").strip()
@@ -99,7 +99,7 @@ def _dedupe_strings(values: List[str]) -> List[str]:
 
 def _assess_requirement_quality(
     requirement_text: str,
-) -> Tuple[str, Optional[Dict[str, Any]]]:
+) -> tuple[str, dict[str, Any] | None]:
     """评估需求文档质量等级并给出警告。
 
     质量等级：
@@ -136,7 +136,7 @@ def _normalize_match_text(value: Any) -> str:
     return re.sub(r"[\s【】「」\"'`<>《》:：,，。；;、\[\]()（）]", "", _safe_json_text(value)).lower()
 
 
-def _find_missing_required_ui_terms(search_text: str, ui_specs: List[Dict[str, Any]]) -> List[str]:
+def _find_missing_required_ui_terms(search_text: str, ui_specs: list[dict[str, Any]]) -> list[str]:
     """检查 UI 元素是否覆盖测试点所需关键词，返回缺失词列表。"""
     if not search_text or not ui_specs:
         return []

@@ -1,6 +1,5 @@
 import asyncio
 import re
-from typing import Optional, List, Tuple
 
 from app.utils.adb_controller._core import (
     AdbError,
@@ -10,7 +9,7 @@ from app.utils.adb_controller._core import (
 
 class _DeviceMixin:
 
-    async def list_devices(self) -> List[DeviceInfo]:
+    async def list_devices(self) -> list[DeviceInfo]:
         _, stdout, _ = await self._execute_command("devices", "-l", check=True)
         devices = []
         for line in stdout.split("\n")[1:]:
@@ -40,7 +39,7 @@ class _DeviceMixin:
         except AdbError:
             return False
 
-    async def get_device_info(self) -> Optional[DeviceInfo]:
+    async def get_device_info(self) -> DeviceInfo | None:
         devices = await self.list_devices()
         if self.udid:
             for d in devices:
@@ -50,7 +49,7 @@ class _DeviceMixin:
             return devices[0]
         return None
 
-    async def get_screen_size(self) -> Tuple[int, int]:
+    async def get_screen_size(self) -> tuple[int, int]:
         if self._screen_size:
             return self._screen_size
         _, stdout, _ = await self._execute_command(
@@ -80,7 +79,7 @@ class _DeviceMixin:
             raise AdbError("Screenshot returned empty data")
         return stdout
 
-    async def get_current_activity(self) -> Optional[str]:
+    async def get_current_activity(self) -> str | None:
         _, stdout, _ = await self._execute_command(
             "shell", "dumpsys", "activity", "activities", check=False
         )

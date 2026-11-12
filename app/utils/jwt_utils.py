@@ -32,7 +32,7 @@ JWT令牌工具模块
     - app.core.exception.AuthenticationError: 认证异常
 """
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext

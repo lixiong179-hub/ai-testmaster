@@ -20,7 +20,7 @@
     CSS选择器 > XPath > 元素ID > 元素Name > AI坐标识别
 """
 from app.utils.db_time import utcnow
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 from sqlalchemy import Column, Integer, String, Float, DateTime, JSON, ForeignKey, text
 from sqlalchemy.orm import relationship
@@ -91,7 +91,7 @@ class ElementLocator(Base):
         return f"<ElementLocator(id={self.id}, step_id={self.step_id}, css={self.css_selector})>"
 
     @property
-    def priority_order(self) -> List[str]:
+    def priority_order(self) -> list[str]:
         """
         获取可用的定位策略优先级列表。
 
@@ -112,7 +112,7 @@ class ElementLocator(Base):
             strategies.append("ai")
         return strategies
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         将定位器信息转换为字典格式。
 
@@ -239,7 +239,7 @@ class ElementLocator(Base):
             return 0.0
         return (self.success_count or 0) / total
 
-    def get_best_locator(self) -> Optional[Dict[str, Any]]:
+    def get_best_locator(self) -> dict[str, Any] | None:
         """
         获取最佳可用定位策略。
 

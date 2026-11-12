@@ -5,7 +5,7 @@
 
 与 _ContextLoadersMixin 组合后由 ContextBuilder（context_builder.py）统一对外暴露。
 """
-from typing import Any, Dict, List
+from typing import Any
 
 from app.models.project import Project
 from app.models.test_case import TestCase
@@ -21,7 +21,7 @@ class _HistoryScoringMixin:
     # ── 历史用例信任度与完整性评分 ──
     def enrich_context_with_trust_and_scoring(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
         history_case_ids: list[int] | None = None,
         history_limit: int = 10,
@@ -181,9 +181,9 @@ class _HistoryScoringMixin:
 
     def _compute_completeness_score(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """计算上下文完整性评分（测试点/需求/UI/流程/历史 5 维度加权）。"""
         WEIGHT_TEST_POINT = 20
         WEIGHT_REQUIREMENT = 35
@@ -191,8 +191,8 @@ class _HistoryScoringMixin:
         WEIGHT_FLOW = 10
         WEIGHT_HISTORY = 10
 
-        missing_core_context: List[str] = []
-        low_confidence_reasons: List[str] = []
+        missing_core_context: list[str] = []
+        low_confidence_reasons: list[str] = []
         score = 0
 
         test_points = context.get("test_points", [])
@@ -249,9 +249,7 @@ class _HistoryScoringMixin:
             score += WEIGHT_FLOW // 4
 
         history_cases_used = context.get("context_stats", {}).get("history_cases_used", 0)
-        if history_cases_used > 0:
-            score += WEIGHT_HISTORY
-        elif not missing_core_context:
+        if history_cases_used > 0 or not missing_core_context:
             score += WEIGHT_HISTORY
 
         return {

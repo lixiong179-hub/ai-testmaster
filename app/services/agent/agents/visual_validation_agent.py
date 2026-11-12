@@ -13,7 +13,7 @@ Agent 类型：visual_validation
 """
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any
 
 from app.services.agent.artifacts.base import Artifact
 from app.services.agent.base import AgentBase, AgentDefinition
@@ -69,13 +69,13 @@ class VisualValidationAgent(AgentBase):
 
     async def run(
         self,
-        artifacts: List[Artifact],
-        execution_callback: Optional[Any] = None,
+        artifacts: list[Artifact],
+        execution_callback: Any | None = None,
         *,
-        db: Optional[Any] = None,
-        project_id: Optional[int] = None,
-        created_by: Optional[int] = None,
-        runtime: Optional["AgentRuntime"] = None,
+        db: Any | None = None,
+        project_id: int | None = None,
+        created_by: int | None = None,
+        runtime: AgentRuntime | None = None,
     ) -> AgentSession:
         """执行视觉校验 Agent。
 

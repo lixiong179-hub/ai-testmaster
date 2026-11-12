@@ -1,8 +1,7 @@
-from typing import List, Optional, Dict, Any
+from typing import Any
 from sqlalchemy.orm import Session
 from app.models.requirement_link import RequirementLink
 from app.models.project import Project
-from app.utils.db_time import utcnow
 
 
 def create_requirement_link(
@@ -11,10 +10,10 @@ def create_requirement_link(
     link_name: str,
     link_type: str,
     link_url: str,
-    created_by: Optional[int] = None,
+    created_by: int | None = None,
     auth_type: str = "none",
-    auth_config: Optional[Dict[str, Any]] = None,
-    description: Optional[str] = None,
+    auth_config: dict[str, Any] | None = None,
+    description: str | None = None,
     cache_expire_minutes: int = 60
 ) -> RequirementLink:
     db_link = RequirementLink(
@@ -37,8 +36,8 @@ def create_requirement_link(
 def get_requirement_link_by_id(
     db: Session,
     link_id: int,
-    project_id: Optional[int] = None
-) -> Optional[RequirementLink]:
+    project_id: int | None = None
+) -> RequirementLink | None:
     query = db.query(RequirementLink).filter(RequirementLink.id == link_id)
     if project_id:
         query = query.filter(RequirementLink.project_id == project_id)
@@ -49,11 +48,11 @@ def get_requirement_links_by_project(
     db: Session,
     project_id: int,
     user_id: int,
-    link_type: Optional[str] = None,
-    is_active: Optional[bool] = None,
+    link_type: str | None = None,
+    is_active: bool | None = None,
     skip: int = 0,
     limit: int = 100
-) -> List[RequirementLink]:
+) -> list[RequirementLink]:
     query = db.query(RequirementLink).join(Project).filter(
         RequirementLink.project_id == project_id,
         Project.user_id == user_id
@@ -69,8 +68,8 @@ def get_requirement_links_count(
     db: Session,
     project_id: int,
     user_id: int,
-    link_type: Optional[str] = None,
-    is_active: Optional[bool] = None
+    link_type: str | None = None,
+    is_active: bool | None = None
 ) -> int:
     query = db.query(RequirementLink).join(Project).filter(
         RequirementLink.project_id == project_id,
@@ -87,11 +86,11 @@ def get_requirement_links_by_types(
     db: Session,
     project_id: int,
     user_id: int,
-    link_types: List[str]
-) -> List[RequirementLink]:
+    link_types: list[str]
+) -> list[RequirementLink]:
     return db.query(RequirementLink).join(Project).filter(
         RequirementLink.project_id == project_id,
         Project.user_id == user_id,
         RequirementLink.link_type.in_(link_types),
-        RequirementLink.is_active == True
+        RequirementLink.is_active.is_(True)
     ).all()

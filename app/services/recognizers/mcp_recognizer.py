@@ -1,7 +1,6 @@
 """MCP识别器 - 通过MCP协议与外部识别服务交互实现元素识别。
 """
 import json
-from typing import Optional, List
 
 from loguru import logger
 
@@ -12,7 +11,7 @@ from app.utils.mcp_text_llm import MCPAwareLLM, get_mcp_llm
 
 class MCPRecognizer(ElementRecognizer):
 
-    def __init__(self, mcp_client: Optional[PlaywrightMCPClient] = None, mcp_llm: Optional[MCPAwareLLM] = None) -> None:
+    def __init__(self, mcp_client: PlaywrightMCPClient | None = None, mcp_llm: MCPAwareLLM | None = None) -> None:
         self._mcp_client = mcp_client
         self._mcp_llm = mcp_llm
 
@@ -24,7 +23,7 @@ class MCPRecognizer(ElementRecognizer):
         client = await self._get_mcp_client()
         return client is not None and client.is_available
 
-    async def _get_mcp_client(self) -> Optional[PlaywrightMCPClient]:
+    async def _get_mcp_client(self) -> PlaywrightMCPClient | None:
         if self._mcp_client is None:
             try:
                 self._mcp_client = await get_mcp_client()
@@ -37,7 +36,7 @@ class MCPRecognizer(ElementRecognizer):
             self._mcp_llm = get_mcp_llm()
         return self._mcp_llm
 
-    async def recognize(self, browser, operation_description: str, action_type: Optional[str] = None) -> RecognitionResult:
+    async def recognize(self, browser, operation_description: str, action_type: str | None = None) -> RecognitionResult:
         mcp_client = await self._get_mcp_client()
         if not mcp_client or not mcp_client.is_available:
             logger.warning("MCP客户端不可用，降级到视觉模型")
@@ -98,7 +97,7 @@ class MCPRecognizer(ElementRecognizer):
             }
         )
 
-    async def batch_recognize(self, browser, operations: List[str]) -> List[RecognitionResult]:
+    async def batch_recognize(self, browser, operations: list[str]) -> list[RecognitionResult]:
         mcp_client = await self._get_mcp_client()
         if not mcp_client or not mcp_client.is_available:
             return [
@@ -149,7 +148,7 @@ class MCPRecognizer(ElementRecognizer):
 
         return results
 
-    async def execute_action(self, result: RecognitionResult, action_type: str = "click", input_value: Optional[str] = None) -> bool:
+    async def execute_action(self, result: RecognitionResult, action_type: str = "click", input_value: str | None = None) -> bool:
         mcp_client = await self._get_mcp_client()
         if not mcp_client or not mcp_client.is_available:
             logger.warning("MCP客户端不可用，无法执行操作")
@@ -170,7 +169,7 @@ class MCPRecognizer(ElementRecognizer):
             else:
                 element = locator_value
 
-            def _mask_sensitive(val: Optional[str]) -> str:
+            def _mask_sensitive(val: str | None) -> str:
                 if not val:
                     return ""
                 if len(val) <= 2:

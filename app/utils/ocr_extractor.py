@@ -19,7 +19,6 @@ OCR文本提取器模块
     - opencv-python: 图片解码（cv2）
     - numpy: 图片数据转换
 """
-from typing import List, Dict, Optional
 
 from loguru import logger
 
@@ -49,7 +48,7 @@ class OCRExtractor:
     """
 
     def __init__(self):
-        self._ocr: Optional[RapidOCR] = None
+        self._ocr: RapidOCR | None = None
 
     def _init_ocr(self) -> None:
         """延迟初始化RapidOCR实例
@@ -64,7 +63,7 @@ class OCRExtractor:
         self._ocr = RapidOCR()
         logger.info("RapidOCR实例初始化完成")
 
-    def _run_ocr(self, image_bytes: bytes) -> List:
+    def _run_ocr(self, image_bytes: bytes) -> list:
         """执行OCR识别的内部方法
 
         将图片字节数据解码为numpy数组后传入RapidOCR进行识别。
@@ -111,7 +110,7 @@ class OCRExtractor:
             if not result:
                 logger.warning("OCR识别结果为空")
                 return ""
-            lines: List[str] = []
+            lines: list[str] = []
             for item in result:
                 text = item[1]
                 lines.append(text)
@@ -124,7 +123,7 @@ class OCRExtractor:
             logger.error(f"OCR提取异常: {e}")
             return ""
 
-    def extract_text_with_position(self, image_bytes: bytes) -> List[Dict]:
+    def extract_text_with_position(self, image_bytes: bytes) -> list[dict]:
         """提取图片中带位置信息的文本
 
         识别图片中的所有文字，返回每个文本区域的位置坐标和置信度。
@@ -147,7 +146,7 @@ class OCRExtractor:
             if not result:
                 logger.warning("OCR识别结果为空")
                 return []
-            items: List[Dict] = []
+            items: list[dict] = []
             for item in result:
                 box = item[0]
                 text = item[1]

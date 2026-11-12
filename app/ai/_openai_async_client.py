@@ -17,7 +17,7 @@ OpenAI 兼容 AI Client 异步实现
 import asyncio
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 from openai import AsyncOpenAI
@@ -40,11 +40,11 @@ class AsyncOpenAIClient:
     def __init__(
         self,
         *,
-        model: Optional[str] = None,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        model: str | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         max_retries: int = 3,
     ) -> None:
         self.model = model or settings.AI_MODEL_NAME
@@ -53,7 +53,7 @@ class AsyncOpenAIClient:
         self.temperature = temperature if temperature is not None else settings.AI_TEMPERATURE
         self.max_tokens = max_tokens if max_tokens is not None else settings.AI_MAX_TOKENS
         self.max_retries = max_retries
-        self._async_client: Optional[AsyncOpenAI] = None
+        self._async_client: AsyncOpenAI | None = None
 
     @staticmethod
     def _normalize_base_url(raw_url: str) -> str:
@@ -92,12 +92,12 @@ class AsyncOpenAIClient:
         self,
         prompt: str,
         *,
-        system: Optional[str] = None,
-        schema: Optional[Dict[str, Any]] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        timeout: Optional[float] = None,
+        system: str | None = None,
+        schema: dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        metadata: dict[str, Any] | None = None,
+        timeout: float | None = None,
     ) -> AIResponse:
         """异步执行 AI 补全调用，含单次调用硬超时。
 
@@ -193,7 +193,7 @@ class AsyncOpenAIClient:
 
             return ai_response
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency_ms = int((time.monotonic() - start) * 1000)
             error_msg = f"AI call timeout after {_timeout}s"
             logger.error(error_msg)
@@ -213,7 +213,7 @@ class AsyncOpenAIClient:
     def _record_call(
         self,
         response: AIResponse,
-        metadata: Optional[Dict[str, Any]],
+        metadata: dict[str, Any] | None,
     ) -> None:
         """记录成功的 AI 调用日志。"""
         try:
@@ -241,7 +241,7 @@ class AsyncOpenAIClient:
     def _record_failure(
         self,
         error_msg: str,
-        metadata: Optional[Dict[str, Any]],
+        metadata: dict[str, Any] | None,
         latency_ms: int,
     ) -> None:
         """记录失败的 AI 调用日志。"""

@@ -9,7 +9,7 @@
 依赖：app.services.impact_analysis.models
 """
 import logging
-from typing import Dict, Iterable, List, Set
+from collections.abc import Iterable
 
 from app.services.impact_analysis.models import (
     CodeChange,
@@ -67,13 +67,13 @@ class ImpactMapper:
             )
 
         # 按文件分组覆盖率条目，加速查询
-        coverage_by_file: Dict[str, List[CoverageEntry]] = {}
+        coverage_by_file: dict[str, list[CoverageEntry]] = {}
         for entry in entries_list:
             coverage_by_file.setdefault(entry.file_path, []).append(entry)
 
-        impacted_test_ids: Set[int] = set()
-        impacted_files: Set[str] = set()
-        impacted_ranges: Dict[int, ImpactRange] = {}
+        impacted_test_ids: set[int] = set()
+        impacted_files: set[str] = set()
+        impacted_ranges: dict[int, ImpactRange] = {}
 
         for change in changes_list:
             if change.is_deleted:
@@ -92,7 +92,7 @@ class ImpactMapper:
 
             # 查询覆盖变更行的测试用例
             change_lines = change.added_lines | change.deleted_lines
-            matched_count_for_file: Dict[int, int] = {}
+            matched_count_for_file: dict[int, int] = {}
             for entry in file_entries:
                 for line in change_lines:
                     if entry.covers_line(line):
@@ -114,10 +114,7 @@ class ImpactMapper:
                 )
 
         # 计算缩减比例
-        if total_test_count > 0:
-            reduction_ratio = 1.0 - (len(impacted_test_ids) / total_test_count)
-        else:
-            reduction_ratio = 0.0
+        reduction_ratio = 1.0 - len(impacted_test_ids) / total_test_count if total_test_count > 0 else 0.0
 
         result = ImpactResult(
             impacted_test_ids=sorted(impacted_test_ids),
@@ -137,7 +134,7 @@ class ImpactMapper:
         self,
         ranges: Iterable[ImpactRange],
         threshold: float = 0.7,
-    ) -> List[int]:
+    ) -> list[int]:
         """筛选高置信度测试用例 ID。
 
         业务用途：低置信度用例标记人工复核，高置信度用例自动执行。

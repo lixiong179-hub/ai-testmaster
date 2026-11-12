@@ -8,7 +8,7 @@
 """
 import json
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -90,13 +90,13 @@ async def analyze_project(
 @router.get("/list/{project_id}")
 async def get_test_points(
     project_id: int,
-    module: Optional[str] = Query(None, description="模块名称"),
-    priority: Optional[int] = Query(None, ge=1, le=3, description="优先级"),
-    created_by: Optional[str] = Query(None, description="创建人用户名"),
-    requirement_id: Optional[int] = Query(None, description="关联需求ID"),
-    keyword: Optional[str] = Query(None, description="关键词"),
-    created_from: Optional[date] = Query(None, description="创建开始日期"),
-    created_to: Optional[date] = Query(None, description="创建结束日期"),
+    module: str | None = Query(None, description="模块名称"),
+    priority: int | None = Query(None, ge=1, le=3, description="优先级"),
+    created_by: str | None = Query(None, description="创建人用户名"),
+    requirement_id: int | None = Query(None, description="关联需求ID"),
+    keyword: str | None = Query(None, description="关键词"),
+    created_from: date | None = Query(None, description="创建开始日期"),
+    created_to: date | None = Query(None, description="创建结束日期"),
     sort_by: str = Query("create_time", description="排序字段"),
     sort_order: str = Query("desc", pattern="^(asc|desc)$", description="排序方向"),
     page: int = Query(1, ge=1, description="页码"),
@@ -209,7 +209,7 @@ async def get_test_point_detail(
 @router.post("/batch-save")
 async def batch_save_test_points(
     project_id: int = Query(..., description="项目ID"),
-    test_points: List[Dict[str, Any]] = Body(..., description="测试点列表"),
+    test_points: list[dict[str, Any]] = Body(..., description="测试点列表"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -346,7 +346,7 @@ async def update_test_point(
 @router.delete("/batch")
 async def batch_delete_test_points(
     project_id: int = Query(..., description="项目ID"),
-    ids: List[int] = Body(..., description="要删除的测试点ID列表"),
+    ids: list[int] = Body(..., description="要删除的测试点ID列表"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):

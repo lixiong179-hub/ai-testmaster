@@ -15,7 +15,7 @@ set_config 时刷新缓存并写入 audit_log。
 """
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 from app.models.pipeline_config import PipelineConfig
@@ -140,7 +140,7 @@ def set_config(
     db: Session,
     key: str,
     value: Any,
-    actor_id: Optional[int] = None,
+    actor_id: int | None = None,
 ) -> PipelineConfig:
     """修改配置项。
 

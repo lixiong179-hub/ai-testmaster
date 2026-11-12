@@ -7,12 +7,12 @@
     - _render_flow_meta_hint: flow_meta 补充信息渲染
     - _group_edges_by_source: 按源节点分组连线
 """
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from loguru import logger
 
 
-def _safe_int(value: Any) -> Optional[int]:
+def _safe_int(value: Any) -> int | None:
     """安全地将值转换为整数。
 
     Args:
@@ -30,7 +30,7 @@ def _safe_int(value: Any) -> Optional[int]:
         return None
 
 
-def _find_main_step(main_nodes: List[Dict[str, Any]], screen_id: int) -> str:
+def _find_main_step(main_nodes: list[dict[str, Any]], screen_id: int) -> str:
     """在主干流程中查找指定 screen_id 对应的步骤序号。
 
     Args:
@@ -54,10 +54,10 @@ _CONDITION_TEMPLATES = {
 
 
 def _infer_condition(
-    edge: Dict[str, Any],
+    edge: dict[str, Any],
     edge_type: str,
-    target_node: Dict[str, Any],
-    source_node: Optional[Dict[str, Any]] = None,
+    target_node: dict[str, Any],
+    source_node: dict[str, Any] | None = None,
 ) -> str:
     """推断触发条件：优先使用用户填写的 condition，缺失时自动推断并标注来源。
 
@@ -99,7 +99,7 @@ def _infer_condition(
     return f"{inferred}（系统推断）"
 
 
-def _render_flow_meta_hint(flow_meta: Dict[str, Any], edge_type: str) -> str:
+def _render_flow_meta_hint(flow_meta: dict[str, Any], edge_type: str) -> str:
     """渲染 flow_meta 中的补充信息为 Prompt 提示文本。
 
     Args:
@@ -133,7 +133,7 @@ def _render_flow_meta_hint(flow_meta: Dict[str, Any], edge_type: str) -> str:
     return f' [{"; ".join(hints)}]'
 
 
-def _render_edge_hint(edge: Dict[str, Any]) -> str:
+def _render_edge_hint(edge: dict[str, Any]) -> str:
     """渲染连线中的 trigger_action/pre_action/note 为 Prompt 提示文本。
 
     与 _render_flow_meta_hint 的区别：
@@ -167,8 +167,8 @@ def _render_edge_hint(edge: Dict[str, Any]) -> str:
 
 
 def _group_edges_by_source(
-    edge_list: List[Dict[str, Any]],
-) -> Dict[int, List[Dict[str, Any]]]:
+    edge_list: list[dict[str, Any]],
+) -> dict[int, list[dict[str, Any]]]:
     """按源节点 screen_id 分组连线。
 
     Args:
@@ -177,7 +177,7 @@ def _group_edges_by_source(
     Returns:
         以源节点 screen_id 为 key、连线列表为 value 的字典。
     """
-    grouped: Dict[int, List[Dict[str, Any]]] = {}
+    grouped: dict[int, list[dict[str, Any]]] = {}
     for e in edge_list:
         src = _safe_int(e.get('source'))
         if src is not None:

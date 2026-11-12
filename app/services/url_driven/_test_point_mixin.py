@@ -10,7 +10,7 @@
 设计要点：单文件聚焦测试点推导与元素归类，与 Prompt 构建/锚定校验/生成主
 流程解耦，便于随识别规则演进独立调整与单测。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.services.url_driven.site_explorer import PageSnapshot, SiteMap
 
@@ -30,7 +30,7 @@ class TestPointMixin:
     依赖宿主传入 SiteMap。识别常量集中在本模块，便于统一调优。
     """
 
-    def _derive_test_points(self, site_map: SiteMap) -> List[Dict[str, Any]]:
+    def _derive_test_points(self, site_map: SiteMap) -> list[dict[str, Any]]:
         """从 PageSnapshot 元素识别核心入口测试点。
 
         每页至多产生一个测试点（按 登录→搜索→表单→导航 优先级取首个命中类型），
@@ -40,14 +40,14 @@ class TestPointMixin:
             测试点字典列表，每项含 test_point_type/target_page_url/
             related_elements/page_snapshot（page_snapshot 供主流程回查元素）。
         """
-        points: List[Dict[str, Any]] = []
+        points: list[dict[str, Any]] = []
         for page in site_map.pages:
             point = self._derive_page_test_point(page)
             if point is not None:
                 points.append(point)
         return points
 
-    def _derive_page_test_point(self, page: PageSnapshot) -> Optional[Dict[str, Any]]:
+    def _derive_page_test_point(self, page: PageSnapshot) -> dict[str, Any] | None:
         """识别单页首个核心入口类型，返回测试点字典或 None。"""
         if page.is_login_page:
             return self._make_test_point(_TEST_POINT_LOGIN, page, self._login_related_elements(page))
@@ -62,7 +62,7 @@ class TestPointMixin:
             )
         return None
 
-    def _fallback_login_test_points(self, site_map: SiteMap) -> List[Dict[str, Any]]:
+    def _fallback_login_test_points(self, site_map: SiteMap) -> list[dict[str, Any]]:
         """无核心入口时构造登录测试点（若有登录页），保证至少一条降级路径。
 
         用于 generate 主流程在 _derive_test_points 返回空但站点含登录页时，
@@ -77,8 +77,8 @@ class TestPointMixin:
 
     @staticmethod
     def _make_test_point(
-        point_type: str, page: PageSnapshot, related_elements: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        point_type: str, page: PageSnapshot, related_elements: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """构造测试点字典，page_snapshot 字段供主流程回查页面元素做锚定校验。"""
         return {
             "test_point_type": point_type,
@@ -88,7 +88,7 @@ class TestPointMixin:
         }
 
     @staticmethod
-    def _login_related_elements(page: PageSnapshot) -> List[Dict[str, Any]]:
+    def _login_related_elements(page: PageSnapshot) -> list[dict[str, Any]]:
         """登录页相关元素：textbox + button（用户名/密码/登录按钮）。"""
         return [
             element for element in page.elements
@@ -96,9 +96,9 @@ class TestPointMixin:
         ]
 
     @staticmethod
-    def _search_elements(page: PageSnapshot) -> List[Dict[str, Any]]:
+    def _search_elements(page: PageSnapshot) -> list[dict[str, Any]]:
         """识别搜索元素：searchbox 角色或 name 含搜索关键词的可交互元素。"""
-        matched: List[Dict[str, Any]] = []
+        matched: list[dict[str, Any]] = []
         for element in page.elements:
             role = str(element.get("role", "")).lower()
             name = str(element.get("name", "")).lower()
@@ -107,7 +107,7 @@ class TestPointMixin:
         return matched
 
     @staticmethod
-    def _form_related_elements(page: PageSnapshot) -> List[Dict[str, Any]]:
+    def _form_related_elements(page: PageSnapshot) -> list[dict[str, Any]]:
         """表单相关元素：取首个 form 的可交互字段（前 5 个）作为相关元素提示。"""
         if not page.forms or not isinstance(page.forms[0], dict):
             return []
@@ -122,7 +122,7 @@ class TestPointMixin:
         ]
 
     @staticmethod
-    def _navigation_related_elements(page: PageSnapshot) -> List[Dict[str, Any]]:
+    def _navigation_related_elements(page: PageSnapshot) -> list[dict[str, Any]]:
         """导航相关元素：取前 5 个导航链接作为相关元素提示。"""
         return [
             {"role": "link", "name": nav.get("text", ""), "locator": ""}

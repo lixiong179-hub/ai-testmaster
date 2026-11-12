@@ -14,7 +14,6 @@
   asyncio.Event 无法跨事件循环使用
 """
 import threading
-from typing import Dict, Optional
 
 from loguru import logger
 
@@ -58,7 +57,7 @@ class ExecutionControlManager:
     """全局执行控制管理器，维护 task_id → _TaskController 映射"""
 
     def __init__(self) -> None:
-        self._controllers: Dict[int, _TaskController] = {}
+        self._controllers: dict[int, _TaskController] = {}
         self._lock = threading.Lock()
 
     def register(self, task_id: int) -> _TaskController:
@@ -74,7 +73,7 @@ class ExecutionControlManager:
         with self._lock:
             self._controllers.pop(task_id, None)
 
-    def get(self, task_id: int) -> Optional[_TaskController]:
+    def get(self, task_id: int) -> _TaskController | None:
         with self._lock:
             return self._controllers.get(task_id)
 

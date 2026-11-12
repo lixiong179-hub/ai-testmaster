@@ -6,7 +6,6 @@
 """
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
-from typing import Optional, List, Union
 import os
 import logging
 import json
@@ -18,7 +17,7 @@ _logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-def parse_list(value: Union[str, List]) -> List[str]:
+def parse_list(value: str | list) -> list[str]:
     """将配置值统一解析为字符串列表，支持JSON数组和逗号分隔格式。"""
     if isinstance(value, list):
         return value
@@ -45,7 +44,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "dev"
 
     DATABASE_URL: str = ""
-    DATABASE_URL_SLAVE: Optional[str] = None
+    DATABASE_URL_SLAVE: str | None = None
     # 兼容旧配置：DB_POOL_SIZE/DB_MAX_OVERFLOW 仍生效，作为 async 引擎默认值
     DB_POOL_SIZE: int = 20
     DB_POOL_TIMEOUT: int = 30
@@ -470,32 +469,32 @@ class Settings(BaseSettings):
         extra = "ignore"
 
     @property
-    def allowed_extensions_list(self) -> List[str]:
+    def allowed_extensions_list(self) -> list[str]:
         """获取允许的文件扩展名列表。"""
         return parse_list(self.ALLOWED_EXTENSIONS)
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         """获取CORS允许的来源域名列表。"""
         return parse_list(self.CORS_ORIGINS)
 
     @property
-    def cors_allow_methods_list(self) -> List[str]:
+    def cors_allow_methods_list(self) -> list[str]:
         """获取CORS允许的HTTP方法列表。"""
         return parse_list(self.CORS_ALLOW_METHODS)
 
     @property
-    def cors_allow_headers_list(self) -> List[str]:
+    def cors_allow_headers_list(self) -> list[str]:
         """获取CORS允许的请求头列表。"""
         return parse_list(self.CORS_ALLOW_HEADERS)
 
     @property
-    def csrf_exempt_methods_list(self) -> List[str]:
+    def csrf_exempt_methods_list(self) -> list[str]:
         """获取CSRF豁免的HTTP方法列表（大写）。"""
         return [m.upper().strip() for m in parse_list(self.SECURITY_CSRF_EXEMPT_METHODS)]
 
     @property
-    def csrf_exempt_paths_list(self) -> List[str]:
+    def csrf_exempt_paths_list(self) -> list[str]:
         """获取CSRF豁免的路径列表（精确匹配，去除空白）。
 
         业务用途：SAML ACS 等 IdP 回调端点由外部 POST，无法携带 CSRF token，
@@ -516,7 +515,7 @@ class Settings(BaseSettings):
         return "; ".join(parts)
 
     @property
-    def oidc_idp_configs_list(self) -> List[dict]:
+    def oidc_idp_configs_list(self) -> list[dict]:
         """解析 OIDC_IDP_CONFIGS 为 IdP 配置字典列表。
 
         每项结构：{"provider": str, "client_id": str, "client_secret": str,
@@ -530,7 +529,7 @@ class Settings(BaseSettings):
         except Exception:
             return []
 
-    def get_oidc_provider_config(self, provider: str) -> Optional[dict]:
+    def get_oidc_provider_config(self, provider: str) -> dict | None:
         """按 provider 标识查找 IdP 配置。
 
         Args:
@@ -545,7 +544,7 @@ class Settings(BaseSettings):
         return None
 
     @property
-    def saml_idp_configs_list(self) -> List[dict]:
+    def saml_idp_configs_list(self) -> list[dict]:
         """解析 SAML_IDP_CONFIGS 为 IdP 配置字典列表。
 
         每项结构：{"provider": str, "entity_id": str, "sso_url": str,
@@ -559,7 +558,7 @@ class Settings(BaseSettings):
         except Exception:
             return []
 
-    def get_saml_provider_config(self, provider: str) -> Optional[dict]:
+    def get_saml_provider_config(self, provider: str) -> dict | None:
         """按 provider 标识查找 SAML IdP 配置。
 
         Args:
@@ -579,7 +578,10 @@ class Settings(BaseSettings):
         ensure_secret_keys(self)
 
 
-from app.core.key_management import generate_secret_key as _generate_secret_key
+
+
+# 转发符号：测试与下游从本模块导入 `_generate_secret_key`（勿按 F401 删除）
+from app.core.key_management import generate_secret_key as _generate_secret_key  # noqa: E402,F401
 
 
 _PROFILE_CLASS_NAMES = {"DevSettings", "TestSettings", "ProdSettings"}

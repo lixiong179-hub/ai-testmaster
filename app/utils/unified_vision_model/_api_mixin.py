@@ -1,6 +1,5 @@
 import json
 import re
-from typing import List, Dict, Any, Optional
 from loguru import logger
 
 from app.utils.unified_vision_model._types import ElementInfo
@@ -13,7 +12,7 @@ class _VisionApiMixin:
         screenshot: bytes,
         description: str,
         min_confidence: float = 0.9,
-    ) -> List[ElementInfo]:
+    ) -> list[ElementInfo]:
         if not self.api_key:
             logger.error(f"{self.model_type.value} API Key 未配置")
             return []
@@ -53,7 +52,7 @@ class _VisionApiMixin:
 
         return result or "无法描述页面内容"
 
-    def analyze_image(self, screenshot: bytes, prompt: str, system_prompt: Optional[str] = None) -> str:
+    def analyze_image(self, screenshot: bytes, prompt: str, system_prompt: str | None = None) -> str:
         if not self.api_key:
             return "视觉模型未配置"
 
@@ -106,8 +105,8 @@ class _VisionApiMixin:
     def analyze_text(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        temperature: Optional[float] = None,
+        system_prompt: str | None = None,
+        temperature: float | None = None,
     ) -> str:
         if not self.api_key:
             return "视觉模型未配置"
@@ -155,7 +154,7 @@ class _VisionApiMixin:
 
 只返回JSON对象，不要其他解释文字。"""
 
-    def _parse_element_recognition(self, content: str, min_confidence: float) -> List[ElementInfo]:
+    def _parse_element_recognition(self, content: str, min_confidence: float) -> list[ElementInfo]:
         elements_data = None
         try:
             elements_data = json.loads(content)

@@ -30,7 +30,7 @@ UI原型项目CRUD操作模块
     - iteration_id=正整数：按迭代ID精确匹配
     - 不传 iteration_id：不过滤迭代
 """
-from typing import List, Optional, Dict, Any
+from typing import Any
 from sqlalchemy.orm import Session
 from app.models.ui_prototype import UIPrototypeProject
 from app.models.project import Project
@@ -41,10 +41,10 @@ def create_ui_prototype_project(
     db: Session,
     project_id: int,
     name: str,
-    created_by: Optional[int] = None,
-    description: Optional[str] = None,
+    created_by: int | None = None,
+    description: str | None = None,
     source: str = "mockingbot",
-    iteration_id: Optional[int] = None,
+    iteration_id: int | None = None,
 ) -> UIPrototypeProject:
     """
     创建UI原型项目
@@ -83,8 +83,8 @@ def get_ui_prototype_projects_by_project(
     user_id: int,
     skip: int = 0,
     limit: int = 100,
-    iteration_id: Optional[int] = None,
-) -> List[UIPrototypeProject]:
+    iteration_id: int | None = None,
+) -> list[UIPrototypeProject]:
     """
     获取项目的UI原型项目列表（JOIN权限隔离+迭代过滤）
 
@@ -126,7 +126,7 @@ def get_ui_prototype_projects_count(
     db: Session,
     project_id: int,
     user_id: int,
-    iteration_id: Optional[int] = None,
+    iteration_id: int | None = None,
 ) -> int:
     """
     获取UI原型项目数量
@@ -163,7 +163,7 @@ def get_ui_prototype_projects_count(
 
 def update_prototype_project_stats(
     db: Session, prototype_project_id: int
-) -> Optional[UIPrototypeProject]:
+) -> UIPrototypeProject | None:
     """
     更新原型项目统计信息
 
@@ -226,8 +226,8 @@ def update_prototype_project_stats(
 
 
 def update_prototype_project_merged_flow(
-    db: Session, prototype_project_id: int, merged_flow: Dict[str, Any]
-) -> Optional[UIPrototypeProject]:
+    db: Session, prototype_project_id: int, merged_flow: dict[str, Any]
+) -> UIPrototypeProject | None:
     """
     更新原型项目的合并流程图
 

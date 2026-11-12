@@ -4,7 +4,7 @@
 保留高分段落及相邻上下文。
 """
 import re
-from typing import Any, Tuple
+from typing import Any
 
 from app.services.test_case_generation._helpers_constants import DEFAULT_CONTEXT_TOKEN_BUDGET
 from app.services.test_case_generation._helpers_text import _safe_json_text, _score_terms
@@ -40,7 +40,7 @@ def _trim_requirement_text(
     terms: set[str],
     budget: ContextBudgetController,
     token_budget: int,
-) -> Tuple[str, bool]:
+) -> tuple[str, bool]:
     """按关键词相关性裁剪需求文本，保留高分段落及相邻上下文。"""
     if not text:
         return "", False

@@ -1,7 +1,8 @@
 
 """参数化解析器 - 解析${namespace.param}语法为实际值。"""
 import re
-from typing import Dict, Callable, Optional
+from typing import Optional
+from collections.abc import Callable
 from loguru import logger
 
 from app.services.test_data_generator import TestDataGenerator
@@ -23,10 +24,10 @@ class TestDataParameterizer(ParameterHandlerMixin):
 
     PARAM_PATTERN = re.compile(r'\$\{([^}]+)\}')
 
-    def __init__(self, context: Optional[ParameterContext] = None) -> None:
+    def __init__(self, context: ParameterContext | None = None) -> None:
         self.context = context or ParameterContext(execution_id=self._generate_execution_id())
         self.generator = TestDataGenerator()
-        self._param_handlers: Dict[str, Callable[[str], str]] = {
+        self._param_handlers: dict[str, Callable[[str], str]] = {
             'random': self._handle_random_param,
             'date': self._handle_date_param,
             'user': self._handle_user_param,
@@ -77,7 +78,7 @@ class TestDataParameterizer(ParameterHandlerMixin):
             logger.error(f"参数解析失败: {param_expr}, error={e}")
             return f"${{{param_expr}}}"
 
-    def get_cached_params(self) -> Dict[str, str]:
+    def get_cached_params(self) -> dict[str, str]:
         """获取所有已缓存的参数值副本。"""
         return self.context.cached_values.copy()
 
@@ -86,16 +87,16 @@ class TestDataParameterizer(ParameterHandlerMixin):
         self.context.cached_values.clear()
 
 
-def parse_parameters(text: str, context: Optional[ParameterContext] = None) -> str:
+def parse_parameters(text: str, context: ParameterContext | None = None) -> str:
     """便捷函数 - 解析参数化文本。"""
     parameterizer = TestDataParameterizer(context)
     return parameterizer.parse(text)
 
 
 def create_parameter_context(
-    execution_id: Optional[str] = None,
-    user_id: Optional[int] = None,
-    project_id: Optional[int] = None
+    execution_id: str | None = None,
+    user_id: int | None = None,
+    project_id: int | None = None
 ) -> ParameterContext:
     """便捷函数 - 创建参数化上下文。"""
     from datetime import datetime

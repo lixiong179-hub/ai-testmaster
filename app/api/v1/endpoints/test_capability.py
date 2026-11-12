@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -19,20 +19,22 @@ from app.schemas.test_capability import (
 )
 from app.services.test_capability_service import delete_capability
 
-# [R4-6 冻结 2026-11-10] 「测试能力管理」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
+# [B-08 校正 2026-11-12] 前端**已接线**：`src/api/testCapability.ts`（5 个方法，URL 与后端一致），
+# 调用方为项目详情页 `TestCapabilityTab.vue`；原 R4-6「命中 0」结论系审计脚本未解析
+# `APIRouter(prefix=...)` 导致的误判，已修复脚本并重新生成报告。
 router = APIRouter(prefix="/test-capability", tags=["测试能力管理"])
 
 
 @router.get("/", response_model=ApiResponse)
 async def list_capabilities(
     project_id: int = Query(..., description="项目ID"),
-    status: Optional[str] = Query(None, description="能力状态过滤"),
+    status: str | None = Query(None, description="能力状态过滤"),
     include_archived: bool = Query(False, description="是否包含已归档能力"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     conditions = [TestCapability.project_id == project_id]
     if not include_archived:
         conditions.append(TestCapability.status != CapabilityStatus.ARCHIVED.value)
@@ -42,7 +44,7 @@ async def list_capabilities(
     result = await db.execute(
         select(TestCapability).where(*conditions).order_by(TestCapability.key)
     )
-    capabilities: List[TestCapability] = list(result.scalars().all())
+    capabilities: list[TestCapability] = list(result.scalars().all())
 
     total = len(capabilities)
     skip = (page - 1) * page_size

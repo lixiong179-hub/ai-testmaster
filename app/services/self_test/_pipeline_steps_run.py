@@ -2,7 +2,6 @@
 report generation, and cleanup."""
 import asyncio
 import time
-from typing import Any, Dict, List, Optional, Tuple
 
 from loguru import logger
 from sqlalchemy import select
@@ -20,8 +19,8 @@ async def _step_create_task(
     db: AsyncSession,
     project_id: int,
     user_id: int,
-    case_ids: List[int],
-) -> Tuple[bool, Optional[str], Optional[int]]:
+    case_ids: list[int],
+) -> tuple[bool, str | None, int | None]:
     """步骤5: 任务创建 - 创建测试任务，将所有活跃用例加入任务。
 
     Args:
@@ -74,7 +73,7 @@ async def _step_execute(
     db: AsyncSession,
     project_id: int,
     task_id: int,
-) -> Tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """步骤6: 执行 - 启动 Playwright 执行（含浏览器环境缺陷捕获）。
 
     TestExecutionEngineV2 内部使用 sync Session，通过
@@ -138,7 +137,7 @@ async def _step_assess_severity(
     db: AsyncSession,
     project_id: int,
     task_id: int,
-) -> Tuple[bool, Optional[str], Dict[str, int]]:
+) -> tuple[bool, str | None, dict[str, int]]:
     """步骤7: 严重度评估 - 遍历执行结果，评估缺陷严重度，P0/P1 立即通知。
 
     Args:
@@ -173,7 +172,7 @@ async def _step_assess_severity(
         )
     ).scalars().all()
 
-    defect_counts: Dict[str, int] = {"p0": 0, "p1": 0, "p2": 0, "p3": 0}
+    defect_counts: dict[str, int] = {"p0": 0, "p1": 0, "p2": 0, "p3": 0}
 
     for result in test_results:
         # 从错误信息中提取失败类型
@@ -231,7 +230,7 @@ async def _step_generate_report(
     project_id: int,
     task_id: int,
     user_id: int,
-) -> Tuple[bool, Optional[str], Optional[int]]:
+) -> tuple[bool, str | None, int | None]:
     """步骤8: 报告生成 - 生成以缺陷为中心的测试报告。
 
     ReportService.generate_report 内部使用 sync Session 且调用链较深
@@ -275,7 +274,7 @@ async def _step_generate_report(
 async def _step_cleanup(
     db: AsyncSession,
     project_id: int,
-) -> Tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """步骤9: 数据清理 - 清理临时数据（测试点草稿、未保存的生成批次等）。
 
     Args:

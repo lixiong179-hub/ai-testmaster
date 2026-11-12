@@ -1,5 +1,4 @@
 from enum import Enum, IntEnum
-from typing import List, Tuple
 
 from app.core.constants._test_case_enums import (
     TestCasePriority,
@@ -24,7 +23,7 @@ FileExtension = Enum(
     type=str
 )
 
-ALLOWED_EXTENSIONS: List[str] = list(SUPPORTED_FILE_TYPES.keys())
+ALLOWED_EXTENSIONS: list[str] = list(SUPPORTED_FILE_TYPES.keys())
 
 
 class TimeoutConfig(IntEnum):
@@ -46,9 +45,9 @@ class SecurityConfig(IntEnum):
     ACCOUNT_LOCKOUT_MINUTES = 30
 
 
-LOGIN_KEYWORDS: List[str] = ["登录", "用户名", "密码", "验证码", "login", "username", "password"]
+LOGIN_KEYWORDS: list[str] = ["登录", "用户名", "密码", "验证码", "login", "username", "password"]
 
-AUTH_FAILURE_KEYWORDS: Tuple[str, ...] = (
+AUTH_FAILURE_KEYWORDS: tuple[str, ...] = (
     "unauthorized", "forbidden", "permission", "认证失败", "无权限", "权限", "登录",
     "invalid", "incorrect", "expired", "token"
 )

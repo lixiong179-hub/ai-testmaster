@@ -20,7 +20,7 @@
 """
 import zipfile
 import os
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any
 from datetime import datetime
 
 from app.crud import ui_prototype as ui_prototype_crud
@@ -55,8 +55,8 @@ class PipelineUploadMixin:
         db,
         project_id: int,
         user_id: int,
-        upload_dir: Optional[str] = None,
-        parse_mode: Optional[str] = None
+        upload_dir: str | None = None,
+        parse_mode: str | None = None
     ) -> None:
         """初始化解析管道
 
@@ -78,7 +78,7 @@ class PipelineUploadMixin:
         ext = os.path.splitext(filename.lower())[1]
         return ext in self.SUPPORTED_IMAGE_TYPES
 
-    def _extract_zip(self, zip_path: str, extract_to: str) -> List[str]:
+    def _extract_zip(self, zip_path: str, extract_to: str) -> list[str]:
         """解压ZIP文件，返回图片文件路径列表"""
         image_files = []
         try:
@@ -102,11 +102,11 @@ class PipelineUploadMixin:
 
     async def upload_and_create_screens(
         self,
-        files: List[Dict[str, Any]],
+        files: list[dict[str, Any]],
         prototype_name: str,
-        prototype_project_id: Optional[int] = None,
+        prototype_project_id: int | None = None,
         is_zip: bool = False
-    ) -> Tuple[List[int], str]:
+    ) -> tuple[list[int], str]:
         """上传文件并创建屏幕记录
 
         Args:

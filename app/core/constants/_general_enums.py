@@ -1,4 +1,4 @@
-from enum import Enum, IntEnum
+from enum import IntEnum, StrEnum
 
 
 class ViewVisibility(IntEnum):
@@ -30,7 +30,7 @@ class HTTPStatus(IntEnum):
     NOT_FOUND = 404
 
 
-class Environment(str, Enum):
+class Environment(StrEnum):
     DEV = "dev"
     TEST = "test"
     PROD = "prod"

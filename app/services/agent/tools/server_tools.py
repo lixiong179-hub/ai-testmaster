@@ -14,7 +14,7 @@ ValidateTestCaseSyntaxTool 已迁移至 app.services.agent.agents._test_case_too
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import select
 
@@ -38,7 +38,7 @@ class GetTestCaseTool(Tool):
         "required": ["test_case_id"],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
         test_case_id = params["test_case_id"]
@@ -69,7 +69,7 @@ class QueryProjectTool(Tool):
         "required": [],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
         if context.project_id is None:
@@ -100,7 +100,7 @@ class QueryAuditTool(Tool):
         "required": ["test_case_id"],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
         limit = min(int(params.get("limit", 10)), 50)
@@ -146,7 +146,7 @@ class QueryLocatorHistoryTool(Tool):
         "required": ["locator_id"],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
         result = await context.db.execute(

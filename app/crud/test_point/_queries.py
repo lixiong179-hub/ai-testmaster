@@ -1,6 +1,5 @@
-from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.test_point import TestPoint
 from app.models.project import Project
@@ -13,11 +12,11 @@ def create_test_point(
     module: str,
     point: str,
     priority: int,
-    ai_prompt: Optional[str] = None,
-    created_by: Optional[str] = None,
-    requirement_id: Optional[int] = None,
-    capability_id: Optional[int] = None,
-    status: Optional[str] = None,
+    ai_prompt: str | None = None,
+    created_by: str | None = None,
+    requirement_id: int | None = None,
+    capability_id: int | None = None,
+    status: str | None = None,
 ) -> TestPoint:
     db_test_point = TestPoint(
         project_id=project_id,
@@ -40,7 +39,7 @@ def get_test_point_by_id(
     db: Session,
     test_point_id: int,
     project_id: int
-) -> Optional[TestPoint]:
+) -> TestPoint | None:
     return db.query(TestPoint).filter(
         TestPoint.id == test_point_id,
         TestPoint.project_id == project_id
@@ -50,11 +49,11 @@ def get_test_point_by_id(
 def get_test_points_by_project(
     db: Session,
     project_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
+    module: str | None = None,
+    priority: int | None = None,
     skip: int = 0,
     limit: int = 100
-) -> List[TestPoint]:
+) -> list[TestPoint]:
     query = db.query(TestPoint).filter(TestPoint.project_id == project_id)
     if module:
         query = query.filter(TestPoint.module == module)
@@ -67,11 +66,11 @@ def get_test_points_by_project_and_user(
     db: Session,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
+    module: str | None = None,
+    priority: int | None = None,
     skip: int = 0,
     limit: int = 100
-) -> List[TestPoint]:
+) -> list[TestPoint]:
     query = db.query(TestPoint).join(Project).filter(
         TestPoint.project_id == project_id,
         Project.user_id == user_id
@@ -87,8 +86,8 @@ def get_test_points_count(
     db: Session,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None
+    module: str | None = None,
+    priority: int | None = None
 ) -> int:
     query = db.query(TestPoint).join(Project).filter(
         TestPoint.project_id == project_id,
@@ -104,11 +103,11 @@ def get_test_points_count(
 async def get_test_points_by_project_async(
     db: AsyncSession,
     project_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
+    module: str | None = None,
+    priority: int | None = None,
     skip: int = 0,
     limit: int = 100
-) -> List[TestPoint]:
+) -> list[TestPoint]:
     """
     获取项目的测试点列表（异步版本）
 

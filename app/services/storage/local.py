@@ -9,9 +9,7 @@
     - 自动创建父目录，避免调用方处理目录创建
 """
 import asyncio
-import os
 from pathlib import Path
-from typing import Optional
 
 from app.services.storage.base import StorageBackend, StorageObject
 
@@ -43,7 +41,7 @@ class LocalStorage(StorageBackend):
             raise ValueError(f"key 逃逸根目录: {key}") from exc
         return full
 
-    async def save(self, key: str, data: bytes, content_type: Optional[str] = None) -> StorageObject:
+    async def save(self, key: str, data: bytes, content_type: str | None = None) -> StorageObject:
         if data is None:
             raise ValueError("data 不能为 None")
         path = self._full_path(key)
@@ -85,7 +83,7 @@ class LocalStorage(StorageBackend):
         path = self._full_path(key)
         return path.exists() and path.is_file()
 
-    async def url(self, key: str, expires: int = 3600) -> Optional[str]:
+    async def url(self, key: str, expires: int = 3600) -> str | None:
         path = self._full_path(key)
         if not path.exists():
             return None

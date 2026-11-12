@@ -1,13 +1,11 @@
 import logging
-from typing import List, Dict, Tuple, Optional
 
-from sqlalchemy import inspect
 
 logger = logging.getLogger(__name__)
 
 
 class _InspectorMixin:
-    def get_model_columns(self, table_name: str, Base) -> List[Dict]:
+    def get_model_columns(self, table_name: str, Base) -> list[dict]:
         if table_name not in Base.metadata.tables:
             return []
 
@@ -27,7 +25,7 @@ class _InspectorMixin:
 
         return columns
 
-    def _resolve_sql_default(self, column) -> Optional[str]:
+    def _resolve_sql_default(self, column) -> str | None:
         server_default = column.server_default
         if server_default is not None:
             arg = getattr(server_default, 'arg', None)
@@ -51,7 +49,7 @@ class _InspectorMixin:
             return f"'{arg}'"
         return str(arg)
 
-    def get_db_columns(self, table_name: str) -> List[Dict]:
+    def get_db_columns(self, table_name: str) -> list[dict]:
         try:
             columns = self.inspector.get_columns(table_name)
             return [{
@@ -66,7 +64,7 @@ class _InspectorMixin:
             logger.warning(f"无法获取表 {table_name} 的列信息: {e}")
             return []
 
-    def find_missing_columns(self, table_name: str, Base) -> Tuple[List[Dict], List[str]]:
+    def find_missing_columns(self, table_name: str, Base) -> tuple[list[dict], list[str]]:
         model_cols = self.get_model_columns(table_name, Base)
         db_cols = self.get_db_columns(table_name)
 

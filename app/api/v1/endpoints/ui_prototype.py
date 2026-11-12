@@ -16,9 +16,9 @@ UI原型管理模块（聚合入口）
 """
 
 from app.api.v1.endpoints.ui_prototype import (
-    router, 
-    UPLOAD_DIR, 
-    _ensure_upload_dir, 
+    router,
+    UPLOAD_DIR,
+    _ensure_upload_dir,
     _build_screen_response
 )
 

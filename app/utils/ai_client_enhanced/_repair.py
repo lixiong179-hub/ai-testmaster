@@ -1,9 +1,8 @@
 import json
 import re
-from typing import Optional
 
 
-def _repair_truncated_json(json_str: str) -> Optional[str]:
+def _repair_truncated_json(json_str: str) -> str | None:
     if not json_str or len(json_str) < 10:
         return None
     repaired = json_str.rstrip()

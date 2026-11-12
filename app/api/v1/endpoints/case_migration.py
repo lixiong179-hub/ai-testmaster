@@ -3,7 +3,6 @@ import asyncio
 import os
 import tempfile
 import threading
-from typing import Optional
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy import select
@@ -152,8 +151,8 @@ async def normalize_excel(
 async def import_excel(
     file: UploadFile = File(..., description="Excel文件"),
     project_id: int = Form(..., description="项目ID"),
-    target_device: Optional[str] = Form(None, description="目标设备类型：tablet/phone/desktop/web"),
-    iteration_id: Optional[int] = Form(None, description="迭代ID"),
+    target_device: str | None = Form(None, description="目标设备类型：tablet/phone/desktop/web"),
+    iteration_id: int | None = Form(None, description="迭代ID"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
@@ -234,7 +233,7 @@ async def migrate_single_case(
     target_device: str = Form(..., description="目标设备类型：tablet/phone/desktop/web"),
     target_project_id: int = Form(..., description="目标项目ID"),
     source_device: str = Form("tablet", description="源设备类型"),
-    target_ui_specs: Optional[str] = Form(None, description="目标设备UI规格描述"),
+    target_ui_specs: str | None = Form(None, description="目标设备UI规格描述"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:

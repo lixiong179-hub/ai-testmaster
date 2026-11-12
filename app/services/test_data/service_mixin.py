@@ -4,7 +4,7 @@
 - 测试数据记录的增删改查
 - 数据版本管理
 """
-from typing import List, Dict, Any, Optional
+from typing import Any
 from sqlalchemy.orm import Session
 from loguru import logger
 
@@ -28,9 +28,9 @@ class TestDataServiceMixin:
         step_id: int,
         field_name: str,
         field_type: str = "text",
-        data_value: Optional[str] = None,
+        data_value: str | None = None,
         generation_rule: str = "random",
-        description: Optional[str] = None
+        description: str | None = None
     ) -> TestData:
         """
         创建测试数据
@@ -60,7 +60,7 @@ class TestDataServiceMixin:
         logger.info(f"创建测试数据: {field_name} (ID: {data.id})")
         return data
 
-    def get_data(self, data_id: int) -> Optional[TestData]:
+    def get_data(self, data_id: int) -> TestData | None:
         """
         获取测试数据
 
@@ -72,7 +72,7 @@ class TestDataServiceMixin:
         """
         return self.db.query(TestData).filter(TestData.id == data_id).first()
 
-    def get_data_by_step(self, step_id: int) -> List[TestData]:
+    def get_data_by_step(self, step_id: int) -> list[TestData]:
         """
         获取步骤的所有测试数据
 
@@ -87,12 +87,12 @@ class TestDataServiceMixin:
     def update_data(
         self,
         data_id: int,
-        field_name: Optional[str] = None,
-        field_type: Optional[str] = None,
-        data_value: Optional[str] = None,
-        generation_rule: Optional[str] = None,
-        description: Optional[str] = None
-    ) -> Optional[TestData]:
+        field_name: str | None = None,
+        field_type: str | None = None,
+        data_value: str | None = None,
+        generation_rule: str | None = None,
+        description: str | None = None
+    ) -> TestData | None:
         """
         更新测试数据
 
@@ -149,8 +149,8 @@ class TestDataServiceMixin:
     def batch_create_data(
         self,
         step_id: int,
-        data_list: List[Dict[str, Any]]
-    ) -> List[TestData]:
+        data_list: list[dict[str, Any]]
+    ) -> list[TestData]:
         """
         批量创建测试数据
 

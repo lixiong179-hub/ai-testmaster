@@ -2,7 +2,6 @@
 """
 import json
 import os
-from typing import Optional, Dict, List
 from loguru import logger
 
 
@@ -19,8 +18,8 @@ class SelectorRegistry:
         if self._initialized:
             return
         self._initialized = True
-        self._selectors: Dict[str, Dict[str, str]] = {}
-        self._keyword_mapping: Dict[str, List[str]] = {}
+        self._selectors: dict[str, dict[str, str]] = {}
+        self._keyword_mapping: dict[str, list[str]] = {}
         self._load_default_selectors()
         self._load_custom_selectors()
 
@@ -63,7 +62,7 @@ class SelectorRegistry:
             return
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 custom_config = json.load(f)
 
             if not isinstance(custom_config, dict):
@@ -88,14 +87,14 @@ class SelectorRegistry:
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"加载自定义选择器配置失败: {e}")
 
-    def _match_keyword(self, action_description: str) -> Optional[str]:
+    def _match_keyword(self, action_description: str) -> str | None:
         for keyword, aliases in self._keyword_mapping.items():
             for alias in aliases:
                 if alias.lower() in action_description.lower():
                     return keyword
         return None
 
-    def get_selector(self, page_title: Optional[str], action_description: str) -> Optional[str]:
+    def get_selector(self, page_title: str | None, action_description: str) -> str | None:
         keyword = self._match_keyword(action_description)
         if not keyword:
             return None
@@ -108,7 +107,7 @@ class SelectorRegistry:
         default_selectors = self._selectors.get("default", {})
         return default_selectors.get(keyword)
 
-    def get_all_selectors(self, page_title: Optional[str] = None) -> Dict[str, str]:
+    def get_all_selectors(self, page_title: str | None = None) -> dict[str, str]:
         if page_title and page_title in self._selectors:
             page_selectors = self._selectors[page_title]
             default_selectors = self._selectors.get("default", {})

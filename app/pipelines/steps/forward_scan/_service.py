@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from loguru import logger
 
@@ -26,9 +26,9 @@ class ForwardScanService:
 
     def scan(
         self,
-        candidates: List[Dict[str, Any]],
-        fingerprints: List[Dict[str, Any]],
-    ) -> List[ForwardVerdict]:
+        candidates: list[dict[str, Any]],
+        fingerprints: list[dict[str, Any]],
+    ) -> list[ForwardVerdict]:
         if not candidates:
             return []
 
@@ -49,7 +49,7 @@ class ForwardScanService:
 
         coarse_results = self._coarse_screening(candidates, fingerprints)
 
-        verdicts: List[ForwardVerdict] = []
+        verdicts: list[ForwardVerdict] = []
         for i, (candidate, matches) in enumerate(zip(candidates, coarse_results)):
             top_matches = matches[:self.top_k]
             top_score = top_matches[0].similarity if top_matches else 0.0
@@ -79,9 +79,9 @@ class ForwardScanService:
 
     def _coarse_screening(
         self,
-        candidates: List[Dict[str, Any]],
-        fingerprints: List[Dict[str, Any]],
-    ) -> List[List[CoarseMatch]]:
+        candidates: list[dict[str, Any]],
+        fingerprints: list[dict[str, Any]],
+    ) -> list[list[CoarseMatch]]:
         cand_texts = [
             f"{c.get('description', '')} {c.get('reason', '')}"[:200]
             for c in candidates
@@ -93,7 +93,7 @@ class ForwardScanService:
 
         sim_matrix = batchComputeSimilarity(cand_texts, fp_texts)
 
-        results: List[List[CoarseMatch]] = []
+        results: list[list[CoarseMatch]] = []
         for i in range(len(candidates)):
             matches = []
             for j in range(len(fingerprints)):
@@ -114,8 +114,8 @@ class ForwardScanService:
 
     def _refined_screening(
         self,
-        candidate: Dict[str, Any],
-        top_matches: List[CoarseMatch],
+        candidate: dict[str, Any],
+        top_matches: list[CoarseMatch],
     ) -> ForwardVerdict:
         prompt = self._build_prompt(candidate, top_matches)
 
@@ -146,8 +146,8 @@ class ForwardScanService:
 
     def _build_prompt(
         self,
-        candidate: Dict[str, Any],
-        top_matches: List[CoarseMatch],
+        candidate: dict[str, Any],
+        top_matches: list[CoarseMatch],
     ) -> str:
         lines = [
             "## 候选场景",

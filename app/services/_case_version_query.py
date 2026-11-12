@@ -4,7 +4,7 @@
 所有函数均为模块级纯函数，由 CaseVersionService 类方法薄委托调用。
 """
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -37,7 +37,7 @@ def compare_versions(
     test_case_id: int,
     v1_id: int,
     v2_id: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """对比两个版本，返回字段级 diff
 
     逐字段比较两个版本的 snapshot_data，输出每个字段的旧值和新值。
@@ -72,7 +72,7 @@ def compare_versions(
     snap1 = parse_snapshot_data(v1.snapshot_data)
     snap2 = parse_snapshot_data(v2.snapshot_data)
 
-    diff: Dict[str, Dict[str, Any]] = {}
+    diff: dict[str, dict[str, Any]] = {}
     all_fields = set(list(snap1.keys()) + list(snap2.keys()))
     for field in all_fields:
         old_val = snap1.get(field)
@@ -101,7 +101,7 @@ def get_version(
     db: Session,
     test_case_id: int,
     version_id: int,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """获取版本详情
 
     Args:

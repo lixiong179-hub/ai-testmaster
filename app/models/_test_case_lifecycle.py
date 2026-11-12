@@ -80,16 +80,15 @@ def _guard_lifecycle_status(session, flush_context, instances):
         from sqlalchemy import inspect as sa_inspect
         state = sa_inspect(instance)
         hist = state.attrs.lifecycle_status.history
-        if hist.deleted or hist.added:
-            # lifecycle_status 被修改
-            if not _lifecycle_transition_allowed():
-                raise RuntimeError(
-                    f"Direct update of TestCase.lifecycle_status is forbidden. "
-                    f"Use LifecycleService.transition() instead. "
-                    f"(case_id={instance.id}, "
-                    f"old={hist.deleted[0] if hist.deleted else '?'}, "
-                    f"new={hist.added[0] if hist.added else '?'})"
-                )
+        # lifecycle_status 被修改
+        if (hist.deleted or hist.added) and not _lifecycle_transition_allowed():
+            raise RuntimeError(
+                f"Direct update of TestCase.lifecycle_status is forbidden. "
+                f"Use LifecycleService.transition() instead. "
+                f"(case_id={instance.id}, "
+                f"old={hist.deleted[0] if hist.deleted else '?'}, "
+                f"new={hist.added[0] if hist.added else '?'})"
+            )
 
         # 自动版本快照：检测追踪字段变更
         _auto_create_version_snapshot(session, instance, state)
@@ -128,7 +127,7 @@ def _auto_create_version_snapshot(session: Session, instance: "Any", state: Any)
     if instance.id is None:
         return
 
-    from app.services.case_version_service import CaseVersionService, TRACKED_FIELDS
+    from app.services.case_version_service import CaseVersionService
 
     changed_fields = CaseVersionService.build_changed_fields(instance, state)
     if not changed_fields:

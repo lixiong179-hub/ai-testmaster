@@ -24,10 +24,8 @@ AI 调用审计查询端点模块（已迁移至 AsyncSession）
            AICallLog.generation_batch_id.in_(select(subq.c.id))
 """
 from datetime import date, datetime, time, timedelta
-from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from loguru import logger
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,8 +37,6 @@ from app.models.user import User
 from app.ai.call_log import AICallLog
 from app.schemas.ai_invocation import (
     AIInvocationListItem,
-    AIInvocationListQuery,
-    AIInvocationStatsQuery,
     AIInvocationStatsResponse,
 )
 
@@ -50,8 +46,8 @@ router = APIRouter(tags=["AI调用审计"])
 @router.get("/stats")
 async def get_ai_invocation_stats(
     project_id: int = Query(..., gt=0, description="项目ID"),
-    start_date: Optional[date] = Query(None, description="起始日期（含）"),
-    end_date: Optional[date] = Query(None, description="截止日期（含）"),
+    start_date: date | None = Query(None, description="起始日期（含）"),
+    end_date: date | None = Query(None, description="截止日期（含）"),
     group_by: str = Query("model", pattern="^(model|strategy|date)$", description="聚合维度"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
@@ -131,9 +127,9 @@ async def get_ai_invocation_stats(
 
 @router.get("/list")
 async def get_ai_invocation_list(
-    batch_id: Optional[int] = Query(None, description="生成批次ID"),
-    project_id: Optional[int] = Query(None, gt=0, description="项目ID"),
-    run_id: Optional[int] = Query(None, description="Pipeline 运行ID"),
+    batch_id: int | None = Query(None, description="生成批次ID"),
+    project_id: int | None = Query(None, gt=0, description="项目ID"),
+    run_id: int | None = Query(None, description="Pipeline 运行ID"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
     db: AsyncSession = Depends(async_get_db),

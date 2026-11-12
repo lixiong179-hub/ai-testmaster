@@ -1,5 +1,4 @@
 """Prompt 模板版本管理 Schema - 请求与响应模型"""
-from typing import Optional, List
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -9,7 +8,7 @@ class PromptTemplateCreate(BaseModel):
     """注册新 Prompt 版本请求"""
     prompt_key: str = Field(..., min_length=1, max_length=80, description="Prompt唯一标识键")
     content: str = Field(..., min_length=1, description="Prompt内容")
-    description: Optional[str] = Field(None, max_length=500, description="版本描述")
+    description: str | None = Field(None, max_length=500, description="版本描述")
 
 
 class PromptTemplateResponse(BaseModel):
@@ -21,7 +20,7 @@ class PromptTemplateResponse(BaseModel):
     content: str
     enabled: bool
     is_default: bool
-    description: Optional[str] = None
+    description: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -29,7 +28,7 @@ class PromptTemplateResponse(BaseModel):
 
 class PromptTemplateListResponse(BaseModel):
     """Prompt 模板版本列表响应"""
-    items: List[PromptTemplateResponse]
+    items: list[PromptTemplateResponse]
     total: int
     page: int
     page_size: int

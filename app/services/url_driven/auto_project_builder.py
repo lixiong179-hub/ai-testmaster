@@ -12,7 +12,6 @@
 """
 import json
 from datetime import datetime
-from typing import Optional
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -44,7 +43,7 @@ class AutoProjectBuilder:
     def build(
         self,
         url: str,
-        description: Optional[str],
+        description: str | None,
         user_id: int,
         session: Session,
     ) -> Project:

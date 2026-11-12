@@ -12,7 +12,7 @@
 - AI 调用/JSON 解析/单测试点失败均异常捕获降级，不阻断整体生成；
 - 复用 CaseNumberService 生成 case_no，参数化查询防注入。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -47,17 +47,17 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
       由 create_ai_client 构造默认主备切换客户端，支持测试注入替身。
     """
 
-    def __init__(self, ai_client: Optional[AIClient] = None) -> None:
-        self._ai_client: Optional[AIClient] = ai_client
+    def __init__(self, ai_client: AIClient | None = None) -> None:
+        self._ai_client: AIClient | None = ai_client
 
     def generate(
         self,
         site_map: SiteMap,
         project_id: int,
-        description: Optional[str],
+        description: str | None,
         user_id: int,
         session: Session,
-    ) -> List[TestCase]:
+    ) -> list[TestCase]:
         """基于 SiteMap 生成并持久化用例，返回已入库的 TestCase 列表。
 
         编排链路：推导测试点 → 逐点 AI 生成 → 元素锚定校验 → 全失败则降级
@@ -83,7 +83,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
             logger.info(f"未识别到核心入口测试点，降级为仅生成登录用例: project_id={project_id}")
             test_points = self._fallback_login_test_points(site_map)
 
-        case_dicts: List[Dict[str, Any]] = []
+        case_dicts: list[dict[str, Any]] = []
         for test_point in test_points:
             page_snapshot = test_point.get("page_snapshot")
             if not isinstance(page_snapshot, PageSnapshot):
@@ -108,10 +108,10 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
 
     def _generate_for_test_point(
         self,
-        test_point: Dict[str, Any],
+        test_point: dict[str, Any],
         page_snapshot: PageSnapshot,
-        description: Optional[str],
-    ) -> List[Dict[str, Any]]:
+        description: str | None,
+    ) -> list[dict[str, Any]]:
         """构建 Prompt → 调用 AI → 解析用例字典列表，失败返回空列表。"""
         prompt = self._build_prompt(test_point, page_snapshot, description)
         raw_content = self._call_ai(prompt)
@@ -119,7 +119,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
             return []
         return self._parse_cases(raw_content)
 
-    def _call_ai(self, prompt: str) -> Optional[str]:
+    def _call_ai(self, prompt: str) -> str | None:
         """调用 AIClient 生成用例文本，异常或空响应返回 None 触发上层降级。
 
         复用 FallbackAIClient 的主备切换能力（主模型失败达阈值自动切备用），
@@ -156,7 +156,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
             self._ai_client = create_ai_client()
         return self._ai_client
 
-    def _parse_cases(self, raw_content: str) -> List[Dict[str, Any]]:
+    def _parse_cases(self, raw_content: str) -> list[dict[str, Any]]:
         """解析 AI 返回 JSON 为用例字典列表，解析失败返回空列表。
 
         复用 parse_ai_json_response 的 4 级容错解析（直接/修复/清洗/代码块提取），
@@ -177,7 +177,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
             return []
         return [case for case in cases if isinstance(case, dict) and case.get("title")]
 
-    def _fallback_login_cases(self, site_map: SiteMap) -> List[Dict[str, Any]]:
+    def _fallback_login_cases(self, site_map: SiteMap) -> list[dict[str, Any]]:
         """AI 全失败降级：基于检测到的登录元素硬编码登录用例。
 
         从登录页 elements 提取 textbox（用户名/密码）与 button（登录按钮），
@@ -191,7 +191,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
         buttons = [e for e in login_page.elements if e.get("role") == "button"]
         if not textboxes or not buttons:
             return []
-        steps: List[Dict[str, Any]] = []
+        steps: list[dict[str, Any]] = []
         if len(textboxes) >= 1:
             steps.append({
                 "action": f"在 {textboxes[0].get('name', '用户名')} 输入有效用户名",
@@ -218,8 +218,8 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
         }]
 
     def _persist_cases(
-        self, case_dicts: List[Dict[str, Any]], project_id: int, session: Session
-    ) -> List[TestCase]:
+        self, case_dicts: list[dict[str, Any]], project_id: int, session: Session
+    ) -> list[TestCase]:
         """批量生成 case_no 并持久化用例，写入 grounding_source 与锚定 ratio。
 
         使用 session.add_all 一次性批量入栈（替代循环 add），commit 触发批量
@@ -228,7 +228,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
         后续 case_ids 取 id 不会产生 N+1 查询（项目规则：批量写入使用 batch）。
         """
         case_nos = CaseNumberService.generate_batch(project_id, len(case_dicts), session)
-        persisted: List[TestCase] = [
+        persisted: list[TestCase] = [
             self._build_test_case(case_data, project_id, case_no)
             for case_data, case_no in zip(case_dicts, case_nos)
         ]
@@ -245,7 +245,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
         return persisted
 
     def _build_test_case(
-        self, case_data: Dict[str, Any], project_id: int, case_no: str
+        self, case_data: dict[str, Any], project_id: int, case_no: str
     ) -> TestCase:
         """从用例字典构造 TestCase，统一字段规范化与锚定来源标记。"""
         steps_json = self._normalize_steps(case_data.get("steps"))
@@ -268,11 +268,11 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
         )
 
     @staticmethod
-    def _normalize_steps(steps: Any) -> List[Dict[str, Any]]:
+    def _normalize_steps(steps: Any) -> list[dict[str, Any]]:
         """规范化 AI 步骤为 steps_json 格式，action_type 非白名单降级为 navigate。"""
         if not isinstance(steps, list):
             return []
-        normalized: List[Dict[str, Any]] = []
+        normalized: list[dict[str, Any]] = []
         for idx, step in enumerate(steps, start=1):
             if not isinstance(step, dict):
                 continue
@@ -293,7 +293,7 @@ class AutoCaseGenerator(TestPointMixin, PromptMixin, ValidationMixin):
         return normalized
 
     @staticmethod
-    def _sanitize_ratio(value: Any) -> Optional[float]:
+    def _sanitize_ratio(value: Any) -> float | None:
         """校验 ratio 在 [0.0, 1.0]，非法值返回 None。"""
         if value is None:
             return None

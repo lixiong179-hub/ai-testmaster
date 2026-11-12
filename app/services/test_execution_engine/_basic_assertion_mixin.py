@@ -6,7 +6,7 @@ self.vision_model，以及跨 Mixin 的 self._get_active_page。
 """
 import asyncio
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.services.test_execution_engine.models import VerificationError
 from app.utils.ai_client_parser import parse_ai_json_object
@@ -32,9 +32,9 @@ class StructuredBasicAssertionMixin:
     async def _assert_text(
         self,
         assertion_type: str,
-        locator: Optional[str],
+        locator: str | None,
         expected: str,
-        action_info: Dict[str, Any],
+        action_info: dict[str, Any],
     ) -> None:
         if locator:
             page = self._get_active_page()
@@ -60,9 +60,9 @@ class StructuredBasicAssertionMixin:
     async def _assert_visibility(
         self,
         assertion_type: str,
-        locator: Optional[str],
+        locator: str | None,
         expected: str,
-        action_info: Dict[str, Any],
+        action_info: dict[str, Any],
     ) -> None:
         should_be_visible = assertion_type == "visible"
         if locator:
@@ -91,7 +91,7 @@ class StructuredBasicAssertionMixin:
         if not should_be_visible and visible:
             raise VerificationError("不可见断言失败")
 
-    async def _locate_with_ai_vision(self, target: str) -> Dict[str, Any]:
+    async def _locate_with_ai_vision(self, target: str) -> dict[str, Any]:
         if not self.vision_model:
             raise VerificationError("需要AI视觉模型")
         screenshot = await self.browser.take_screenshot()

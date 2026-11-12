@@ -3,8 +3,7 @@
 将 AI 相关逻辑独立成子 Mixin，便于单独维护 Prompt 构建与响应解析的
 复杂分支。本 Mixin 不持有独立的 __init__，依赖聚合类提供 self.db。
 """
-import json
-from typing import Any, Dict, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from loguru import logger
 
@@ -36,12 +35,12 @@ class CaseMigrationAiMixin:
         self,
         batch_id: str,
         source_case: TestCase,
-        source_data: Dict[str, Any],
+        source_data: dict[str, Any],
         source_device: str,
         target_device: str,
         target_ui_specs: str,
         ai_client: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         prompt = build_migration_prompt(
             source_case=source_data,
             source_device=source_device,
@@ -71,14 +70,14 @@ class CaseMigrationAiMixin:
     async def _ai_migrate_case(
         self,
         source_case: TestCase,
-        source_data: Dict[str, Any],
+        source_data: dict[str, Any],
         target_device: str,
         target_project_id: int,
         source_device: str,
         target_ui_specs: str,
         ai_client: Any,
         batch_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         try:
             prompt = build_migration_prompt(
                 source_case=source_data,
@@ -125,7 +124,7 @@ class CaseMigrationAiMixin:
             "deprecated_scenarios": migration_result.get("deprecated_scenarios", []),
         }
 
-    def _call_ai(self, ai_client: Any, prompt: str) -> Optional[str]:
+    def _call_ai(self, ai_client: Any, prompt: str) -> str | None:
         """调用 AI 客户端获取响应文本。
 
         优先使用标准 AIClient.complete() 接口（返回 AIResponse，取 .content），
@@ -151,7 +150,7 @@ class CaseMigrationAiMixin:
             logger.error(f"AI调用异常: {e}")
             return None
 
-    def _parse_ai_response(self, response: str) -> Optional[Dict[str, Any]]:
+    def _parse_ai_response(self, response: str) -> dict[str, Any] | None:
         try:
             json_str = response.strip()
             if "```json" in json_str:

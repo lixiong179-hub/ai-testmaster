@@ -24,7 +24,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import Optional
 
 from app.db.database import async_get_db
 from app.models.bug import Bug, VALID_UX_CATEGORIES
@@ -40,10 +39,10 @@ router = APIRouter(tags=["Bug缺陷管理"])
 @router.get("/list", response_model=ApiResponse)
 async def list_bugs(
     project_id: int = Query(..., description="项目ID"),
-    severity: Optional[int] = Query(None, ge=1, le=4, description="严重程度: 1致命/2严重/3一般/4轻微"),
-    source: Optional[str] = Query(None, description="Bug来源: manual/self_test"),
-    ux_category: Optional[str] = Query(None, description="UX缺陷分类"),
-    status_filter: Optional[str] = Query(None, alias="status", description="状态: open/in_progress/fixed/closed/rejected"),
+    severity: int | None = Query(None, ge=1, le=4, description="严重程度: 1致命/2严重/3一般/4轻微"),
+    source: str | None = Query(None, description="Bug来源: manual/self_test"),
+    ux_category: str | None = Query(None, description="UX缺陷分类"),
+    status_filter: str | None = Query(None, alias="status", description="状态: open/in_progress/fixed/closed/rejected"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),

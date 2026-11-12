@@ -15,7 +15,7 @@
         result = await service.create_test_data_async(...)
 """
 import json
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -36,14 +36,14 @@ class TestDataAsyncMixin:
         field_name: str,
         field_type: DataType = DataType.TEXT,
         generation_rule: GenerationRule = GenerationRule.RANDOM,
-        data_value: Optional[str] = None,
-        rule_config: Optional[Dict[str, Any]] = None,
-        min_length: Optional[int] = None,
-        max_length: Optional[int] = None,
-        min_value: Optional[int] = None,
-        max_value: Optional[int] = None,
-        enum_values: Optional[List[str]] = None,
-        description: Optional[str] = None,
+        data_value: str | None = None,
+        rule_config: dict[str, Any] | None = None,
+        min_length: int | None = None,
+        max_length: int | None = None,
+        min_value: int | None = None,
+        max_value: int | None = None,
+        enum_values: list[str] | None = None,
+        description: str | None = None,
         is_required: bool = True,
         sort_order: int = 0,
     ) -> TestData:
@@ -70,14 +70,14 @@ class TestDataAsyncMixin:
         logger.info(f"创建测试数据成功: id={test_data.id}, field_name={field_name}")
         return test_data
 
-    async def get_test_data_async(self, test_data_id: int) -> Optional[TestData]:
+    async def get_test_data_async(self, test_data_id: int) -> TestData | None:
         """获取单条测试数据（异步版本）。"""
         result = await self.db.execute(
             select(TestData).where(TestData.id == test_data_id)
         )
         return result.scalars().first()
 
-    async def get_test_data_by_step_async(self, step_id: int) -> List[TestData]:
+    async def get_test_data_by_step_async(self, step_id: int) -> list[TestData]:
         """获取步骤的所有测试数据（异步版本）。"""
         result = await self.db.execute(
             select(TestData)
@@ -88,7 +88,7 @@ class TestDataAsyncMixin:
 
     async def update_test_data_async(
         self, test_data_id: int, **kwargs
-    ) -> Optional[TestData]:
+    ) -> TestData | None:
         """更新测试数据（异步版本）。"""
         test_data = await self.get_test_data_async(test_data_id)
         if not test_data:
@@ -118,14 +118,14 @@ class TestDataAsyncMixin:
     async def generate_step_data_async(
         self,
         step_id: int,
-        parameterizer: Optional[Any] = None,
-    ) -> Dict[str, str]:
+        parameterizer: Any | None = None,
+    ) -> dict[str, str]:
         """生成步骤的测试数据（异步版本）。
 
         generate_value 为纯计算方法（TestDataGenServiceMixin），直接复用。
         """
         test_data_list = await self.get_test_data_by_step_async(step_id)
-        result: Dict[str, str] = {}
+        result: dict[str, str] = {}
         for test_data in test_data_list:
             value = self.generate_value(test_data)
             if parameterizer:
@@ -135,9 +135,9 @@ class TestDataAsyncMixin:
 
     async def auto_generate_for_step_async(
         self, step_id: int, action_description: str
-    ) -> List[TestData]:
+    ) -> list[TestData]:
         """根据操作描述自动推断生成测试数据（异步版本）。"""
-        created_list: List[TestData] = []
+        created_list: list[TestData] = []
         if "产品线" in action_description or "产品" in action_description:
             test_data = await self.create_test_data_async(
                 step_id=step_id,

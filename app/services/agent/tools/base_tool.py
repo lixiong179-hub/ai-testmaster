@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,12 +38,12 @@ class ToolContext:
             None 表示无客户端工具调用场景。
     """
 
-    db: Optional["AsyncSession"] = None
-    session_id: Optional[int] = None
+    db: AsyncSession | None = None
+    session_id: int | None = None
     agent_type: str = ""
-    user_id: Optional[int] = None
-    project_id: Optional[int] = None
-    execution_callback: Optional[Any] = None
+    user_id: int | None = None
+    project_id: int | None = None
+    execution_callback: Any | None = None
 
 
 @dataclass
@@ -59,8 +59,8 @@ class ToolResult:
 
     success: bool
     output: Any = None
-    error: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class Tool(ABC):
@@ -75,11 +75,11 @@ class Tool(ABC):
 
     name: str = ""
     description: str = ""
-    parameters_schema: Dict[str, Any] = {}
+    parameters_schema: dict[str, Any] = {}
     is_client_side: bool = False
 
     @abstractmethod
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         """执行工具。
 
         Args:

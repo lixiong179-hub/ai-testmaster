@@ -1,7 +1,6 @@
 """CRUD Mixin - 视频记录的数据库增删改查操作。
 """
 from pathlib import Path
-from typing import Optional, List
 from sqlalchemy.orm import Session
 from loguru import logger
 
@@ -80,7 +79,7 @@ class CRUDMixin:
             created_at=video_record.created_at,
         )
 
-    async def get_video_info(self, *args) -> Optional[VideoInfo]:
+    async def get_video_info(self, *args) -> VideoInfo | None:
         """根据ID查询视频元信息，不存在时返回None。
 
         Args:
@@ -120,7 +119,7 @@ class CRUDMixin:
             created_at=video.created_at,
         )
 
-    async def get_videos_by_task(self, *args) -> List[VideoInfo]:
+    async def get_videos_by_task(self, *args) -> list[VideoInfo]:
         """查询指定任务关联的所有视频。
 
         Args:
@@ -138,7 +137,7 @@ class CRUDMixin:
         videos = db.query(VideoRecord).filter(VideoRecord.task_id == task_id).all()
         return [self._to_video_info(v) for v in videos]
 
-    async def get_videos_by_case(self, *args) -> List[VideoInfo]:
+    async def get_videos_by_case(self, *args) -> list[VideoInfo]:
         """查询指定用例关联的所有视频。
 
         Args:

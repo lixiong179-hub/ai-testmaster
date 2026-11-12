@@ -15,7 +15,6 @@
         service = UserService(db)  # db 为 AsyncSession
         user = await service.create_user_async(user_in)
 """
-from typing import Optional, List
 
 from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
@@ -76,7 +75,7 @@ class UserServiceAsyncMixin:
 
     async def authenticate_user_async(
         self, username: str, password: str
-    ) -> Optional[User]:
+    ) -> User | None:
         """用户认证（异步版本），验证用户名和密码。
 
         Returns:
@@ -98,7 +97,7 @@ class UserServiceAsyncMixin:
             raise BaseAPIException("用户已被禁用", code=403)
         return user
 
-    async def get_user_by_id_async(self, user_id: int) -> Optional[User]:
+    async def get_user_by_id_async(self, user_id: int) -> User | None:
         """根据用户ID查询用户（异步版本）。"""
         result = await self.db.execute(
             select(User).where(User.id == user_id)
@@ -151,7 +150,7 @@ class UserServiceAsyncMixin:
 
     async def get_users_async(
         self, skip: int = 0, limit: int = 100
-    ) -> List[User]:
+    ) -> list[User]:
         """分页查询用户列表（异步版本）。"""
         result = await self.db.execute(
             select(User).offset(skip).limit(limit)

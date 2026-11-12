@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -8,7 +8,7 @@ from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE
 from app.services.xmind_case_parser import XmindCaseParser
 
 
-def _parse_ai_response(text: str, expected_count: int) -> Optional[List[Dict[str, Any]]]:
+def _parse_ai_response(text: str, expected_count: int) -> list[dict[str, Any]] | None:
     text = text.strip()
     if not text:
         logger.warning("AI 响应内容为空")
@@ -64,7 +64,7 @@ def _repair_json_text(text: str) -> str:
     return text
 
 
-def _extract_case_objects(text: str) -> List[Dict[str, Any]]:
+def _extract_case_objects(text: str) -> list[dict[str, Any]]:
     cases_match = re.search(r'"cases"\s*:\s*\[', text)
     if cases_match:
         start = cases_match.end()
@@ -79,7 +79,7 @@ def _extract_case_objects(text: str) -> List[Dict[str, Any]]:
             source = text[array_start + 1:array_end if array_end > array_start else len(text)]
 
     decoder = json.JSONDecoder()
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     index = 0
     while index < len(source):
         object_start = source.find("{", index)
@@ -96,7 +96,7 @@ def _extract_case_objects(text: str) -> List[Dict[str, Any]]:
     return results
 
 
-def _normalize_case(raw: Dict[str, Any], fallback_module: str) -> Dict[str, Any]:
+def _normalize_case(raw: dict[str, Any], fallback_module: str) -> dict[str, Any]:
     module = raw.get("module", fallback_module) or fallback_module
     precondition = raw.get("precondition", "")
     title = raw.get("title", "")[:XmindCaseParser.TITLE_MAX_LEN]
@@ -106,7 +106,7 @@ def _normalize_case(raw: Dict[str, Any], fallback_module: str) -> Dict[str, Any]
         priority = 2
 
     raw_steps = raw.get("steps", [])
-    steps: List[Dict[str, Any]] = []
+    steps: list[dict[str, Any]] = []
     for idx, step in enumerate(raw_steps, 1):
         if isinstance(step, dict):
             steps.append({

@@ -39,7 +39,8 @@ def _push_pipeline_progress(
             "progress": progress,
             "pipeline_status": pipeline_status,
         }
-        loop = asyncio.get_running_loop()
+        # 显式探测当前线程的事件循环：无运行中的循环时抛 RuntimeError 走下方降级分支
+        asyncio.get_running_loop()
         asyncio.ensure_future(push_service.push(f"pipeline:{run_id}", data))
     except RuntimeError:
         logger.debug("No running event loop, skipping pipeline progress push")

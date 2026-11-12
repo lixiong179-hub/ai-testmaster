@@ -1,4 +1,3 @@
-from typing import Optional
 """
 执行可视化配置端点模块
 
@@ -140,7 +139,7 @@ async def update_task_config(
 @router.get("/config/case/{case_id}", response_model=VisibilityConfigResponse)
 async def get_case_config(
     case_id: int,
-    task_id: Optional[int] = None,
+    task_id: int | None = None,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):

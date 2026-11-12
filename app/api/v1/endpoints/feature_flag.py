@@ -20,7 +20,7 @@
         2. service.list_flags() → await service.list_flags()（service 方法已改 async）
         3. _require_admin 保持 async，依赖 get_current_user 不变
 """
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,7 +53,7 @@ async def list_feature_flags(
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """获取所有特性开关列表（分页）"""
     service = FeatureFlagService(db)
     flags, total = await service.list_flags(page=page, page_size=page_size)
@@ -117,7 +117,7 @@ async def delete_feature_flag(
     key: str,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(_require_admin),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """删除特性开关"""
     service = FeatureFlagService(db)
     try:

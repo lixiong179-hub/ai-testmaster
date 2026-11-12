@@ -14,7 +14,8 @@ open 持续 recovery_seconds 后转 half_open 允许 1 次试探，试探成功�
 from __future__ import annotations
 
 import time
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, TypeVar
+from collections.abc import Callable
 
 from loguru import logger
 
@@ -40,10 +41,10 @@ class CircuitBreaker:
 
     def __init__(
         self,
-        redis_client: Optional[Any] = None,
+        redis_client: Any | None = None,
         *,
-        threshold: Optional[int] = None,
-        recovery_seconds: Optional[int] = None,
+        threshold: int | None = None,
+        recovery_seconds: int | None = None,
     ) -> None:
         """注入 Redis 与熔断参数；threshold/recovery_seconds 为 None 时从 settings 读取。"""
         self._redis = redis_client
@@ -52,7 +53,7 @@ class CircuitBreaker:
             recovery_seconds if recovery_seconds is not None
             else settings.AI_AGENT_CIRCUIT_BREAKER_RECOVERY_SECONDS
         )
-        self._memory_state: Dict[str, Dict[str, Any]] = {}
+        self._memory_state: dict[str, dict[str, Any]] = {}
 
     async def allow(self, agent_type: str) -> bool:
         """判断是否允许新会话通过。closed 放行；open 超 recovery 转 half_open；
@@ -100,7 +101,7 @@ class CircuitBreaker:
     def _key(self, agent_type: str, suffix: str) -> str:
         return _CB_KEY_PREFIX.format(agent_type=agent_type) + suffix
 
-    def _try_redis(self, desc: str, op: Callable[[], T]) -> Optional[T]:
+    def _try_redis(self, desc: str, op: Callable[[], T]) -> T | None:
         if self._redis is None:
             return None
         try:

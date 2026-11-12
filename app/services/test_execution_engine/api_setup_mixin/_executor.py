@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -10,14 +10,14 @@ from app.services.test_execution_engine.api_setup_mixin._helpers import _ApiSetu
 
 class _ExecutorMixin(_ApiSetupHelpersMixin):
 
-    _api_extracted_vars: Dict[str, Any]
+    _api_extracted_vars: dict[str, Any]
 
     def _init_api_setup_state(self) -> None:
-        self._api_extracted_vars: Dict[str, Any] = {}
+        self._api_extracted_vars: dict[str, Any] = {}
 
     async def _execute_setup_api_calls(
         self, case: TestCase
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         setup_api_raw = getattr(case, 'setup_api_calls', None)
         if not setup_api_raw:
             return False, "无API前置准备"
@@ -67,7 +67,7 @@ class _ExecutorMixin(_ApiSetupHelpersMixin):
     async def _execute_single_api_call(
         self,
         client: httpx.AsyncClient,
-        api_call: Dict[str, Any],
+        api_call: dict[str, Any],
         call_index: int,
     ) -> bool:
         method = (api_call.get("method") or "GET").upper()
@@ -85,7 +85,7 @@ class _ExecutorMixin(_ApiSetupHelpersMixin):
             body = self._substitute_api_vars(body)
 
         try:
-            request_kwargs: Dict[str, Any] = {}
+            request_kwargs: dict[str, Any] = {}
             if body and method in ("POST", "PUT", "PATCH"):
                 request_kwargs["json"] = body
             if headers:

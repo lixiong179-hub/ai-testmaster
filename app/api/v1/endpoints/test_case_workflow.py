@@ -1,4 +1,3 @@
-from typing import Optional
 import json
 """
 测试用例工作流端点模块
@@ -135,8 +134,8 @@ async def batch_update_view_config(
 
 
 class StepViewConfigRequest(BaseModel):
-    is_business_view: Optional[int] = None
-    is_technical_view: Optional[int] = None
+    is_business_view: int | None = None
+    is_technical_view: int | None = None
 
 
 @router.put("/steps/{step_id}/view-config")
@@ -160,9 +159,9 @@ async def update_step_view_config(
 @router.post("/steps/{step_id}/locator")
 async def add_step_locator(
     step_id: int,
-    css_selector: Optional[str] = None,
-    xpath: Optional[str] = None,
-    element_type: Optional[str] = None,
+    css_selector: str | None = None,
+    xpath: str | None = None,
+    element_type: str | None = None,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(require_technical_view)
 ):
@@ -226,9 +225,9 @@ async def add_step_locator(
 
 
 class TechnicalViewEditRequest(BaseModel):
-    steps: Optional[list] = None
-    exec_script: Optional[str] = None
-    locators: Optional[dict] = None
+    steps: list | None = None
+    exec_script: str | None = None
+    locators: dict | None = None
 
     @field_validator('steps')
     @classmethod

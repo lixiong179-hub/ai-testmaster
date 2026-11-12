@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import hmac
 import secrets
-from typing import Optional
 
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -104,7 +103,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # JWT 模式（Authorization 头存在）直接放行
-        if "authorization" in {k.lower() for k in request.headers.keys()}:
+        if "authorization" in {k.lower() for k in request.headers}:
             return await call_next(request)
 
         # 双提交 Cookie 模式校验

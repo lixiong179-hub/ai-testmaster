@@ -16,7 +16,7 @@
     7. 全路径埋点：attempts / success / failure(type)
 """
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any
 from loguru import logger
 
 from app.models.element_locator import ElementLocator
@@ -49,10 +49,10 @@ class SelfHealingExecuteMixin(SelfHealingPolicyMixin):
     async def _execute_with_self_healing(
         self,
         step,
-        locator_record: Optional[ElementLocator],
+        locator_record: ElementLocator | None,
         action_type: ActionType,
-        action_info: Dict[str, Any],
-        step_test_data: Optional[Dict[str, str]] = None
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str] | None = None
     ) -> None:
         """带自愈兜底的步骤执行包装器（失败分类 → 策略路由 → 自愈）。
 

@@ -10,12 +10,11 @@
 """
 import math
 import re
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
 
-def tokenize(text: str) -> List[str]:
+def tokenize(text: str) -> list[str]:
     """将文本拆分为 token 列表，支持中英混合。
 
     策略: 英文按空白分词后取 lowercase，中文逐字符取 bigram，
@@ -31,7 +30,7 @@ def tokenize(text: str) -> List[str]:
         return []
 
     normalized = text.strip().lower()
-    tokens: List[str] = []
+    tokens: list[str] = []
 
     # 英文单词分词
     englishWords = re.findall(r'[a-z0-9]+', normalized)
@@ -58,17 +57,17 @@ class LightweightTfidfVectorizer:
         # matrix.shape == (2, vocab_size)
     """
 
-    def __init__(self, maxFeatures: Optional[int] = 5000) -> None:
+    def __init__(self, maxFeatures: int | None = 5000) -> None:
         """初始化向量化器。
 
         Args:
             maxFeatures: 保留的最大特征数，按 IDF 方差排序取前 N。None 表示不限制。
         """
         self.maxFeatures = maxFeatures
-        self.vocabulary_: Dict[str, int] = {}
-        self.idf_: Optional[np.ndarray] = None
+        self.vocabulary_: dict[str, int] = {}
+        self.idf_: np.ndarray | None = None
 
-    def fit_transform(self, documents: List[str]) -> np.ndarray:
+    def fit_transform(self, documents: list[str]) -> np.ndarray:
         """拟合词汇表并返回 TF-IDF 矩阵。
 
         Args:
@@ -81,10 +80,10 @@ class LightweightTfidfVectorizer:
             return np.array([], dtype=np.float64).reshape(0, 0)
 
         # Step 1: 分词
-        tokenizedDocs: List[List[str]] = [tokenize(doc) for doc in documents]
+        tokenizedDocs: list[list[str]] = [tokenize(doc) for doc in documents]
 
         # Step 2: 构建词汇表
-        termDocCount: Dict[str, int] = {}
+        termDocCount: dict[str, int] = {}
         for docTokens in tokenizedDocs:
             uniqueTokens = set(docTokens)
             for token in uniqueTokens:
@@ -121,7 +120,7 @@ class LightweightTfidfVectorizer:
             if not docTokens:
                 continue
             # TF: 词频 / 文档总词数
-            termFreq: Dict[str, int] = {}
+            termFreq: dict[str, int] = {}
             for token in docTokens:
                 termFreq[token] = termFreq.get(token, 0) + 1
             totalTerms = len(docTokens)
@@ -137,7 +136,7 @@ class LightweightTfidfVectorizer:
 
         return tfidfMatrix
 
-    def transform(self, documents: List[str]) -> np.ndarray:
+    def transform(self, documents: list[str]) -> np.ndarray:
         """使用已拟合的词汇表将新文档转换为 TF-IDF 矩阵。
 
         Args:
@@ -160,7 +159,7 @@ class LightweightTfidfVectorizer:
             docTokens = tokenize(doc)
             if not docTokens:
                 continue
-            termFreq: Dict[str, int] = {}
+            termFreq: dict[str, int] = {}
             for token in docTokens:
                 termFreq[token] = termFreq.get(token, 0) + 1
             totalTerms = len(docTokens)
@@ -238,7 +237,7 @@ def computeDynamicThreshold(totalCases: int) -> float:
         float: 动态阈值，范围 [0.55, 0.85]。
     """
     # (用例数上界, 阈值) 分段表，按用例数升序排列
-    segments: List[Tuple[int, float]] = [
+    segments: list[tuple[int, float]] = [
         (10, 0.85),
         (30, 0.78),
         (100, 0.70),
@@ -263,8 +262,8 @@ def computeDynamicThreshold(totalCases: int) -> float:
 
 
 def batchComputeSimilarity(
-    targetTexts: List[str],
-    candidateTexts: List[str],
+    targetTexts: list[str],
+    candidateTexts: list[str],
 ) -> np.ndarray:
     """批量计算目标文档与候选文档之间的 TF-IDF 余弦相似度。
 

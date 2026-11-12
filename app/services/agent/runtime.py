@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -46,18 +46,18 @@ class AgentRuntime:
 
     def __init__(
         self,
-        db: Optional["AsyncSession"] = None,
+        db: AsyncSession | None = None,
         *,
-        llm_provider: Optional[Any] = None,
-        token_guard: Optional[Any] = None,
-        loop_detector: Optional[Any] = None,
-        circuit_breaker: Optional[Any] = None,
-        audit_service: Optional[Any] = None,
-        session_service: Optional[Any] = None,
-        artifact_registry: Optional[Any] = None,
-        tool_registry: Optional[Any] = None,
-        agent_registry: Optional[Any] = None,
-        metrics: Optional[Any] = None,
+        llm_provider: Any | None = None,
+        token_guard: Any | None = None,
+        loop_detector: Any | None = None,
+        circuit_breaker: Any | None = None,
+        audit_service: Any | None = None,
+        session_service: Any | None = None,
+        artifact_registry: Any | None = None,
+        tool_registry: Any | None = None,
+        agent_registry: Any | None = None,
+        metrics: Any | None = None,
     ) -> None:
         self.db = db
         self.llm_provider = llm_provider
@@ -75,9 +75,9 @@ class AgentRuntime:
         self,
         agent_type: str,
         project_id: int,
-        initial_artifacts: List[Artifact],
-        execution_callback: Optional[Any] = None,
-        created_by: Optional[int] = None,
+        initial_artifacts: list[Artifact],
+        execution_callback: Any | None = None,
+        created_by: int | None = None,
     ) -> AgentSession:
         """执行 Agent 会话。
 
@@ -101,7 +101,7 @@ class AgentRuntime:
         self._safe(lambda m: m.record_session_start(agent_type))
 
         try:
-            history: List[Dict[str, Any]] = []
+            history: list[dict[str, Any]] = []
             for iteration in range(1, max_iterations + 1):
                 iter_start = time.monotonic()
                 await self._check_loop(agent_type, session.id, iteration, history)
@@ -181,7 +181,7 @@ class AgentRuntime:
             )
 
     async def _create_session(
-        self, agent_type: str, project_id: int, created_by: Optional[int],
+        self, agent_type: str, project_id: int, created_by: int | None,
     ) -> AgentSession:
         """创建会话：有会话语义服务且已绑定 db 时持久化，否则降级为内存对象。
 
@@ -201,8 +201,8 @@ class AgentRuntime:
         )
 
     async def _check_loop(
-        self, agent_type: str, session_id: Optional[int],
-        iteration: int, history: List[Dict[str, Any]],
+        self, agent_type: str, session_id: int | None,
+        iteration: int, history: list[dict[str, Any]],
     ) -> None:
         """循环检测：基于最近工具调用签名判重，超阈值抛 AgentLoopDetected。"""
         if self.loop_detector is None:
@@ -229,13 +229,13 @@ class AgentRuntime:
                 )
 
     def _build_messages(
-        self, definition: AgentDefinition, artifacts: List[Artifact],
-        history: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
+        self, definition: AgentDefinition, artifacts: list[Artifact],
+        history: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         system_prompt = self._build_system_prompt(definition, artifacts, history)
         history_limit = settings.AI_AGENT_HISTORY_MESSAGE_COUNT
         recent = history[-history_limit:]
-        messages: List[Dict[str, Any]] = [{"role": "system", "content": system_prompt}]
+        messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
         messages.extend({
             "role": m["role"],
             "content": json.dumps(m["content"], ensure_ascii=False, default=str),
@@ -243,8 +243,8 @@ class AgentRuntime:
         return messages
 
     def _build_system_prompt(
-        self, definition: AgentDefinition, artifacts: List[Artifact],
-        history: List[Dict[str, Any]],
+        self, definition: AgentDefinition, artifacts: list[Artifact],
+        history: list[dict[str, Any]],
     ) -> str:
         parts = [definition.system_prompt]
         if self.artifact_registry is not None:
@@ -260,14 +260,14 @@ class AgentRuntime:
         return "\n\n".join(parts)
 
     async def _invoke_llm(
-        self, messages: List[Dict[str, Any]], definition: AgentDefinition,
-    ) -> Dict[str, Any]:
+        self, messages: list[dict[str, Any]], definition: AgentDefinition,
+    ) -> dict[str, Any]:
         if self.llm_provider is None:
             return {"content": "LLM provider 不可用", "tool_calls": [], "token_cost": 0}
         tools = self._build_tools_schema(definition)
         return await self.llm_provider.complete(messages=messages, tools=tools)
 
-    def _build_tools_schema(self, definition: AgentDefinition) -> List[Dict[str, Any]]:
+    def _build_tools_schema(self, definition: AgentDefinition) -> list[dict[str, Any]]:
         if self.tool_registry is None:
             return []
         schema = []
@@ -281,7 +281,7 @@ class AgentRuntime:
             })
         return schema
 
-    def _parse_assistant_message(self, llm_resp: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_assistant_message(self, llm_resp: dict[str, Any]) -> dict[str, Any]:
         tool_calls = llm_resp.get("tool_calls", []) or []
         return {
             "text": llm_resp.get("content", ""),
@@ -290,8 +290,8 @@ class AgentRuntime:
         }
 
     async def _append_message(
-        self, session_id: Optional[int], role: str, content: Dict[str, Any],
-        tool_name: Optional[str] = None, tool_call_id: Optional[str] = None,
+        self, session_id: int | None, role: str, content: dict[str, Any],
+        tool_name: str | None = None, tool_call_id: str | None = None,
         token_cost: int = 0,
     ) -> None:
         if self.session_service is None or self.db is None or session_id is None:
@@ -305,7 +305,7 @@ class AgentRuntime:
         if self.token_guard is not None and amount > 0:
             self.token_guard.consume(amount)
 
-    def _check_termination(self, assistant_msg: Dict[str, Any]) -> bool:
+    def _check_termination(self, assistant_msg: dict[str, Any]) -> bool:
         tool_calls = assistant_msg.get("tool_calls", []) or []
         if not tool_calls:
             return True

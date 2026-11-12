@@ -1,7 +1,7 @@
 """批量执行Mixin - 批量遍历步骤执行元素定位。
 """
 import asyncio
-from typing import Optional, Dict, Any, List
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestStep
@@ -14,9 +14,9 @@ class BatchExecutorMixin:
 
     async def _execute_prior_steps_cached(
         self,
-        prior_steps: List[TestStep],
+        prior_steps: list[TestStep],
         browser: BrowserControllerV2,
-        locator_cache: Dict[int, Optional[ElementLocator]]
+        locator_cache: dict[int, ElementLocator | None]
     ) -> None:
         for prior_step in prior_steps:
             if prior_step.locator_status != LocatorStatus.RECORDED.value:
@@ -37,10 +37,10 @@ class BatchExecutorMixin:
     async def _execute_step_action(
         self,
         browser: BrowserControllerV2,
-        action_type: Optional[str],
-        locator: Optional[ElementLocator],
-        input_value: Optional[str] = None,
-        target_element: Optional[str] = None
+        action_type: str | None,
+        locator: ElementLocator | None,
+        input_value: str | None = None,
+        target_element: str | None = None
     ) -> None:
         if not action_type:
             return
@@ -155,13 +155,14 @@ class BatchExecutorMixin:
             await asyncio.sleep(0.5)
 
     def _is_high_quality_locator(self, locator: ElementLocator) -> bool:
-        if locator.css_selector and locator.css_selector.strip():
-            return True
-        if locator.ai_confidence and locator.ai_confidence >= self.config.low_quality_threshold:
-            return True
-        return False
+        has_css = bool(locator.css_selector and locator.css_selector.strip())
+        has_confident_ai = bool(
+            locator.ai_confidence
+            and locator.ai_confidence >= self.config.low_quality_threshold
+        )
+        return has_css or has_confident_ai
 
-    def _notify_progress(self, data: Dict[str, Any]) -> None:
+    def _notify_progress(self, data: dict[str, Any]) -> None:
         if self.progress_callback:
             try:
                 self.progress_callback(data)

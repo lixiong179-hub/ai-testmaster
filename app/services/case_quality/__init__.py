@@ -20,7 +20,7 @@ Mixin组合:
     - 建议: 基于评估结果的改进建议
 """
 from types import SimpleNamespace
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -63,7 +63,7 @@ class CaseQualityAnalyzer(
         """
         self.db = db
 
-    def analyze_case(self, case_data: Dict[str, Any]) -> Dict[str, Any]:
+    def analyze_case(self, case_data: dict[str, Any]) -> dict[str, Any]:
         steps_raw = case_data.get("steps", [])
         steps = []
         if isinstance(steps_raw, list):

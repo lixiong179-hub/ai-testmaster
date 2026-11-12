@@ -16,7 +16,7 @@
 - status -> TestTask.status (整数枚举：0等待/1执行中/2完成/3失败/4停止)
 """
 from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
+from typing import Any
 from datetime import datetime
 
 
@@ -31,7 +31,7 @@ class TestTaskCreate(BaseModel):
     """
     task_name: str = Field(..., description="任务名称")  # 必填，任务标识名称，如"登录模块回归测试"
     project_id: int = Field(..., description="项目ID")  # 必填，任务所属项目，实现多项目隔离
-    case_ids: List[int] = Field(..., description="待执行用例ID列表")  # 必填，需执行的测试用例ID列表，存储为JSON
+    case_ids: list[int] = Field(..., description="待执行用例ID列表")  # 必填，需执行的测试用例ID列表，存储为JSON
 
 
 class TestTaskUpdate(BaseModel):
@@ -43,12 +43,12 @@ class TestTaskUpdate(BaseModel):
     对应API：PUT/PATCH /api/v1/test-tasks/{task_id}
     与Model映射：字段对应 TestTask Model 的 task_name/status/progress/success_count/fail_count
     """
-    task_name: Optional[str] = Field(None, description="任务名称")  # 可选，更新任务名称
-    status: Optional[int] = Field(None, description="任务状态")  # 可选，0=等待/1执行中/2完成/3失败/4停止
-    progress: Optional[int] = Field(None, ge=0, le=100, description="执行进度")  # 可选，0-100百分比
-    success_count: Optional[int] = Field(None, ge=0, description="成功用例数")  # 可选，执行成功的用例计数
-    fail_count: Optional[int] = Field(None, ge=0, description="失败用例数")  # 可选，执行失败的用例计数
-    error_message: Optional[str] = Field(None, description="任务级失败/超时原因")  # 可选，执行引擎写入的任务级失败原因
+    task_name: str | None = Field(None, description="任务名称")  # 可选，更新任务名称
+    status: int | None = Field(None, description="任务状态")  # 可选，0=等待/1执行中/2完成/3失败/4停止
+    progress: int | None = Field(None, ge=0, le=100, description="执行进度")  # 可选，0-100百分比
+    success_count: int | None = Field(None, ge=0, description="成功用例数")  # 可选，执行成功的用例计数
+    fail_count: int | None = Field(None, ge=0, description="失败用例数")  # 可选，执行失败的用例计数
+    error_message: str | None = Field(None, description="任务级失败/超时原因")  # 可选，执行引擎写入的任务级失败原因
 
 
 class TestTaskResponse(BaseModel):
@@ -62,17 +62,17 @@ class TestTaskResponse(BaseModel):
     id: int  # 任务主键ID，与TestTask.id对应
     task_name: str  # 任务名称，与TestTask.task_name对应
     project_id: int  # 所属项目ID，与TestTask.project_id对应
-    case_ids: List[int]  # 待执行用例ID列表，与TestTask.case_ids(JSON)对应
+    case_ids: list[int]  # 待执行用例ID列表，与TestTask.case_ids(JSON)对应
     executor_id: int  # 执行人ID，与TestTask.executor_id对应
     status: int  # 任务状态：0等待/1执行中/2完成/3失败/4停止，与TestTask.status对应
-    start_time: Optional[datetime] = None  # 开始执行时间，可能为空（未开始）
-    end_time: Optional[datetime] = None  # 结束执行时间，可能为空（未完成）
+    start_time: datetime | None = None  # 开始执行时间，可能为空（未开始）
+    end_time: datetime | None = None  # 结束执行时间，可能为空（未完成）
     success_count: int  # 成功用例数，与TestTask.success_count对应
     fail_count: int  # 失败用例数，与TestTask.fail_count对应
     total_count: int  # 总用例数，与TestTask.total_count对应
     progress: int  # 执行进度0-100，与TestTask.progress对应
-    error_message: Optional[str] = None  # 任务级失败/超时原因，与TestTask.error_message对应
-    visibility_config: Optional[Dict[str, Any]] = None  # 可见模式配置，与TestTask.visibility_config(JSON)对应
+    error_message: str | None = None  # 任务级失败/超时原因，与TestTask.error_message对应
+    visibility_config: dict[str, Any] | None = None  # 可见模式配置，与TestTask.visibility_config(JSON)对应
     create_time: datetime  # 创建时间，与TestTask.create_time对应
     update_time: datetime  # 更新时间，与TestTask.update_time对应
 
@@ -89,7 +89,7 @@ class TestTaskListResponse(BaseModel):
     对应API：GET /api/v1/test-tasks/ 的响应
     """
     total: int  # 符合条件的任务总数
-    items: List[TestTaskResponse]  # 当前页的任务列表
+    items: list[TestTaskResponse]  # 当前页的任务列表
     page: int  # 当前页码
     page_size: int  # 每页数量
 

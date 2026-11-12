@@ -51,7 +51,7 @@ class TaskStatus:
     FAILED = 3        # 执行失败
     STOPPED = 4       # 已停止
     PAUSED = 5        # 已暂停（可由 /execution/{id}/resume 恢复）
-    
+
     LABELS = {
         0: "等待执行",
         1: "执行中",
@@ -111,7 +111,7 @@ class TestTask(TenantAwareMixin, Base):
     visibility_config = Column(JSON, nullable=True, comment="可见模式配置")
     create_time = Column(DateTime, default=utcnow, index=True, comment="创建时间")                # 任务创建时间
     update_time = Column(DateTime, default=utcnow, onupdate=utcnow, index=True, comment="更新时间")  # 任务更新时间
-    
+
     # 关系
     project = relationship("Project", back_populates="test_tasks")                                    # 所属项目
     executor = relationship("User", back_populates="test_tasks")                                      # 任务执行人

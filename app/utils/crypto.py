@@ -92,20 +92,20 @@ def _get_fernet() -> Fernet:
 def encrypt_password(plain_password: str) -> str:
     """
     加密密码
-    
+
     Args:
         plain_password: 明文密码
-        
+
     Returns:
         加密后的密码（base64格式）
-        
+
     Example:
         >>> encrypted = encrypt_password("my_password")
         >>> print(encrypted)  # 'gAAAAAB...'
     """
     if not plain_password:
         return ""
-    
+
     try:
         f = _get_fernet()
         encrypted = f.encrypt(plain_password.encode())
@@ -118,24 +118,24 @@ def encrypt_password(plain_password: str) -> str:
 def decrypt_password(encrypted_password: str) -> str:
     """
     解密密码
-    
+
     Args:
         encrypted_password: 加密后的密码
-        
+
     Returns:
         明文密码
-        
+
     Example:
         >>> plain = decrypt_password("gAAAAAB...")
         >>> print(plain)  # 'my_password'
     """
     if not encrypted_password:
         return ""
-    
+
     if not encrypted_password.startswith("gAAAAA"):
         logger.warning("检测到非加密格式的密码数据，可能为历史遗留明文")
         return encrypted_password
-    
+
     try:
         f = _get_fernet()
         decrypted = f.decrypt(encrypted_password.encode())

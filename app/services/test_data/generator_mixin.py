@@ -33,7 +33,7 @@ AI生成流程:
     - 数据验证防止AI返回不完整数据
 """
 import json
-from typing import List, Dict, Any, Optional
+from typing import Any
 from loguru import logger
 
 from app.core.config import settings
@@ -72,11 +72,11 @@ class GeneratorMixin:
 
     async def generate_test_data(
         self,
-        field_definitions: List[Dict[str, Any]],
+        field_definitions: list[dict[str, Any]],
         count: int = 1,
-        context: Optional[str] = None,
+        context: str | None = None,
         data_type: str = "normal"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """为指定字段定义生成测试数据。
 
         生成流程:
@@ -168,10 +168,10 @@ class GeneratorMixin:
 
     async def generate_test_data_batch(
         self,
-        field_definitions: List[Dict[str, Any]],
-        counts: Dict[str, int],
-        context: Optional[str] = None
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        field_definitions: list[dict[str, Any]],
+        counts: dict[str, int],
+        context: str | None = None
+    ) -> dict[str, list[dict[str, Any]]]:
         """批量生成多种类型的测试数据。
 
         生成策略:

@@ -4,7 +4,7 @@ from __future__ import annotations
 import secrets
 import uuid
 from datetime import timedelta
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -37,7 +37,7 @@ class OIDCUserMixin:
         db: AsyncSession,
         issuer: str,
         sub: str,
-    ) -> Optional[User]:
+    ) -> User | None:
         """通过 (issuer, sub) 查找本地用户。
 
         Args:
@@ -60,7 +60,7 @@ class OIDCUserMixin:
         self,
         db: AsyncSession,
         email: str,
-    ) -> Optional[User]:
+    ) -> User | None:
         """通过 email 查找本地用户（用于自动绑定已存在的本地账号）。
 
         Args:
@@ -80,7 +80,7 @@ class OIDCUserMixin:
         db: AsyncSession,
         provider: str,
         issuer: str,
-        claims: Dict[str, Any],
+        claims: dict[str, Any],
     ) -> User:
         """根据 IdP claims 创建或绑定本地用户。
 
@@ -164,7 +164,7 @@ class OIDCUserMixin:
         )
         return new_user
 
-    def _generate_username(self, provider: str, claims: Dict[str, Any]) -> str:
+    def _generate_username(self, provider: str, claims: dict[str, Any]) -> str:
         """根据 IdP claims 生成唯一用户名。
 
         优先使用 claims.preferred_username / claims.name，否则用 provider + sub 短哈希。
@@ -189,7 +189,7 @@ class OIDCUserMixin:
         provider: str,
         code: str,
         state: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """处理 OIDC 回调（完整流程：换 token → 解析 id_token → 用户映射 → 签发本平台 token）。
 
         Args:
@@ -265,7 +265,7 @@ class OIDCUserMixin:
             },
         }
 
-    def get_provider_metadata(self, provider: Optional[str] = None) -> Dict[str, Any]:
+    def get_provider_metadata(self, provider: str | None = None) -> dict[str, Any]:
         """获取 IdP 元数据（供前端展示已配置的 IdP 列表 / 单个详情）。
 
         Args:

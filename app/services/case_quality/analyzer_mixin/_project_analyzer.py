@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Set
+from typing import Any
 from datetime import timedelta
 from loguru import logger
 
@@ -17,8 +17,8 @@ from app.services.case_quality.models import QualityReport
 
 class _ProjectAnalyzerMixin:
 
-    async def analyze_project_quality(self, project_id: int) -> Dict[str, Any]:
-        cases: List[TestCase] = self.db.query(TestCase).filter(
+    async def analyze_project_quality(self, project_id: int) -> dict[str, Any]:
+        cases: list[TestCase] = self.db.query(TestCase).filter(
             TestCase.project_id == project_id,
             TestCase.is_deleted.is_(False),
         ).all()
@@ -33,51 +33,51 @@ class _ProjectAnalyzerMixin:
                 "reports": [],
             }
 
-        case_ids: List[int] = [c.id for c in cases]
+        case_ids: list[int] = [c.id for c in cases]
 
-        all_steps: List[TestStep] = self.db.query(TestStep).filter(
+        all_steps: list[TestStep] = self.db.query(TestStep).filter(
             TestStep.test_case_id.in_(case_ids)
         ).order_by(TestStep.step_number).all()
 
-        steps_map: Dict[int, List[TestStep]] = {cid: [] for cid in case_ids}
+        steps_map: dict[int, list[TestStep]] = {cid: [] for cid in case_ids}
         for step in all_steps:
             steps_map[step.test_case_id].append(step)
 
-        all_precondition_steps: List[TestCasePreconditionStep] = (
+        all_precondition_steps: list[TestCasePreconditionStep] = (
             self.db.query(TestCasePreconditionStep).filter(
                 TestCasePreconditionStep.test_case_id.in_(case_ids)
             ).order_by(TestCasePreconditionStep.step_number).all()
         )
 
-        precondition_map: Dict[int, List[TestCasePreconditionStep]] = {
+        precondition_map: dict[int, list[TestCasePreconditionStep]] = {
             cid: [] for cid in case_ids
         }
         for ps in all_precondition_steps:
             precondition_map[ps.test_case_id].append(ps)
 
-        case_text_map: Dict[int, str] = {}
+        case_text_map: dict[int, str] = {}
         for cid, case_steps in steps_map.items():
             actions = [s.action.strip().lower() for s in case_steps]
             case_text_map[cid] = " ".join(actions)
 
-        all_step_ids: List[int] = [s.id for s in all_steps]
-        all_locators: List[ElementLocator] = (
+        all_step_ids: list[int] = [s.id for s in all_steps]
+        all_locators: list[ElementLocator] = (
             self.db.query(ElementLocator).filter(
                 ElementLocator.step_id.in_(all_step_ids)
             ).all() if all_step_ids else []
         )
-        locators_by_step: Dict[int, List[ElementLocator]] = {}
+        locators_by_step: dict[int, list[ElementLocator]] = {}
         for loc in all_locators:
             if loc.step_id is not None:
                 locators_by_step.setdefault(loc.step_id, []).append(loc)
 
         project_meta = self._build_project_coverage_context(project_id)
-        coverage_context: Dict[str, Any] = {
+        coverage_context: dict[str, Any] = {
             "locators_by_step": locators_by_step,
             **project_meta,
         }
 
-        case_reports: List[QualityReport] = []
+        case_reports: list[QualityReport] = []
         for case in cases:
             try:
                 report = await self._analyze_case_quality_internal(
@@ -98,14 +98,14 @@ class _ProjectAnalyzerMixin:
             if total_cases > 0 else 0
         )
 
-        quality_distribution: Dict[str, int] = {
+        quality_distribution: dict[str, int] = {
             "excellent": len([r for r in case_reports if r.overall_score >= 80]),
             "good": len([r for r in case_reports if 60 <= r.overall_score < 80]),
             "fair": len([r for r in case_reports if 40 <= r.overall_score < 60]),
             "poor": len([r for r in case_reports if r.overall_score < 40]),
         }
 
-        all_issues: List[Dict[str, Any]] = []
+        all_issues: list[dict[str, Any]] = []
         for report in case_reports:
             for suggestion in report.suggestions:
                 all_issues.append({
@@ -132,8 +132,8 @@ class _ProjectAnalyzerMixin:
             "reports": case_reports,
         }
 
-    def _build_project_coverage_context(self, project_id: int) -> Dict[str, Any]:
-        point_priorities: Dict[int, int] = {
+    def _build_project_coverage_context(self, project_id: int) -> dict[str, Any]:
+        point_priorities: dict[int, int] = {
             pid: priority for pid, priority in self.db.query(
                 TestPoint.id, TestPoint.priority
             ).filter(
@@ -141,7 +141,7 @@ class _ProjectAnalyzerMixin:
             ).all()
         }
 
-        ui_labels: Set[str] = set()
+        ui_labels: set[str] = set()
         spec_rows = self.db.query(UIPrototypeScreen.ui_spec).filter(
             UIPrototypeScreen.project_id == project_id
         ).all()
@@ -155,9 +155,9 @@ class _ProjectAnalyzerMixin:
 
     @staticmethod
     def _calc_project_requirement_coverage(
-        cases: List[TestCase],
-        project_test_point_priorities: Dict[int, int],
-    ) -> Dict[str, Any]:
+        cases: list[TestCase],
+        project_test_point_priorities: dict[int, int],
+    ) -> dict[str, Any]:
         total_points = len(project_test_point_priorities)
         if total_points == 0:
             return {
@@ -173,7 +173,7 @@ class _ProjectAnalyzerMixin:
                 },
             }
 
-        covered_ids: Set[int] = {
+        covered_ids: set[int] = {
             case.test_point_id
             for case in cases
             if getattr(case, "test_point_id", None) in project_test_point_priorities
@@ -212,8 +212,8 @@ class _ProjectAnalyzerMixin:
     _UI_SPEC_MAX_DEPTH = 20
 
     @staticmethod
-    def _extract_ui_labels_from_spec(spec: Any) -> Set[str]:
-        labels: Set[str] = set()
+    def _extract_ui_labels_from_spec(spec: Any) -> set[str]:
+        labels: set[str] = set()
         candidate_keys = ("name", "label", "text", "description", "target")
         max_depth = _ProjectAnalyzerMixin._UI_SPEC_MAX_DEPTH
 
@@ -237,10 +237,10 @@ class _ProjectAnalyzerMixin:
         walk(spec, 0)
         return labels
 
-    async def get_quality_trend(self, project_id: int, days: int = 30) -> List[Dict[str, Any]]:
+    async def get_quality_trend(self, project_id: int, days: int = 30) -> list[dict[str, Any]]:
         from_date = utcnow() - timedelta(days=days)
 
-        cases: List[TestCase] = self.db.query(TestCase).filter(
+        cases: list[TestCase] = self.db.query(TestCase).filter(
             TestCase.project_id == project_id,
             TestCase.is_deleted.is_(False),
         ).all()
@@ -248,20 +248,20 @@ class _ProjectAnalyzerMixin:
         if not cases:
             return []
 
-        case_ids: List[int] = [c.id for c in cases]
+        case_ids: list[int] = [c.id for c in cases]
 
-        results: List[TestResult] = self.db.query(TestResult).filter(
+        results: list[TestResult] = self.db.query(TestResult).filter(
             TestResult.case_id.in_(case_ids),
             TestResult.exec_time >= from_date
         ).order_by(TestResult.exec_time).all()
 
-        results_map: Dict[int, List[TestResult]] = {}
+        results_map: dict[int, list[TestResult]] = {}
         for result in results:
             results_map.setdefault(result.case_id, []).append(result)
 
-        case_title_map: Dict[int, str] = {c.id: c.title for c in cases}
+        case_title_map: dict[int, str] = {c.id: c.title for c in cases}
 
-        trend: List[Dict[str, Any]] = []
+        trend: list[dict[str, Any]] = []
         for case_id, case_results in results_map.items():
             for result in case_results:
                 trend.append({

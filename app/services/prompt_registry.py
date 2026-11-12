@@ -20,7 +20,6 @@
     - _prompt_registry_sync: 同步方法 Mixin（基于 Session.query）
     - _prompt_registry_async: 异步方法 Mixin（基于 select + await）
 """
-from typing import Union
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -56,5 +55,5 @@ class PromptRegistry(
           rollback_async/list_versions_async
     """
 
-    def __init__(self, db: Union[Session, AsyncSession]) -> None:
+    def __init__(self, db: Session | AsyncSession) -> None:
         self._db = db

@@ -14,7 +14,7 @@ Pipeline Step 基础接口与数据结构
     - fallback 提供失败兜底
 """
 from __future__ import annotations
-from typing import Protocol, ClassVar, Optional, Any, List, Dict, runtime_checkable, TYPE_CHECKING
+from typing import Protocol, ClassVar, Any, runtime_checkable, TYPE_CHECKING
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
@@ -38,15 +38,15 @@ class StepResult:
         confirmation_payload: 传给前端的确认数据。
     """
     success: bool = True
-    artifact_payload: Optional[Dict[str, Any]] = None
+    artifact_payload: dict[str, Any] | None = None
     artifact_kind: str = ""
-    artifact_confidence: Optional[float] = None
-    artifact_provenance: Optional[Dict[str, Any]] = None
+    artifact_confidence: float | None = None
+    artifact_provenance: dict[str, Any] | None = None
     degraded: bool = False
-    error: Optional[str] = None
+    error: str | None = None
     pause_for_confirmation: bool = False
-    confirmation_reason: Optional[str] = None
-    confirmation_payload: Optional[Dict[str, Any]] = None
+    confirmation_reason: str | None = None
+    confirmation_payload: dict[str, Any] | None = None
 
 
 @runtime_checkable
@@ -64,25 +64,25 @@ class PipelineStep(Protocol):
 
     name: ClassVar[str]
     version: ClassVar[str]
-    requires: ClassVar[List[str]]
-    produces: ClassVar[List[str]]
+    requires: ClassVar[list[str]]
+    produces: ClassVar[list[str]]
 
-    def should_run(self, ctx: "PipelineContext") -> bool:
+    def should_run(self, ctx: PipelineContext) -> bool:
         """判断此 Step 是否应该执行（条件执行）。"""
         ...
 
-    def cache_key(self, ctx: "PipelineContext") -> str:
+    def cache_key(self, ctx: PipelineContext) -> str:
         """计算缓存键（用于幂等跳过）。"""
         ...
 
-    def execute(self, ctx: "PipelineContext") -> StepResult:
+    def execute(self, ctx: PipelineContext) -> StepResult:
         """执行 Step 逻辑。"""
         ...
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         """校验产物格式是否合法。"""
         ...
 
-    def fallback(self, ctx: "PipelineContext", error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         """失败兜底逻辑（重试耗尽后调用）。"""
         ...

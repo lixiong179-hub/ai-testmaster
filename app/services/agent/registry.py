@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 import threading
-from typing import Dict, List, Optional
 
 from app.services.agent.base import AgentDefinition
 from app.services.agent.exceptions import AgentError
@@ -33,7 +32,7 @@ class AgentRegistry:
     """
 
     def __init__(self) -> None:
-        self._definitions: Dict[str, AgentDefinition] = {}
+        self._definitions: dict[str, AgentDefinition] = {}
         self._disabled: set[str] = set()
         self._lock = threading.Lock()
 
@@ -52,7 +51,7 @@ class AgentRegistry:
             # 注册后默认从 disabled 集合移除，确保重新注册的 Agent 可用
             self._disabled.discard(definition.agent_type)
 
-    def get(self, agent_type: str) -> Optional[AgentDefinition]:
+    def get(self, agent_type: str) -> AgentDefinition | None:
         """查询 Agent 定义。
 
         Args:
@@ -88,7 +87,7 @@ class AgentRegistry:
             )
         return definition
 
-    def list_agents(self, include_disabled: bool = False) -> List[AgentDefinition]:
+    def list_agents(self, include_disabled: bool = False) -> list[AgentDefinition]:
         """列出所有已注册 Agent。
 
         Args:
@@ -135,7 +134,7 @@ class AgentRegistry:
 
 
 # 全局单例：进程内共享，新增 Agent 通过 register 接入
-_global_registry: Optional[AgentRegistry] = None
+_global_registry: AgentRegistry | None = None
 _registry_lock = threading.Lock()
 
 

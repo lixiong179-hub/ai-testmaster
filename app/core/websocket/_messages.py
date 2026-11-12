@@ -1,5 +1,3 @@
-from typing import Optional
-from fastapi import WebSocket
 
 
 class _MessageMixin:
@@ -13,7 +11,7 @@ class _MessageMixin:
             "message": message
         })
 
-    async def send_screenshot(self, execution_id: str, step_number: int, screenshot_base64: str, highlight_region: Optional[dict] = None):
+    async def send_screenshot(self, execution_id: str, step_number: int, screenshot_base64: str, highlight_region: dict | None = None):
         message = {
             "type": "screenshot",
             "step_number": step_number,
@@ -23,7 +21,7 @@ class _MessageMixin:
             message["highlight_region"] = highlight_region
         await self.broadcast(execution_id, message)
 
-    async def send_progress(self, execution_id: str, current_step: int, total_steps: int, estimated_remaining_seconds: Optional[int] = None):
+    async def send_progress(self, execution_id: str, current_step: int, total_steps: int, estimated_remaining_seconds: int | None = None):
         progress = {
             "type": "progress",
             "current_step": current_step,
@@ -41,7 +39,7 @@ class _MessageMixin:
             "message": message
         })
 
-    def get_connection_count(self, execution_id: Optional[str] = None) -> int:
+    def get_connection_count(self, execution_id: str | None = None) -> int:
         with self._lock:
             if execution_id:
                 return len(self.active_connections.get(execution_id, []))

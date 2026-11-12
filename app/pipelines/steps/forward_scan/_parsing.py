@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.pipelines.steps.forward_scan._types import (
     ForwardVerdict,
@@ -10,8 +10,8 @@ from app.pipelines.steps.forward_scan._types import (
 
 def _parse_forward_response(
     raw: str,
-    candidate: Dict[str, Any],
-    top_matches: List[CoarseMatch],
+    candidate: dict[str, Any],
+    top_matches: list[CoarseMatch],
 ) -> ForwardVerdict:
     data = _try_parse_json(raw)
     if data is None:
@@ -33,15 +33,15 @@ def _parse_forward_response(
     matched_case_id = data.get("matched_case_id")
     matched_title = data.get("matched_title", "")
 
-    if label in ("EXISTING", "MODIFY"):
-        if not isinstance(matched_case_id, int) or isinstance(matched_case_id, bool) or not matched_title:
-            label = "NEW"
-            matched_case_id = None
-            matched_title = ""
-        elif not _is_valid_match(matched_case_id, top_matches):
-            label = "NEW"
-            matched_case_id = None
-            matched_title = ""
+    if label in ("EXISTING", "MODIFY") and (
+        not isinstance(matched_case_id, int)
+        or isinstance(matched_case_id, bool)
+        or not matched_title
+        or not _is_valid_match(matched_case_id, top_matches)
+    ):
+        label = "NEW"
+        matched_case_id = None
+        matched_title = ""
 
     if label == "NEW":
         matched_case_id = None
@@ -69,7 +69,7 @@ def _parse_forward_response(
     )
 
 
-def _try_parse_json(raw: str) -> Optional[Dict[str, Any]]:
+def _try_parse_json(raw: str) -> dict[str, Any] | None:
     try:
         data = json.loads(raw)
         if isinstance(data, dict):
@@ -89,12 +89,12 @@ def _try_parse_json(raw: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _is_valid_match(case_id: int, top_matches: List[CoarseMatch]) -> bool:
+def _is_valid_match(case_id: int, top_matches: list[CoarseMatch]) -> bool:
     valid_ids = {m.case_id for m in top_matches}
     return case_id in valid_ids
 
 
-def _verdict_to_dict(v: ForwardVerdict) -> Dict[str, Any]:
+def _verdict_to_dict(v: ForwardVerdict) -> dict[str, Any]:
     return {
         "candidate_index": v.candidate_index,
         "candidate_description": v.candidate_description,
@@ -107,14 +107,14 @@ def _verdict_to_dict(v: ForwardVerdict) -> Dict[str, Any]:
     }
 
 
-def _compute_stats(verdicts: List[ForwardVerdict]) -> Dict[str, int]:
+def _compute_stats(verdicts: list[ForwardVerdict]) -> dict[str, int]:
     existing = sum(1 for v in verdicts if v.label == "EXISTING")
     modify = sum(1 for v in verdicts if v.label == "MODIFY")
     new = sum(1 for v in verdicts if v.label == "NEW")
     return {"existing": existing, "modify": modify, "new": new}
 
 
-def _compute_forward_confidence(verdicts: List[ForwardVerdict]) -> float:
+def _compute_forward_confidence(verdicts: list[ForwardVerdict]) -> float:
     if not verdicts:
         return 0.0
     return sum(v.confidence for v in verdicts) / len(verdicts)

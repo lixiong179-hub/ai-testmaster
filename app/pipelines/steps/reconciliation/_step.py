@@ -1,11 +1,10 @@
 import hashlib
 import json
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
 from app.pipelines.steps.reconciliation._merge import (
-    MergedAction,
     merge,
     _verdict_to_dict,
     _compute_reconciliation_stats,
@@ -17,8 +16,8 @@ from app.pipelines.steps.reconciliation._merge import (
 class Reconciliation(PipelineStep):
     name: ClassVar[str] = "reconciliation"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = ["backward_verdicts", "forward_verdicts"]
-    produces: ClassVar[List[str]] = ["merged_verdicts"]
+    requires: ClassVar[list[str]] = ["backward_verdicts", "forward_verdicts"]
+    produces: ClassVar[list[str]] = ["merged_verdicts"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         backward = ctx.get_artifact("backward_verdicts")
@@ -73,11 +72,11 @@ class Reconciliation(PipelineStep):
             artifact_provenance={"step": self.name, "version": self.version, "total_count": len(merged)},
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         required = ["project_id", "verdicts", "total_count", "stats"]
         return all(k in payload for k in required) and payload["total_count"] == len(payload["verdicts"])
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         backward = ctx.get_artifact("backward_verdicts")
         forward = ctx.get_artifact("forward_verdicts")
         project_id = 0

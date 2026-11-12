@@ -1,6 +1,5 @@
 """可见模式配置 - 配置验证器
 """
-from typing import Tuple
 from app.services.visibility_config.models import VisibilityConfig
 from app.services.visibility_config.env_loader import VisibilityEnvLoader
 
@@ -9,7 +8,7 @@ class VisibilityConfigValidator:
     """配置验证器"""
 
     @staticmethod
-    def validate(config: VisibilityConfig) -> Tuple[bool, str]:
+    def validate(config: VisibilityConfig) -> tuple[bool, str]:
         """验证配置是否有效"""
         if config.video_resolution[0] < 640 or config.video_resolution[1] < 480:
             return False, "视频分辨率不能小于640x480"

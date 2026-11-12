@@ -33,7 +33,7 @@ from __future__ import annotations
 import json
 import secrets
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -86,7 +86,7 @@ def _get_redis_client():
 
 # 进程内 state 存储（Redis 不可用时的降级方案）
 # 结构：{state: {"provider": str, "nonce": str, "expires_at": float}}
-_memory_state_store: Dict[str, Dict[str, Any]] = {}
+_memory_state_store: dict[str, dict[str, Any]] = {}
 
 
 class OIDCService(OIDCTokenMixin, OIDCUserMixin):
@@ -119,7 +119,7 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
         """列出所有已配置的 IdP 标识。"""
         return [c["provider"] for c in settings.oidc_idp_configs_list]
 
-    def get_provider_config(self, provider: Optional[str]) -> Dict[str, Any]:
+    def get_provider_config(self, provider: str | None) -> dict[str, Any]:
         """获取指定 IdP 配置；provider 为 None 时使用默认 IdP。
 
         Args:
@@ -138,7 +138,7 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
             raise OIDCConfigError(f"未找到 IdP 配置: provider={target}，可用: {available}")
         return cfg
 
-    def resolve_provider(self, provider: Optional[str]) -> str:
+    def resolve_provider(self, provider: str | None) -> str:
         """解析实际使用的 provider 标识（处理 None 情况）。"""
         return provider or settings.OIDC_DEFAULT_PROVIDER
 
@@ -173,7 +173,7 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
         # 清理过期 state（防止内存泄漏）
         self._cleanup_memory_state()
 
-    def _consume_state(self, state: str) -> Optional[Dict[str, Any]]:
+    def _consume_state(self, state: str) -> dict[str, Any] | None:
         """消费 state（一次性读取后删除），返回存储的 payload。
 
         Returns:
@@ -215,9 +215,9 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
 
     def build_authorization_url(
         self,
-        provider: Optional[str] = None,
-        redirect_to: Optional[str] = None,
-    ) -> Tuple[str, str]:
+        provider: str | None = None,
+        redirect_to: str | None = None,
+    ) -> tuple[str, str]:
         """构造 OIDC 授权 URL（用户点击后跳转到 IdP 登录页）。
 
         Args:
@@ -268,7 +268,7 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
         )
         return auth_url, state
 
-    def _derive_authorization_endpoint(self, cfg: Dict[str, Any]) -> str:
+    def _derive_authorization_endpoint(self, cfg: dict[str, Any]) -> str:
         """从 issuer 或 discovery_url 推导授权端点 URL。
 
         优先级：authorization_endpoint（显式） > discovery_url 推导 > issuer + /authorize
@@ -287,7 +287,7 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
         issuer = cfg.get("issuer", "").rstrip("/")
         return f"{issuer}/authorize"
 
-    def _derive_token_endpoint(self, cfg: Dict[str, Any]) -> str:
+    def _derive_token_endpoint(self, cfg: dict[str, Any]) -> str:
         """推导 token 端点 URL。优先级：token_endpoint > discovery > issuer + /token。"""
         explicit = cfg.get("token_endpoint")
         if explicit:
@@ -300,7 +300,7 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
         issuer = cfg.get("issuer", "").rstrip("/")
         return f"{issuer}/token"
 
-    def _derive_userinfo_endpoint(self, cfg: Dict[str, Any]) -> str:
+    def _derive_userinfo_endpoint(self, cfg: dict[str, Any]) -> str:
         """推导 userinfo 端点 URL。优先级：userinfo_endpoint > discovery > issuer + /userinfo。"""
         explicit = cfg.get("userinfo_endpoint")
         if explicit:
@@ -315,7 +315,7 @@ class OIDCService(OIDCTokenMixin, OIDCUserMixin):
 
 
 # 模块级单例（延迟初始化，避免 import 时抛异常）
-_oidc_service_instance: Optional[OIDCService] = None
+_oidc_service_instance: OIDCService | None = None
 
 
 def get_oidc_service() -> OIDCService:

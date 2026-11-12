@@ -14,14 +14,14 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
 from app.services.saml._settings_builder import build_full_settings_dict
 
 
-def _build_auth(request_data: Dict[str, Any], settings_dict: Dict[str, Any]) -> Any:
+def _build_auth(request_data: dict[str, Any], settings_dict: dict[str, Any]) -> Any:
     """构造 OneLogin_Saml2_Auth 实例（延迟导入）。
 
     Args:
@@ -35,7 +35,7 @@ def _build_auth(request_data: Dict[str, Any], settings_dict: Dict[str, Any]) -> 
     return OneLogin_Saml2_Auth(request_data, old_settings=settings_dict)
 
 
-def _build_settings(settings_dict: Dict[str, Any]) -> Any:
+def _build_settings(settings_dict: dict[str, Any]) -> Any:
     """构造 OneLogin_Saml2_Settings 实例（延迟导入）。
 
     Args:
@@ -48,7 +48,7 @@ def _build_settings(settings_dict: Dict[str, Any]) -> Any:
     return OneLogin_Saml2_Settings(settings_dict, sp_validation_only=True)
 
 
-def generate_sp_metadata_xml(idp_cfg: Dict[str, Any], *, strict: bool = True) -> str:
+def generate_sp_metadata_xml(idp_cfg: dict[str, Any], *, strict: bool = True) -> str:
     """生成 SP 元数据 XML。
 
     SP 元数据描述本服务的 EntityID / ACS URL / SLO URL / 证书，
@@ -72,8 +72,8 @@ def generate_sp_metadata_xml(idp_cfg: Dict[str, Any], *, strict: bool = True) ->
 
 
 def build_authn_request_redirect(
-    request_data: Dict[str, Any],
-    idp_cfg: Dict[str, Any],
+    request_data: dict[str, Any],
+    idp_cfg: dict[str, Any],
     relay_state: str,
     *,
     strict: bool = True,
@@ -98,11 +98,11 @@ def build_authn_request_redirect(
 
 
 def parse_saml_response(
-    request_data: Dict[str, Any],
-    idp_cfg: Dict[str, Any],
+    request_data: dict[str, Any],
+    idp_cfg: dict[str, Any],
     *,
     strict: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """解析并验证 IdP 返回的 SAMLResponse。
 
     IdP POST SAMLResponse 到 ACS URL 后，本函数：
@@ -142,7 +142,7 @@ def parse_saml_response(
     issuer = auth.get_issuers()[0] if auth.get_issuers() else ""
     attributes = auth.get_attributes() or {}
     # 属性值统一为列表，此处转为单值（取第一个）便于上层使用
-    flat_attrs: Dict[str, Any] = {}
+    flat_attrs: dict[str, Any] = {}
     for k, v in attributes.items():
         flat_attrs[k] = v[0] if isinstance(v, list) and v else v
 
@@ -156,8 +156,8 @@ def parse_saml_response(
 
 
 def build_logout_request_redirect(
-    request_data: Dict[str, Any],
-    idp_cfg: Dict[str, Any],
+    request_data: dict[str, Any],
+    idp_cfg: dict[str, Any],
     name_id: str,
     session_index: str,
     relay_state: str = "",
@@ -187,11 +187,11 @@ def build_logout_request_redirect(
 
 
 def parse_logout_response(
-    request_data: Dict[str, Any],
-    idp_cfg: Dict[str, Any],
+    request_data: dict[str, Any],
+    idp_cfg: dict[str, Any],
     *,
     strict: bool = True,
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """解析 LogoutResponse，判断 SLO 是否成功。
 
     IdP 返回 LogoutResponse 后，本函数：
@@ -208,8 +208,8 @@ def parse_logout_response(
     """
     settings_dict = build_full_settings_dict(idp_cfg, strict=strict)
     auth = _build_auth(request_data, settings_dict)
-    # process_slo 返回 True 表示 SLO 成功，False 表示有错误
-    success = auth.process_slo()
+    # process_slo 返回 True 表示 SLO 成功，False 表示有错误；错误详情统一从 get_errors 获取
+    auth.process_slo()
     errors = auth.get_errors()
     if errors:
         reason = auth.get_last_error_reason()

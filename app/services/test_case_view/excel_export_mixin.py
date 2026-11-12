@@ -1,5 +1,4 @@
 """Excel导出Mixin - 标准格式和功能用例格式的Excel导出。"""
-from typing import List
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep
@@ -30,7 +29,7 @@ class ExcelExportMixin:
                 locator_list = self.db.query(ElementLocator).filter(
                     ElementLocator.step_id.in_(step_ids)
                 ).all()
-                locators = {l.step_id: l for l in locator_list}
+                locators = {loc.step_id: loc for loc in locator_list}
 
             wb = Workbook()
 
@@ -100,7 +99,7 @@ class ExcelExportMixin:
             logger.error(f"导出Excel失败: {e}", exc_info=True)
             return False
 
-    def export_to_functional_excel(self, test_case_ids: List[int], file_path: str) -> bool:
+    def export_to_functional_excel(self, test_case_ids: list[int], file_path: str) -> bool:
         try:
             from collections import OrderedDict
             from openpyxl import Workbook
@@ -226,12 +225,12 @@ class ExcelExportMixin:
             logger.error(f"导出功能用例Excel失败: {e}")
             return False
 
-    def _build_functional_steps(self, steps: List[TestStep]) -> str:
+    def _build_functional_steps(self, steps: list[TestStep]) -> str:
         if not steps:
             return ""
         return "\n".join(f"[{s.step_number}] {s.action}" for s in steps)
 
-    def _build_functional_expected(self, steps: List[TestStep]) -> str:
+    def _build_functional_expected(self, steps: list[TestStep]) -> str:
         if not steps:
             return ""
         items = []

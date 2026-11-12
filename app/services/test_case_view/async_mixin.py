@@ -15,7 +15,7 @@
         service = TestCaseViewService(db)  # db 为 AsyncSession
         view = await service.get_technical_view_async(test_case_id)
 """
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -36,7 +36,7 @@ class TestCaseViewAsyncMixin:
 
     async def get_technical_view_async(
         self, test_case_id: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """获取测试用例的技术视图（异步版本）。
 
         组装流程与 sync 版本一致：
@@ -95,11 +95,11 @@ class TestCaseViewAsyncMixin:
         }
 
     async def _batch_query_step_data_async(
-        self, step_ids: List[int]
+        self, step_ids: list[int]
     ) -> tuple:
         """批量查询步骤的定位信息和测试数据（异步版本），避免N+1查询。"""
-        locators: Dict[int, ElementLocator] = {}
-        test_data_map: Dict[int, list] = {}
+        locators: dict[int, ElementLocator] = {}
+        test_data_map: dict[int, list] = {}
         if not step_ids:
             return locators, test_data_map
 
@@ -124,7 +124,7 @@ class TestCaseViewAsyncMixin:
 
     async def _build_precondition_steps_async(
         self, test_case_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """构建前置条件步骤数据（异步版本）。"""
         pc_result = await self.db.execute(
             select(TestCasePreconditionStep).where(
@@ -134,7 +134,7 @@ class TestCaseViewAsyncMixin:
         pc_steps = pc_result.scalars().all()
 
         pc_step_ids = [s.id for s in pc_steps]
-        pc_locators: Dict[int, ElementLocator] = {}
+        pc_locators: dict[int, ElementLocator] = {}
         if pc_step_ids:
             pc_locator_result = await self.db.execute(
                 select(ElementLocator).where(
@@ -144,10 +144,10 @@ class TestCaseViewAsyncMixin:
             pc_locator_list = pc_locator_result.scalars().all()
             pc_locators = {loc.precondition_step_id: loc for loc in pc_locator_list}
 
-        precondition_steps_data: List[Dict[str, Any]] = []
+        precondition_steps_data: list[dict[str, Any]] = []
         for pc_step in pc_steps:
             pc_locator = pc_locators.get(pc_step.id)
-            pc_step_data: Dict[str, Any] = {
+            pc_step_data: dict[str, Any] = {
                 "id": pc_step.id,
                 "step_number": int(pc_step.step_number),
                 "action": str(pc_step.action),
@@ -176,7 +176,7 @@ class TestCaseViewAsyncMixin:
 
     async def get_business_view_async(
         self, test_case_id: int
-    ) -> Optional[BusinessTestCaseView]:
+    ) -> BusinessTestCaseView | None:
         """获取测试用例的业务视图（异步版本），仅展示 is_business_view=1 的步骤。"""
         test_case_result = await self.db.execute(
             select(TestCase).where(
@@ -217,7 +217,7 @@ class TestCaseViewAsyncMixin:
 
     async def get_locator_coverage_async(
         self, test_case_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取测试用例的定位覆盖率统计（异步版本）。"""
         steps_result = await self.db.execute(
             select(TestStep).where(TestStep.test_case_id == test_case_id)
@@ -239,7 +239,7 @@ class TestCaseViewAsyncMixin:
 
     async def get_view_statistics_async(
         self, test_case_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取测试用例的视图统计信息（异步版本）。"""
         steps_result = await self.db.execute(
             select(TestStep).where(TestStep.test_case_id == test_case_id)
@@ -301,8 +301,8 @@ class TestCaseViewAsyncMixin:
     async def update_step_view_config_async(
         self,
         step_id: int,
-        is_business_view: Optional[int] = None,
-        is_technical_view: Optional[int] = None
+        is_business_view: int | None = None,
+        is_technical_view: int | None = None
     ) -> bool:
         """更新单个步骤的视图可见性配置（异步版本）。
 

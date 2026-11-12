@@ -10,7 +10,7 @@
     - _persist_posterior: 后验评分触发
 """
 import threading
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
@@ -28,8 +28,8 @@ class Persist(PipelineStep):
 
     name: ClassVar[str] = "persist"
     version: ClassVar[str] = "2.0"
-    requires: ClassVar[List[str]] = ["generated_cases", "quality_scores"]
-    produces: ClassVar[List[str]] = ["persisted_case_ids"]
+    requires: ClassVar[list[str]] = ["generated_cases", "quality_scores"]
+    produces: ClassVar[list[str]] = ["persisted_case_ids"]
     # 类级初始化避免懒初始化的 TOCTOU 竞态：
     # 若在方法内 `if not hasattr(...): Lock()` 判断与赋值之间可能两个线程同时进入，
     # 创建两个不同的 Lock 实例导致锁失效。
@@ -101,10 +101,10 @@ class Persist(PipelineStep):
             },
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         return "persisted_case_ids" in payload
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         return StepResult(
             success=False,
             error=f"用例持久化降级: {error}",

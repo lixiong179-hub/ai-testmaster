@@ -31,7 +31,6 @@ from app.schemas.project import (
 from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
-from app.crud.file import get_project_files
 from app.utils.crypto import encrypt_password, mask_password
 from app.core.exception import create_response
 from loguru import logger

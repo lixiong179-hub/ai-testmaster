@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 import random
 import string
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.models.test_data import DataType, GenerationRule
 from app.services.test_data.constants import (
@@ -32,18 +32,18 @@ class TestDataGenerator:
 
     CHINESE_CHARS = CHINESE_CHARS
 
-    def __init__(self, seed: Optional[int] = None) -> None:
+    def __init__(self, seed: int | None = None) -> None:
         self._seed = seed
         self._random = random.Random(seed)
-        self._generated_values: Dict[str, str] = {}
+        self._generated_values: dict[str, str] = {}
 
     def generate_data(
         self,
         field_type: Any,
         field_name: str,
         generation_rule: GenerationRule = GenerationRule.RANDOM,
-        constraints: Optional[DataConstraints] = None,
-        rule_config: Optional[Dict[str, Any]] = None,
+        constraints: DataConstraints | None = None,
+        rule_config: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
         constraints = constraints or DataConstraints(
@@ -85,7 +85,7 @@ class TestDataGenerator:
         field_type: Any,
         field_name: str,
         constraints: DataConstraints,
-        rule_config: Optional[Dict[str, Any]] = None,
+        rule_config: dict[str, Any] | None = None,
     ) -> str:
         normalized_type = field_type.value if isinstance(field_type, DataType) else str(field_type)
 
@@ -117,7 +117,7 @@ class TestDataGenerator:
         self,
         field_name: str,
         constraints: DataConstraints,
-        rule_config: Optional[Dict[str, Any]] = None,
+        rule_config: dict[str, Any] | None = None,
     ) -> str:
         rule_config = rule_config or {}
         template = rule_config.get('template')
@@ -271,7 +271,7 @@ class TestDataGenerator:
             self._random = random.Random(self._seed)
 
 
-def create_test_data_generator(seed: Optional[int] = None) -> TestDataGenerator:
+def create_test_data_generator(seed: int | None = None) -> TestDataGenerator:
     """Legacy factory preserved for compatibility."""
 
     return TestDataGenerator(seed=seed)
@@ -281,8 +281,8 @@ def generate_test_data(
     field_type: Any,
     field_name: str,
     generation_rule: GenerationRule = GenerationRule.RANDOM,
-    constraints: Optional[DataConstraints] = None,
-    rule_config: Optional[Dict[str, Any]] = None,
+    constraints: DataConstraints | None = None,
+    rule_config: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> str:
     """Legacy convenience wrapper used by tests."""

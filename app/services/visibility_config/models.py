@@ -1,12 +1,12 @@
 """
 可见模式配置数据模型
 """
-from typing import Dict, Any, Tuple, List
+from typing import Any
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 
-class VisibilityLevel(str, Enum):
+class VisibilityLevel(StrEnum):
     """配置级别"""
     GLOBAL = "global"      # 全局级别
     TASK = "task"          # 任务级别
@@ -21,7 +21,7 @@ class VisibilityConfig:
 
     # 视频录制
     record_video: bool = False  # 是否录制视频
-    video_resolution: Tuple[int, int] = (1920, 1080)  # 视频分辨率
+    video_resolution: tuple[int, int] = (1920, 1080)  # 视频分辨率
     video_fps: int = 30  # 视频帧率
 
     # 截图
@@ -36,9 +36,9 @@ class VisibilityConfig:
     # 调试
     highlight_elements: bool = True
     show_ai_analysis: bool = True
-    hidden_fields: List[str] = field(default_factory=list)
+    hidden_fields: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = {
             "headless": self.headless,
             "record_video": self.record_video,
@@ -56,7 +56,7 @@ class VisibilityConfig:
         return result
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'VisibilityConfig':
+    def from_dict(cls, data: dict[str, Any]) -> 'VisibilityConfig':
         """从字典创建"""
         config = cls()
         if "headless" in data:

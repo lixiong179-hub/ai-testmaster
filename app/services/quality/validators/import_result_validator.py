@@ -5,7 +5,6 @@
     - 必须包含 steps 字段且为列表
     - 每个步骤必须包含 action 和 expected_result
 """
-from typing import Dict, List, Optional
 
 from app.services.quality.validators.base import (
     BaseValidator,
@@ -19,11 +18,11 @@ class ImportResultValidator(BaseValidator):
 
     def validate(
         self,
-        case_data: Dict,
-        context: Optional[Dict] = None,
+        case_data: dict,
+        context: dict | None = None,
     ) -> ValidationResult:
         """校验导入用例的格式完整性。"""
-        issues: List[ValidationIssue] = []
+        issues: list[ValidationIssue] = []
 
         source = (context or {}).get("source", "")
         if source != "import":

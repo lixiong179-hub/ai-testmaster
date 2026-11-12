@@ -28,7 +28,7 @@
     - delete_test_case 为软删除，设置 is_deleted=True 和 deleted_at 时间戳
     - 已软删除的用例不会在查询结果中返回（test_case_query.py 默认过滤）
 """
-from typing import List, Optional, Dict, Any
+from typing import Any
 from sqlalchemy.orm import Session
 from app.models.test_case import TestCase, TestStep
 from app.models.enums import TestCaseLifecycleStatus
@@ -39,7 +39,7 @@ from app.crud.test_case_query import get_test_case_by_id
 def _create_test_steps(
     db: Session,
     test_case_id: int,
-    steps: List[Dict[str, Any]],
+    steps: list[dict[str, Any]],
 ) -> None:
     """为测试用例创建结构化步骤记录。"""
     for index, step_data in enumerate(steps, start=1):
@@ -66,17 +66,17 @@ def create_test_case(
     module: str,
     title: str,
     precondition: str,
-    steps: Dict[str, Any],
+    steps: dict[str, Any],
     expected_result: str,
     priority: int,
     case_type: str,
-    exec_script: Optional[str] = None,
+    exec_script: str | None = None,
     generate_status: int = 0,
-    lifecycle_status: Optional[str] = None,
-    test_point_id: Optional[int] = None,
-    summary: Optional[str] = None,
-    summary_model_version: Optional[str] = None,
-    parent_case_id: Optional[int] = None,
+    lifecycle_status: str | None = None,
+    test_point_id: int | None = None,
+    summary: str | None = None,
+    summary_model_version: str | None = None,
+    parent_case_id: int | None = None,
 ) -> TestCase:
     """
     创建单个测试用例
@@ -139,7 +139,7 @@ def update_test_case(
     test_case_id: int,
     project_id: int,
     **kwargs
-) -> Optional[TestCase]:
+) -> TestCase | None:
     """
     更新测试用例
 
@@ -201,9 +201,9 @@ def delete_test_case(
 def batch_create_test_cases(
     db: Session,
     project_id: int,
-    test_cases_data: List[Dict[str, Any]],
+    test_cases_data: list[dict[str, Any]],
     commit: bool = True,
-) -> List[TestCase]:
+) -> list[TestCase]:
     """
     批量创建测试用例
 

@@ -1,9 +1,9 @@
-from typing import Dict, Any, Optional
+from typing import Any
 from loguru import logger
 
 
 def _record_enhanced_call(
-    metadata: Optional[Dict[str, Any]],
+    metadata: dict[str, Any] | None,
     model_name: str,
     response: Any,
     latency_ms: int,

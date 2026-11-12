@@ -1,6 +1,5 @@
 
 """初始化Mixin - 视觉模型初始化。"""
-from typing import Optional
 
 from loguru import logger
 
@@ -16,9 +15,9 @@ class InitMixin:
     async def initialize(
         self,
         model_type=None,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        model_name: Optional[str] = None
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model_name: str | None = None
     ) -> 'InitMixin':
         """初始化视觉模型。"""
         if model_type:

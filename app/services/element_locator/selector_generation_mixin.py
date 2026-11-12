@@ -1,7 +1,7 @@
 """选择器生成Mixin - 自动生成CSS和XPath选择器。
 """
 import re
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 class SelectorGenerationMixin:
@@ -27,7 +27,7 @@ class SelectorGenerationMixin:
         else:
             return f'"{value}"'
 
-    def _generate_css_selector(self, element_attrs: Dict[str, Any]) -> Optional[str]:
+    def _generate_css_selector(self, element_attrs: dict[str, Any]) -> str | None:
         tag = element_attrs.get("tag", "")
         element_id = element_attrs.get("id")
         data_testid = element_attrs.get("data-testid")
@@ -69,7 +69,7 @@ class SelectorGenerationMixin:
         safe_tag = self._sanitize_for_css(tag)
         return safe_tag if safe_tag else None
 
-    def _generate_xpath(self, element_attrs: Dict[str, Any]) -> Optional[str]:
+    def _generate_xpath(self, element_attrs: dict[str, Any]) -> str | None:
         tag = element_attrs.get("tag", "*")
         element_id = element_attrs.get("id")
         element_name = element_attrs.get("name")
@@ -95,7 +95,7 @@ class SelectorGenerationMixin:
         return f"//{safe_tag}"
 
     @staticmethod
-    def _normalize_coordinate(element_info: Dict[str, Any], inplace: bool = False) -> Dict[str, Any]:
+    def _normalize_coordinate(element_info: dict[str, Any], inplace: bool = False) -> dict[str, Any]:
         result = element_info if inplace else {}
         for key in ["x", "y", "width", "height"]:
             val = element_info.get(key, 0)

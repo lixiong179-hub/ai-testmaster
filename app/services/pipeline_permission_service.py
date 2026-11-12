@@ -22,7 +22,8 @@ Pipeline 权限服务模块
     - app.services.audit_service : 审计日志
 """
 import logging
-from typing import Optional, Callable, Any
+from typing import Any
+from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -113,7 +114,7 @@ def check_pipeline_permission(
     resource: str,
     action: str,
     scope: str = "project",
-    project_id: Optional[int] = None,
+    project_id: int | None = None,
 ) -> bool:
     """校验用户是否拥有指定 Pipeline 权限。
 
@@ -227,7 +228,7 @@ def assign_pipeline_role(
     user_id: int,
     role_name: str,
     project_id: int,
-    actor_id: Optional[int] = None,
+    actor_id: int | None = None,
 ) -> None:
     """分配 Pipeline 角色。
 
@@ -283,7 +284,7 @@ def revoke_pipeline_role(
     user_id: int,
     role_name: str,
     project_id: int,
-    actor_id: Optional[int] = None,
+    actor_id: int | None = None,
 ) -> None:
     """撤销 Pipeline 角色。
 

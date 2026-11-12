@@ -27,7 +27,7 @@
       这些查询与具体变更逻辑强耦合（如重命名校验需排除自身），
       非通用查询，故按"保守处理"原则保留在本模块内。
 """
-from typing import Optional, Callable
+from collections.abc import Callable
 from sqlalchemy.orm import Session
 from app.models.iteration import Iteration
 from datetime import datetime
@@ -45,10 +45,10 @@ def create_iteration(
     project_id: int,
     name: str,
     version: str = "v1.0",
-    description: Optional[str] = None,
+    description: str | None = None,
     status: str = "draft",
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None
+    start_date: datetime | None = None,
+    end_date: datetime | None = None
 ) -> Iteration:
     """
     创建迭代
@@ -100,7 +100,7 @@ def create_iteration(
     return db_iteration
 
 
-def update_iteration(db: Session, iteration_id: int, **kwargs) -> Optional[Iteration]:
+def update_iteration(db: Session, iteration_id: int, **kwargs) -> Iteration | None:
     """
     更新迭代
 
@@ -157,7 +157,7 @@ def update_iteration(db: Session, iteration_id: int, **kwargs) -> Optional[Itera
     return db_iteration
 
 
-def delete_iteration(db: Session, iteration_id: int, cleanup_callback: Optional[Callable[[], None]] = None) -> bool:
+def delete_iteration(db: Session, iteration_id: int, cleanup_callback: Callable[[], None] | None = None) -> bool:
     """
     删除迭代
 

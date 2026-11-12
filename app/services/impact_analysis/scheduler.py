@@ -10,7 +10,6 @@
 """
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 from app.services.impact_analysis.change_analyzer import ChangeAnalyzer
 from app.services.impact_analysis.coverage_collector import CoverageCollector
@@ -27,7 +26,7 @@ class ImpactSchedulePlan:
     业务用途：Pipeline 执行器读取此计划决定执行范围。
     边界场景：fallback=True 时执行全量用例，TIA 分析失败兜底。
     """
-    test_case_ids: List[int] = field(default_factory=list)
+    test_case_ids: list[int] = field(default_factory=list)
     is_full_run: bool = False  # 是否全量执行
     fallback_reason: str = ""  # 降级原因（is_full_run=True 时填写）
     reduction_ratio: float = 0.0  # 用例缩减比例
@@ -62,17 +61,17 @@ class ImpactScheduler:
     def __init__(
         self,
         project_root: str,
-        coverage_entries: Optional[List[CoverageEntry]] = None,
+        coverage_entries: list[CoverageEntry] | None = None,
     ) -> None:
         if not project_root:
             raise ValueError("project_root 不能为空")
         self._project_root = project_root
-        self._coverage_entries: List[CoverageEntry] = coverage_entries or []
+        self._coverage_entries: list[CoverageEntry] = coverage_entries or []
         self._collector = CoverageCollector(project_root=project_root)
         self._analyzer = ChangeAnalyzer(project_root=project_root)
         self._mapper = ImpactMapper()
 
-    def update_coverage_entries(self, entries: List[CoverageEntry]) -> None:
+    def update_coverage_entries(self, entries: list[CoverageEntry]) -> None:
         """更新覆盖率映射（增量采集后调用）。"""
         if not entries:
             return

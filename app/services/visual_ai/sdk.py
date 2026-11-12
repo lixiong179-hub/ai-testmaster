@@ -24,7 +24,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any
 
 from sqlalchemy import select
 
@@ -62,8 +62,8 @@ class VisualAISDK(VisualCheckMixin):
         self,
         db: Any,
         storage: StorageBackend,
-        ai_client: Optional[Any] = None,
-        redis_client: Optional[Any] = None,
+        ai_client: Any | None = None,
+        redis_client: Any | None = None,
     ) -> None:
         """初始化 SDK。
 
@@ -89,9 +89,9 @@ class VisualAISDK(VisualCheckMixin):
         viewport_height: int,
         image_bytes: bytes,
         match_level: str = "strict",
-        test_case_id: Optional[int] = None,
-        dom_html: Optional[str] = None,
-        created_by: Optional[int] = None,
+        test_case_id: int | None = None,
+        dom_html: str | None = None,
+        created_by: int | None = None,
     ) -> VisualBaseline:
         """创建视觉基线。"""
         dom_bytes = dom_html.encode("utf-8") if dom_html else None
@@ -114,7 +114,7 @@ class VisualAISDK(VisualCheckMixin):
         page_url: str,
         viewport_width: int,
         viewport_height: int,
-    ) -> Optional[VisualBaseline]:
+    ) -> VisualBaseline | None:
         """查询页面活跃基线。"""
         return await self._baseline_service.get_active_baseline(
             project_id=project_id,
@@ -126,11 +126,11 @@ class VisualAISDK(VisualCheckMixin):
     async def list_baselines(
         self,
         project_id: int,
-        status: Optional[str] = None,
-        test_case_id: Optional[int] = None,
+        status: str | None = None,
+        test_case_id: int | None = None,
         offset: int = 0,
         limit: int = 50,
-    ) -> List[VisualBaseline]:
+    ) -> list[VisualBaseline]:
         """列出基线。"""
         return await self._baseline_service.list_baselines(
             project_id=project_id,
@@ -144,8 +144,8 @@ class VisualAISDK(VisualCheckMixin):
         self,
         baseline_id: int,
         new_image_bytes: bytes,
-        match_level: Optional[str] = None,
-        dom_html: Optional[str] = None,
+        match_level: str | None = None,
+        dom_html: str | None = None,
     ) -> VisualBaseline:
         """更新基线截图，旧版本归档。"""
         dom_bytes = dom_html.encode("utf-8") if dom_html else None
@@ -164,7 +164,7 @@ class VisualAISDK(VisualCheckMixin):
         self,
         baseline_id: int,
         current_image_bytes: bytes,
-        match_level: Optional[str] = None,
+        match_level: str | None = None,
         enable_llm_analysis: bool = True,
     ) -> ComparisonResult:
         """对比当前截图与指定基线。"""
@@ -191,8 +191,8 @@ class VisualAISDK(VisualCheckMixin):
         project_id: int,
         diff_id: int,
         action: str,
-        comment: Optional[str] = None,
-        reviewer_id: Optional[int] = None,
+        comment: str | None = None,
+        reviewer_id: int | None = None,
     ) -> BaselineApproval:
         """审批 Diff 记录。
 
@@ -234,10 +234,10 @@ class VisualAISDK(VisualCheckMixin):
     async def list_diffs(
         self,
         project_id: int,
-        status: Optional[str] = None,
+        status: str | None = None,
         offset: int = 0,
         limit: int = 50,
-    ) -> List[VisualDiff]:
+    ) -> list[VisualDiff]:
         """列出 Diff 记录。"""
         stmt = select(VisualDiff).where(VisualDiff.project_id == project_id)
         if status:

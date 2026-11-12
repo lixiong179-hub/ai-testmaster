@@ -11,7 +11,7 @@
 """
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -22,8 +22,8 @@ from app.utils.db_time import utcnow
 
 
 def _prepare_test_point(
-    context: Dict[str, Any], description: str, priority: int
-) -> Dict[str, Any]:
+    context: dict[str, Any], description: str, priority: int
+) -> dict[str, Any]:
     """从上下文中提取或构造测试点信息。"""
     raw_test_points = context.get("test_points", [])
     test_points = raw_test_points if isinstance(raw_test_points, list) else []
@@ -59,7 +59,7 @@ def _prepare_test_point(
     return test_point
 
 
-def _build_ui_specs_text(ui_specs: List[Dict[str, Any]]) -> str:
+def _build_ui_specs_text(ui_specs: list[dict[str, Any]]) -> str:
     """将UI规格列表格式化为Prompt文本。"""
     if not ui_specs:
         return ""
@@ -75,9 +75,9 @@ def _build_ui_specs_text(ui_specs: List[Dict[str, Any]]) -> str:
 
 def _build_graph_prompt_data(
     flow_sort_data: FlowSortDataSchema,
-    context: Dict[str, Any], description: str, priority: int,
-    case_type: Optional[str] = None,
-) -> Dict[str, Any]:
+    context: dict[str, Any], description: str, priority: int,
+    case_type: str | None = None,
+) -> dict[str, Any]:
     """构建流程图模式所需的Prompt数据。"""
     from app.services.prompt_builder import PromptBuilder
     from app.services.flow_validation import validate_flow_structure
@@ -126,9 +126,9 @@ def _build_graph_prompt_data(
 
 
 def _build_linear_prompt_data(
-    context: Dict[str, Any], description: str, priority: int,
-    case_type: Optional[str], exec_mode: str,
-) -> Dict[str, Any]:
+    context: dict[str, Any], description: str, priority: int,
+    case_type: str | None, exec_mode: str,
+) -> dict[str, Any]:
     """构建线性模式所需的Prompt数据。"""
     test_point = _prepare_test_point(context, description, priority)
     raw_ui_desc = context.get("ui_description") or context.get("ui_descriptions") or ""
@@ -150,9 +150,9 @@ def _build_linear_prompt_data(
 
 
 def _format_case_response(
-    generated_case: Dict[str, Any], project_id: int,
-    description: str, priority: int, case_type: Optional[str],
-) -> Dict[str, Any]:
+    generated_case: dict[str, Any], project_id: int,
+    description: str, priority: int, case_type: str | None,
+) -> dict[str, Any]:
     """格式化生成的测试用例为响应数据。"""
     if not isinstance(generated_case, dict):
         raise TypeError(

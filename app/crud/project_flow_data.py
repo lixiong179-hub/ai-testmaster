@@ -15,7 +15,7 @@ AI用例生成流程中对页面流程图（FlowSortEditor）的编辑结果，�
 事务处理方式：
     - 写操作自动commit
 """
-from typing import Any, Dict, Optional
+from typing import Any
 from sqlalchemy.orm import Session
 from app.models.project_flow_data import ProjectFlowData
 from app.utils.db_time import utcnow
@@ -24,7 +24,7 @@ from app.utils.db_time import utcnow
 def save_project_flow_data(
     db: Session,
     project_id: int,
-    flow_data: Dict[str, Any],
+    flow_data: dict[str, Any],
 ) -> ProjectFlowData:
     """
     Upsert项目流程数据
@@ -66,7 +66,7 @@ def save_project_flow_data(
 def get_project_flow_data(
     db: Session,
     project_id: int,
-) -> Optional[ProjectFlowData]:
+) -> ProjectFlowData | None:
     """
     查询项目流程数据
 

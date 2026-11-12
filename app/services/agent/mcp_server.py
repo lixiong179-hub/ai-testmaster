@@ -11,7 +11,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any
+from collections.abc import Awaitable, Callable
 
 from loguru import logger
 from sqlalchemy import func, select
@@ -33,8 +34,8 @@ from app.services.agent.session_service import SessionService
 from app.services.agent.tools import ToolRegistry
 
 ToolHandler = Callable[
-    [AsyncSession, User, Dict[str, Any]],
-    Awaitable[Dict[str, Any]],
+    [AsyncSession, User, dict[str, Any]],
+    Awaitable[dict[str, Any]],
 ]
 
 
@@ -51,7 +52,7 @@ class MCPTool:
 
     name: str
     description: str
-    input_schema: Dict[str, Any]
+    input_schema: dict[str, Any]
     handler: ToolHandler
 
 
@@ -59,7 +60,7 @@ class MCPServer:
     """MCP Server - 工具注册表与执行入口。"""
 
     def __init__(self) -> None:
-        self._tools: Dict[str, MCPTool] = {}
+        self._tools: dict[str, MCPTool] = {}
 
     def register_tool(self, tool: MCPTool) -> None:
         """注册 MCP 工具，重复注册抛 ValueError。"""
@@ -67,11 +68,11 @@ class MCPServer:
             raise ValueError(f"MCP 工具已注册: {tool.name}")
         self._tools[tool.name] = tool
 
-    def get_tool(self, name: str) -> Optional[MCPTool]:
+    def get_tool(self, name: str) -> MCPTool | None:
         """按名称查询工具，不存在返回 None。"""
         return self._tools.get(name)
 
-    def list_tools(self) -> List[Dict[str, Any]]:
+    def list_tools(self) -> list[dict[str, Any]]:
         """返回所有工具的 MCP 元信息，按 name 排序。"""
         return [
             {"name": t.name, "description": t.description, "input_schema": t.input_schema}
@@ -79,9 +80,9 @@ class MCPServer:
         ]
 
     async def call_tool(
-        self, name: str, arguments: Dict[str, Any],
+        self, name: str, arguments: dict[str, Any],
         db: AsyncSession, user: User,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """调用指定 MCP 工具。
 
         Raises:
@@ -117,8 +118,8 @@ async def _ensure_project_access(
 
 
 async def _generate_test_case_handler(
-    db: AsyncSession, user: User, arguments: Dict[str, Any],
-) -> Dict[str, Any]:
+    db: AsyncSession, user: User, arguments: dict[str, Any],
+) -> dict[str, Any]:
     """generate_test_case - 创建 TestGenerationAgent 会话并执行。
 
     llm_provider 留空时 runtime 降级返回固定响应，会话正常关闭，
@@ -127,7 +128,7 @@ async def _generate_test_case_handler(
     project_id: int = arguments["project_id"]
     await _ensure_project_access(db, project_id, user)
     user_intent: str = arguments["user_intent"]
-    context: Dict[str, Any] = arguments.get("context") or {}
+    context: dict[str, Any] = arguments.get("context") or {}
 
     intent_artifact = UserIntentArtifact(
         natural_language_request=user_intent, origin="mcp",
@@ -159,8 +160,8 @@ async def _generate_test_case_handler(
 
 
 async def _query_test_case_handler(
-    db: AsyncSession, user: User, arguments: Dict[str, Any],
-) -> Dict[str, Any]:
+    db: AsyncSession, user: User, arguments: dict[str, Any],
+) -> dict[str, Any]:
     """query_test_case - 按 ID 查询测试用例。"""
     test_case_id: int = arguments["test_case_id"]
     result = await db.execute(
@@ -182,8 +183,8 @@ async def _query_test_case_handler(
 
 
 async def _run_test_case_handler(
-    db: AsyncSession, user: User, arguments: Dict[str, Any],
-) -> Dict[str, Any]:
+    db: AsyncSession, user: User, arguments: dict[str, Any],
+) -> dict[str, Any]:
     """run_test_case - 当前降级返回 REST API 提示。
 
     任务创建涉及执行引擎、用例状态校验等复杂逻辑，统一引导调用方走 REST API。
@@ -198,8 +199,8 @@ async def _run_test_case_handler(
 
 
 async def _query_execution_result_handler(
-    db: AsyncSession, user: User, arguments: Dict[str, Any],
-) -> Dict[str, Any]:
+    db: AsyncSession, user: User, arguments: dict[str, Any],
+) -> dict[str, Any]:
     """query_execution_result - 按 task_id 查询测试结果列表。"""
     task_id: int = arguments["task_id"]
     task_result = await db.execute(
@@ -220,8 +221,8 @@ async def _query_execution_result_handler(
 
 
 async def _query_self_healing_audit_handler(
-    db: AsyncSession, user: User, arguments: Dict[str, Any],
-) -> Dict[str, Any]:
+    db: AsyncSession, user: User, arguments: dict[str, Any],
+) -> dict[str, Any]:
     """query_self_healing_audit - 分页查询自愈审计记录。
 
     非超级管理员仅返回其项目下用例触发的自愈记录，通过 test_case_id 关联
@@ -251,7 +252,7 @@ async def _query_self_healing_audit_handler(
     return {"audits": [a.to_dict() for a in audits], "total": total}
 
 
-_TOOL_SPECS: List[Dict[str, Any]] = [
+_TOOL_SPECS: list[dict[str, Any]] = [
     {
         "name": "generate_test_case",
         "description": "根据用户意图与项目上下文生成测试用例",
@@ -317,7 +318,7 @@ _TOOL_SPECS: List[Dict[str, Any]] = [
     },
 ]
 
-_mcp_server: Optional[MCPServer] = None
+_mcp_server: MCPServer | None = None
 
 
 def get_mcp_server() -> MCPServer:

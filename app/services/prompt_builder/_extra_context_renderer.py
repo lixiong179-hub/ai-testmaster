@@ -9,13 +9,13 @@
 """
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 def _render_quality_feedback(
-    extra_context: Dict[str, Any], sections: List[str],
+    extra_context: dict[str, Any], sections: list[str],
 ) -> None:
     """注入上轮校验问题供AI修复（与task_type正交，优先级最高）。"""
     quality_feedback = extra_context.get("quality_feedback")
@@ -27,7 +27,7 @@ def _render_quality_feedback(
 
 
 def _render_quality_signals(
-    extra_context: Dict[str, Any], sections: List[str],
+    extra_context: dict[str, Any], sections: list[str],
 ) -> None:
     """注入质量信号（具体问题+低分维度），与 quality_feedback 正交。
 
@@ -44,7 +44,7 @@ def _render_quality_signals(
 
 
 def _render_modify_context(
-    task_context: Dict[str, Any], sections: List[str],
+    task_context: dict[str, Any], sections: list[str],
 ) -> None:
     """渲染 task_type="modify" 修改模式：注入原有用例 + 变更指引。"""
     original = task_context.get("original_case")
@@ -75,7 +75,7 @@ def _render_modify_context(
 
 
 def _render_create_context(
-    extra_context: Dict[str, Any], sections: List[str],
+    extra_context: dict[str, Any], sections: list[str],
 ) -> None:
     """渲染 task_type="create" 创建模式：注入历史用例避免重复。"""
     history = extra_context.get("history_cases")
@@ -99,7 +99,7 @@ def _render_create_context(
 
 
 def _render_locator_fix_context(
-    task_context: Dict[str, Any], sections: List[str],
+    task_context: dict[str, Any], sections: list[str],
 ) -> None:
     """渲染 task_type="locator_fix" 定位器修复模式：注入原用例 + 修复指引。"""
     original = task_context.get("original_case")
@@ -123,7 +123,7 @@ def _render_locator_fix_context(
 
 
 def _render_migrate_context(
-    task_context: Dict[str, Any], sections: List[str],
+    task_context: dict[str, Any], sections: list[str],
 ) -> None:
     """渲染 task_type="migrate" 跨设备迁移模式：注入源用例 + 设备差异规则。"""
     source_case = task_context.get("source_case")
@@ -144,7 +144,7 @@ def _render_migrate_context(
 
 def _append_extra_context_sections(
     prompt: str,
-    extra_context: Optional[Dict[str, Any]] = None,
+    extra_context: dict[str, Any] | None = None,
 ) -> str:
     """将 extra_context 渲染为附加段落并拼接到 prompt 之后。
 
@@ -161,7 +161,7 @@ def _append_extra_context_sections(
 
     task_type = extra_context.get("task_type")
     task_context = extra_context.get("task_context", {})
-    sections: List[str] = [prompt]
+    sections: list[str] = [prompt]
 
     _render_quality_feedback(extra_context, sections)
     _render_quality_signals(extra_context, sections)

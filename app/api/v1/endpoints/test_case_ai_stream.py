@@ -14,13 +14,12 @@
 """
 import asyncio
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -44,9 +43,9 @@ router = APIRouter()
 
 
 async def _run_quality_feedback_for_cases(
-    cases: List[Dict[str, Any]],
+    cases: list[dict[str, Any]],
     regen_fn: Any,
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """对用例列表执行质量反馈闭环，返回通过用例与重生成事件。
 
     替代原直接丢弃策略：低质量用例经最多 3 轮重生成修复，只 rejected
@@ -59,8 +58,8 @@ async def _run_quality_feedback_for_cases(
     Returns:
         (通过用例列表, 重生成事件列表)。事件含 round/status/issues_count/case_title。
     """
-    final_cases: List[Dict[str, Any]] = []
-    regen_events: List[Dict[str, Any]] = []
+    final_cases: list[dict[str, Any]] = []
+    regen_events: list[dict[str, Any]] = []
 
     for case in cases:
         if not isinstance(case, dict):
@@ -68,7 +67,7 @@ async def _run_quality_feedback_for_cases(
         case_title = case.get("title", "")
 
         def on_round(
-            round_idx: int, rst_status: str, issues: List[str],
+            round_idx: int, rst_status: str, issues: list[str],
             _title: str = case_title,
         ) -> None:
             regen_events.append({
@@ -135,7 +134,7 @@ async def ai_enhanced_generate_stream(
             evidence_refs = context.get("evidence_refs", {})
 
             # 构建审计增强 metadata：使用独立 sync session，避免跨 greenlet 访问
-            ai_metadata: Dict[str, Any] = {
+            ai_metadata: dict[str, Any] = {
                 "db": stream_db,
                 "scenario_type": context.get("scenario_type"),
                 "generation_strategy": context.get("generation_strategy"),
@@ -182,7 +181,7 @@ async def ai_enhanced_generate_stream(
             cases_list = [c for c in cases_list if isinstance(c, dict) and c]
 
             # Task 15: 流式端点接入 3 轮反馈闭环，低质量用例重生成而非直接丢弃
-            async def _regen_case(extra_ctx: Dict[str, Any]) -> Any:
+            async def _regen_case(extra_ctx: dict[str, Any]) -> Any:
                 new_prompt_data = dict(prompt_data)
                 if extra_ctx.get("quality_feedback"):
                     new_prompt_data["quality_feedback"] = extra_ctx["quality_feedback"]

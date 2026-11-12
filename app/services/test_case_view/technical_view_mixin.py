@@ -4,7 +4,7 @@
 和执行参数。支持导出为JSON和Python脚本格式。
 """
 import re
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep, TestCasePreconditionStep
@@ -14,7 +14,7 @@ from app.models.test_data import TestData
 
 class TechnicalViewMixin:
 
-    def get_technical_view(self, test_case_id: int) -> Optional[Dict[str, Any]]:
+    def get_technical_view(self, test_case_id: int) -> dict[str, Any] | None:
         """获取测试用例的技术视图，包含定位信息、测试数据和前置条件步骤。
 
         技术视图数据组装:
@@ -60,14 +60,14 @@ class TechnicalViewMixin:
     def _batch_query_step_data(self, step_ids: list) -> tuple:
         """批量查询步骤的定位信息和测试数据，避免N+1查询。"""
         locators = {}
-        test_data_map: Dict[int, list] = {}
+        test_data_map: dict[int, list] = {}
         if not step_ids:
             return locators, test_data_map
 
         locator_list = self.db.query(ElementLocator).filter(
             ElementLocator.step_id.in_(step_ids)
         ).all()
-        locators = {l.step_id: l for l in locator_list}
+        locators = {loc.step_id: loc for loc in locator_list}
 
         td_list = self.db.query(TestData).filter(
             TestData.step_id.in_(step_ids)
@@ -131,7 +131,7 @@ class TechnicalViewMixin:
             pc_locator_list = self.db.query(ElementLocator).filter(
                 ElementLocator.precondition_step_id.in_(pc_step_ids)
             ).all()
-            pc_locators = {l.precondition_step_id: l for l in pc_locator_list}
+            pc_locators = {loc.precondition_step_id: loc for loc in pc_locator_list}
 
         precondition_steps_data = []
         for pc_step in pc_steps:
@@ -163,7 +163,7 @@ class TechnicalViewMixin:
 
         return precondition_steps_data
 
-    def export_technical_view_to_json(self, test_case_id: int) -> Dict[str, Any]:
+    def export_technical_view_to_json(self, test_case_id: int) -> dict[str, Any]:
         """导出技术视图为JSON格式，用于自动化执行引擎消费。"""
         view = self.get_technical_view(test_case_id)
         if not view:

@@ -7,7 +7,6 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
 from app.db.database import async_get_db, PrimarySessionLocal
 from app.api.v1.endpoints.auth import get_current_user
@@ -32,12 +31,12 @@ async def get_case_lineage(
         血缘树数据，包含祖先链、后代子树、链长度和警告信息
     """
     # get_lineage 是 sync 读操作，使用独立 sync 会话 + to_thread 释放事件循环
-    def _do_get_lineage(sync_db) -> Optional[LineageResult]:
+    def _do_get_lineage(sync_db) -> LineageResult | None:
         return get_lineage(sync_db, test_case_id)
 
     sync_db = PrimarySessionLocal()
     try:
-        result: Optional[LineageResult] = await asyncio.to_thread(_do_get_lineage, sync_db)
+        result: LineageResult | None = await asyncio.to_thread(_do_get_lineage, sync_db)
     finally:
         sync_db.close()
     if result is None:

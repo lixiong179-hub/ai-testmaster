@@ -1,7 +1,7 @@
 """回放控制Mixin - 控制执行过程的回放（播放/暂停/跳转/调速）。
 """
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 
@@ -10,9 +10,9 @@ class PlaybackMixin:
     async def start_replay(
         self,
         session_id: str,
-        speed: Optional[float] = None,
+        speed: float | None = None,
         start_from: int = 0
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if not session:
             raise ValueError(f"回放会话不存在: {session_id}")
@@ -66,7 +66,7 @@ class PlaybackMixin:
             session.is_playing = False
             logger.error(f"回放异常: session={session_id}, error={e}")
 
-    async def pause_replay(self, session_id: str) -> Dict[str, Any]:
+    async def pause_replay(self, session_id: str) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if not session:
             raise ValueError(f"回放会话不存在: {session_id}")
@@ -80,7 +80,7 @@ class PlaybackMixin:
         logger.info(f"暂停回放: session={session_id}")
         return {"status": "paused", "session": session.to_dict()}
 
-    async def resume_replay(self, session_id: str) -> Dict[str, Any]:
+    async def resume_replay(self, session_id: str) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if not session:
             raise ValueError(f"回放会话不存在: {session_id}")
@@ -94,7 +94,7 @@ class PlaybackMixin:
         logger.info(f"恢复回放: session={session_id}")
         return {"status": "resumed", "session": session.to_dict()}
 
-    async def stop_replay(self, session_id: str) -> Dict[str, Any]:
+    async def stop_replay(self, session_id: str) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if not session:
             raise ValueError(f"回放会话不存在: {session_id}")
@@ -106,7 +106,7 @@ class PlaybackMixin:
         logger.info(f"停止回放: session={session_id}")
         return {"status": "stopped", "session": session.to_dict()}
 
-    async def seek_to(self, session_id: str, event_index: int) -> Dict[str, Any]:
+    async def seek_to(self, session_id: str, event_index: int) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if not session:
             raise ValueError(f"回放会话不存在: {session_id}")
@@ -120,7 +120,7 @@ class PlaybackMixin:
         logger.info(f"跳转到事件 {event_index}: session={session_id}")
         return {"status": "seeked", "current_index": event_index, "session": session.to_dict()}
 
-    async def get_replay_status(self, session_id: str) -> Dict[str, Any]:
+    async def get_replay_status(self, session_id: str) -> dict[str, Any]:
         session = self._sessions.get(session_id)
         if not session:
             raise ValueError(f"回放会话不存在: {session_id}")

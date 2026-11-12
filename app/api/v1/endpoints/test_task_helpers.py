@@ -15,18 +15,17 @@
         - require_task_access           → 路径参数为 task_id 时用依赖注入
 """
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 
 # 创建任务请求模型
 class CreateTaskRequest(BaseModel):
     project_id: int
     task_name: str
-    description: Optional[str] = None
-    case_ids: List[int] = Field(default_factory=list)
+    description: str | None = None
+    case_ids: list[int] = Field(default_factory=list)
 
 
 class TaskStartConfig(BaseModel):
     """任务启动配置模型"""
-    execution_mode: Optional[str] = Field("smart", description="执行模式")
-    mobile_device_id: Optional[str] = Field(None, description="移动设备ID")
+    execution_mode: str | None = Field("smart", description="执行模式")
+    mobile_device_id: str | None = Field(None, description="移动设备ID")

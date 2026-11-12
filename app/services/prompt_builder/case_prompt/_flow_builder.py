@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Any
 
 from app.services.prompt_builder.helpers import (
     _safe_int,
@@ -13,12 +13,12 @@ from app.services.prompt_builder.case_prompt._node_format import (
 
 
 def _append_nested_flow(
-    parts: List[str],
-    main_nodes: List[Dict[str, Any]],
-    node_map: Dict[Any, Dict[str, Any]],
-    branch_by_source: Dict[int, List[Dict[str, Any]]],
-    exception_by_source: Dict[int, List[Dict[str, Any]]],
-    bypass_by_source: Dict[int, List[Dict[str, Any]]],
+    parts: list[str],
+    main_nodes: list[dict[str, Any]],
+    node_map: dict[Any, dict[str, Any]],
+    branch_by_source: dict[int, list[dict[str, Any]]],
+    exception_by_source: dict[int, list[dict[str, Any]]],
+    bypass_by_source: dict[int, list[dict[str, Any]]],
     include_images: bool
 ) -> None:
     parts.append("## UI原型图流程结构\n")
@@ -56,7 +56,7 @@ def _append_nested_flow(
                     bn = btn.get('screen_name', '弹窗')
                     bypass_items.append(f"{bidx}. {bn}")
                 bypass_hint = (
-                    f" [注意: 此步骤可能依次出现以下弹窗，需逐个关闭后验证主流程页面元素仍可正常交互: "
+                    " [注意: 此步骤可能依次出现以下弹窗，需逐个关闭后验证主流程页面元素仍可正常交互: "
                     + "; ".join(bypass_items) + "]"
                 )
 

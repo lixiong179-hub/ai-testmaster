@@ -15,12 +15,12 @@
     - 百度 (ernie-4.0-8k): 文心大模型，百度自定义API格式
     - 智谱 (glm-4v): GLM视觉模型，OpenAI兼容API格式
 """
-from typing import Dict, Any
+from typing import Any
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class VisionModelType(str, Enum):
+class VisionModelType(StrEnum):
     """视觉模型类型枚举
 
     继承str和Enum，可直接作为字符串使用。
@@ -70,7 +70,7 @@ class ElementInfo:
         """
         return self.width > 0 and self.height > 0 and self.confidence > 0.5
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """将元素信息转换为字典
 
         Returns:
@@ -115,7 +115,7 @@ class ModelProviderConfig:
 
 # 预定义的模型提供商配置映射
 # key为VisionModelType的value值，value为对应的ModelProviderConfig实例
-MODEL_PROVIDER_CONFIGS: Dict[str, ModelProviderConfig] = {
+MODEL_PROVIDER_CONFIGS: dict[str, ModelProviderConfig] = {
     "openai": ModelProviderConfig(
         model_type=VisionModelType.OPENAI,
         api_key_env="OPENAI_API_KEY",

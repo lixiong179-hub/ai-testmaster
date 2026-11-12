@@ -19,9 +19,7 @@ class VisibilityConfigMerger:
             base_value = getattr(base, field_name)
             override_value = getattr(override, field_name)
 
-            if isinstance(base_value, bool):
-                setattr(merged, field_name, override_value)
-            elif override_value is not None:
+            if isinstance(base_value, bool) or override_value is not None:
                 setattr(merged, field_name, override_value)
             else:
                 setattr(merged, field_name, base_value)

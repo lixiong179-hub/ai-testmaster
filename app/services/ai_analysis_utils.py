@@ -3,14 +3,14 @@
 包含文件读取、Prompt生成、响应解析等工具函数
 """
 import json
-from typing import List, Dict, Any
+from typing import Any
 from loguru import logger
 
 
 def read_file_content(file_path: str) -> str:
     """读取本地文件内容"""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             return f.read()
     except Exception as e:
         logger.error(f"读取文件失败: {file_path}, 错误: {e}")
@@ -75,7 +75,7 @@ def generate_analysis_prompt(content: str) -> str:
     return prompt
 
 
-def parse_ai_response(test_points_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def parse_ai_response(test_points_data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """解析AI响应，提取并标准化测试点数据"""
     test_points = []
     try:

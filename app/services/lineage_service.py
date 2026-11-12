@@ -11,7 +11,6 @@
     - app.services.config_service : LINEAGE_CHAIN_WARNING_LENGTH
 """
 import logging
-from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -29,10 +28,10 @@ class LineageNode(BaseModel):
     case_no: str
     title: str
     lifecycle_status: str
-    prior_quality_score: Optional[float] = None
-    posterior_quality_score: Optional[float] = None
-    parent_case_id: Optional[int] = None
-    children: List["LineageNode"] = []
+    prior_quality_score: float | None = None
+    posterior_quality_score: float | None = None
+    parent_case_id: int | None = None
+    children: list["LineageNode"] = []
 
     class Config:
         from_attributes = True
@@ -41,13 +40,13 @@ class LineageNode(BaseModel):
 class LineageResult(BaseModel):
     """血缘查询结果。"""
     root: LineageNode
-    ancestors: List[LineageNode] = []
+    ancestors: list[LineageNode] = []
     chain_length: int = 0
-    warning: Optional[str] = None
-    warning_threshold: Optional[int] = None
+    warning: str | None = None
+    warning_threshold: int | None = None
 
 
-def get_lineage(db: Session, test_case_id: int) -> Optional[LineageResult]:
+def get_lineage(db: Session, test_case_id: int) -> LineageResult | None:
     """获取用例血缘树。
 
     从指定用例出发，向上追溯祖先链至根节点，向下遍历后代子树。
@@ -81,7 +80,7 @@ def get_lineage(db: Session, test_case_id: int) -> Optional[LineageResult]:
     )
 
 
-def _trace_ancestors(db: Session, case: TestCase) -> List[LineageNode]:
+def _trace_ancestors(db: Session, case: TestCase) -> list[LineageNode]:
     """向上追溯祖先链至根节点（parent_case_id == None 的节点）。
 
     使用单次批量查询加载所有祖先，避免 N+1 问题。
@@ -93,7 +92,7 @@ def _trace_ancestors(db: Session, case: TestCase) -> List[LineageNode]:
     Returns:
         祖先节点列表（从根到直接父节点），不含 case 本身。
     """
-    ancestors: List[LineageNode] = []
+    ancestors: list[LineageNode] = []
     visited: set = {case.id}
     current_id = case.parent_case_id
 
@@ -105,7 +104,7 @@ def _trace_ancestors(db: Session, case: TestCase) -> List[LineageNode]:
         .filter(TestCase.id != case.id, TestCase.is_deleted.is_(False))
         .all()
     )
-    ancestor_map: Dict[int, TestCase] = {c.id: c for c in all_ancestors}
+    ancestor_map: dict[int, TestCase] = {c.id: c for c in all_ancestors}
 
     while current_id is not None:
         if current_id in visited:
@@ -143,7 +142,7 @@ def _build_descendant_tree(db: Session, node: LineageNode) -> None:
         .all()
     )
 
-    children_map: Dict[int, List[TestCase]] = {}
+    children_map: dict[int, list[TestCase]] = {}
     for desc in all_descendants:
         pid = desc.parent_case_id
         if pid is not None:

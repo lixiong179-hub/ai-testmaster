@@ -12,7 +12,6 @@
 """
 import logging
 
-from app.tasks._async_bridge import async_task
 from app.tasks.base import BaseTask
 from app.tasks.celery_app import get_celery_app
 

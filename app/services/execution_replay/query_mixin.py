@@ -2,12 +2,12 @@
 """
 import os
 import base64
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 
 class QueryMixin:
 
-    async def get_screenshot_at_time(self, session_id: str, timestamp: float) -> Optional[str]:
+    async def get_screenshot_at_time(self, session_id: str, timestamp: float) -> str | None:
         session = self._sessions.get(session_id)
         if not session:
             raise ValueError(f"回放会话不存在: {session_id}")
@@ -21,11 +21,10 @@ class QueryMixin:
                 min_diff = diff
                 closest_event = event
 
-        if closest_event and closest_event.screenshot_path:
-            if os.path.exists(closest_event.screenshot_path):
-                with open(closest_event.screenshot_path, 'rb') as f:
-                    screenshot_data = f.read()
-                return base64.b64encode(screenshot_data).decode('utf-8')
+        if closest_event and closest_event.screenshot_path and os.path.exists(closest_event.screenshot_path):
+            with open(closest_event.screenshot_path, 'rb') as f:
+                screenshot_data = f.read()
+            return base64.b64encode(screenshot_data).decode('utf-8')
 
         return None
 
@@ -34,7 +33,7 @@ class QueryMixin:
         session_id: str,
         start_time: float,
         end_time: float
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         session = self._sessions.get(session_id)
         if not session:
             raise ValueError(f"回放会话不存在: {session_id}")

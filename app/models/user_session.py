@@ -19,7 +19,7 @@ deprovisioning 级联撤销（SCIM deprovisioning 时撤销所有会话）。
     - expires_at    : 会话过期时间（与 refresh_token 的 exp 对齐）
     - revoked_at    : 会话撤销时间（NULL 表示有效，logout 时写入）
 """
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import (
     Column,
@@ -78,7 +78,7 @@ class UserSession(Base):
             f"jti={self.refresh_jti[:8]}..., revoked={self.revoked_at is not None})>"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """返回会话核心字段字典，供 API 响应使用。"""
         return {
             "id": self.id,

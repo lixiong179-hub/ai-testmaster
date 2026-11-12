@@ -18,10 +18,9 @@
 """
 from __future__ import annotations
 
-import base64
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.core.config import settings
 from app.services.common.token_budget import BaseTokenBudgetGuard
@@ -46,7 +45,7 @@ class TokenEstimate:
     completion_tokens: int = 0
     total_tokens: int = 0
     image_base64_size: int = 0
-    breakdown: Dict[str, Any] = field(default_factory=dict)
+    breakdown: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.total_tokens = self.prompt_tokens + self.completion_tokens
@@ -230,7 +229,7 @@ class VisualTokenBudgetGuard(BaseTokenBudgetGuard):
 
     def __init__(
         self,
-        redis_client: Optional[Any],
+        redis_client: Any | None,
         *,
         project_id: int,
     ) -> None:

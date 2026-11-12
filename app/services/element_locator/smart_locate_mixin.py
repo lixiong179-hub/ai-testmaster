@@ -1,6 +1,6 @@
 """智能定位Mixin - AI+规则混合的智能元素定位策略。
 """
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.services.selector_registry import SelectorRegistry
@@ -15,10 +15,10 @@ class SmartLocateMixin:
     async def smart_locate_element(
         self,
         action_description: str,
-        page_title: Optional[str] = None,
-        action_type: Optional[str] = None,
-        input_value: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+        page_title: str | None = None,
+        action_type: str | None = None,
+        input_value: str | None = None
+    ) -> dict[str, Any] | None:
         logger.info(f"智能定位元素: {action_description}")
 
         registry = SelectorRegistry()
@@ -100,7 +100,7 @@ class SmartLocateMixin:
         allowed_types = getattr(settings, 'MCP_EXECUTION_OPERATION_TYPES', 'click,type,hover,select').split(',')
         return action_type in allowed_types
 
-    async def direct_execute_action(self, recognition_result: RecognitionResult, action_type: str = "click", input_value: Optional[str] = None) -> bool:
+    async def direct_execute_action(self, recognition_result: RecognitionResult, action_type: str = "click", input_value: str | None = None) -> bool:
         if not isinstance(self.recognizer, MCPRecognizer):
             return False
         try:
@@ -111,8 +111,8 @@ class SmartLocateMixin:
 
     async def _get_element_attributes(
         self,
-        element_info: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        element_info: dict[str, Any]
+    ) -> dict[str, Any]:
         x = element_info.get("x", 0) + element_info.get("width", 0) // 2
         y = element_info.get("y", 0) + element_info.get("height", 0) // 2
 
@@ -148,7 +148,7 @@ class SmartLocateMixin:
             logger.exception(f"获取元素属性发生未知错误: {str(e)}")
             return {}
 
-    def _build_recognition_prompt(self, action_description: str, action_type: Optional[str] = None) -> str:
+    def _build_recognition_prompt(self, action_description: str, action_type: str | None = None) -> str:
         base_prompt = f"请仔细分析这个页面截图，精确定位以下操作的目标元素：\n\n操作描述: {action_description}\n\n"
 
         login_keywords = LOGIN_KEYWORDS

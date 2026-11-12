@@ -5,7 +5,7 @@
 """
 from __future__ import annotations
 
-from typing import ClassVar, List, Optional
+from typing import ClassVar
 
 from app.services.agent.artifacts.base import Artifact
 
@@ -26,9 +26,9 @@ class ProjectContextArtifact(Artifact):
 
     project_id: int
     name: str
-    tech_stack: List[str] = []
+    tech_stack: list[str] = []
     env_config: dict = {}
-    base_url: Optional[str] = None
+    base_url: str | None = None
 
 
 __all__ = ["ProjectContextArtifact"]

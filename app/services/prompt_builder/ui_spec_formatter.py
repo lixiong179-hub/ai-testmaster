@@ -4,10 +4,10 @@
     - format_ui_spec_for_prompt: 单个 UI 规格格式化
     - format_ui_specs_list: UI 规格列表批量格式化
 """
-from typing import List, Dict, Any
+from typing import Any
 
 
-def format_ui_spec_for_prompt(screen_name: str, ui_spec: Dict[str, Any]) -> str:
+def format_ui_spec_for_prompt(screen_name: str, ui_spec: dict[str, Any]) -> str:
     """将 UI 规格数据格式化为 Prompt 友好的文本描述（唯一实现）。
 
     格式化内容包括:
@@ -80,7 +80,7 @@ def format_ui_spec_for_prompt(screen_name: str, ui_spec: Dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def format_ui_specs_list(ui_specs: List[Dict[str, Any]]) -> str:
+def format_ui_specs_list(ui_specs: list[dict[str, Any]]) -> str:
     """将 UI 规格列表格式化为 Prompt 文本。
 
     Args:

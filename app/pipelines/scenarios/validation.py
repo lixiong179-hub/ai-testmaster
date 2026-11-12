@@ -1,6 +1,6 @@
 """Scenario input validation helpers."""
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -63,9 +63,9 @@ def inspect_iteration_signals(db: Session, iteration: Any) -> ScenarioSignalSnap
     )
 
 
-def validate_scenario_inputs(db: Session, iteration: Any, scenario_id: int) -> List[str]:
+def validate_scenario_inputs(db: Session, iteration: Any, scenario_id: int) -> list[str]:
     snapshot = inspect_iteration_signals(db, iteration)
-    errors: List[str] = []
+    errors: list[str] = []
 
     if scenario_id == 1:
         _require(errors, snapshot.has_prd, "场景 1 需要有效 PRD 输入")
@@ -116,7 +116,7 @@ def validate_scenario_inputs(db: Session, iteration: Any, scenario_id: int) -> L
     return errors
 
 
-def _require(errors: List[str], condition: bool, message: str) -> None:
+def _require(errors: list[str], condition: bool, message: str) -> None:
     if not condition:
         errors.append(message)
 
@@ -137,10 +137,7 @@ def _payload_has_text(payload: dict, keys: tuple[str, ...]) -> bool:
 def _as_int_list(value: Any) -> list[int]:
     if value is None:
         return []
-    if isinstance(value, (list, tuple, set)):
-        raw_values = value
-    else:
-        raw_values = [value]
+    raw_values = value if isinstance(value, (list, tuple, set)) else [value]
 
     result: list[int] = []
     for item in raw_values:

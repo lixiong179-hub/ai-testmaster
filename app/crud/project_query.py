@@ -16,12 +16,11 @@
     - get_project_by_id 同时按 project_id 和 user_id 过滤，
       防止越权访问其他用户的项目数据
 """
-from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.project import Project
 
 
-def get_projects(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[Project]:
+def get_projects(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> list[Project]:
     """
     获取用户的所有项目（分页）
 
@@ -43,7 +42,7 @@ def get_projects(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> 
     return db.query(Project).filter(Project.user_id == user_id).offset(skip).limit(limit).all()
 
 
-def get_project_by_id(db: Session, project_id: int, user_id: int) -> Optional[Project]:
+def get_project_by_id(db: Session, project_id: int, user_id: int) -> Project | None:
     """
     根据ID获取项目，带用户权限过滤
 

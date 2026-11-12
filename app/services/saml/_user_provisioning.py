@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 import secrets
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -42,7 +42,7 @@ class SAMLUserProvisioner:
         db: AsyncSession,
         issuer: str,
         nameid: str,
-    ) -> Optional[User]:
+    ) -> User | None:
         """通过 (issuer, nameid) 查找本地用户。"""
         result = await db.execute(
             select(User).where(
@@ -56,7 +56,7 @@ class SAMLUserProvisioner:
         self,
         db: AsyncSession,
         email: str,
-    ) -> Optional[User]:
+    ) -> User | None:
         """通过 email 查找本地用户（用于自动绑定已存在的本地账号）。"""
         result = await db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
@@ -67,7 +67,7 @@ class SAMLUserProvisioner:
         provider: str,
         issuer: str,
         nameid: str,
-        attributes: Dict[str, Any],
+        attributes: dict[str, Any],
     ) -> User:
         """根据 SAML 断言创建或绑定本地用户。
 
@@ -135,7 +135,7 @@ class SAMLUserProvisioner:
         logger.info(f"SAML 用户自动配置: provider={provider} user_id={new_user.id}")
         return new_user
 
-    def _extract_email(self, attributes: Dict[str, Any], nameid: str) -> str:
+    def _extract_email(self, attributes: dict[str, Any], nameid: str) -> str:
         """从 SAML 属性中提取邮箱。
 
         兼容 Okta/Azure AD 常见属性名：email / Email / mail / http://schemas...emailaddress
@@ -155,7 +155,7 @@ class SAMLUserProvisioner:
         return ""
 
     def _generate_username(
-        self, provider: str, attributes: Dict[str, Any], nameid: str
+        self, provider: str, attributes: dict[str, Any], nameid: str
     ) -> str:
         """根据 SAML 属性生成唯一用户名。
 

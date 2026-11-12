@@ -1,7 +1,7 @@
 """测试数据生成服务Mixin - 批量生成和保存测试数据。
 """
 import json
-from typing import Optional, List, Dict, Any
+from typing import Any
 from loguru import logger
 from app.models.test_data import TestData, DataType, GenerationRule
 from app.services.test_data_gen_constants import DataConstraints
@@ -29,8 +29,8 @@ class TestDataGenServiceMixin:
     def generate_step_data(
         self,
         step_id: int,
-        parameterizer: Optional[TestDataParameterizer] = None
-    ) -> Dict[str, str]:
+        parameterizer: TestDataParameterizer | None = None
+    ) -> dict[str, str]:
         test_data_list = self.get_test_data_by_step(step_id)
         result = {}
         for test_data in test_data_list:
@@ -43,8 +43,8 @@ class TestDataGenServiceMixin:
     def generate_case_data(
         self,
         case_id: int,
-        context: Optional[ParameterContext] = None
-    ) -> Dict[int, Dict[str, str]]:
+        context: ParameterContext | None = None
+    ) -> dict[int, dict[str, str]]:
         from app.models.test_case import TestCase
         test_case = self.db.query(TestCase).filter(TestCase.id == case_id, TestCase.is_deleted.is_(False)).first()
         if not test_case:
@@ -61,8 +61,8 @@ class TestDataGenServiceMixin:
     def batch_create_test_data(
         self,
         step_id: int,
-        data_list: List[Dict[str, Any]]
-    ) -> List[TestData]:
+        data_list: list[dict[str, Any]]
+    ) -> list[TestData]:
         created_list = []
         for data_config in data_list:
             try:
@@ -103,7 +103,7 @@ class TestDataGenServiceMixin:
         self,
         step_id: int,
         action_description: str
-    ) -> List[TestData]:
+    ) -> list[TestData]:
         created_list = []
         if "产品线" in action_description or "产品" in action_description:
             test_data = self.create_test_data(

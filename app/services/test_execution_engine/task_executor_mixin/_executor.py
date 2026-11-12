@@ -1,10 +1,8 @@
-import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
 from app.models.test_case import TestCase
-from app.models.enums import ExecStatus
 from app.services.test_execution_engine.models import (
     ExecutionStatus,
     ExecutionError,
@@ -27,7 +25,7 @@ class _ExecutorMixin(_HelpersMixin):
         project_id: int,
         skip_precondition: bool = False,
         execution_mode: str = "smart",
-        mobile_device_id: Optional[str] = None,
+        mobile_device_id: str | None = None,
     ) -> TestExecutionResult:
         result = TestExecutionResult(case_id=test_case.id)
 
@@ -56,7 +54,7 @@ class _ExecutorMixin(_HelpersMixin):
             return result
 
         result.total_steps = len(steps_json)
-        self._step_results: List[StepExecutionResult] = []
+        self._step_results: list[StepExecutionResult] = []
 
         for step_data in steps_json:
             if not isinstance(step_data, dict):
@@ -64,7 +62,6 @@ class _ExecutorMixin(_HelpersMixin):
 
             step_number = step_data.get("step") or step_data.get("step_number", 0)
             action = step_data.get("action", "")
-            expected_result = step_data.get("expected_result", "")
             action_type_str = step_data.get("action_type", "click").lower()
 
             from app.services.test_execution_engine.models import ActionType
@@ -127,7 +124,7 @@ class _ExecutorMixin(_HelpersMixin):
 
     async def _execute_single_step(
         self,
-        step_data: Dict[str, Any],
+        step_data: dict[str, Any],
         action_type: Any,
         step_result: StepExecutionResult,
         execution_mode: str = "smart",
@@ -202,7 +199,7 @@ class _ExecutorMixin(_HelpersMixin):
 
         return step_result
 
-    async def _execute_click_action(self, element_info: Dict, action_type: Any) -> None:
+    async def _execute_click_action(self, element_info: dict, action_type: Any) -> None:
         if not self.browser or not getattr(self.browser, '_page', None):
             raise ExecutionError("浏览器未初始化")
         page = self.browser._page
@@ -214,7 +211,7 @@ class _ExecutorMixin(_HelpersMixin):
             x, y = coords.get("x", 0), coords.get("y", 0)
             await page.mouse.click(x, y)
 
-    async def _execute_input_action(self, element_info: Dict, input_value: str) -> None:
+    async def _execute_input_action(self, element_info: dict, input_value: str) -> None:
         if not self.browser or not getattr(self.browser, '_page', None):
             raise ExecutionError("浏览器未初始化")
         page = self.browser._page
@@ -227,7 +224,7 @@ class _ExecutorMixin(_HelpersMixin):
             await page.mouse.click(x, y)
             await page.keyboard.type(input_value)
 
-    async def _execute_hover_action(self, element_info: Dict) -> None:
+    async def _execute_hover_action(self, element_info: dict) -> None:
         if not self.browser or not getattr(self.browser, '_page', None):
             raise ExecutionError("浏览器未初始化")
         page = self.browser._page
@@ -239,7 +236,7 @@ class _ExecutorMixin(_HelpersMixin):
             x, y = coords.get("x", 0), coords.get("y", 0)
             await page.mouse.move(x, y)
 
-    async def _execute_select_action(self, element_info: Dict, value: str) -> None:
+    async def _execute_select_action(self, element_info: dict, value: str) -> None:
         if not self.browser or not getattr(self.browser, '_page', None):
             raise ExecutionError("浏览器未初始化")
         page = self.browser._page
@@ -248,6 +245,6 @@ class _ExecutorMixin(_HelpersMixin):
             await page.select_option(css, value)
 
     async def _execute_generic_action(
-        self, action: str, element_info: Dict, step_data: Dict
+        self, action: str, element_info: dict, step_data: dict
     ) -> None:
         logger.info(f"执行通用操作: {action}")

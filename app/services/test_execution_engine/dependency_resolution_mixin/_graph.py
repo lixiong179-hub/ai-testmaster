@@ -1,5 +1,5 @@
 from collections import Counter
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestCase
@@ -7,27 +7,27 @@ from app.models.test_case import TestCase
 
 class _DependencyGraphMixin:
 
-    _anchor_snapshots: Dict[str, Dict[str, Any]]
-    _case_results: Dict[int, Any]
-    _failed_main_titles: Set[str]
-    _duplicate_dependency_titles: Set[str]
-    _title_to_case_id: Dict[str, int]
-    _title_to_case_no: Dict[str, str]
+    _anchor_snapshots: dict[str, dict[str, Any]]
+    _case_results: dict[int, Any]
+    _failed_main_titles: set[str]
+    _duplicate_dependency_titles: set[str]
+    _title_to_case_id: dict[str, int]
+    _title_to_case_no: dict[str, str]
 
     def _init_dependency_state(self) -> None:
-        self._anchor_snapshots: Dict[str, Dict[str, Any]] = {}
-        self._case_results: Dict[int, Any] = {}
-        self._failed_main_titles: Set[str] = set()
-        self._duplicate_dependency_titles: Set[str] = set()
-        self._title_to_case_id: Dict[str, int] = {}
-        self._title_to_case_no: Dict[str, str] = {}
+        self._anchor_snapshots: dict[str, dict[str, Any]] = {}
+        self._case_results: dict[int, Any] = {}
+        self._failed_main_titles: set[str] = set()
+        self._duplicate_dependency_titles: set[str] = set()
+        self._title_to_case_id: dict[str, int] = {}
+        self._title_to_case_no: dict[str, str] = {}
 
     def _build_dependency_graph(
-        self, cases: List[TestCase]
-    ) -> Dict[int, Set[int]]:
+        self, cases: list[TestCase]
+    ) -> dict[int, set[int]]:
         title_counts = Counter(case.title for case in cases if case.title)
-        title_to_ids: Dict[str, List[int]] = {}
-        case_no_to_id: Dict[str, int] = {}
+        title_to_ids: dict[str, list[int]] = {}
+        case_no_to_id: dict[str, int] = {}
         for case in cases:
             if case.title:
                 title_to_ids.setdefault(case.title, []).append(case.id)
@@ -39,7 +39,7 @@ class _DependencyGraphMixin:
         }
         self._title_to_case_id = {}
         self._title_to_case_no = {}
-        title_to_id: Dict[str, int] = {}
+        title_to_id: dict[str, int] = {}
         for case in cases:
             if case.title:
                 if case.title in self._duplicate_dependency_titles:
@@ -51,7 +51,7 @@ class _DependencyGraphMixin:
                 self._title_to_case_id[case.title] = case.id
                 self._title_to_case_no[case.title] = case.case_no or f"TC-{case.id:03d}"
 
-        graph: Dict[int, Set[int]] = {case.id: set() for case in cases}
+        graph: dict[int, set[int]] = {case.id: set() for case in cases}
         for case in cases:
             depends_on_title = getattr(case, 'depends_on', None)
             if depends_on_title in self._duplicate_dependency_titles:
@@ -76,18 +76,18 @@ class _DependencyGraphMixin:
         return graph
 
     def _topological_sort_cases(
-        self, cases: List[TestCase], graph: Dict[int, Set[int]]
-    ) -> List[TestCase]:
+        self, cases: list[TestCase], graph: dict[int, set[int]]
+    ) -> list[TestCase]:
         case_map = {case.id: case for case in cases}
-        in_degree: Dict[int, int] = {cid: len(deps) for cid, deps in graph.items()}
-        reverse_graph: Dict[int, Set[int]] = {cid: set() for cid in graph}
+        in_degree: dict[int, int] = {cid: len(deps) for cid, deps in graph.items()}
+        reverse_graph: dict[int, set[int]] = {cid: set() for cid in graph}
         for cid, deps in graph.items():
             for dep_id in deps:
                 if dep_id in reverse_graph:
                     reverse_graph[dep_id].add(cid)
 
         queue = [cid for cid, deg in in_degree.items() if deg == 0]
-        sorted_ids: List[int] = []
+        sorted_ids: list[int] = []
 
         while queue:
             cid = queue.pop(0)
@@ -108,8 +108,8 @@ class _DependencyGraphMixin:
 
     def _snapshot_keys_for_case(
         self, case: TestCase, anchor_step: int
-    ) -> List[str]:
-        keys: List[str] = []
+    ) -> list[str]:
+        keys: list[str] = []
         case_id = getattr(case, 'id', None)
         if case_id is not None:
             keys.append(f"id:{case_id}:{anchor_step}")
@@ -131,7 +131,7 @@ class _DependencyGraphMixin:
 
     def _snapshot_keys_for_dependency(
         self, case: TestCase
-    ) -> List[str]:
+    ) -> list[str]:
         depends_on = getattr(case, 'depends_on', None)
         anchor_step = getattr(case, 'anchor_step', None)
         if not depends_on or anchor_step is None:
@@ -144,7 +144,7 @@ class _DependencyGraphMixin:
             )
             return []
 
-        keys: List[str] = []
+        keys: list[str] = []
         case_id = getattr(self, '_title_to_case_id', {}).get(depends_on)
         if case_id is not None:
             keys.append(f"id:{case_id}:{anchor_step}")
@@ -158,5 +158,5 @@ class _DependencyGraphMixin:
         keys.append(f"{depends_on}_{anchor_step}")
         return keys
 
-    def _resolve_depends_on_case_no(self, depends_on_title: str) -> Optional[str]:
+    def _resolve_depends_on_case_no(self, depends_on_title: str) -> str | None:
         return getattr(self, '_title_to_case_no', {}).get(depends_on_title)

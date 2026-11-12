@@ -1,8 +1,9 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestCase
+import contextlib
 
 
 class _NavigationMixin:
@@ -56,7 +57,7 @@ class _NavigationMixin:
         logger.info(f"降级导航完成: 用例 {case.case_no}")
         return True
 
-    async def _execute_fallback_step(self, step: Dict[str, Any]) -> bool:
+    async def _execute_fallback_step(self, step: dict[str, Any]) -> bool:
         action_type = (step.get("action_type") or "click").lower()
         action_text = step.get("action", "")
         input_value = step.get("input_value", "")
@@ -123,7 +124,7 @@ class _NavigationMixin:
             return False
 
     async def _execute_mobile_fallback_navigation(
-        self, fallback_steps: List[Dict[str, Any]]
+        self, fallback_steps: list[dict[str, Any]]
     ) -> bool:
         mobile_executor = getattr(self, '_mobile_executor', None)
         if not mobile_executor:
@@ -148,14 +149,12 @@ class _NavigationMixin:
                 if action_type == "navigate":
                     url = input_value or action_text
                     if url:
-                        try:
+                        with contextlib.suppress(Exception):
                             await mobile_executor.execute_action(
                                 description=f"启动应用 {url}",
                                 step_id=None,
                                 use_cache=False,
                             )
-                        except Exception:
-                            pass
                         continue
 
                 await mobile_executor.execute_action(
@@ -247,7 +246,7 @@ class _NavigationMixin:
             logger.warning(f"Mobile Activity导航失败: {e}")
             return False
 
-    def _extract_url_from_text(self, text: str) -> Optional[str]:
+    def _extract_url_from_text(self, text: str) -> str | None:
         import re
         match = re.search(r'(https?://[^\s\'"<>]+)', text)
         if match:

@@ -16,7 +16,7 @@ import hashlib
 import json
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -30,6 +30,9 @@ from app.services.test_case_generation.helpers import (
     TEST_CATEGORY_UI_AUTO,
 )
 from app.services.test_case_generation.quality_validator import validate_single_case_status
+
+if TYPE_CHECKING:  # 仅类型检查：客户端在 _get_openai_client 内延迟导入，避免模块级循环依赖
+    from app.ai._openai_async_client import AsyncOpenAIClient
 
 
 def _get_openai_client() -> "AsyncOpenAIClient":
@@ -61,18 +64,18 @@ class AiGenerator:
     _AI_CACHE_MAX_SIZE = 200
     _AI_CACHE_TTL_SECONDS = 3600
 
-    def __init__(self, db: Optional[Session] = None) -> None:
+    def __init__(self, db: Session | None = None) -> None:
         self.db = db
 
     # ── 缓存控制 ──
-    def _get_generation_cache(self) -> Dict[str, Any]:
+    def _get_generation_cache(self) -> dict[str, Any]:
         cache = getattr(self, "_generation_cache", None)
         if cache is None:
             cache = {}
             self._generation_cache = cache
         return cache
 
-    def _build_generation_cache_key(self, context: Dict[str, Any]) -> str:
+    def _build_generation_cache_key(self, context: dict[str, Any]) -> str:
         cache_payload = {
             "requirement_content": context.get("requirement_content", ""),
             "ui_description": context.get("ui_description", ""),
@@ -89,7 +92,7 @@ class AiGenerator:
         raw = json.dumps(cache_payload, ensure_ascii=False, sort_keys=True, default=str)
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
-    def _get_cached_generation(self, cache_key: str) -> Dict[str, Any] | None:
+    def _get_cached_generation(self, cache_key: str) -> dict[str, Any] | None:
         cache = self._get_generation_cache()
         entry = cache.get(cache_key)
         if not entry:
@@ -100,7 +103,7 @@ class AiGenerator:
             return None
         return dict(value)
 
-    def _set_cached_generation(self, cache_key: str, value: Dict[str, Any]) -> None:
+    def _set_cached_generation(self, cache_key: str, value: dict[str, Any]) -> None:
         cache = self._get_generation_cache()
         if len(cache) >= self._AI_CACHE_MAX_SIZE:
             oldest_key = min(cache, key=lambda key: cache[key][1])
@@ -115,11 +118,11 @@ class AiGenerator:
     # ── 公开入口 ──
     async def generate_test_case_for_point(
         self,
-        context: Dict[str, Any],
-        test_point: Dict[str, Any],
+        context: dict[str, Any],
+        test_point: dict[str, Any],
         project_id: int,
-        case_type: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        case_type: str | None = None,
+    ) -> dict[str, Any]:
         """为单个测试点生成测试用例。"""
         ui_description = self._build_ui_description(context.get("ui_descriptions", []))
         requirement_content = ContentSanitizer.sanitize(context.get("requirement_content", ""))
@@ -159,7 +162,7 @@ class AiGenerator:
         generated_case["_context_ui_specs"] = copy.deepcopy(context.get("ui_specs", []))
         return generated_case
 
-    async def _generate_case_with_ai(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_case_with_ai(self, context: dict[str, Any]) -> dict[str, Any]:
         """使用 AI 生成测试用例，含 3 轮质量反馈闭环。
 
         业务原因：首轮 AI 输出可能不达标，通过 run_quality_feedback_loop 注入质量反馈，
@@ -179,7 +182,7 @@ class AiGenerator:
             logger.info("AI生成测试用例缓存命中")
             return cached
 
-        prompt_kwargs: Dict[str, Any] = {
+        prompt_kwargs: dict[str, Any] = {
             "requirement_content": context.get("requirement_content", ""),
             "ui_description": context.get("ui_description", ""),
             "module": test_point.get("module", "未知模块"),
@@ -196,8 +199,8 @@ class AiGenerator:
         }
 
         async def _regen_with_feedback(
-            extra_context: Dict[str, Any],
-        ) -> Optional[Dict[str, Any]]:
+            extra_context: dict[str, Any],
+        ) -> dict[str, Any] | None:
             """重生成函数：注入 extra_context 到 PromptBuilder，调用 AI 并校验额外用例。"""
             kwargs = dict(prompt_kwargs)
             if extra_context:
@@ -224,12 +227,12 @@ class AiGenerator:
             self._set_cached_generation(cache_key, final_case)
         return final_case
 
-    def _validate_extra_cases(self, case: Dict[str, Any]) -> None:
+    def _validate_extra_cases(self, case: dict[str, Any]) -> None:
         """校验并剔除 rejected 的额外用例。只剔除 rejected，pending_review/warning 保留。"""
         extra_cases = case.get("_extra_cases", [])
         if not extra_cases:
             return
-        validated_extras: List[Dict[str, Any]] = []
+        validated_extras: list[dict[str, Any]] = []
         for extra in extra_cases:
             extra_status, _ = validate_single_case_status(extra)
             if extra_status != "rejected":
@@ -240,7 +243,7 @@ class AiGenerator:
 
     async def _call_ai_and_parse(
         self, prompt: str, min_case_count: int = 1,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """调用 AI 并解析响应，含收紧的重试策略。
 
         性能优化：
@@ -251,7 +254,7 @@ class AiGenerator:
         5. 直接 await async client，移除 asyncio.to_thread 包装
         """
         max_retries = 2
-        last_error: Optional[str] = None
+        last_error: str | None = None
         use_full_tokens = False
 
         for attempt in range(max_retries):
@@ -286,7 +289,7 @@ class AiGenerator:
                 last_error = str(e)
                 use_full_tokens = True
                 logger.warning(f"AI响应解析失败(尝试{attempt + 1}/{max_retries}): {e}")
-            except (ConnectionError, asyncio.TimeoutError) as e:
+            except (TimeoutError, ConnectionError) as e:
                 # 网络错误与超时立即抛出，不再重试（SDK 内部已 max_retries=3）
                 logger.error(f"AI调用网络/超时错误，不再重试: {e}")
                 raise ValueError(f"AI生成失败: {e}") from e
@@ -299,7 +302,7 @@ class AiGenerator:
 
         raise ValueError(f"AI生成失败: {last_error}")
 
-    def _build_ui_description(self, ui_descriptions: List[Dict[str, Any]]) -> str:
+    def _build_ui_description(self, ui_descriptions: list[dict[str, Any]]) -> str:
         """构建 UI 描述文本（简化版：description 优先，summary 兜底）。"""
         parts = []
         for desc in ui_descriptions:

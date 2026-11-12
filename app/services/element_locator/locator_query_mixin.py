@@ -1,6 +1,7 @@
 """定位查询Mixin - 查询步骤的元素定位信息。
 """
-from typing import Optional, Dict, Any, Generator
+from typing import Any
+from collections.abc import Generator
 from contextlib import contextmanager
 from loguru import logger
 
@@ -20,7 +21,7 @@ class LocatorQueryMixin:
             logger.error(f"数据库事务失败: {str(e)}")
             raise
 
-    def get_locator(self, step_id: int) -> Optional[ElementLocator]:
+    def get_locator(self, step_id: int) -> ElementLocator | None:
         return self.db.query(ElementLocator).filter(
             ElementLocator.step_id == step_id
         ).first()
@@ -45,9 +46,9 @@ class LocatorQueryMixin:
     def update_locator(
         self,
         step_id: int,
-        css_selector: Optional[str] = None,
-        xpath: Optional[str] = None,
-        element_id: Optional[str] = None
+        css_selector: str | None = None,
+        xpath: str | None = None,
+        element_id: str | None = None
     ) -> bool:
         locator = self.get_locator(step_id)
         if not locator:
@@ -77,7 +78,7 @@ class LocatorQueryMixin:
         logger.info(f"步骤 {step_id}: 元素定位信息已删除")
         return True
 
-    def get_locator_stats(self, step_id: int) -> Optional[Dict[str, Any]]:
+    def get_locator_stats(self, step_id: int) -> dict[str, Any] | None:
         locator = self.get_locator(step_id)
         if not locator:
             return None

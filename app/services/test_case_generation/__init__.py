@@ -11,7 +11,8 @@ TestCaseGenerationService 采用组合模式持有 4 个内聚组件：
 继承深度 ≤ 1（仅 object），通过构造函数注入组件，避免 Mixin 多继承的调试栈深
 与责任分散问题。对外保持公开方法签名兼容。
 """
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, Optional
+from collections.abc import AsyncGenerator
 
 from sqlalchemy.orm import Session
 
@@ -60,14 +61,14 @@ class TestCaseGenerationService:
         self,
         project_id: int,
         user_id: int,
-        requirement_file_ids: Optional[List[int]] = None,
-        ui_file_ids: Optional[List[int]] = None,
-        ui_screen_ids: Optional[List[int]] = None,
-        test_point_ids: Optional[List[int]] = None,
+        requirement_file_ids: list[int] | None = None,
+        ui_file_ids: list[int] | None = None,
+        ui_screen_ids: list[int] | None = None,
+        test_point_ids: list[int] | None = None,
         force_refresh: bool = False,
         test_point_page: int = 1,
         test_point_page_size: int = DEFAULT_TEST_POINT_PAGE_SIZE,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取测试用例生成的上下文信息（委托 ContextBuilder）。"""
         return await self._context_builder.get_context_for_generation(
             project_id=project_id,
@@ -83,9 +84,9 @@ class TestCaseGenerationService:
 
     def enrich_context_with_trust_and_scoring(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
-        history_case_ids: Optional[List[int]] = None,
+        history_case_ids: list[int] | None = None,
         history_limit: int = 10,
     ) -> None:
         """历史用例信任度过滤与完整性评分（委托 ContextBuilder）。"""
@@ -98,11 +99,11 @@ class TestCaseGenerationService:
 
     async def generate_test_case_for_point(
         self,
-        context: Dict[str, Any],
-        test_point: Dict[str, Any],
+        context: dict[str, Any],
+        test_point: dict[str, Any],
         project_id: int,
-        case_type: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        case_type: str | None = None,
+    ) -> dict[str, Any]:
         """为单个测试点生成测试用例（委托 AiGenerator）。"""
         return await self._ai_generator.generate_test_case_for_point(
             context=context,
@@ -115,14 +116,14 @@ class TestCaseGenerationService:
         self,
         project_id: int,
         user_id: int,
-        test_point_ids: Optional[List[int]] = None,
-        requirement_file_ids: Optional[List[int]] = None,
-        ui_file_ids: Optional[List[int]] = None,
-        ui_screen_ids: Optional[List[int]] = None,
+        test_point_ids: list[int] | None = None,
+        requirement_file_ids: list[int] | None = None,
+        ui_file_ids: list[int] | None = None,
+        ui_screen_ids: list[int] | None = None,
         test_point_page: int = 1,
         test_point_page_size: int = 100,
-        case_type: Optional[str] = None,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        case_type: str | None = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """批量生成测试用例（委托 BatchOrchestrator）。"""
         async for frame in self._batch_orchestrator.generate_test_cases_batch(
             project_id=project_id,
@@ -140,9 +141,9 @@ class TestCaseGenerationService:
     async def _save_test_case(
         self,
         project_id: int,
-        generated_case: Dict[str, Any],
-        test_point: Dict[str, Any],
-        requirement_file_id: Optional[int] = None,
+        generated_case: dict[str, Any],
+        test_point: dict[str, Any],
+        requirement_file_id: int | None = None,
     ):
         """保存测试用例到数据库（委托 CaseValidator）。"""
         return await self._validator._save_test_case(
@@ -154,17 +155,17 @@ class TestCaseGenerationService:
 
     # ── 类方法委托（兼容旧 Mixin 时代直接通过 Service 类名调用的用例） ──
     @classmethod
-    def _normalize_case_type(cls, *values: Optional[str]) -> str:
+    def _normalize_case_type(cls, *values: str | None) -> str:
         """用例执行类型归一化（委托 CaseValidator）。"""
         return CaseValidator._normalize_case_type(*values)
 
     @classmethod
     def _quality_gate_issues(
         cls,
-        generated_case: Dict[str, Any],
-        quality_score: Optional[float],
-        ui_specs: Optional[List[Dict[str, Any]]] = None,
-        project_id: Optional[int] = None,
+        generated_case: dict[str, Any],
+        quality_score: float | None,
+        ui_specs: list[dict[str, Any]] | None = None,
+        project_id: int | None = None,
         db: Any = None,
     ):
         """质量门禁校验（委托 CaseValidator）。"""
@@ -179,8 +180,8 @@ class TestCaseGenerationService:
     @classmethod
     def _resolve_generated_priority(
         cls,
-        generated_case: Dict[str, Any],
-        test_point: Dict[str, Any],
+        generated_case: dict[str, Any],
+        test_point: dict[str, Any],
     ) -> int:
         """生成用例优先级解析（委托 CaseValidator）。"""
         return CaseValidator._resolve_generated_priority(generated_case, test_point)
@@ -190,13 +191,13 @@ async def get_test_case_context(
     db: Session,
     project_id: int,
     user_id: int,
-    requirement_file_ids: Optional[List[int]] = None,
-    ui_file_ids: Optional[List[int]] = None,
-    ui_screen_ids: Optional[List[int]] = None,
-    test_point_ids: Optional[List[int]] = None,
+    requirement_file_ids: list[int] | None = None,
+    ui_file_ids: list[int] | None = None,
+    ui_screen_ids: list[int] | None = None,
+    test_point_ids: list[int] | None = None,
     test_point_page: int = 1,
     test_point_page_size: int = DEFAULT_TEST_POINT_PAGE_SIZE
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """获取测试用例生成的上下文"""
     service = TestCaseGenerationService(db)
     return await service.get_context_for_generation(

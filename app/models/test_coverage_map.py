@@ -11,7 +11,7 @@
     - 外键 → projects（ondelete=CASCADE，项目删除时映射级联清理）
     - 外键 → test_cases（ondelete=CASCADE，用例删除时映射级联清理）
 """
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -89,7 +89,7 @@ class TestCoverageMap(Base):
             f"file={self.file_path}, lines={self.line_start}-{self.line_end})>"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """返回映射核心字段字典，供 API 响应与日志输出使用。"""
         return {
             "id": self.id,

@@ -1,18 +1,16 @@
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 from dataclasses import dataclass, field
 
-from loguru import logger
 
-from app.core.constants import DEFAULT_AI_FALLBACK_CASE_TYPE
 
 
 @dataclass
 class TopicNode:
     title: str
-    priority: Optional[int] = None
+    priority: int | None = None
     notes: str = ""
-    children: List["TopicNode"] = field(default_factory=list)
+    children: list["TopicNode"] = field(default_factory=list)
 
 
 class _ClassifyMixin:
@@ -54,8 +52,8 @@ class _ClassifyMixin:
 
     def _infer_case_title(
         self,
-        texts: List[str],
-        actions: List[str],
+        texts: list[str],
+        actions: list[str],
         expected_result: str,
         module_name: str,
     ) -> str:
@@ -71,13 +69,13 @@ class _ClassifyMixin:
             title = module_name
         return self._truncate_field(title, self.TITLE_MAX_LEN)
 
-    def _infer_function_name(self, texts: List[str], module_name: str) -> str:
+    def _infer_function_name(self, texts: list[str], module_name: str) -> str:
         if len(texts) >= 2:
             return self._truncate_field(texts[1], self.TITLE_MAX_LEN)
         return ""
 
-    def _build_steps(self, actions: List[str], overall_expected: str) -> List[Dict[str, Any]]:
-        steps: List[Dict[str, Any]] = []
+    def _build_steps(self, actions: list[str], overall_expected: str) -> list[dict[str, Any]]:
+        steps: list[dict[str, Any]] = []
         for index, action in enumerate(actions, start=1):
             steps.append({
                 "step": index,
@@ -87,7 +85,7 @@ class _ClassifyMixin:
             })
         return steps
 
-    def _infer_priority(self, segments: List[TopicNode]) -> int:
+    def _infer_priority(self, segments: list[TopicNode]) -> int:
         for segment in reversed(segments):
             if segment.priority is not None:
                 return segment.priority

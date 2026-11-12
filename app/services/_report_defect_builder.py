@@ -4,7 +4,7 @@
 缺陷维度数据的构建逻辑。所有方法为静态方法，通过 ReportService 继承暴露。
 """
 import json
-from typing import Dict, Any, List
+from typing import Any
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -28,7 +28,7 @@ class _ReportDefectDimensionBuilder:
         return "建议结合执行日志、截图和复现步骤定位根因。"
 
     @staticmethod
-    def _build_self_test_bug_list(db: Session, project_id: int) -> List[Dict[str, Any]]:
+    def _build_self_test_bug_list(db: Session, project_id: int) -> list[dict[str, Any]]:
         from app.models.bug import Bug
 
         bugs = (
@@ -59,7 +59,7 @@ class _ReportDefectDimensionBuilder:
         db: Session,
         project_id: int,
         task_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """构建缺陷概览数据，调用 calculate_defect_metrics 获取指标。
 
         Args:
@@ -90,7 +90,7 @@ class _ReportDefectDimensionBuilder:
     def _build_defect_list(
         db: Session,
         project_id: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """构建缺陷明细列表，包含 Bug 详情和关联证据。
 
         Args:
@@ -109,9 +109,9 @@ class _ReportDefectDimensionBuilder:
             .order_by(Bug.severity.asc(), Bug.create_time.desc())
             .all()
         )
-        defect_list: List[Dict[str, Any]] = []
+        defect_list: list[dict[str, Any]] = []
         for bug in bugs:
-            entry: Dict[str, Any] = {
+            entry: dict[str, Any] = {
                 "bug_no": bug.bug_no,
                 "title": bug.title,
                 "severity": bug.severity,
@@ -132,7 +132,7 @@ class _ReportDefectDimensionBuilder:
     def _build_defect_distribution(
         db: Session,
         project_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """构建缺陷分布统计（按模块/类型/严重度）。
 
         Args:
@@ -151,9 +151,9 @@ class _ReportDefectDimensionBuilder:
             .all()
         )
 
-        by_module: Dict[str, int] = {}
-        by_type: Dict[str, int] = {}
-        by_severity: Dict[str, int] = {"p0": 0, "p1": 0, "p2": 0, "p3": 0}
+        by_module: dict[str, int] = {}
+        by_type: dict[str, int] = {}
+        by_severity: dict[str, int] = {"p0": 0, "p1": 0, "p2": 0, "p3": 0}
 
         for bug in bugs:
             # 按模块统计
@@ -180,7 +180,7 @@ class _ReportDefectDimensionBuilder:
         db: Session,
         project_id: int,
         task_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """构建隐性缺陷证据聚合数据。
 
         从测试结果中收集 exec_status=passed 但 defect_evidence 含
@@ -210,7 +210,7 @@ class _ReportDefectDimensionBuilder:
     def _build_security_findings(
         db: Session,
         project_id: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """构建安全发现列表，从 ux_category=security 的 Bug 中提取。
 
         Args:
@@ -232,7 +232,7 @@ class _ReportDefectDimensionBuilder:
             )
             .all()
         )
-        findings: List[Dict[str, Any]] = []
+        findings: list[dict[str, Any]] = []
         for bug in security_bugs:
             # 从 Bug 描述中推断安全类型
             desc = bug.description or ""
@@ -264,7 +264,7 @@ class _ReportDefectDimensionBuilder:
     def _build_coverage_assessment(
         db: Session,
         project_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """构建覆盖评估数据，对比有缺陷模块和无缺陷模块。
 
         Args:

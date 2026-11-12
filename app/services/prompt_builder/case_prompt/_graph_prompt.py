@@ -1,46 +1,32 @@
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from loguru import logger
 
 from app.services.prompt_builder.helpers import (
-    _safe_int,
-    _infer_condition,
-    _render_flow_meta_hint,
-    _render_edge_hint,
     _group_edges_by_source,
 )
 from app.services.prompt_builder.flow_aware_history import (
     _append_flow_aware_history_cases,
 )
-from app.services.prompt_builder.comparison_examples import (
-    get_comparison_examples,
-    get_title_spec_rules,
-    get_precondition_spec_rules,
-    get_automation_friendly_rules,
-)
 from app.services.prompt_builder.case_prompt._flow_builder import _append_nested_flow
 from app.services.prompt_builder.case_prompt._rules import _append_generation_rules
-from app.services.prompt_builder.case_prompt._node_format import (
-    _format_node_elements,
-    _build_image_ref,
-)
 
 
 def _build_graph_prompt(
-    nodes: List[Dict[str, Any]],
-    edges: List[Dict[str, Any]],
-    module_info: Optional[Dict[str, Any]] = None,
+    nodes: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+    module_info: dict[str, Any] | None = None,
     requirement_content: str = "",
     test_point_json: str = "",
     ui_specs_text: str = "",
     include_images: bool = False,
-    history_cases: Optional[List[Dict[str, Any]]] = None,
-    case_type: Optional[str] = None,
+    history_cases: list[dict[str, Any]] | None = None,
+    case_type: str | None = None,
     test_username: str = "testuser",
     test_password: str = "TestPass123",
     min_case_count: int = 3,
 ) -> str:
-    node_map: Dict[Any, Dict[str, Any]] = {}
+    node_map: dict[Any, dict[str, Any]] = {}
     for n in nodes:
         sid = n.get('screen_id')
         if sid in node_map:

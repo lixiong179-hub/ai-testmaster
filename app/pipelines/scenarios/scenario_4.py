@@ -13,7 +13,6 @@ Pipeline = [S1 SignalGatherer, S2 HistoryFingerprint, S5 TestPointAlignment,
     - 不对齐 UI 测试点（无 UI 输入时 skip TestPointAlignment）
     - DecisionDispatch 将 merged_verdicts 转化为 generation_tasks 驱动 CaseGeneration
 """
-from typing import List, Type
 
 from app.pipelines.base import PipelineStep
 from app.pipelines.steps.signal_gatherer import SignalGatherer
@@ -28,7 +27,7 @@ from app.pipelines.steps.case_generation import CaseGeneration
 from app.pipelines.steps.quality_gate import QualityGate
 from app.pipelines.steps.persist import Persist
 
-SCENARIO_4_STEPS: List[Type[PipelineStep]] = [
+SCENARIO_4_STEPS: list[type[PipelineStep]] = [
     SignalGatherer,
     HistoryFingerprint,
     TestPointAlignment,

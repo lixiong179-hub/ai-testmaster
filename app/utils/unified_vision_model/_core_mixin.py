@@ -1,15 +1,11 @@
 import base64
 import time
 import requests
-from typing import List, Dict, Any, Optional, Callable
-from dataclasses import dataclass
-from enum import Enum
+from typing import Any
 from loguru import logger
 
 from app.utils.unified_vision_model._types import (
     VisionModelType,
-    ElementInfo,
-    ModelProviderConfig,
     MODEL_PROVIDER_CONFIGS,
     resolve_default_model_type,
 )
@@ -18,10 +14,10 @@ from app.utils.unified_vision_model._types import (
 class _VisionCoreMixin:
     def _init_core(
         self,
-        model_type: Optional[VisionModelType] = None,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        model_name: Optional[str] = None,
+        model_type: VisionModelType | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model_name: str | None = None,
         max_retries: int = 3,
         retry_delay: int = 2,
         timeout: int = 300,
@@ -70,9 +66,9 @@ class _VisionCoreMixin:
     def _build_request_payload(
         self,
         system_prompt: str,
-        user_content: List[Dict[str, Any]],
-        temperature: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        user_content: list[dict[str, Any]],
+        temperature: float | None = None,
+    ) -> dict[str, Any]:
         content = []
         for item in user_content:
             if item.get('type') == 'image':
@@ -104,9 +100,9 @@ class _VisionCoreMixin:
     def _build_baidu_payload(
         self,
         system_prompt: str,
-        user_content: List[Dict[str, Any]],
-        temperature: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        user_content: list[dict[str, Any]],
+        temperature: float | None = None,
+    ) -> dict[str, Any]:
         messages = [{"role": "system", "content": system_prompt}]
 
         content_parts = []
@@ -124,7 +120,7 @@ class _VisionCoreMixin:
             "max_output_tokens": self.max_tokens
         }
 
-    def _parse_response(self, response: Dict[str, Any]) -> Optional[str]:
+    def _parse_response(self, response: dict[str, Any]) -> str | None:
         if self.model_type == VisionModelType.BAIDU:
             return self._parse_baidu_response(response)
 
@@ -145,14 +141,14 @@ class _VisionCoreMixin:
             logger.error(f"解析响应失败: {e}, 响应键: {resp_keys}")
             return None
 
-    def _parse_baidu_response(self, response: Dict[str, Any]) -> Optional[str]:
+    def _parse_baidu_response(self, response: dict[str, Any]) -> str | None:
         try:
             return response.get("result", "")
         except Exception as e:
             logger.error(f"解析文心一言响应失败: {e}")
             return None
 
-    def _make_request(self, payload: Dict[str, Any]) -> Optional[str]:
+    def _make_request(self, payload: dict[str, Any]) -> str | None:
         if not self.api_key:
             logger.error(f"{self.model_type.value} API Key 未配置")
             return None

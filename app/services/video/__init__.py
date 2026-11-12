@@ -49,7 +49,7 @@ class VideoService(
 
     def __init__(
         self,
-        db: Optional[Session] = None,
+        db: Session | None = None,
         video_base_dir: str = "/tmp/test_videos",
         retention_days: int = 30
     ):
@@ -98,10 +98,10 @@ __all__ = [
 ]
 
 
-_video_service_instance: Optional[VideoService] = None
+_video_service_instance: VideoService | None = None
 
 
-def get_video_service(db: Optional[Session] = None) -> VideoService:
+def get_video_service(db: Session | None = None) -> VideoService:
     """获取视频服务实例（单例兼容函数）。
 
     兼容旧版 get_video_service() 无参调用方式。

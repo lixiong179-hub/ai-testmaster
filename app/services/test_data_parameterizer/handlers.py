@@ -4,7 +4,7 @@ import re
 import random
 import string
 from datetime import datetime, timedelta
-from typing import Dict, Callable
+from collections.abc import Callable
 
 from app.models.test_data import DataType
 from app.services.test_data_generator import TestDataGenerator
@@ -32,7 +32,7 @@ class ParameterHandlerMixin:
 
     def _handle_random_param(self, param_name: str) -> str:
         """处理random命名空间的参数。"""
-        generators: Dict[str, Callable[[], str]] = {
+        generators: dict[str, Callable[[], str]] = {
             'product_name': lambda: self.generator.generate_data(DataType.TEXT, '产品线名称'),
             'phone': lambda: self.generator.generate_data(DataType.PHONE, '手机号'),
             'email': lambda: self.generator.generate_data(DataType.EMAIL, '邮箱'),
@@ -62,13 +62,10 @@ class ParameterHandlerMixin:
         if relative_match:
             sign = relative_match.group(1)
             days = int(relative_match.group(2))
-            if sign == '+':
-                date = now + timedelta(days=days)
-            else:
-                date = now - timedelta(days=days)
+            date = now + timedelta(days=days) if sign == '+' else now - timedelta(days=days)
             return date.strftime('%Y-%m-%d')
 
-        date_generators: Dict[str, Callable[[], str]] = {
+        date_generators: dict[str, Callable[[], str]] = {
             'today': lambda: now.strftime('%Y-%m-%d'),
             'yesterday': lambda: (now - timedelta(days=1)).strftime('%Y-%m-%d'),
             'tomorrow': lambda: (now + timedelta(days=1)).strftime('%Y-%m-%d'),
@@ -90,7 +87,7 @@ class ParameterHandlerMixin:
     def _handle_user_param(self, param_name: str) -> str:
         """处理user命名空间的参数。"""
         user_id = getattr(self.context, 'user_id', None)
-        user_defaults: Dict[str, str] = {
+        user_defaults: dict[str, str] = {
             'name': '测试用户',
             'id': str(user_id or '1'),
             'email': 'test@example.com',
@@ -101,7 +98,7 @@ class ParameterHandlerMixin:
     def _handle_project_param(self, param_name: str) -> str:
         """处理project命名空间的参数。"""
         project_id = getattr(self.context, 'project_id', None)
-        project_defaults: Dict[str, str] = {
+        project_defaults: dict[str, str] = {
             'name': '测试项目',
             'id': str(project_id or '1'),
             'code': 'TEST',
@@ -110,7 +107,7 @@ class ParameterHandlerMixin:
 
     def _handle_execution_param(self, param_name: str) -> str:
         """处理execution命名空间的参数。"""
-        execution_defaults: Dict[str, str] = {
+        execution_defaults: dict[str, str] = {
             'id': self.context.execution_id,
             'timestamp': self.context.execution_timestamp,
         }

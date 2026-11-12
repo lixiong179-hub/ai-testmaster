@@ -5,14 +5,14 @@
 """
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
 from app.pipelines.context import PipelineContext
 
 
-def _serialize_json_field(value: Any) -> Optional[str]:
+def _serialize_json_field(value: Any) -> str | None:
     """将列表或已序列化的字符串统一为 JSON 字符串。
 
     Args:
@@ -30,7 +30,7 @@ def _serialize_json_field(value: Any) -> Optional[str]:
     return None
 
 
-def _parse_datetime_field(value: Any) -> Optional[datetime]:
+def _parse_datetime_field(value: Any) -> datetime | None:
     """将 ISO 字符串或 datetime 对象统一为 datetime 对象。
 
     用于解析 case_data 中的 last_verified_at 字段（由 ExecutionValidation
@@ -58,7 +58,7 @@ def _parse_datetime_field(value: Any) -> Optional[datetime]:
     return None
 
 
-def _build_score_map(scores_artifact: Optional[Dict[str, Any]]) -> Dict[str, Dict]:
+def _build_score_map(scores_artifact: dict[str, Any] | None) -> dict[str, dict]:
     """构建 case_title -> score_info 映射（fallback 用）。
 
     主路径优先从 case_data 取 QualityGate 直接写入的分数，
@@ -78,7 +78,7 @@ def _build_score_map(scores_artifact: Optional[Dict[str, Any]]) -> Dict[str, Dic
 def _persist_case_steps(
     ctx: PipelineContext,
     case_id: int,
-    steps_json: List[Dict[str, Any]],
+    steps_json: list[dict[str, Any]],
     has_ui: bool,
 ) -> None:
     """将用例步骤批量写入 TestStep 表。

@@ -2,7 +2,6 @@
 import asyncio
 import re
 import json
-from typing import Optional
 from loguru import logger
 
 from app.utils.adb_controller import AdbError
@@ -18,7 +17,7 @@ class MobileActionExecutorMixin:
     async def execute_action(
         self,
         description: str,
-        step_id: Optional[int] = None,
+        step_id: int | None = None,
         use_cache: bool = True,
     ) -> MobileActionResult:
         logger.info(f"MobileAIExecutor: 执行操作 '{description}'")
@@ -65,7 +64,7 @@ class MobileActionExecutorMixin:
             raise MobileAIError(f"执行失败: {e}")
 
     async def _execute_click(
-        self, description: str, step_id: Optional[int] = None, use_cache: bool = True
+        self, description: str, step_id: int | None = None, use_cache: bool = True
     ) -> MobileActionResult:
         if use_cache and step_id:
             cached = self._get_cached_locator(step_id)
@@ -91,7 +90,7 @@ class MobileActionExecutorMixin:
         )
 
     async def _execute_input(
-        self, description: str, step_id: Optional[int] = None, use_cache: bool = True
+        self, description: str, step_id: int | None = None, use_cache: bool = True
     ) -> MobileActionResult:
         input_text = self._extract_input_text(description)
         target_desc = self._extract_input_target(description)

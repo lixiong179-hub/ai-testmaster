@@ -11,7 +11,6 @@
 import json
 import logging
 import os
-from typing import Dict, List, Optional
 
 from app.services.impact_analysis.models import CoverageEntry
 
@@ -36,7 +35,7 @@ class CoverageCollector:
         json_path: str,
         test_case_id: int,
         test_name: str = "",
-    ) -> List[CoverageEntry]:
+    ) -> list[CoverageEntry]:
         """解析 coverage.py 生生的 JSON 文件。
 
         边界场景：
@@ -49,7 +48,7 @@ class CoverageCollector:
             return []
 
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"覆盖率文件解析失败: {json_path}, error={e}")
@@ -59,10 +58,10 @@ class CoverageCollector:
 
     def parse_coverage_data(
         self,
-        data: Dict,
+        data: dict,
         test_case_id: int,
         test_name: str = "",
-    ) -> List[CoverageEntry]:
+    ) -> list[CoverageEntry]:
         """解析 coverage.py 字典数据。
 
         coverage.py JSON 格式（file 章节）：
@@ -83,7 +82,7 @@ class CoverageCollector:
             logger.warning("覆盖率数据无 files 字段")
             return []
 
-        entries: List[CoverageEntry] = []
+        entries: list[CoverageEntry] = []
         for file_path, file_data in files.items():
             relative_path = self._to_relative_path(file_path)
             if not relative_path:
@@ -111,7 +110,7 @@ class CoverageCollector:
         )
         return entries
 
-    def _to_relative_path(self, file_path: str) -> Optional[str]:
+    def _to_relative_path(self, file_path: str) -> str | None:
         """将绝对路径转换为相对项目根目录的路径。
 
         边界场景：路径不在项目根目录下时返回 None。
@@ -124,7 +123,7 @@ class CoverageCollector:
         return os.path.relpath(abs_path, self._project_root).replace(os.sep, "/")
 
     @staticmethod
-    def _merge_consecutive_lines(lines: List[int]) -> List[tuple]:
+    def _merge_consecutive_lines(lines: list[int]) -> list[tuple]:
         """将连续行号合并为 (start, end) 范围。
 
         示例：[1, 2, 3, 10, 11, 15] → [(1, 3), (10, 11), (15, 15)]
@@ -132,7 +131,7 @@ class CoverageCollector:
         if not lines:
             return []
         sorted_lines = sorted(set(lines))
-        ranges: List[tuple] = []
+        ranges: list[tuple] = []
         start = prev = sorted_lines[0]
         for line in sorted_lines[1:]:
             if line == prev + 1:

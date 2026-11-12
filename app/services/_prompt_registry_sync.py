@@ -11,7 +11,6 @@
     - list_versions: 列出某 key 的所有版本
     - get_prompt_content: 优先从 DB 读取，DB 无记录时 fallback 到硬编码常量
 """
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -28,7 +27,7 @@ class _PromptRegistrySyncMixin:
 
     _db: Session
 
-    def get_prompt(self, key: str, version: Optional[int] = None) -> Optional[PromptTemplate]:
+    def get_prompt(self, key: str, version: int | None = None) -> PromptTemplate | None:
         """获取 Prompt 模板记录。
 
         Args:
@@ -53,7 +52,7 @@ class _PromptRegistrySyncMixin:
         self,
         key: str,
         content: str,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> PromptTemplate:
         """注册 Prompt 新版本，自动递增版本号并计算哈希。
 

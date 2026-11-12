@@ -1,7 +1,8 @@
 
 """前置条件错误处理装饰器。"""
 import functools
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from loguru import logger
 from app.services.precondition.models import PreconditionError

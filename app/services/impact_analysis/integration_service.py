@@ -19,7 +19,6 @@
 - app.models.test_coverage_map.TestCoverageMap
 """
 import logging
-from typing import List, Optional, Tuple
 
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -53,7 +52,7 @@ class TIAIntegrationService:
             run_all()
     """
 
-    def __init__(self, db: Session, project_root: Optional[str] = None) -> None:
+    def __init__(self, db: Session, project_root: str | None = None) -> None:
         """初始化集成服务。
 
         Args:
@@ -67,7 +66,7 @@ class TIAIntegrationService:
 
     # ── 覆盖率加载 ────────────────────────────────────────────────
 
-    def load_coverage_entries(self, project_id: int) -> List[CoverageEntry]:
+    def load_coverage_entries(self, project_id: int) -> list[CoverageEntry]:
         """从 DB 按 project_id 加载覆盖率映射，构造 CoverageEntry 列表。
 
         边界场景：
@@ -84,7 +83,7 @@ class TIAIntegrationService:
                 .scalars()
                 .all()
             )
-            entries: List[CoverageEntry] = []
+            entries: list[CoverageEntry] = []
             for row in rows:
                 entry = CoverageEntry(
                     test_case_id=row.test_case_id,
@@ -111,7 +110,7 @@ class TIAIntegrationService:
         self,
         project_id: int,
         test_case_id: int,
-        entries: List[CoverageEntry],
+        entries: list[CoverageEntry],
     ) -> int:
         """将覆盖率条目 upsert 到 test_coverage_maps 表。
 
@@ -220,9 +219,9 @@ class TIAIntegrationService:
         self,
         project_id: int,
         total_test_count: int = 0,
-        base_ref: Optional[str] = None,
-        target_ref: Optional[str] = None,
-        avg_test_duration_seconds: Optional[float] = None,
+        base_ref: str | None = None,
+        target_ref: str | None = None,
+        avg_test_duration_seconds: float | None = None,
     ) -> ImpactSchedulePlan:
         """生成 TIA 调度计划。
 
@@ -277,10 +276,10 @@ class TIAIntegrationService:
     def filter_test_case_ids(
         self,
         project_id: int,
-        all_case_ids: List[int],
-        base_ref: Optional[str] = None,
-        target_ref: Optional[str] = None,
-    ) -> Tuple[List[int], ImpactSchedulePlan]:
+        all_case_ids: list[int],
+        base_ref: str | None = None,
+        target_ref: str | None = None,
+    ) -> tuple[list[int], ImpactSchedulePlan]:
         """根据 TIA 调度计划筛选待执行用例 ID。
 
         业务用途：测试执行链路调用本方法获取最终执行范围。

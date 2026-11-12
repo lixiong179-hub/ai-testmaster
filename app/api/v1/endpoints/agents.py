@@ -19,7 +19,7 @@
     - 异常映射: AgentError→400, NotImplementedError→501, HTTPException 透传, 其他→500。
     - 复用 execution_core._helpers.verify_project_permission_async 校验项目归属，避免重复。
 """
-from typing import Any, List, NoReturn, Optional
+from typing import Any, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
@@ -89,7 +89,7 @@ def _build_artifact_registry():
     return registry
 
 
-def _parse_initial_artifacts(raw: List[dict]) -> List[Artifact]:
+def _parse_initial_artifacts(raw: list[dict]) -> list[Artifact]:
     """把请求体中的 artifact dict 校验为 Artifact 实例。
 
     约定格式：{"artifact_type": "<已注册类型>", "data": {...}}
@@ -100,7 +100,7 @@ def _parse_initial_artifacts(raw: List[dict]) -> List[Artifact]:
     if not raw:
         return []
     registry = _build_artifact_registry()
-    artifacts: List[Artifact] = []
+    artifacts: list[Artifact] = []
     for item in raw:
         artifact_type = item.get("artifact_type")
         if not artifact_type:
@@ -147,7 +147,7 @@ def _raise_for_agent(e: Exception, action: str) -> NoReturn:
 
 async def _check_session_ownership(
     db: AsyncSession, session_id: int, current_user: User,
-) -> Optional[AgentSession]:
+) -> AgentSession | None:
     """校验当前用户是否为指定会话的所有者，超级管理员绕过。
 
     会话不存在返回 None（由调用方按现有契约决定 404/400/空列表）；
@@ -274,7 +274,7 @@ async def get_session(
 
 @router.get(
     "/sessions/{session_id}/messages",
-    response_model=ApiResponse[List[MessageResponse]],
+    response_model=ApiResponse[list[MessageResponse]],
     summary="查询会话消息流",
     description="按时间升序返回会话消息流，最多 limit 条。",
 )
@@ -318,7 +318,7 @@ async def cancel_session(
 
 @router.get(
     "/sessions/{session_id}/audits",
-    response_model=ApiResponse[List[AuditResponse]],
+    response_model=ApiResponse[list[AuditResponse]],
     summary="查询会话审计（工具调用）记录",
     description=(
         "R1-3：按 id 升序返回该会话的完整审计链。"

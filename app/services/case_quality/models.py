@@ -1,6 +1,6 @@
 """数据模型定义 - 定义本子包所需的数据结构、枚举和结果模型。
 """
-from typing import Optional, Dict, Any, List
+from typing import Any
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -15,7 +15,7 @@ class ComplexityScore:
     score: float = 0.0
     level: str = "simple"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "step_count": self.step_count,
             "action_variety": self.action_variety,
@@ -30,12 +30,12 @@ class ComplexityScore:
 @dataclass
 class RedundancyScore:
     similar_case_count: int = 0
-    similar_cases: List[Dict[str, Any]] = field(default_factory=list)
+    similar_cases: list[dict[str, Any]] = field(default_factory=list)
     duplicate_step_count: int = 0
     score: float = 0.0
     level: str = "low"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "similar_case_count": self.similar_case_count,
             "similar_cases": self.similar_cases,
@@ -58,11 +58,11 @@ class CoverageScore:
     requirement_coverage_rate: float = 0.0
     ui_element_coverage_rate: float = 0.0
     locator_coverage_rate: float = 0.0
-    requirement_details: Dict[str, Any] = field(default_factory=dict)
-    ui_element_details: Dict[str, Any] = field(default_factory=dict)
-    locator_details: Dict[str, Any] = field(default_factory=dict)
+    requirement_details: dict[str, Any] = field(default_factory=dict)
+    ui_element_details: dict[str, Any] = field(default_factory=dict)
+    locator_details: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "total_elements": self.total_elements,
             "covered_elements": self.covered_elements,
@@ -85,13 +85,13 @@ class QualityReport:
     case_name: str
     overall_score: float = 0.0
     overall_level: str = "unrated"
-    complexity: Optional[ComplexityScore] = None
-    redundancy: Optional[RedundancyScore] = None
-    coverage: Optional[CoverageScore] = None
-    suggestions: List[str] = field(default_factory=list)
+    complexity: ComplexityScore | None = None
+    redundancy: RedundancyScore | None = None
+    coverage: CoverageScore | None = None
+    suggestions: list[str] = field(default_factory=list)
     analyzed_at: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "case_id": self.case_id,
             "case_name": self.case_name,
@@ -110,7 +110,7 @@ class CaseQualityAnalysisRequest:
     """兼容旧测试导出的质量分析请求模型。"""
 
     project_id: int
-    test_case_ids: List[int] = field(default_factory=list)
+    test_case_ids: list[int] = field(default_factory=list)
     include_complexity: bool = True
     include_redundancy: bool = True
     include_coverage: bool = True
@@ -126,5 +126,5 @@ class CaseQualityReport:
     redundancy_score: float = 0.0
     coverage_score: float = 0.0
     overall_score: float = 0.0
-    suggestions: List[str] = field(default_factory=list)
+    suggestions: list[str] = field(default_factory=list)
     analyzed_at: datetime = field(default_factory=datetime.now)

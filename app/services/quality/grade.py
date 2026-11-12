@@ -11,7 +11,6 @@
 
 抽取为共享工具以消除 validate_mixin 与 pipelines._signal_scoring 的重复逻辑。
 """
-from typing import Dict, Optional
 
 # 等级阈值常量，便于其他模块引用与测试断言
 GRADE_A_THRESHOLD: float = 85.0
@@ -22,7 +21,7 @@ GRADE_C_THRESHOLD: float = 45.0
 VALID_GRADES: frozenset[str] = frozenset({"A", "B", "C", "D"})
 
 # grade_status（4档状态）到字母等级的映射（spec Task 17.3）
-GRADE_STATUS_TO_LETTER: Dict[str, str] = {
+GRADE_STATUS_TO_LETTER: dict[str, str] = {
     "passed": "A",
     "warning": "B",
     "pending_review": "C",
@@ -30,7 +29,7 @@ GRADE_STATUS_TO_LETTER: Dict[str, str] = {
 }
 
 
-def score_to_grade(score: Optional[float]) -> Optional[str]:
+def score_to_grade(score: float | None) -> str | None:
     """将质量分映射为 A/B/C/D 等级。
 
     Args:
@@ -50,7 +49,7 @@ def score_to_grade(score: Optional[float]) -> Optional[str]:
     return "D"
 
 
-def grade_status_to_letter(status: Optional[str]) -> Optional[str]:
+def grade_status_to_letter(status: str | None) -> str | None:
     """将 grade_status（4档状态）映射为 A/B/C/D 等级。
 
     映射关系（spec Task 17.3）：A=passed/B=warning/C=pending_review/D=rejected。

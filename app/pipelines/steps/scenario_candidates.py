@@ -12,7 +12,7 @@
 """
 import hashlib
 import json
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
@@ -80,8 +80,8 @@ class ScenarioCandidateExtractor(PipelineStep):
 
     name: ClassVar[str] = "scenario_candidate_extractor"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = ["raw_signals"]
-    produces: ClassVar[List[str]] = ["scenario_candidates"]
+    requires: ClassVar[list[str]] = ["raw_signals"]
+    produces: ClassVar[list[str]] = ["scenario_candidates"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         raw_signals = ctx.get_artifact("raw_signals")
@@ -193,11 +193,11 @@ class ScenarioCandidateExtractor(PipelineStep):
             },
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         required = ["project_id", "candidates", "total_count", "existing_modules", "coverage_check"]
         return all(k in payload for k in required)
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         raw_signals = ctx.get_artifact("raw_signals")
         project_id = 0
         if raw_signals:

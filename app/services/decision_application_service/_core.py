@@ -1,8 +1,4 @@
-import hashlib
-import json
-import time
 from dataclasses import dataclass, field
-from typing import Optional, List
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -11,48 +7,47 @@ from app.services.lifecycle_service import transition as lifecycle_transition
 from app.services.lifecycle_service import (
     IllegalStateTransition,
     MissingReviewError,
-    MissingDeprecateReasonError,
 )
 from app.pipelines.steps.reconciliation import MergedAction
-from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
+from app.models.test_case import TestCase
 
 
 @dataclass
 class ApplyDecision:
     target_kind: str
-    target_id: Optional[int]
+    target_id: int | None
     merged_action: str
-    modification_hint: Optional[str] = None
-    deprecate_reason: Optional[str] = None
+    modification_hint: str | None = None
+    deprecate_reason: str | None = None
     confidence: float = 0.0
-    review_id: Optional[int] = None
-    case_data: Optional[dict] = field(default=None)
+    review_id: int | None = None
+    case_data: dict | None = field(default=None)
 
 
 @dataclass
 class ApplyResult:
     target_kind: str
-    target_id: Optional[int]
+    target_id: int | None
     action: str
     success: bool
-    new_case_id: Optional[int] = None
-    error: Optional[str] = None
+    new_case_id: int | None = None
+    error: str | None = None
     deferred: bool = False
-    deferred_reason: Optional[str] = None
+    deferred_reason: str | None = None
 
 
 def apply_decisions(
     db: Session,
-    decisions: Optional[List[ApplyDecision]] = None,
-    actor_id: Optional[int] = None,
-    review_id: Optional[int] = None,
-) -> List[ApplyResult]:
+    decisions: list[ApplyDecision] | None = None,
+    actor_id: int | None = None,
+    review_id: int | None = None,
+) -> list[ApplyResult]:
     if decisions is None and review_id is not None:
         from app.services.decision_application_service._handlers import _load_decisions_from_review
         decisions = _load_decisions_from_review(review_id, db)
     if decisions is None:
         decisions = []
-    results: List[ApplyResult] = []
+    results: list[ApplyResult] = []
     for decision in decisions:
         result = apply_single(db, decision, actor_id=actor_id)
         results.append(result)
@@ -70,11 +65,10 @@ _ACTION_HANDLERS = {
     MergedAction.PENDING_REVIEW: lambda db, d, _a: _handle_pending_review(d),
 }
 
-
 def apply_single(
     db: Session,
     decision: ApplyDecision,
-    actor_id: Optional[int] = None,
+    actor_id: int | None = None,
 ) -> ApplyResult:
     handler = _ACTION_HANDLERS.get(decision.merged_action)
     if handler is not None:
@@ -88,15 +82,15 @@ def apply_single(
     )
 
 
-def _ensure_target_exists(db: Session, target_id: int) -> Optional[TestCase]:
+def _ensure_target_exists(db: Session, target_id: int) -> TestCase | None:
     return db.query(TestCase).filter(TestCase.id == target_id, TestCase.is_deleted.is_(False)).first()
 
 
 def _build_result(
     decision: ApplyDecision,
     success: bool,
-    new_case_id: Optional[int] = None,
-    error: Optional[str] = None,
+    new_case_id: int | None = None,
+    error: str | None = None,
 ) -> ApplyResult:
     return ApplyResult(
         target_kind=decision.target_kind,
@@ -115,7 +109,7 @@ def _handle_keep(decision: ApplyDecision) -> ApplyResult:
 def _handle_needs_modify(
     db: Session,
     decision: ApplyDecision,
-    actor_id: Optional[int],
+    actor_id: int | None,
 ) -> ApplyResult:
     target_id = decision.target_id
     if target_id is None:
@@ -140,7 +134,7 @@ def _handle_needs_modify(
 def _handle_locator_broken(
     db: Session,
     decision: ApplyDecision,
-    actor_id: Optional[int],
+    actor_id: int | None,
 ) -> ApplyResult:
     target_id = decision.target_id
     if target_id is None:
@@ -154,3 +148,15 @@ def _handle_locator_broken(
     except IllegalStateTransition as e:
         logger.warning("locator_broken 状态转换失败: {}", e)
         return _build_result(decision, success=False, error="状态转换不合法")
+
+
+# 循环依赖处理：`_handlers` 反向依赖本模块的 ApplyDecision / ApplyResult / _build_result /
+# _ensure_target_exists，故必须在这些符号全部定义之后再导入。
+# `_ACTION_HANDLERS` 内的 value 均为 lambda（调用时才求值），延迟导入不影响运行期行为。
+from app.services.decision_application_service._handlers import (  # noqa: E402
+    _handle_add_new,
+    _handle_conflict,
+    _handle_deprecate,
+    _handle_locator_and_modify,
+    _handle_pending_review,
+)

@@ -32,6 +32,7 @@ from app.utils.crypto import encrypt_password, mask_password
 from app.core.exception import create_response
 from loguru import logger
 import json
+import contextlib
 
 router = APIRouter()
 
@@ -175,10 +176,8 @@ async def update_project_config(
             if web_configs_input:
                 existing_configs = {}
                 if project.web_env_configs:
-                    try:
+                    with contextlib.suppress(json.JSONDecodeError):
                         existing_configs = json.loads(project.web_env_configs)
-                    except json.JSONDecodeError:
-                        pass
                 for env_name in ['test', 'staging', 'prod']:
                     if env_name in web_configs_input and web_configs_input[env_name]:
                         env_data = web_configs_input[env_name].copy() if isinstance(web_configs_input[env_name], dict) else web_configs_input[env_name]

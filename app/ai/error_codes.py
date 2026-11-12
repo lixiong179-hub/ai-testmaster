@@ -9,10 +9,10 @@ AI 调用错误码枚举模块
     - 可扩展：新增错误码只需追加枚举成员
     - 与 AIServiceError 体系解耦：业务异常体系独立演进
 """
-from enum import Enum
+from enum import StrEnum
 
 
-class AIErrorCode(str, Enum):
+class AIErrorCode(StrEnum):
     """AI 调用错误码枚举
 
     每个枚举成员的 value 即为写入 AICallLog.error_code 的字符串值。

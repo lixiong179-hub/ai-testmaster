@@ -30,7 +30,6 @@
 from sqlalchemy.orm import Session
 from app.models.report import TestReport
 from app.schemas.test_report import TestReportCreate, TestReportUpdate
-from typing import List, Optional
 
 
 def create_test_report(db: Session, report: TestReportCreate, user_id: int) -> TestReport:
@@ -63,7 +62,7 @@ def create_test_report(db: Session, report: TestReportCreate, user_id: int) -> T
     return db_report
 
 
-def get_test_reports(db: Session, project_id: int, skip: int = 0, limit: int = 100) -> List[TestReport]:
+def get_test_reports(db: Session, project_id: int, skip: int = 0, limit: int = 100) -> list[TestReport]:
     """
     获取项目的所有测试报告（分页）
 
@@ -87,7 +86,7 @@ def get_test_reports(db: Session, project_id: int, skip: int = 0, limit: int = 1
     ).offset(skip).limit(limit).all()
 
 
-def get_test_report_by_id(db: Session, report_id: int, project_id: int) -> Optional[TestReport]:
+def get_test_report_by_id(db: Session, report_id: int, project_id: int) -> TestReport | None:
     """
     根据ID获取测试报告，带项目权限过滤
 
@@ -108,7 +107,7 @@ def get_test_report_by_id(db: Session, report_id: int, project_id: int) -> Optio
     ).first()
 
 
-def update_test_report(db: Session, report_id: int, project_id: int, report_update: TestReportUpdate) -> Optional[TestReport]:
+def update_test_report(db: Session, report_id: int, project_id: int, report_update: TestReportUpdate) -> TestReport | None:
     """
     更新测试报告，带项目权限过滤
 
@@ -165,7 +164,7 @@ def delete_test_report(db: Session, report_id: int, project_id: int) -> bool:
     return True
 
 
-def get_test_reports_by_task(db: Session, test_task_id: int, project_id: int) -> List[TestReport]:
+def get_test_reports_by_task(db: Session, test_task_id: int, project_id: int) -> list[TestReport]:
     """
     根据测试任务ID获取测试报告，带项目权限过滤
 

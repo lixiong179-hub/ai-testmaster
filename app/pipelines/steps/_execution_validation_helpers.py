@@ -8,7 +8,7 @@
     - VALID_FAILURE_TYPES 合法集合
     - 三个 sanitize_* 函数：对外部输入做类型/范围校验后返回安全值
 """
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -32,7 +32,7 @@ VALID_FAILURE_TYPES = frozenset({
 })
 
 
-def sanitize_verified(value: Any) -> Optional[bool]:
+def sanitize_verified(value: Any) -> bool | None:
     """校验 execution_verified 字段。
 
     Args:
@@ -52,7 +52,7 @@ def sanitize_verified(value: Any) -> Optional[bool]:
     return None
 
 
-def sanitize_ratio(value: Any) -> Optional[float]:
+def sanitize_ratio(value: Any) -> float | None:
     """校验 element_verified_ratio 字段，约束在 [0.0, 1.0] 范围内。
 
     Args:
@@ -76,7 +76,7 @@ def sanitize_ratio(value: Any) -> Optional[float]:
     return ratio
 
 
-def sanitize_failure_type(value: Any) -> Optional[str]:
+def sanitize_failure_type(value: Any) -> str | None:
     """校验 execution_failure_type 字段，必须是合法枚举值。
 
     Args:

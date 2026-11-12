@@ -1,8 +1,7 @@
 """AI视觉识别Mixin - 通过视觉模型识别页面元素位置。
 """
 import re
-import json
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.services.selector_registry import SelectorRegistry
@@ -16,7 +15,7 @@ class AIRecognitionMixin:
         self,
         screenshot: bytes,
         action_description: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         if not self.vision_model:
             logger.warning("视觉模型未初始化，跳过AI元素识别")
             return None
@@ -97,9 +96,9 @@ class AIRecognitionMixin:
     async def smart_locate_with_ai_fallback(
         self,
         action_description: str,
-        test_data: Optional[Dict[str, str]] = None,
+        test_data: dict[str, str] | None = None,
         max_retries: int = 3
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
 
@@ -158,13 +157,13 @@ class AIRecognitionMixin:
         logger.warning("所有定位策略失败，无法定位元素")
         return None
 
-    def _get_element_selector(self, action_text: str) -> Optional[str]:
+    def _get_element_selector(self, action_text: str) -> str | None:
         if not hasattr(self, '_selector_registry'):
             self._selector_registry = SelectorRegistry()
         return self._selector_registry.get_selector(None, action_text)
 
     @staticmethod
-    def _build_css_selector_from_attrs(attrs: Dict[str, Any]) -> Optional[str]:
+    def _build_css_selector_from_attrs(attrs: dict[str, Any]) -> str | None:
         if not attrs:
             return None
         element_id = attrs.get("id")
@@ -188,7 +187,7 @@ class AIRecognitionMixin:
             return tag
         return None
 
-    async def _locate_with_selector(self, selector: str) -> Optional[Dict[str, Any]]:
+    async def _locate_with_selector(self, selector: str) -> dict[str, Any] | None:
         try:
             first_selector = selector.split(',')[0].strip()
             element_info = await self.browser.execute_javascript("""
@@ -217,7 +216,7 @@ class AIRecognitionMixin:
 
     async def _get_element_attributes_from_coords(
         self, x: int, y: int, width: int, height: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         center_x = x + width // 2
         center_y = y + height // 2
         try:

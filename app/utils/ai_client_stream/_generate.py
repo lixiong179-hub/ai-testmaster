@@ -1,7 +1,6 @@
 import asyncio
 import json
-import re
-from typing import Dict, Any
+from typing import Any
 from loguru import logger
 
 import httpx
@@ -15,7 +14,7 @@ from app.utils.ai_client_parser import parse_ai_json_response
 
 class _GenerateStreamMixin:
 
-    async def generate_test_case_stream(self, test_point: Dict[str, Any]):
+    async def generate_test_case_stream(self, test_point: dict[str, Any]):
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}"
@@ -66,24 +65,25 @@ class _GenerateStreamMixin:
         for attempt in range(self.max_retries):
             try:
                 logger.debug(f"AI生成测试用例（流式响应） - 尝试 {attempt + 1}/{self.max_retries}")
-                async with httpx.AsyncClient(timeout=60) as client:
-                    async with client.stream("POST", self.api_url, headers=headers, json=data) as response:
-                        response.raise_for_status()
-                        async for line in response.aiter_lines():
-                            if line.startswith('data: '):
-                                data_part = line[6:]
-                                if data_part == '[DONE]':
-                                    break
-                                try:
-                                    chunk_data = json.loads(data_part)
-                                    if 'choices' in chunk_data:
-                                        delta = chunk_data['choices'][0].get('delta', {})
-                                        if 'content' in delta:
-                                            full_content += delta['content']
-                                            progress = min(int(len(full_content) / 15), 95)
-                                            yield {"progress": progress, "message": "生成中..."}
-                                except json.JSONDecodeError:
-                                    pass
+                async with httpx.AsyncClient(timeout=60) as client, client.stream(
+                    "POST", self.api_url, headers=headers, json=data
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line.startswith('data: '):
+                            data_part = line[6:]
+                            if data_part == '[DONE]':
+                                break
+                            try:
+                                chunk_data = json.loads(data_part)
+                                if 'choices' in chunk_data:
+                                    delta = chunk_data['choices'][0].get('delta', {})
+                                    if 'content' in delta:
+                                        full_content += delta['content']
+                                        progress = min(int(len(full_content) / 15), 95)
+                                        yield {"progress": progress, "message": "生成中..."}
+                            except json.JSONDecodeError:
+                                pass
                 try:
                     generated_case = json.loads(full_content)
                     if isinstance(generated_case, dict):

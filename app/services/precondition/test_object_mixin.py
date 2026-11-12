@@ -1,7 +1,7 @@
 
 """前置条件数据对象Mixin - 管理被测对象信息的读取和解析。"""
 import json
-from typing import Optional, Dict, Any
+from typing import Any
 
 from loguru import logger
 
@@ -18,18 +18,18 @@ from app.services.precondition.decorator import handle_precondition_errors
 class TestObjectInfoMixin:
     """被测对象信息Mixin - 管理Web/App配置解析。"""
 
-    _test_object_info: Optional[TestObjectInfo] = None
+    _test_object_info: TestObjectInfo | None = None
 
     @handle_precondition_errors
     async def read_test_object_info(
         self,
         project: Project,
-        env_config: Optional[Dict[str, Any]] = None
+        env_config: dict[str, Any] | None = None
     ) -> TestObjectInfo:
         """从Project模型读取被测对象信息。"""
         logger.info(f"读取项目 {project.name} 的被测对象信息")
 
-        def _parse_web_env_configs(raw) -> Optional[Dict[str, Any]]:
+        def _parse_web_env_configs(raw) -> dict[str, Any] | None:
             if not raw:
                 return None
             if isinstance(raw, dict):
@@ -47,7 +47,7 @@ class TestObjectInfoMixin:
                     pass
             return None
 
-        def _get_non_empty_string(obj: Any, attr: str) -> Optional[str]:
+        def _get_non_empty_string(obj: Any, attr: str) -> str | None:
             value = getattr(obj, attr, None)
             if isinstance(value, str) and value.strip():
                 return value.strip()
@@ -125,6 +125,6 @@ class TestObjectInfoMixin:
         return info
 
     @property
-    def test_object_info(self) -> Optional[TestObjectInfo]:
+    def test_object_info(self) -> TestObjectInfo | None:
         """获取已读取的被测对象信息。"""
         return self._test_object_info

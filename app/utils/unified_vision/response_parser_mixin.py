@@ -19,7 +19,7 @@
 """
 import json
 import re
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.utils.unified_vision.model_types import ElementInfo, VisionModelType
@@ -33,7 +33,7 @@ class ResponseParserMixin:
     同时提供元素识别和操作验证结果的专用解析方法。
     """
 
-    def _parse_response(self, response_text: str, model_type: Optional[VisionModelType] = None) -> str:
+    def _parse_response(self, response_text: str, model_type: VisionModelType | None = None) -> str:
         """解析模型API响应，提取文本内容
 
         根据model_type选择对应的解析策略：
@@ -85,7 +85,7 @@ class ResponseParserMixin:
             return response_text
 
     @staticmethod
-    def _parse_element_recognition(response_text: str) -> Optional[ElementInfo]:
+    def _parse_element_recognition(response_text: str) -> ElementInfo | None:
         """解析元素识别结果为ElementInfo数据类
 
         从模型返回的文本中提取JSON，构建ElementInfo实例。
@@ -119,7 +119,7 @@ class ResponseParserMixin:
             return None
 
     @staticmethod
-    def _parse_verification_result(response_text: str) -> Dict[str, Any]:
+    def _parse_verification_result(response_text: str) -> dict[str, Any]:
         """解析操作验证结果
 
         从模型返回的文本中提取JSON，获取验证成功/失败和判断理由。

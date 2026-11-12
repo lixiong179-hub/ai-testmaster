@@ -6,14 +6,13 @@
 公共符号通过 signal_gatherer.py 重新导出，保持 import 路径不变。
 """
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from loguru import logger
 
 from app.pipelines.context import PipelineContext
 
 
-def _load_file_content(ctx: PipelineContext, file_id: Optional[int], project_id: int) -> str:
+def _load_file_content(ctx: PipelineContext, file_id: int | None, project_id: int) -> str:
     if not file_id:
         return ""
     from app.crud import file as file_crud
@@ -35,13 +34,13 @@ def _load_change_notes_from_input(inp: Any) -> str:
 
 def _load_ui_from_input(
     ctx: PipelineContext, inp: Any, project_id: int
-) -> Tuple[List[Dict], List[Dict], List[int]]:
+) -> tuple[list[dict], list[dict], list[int]]:
     from app.models.ui_prototype import UIPrototypeScreen
     from app.crud import file as file_crud
 
-    ui_descriptions: List[Dict[str, Any]] = []
-    ui_specs: List[Dict[str, Any]] = []
-    file_ids: List[int] = []
+    ui_descriptions: list[dict[str, Any]] = []
+    ui_specs: list[dict[str, Any]] = []
+    file_ids: list[int] = []
     seen_screen_ids: set = set()
 
     def append_screen(screen: Any) -> None:
@@ -106,21 +105,21 @@ def _load_ui_from_input(
     return ui_descriptions, ui_specs, file_ids
 
 
-def _collect_ui_screen_ids(payload: Dict[str, Any]) -> List[int]:
-    values: List[int] = []
+def _collect_ui_screen_ids(payload: dict[str, Any]) -> list[int]:
+    values: list[int] = []
     for key in ("screen_ids", "screen_id", "ui_prototype_id"):
         values.extend(_coerce_id_list(payload.get(key)))
     return sorted(set(values))
 
 
-def _collect_prototype_project_ids(payload: Dict[str, Any]) -> List[int]:
-    values: List[int] = []
+def _collect_prototype_project_ids(payload: dict[str, Any]) -> list[int]:
+    values: list[int] = []
     for key in ("prototype_project_id", "ui_project_id"):
         values.extend(_coerce_id_list(payload.get(key)))
     return sorted(set(values))
 
 
-def _coerce_id_list(value: Any) -> List[int]:
+def _coerce_id_list(value: Any) -> list[int]:
     if value is None:
         return []
     raw_values = value if isinstance(value, (list, tuple, set)) else [value]
@@ -137,7 +136,7 @@ def _coerce_id_list(value: Any) -> List[int]:
 
 def _load_test_points_from_input(
     ctx: PipelineContext, inp: Any, project_id: int
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     from app.models.test_point import TestPoint
 
     if inp.payload and isinstance(inp.payload, dict):
@@ -165,7 +164,7 @@ def _check_is_old_project(ctx: PipelineContext, project_id: int) -> bool:
     return count > 0
 
 
-def _parse_xmind_to_testpoints(payload: Dict[str, Any], project_id: int) -> List[Dict[str, Any]]:
+def _parse_xmind_to_testpoints(payload: dict[str, Any], project_id: int) -> list[dict[str, Any]]:
     xmind_content = payload.get("xmind_content", "")
     if not xmind_content:
         return []
@@ -190,7 +189,7 @@ def _parse_xmind_to_testpoints(payload: Dict[str, Any], project_id: int) -> List
     return results
 
 
-def _format_test_point(point: Any) -> Dict[str, Any]:
+def _format_test_point(point: Any) -> dict[str, Any]:
     function = ""
     if point.ai_prompt:
         try:
@@ -209,7 +208,7 @@ def _format_test_point(point: Any) -> Dict[str, Any]:
     }
 
 
-def _compute_signal_confidence(payload: Dict[str, Any]) -> float:
+def _compute_signal_confidence(payload: dict[str, Any]) -> float:
     score = 0.0
     if payload.get("has_prd"):
         score += 0.4

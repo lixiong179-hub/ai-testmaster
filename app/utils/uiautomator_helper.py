@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 import xml.etree.ElementTree as ET
-from typing import Optional, List, Dict, Any
+from typing import Any
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -18,20 +18,20 @@ class ElementNotFoundError(UIAutomatorError):
 
 @dataclass
 class UIElement:
-    resource_id: Optional[str] = None
-    accessibility_id: Optional[str] = None
-    text: Optional[str] = None
-    content_desc: Optional[str] = None
-    class_name: Optional[str] = None
-    package: Optional[str] = None
-    bounds: Optional[Dict[str, int]] = None
+    resource_id: str | None = None
+    accessibility_id: str | None = None
+    text: str | None = None
+    content_desc: str | None = None
+    class_name: str | None = None
+    package: str | None = None
+    bounds: dict[str, int] | None = None
     clickable: bool = False
     enabled: bool = True
     focused: bool = False
     scrollable: bool = False
 
     @property
-    def center(self) -> Optional[Dict[str, int]]:
+    def center(self) -> dict[str, int] | None:
         if not self.bounds:
             return None
         return {
@@ -72,7 +72,7 @@ class UIAutomatorHelper:
     def __init__(self, adb_controller):
         self.adb = adb_controller
 
-    async def dump_page(self) -> List[UIElement]:
+    async def dump_page(self) -> list[UIElement]:
         try:
             await self.adb._execute_command(
                 "shell", "uiautomator", "dump", self.DUMP_PATH,
@@ -99,14 +99,14 @@ class UIAutomatorHelper:
             except Exception:
                 logger.debug("清理UIAutomator dump文件失败", exc_info=True)
             return self._parse_xml(xml_content)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise UIAutomatorError("UIAutomator dump timed out")
         except Exception as e:
             if isinstance(e, UIAutomatorError):
                 raise
             raise UIAutomatorError(f"UIAutomator dump failed: {e}")
 
-    def _parse_xml(self, xml_content: str) -> List[UIElement]:
+    def _parse_xml(self, xml_content: str) -> list[UIElement]:
         elements = []
         try:
             sanitized = self._sanitize_xml(xml_content)
@@ -126,7 +126,7 @@ class UIAutomatorHelper:
         sanitized = re.sub(r'<!ENTITY[^>]*>', '', sanitized)
         return sanitized
 
-    def _parse_node(self, node: ET.Element) -> Optional[UIElement]:
+    def _parse_node(self, node: ET.Element) -> UIElement | None:
         bounds_str = node.get("bounds", "")
         bounds = self._parse_bounds(bounds_str)
         return UIElement(
@@ -143,7 +143,7 @@ class UIAutomatorHelper:
             scrollable=node.get("scrollable") == "true",
         )
 
-    def _parse_bounds(self, bounds_str: str) -> Optional[Dict[str, int]]:
+    def _parse_bounds(self, bounds_str: str) -> dict[str, int] | None:
         match = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds_str)
         if match:
             return {
@@ -156,11 +156,11 @@ class UIAutomatorHelper:
 
     async def find_element(
         self,
-        accessibility_id: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        text: Optional[str] = None,
-        content_desc: Optional[str] = None,
-    ) -> Optional[UIElement]:
+        accessibility_id: str | None = None,
+        resource_id: str | None = None,
+        text: str | None = None,
+        content_desc: str | None = None,
+    ) -> UIElement | None:
         elements = await self.dump_page()
         for el in elements:
             if accessibility_id and el.accessibility_id == accessibility_id:
@@ -173,21 +173,21 @@ class UIAutomatorHelper:
                 return el
         return None
 
-    async def find_elements_by_description(self, description: str) -> List[UIElement]:
+    async def find_elements_by_description(self, description: str) -> list[UIElement]:
         elements = await self.dump_page()
         return [el for el in elements if el.matches_description(description)]
 
-    async def find_element_by_text(self, text: str) -> Optional[UIElement]:
+    async def find_element_by_text(self, text: str) -> UIElement | None:
         return await self.find_element(text=text)
 
-    async def find_element_by_resource_id(self, resource_id: str) -> Optional[UIElement]:
+    async def find_element_by_resource_id(self, resource_id: str) -> UIElement | None:
         return await self.find_element(resource_id=resource_id)
 
     async def click_element(
         self,
-        accessibility_id: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        text: Optional[str] = None,
+        accessibility_id: str | None = None,
+        resource_id: str | None = None,
+        text: str | None = None,
     ) -> bool:
         element = await self.find_element(
             accessibility_id=accessibility_id,
@@ -199,18 +199,18 @@ class UIAutomatorHelper:
         await self.adb.click(element.center["x"], element.center["y"])
         return True
 
-    async def get_clickable_elements(self) -> List[UIElement]:
+    async def get_clickable_elements(self) -> list[UIElement]:
         elements = await self.dump_page()
         return [el for el in elements if el.clickable and el.enabled]
 
-    async def get_element_at_coordinates(self, x: int, y: int) -> Optional[UIElement]:
+    async def get_element_at_coordinates(self, x: int, y: int) -> UIElement | None:
         elements = await self.dump_page()
         for el in elements:
             if el.bounds and el.bounds["left"] <= x <= el.bounds["right"] and el.bounds["top"] <= y <= el.bounds["bottom"]:
                 return el
         return None
 
-    async def extract_locator_from_coordinates(self, x: int, y: int) -> Optional[Dict[str, Any]]:
+    async def extract_locator_from_coordinates(self, x: int, y: int) -> dict[str, Any] | None:
         element = await self.get_element_at_coordinates(x, y)
         if not element:
             return None

@@ -18,9 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from pathlib import Path
-from typing import Optional, Tuple
 
 from app.core.config import settings
 from app.core.key_management import (
@@ -36,11 +34,11 @@ _logger = logging.getLogger(__name__)
 _KEY_CACHE_FILE: Path = BASE_DIR / ".secret_keys"
 
 # 内存缓存：避免每次 JWT 签名/验签都重新加载 PEM
-_cached_private_key: Optional[str] = None
-_cached_public_key: Optional[str] = None
+_cached_private_key: str | None = None
+_cached_public_key: str | None = None
 
 
-def _generate_rsa_keypair() -> Tuple[str, str]:
+def _generate_rsa_keypair() -> tuple[str, str]:
     """生成 RSA-2048 密钥对，返回 PEM 格式 (private_pem, public_pem)。"""
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import rsa

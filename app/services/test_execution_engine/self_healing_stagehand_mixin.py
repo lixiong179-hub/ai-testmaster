@@ -4,7 +4,7 @@ Stagehand在远程Browserbase浏览器上执行操作，
 本地Playwright浏览器状态不会同步更新。
 建议仅在本地AI自愈不可用时作为最后手段使用。
 """
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.services.test_execution_engine.models import ActionType
@@ -17,8 +17,8 @@ class SelfHealingStagehandMixin:
         stagehand_client,
         nl_description: str,
         action_type: ActionType,
-        action_info: Dict[str, Any]
-    ) -> Optional[str]:
+        action_info: dict[str, Any]
+    ) -> str | None:
         """使用Stagehand云服务进行自愈。"""
         from app.core.config import settings
         logger.warning(

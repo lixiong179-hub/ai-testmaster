@@ -25,11 +25,10 @@
 """
 from pydantic import BaseModel, Field, HttpUrl
 from datetime import datetime
-from typing import Optional, List
-from enum import Enum
+from enum import StrEnum
 
 
-class ResourceType(str, Enum):
+class ResourceType(StrEnum):
     """
     资源类型枚举
 
@@ -43,7 +42,7 @@ class ResourceType(str, Enum):
     OTHER = "other"  # 其他，默认分类
 
 
-class ExtractStatus(str, Enum):
+class ExtractStatus(StrEnum):
     """
     内容提取状态枚举
 
@@ -105,11 +104,11 @@ class FileUpdateRequest(BaseModel):
     验证规则：所有字段可选
     对应API：PUT/PATCH /api/v1/files/{file_id}
     """
-    resource_type: Optional[ResourceType] = Field(None, description="资源类型")  # 可选，更新资源分类
-    description: Optional[str] = Field(None, description="文件描述")  # 可选，更新文件描述
-    is_active: Optional[bool] = Field(None, description="是否激活")  # 可选，软删除/恢复
+    resource_type: ResourceType | None = Field(None, description="资源类型")  # 可选，更新资源分类
+    description: str | None = Field(None, description="文件描述")  # 可选，更新文件描述
+    is_active: bool | None = Field(None, description="是否激活")  # 可选，软删除/恢复
     # 支持修改迭代归属，null或省略表示未分类
-    iteration_id: Optional[int] = Field(
+    iteration_id: int | None = Field(
         None, description="迭代ID（null或省略表示未分类）"
     )  # 可选，将文件归属到指定迭代
 
@@ -128,16 +127,16 @@ class FileResponse(BaseModel):
     file_type: str  # 文件格式，如docx/pdf/png
     file_url: str  # 文件存储路径，与ProjectFile.file_url对应
     file_source: str  # 文件来源：file=本地上传/url=URL提交
-    size: Optional[int] = None  # 可选，文件大小（KB）
+    size: int | None = None  # 可选，文件大小（KB）
     upload_time: datetime  # 上传时间
-    resource_type: Optional[str] = "other"  # 资源类型，默认other
-    content: Optional[str] = None  # 可选，从文件提取的文本内容
-    extract_status: Optional[str] = "pending"  # 提取状态，默认pending
-    extract_error: Optional[str] = None  # 可选，提取失败原因
-    extracted_at: Optional[datetime] = None  # 可选，内容提取完成时间
-    description: Optional[str] = None  # 可选，文件描述
-    is_active: Optional[bool] = True  # 是否激活，默认True
-    linked_case_count: Optional[int] = 0  # 关联的测试用例数量，默认0
+    resource_type: str | None = "other"  # 资源类型，默认other
+    content: str | None = None  # 可选，从文件提取的文本内容
+    extract_status: str | None = "pending"  # 提取状态，默认pending
+    extract_error: str | None = None  # 可选，提取失败原因
+    extracted_at: datetime | None = None  # 可选，内容提取完成时间
+    description: str | None = None  # 可选，文件描述
+    is_active: bool | None = True  # 是否激活，默认True
+    linked_case_count: int | None = 0  # 关联的测试用例数量，默认0
 
     class Config:
         # 启用ORM模式，支持从ProjectFile Model直接读取属性
@@ -163,6 +162,6 @@ class FileExtractRequest(BaseModel):
     业务用途：批量触发文件内容提取，AI解析文件内容用于测试用例生成
     对应API：POST /api/v1/files/extract
     """
-    file_ids: List[int] = Field(..., description="文件ID列表")  # 必填，批量提取的文件ID
+    file_ids: list[int] = Field(..., description="文件ID列表")  # 必填，批量提取的文件ID
     project_id: int = Field(..., description="项目ID")  # 必填，项目隔离
     force_refresh: bool = Field(False, description="是否强制刷新")  # 默认False，已提取的文件不重复提取；True则强制重新提取

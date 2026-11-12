@@ -30,7 +30,6 @@
 """
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, List, Dict
 
 
 # ============== Web端环境配置 ==============
@@ -42,9 +41,9 @@ class WebEnvConfig(BaseModel):
     嵌套关系：被WebEnvConfigs引用，作为多环境配置的单项
     与Model映射：存储在Project.web_env_configs JSON字段中
     """
-    url: Optional[str] = Field(None, description="环境访问地址")  # 可选，Web应用URL，如https://test.example.com
-    username: Optional[str] = Field(None, description="登录账号")  # 可选，环境登录用户名
-    password: Optional[str] = Field(None, description="登录密码")  # 可选，环境登录密码（存储时加密）
+    url: str | None = Field(None, description="环境访问地址")  # 可选，Web应用URL，如https://test.example.com
+    username: str | None = Field(None, description="登录账号")  # 可选，环境登录用户名
+    password: str | None = Field(None, description="登录密码")  # 可选，环境登录密码（存储时加密）
 
 
 class WebEnvConfigs(BaseModel):
@@ -55,9 +54,9 @@ class WebEnvConfigs(BaseModel):
     嵌套关系：被ProjectCreate和ProjectDetailResponse引用
     与Model映射：整体序列化为JSON存储在Project.web_env_configs字段
     """
-    test: Optional[WebEnvConfig] = Field(None, description="测试环境")  # 测试环境配置，通常最先配置
-    staging: Optional[WebEnvConfig] = Field(None, description="灰度环境")  # 灰度/预发布环境配置
-    prod: Optional[WebEnvConfig] = Field(None, description="正式环境")  # 生产环境配置，需谨慎使用
+    test: WebEnvConfig | None = Field(None, description="测试环境")  # 测试环境配置，通常最先配置
+    staging: WebEnvConfig | None = Field(None, description="灰度环境")  # 灰度/预发布环境配置
+    prod: WebEnvConfig | None = Field(None, description="正式环境")  # 生产环境配置，需谨慎使用
 
 
 # ============== C端设备配置 ==============
@@ -69,10 +68,10 @@ class DeviceInfo(BaseModel):
     嵌套关系：被DeviceConfig引用，作为设备列表的单项
     与Model映射：存储在Project.device_config JSON字段中
     """
-    device_id: Optional[str] = Field(None, description="设备ID/序列号")  # 可选，adb devices获取的设备序列号
-    device_name: Optional[str] = Field(None, description="设备名称")  # 可选，便于识别的设备别名
-    app_package: Optional[str] = Field(None, description="App包名")  # 可选，如com.example.app
-    app_activity: Optional[str] = Field(None, description="启动Activity")  # 可选，如.MainActivity
+    device_id: str | None = Field(None, description="设备ID/序列号")  # 可选，adb devices获取的设备序列号
+    device_name: str | None = Field(None, description="设备名称")  # 可选，便于识别的设备别名
+    app_package: str | None = Field(None, description="App包名")  # 可选，如com.example.app
+    app_activity: str | None = Field(None, description="启动Activity")  # 可选，如.MainActivity
 
 
 class DeviceConfig(BaseModel):
@@ -83,8 +82,8 @@ class DeviceConfig(BaseModel):
     嵌套关系：被ProjectCreate和ProjectDetailResponse引用
     与Model映射：整体序列化为JSON存储在Project.device_config字段
     """
-    default_device: Optional[DeviceInfo] = Field(None, description="默认设备")  # 默认执行的设备
-    devices: Optional[List[DeviceInfo]] = Field(default_factory=list, description="设备列表")  # 所有可用设备，default_factory避免可变默认值陷阱
+    default_device: DeviceInfo | None = Field(None, description="默认设备")  # 默认执行的设备
+    devices: list[DeviceInfo] | None = Field(default_factory=list, description="设备列表")  # 所有可用设备，default_factory避免可变默认值陷阱
 
 
 # ============== 项目配置 ==============
@@ -97,7 +96,7 @@ class ProjectBase(BaseModel):
     与Model映射：对应 Project Model 的 name/description/project_type 字段
     """
     name: str = Field(..., min_length=1, max_length=255, description="项目名称")  # 必填，项目唯一标识名称
-    description: Optional[str] = Field(None, description="项目描述")  # 可选，项目功能说明
+    description: str | None = Field(None, description="项目描述")  # 可选，项目功能说明
     project_type: str = Field("web", description="项目类型: web=Web端, app=C端")  # 默认web，区分Web应用和App应用
 
 
@@ -110,8 +109,8 @@ class ProjectCreate(ProjectBase):
     对应API：POST /api/v1/projects/
     与Model映射：web_env_configs/device_config分别映射Project的JSON字段
     """
-    web_env_configs: Optional[WebEnvConfigs] = Field(None, description="Web端多环境配置")  # 可选，Web项目必填
-    device_config: Optional[DeviceConfig] = Field(None, description="C端设备配置")  # 可选，App项目必填
+    web_env_configs: WebEnvConfigs | None = Field(None, description="Web端多环境配置")  # 可选，Web项目必填
+    device_config: DeviceConfig | None = Field(None, description="C端设备配置")  # 可选，App项目必填
 
 
 class ProjectUpdate(BaseModel):
@@ -123,11 +122,11 @@ class ProjectUpdate(BaseModel):
     对应API：PUT/PATCH /api/v1/projects/{project_id}
     与Model映射：字段对应 Project Model 的 name/description/status
     """
-    name: Optional[str] = Field(None, min_length=1, max_length=255, description="项目名称")
-    description: Optional[str] = Field(None, description="项目描述")
-    status: Optional[int] = Field(None, ge=0, le=2, description="状态: 0未激活/1正常/2归档")
-    is_self_test: Optional[bool] = Field(None, description="是否为平台自测项目")
-    self_test_schedule: Optional[str] = Field(None, max_length=100, description="自测项目定时执行 cron 表达式")
+    name: str | None = Field(None, min_length=1, max_length=255, description="项目名称")
+    description: str | None = Field(None, description="项目描述")
+    status: int | None = Field(None, ge=0, le=2, description="状态: 0未激活/1正常/2归档")
+    is_self_test: bool | None = Field(None, description="是否为平台自测项目")
+    self_test_schedule: str | None = Field(None, max_length=100, description="自测项目定时执行 cron 表达式")
 
 
 class ProjectResponse(ProjectBase):
@@ -142,7 +141,7 @@ class ProjectResponse(ProjectBase):
     user_id: int
     status: int
     is_self_test: bool = False
-    self_test_schedule: Optional[str] = None
+    self_test_schedule: str | None = None
     source: str = Field("manual", description="项目来源: manual=手动建项, url_quick_test=网址驱动快速测试")  # 项目创建来源标识，由后端设置不由用户传入
     create_time: datetime
     update_time: datetime
@@ -160,9 +159,9 @@ class ProjectDetailResponse(ProjectResponse):
     对应API：GET /api/v1/projects/{project_id}/detail
     嵌套关系：继承ProjectResponse，额外包含files列表和配置信息
     """
-    files: List[dict] = Field(default_factory=list, description="关联文件列表")  # 项目关联的文件列表，默认空列表
-    web_env_configs: Optional[Dict] = Field(None, description="Web端多环境配置")  # Web环境配置，从JSON字段反序列化
-    device_config: Optional[Dict] = Field(None, description="C端设备配置")  # 设备配置，从JSON字段反序列化
+    files: list[dict] = Field(default_factory=list, description="关联文件列表")  # 项目关联的文件列表，默认空列表
+    web_env_configs: dict | None = Field(None, description="Web端多环境配置")  # Web环境配置，从JSON字段反序列化
+    device_config: dict | None = Field(None, description="C端设备配置")  # 设备配置，从JSON字段反序列化
 
 
 class ProjectListResponse(BaseModel):
@@ -186,13 +185,13 @@ class TestObjectInfo(BaseModel):
     与Model映射：对应 Project Model 的 test_object_* 系列字段
     注意：新接口建议使用WebEnvConfigs/DeviceConfig替代
     """
-    type: Optional[str] = Field(None, description="被测对象类型: web/app")  # 可选，区分Web和App测试对象
-    url: Optional[str] = Field(None, description="Web访问地址")  # 可选，与Project.test_object_url对应
-    username: Optional[str] = Field(None, description="登录账号")  # 可选，与Project.test_object_username对应
-    password: Optional[str] = Field(None, description="登录密码")  # 可选，与Project.test_object_password对应
-    device_info: Optional[dict] = Field(None, description="设备连接信息")  # 可选，与Project.test_object_device_info对应
-    app_package: Optional[str] = Field(None, description="App包名")  # 可选，与Project.test_object_app_package对应
-    app_activity: Optional[str] = Field(None, description="App启动Activity")  # 可选，与Project.test_object_app_activity对应
+    type: str | None = Field(None, description="被测对象类型: web/app")  # 可选，区分Web和App测试对象
+    url: str | None = Field(None, description="Web访问地址")  # 可选，与Project.test_object_url对应
+    username: str | None = Field(None, description="登录账号")  # 可选，与Project.test_object_username对应
+    password: str | None = Field(None, description="登录密码")  # 可选，与Project.test_object_password对应
+    device_info: dict | None = Field(None, description="设备连接信息")  # 可选，与Project.test_object_device_info对应
+    app_package: str | None = Field(None, description="App包名")  # 可选，与Project.test_object_app_package对应
+    app_activity: str | None = Field(None, description="App启动Activity")  # 可选，与Project.test_object_app_activity对应
 
 
 class TestObjectInfoUpdate(BaseModel):
@@ -203,13 +202,13 @@ class TestObjectInfoUpdate(BaseModel):
     对应API：PUT /api/v1/projects/{project_id}/test-object
     注意：新接口建议使用ProjectUpdate配合环境配置替代
     """
-    type: Optional[str] = Field(None, description="被测对象类型: web/app")  # 可选
-    url: Optional[str] = Field(None, description="Web访问地址")  # 可选
-    username: Optional[str] = Field(None, description="登录账号")  # 可选
-    password: Optional[str] = Field(None, description="登录密码")  # 可选
-    device_info: Optional[dict] = Field(None, description="设备连接信息")  # 可选
-    app_package: Optional[str] = Field(None, description="App包名")  # 可选
-    app_activity: Optional[str] = Field(None, description="App启动Activity")  # 可选
+    type: str | None = Field(None, description="被测对象类型: web/app")  # 可选
+    url: str | None = Field(None, description="Web访问地址")  # 可选
+    username: str | None = Field(None, description="登录账号")  # 可选
+    password: str | None = Field(None, description="登录密码")  # 可选
+    device_info: dict | None = Field(None, description="设备连接信息")  # 可选
+    app_package: str | None = Field(None, description="App包名")  # 可选
+    app_activity: str | None = Field(None, description="App启动Activity")  # 可选
 
 
 class TestObjectInfoResponse(BaseModel):
@@ -221,7 +220,7 @@ class TestObjectInfoResponse(BaseModel):
     """
     code: int = Field(200, description="状态码")
     message: str = Field("获取成功", description="消息")
-    data: Optional[TestObjectInfo] = Field(None, description="被测对象信息")
+    data: TestObjectInfo | None = Field(None, description="被测对象信息")
 
 
 class ProjectConfigUpdate(BaseModel):
@@ -232,9 +231,9 @@ class ProjectConfigUpdate(BaseModel):
     对应API：PUT /api/v1/projects/{project_id}/config
     验证规则：所有字段可选，支持部分更新
     """
-    project_type: Optional[str] = Field(None, description="项目类型: web/app")
-    web_env_configs: Optional[WebEnvConfigs] = Field(None, description="Web端多环境配置")
-    device_config: Optional[DeviceConfig] = Field(None, description="C端设备配置")
+    project_type: str | None = Field(None, description="项目类型: web/app")
+    web_env_configs: WebEnvConfigs | None = Field(None, description="Web端多环境配置")
+    device_config: DeviceConfig | None = Field(None, description="C端设备配置")
 
 
 # ============== 项目成员 ==============
@@ -255,7 +254,7 @@ class ProjectMemberResponse(BaseModel):
     project_id: int
     user_id: int
     username: str
-    email: Optional[str] = None
+    email: str | None = None
     role: str
     created_at: datetime
     updated_at: datetime

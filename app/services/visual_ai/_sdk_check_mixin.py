@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from app.core.config import settings
 from app.services.visual_ai._sdk_helpers import (
@@ -41,13 +40,13 @@ class VisualCheckResult:
         diff_report       : Markdown Diff 报告
     """
 
-    baseline_id: Optional[int]
-    diff_id: Optional[int]
+    baseline_id: int | None
+    diff_id: int | None
     diff_percentage: float
     diff_pixel_count: int
     match_level: str
     status: str
-    llm_analysis: Optional[LLMAnalysisResult] = None
+    llm_analysis: LLMAnalysisResult | None = None
     token_cost: int = 0
     token_estimated: int = 0
     llm_skipped: bool = False
@@ -70,11 +69,11 @@ class VisualCheckMixin:
         viewport_width: int,
         viewport_height: int,
         current_image_bytes: bytes,
-        match_level: Optional[str] = None,
-        test_case_id: Optional[int] = None,
-        test_result_id: Optional[int] = None,
-        current_dom_html: Optional[str] = None,
-        created_by: Optional[int] = None,
+        match_level: str | None = None,
+        test_case_id: int | None = None,
+        test_result_id: int | None = None,
+        current_dom_html: str | None = None,
+        created_by: int | None = None,
     ) -> VisualCheckResult:
         """一站式视觉校验：对比 + 自动审批 + LLM 分析 + 预算守卫。
 

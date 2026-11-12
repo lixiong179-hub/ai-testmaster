@@ -28,7 +28,6 @@
 依赖关系:
     - app.services.execution_mode_types: 执行模式类型定义
 """
-from typing import Optional
 from loguru import logger
 from app.services.execution_mode_types import (
     ExecutionMode, ExecutionStrategy, StrategyConfig, ExecutionConfig
@@ -125,7 +124,7 @@ class ExecutionModeSelector:
         return mode
 
     @classmethod
-    def select_strategy(cls, strategy_name: Optional[str] = None) -> ExecutionStrategy:
+    def select_strategy(cls, strategy_name: str | None = None) -> ExecutionStrategy:
         """根据策略名称选择执行策略。
 
         Args:
@@ -163,16 +162,16 @@ class ExecutionModeSelector:
     def get_execution_config(
         cls,
         case_type: str,
-        global_headless: Optional[bool] = None,
-        global_record_video: Optional[bool] = None,
-        global_strategy: Optional[str] = None,
-        task_headless: Optional[bool] = None,
-        task_record_video: Optional[bool] = None,
-        task_strategy: Optional[str] = None,
-        case_headless: Optional[bool] = None,
-        case_record_video: Optional[bool] = None,
-        case_strategy: Optional[str] = None,
-        video_path: Optional[str] = None
+        global_headless: bool | None = None,
+        global_record_video: bool | None = None,
+        global_strategy: str | None = None,
+        task_headless: bool | None = None,
+        task_record_video: bool | None = None,
+        task_strategy: str | None = None,
+        case_headless: bool | None = None,
+        case_record_video: bool | None = None,
+        case_strategy: str | None = None,
+        video_path: str | None = None
     ) -> ExecutionConfig:
         """组装完整的执行配置，支持全局/任务/用例三层覆盖。
 

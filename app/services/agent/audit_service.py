@@ -8,7 +8,6 @@ action_detail 含 original_audit_id 与补偿详情，保留完整决策链条�
 """
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
 
 from loguru import logger
 from sqlalchemy import func, select, update
@@ -32,7 +31,7 @@ class AgentAuditService:
     async def record_action(
         self, db: AsyncSession, *, session_id: int, iteration: int,
         action_type: str, action_detail: dict,
-        decision_confidence: Optional[float] = None,
+        decision_confidence: float | None = None,
     ) -> AgentAudit:
         """记录一轮 Agent 决策动作。
 
@@ -64,7 +63,7 @@ class AgentAuditService:
 
     async def get_session_audit(
         self, db: AsyncSession, session_id: int,
-    ) -> List[AgentAudit]:
+    ) -> list[AgentAudit]:
         """查询会话完整审计链，按 id 升序返回。"""
         stmt = (
             select(AgentAudit)
@@ -76,7 +75,7 @@ class AgentAuditService:
 
     async def list_pending_approvals(
         self, db: AsyncSession, *, offset: int = 0, limit: int = 20,
-    ) -> Tuple[List[AgentAudit], int]:
+    ) -> tuple[list[AgentAudit], int]:
         """分页查询待审批动作（human_approved=0），按创建时间升序。"""
         cond = AgentAudit.human_approved == HUMAN_APPROVAL_PENDING
         stmt = (
@@ -172,7 +171,7 @@ class AgentAuditService:
 
     async def _get_audit(
         self, db: AsyncSession, audit_id: int,
-    ) -> Optional[AgentAudit]:
+    ) -> AgentAudit | None:
         """按 ID 查询审计记录，不存在返回 None。"""
         stmt = select(AgentAudit).where(AgentAudit.id == audit_id)
         result = await db.execute(stmt)

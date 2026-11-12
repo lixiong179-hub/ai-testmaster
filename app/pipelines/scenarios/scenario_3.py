@@ -21,7 +21,6 @@ Pipeline = [S1 SignalGatherer, S3 ReverseInfer, S7 ScenarioCandidateExtractor,
     - 场景 1：PRD + 测试点 + UI（信号齐全）
     - 场景 3：仅 UI（信号极缺），依赖 AI 反推补全业务上下文
 """
-from typing import List, Type
 
 from app.pipelines.base import PipelineStep
 from app.pipelines.steps.signal_gatherer import SignalGatherer
@@ -32,7 +31,7 @@ from app.pipelines.steps.case_generation import CaseGeneration
 from app.pipelines.steps.quality_gate import QualityGate
 from app.pipelines.steps.persist import Persist
 
-SCENARIO_3_STEPS: List[Type[PipelineStep]] = [
+SCENARIO_3_STEPS: list[type[PipelineStep]] = [
     SignalGatherer,
     ReverseInfer,
     ScenarioCandidateExtractor,

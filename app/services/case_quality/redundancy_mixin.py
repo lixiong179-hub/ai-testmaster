@@ -9,7 +9,7 @@
     - _find_similar_cases 支持项目级嵌入向量缓存（case_text_map），
       避免循环内逐条查询数据库，将 O(N²) 查询降至 O(1)。
 """
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -26,9 +26,9 @@ class RedundancyMixin:
     def _analyze_redundancy(
         self,
         test_case: TestCase,
-        steps: List[TestStep],
-        all_cases: List[TestCase],
-        case_text_map: Optional[Dict[int, str]] = None,
+        steps: list[TestStep],
+        all_cases: list[TestCase],
+        case_text_map: dict[int, str] | None = None,
     ) -> RedundancyScore:
         """分析冗余度，支持传入预取的嵌入向量缓存。
 
@@ -93,11 +93,11 @@ class RedundancyMixin:
     def _find_similar_cases(
         self,
         target_case: TestCase,
-        target_steps: List[TestStep],
-        all_cases: List[TestCase],
+        target_steps: list[TestStep],
+        all_cases: list[TestCase],
         similarity_threshold: float = 0.7,
-        case_text_map: Optional[Dict[int, str]] = None,
-    ) -> List[Dict[str, Any]]:
+        case_text_map: dict[int, str] | None = None,
+    ) -> list[dict[str, Any]]:
         """基于 TF-IDF 余弦相似度查找相似用例，优先使用项目级嵌入向量缓存。
 
         将目标用例与所有候选用例的步骤文本合并构建统一词汇表，
@@ -131,8 +131,8 @@ class RedundancyMixin:
             return []
 
         # 构建候选文档文本
-        candidateTexts: List[str] = []
-        candidateCases: List[TestCase] = []
+        candidateTexts: list[str] = []
+        candidateCases: list[TestCase] = []
         for case in all_cases:
             if case.id == target_case.id:
                 continue
@@ -168,7 +168,7 @@ class RedundancyMixin:
         similarities = simMatrix[0] if simMatrix.size > 0 else []
 
         # 按阈值筛选
-        similar: List[Dict[str, Any]] = []
+        similar: list[dict[str, Any]] = []
         for idx, simValue in enumerate(similarities):
             simFloat = float(simValue)
             if simFloat >= similarity_threshold:

@@ -20,7 +20,7 @@
     - llm_analysis    : LLM 语义分析结果（JSON 字符串，含分类/置信度/建议）
     - llm_token_cost  : LLM Token 消耗
 """
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -93,7 +93,7 @@ class VisualDiff(Base):
             f"diff_percentage={self.diff_percentage}, status={self.status})>"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """返回 Diff 核心字段字典，供 API 响应与日志输出使用。"""
         return {
             "id": self.id,

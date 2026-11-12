@@ -11,7 +11,6 @@ AsyncSession，由调用方管理事务边界。
 """
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
 
 from loguru import logger
 from sqlalchemy import func, select, update
@@ -31,7 +30,7 @@ class SessionService:
 
     async def create_session(
         self, db: AsyncSession, *, agent_type: str,
-        project_id: int, created_by: Optional[int] = None,
+        project_id: int, created_by: int | None = None,
     ) -> AgentSession:
         """创建 Agent 会话，初始 status=running、token_cost=0。
 
@@ -58,8 +57,8 @@ class SessionService:
 
     async def append_message(
         self, db: AsyncSession, *, session_id: int, role: str,
-        content: dict, artifact_refs: Optional[list] = None,
-        tool_call_id: Optional[str] = None, tool_name: Optional[str] = None,
+        content: dict, artifact_refs: list | None = None,
+        tool_call_id: str | None = None, tool_name: str | None = None,
         token_cost: int = 0,
     ) -> AgentMessage:
         """追加一条消息到会话历史。
@@ -83,7 +82,7 @@ class SessionService:
 
     async def get_history(
         self, db: AsyncSession, session_id: int, limit: int = 50,
-    ) -> List[AgentMessage]:
+    ) -> list[AgentMessage]:
         """按时间顺序获取会话消息流（最旧 → 最新），返回最多 limit 条。"""
         stmt = (
             select(AgentMessage)
@@ -96,8 +95,8 @@ class SessionService:
 
     async def complete_session(
         self, db: AsyncSession, *, session_id: int, status: str,
-        token_cost: Optional[int] = None, iteration_count: Optional[int] = None,
-        loop_detected: Optional[bool] = None,
+        token_cost: int | None = None, iteration_count: int | None = None,
+        loop_detected: bool | None = None,
     ) -> AgentSession:
         """关闭会话：写入 status、completed_at 与可选统计字段。
 
@@ -149,17 +148,17 @@ class SessionService:
 
     async def get_session(
         self, db: AsyncSession, session_id: int,
-    ) -> Optional[AgentSession]:
+    ) -> AgentSession | None:
         """按 ID 查询会话，不存在返回 None。"""
         stmt = select(AgentSession).where(AgentSession.id == session_id)
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def list_sessions(
-        self, db: AsyncSession, *, project_id: Optional[int] = None,
-        agent_type: Optional[str] = None, status: Optional[str] = None,
+        self, db: AsyncSession, *, project_id: int | None = None,
+        agent_type: str | None = None, status: str | None = None,
         offset: int = 0, limit: int = 20,
-    ) -> Tuple[List[AgentSession], int]:
+    ) -> tuple[list[AgentSession], int]:
         """分页查询会话列表，按 id 倒序。
 
         所有过滤参数为 None 时不参与 WHERE 条件。返回 (列表, 总数)。

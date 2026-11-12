@@ -1,5 +1,4 @@
 import asyncio
-from typing import Optional
 
 from app.utils.adb_controller._core import AdbError
 

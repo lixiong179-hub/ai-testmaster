@@ -2,7 +2,7 @@
 """
 import json
 import re
-from typing import List, Dict, Any
+from typing import Any
 
 from app.utils.ai_client_parser import fix_common_json_issues, clean_json_string
 
@@ -50,9 +50,9 @@ def parse_ai_response(content: str) -> Any:
 
 
 def validate_generated_data(
-    data: List[Dict[str, Any]],
-    field_definitions: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    data: list[dict[str, Any]],
+    field_definitions: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """验证生成数据的完整性。
 
     验证规则:

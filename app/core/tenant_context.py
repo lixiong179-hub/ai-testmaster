@@ -23,7 +23,6 @@
 """
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Optional
 
 
 class TenantAwareMixin:
@@ -36,10 +35,10 @@ class TenantAwareMixin:
 
 
 # 当前请求的租户 ID（None = 系统级上下文，不应用过滤）
-_current_tenant_id: ContextVar[Optional[int]] = ContextVar("current_tenant_id", default=None)
+_current_tenant_id: ContextVar[int | None] = ContextVar("current_tenant_id", default=None)
 
 
-def get_current_tenant_id() -> Optional[int]:
+def get_current_tenant_id() -> int | None:
     """获取当前请求的租户 ID。
 
     Returns:
@@ -49,7 +48,7 @@ def get_current_tenant_id() -> Optional[int]:
     return _current_tenant_id.get()
 
 
-def set_current_tenant_id(tenant_id: Optional[int]) -> None:
+def set_current_tenant_id(tenant_id: int | None) -> None:
     """设置当前请求的租户 ID。
 
     Args:
@@ -64,7 +63,7 @@ def clear_current_tenant_id() -> None:
 
 
 @contextmanager
-def tenant_scope(tenant_id: Optional[int]):
+def tenant_scope(tenant_id: int | None):
     """临时切换租户上下文的作用域管理器。
 
     用于测试场景或系统级操作时临时切换租户视角，

@@ -1,11 +1,12 @@
 """Defect severity assessment and automatic Bug creation."""
 import json
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.bug import Bug
 from app.models.project import Project
 
 
@@ -33,7 +34,7 @@ _P2_RENDERING_ASSERTIONS = frozenset({"text_not_empty"})
 _P3_CONSOLE_ASSERTIONS = frozenset({"no_console_errors"})
 
 # ux_category 映射表
-_UX_CATEGORY_MAP: Dict[str, Optional[str]] = {
+_UX_CATEGORY_MAP: dict[str, str | None] = {
     "no_sensitive_data": "security",
     "no_xss": "security",
     "loading_hidden": "loading_experience",
@@ -48,9 +49,9 @@ _UX_CATEGORY_MAP: Dict[str, Optional[str]] = {
 
 def _assess_defect_severity(
     failure_type: str,
-    defect_evidence: Optional[Dict[str, Any]] = None,
+    defect_evidence: dict[str, Any] | None = None,
     error_message: str = "",
-) -> Tuple[int, Optional[str]]:
+) -> tuple[int, str | None]:
     """根据断言类型和缺陷证据自动评估缺陷严重度和 UX 分类。
 
     评估规则:
@@ -169,9 +170,9 @@ async def _auto_create_defect_bug(
     project: Project,
     failure_type: str,
     error_message: str,
-    defect_evidence: Optional[Dict[str, Any]] = None,
-    test_case_id: Optional[int] = None,
-    test_result_id: Optional[int] = None,
+    defect_evidence: dict[str, Any] | None = None,
+    test_case_id: int | None = None,
+    test_result_id: int | None = None,
     step_description: str = "",
 ) -> Optional["Bug"]:
     """根据缺陷严重度自动创建 Bug 记录。

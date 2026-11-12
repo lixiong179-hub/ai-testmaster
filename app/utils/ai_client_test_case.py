@@ -2,7 +2,7 @@ import requests
 import json
 import re
 import time
-from typing import Dict, Any, Optional, List
+from typing import Any
 from loguru import logger
 
 from app.utils.ai_client_core import (
@@ -16,10 +16,11 @@ from app.utils.ai_client_formatter import (
     normalize_old_format,
 )
 from app.utils.ai_client_parser import fix_common_json_issues, clean_json_string, parse_ai_json_response
+import contextlib
 
 
 class AITestCaseMixin:
-    def analyze_requirements(self, content: str) -> List[Dict[str, Any]]:
+    def analyze_requirements(self, content: str) -> list[dict[str, Any]]:
         cache_key = self._get_cache_key("analyze_requirements", content)
         cached_result = self._get_from_cache(cache_key)
         if cached_result:
@@ -92,10 +93,8 @@ class AITestCaseMixin:
                                 except json.JSONDecodeError:
                                     continue
                         if test_points is None:
-                            try:
+                            with contextlib.suppress(json.JSONDecodeError):
                                 test_points = json.loads(raw)
-                            except json.JSONDecodeError:
-                                pass
                 if test_points is not None:
                     logger.info("AI分析需求成功")
                     self._set_to_cache(cache_key, test_points)
@@ -117,7 +116,7 @@ class AITestCaseMixin:
                 logger.error(f"AI分析需求失败: {str(e)}")
                 raise AIServiceError(f"AI分析需求失败: {str(e)}")
 
-    def generate_test_case(self, test_point: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_test_case(self, test_point: dict[str, Any]) -> dict[str, Any]:
         cache_key = self._get_cache_key("generate_test_case", test_point)
         cached_result = self._get_from_cache(cache_key)
         if cached_result:
@@ -270,7 +269,7 @@ class AITestCaseMixin:
                 logger.error(f"AI生成测试用例失败: {str(e)}")
                 raise AIServiceError(f"AI生成测试用例失败: {str(e)}")
 
-    def _parse_generate_response(self, content: str) -> Optional[Dict[str, Any]]:
+    def _parse_generate_response(self, content: str) -> dict[str, Any] | None:
         generated_case = parse_ai_json_response(content)
         if generated_case is not None:
             return self._validate_and_normalize_case(generated_case)
@@ -282,7 +281,7 @@ class AITestCaseMixin:
         logger.warning("AI返回的内容不是有效的JSON格式")
         raise AIResponseParseError()
 
-    def _validate_and_normalize_case(self, generated_case: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_and_normalize_case(self, generated_case: dict[str, Any]) -> dict[str, Any]:
         required_fields = ['title', 'precondition', 'steps']
         missing_fields = [f for f in required_fields if f not in generated_case]
         if missing_fields:

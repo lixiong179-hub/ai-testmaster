@@ -22,7 +22,6 @@ from fastapi import (
     HTTPException,
 )
 from fastapi.responses import FileResponse
-from typing import Optional
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -62,7 +61,7 @@ def _extract_images_from_zip(
     db: Session,
     zip_filename: str,
     name: str = "",
-    iteration_id: Optional[int] = None,
+    iteration_id: int | None = None,
 ) -> tuple:
     uploaded_files = []
     failed_files = []
@@ -157,10 +156,7 @@ def _extract_images_from_zip(
 
                     file_size = get_file_size(file_path)
 
-                    if name:
-                        display_name = f"{name} ({image_index})"
-                    else:
-                        display_name = basename
+                    display_name = f"{name} ({image_index})" if name else basename
 
                     db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
                     new_file = file_crud.create_project_file(

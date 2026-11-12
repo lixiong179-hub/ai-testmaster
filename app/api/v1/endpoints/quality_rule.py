@@ -13,7 +13,6 @@
         4. db.flush() → await db.commit() + await db.refresh() 修复持久化 bug
     试点通过后，可参照本文件模式批量迁移其他 endpoint。
 """
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
@@ -30,20 +29,22 @@ from app.schemas.quality_rule import (
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 
-# [R4-6 冻结 2026-11-10] 「质量规则配置」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
+# [B-08 校正 2026-11-12] 前端**已接线**：`src/api/qualityRule.ts` → 项目详情页 `QualityRuleTab.vue`。
+# 原 R4-6「命中 0」结论系双重误判：① 脚本按资源段匹配，前端旧 URL `/api/v1/quality-rule/project/{id}`
+# 与后端实际路径不符；② 该错误 URL 已在本轮修正为 `/api/v1/projects/{project_id}/quality-rules`。
 router = APIRouter(tags=["质量规则"])
 
 
 @router.get(
     "/{project_id}/quality-rules",
-    response_model=List[QualityRuleConfigResponse],
+    response_model=list[QualityRuleConfigResponse],
     summary="获取项目质量规则列表",
 )
 async def get_quality_rules(
     project_id: int,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> List[QualityRuleConfig]:
+) -> list[QualityRuleConfig]:
     """获取指定项目的所有质量规则配置。"""
     # 安全收紧：联合校验项目归属，避免越权访问他人项目数据
     # 不区分 404/403，统一返回 403 避免泄露项目存在性

@@ -25,7 +25,7 @@ T1 多维覆盖率（替代旧版单一 locator 覆盖率）：
 T15 性能优化：
     支持通过 coverage_context 传入预取数据，避免循环内重复查询数据库。
 """
-from typing import Dict, Any, List, Optional, Set, Tuple
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep
@@ -57,9 +57,9 @@ class CoverageMixin:
 
     def _analyze_coverage(
         self,
-        steps: List[TestStep],
-        coverage_context: Optional[Dict[str, Any]] = None,
-        case: Optional[TestCase] = None,
+        steps: list[TestStep],
+        coverage_context: dict[str, Any] | None = None,
+        case: TestCase | None = None,
     ) -> CoverageScore:
         """计算多维覆盖率。
 
@@ -78,7 +78,7 @@ class CoverageMixin:
         score = CoverageScore()
         score.total_elements = len(steps)
 
-        ctx: Dict[str, Any] = coverage_context or {}
+        ctx: dict[str, Any] = coverage_context or {}
 
         # ---------- 维度 1：requirement_coverage ----------
         req_rate, req_details = self._calc_requirement_coverage(case=case, ctx=ctx)
@@ -121,15 +121,15 @@ class CoverageMixin:
 
     @staticmethod
     def _calc_requirement_coverage(
-        case: Optional[TestCase],
-        ctx: Dict[str, Any],
-    ) -> Tuple[float, Dict[str, Any]]:
+        case: TestCase | None,
+        ctx: dict[str, Any],
+    ) -> tuple[float, dict[str, Any]]:
         """需求覆盖率（连续）：按关联测试点优先级赋予 1.0/0.7/0.4 分值。
 
         当前 TestCase 仅支持单个 test_point_id，因此无法按“关联测试点数”
         计算连续值；改用 TestPoint.priority 表达该关联的业务重要性。
         """
-        project_point_priorities: Dict[int, int] = (
+        project_point_priorities: dict[int, int] = (
             ctx.get("project_test_point_priorities") or {}
         )
         project_total = len(project_point_priorities)
@@ -162,9 +162,9 @@ class CoverageMixin:
 
     @staticmethod
     def _calc_ui_element_coverage(
-        steps: List[TestStep],
-        ctx: Dict[str, Any],
-    ) -> Tuple[float, Dict[str, Any]]:
+        steps: list[TestStep],
+        ctx: dict[str, Any],
+    ) -> tuple[float, dict[str, Any]]:
         """UI 元素覆盖率：步骤的 target_element 命中项目 UI 元素标签的比例。
 
         分母为"含 target_element 的步骤数"，未填 target_element 的步骤不计入分母。
@@ -172,7 +172,7 @@ class CoverageMixin:
             - 大小写不敏感的双向子串包含
             - label 长度 < _MIN_UI_LABEL_LEN 时必须精确相等（避免短词误命中）
         """
-        ui_labels: Set[str] = ctx.get("project_ui_labels") or set()
+        ui_labels: set[str] = ctx.get("project_ui_labels") or set()
         total_labels = len(ui_labels)
 
         steps_with_target = 0
@@ -217,9 +217,9 @@ class CoverageMixin:
 
     def _calc_locator_coverage(
         self,
-        steps: List[TestStep],
-        ctx: Dict[str, Any],
-    ) -> Tuple[float, Dict[str, Any]]:
+        steps: list[TestStep],
+        ctx: dict[str, Any],
+    ) -> tuple[float, dict[str, Any]]:
         """定位器覆盖率：含定位器记录的步骤数 / 总步骤数（旧版语义）。"""
         total_steps = len(steps)
         if total_steps == 0:
@@ -230,12 +230,12 @@ class CoverageMixin:
             }
 
         step_ids = [s.id for s in steps]
-        locators_by_step: Optional[Dict[int, List[ElementLocator]]] = ctx.get(
+        locators_by_step: dict[int, list[ElementLocator]] | None = ctx.get(
             "locators_by_step"
         )
 
         if locators_by_step is not None:
-            locators: List[ElementLocator] = []
+            locators: list[ElementLocator] = []
             for sid in step_ids:
                 locators.extend(locators_by_step.get(sid, []))
         else:
@@ -245,7 +245,7 @@ class CoverageMixin:
                 .all()
             )
 
-        covered_step_ids: Set[int] = {
+        covered_step_ids: set[int] = {
             loc.step_id for loc in locators if loc.step_id is not None
         }
         covered_count = len(covered_step_ids)
@@ -278,7 +278,7 @@ class CoverageMixin:
             - 维度缺失时按剩余权重重正，避免"无需求数据导致单维满分但综合偏低"
             - 全部维度都不可用时返回 0
         """
-        contributions: List[Tuple[float, float]] = []
+        contributions: list[tuple[float, float]] = []
         if req_available:
             contributions.append((req_rate, _REQUIREMENT_WEIGHT))
         if ui_available:

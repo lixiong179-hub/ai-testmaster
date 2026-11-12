@@ -28,7 +28,6 @@ Pipeline Runner 执行引擎
         - _runner_executor : Step 执行/重试/降级/产物持久化（Mixin）
 """
 import logging
-from typing import List, Optional, Type
 
 from app.models.pipeline import PipelineRun
 from app.pipelines.base import PipelineStep
@@ -59,7 +58,7 @@ class PipelineRunner(_StepExecutionMixin):
         pipeline_name: 流水线名称（用于日志和审计）。
     """
 
-    def __init__(self, pipeline_name: str, steps: List[Type[PipelineStep]]):
+    def __init__(self, pipeline_name: str, steps: list[type[PipelineStep]]):
         self.pipeline_name = pipeline_name
         self.steps = steps
 
@@ -84,7 +83,7 @@ class PipelineRunner(_StepExecutionMixin):
             .filter(PipelineRun.id == ctx.run.id)
             .first()
         )
-        resume_from_step: Optional[str] = None
+        resume_from_step: str | None = None
         if current_run and current_run.pause_payload and isinstance(current_run.pause_payload, dict):
             resume_from_step = current_run.pause_payload.get("step_name")
             current_run.pause_payload = None

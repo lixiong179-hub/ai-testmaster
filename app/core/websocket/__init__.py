@@ -1,5 +1,4 @@
 import threading
-from typing import Dict, List
 from fastapi import WebSocket
 
 from app.core.websocket._core import _CoreMixin
@@ -11,7 +10,7 @@ class ConnectionManager(_CoreMixin, _MessageMixin):
     MAX_CONNECTIONS_PER_EXECUTION = 10
 
     def __init__(self):
-        self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.active_connections: dict[str, list[WebSocket]] = {}
         self._lock = threading.Lock()
 
 

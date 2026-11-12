@@ -1,7 +1,7 @@
 """悬停选择动作执行Mixin - 处理鼠标悬停、下拉选择和滚动操作。
 """
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.services.test_execution_engine.models import StepExecutionError
@@ -11,9 +11,9 @@ class ActionExecutorHoverSelectMixin:
 
     async def _execute_hover(
         self,
-        action_info: Dict[str, Any],
-        step_id: Optional[int],
-        step_test_data: Optional[Dict[str, str]] = None
+        action_info: dict[str, Any],
+        step_id: int | None,
+        step_test_data: dict[str, str] | None = None
     ) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
@@ -68,9 +68,9 @@ class ActionExecutorHoverSelectMixin:
 
     async def _execute_select(
         self,
-        action_info: Dict[str, Any],
-        step_id: Optional[int],
-        step_test_data: Optional[Dict[str, str]] = None
+        action_info: dict[str, Any],
+        step_id: int | None,
+        step_test_data: dict[str, str] | None = None
     ) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")

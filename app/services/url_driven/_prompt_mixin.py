@@ -9,7 +9,7 @@
 - 输出格式约束为 JSON，每测试点生成 3-5 条用例（正向+边界+异常）；
 - 单文件聚焦 Prompt 文案，与生成主流程/校验逻辑解耦，便于随 Prompt 演进独立调整。
 """
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from app.services.url_driven.site_explorer import PageSnapshot
@@ -66,9 +66,9 @@ class PromptMixin:
 
     def _build_prompt(
         self,
-        test_point: Dict[str, Any],
+        test_point: dict[str, Any],
         page_snapshot: "PageSnapshot",
-        description: Optional[str],
+        description: str | None,
     ) -> str:
         """构建单测试点的 AI 生成 Prompt。
 
@@ -115,7 +115,7 @@ class PromptMixin:
             f"{_NO_JS_EXPRESSION_RULE}\n"
         )
 
-    def _render_elements_table(self, elements: List[Dict[str, Any]]) -> str:
+    def _render_elements_table(self, elements: list[dict[str, Any]]) -> str:
         """渲染元素清单为 Markdown 表格（序号/role/name/locator）。
 
         空元素清单时返回占位提示，避免 AI 在空表上臆造元素。
@@ -130,7 +130,7 @@ class PromptMixin:
             rows.append(f"| {idx} | {role} | {name} | {locator} |")
         return "\n".join(rows)
 
-    def _summarize_related_elements(self, test_point: Dict[str, Any]) -> str:
+    def _summarize_related_elements(self, test_point: dict[str, Any]) -> str:
         """生成测试点相关元素摘要（name 列表），无相关元素时返回提示。"""
         related = test_point.get("related_elements") or []
         names = [
@@ -142,7 +142,7 @@ class PromptMixin:
             return "（未识别到强相关元素，请结合整页清单选择）"
         return "、".join(names)
 
-    def _render_focus_section(self, description: Optional[str]) -> str:
+    def _render_focus_section(self, description: str | None) -> str:
         """渲染用户 description 聚焦段，为空时返回空串不注入聚焦约束。"""
         if not description or not description.strip():
             return ""

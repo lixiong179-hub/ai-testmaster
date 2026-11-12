@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestCase
@@ -8,7 +8,7 @@ from app.services.test_execution_engine.models import ExecutionError
 
 class _HelpersMixin:
 
-    def _resolve_execution_order(self, cases: List[TestCase]) -> List[TestCase]:
+    def _resolve_execution_order(self, cases: list[TestCase]) -> list[TestCase]:
         has_dependency = any(getattr(c, 'depends_on', None) for c in cases)
         if not has_dependency:
             return cases
@@ -25,7 +25,7 @@ class _HelpersMixin:
         )
         return sorted_cases
 
-    def _collect_anchor_steps(self, cases: List[TestCase]) -> List[int]:
+    def _collect_anchor_steps(self, cases: list[TestCase]) -> list[int]:
         steps = []
         for case in cases:
             anchor = getattr(case, 'anchor_step', None)
@@ -33,8 +33,8 @@ class _HelpersMixin:
                 steps.append(anchor)
         return steps
 
-    def _build_anchor_step_index(self, cases: List[TestCase]) -> Dict[tuple, bool]:
-        index: Dict[tuple, bool] = {}
+    def _build_anchor_step_index(self, cases: list[TestCase]) -> dict[tuple, bool]:
+        index: dict[tuple, bool] = {}
         for case in cases:
             depends_on = getattr(case, 'depends_on', None)
             anchor = getattr(case, 'anchor_step', None)
@@ -42,7 +42,7 @@ class _HelpersMixin:
                 index[(depends_on, anchor)] = True
         return index
 
-    def _get_task_summary(self, task_id: int) -> Dict[str, Any]:
+    def _get_task_summary(self, task_id: int) -> dict[str, Any]:
         from app.models.test_task import TestTask
         from app.models.test_result import TestResult
 
@@ -72,5 +72,5 @@ class _HelpersMixin:
             "end_time": task.end_time.strftime("%Y-%m-%d %H:%M:%S") if task.end_time else None,
         }
 
-    def get_task_execution_summary(self, task_id: int) -> Dict[str, Any]:
+    def get_task_execution_summary(self, task_id: int) -> dict[str, Any]:
         return self._get_task_summary(task_id)

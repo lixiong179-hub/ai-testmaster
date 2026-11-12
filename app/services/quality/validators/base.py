@@ -8,7 +8,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Dict, List, Optional
 
 
 class Severity(IntEnum):
@@ -49,7 +48,7 @@ class ValidationResult:
         issues: 所有校验问题列表
     """
     status: str = "passed"
-    issues: List[ValidationIssue] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         valid = {s.name for s in Severity}
@@ -59,7 +58,7 @@ class ValidationResult:
             )
 
     @staticmethod
-    def merge(results: List["ValidationResult"]) -> "ValidationResult":
+    def merge(results: list["ValidationResult"]) -> "ValidationResult":
         """合并多个校验结果，取最严重状态，汇总所有问题。"""
         if not results:
             return ValidationResult(status="passed", issues=[])
@@ -67,7 +66,7 @@ class ValidationResult:
             results,
             key=lambda r: Severity[r.status].value,
         )
-        all_issues: List[ValidationIssue] = []
+        all_issues: list[ValidationIssue] = []
         for r in results:
             all_issues.extend(r.issues)
         return ValidationResult(status=worst.status, issues=all_issues)
@@ -83,8 +82,8 @@ class BaseValidator(ABC):
     @abstractmethod
     def validate(
         self,
-        case_data: Dict,
-        context: Optional[Dict] = None,
+        case_data: dict,
+        context: dict | None = None,
     ) -> ValidationResult:
         """执行校验并返回结果。
 

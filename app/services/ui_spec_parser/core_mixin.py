@@ -8,7 +8,7 @@ import re
 import json
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Any
 from loguru import logger
 
 from app.core.config import settings
@@ -17,7 +17,7 @@ from app.core.config import settings
 class UISpecCoreMixin:
     """核心解析方法Mixin"""
 
-    def _encode_image_to_base64(self, image_path: str) -> Optional[str]:
+    def _encode_image_to_base64(self, image_path: str) -> str | None:
         """将图片文件编码为base64"""
         try:
             with open(image_path, "rb") as image_file:
@@ -26,7 +26,7 @@ class UISpecCoreMixin:
             logger.error(f"图片编码失败: {image_path}, {str(e)}")
             return None
 
-    def _read_image_bytes(self, image_path: str) -> Optional[bytes]:
+    def _read_image_bytes(self, image_path: str) -> bytes | None:
         """读取图片文件字节数据（含路径遍历安全检查）"""
         try:
             logger.debug(f"[_read_image_bytes] 开始读取图片: {image_path}")
@@ -80,7 +80,7 @@ class UISpecCoreMixin:
             logger.error(f"  堆栈: {traceback.format_exc()}")
             return None
 
-    def _parse_json_response(self, content: str) -> Optional[Dict[str, Any]]:
+    def _parse_json_response(self, content: str) -> dict[str, Any] | None:
         """解析JSON响应，处理可能的不完整或带markdown格式的情况"""
         if not content or not content.strip():
             logger.warning("响应内容为空")
@@ -152,8 +152,8 @@ class UISpecCoreMixin:
     async def parse_single_screen(
         self,
         image_path: str,
-        screen_name_hint: Optional[str] = None
-    ) -> Tuple[bool, Dict[str, Any], str]:
+        screen_name_hint: str | None = None
+    ) -> tuple[bool, dict[str, Any], str]:
         """
         解析单张UI图（支持双模式）
 
@@ -201,8 +201,8 @@ class UISpecCoreMixin:
     async def _parse_with_text_mode(
         self,
         image_bytes: bytes,
-        screen_name_hint: Optional[str] = None
-    ) -> Tuple[bool, Dict[str, Any], str]:
+        screen_name_hint: str | None = None
+    ) -> tuple[bool, dict[str, Any], str]:
         """
         text模式解析：OCR提取文字（优先带位置） + LLM结构化
 
@@ -242,8 +242,8 @@ class UISpecCoreMixin:
     async def _parse_with_vision_mode(
         self,
         image_bytes: bytes,
-        screen_name_hint: Optional[str] = None
-    ) -> Tuple[bool, Dict[str, Any], str]:
+        screen_name_hint: str | None = None
+    ) -> tuple[bool, dict[str, Any], str]:
         """
         vision模式解析：视觉模型直接分析图片
 

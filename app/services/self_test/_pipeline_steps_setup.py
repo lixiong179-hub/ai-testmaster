@@ -1,6 +1,6 @@
 """Pipeline steps 1-4: requirement confirmation, test point extraction,
 case generation, and review/save."""
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -16,9 +16,9 @@ _AUTO_ADOPT_CONFIDENCE_THRESHOLD = 80
 def _build_step_result(
     name: str,
     status: str,
-    error: Optional[str] = None,
+    error: str | None = None,
     duration_ms: float = 0.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """构建单步骤执行结果字典。
 
     Args:
@@ -41,7 +41,7 @@ def _build_step_result(
 async def _step_requirement_confirmation(
     db: AsyncSession,
     project_id: int,
-) -> Tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """步骤1: 需求确认 - 确认需求文档已导入且内容提取完成。
 
     Args:
@@ -70,7 +70,7 @@ async def _step_requirement_confirmation(
 async def _step_extract_test_points(
     db: AsyncSession,
     project_id: int,
-) -> Tuple[bool, Optional[str], List[int]]:
+) -> tuple[bool, str | None, list[int]]:
     """步骤2: 测试点提取 - AI 基于需求文档提取测试点。
 
     重点标注边界条件和异常处理规则。
@@ -120,7 +120,7 @@ async def _step_extract_test_points(
         return (False, "AI 提取测试点返回为空", [])
 
     # 批量创建测试点
-    point_data_list: List[Dict[str, Any]] = []
+    point_data_list: list[dict[str, Any]] = []
     for pt in extracted_points:
         point_data_list.append({
             "module": pt.get("module", "未分类"),
@@ -147,8 +147,8 @@ async def _step_generate_cases(
     db: AsyncSession,
     project_id: int,
     user_id: int,
-    test_point_ids: List[int],
-) -> Tuple[bool, Optional[str], List[int]]:
+    test_point_ids: list[int],
+) -> tuple[bool, str | None, list[int]]:
     """步骤3: 用例生成 - AI 基于测试点+需求文档生成缺陷挖掘用例。
 
     使用缺陷挖掘导向的 Prompt，确保 >=60% 非正常路径。
@@ -175,7 +175,7 @@ async def _step_generate_cases(
     # TestCaseGenerationService 内部使用 sync Session.query()，
     # 在独立线程+独立事件循环中运行，避免阻塞主事件循环
     sync_db = PrimarySessionLocal()
-    generated_case_ids: List[int] = []
+    generated_case_ids: list[int] = []
 
     try:
         service = TestCaseGenerationService(sync_db)
@@ -212,8 +212,8 @@ async def _step_review_and_save(
     db: AsyncSession,
     project_id: int,
     user_id: int,
-    case_ids: List[int],
-) -> Tuple[bool, Optional[str]]:
+    case_ids: list[int],
+) -> tuple[bool, str | None]:
     """步骤4: 评审保存 - 自动采纳高置信度评审决策，保存用例。
 
     自动采纳 ai_confidence >= 80 的评审决策（keep/modify/deprecate），
@@ -232,8 +232,7 @@ async def _step_review_and_save(
         return (True, None)
 
     from app.models.test_case import TestCase
-    from app.models.review import IterationReview, ReviewDecision
-    from app.models.enums import ReviewKind, ReviewStatus
+    from app.models.review import ReviewDecision
     from app.services.review_service import (
         create_review_async,
         start_review_async,

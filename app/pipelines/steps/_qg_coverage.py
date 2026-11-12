@@ -1,7 +1,7 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
-def _build_tp_from_task(task: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _build_tp_from_task(task: dict[str, Any] | None) -> dict[str, Any] | None:
     if not task:
         return None
     task_type = task.get("task_type", "")
@@ -25,7 +25,7 @@ def _build_tp_from_task(task: Optional[Dict[str, Any]]) -> Optional[Dict[str, An
     return None
 
 
-_TYPE_KEYWORDS_LOCAL: Dict[str, List[str]] = {
+_TYPE_KEYWORDS_LOCAL: dict[str, list[str]] = {
     "positive": ["正向", "正常", "主流程", "happy", "成功提交", "完整流程", "正确输入", "常规"],
     "boundary": ["边界", "上限", "下限", "最大", "最小", "临界", "超长", "超限", "空值", "极值",
                  "最多", "最少", "最长", "最短", "极限", "范围", "阈值"],
@@ -34,7 +34,7 @@ _TYPE_KEYWORDS_LOCAL: Dict[str, List[str]] = {
 }
 
 
-def _classify_case_type_local(case: Dict[str, Any]) -> str:
+def _classify_case_type_local(case: dict[str, Any]) -> str:
     cat = (case.get("case_category") or case.get("case_type") or "").lower()
     for type_name in ("boundary", "negative", "positive"):
         kw_map = {
@@ -64,9 +64,9 @@ def _classify_case_type_local(case: Dict[str, Any]) -> str:
 
 
 def _compute_module_coverage(
-    generated_cases: List[Dict[str, Any]],
-) -> Dict[str, Any]:
-    module_coverage: Dict[str, Any] = {}
+    generated_cases: list[dict[str, Any]],
+) -> dict[str, Any]:
+    module_coverage: dict[str, Any] = {}
     for entry in generated_cases:
         if entry.get("status") != "success":
             continue
@@ -95,9 +95,9 @@ def _compute_module_coverage(
 
 
 def _compute_ui_element_coverage(
-    signals: Dict[str, Any],
-    cases_artifact: Dict[str, Any],
-) -> Dict[str, Any]:
+    signals: dict[str, Any],
+    cases_artifact: dict[str, Any],
+) -> dict[str, Any]:
     total_ui_elements = 0
     covered_ui_elements = 0
 

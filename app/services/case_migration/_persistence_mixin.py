@@ -3,7 +3,7 @@
 将 DB 操作集中到独立子 Mixin，便于事务边界与 lifecycle 切换的管理。
 本 Mixin 不持有独立的 __init__，依赖聚合类提供 self.db（AsyncSession）。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -27,7 +27,7 @@ class CaseMigrationPersistenceMixin:
 
     db: AsyncSession
 
-    async def _get_source_case(self, case_id: int) -> Optional[TestCase]:
+    async def _get_source_case(self, case_id: int) -> TestCase | None:
         try:
             stmt = select(TestCase).where(
                 TestCase.id == case_id, TestCase.is_deleted.is_(False)
@@ -37,7 +37,7 @@ class CaseMigrationPersistenceMixin:
             logger.error(f"查询源用例失败: {e}")
             return None
 
-    async def _get_target_project(self, project_id: int) -> Optional[Project]:
+    async def _get_target_project(self, project_id: int) -> Project | None:
         try:
             stmt = select(Project).where(Project.id == project_id)
             return (await self.db.execute(stmt)).scalar_one_or_none()
@@ -52,7 +52,7 @@ class CaseMigrationPersistenceMixin:
         target_project_id: int,
         source_device: str,
         batch_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         enable_lifecycle_transition()
         try:
             new_case = TestCase(
@@ -94,12 +94,12 @@ class CaseMigrationPersistenceMixin:
 
     async def _create_migrated_cases(
         self,
-        migration_result: Dict[str, Any],
+        migration_result: dict[str, Any],
         source_case: TestCase,
         target_device: str,
         target_project_id: int,
         batch_id: str,
-    ) -> List[TestCase]:
+    ) -> list[TestCase]:
         migration_type = migration_result.get("migration_type", "adapted")
         if migration_type == "deprecated":
             logger.info(f"用例{source_case.id}标记为废弃，不创建新用例")
@@ -111,7 +111,7 @@ class CaseMigrationPersistenceMixin:
         case_nos = await CaseNumberService.generate_batch_async(
             target_project_id, len(adapted_cases), self.db
         )
-        created: List[TestCase] = []
+        created: list[TestCase] = []
         enable_lifecycle_transition()
         try:
             for idx, case_data in enumerate(adapted_cases):

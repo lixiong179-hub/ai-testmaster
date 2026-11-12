@@ -1,6 +1,5 @@
-from typing import List, Optional, Dict, Any
+from typing import Any
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.test_point import TestPoint
 from app.models.enums import TestPointStatus
@@ -12,7 +11,7 @@ def update_test_point(
     test_point_id: int,
     project_id: int,
     **kwargs
-) -> Optional[TestPoint]:
+) -> TestPoint | None:
     test_point = get_test_point_by_id(db, test_point_id, project_id)
     if not test_point:
         return None
@@ -41,10 +40,10 @@ def delete_test_point(
 def batch_create_test_points(
     db: Session,
     project_id: int,
-    test_points_data: List[Dict[str, Any]],
-    created_by: Optional[str] = None,
+    test_points_data: list[dict[str, Any]],
+    created_by: str | None = None,
     commit: bool = True,
-) -> List[TestPoint]:
+) -> list[TestPoint]:
     test_points = []
     for data in test_points_data:
         test_point = TestPoint(
@@ -74,10 +73,10 @@ def batch_create_test_points(
 async def batch_create_test_points_async(
     db: AsyncSession,
     project_id: int,
-    test_points_data: List[Dict[str, Any]],
-    created_by: Optional[str] = None,
+    test_points_data: list[dict[str, Any]],
+    created_by: str | None = None,
     commit: bool = True,
-) -> List[TestPoint]:
+) -> list[TestPoint]:
     """
     批量创建测试点（异步版本）
 

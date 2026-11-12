@@ -4,7 +4,6 @@
 命中率低于阈值时标记为 pending_review。
 """
 import re
-from typing import Dict, List, Optional, Set
 
 from app.services.quality.validators.base import (
     BaseValidator,
@@ -37,10 +36,10 @@ class UIReferenceValidator(BaseValidator):
 
     def _collect_ui_element_names(
         self,
-        ui_specs: Optional[List[Dict]],
-    ) -> Set[str]:
+        ui_specs: list[dict] | None,
+    ) -> set[str]:
         """从UI规格中收集所有元素名称。"""
-        names: Set[str] = set()
+        names: set[str] = set()
 
         def add(value: object) -> None:
             if not isinstance(value, str):
@@ -50,7 +49,7 @@ class UIReferenceValidator(BaseValidator):
                 return
             names.add(normalized)
 
-        def walk(value: object, key_hint: Optional[str] = None) -> None:
+        def walk(value: object, key_hint: str | None = None) -> None:
             if isinstance(value, dict):
                 for key, item in value.items():
                     key_text = str(key).lower()
@@ -71,9 +70,9 @@ class UIReferenceValidator(BaseValidator):
             walk(spec_item.get("ui_spec"))
         return names
 
-    def _extract_step_targets(self, step: Dict) -> List[str]:
+    def _extract_step_targets(self, step: dict) -> list[str]:
         """从步骤中提取目标UI元素。"""
-        candidates: List[str] = []
+        candidates: list[str] = []
         explicit = step.get("target_element")
         if explicit:
             candidates.append(str(explicit))
@@ -93,8 +92,8 @@ class UIReferenceValidator(BaseValidator):
         for pattern in patterns:
             candidates.extend(re.findall(pattern, action))
 
-        result: List[str] = []
-        seen: Set[str] = set()
+        result: list[str] = []
+        seen: set[str] = set()
         for item in candidates:
             normalized = self._normalize_ui_name(item)
             if len(normalized) < 2 or normalized in self._GENERIC_UI_WORDS or normalized in seen:
@@ -103,7 +102,7 @@ class UIReferenceValidator(BaseValidator):
             result.append(item.strip())
         return result
 
-    def _ui_element_exists(self, target: str, element_names: Set[str]) -> bool:
+    def _ui_element_exists(self, target: str, element_names: set[str]) -> bool:
         normalized = self._normalize_ui_name(target)
         if not normalized:
             return False
@@ -118,8 +117,8 @@ class UIReferenceValidator(BaseValidator):
 
     def validate(
         self,
-        case_data: Dict,
-        context: Optional[Dict] = None,
+        case_data: dict,
+        context: dict | None = None,
     ) -> ValidationResult:
         """校验UI元素引用命中率。"""
         ctx = context or {}
@@ -133,7 +132,7 @@ class UIReferenceValidator(BaseValidator):
         steps = case_data.get("steps") or []
         checked = 0
         hit = 0
-        missing: List[str] = []
+        missing: list[str] = []
 
         for step in steps:
             targets = self._extract_step_targets(step)
@@ -151,8 +150,8 @@ class UIReferenceValidator(BaseValidator):
         if hit_rate >= min_hit_rate:
             return ValidationResult(status="passed", issues=[])
 
-        unique_missing: List[str] = []
-        seen: Set[str] = set()
+        unique_missing: list[str] = []
+        seen: set[str] = set()
         for item in missing:
             normalized = self._normalize_ui_name(item)
             if normalized not in seen:

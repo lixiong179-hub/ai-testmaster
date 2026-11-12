@@ -1,7 +1,9 @@
 """Defect discovery rate metrics calculation."""
-from typing import Any, Dict, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
+
+from app.models.test_result import TestResult
 
 
 # 隐性缺陷判定键：defect_evidence 中这些键任一非空即视为隐性缺陷
@@ -11,7 +13,7 @@ _IMPLICIT_DEFECT_EVIDENCE_KEYS = frozenset({
 })
 
 
-def _is_implicit_defect(defect_evidence: Optional[Dict[str, Any]]) -> bool:
+def _is_implicit_defect(defect_evidence: dict[str, Any] | None) -> bool:
     """判断 defect_evidence 是否包含隐性缺陷信号。
 
     隐性缺陷定义：用例通过了（exec_status=passed），但浏览器环境监控
@@ -34,7 +36,7 @@ def _is_implicit_defect(defect_evidence: Optional[Dict[str, Any]]) -> bool:
 
 def _collect_implicit_evidence(
     test_results: list["TestResult"],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """从测试结果中收集所有隐性缺陷证据，按类型聚合。
 
     仅收集 exec_status=passed 但 defect_evidence 含隐性信号的记录。
@@ -47,7 +49,7 @@ def _collect_implicit_evidence(
     """
     from app.models.enums import ExecStatus
 
-    collected: Dict[str, list] = {
+    collected: dict[str, list] = {
         "console_errors": [],
         "network_failures": [],
         "memory_leak_suspect": [],
@@ -74,7 +76,7 @@ def calculate_defect_metrics(
     db: Session,
     project_id: int,
     task_id: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """计算缺陷发现率指标。
 
     指标包括：
@@ -122,7 +124,7 @@ def calculate_defect_metrics(
     )
 
     # 按 severity 分级统计（severity: 1=P0, 2=P1, 3=P2, 4=P3）
-    severity_map: Dict[int, int] = {1: 0, 2: 0, 3: 0, 4: 0}
+    severity_map: dict[int, int] = {1: 0, 2: 0, 3: 0, 4: 0}
     for bug in bugs:
         if bug.severity in severity_map:
             severity_map[bug.severity] += 1

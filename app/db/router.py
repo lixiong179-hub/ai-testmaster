@@ -20,7 +20,7 @@
 """
 import logging
 import time
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,7 +111,7 @@ def _is_replica_lag_degraded() -> bool:
     return lag is not None and lag > settings.REPLICA_LAG_DEGRADE_SECONDS
 
 
-def _get_write_timestamp() -> Optional[float]:
+def _get_write_timestamp() -> float | None:
     """获取最近一次写操作时间戳（Redis 优先，进程内兜底）。"""
     client = _redis_client()
     if client is not None:

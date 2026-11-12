@@ -8,7 +8,6 @@ import os
 import tempfile
 import urllib.parse
 from datetime import datetime
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
@@ -30,7 +29,7 @@ router = APIRouter()
 
 
 class FunctionalExcelExportRequest(BaseModel):
-    case_ids: List[int]
+    case_ids: list[int]
 
 
 def _build_excel_filename(prefix: str) -> str:
@@ -214,7 +213,8 @@ async def export_excel(
     """导出单条测试用例为标准Excel（双Sheet：用例信息 + 测试步骤，包含定位信息）。"""
     test_case = await _get_owned_test_case(db, test_case_id, current_user.id)
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    # 临时文件需存活到 FileResponse 读取完成，无法用 with 作用域管理
+    tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)  # noqa: SIM115
     tmp.close()
     try:
         def _do_export(sync_db):
@@ -273,7 +273,8 @@ async def export_functional_excel(
     ordered_ids = [cid for cid in payload.case_ids if cid in owned_ids]
     skipped_count = len(payload.case_ids) - len(ordered_ids)
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    # 临时文件需存活到 FileResponse 读取完成，无法用 with 作用域管理
+    tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)  # noqa: SIM115
     tmp.close()
     try:
         def _do_export(sync_db):

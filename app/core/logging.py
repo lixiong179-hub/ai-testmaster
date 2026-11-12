@@ -20,7 +20,7 @@ def setup_logging(
 ) -> None:
     """
     初始化loguru日志配置
-    
+
     Args:
         log_level: 日志级别（DEBUG/INFO/WARNING/ERROR/CRITICAL）
         log_dir: 日志文件目录，默认使用项目根目录下的logs文件夹
@@ -34,21 +34,21 @@ def setup_logging(
     if sys.platform == "win32":
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
-    
+
     log_format = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
         "<level>{message}</level>"
     )
-    
+
     console_format = (
         "<green>{time:HH:mm:ss}</green> | "
         "<level>{level: <8}</level> | "
         "<cyan>{name}</cyan>:<cyan>{line}</cyan> | "
         "<level>{message}</level>"
     )
-    
+
     logger.add(
         sys.stdout,
         format=console_format,
@@ -57,14 +57,14 @@ def setup_logging(
         backtrace=True,
         diagnose=True,
     )
-    
+
     if enable_file_logging:
         if log_dir is None:
             project_root = Path(__file__).parent.parent.parent
             log_dir = str(project_root / "logs")
-        
+
         os.makedirs(log_dir, exist_ok=True)
-        
+
         log_file = os.path.join(log_dir, "app_{time:YYYY-MM-DD}.log")
         logger.add(
             log_file,
@@ -78,7 +78,7 @@ def setup_logging(
             diagnose=False,
             encoding="utf-8"
         )
-        
+
         error_file = os.path.join(log_dir, "error_{time:YYYY-MM-DD}.log")
         logger.add(
             error_file,
@@ -92,9 +92,9 @@ def setup_logging(
             diagnose=False,
             encoding="utf-8"
         )
-    
+
     _redirect_uvicorn_logs()
-    
+
     logger.info(f"日志系统初始化完成，级别: {log_level}, 文件日志: {'启用' if enable_file_logging else '禁用'}")
 
 
@@ -103,12 +103,12 @@ def _redirect_uvicorn_logs() -> None:
     将Uvicorn的logging日志重定向到loguru
     """
     import logging
-    
+
     class InterceptHandler(logging.Handler):
         def emit(self, record: logging.LogRecord) -> None:
             logger_opt = logger.opt(depth=6, exception=record.exc_info)
             logger_opt.log(record.levelname, record.getMessage())
-    
+
     uvicorn_loggers = ["uvicorn", "uvicorn.error", "uvicorn.access"]
     for logger_name in uvicorn_loggers:
         _logger = logging.getLogger(logger_name)
@@ -120,10 +120,10 @@ def _redirect_uvicorn_logs() -> None:
 def get_logger(name: str = None) -> logger:
     """
     获取loguru logger实例
-    
+
     Args:
         name: 模块名称，用于标识日志来源
-    
+
     Returns:
         loguru logger实例
     """

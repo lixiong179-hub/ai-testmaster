@@ -7,7 +7,7 @@
     - _update_locator_after_healing: 自愈后回写定位器（乐观锁）
     - get_self_healing_summary: 自愈统计摘要
 """
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 from sqlalchemy import text as sql_text
 
@@ -56,7 +56,7 @@ class SelfHealingUtilsMixin:
         sanitized = sanitized.strip("-_")
         return sanitized
 
-    def _build_healed_selector(self, element_attrs: Dict[str, Any]) -> Optional[str]:
+    def _build_healed_selector(self, element_attrs: dict[str, Any]) -> str | None:
         """根据元素属性构建自愈后的CSS选择器。
 
         优先级: id > name > placeholder > class组合 > tag+type
@@ -104,7 +104,7 @@ class SelfHealingUtilsMixin:
         self,
         locator_record_id: int,
         new_selector: str,
-        old_selector: Optional[str] = None
+        old_selector: str | None = None
     ) -> bool:
         """自愈成功后回写新定位器到数据库（含乐观锁 + 审计历史）。"""
         if not new_selector:
@@ -154,7 +154,7 @@ class SelfHealingUtilsMixin:
             logger.error(f"定位器回写异常 | ID: {locator_record_id} | 错误: {e}")
             return False
 
-    def _record_healing_confidence(self, detail: Dict[str, Any]) -> None:
+    def _record_healing_confidence(self, detail: dict[str, Any]) -> None:
         """记录一次置信度计算的层级命中（R3-1）。
 
         内存计数供 `get_self_healing_summary()` 查询，同时上报 Prometheus
@@ -179,7 +179,7 @@ class SelfHealingUtilsMixin:
             except Exception:
                 logger.debug("上报自愈层级命中指标失败", exc_info=True)
 
-    def get_self_healing_summary(self) -> Dict[str, Any]:
+    def get_self_healing_summary(self) -> dict[str, Any]:
         """获取自愈统计摘要。
 
         R3-1 起额外返回三项可查询指标：

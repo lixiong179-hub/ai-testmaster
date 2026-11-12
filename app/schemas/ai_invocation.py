@@ -8,7 +8,6 @@ AI 调用审计查询 Schema 模块
     - AIInvocationListItem: 调用记录列表项
 """
 from datetime import date, datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -23,8 +22,8 @@ class AIInvocationStatsQuery(BaseModel):
         group_by: 聚合维度：model/strategy/date
     """
     project_id: int = Field(..., gt=0, description="项目ID")
-    start_date: Optional[date] = Field(None, description="起始日期（含）")
-    end_date: Optional[date] = Field(None, description="截止日期（含）")
+    start_date: date | None = Field(None, description="起始日期（含）")
+    end_date: date | None = Field(None, description="截止日期（含）")
     group_by: str = Field("model", pattern="^(model|strategy|date)$", description="聚合维度")
 
 
@@ -54,8 +53,8 @@ class AIInvocationListQuery(BaseModel):
         page: 页码，从1开始
         page_size: 每页条数
     """
-    batch_id: Optional[int] = Field(None, description="生成批次ID")
-    project_id: Optional[int] = Field(None, gt=0, description="项目ID")
+    batch_id: int | None = Field(None, description="生成批次ID")
+    project_id: int | None = Field(None, gt=0, description="项目ID")
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(20, ge=1, le=100, description="每页条数")
 
@@ -87,22 +86,22 @@ class AIInvocationListItem(BaseModel):
         error_code: 错误码枚举值
     """
     id: int
-    run_id: Optional[int] = None
-    step_name: Optional[str] = None
+    run_id: int | None = None
+    step_name: str | None = None
     model: str
     prompt_tokens: int
     completion_tokens: int
     cost_usd: float
     latency_ms: int
     status: str
-    error_message: Optional[str] = None
+    error_message: str | None = None
     created_at: datetime
-    generation_batch_id: Optional[int] = None
-    scenario_type: Optional[str] = None
-    generation_strategy: Optional[str] = None
-    prompt_key: Optional[str] = None
-    prompt_version: Optional[int] = None
-    prompt_hash: Optional[str] = None
-    error_code: Optional[str] = None
+    generation_batch_id: int | None = None
+    scenario_type: str | None = None
+    generation_strategy: str | None = None
+    prompt_key: str | None = None
+    prompt_version: int | None = None
+    prompt_hash: str | None = None
+    error_code: str | None = None
 
     model_config = {"from_attributes": True}

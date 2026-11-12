@@ -16,7 +16,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse, Response
@@ -38,7 +37,8 @@ from app.services.saml_service import (
     get_saml_service,
 )
 
-# [R4-6 冻结 2026-11-10] 「SAML 2.0 SSO SP」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
+# [B-08 结论 2026-11-12] 「SAML 2.0 SSO SP」**明确不做前端接线**：企业 IdP 集成，前端无 SSO
+# 入口（src/ 内 saml 命中 0）。SP 元数据/ACS 回调本身面向 IdP 侧调用，不需要前端页面。
 router = APIRouter()
 
 
@@ -74,7 +74,7 @@ async def list_saml_providers() -> dict:
     responses={200: {"content": {"application/xml": {}}}},
 )
 async def get_saml_metadata(
-    provider: Optional[str] = Query(None, description="IdP 标识；不传使用默认 IdP"),
+    provider: str | None = Query(None, description="IdP 标识；不传使用默认 IdP"),
 ) -> Response:
     """返回 SP 元数据 XML。"""
     service = _saml_service_or_503()
@@ -93,8 +93,8 @@ async def get_saml_metadata(
 )
 async def saml_login(
     request: Request,
-    provider: Optional[str] = Query(None, description="IdP 标识；不传使用 SAML_DEFAULT_PROVIDER"),
-    redirect_to: Optional[str] = Query(
+    provider: str | None = Query(None, description="IdP 标识；不传使用 SAML_DEFAULT_PROVIDER"),
+    redirect_to: str | None = Query(
         None, description="登录成功后前端跳转目标路径（如 /dashboard），存入 RelayState 上下文"
     ),
 ) -> RedirectResponse:
@@ -129,7 +129,7 @@ async def saml_acs(
     request: Request,
     SAMLResponse: str = Form(..., description="IdP POST 的 Base64 编码 SAMLResponse"),
     RelayState: str = Form(..., description="登录请求时发送的 RelayState，用于 CSRF 防护"),
-    provider: Optional[str] = Query(
+    provider: str | None = Query(
         None, description="IdP 标识；若未在 RelayState 中存储，需调用方显式传入"
     ),
     db: AsyncSession = Depends(async_get_db),
@@ -181,7 +181,7 @@ async def saml_acs(
 )
 async def saml_slo(
     request: Request,
-    provider: Optional[str] = Query(None, description="IdP 标识"),
+    provider: str | None = Query(None, description="IdP 标识"),
 ) -> dict:
     """处理 SAML SLO 回调。"""
     service = _saml_service_or_503()

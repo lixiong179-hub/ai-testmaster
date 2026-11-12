@@ -1,4 +1,4 @@
-from enum import Enum, IntEnum
+from enum import IntEnum, StrEnum
 
 
 class TestCasePriority(IntEnum):
@@ -28,7 +28,7 @@ def normalize_priority(value) -> int:
     return TestCasePriority.MEDIUM.value
 
 
-class TestCaseType(str, Enum):
+class TestCaseType(StrEnum):
     UI_AUTOMATION = "ui_automation"
     MANUAL = "manual"
     API_AUTOMATION = "api_automation"
@@ -72,21 +72,21 @@ class TestCaseGenerateStatus(IntEnum):
     FAILED = 2
 
 
-class TestCaseReviewStatus(str, Enum):
+class TestCaseReviewStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
     NEEDS_OPTIMIZATION = "needs_optimization"
 
 
-class TestCaseCorrectionStatus(str, Enum):
+class TestCaseCorrectionStatus(StrEnum):
     FAILED_CORRECTION = "failed_correction"
     CORRECTING = "correcting"
     VERIFYING = "verifying"
     VERIFIED = "verified"
 
 
-class TestCategory(str, Enum):
+class TestCategory(StrEnum):
     UI_AUTOMATION = "ui_automation"
     MANUAL = "manual"
     API_AUTOMATION = "api_automation"

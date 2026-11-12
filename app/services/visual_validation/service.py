@@ -12,7 +12,7 @@ Agent 触发之后，按开关决定是否以 fire-and-forget 方式触发视觉
     - 默认关：全局开关关闭时**不查项目配置、不建会话**（零开销）。
 """
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -22,7 +22,7 @@ from app.models.project import Project
 from app.services.visual_validation.config_service import resolve_enabled
 
 
-async def is_visual_validation_enabled(db: Any, project_id: Optional[int]) -> bool:
+async def is_visual_validation_enabled(db: Any, project_id: int | None) -> bool:
     """判断本次执行是否应触发视觉校验（全局 AND 项目双开关）。
 
     全局关闭时直接返回 False —— 不产生任何 SQL 查询与会话，保证零开销。
@@ -52,9 +52,9 @@ async def is_visual_validation_enabled(db: Any, project_id: Optional[int]) -> bo
 def spawn_visual_validation_agent(
     *,
     project_id: int,
-    created_by: Optional[int] = None,
-    screenshot_url: Optional[str] = None,
-    last_error: Optional[str] = None,
+    created_by: int | None = None,
+    screenshot_url: str | None = None,
+    last_error: str | None = None,
 ) -> None:
     """fire-and-forget 触发视觉校验 Agent 管线。
 

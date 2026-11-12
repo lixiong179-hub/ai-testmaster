@@ -2,7 +2,6 @@
 """
 import os
 import subprocess
-from typing import Optional
 from loguru import logger
 
 
@@ -37,9 +36,9 @@ class FFmpegMixin:
     async def extract_video_thumbnail(
         self,
         video_path: str,
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
         time_offset: float = 1.0
-    ) -> Optional[str]:
+    ) -> str | None:
         if not self._check_ffmpeg_available():
             logger.warning("ffmpeg不可用，无法提取缩略图")
             return None
@@ -86,7 +85,7 @@ class FFmpegMixin:
             logger.error(f"提取缩略图异常: {e}")
             return None
 
-    async def get_video_duration(self, video_path: str) -> Optional[float]:
+    async def get_video_duration(self, video_path: str) -> float | None:
         if not self._check_ffprobe_available():
             logger.warning("ffprobe不可用，无法获取视频时长")
             return None

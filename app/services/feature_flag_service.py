@@ -20,7 +20,6 @@
     试点通过后，可参照本文件模式批量迁移其他 service。
 """
 import hashlib
-from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +33,7 @@ class FeatureFlagService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def is_enabled(self, key: str, context: Optional[dict] = None) -> bool:
+    async def is_enabled(self, key: str, context: dict | None = None) -> bool:
         """检查特性开关是否启用（简化入口，context 可传递 project_id / user_id）
 
         Args:
@@ -54,8 +53,8 @@ class FeatureFlagService:
     async def evaluate(
         self,
         key: str,
-        project_id: Optional[int] = None,
-        user_id: Optional[int] = None,
+        project_id: int | None = None,
+        user_id: int | None = None,
     ) -> bool:
         """评估特性开关值，按灰度规则判断是否生效
 
@@ -85,7 +84,7 @@ class FeatureFlagService:
         bucket_value = int(hashlib.md5(bucket_key.encode()).hexdigest(), 16) % 100
         return bucket_value < flag.rollout_percentage
 
-    async def get_flag(self, key: str) -> Optional[FeatureFlag]:
+    async def get_flag(self, key: str) -> FeatureFlag | None:
         """根据 key 获取特性开关
 
         Args:
@@ -132,11 +131,11 @@ class FeatureFlagService:
         self,
         key: str,
         name: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         enabled: bool = True,
         rollout_percentage: int = 100,
         target_type: str = "all",
-        target_project_ids: Optional[list[int]] = None,
+        target_project_ids: list[int] | None = None,
     ) -> FeatureFlag:
         """创建特性开关
 

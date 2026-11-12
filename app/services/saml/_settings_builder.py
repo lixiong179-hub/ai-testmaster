@@ -12,7 +12,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from app.core.config import settings
 
@@ -48,7 +48,7 @@ def _normalize_pem(content: str, is_cert: bool = True) -> str:
     return f"-----BEGIN {label}-----\n{content}\n-----END {label}-----"
 
 
-def build_sp_settings_dict() -> Dict[str, Any]:
+def build_sp_settings_dict() -> dict[str, Any]:
     """构建 python3-saml 的 SP（Service Provider）Settings 字典。
 
     从全局 settings 读取 SP 配置（entity_id / acs_url / slo_url / 证书 / 私钥），
@@ -72,7 +72,7 @@ def build_sp_settings_dict() -> Dict[str, Any]:
     }
 
 
-def build_idp_settings_dict(idp_cfg: Dict[str, Any]) -> Dict[str, Any]:
+def build_idp_settings_dict(idp_cfg: dict[str, Any]) -> dict[str, Any]:
     """构建 python3-saml 的 IdP（Identity Provider）Settings 字典。
 
     从单个 IdP 配置字典读取 entity_id / sso_url / slo_url / x509_cert，
@@ -100,7 +100,7 @@ def build_idp_settings_dict(idp_cfg: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def build_full_settings_dict(idp_cfg: Dict[str, Any], *, strict: bool = True) -> Dict[str, Any]:
+def build_full_settings_dict(idp_cfg: dict[str, Any], *, strict: bool = True) -> dict[str, Any]:
     """构建完整的 python3-saml Settings 字典（SP + IdP + security）。
 
     Args:

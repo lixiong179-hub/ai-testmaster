@@ -27,7 +27,7 @@
 import asyncio
 import os
 import uuid
-from typing import Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.utils.browser_controller_v2 import ScreenshotConfig
@@ -203,7 +203,7 @@ class LoginStrategyMixin:
         return recognize_login_form(self.vision_model, screenshot)
 
     @handle_precondition_errors
-    async def _recognize_and_solve_captcha(self, captcha_image_location: Dict[str, Any]) -> str:
+    async def _recognize_and_solve_captcha(self, captcha_image_location: dict[str, Any]) -> str:
         """识别并求解验证码。
 
         流程:

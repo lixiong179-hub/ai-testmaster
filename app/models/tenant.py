@@ -15,7 +15,7 @@
     Tenant ←→ Project（一对多）
     Tenant ←→ 其他业务表（一对多，通过 tenant_id）
 """
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
 from app.db.database import Base

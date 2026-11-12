@@ -15,7 +15,6 @@
     保持等价语义。
 """
 from datetime import date, datetime, time
-from typing import List, Optional, Tuple
 
 from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,13 +31,13 @@ def _apply_test_point_filters_async(
     stmt,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
-    created_by: Optional[str] = None,
-    requirement_id: Optional[int] = None,
-    keyword: Optional[str] = None,
-    created_from: Optional[date] = None,
-    created_to: Optional[date] = None,
+    module: str | None = None,
+    priority: int | None = None,
+    created_by: str | None = None,
+    requirement_id: int | None = None,
+    keyword: str | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
     apply_priority: bool = True,
 ):
     """构建测试点管理页的通用筛选条件（async select 版本）。
@@ -82,18 +81,18 @@ async def get_test_points_with_case_count_async(
     db: AsyncSession,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
-    created_by: Optional[str] = None,
-    requirement_id: Optional[int] = None,
-    keyword: Optional[str] = None,
-    created_from: Optional[date] = None,
-    created_to: Optional[date] = None,
+    module: str | None = None,
+    priority: int | None = None,
+    created_by: str | None = None,
+    requirement_id: int | None = None,
+    keyword: str | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
     skip: int = 0,
     limit: int = 100,
     sort_by: str = "create_time",
     sort_order: str = "desc",
-) -> List[Tuple[TestPoint, int]]:
+) -> list[tuple[TestPoint, int]]:
     """获取带关联用例数量的测试点列表（async 版本）。
 
     语义与 sync `get_test_points_with_case_count` 一致：通过子查询聚合每个
@@ -146,13 +145,13 @@ async def get_test_points_with_case_count_total_async(
     db: AsyncSession,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
-    created_by: Optional[str] = None,
-    requirement_id: Optional[int] = None,
-    keyword: Optional[str] = None,
-    created_from: Optional[date] = None,
-    created_to: Optional[date] = None,
+    module: str | None = None,
+    priority: int | None = None,
+    created_by: str | None = None,
+    requirement_id: int | None = None,
+    keyword: str | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
 ) -> int:
     """获取增强筛选后的测试点总数（async 版本）。"""
     stmt = _apply_test_point_filters_async(
@@ -175,12 +174,12 @@ async def get_test_point_list_stats_async(
     db: AsyncSession,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    created_by: Optional[str] = None,
-    requirement_id: Optional[int] = None,
-    keyword: Optional[str] = None,
-    created_from: Optional[date] = None,
-    created_to: Optional[date] = None,
+    module: str | None = None,
+    created_by: str | None = None,
+    requirement_id: int | None = None,
+    keyword: str | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
 ) -> dict:
     """获取测试点列表的全局统计信息（async 版本）。
 

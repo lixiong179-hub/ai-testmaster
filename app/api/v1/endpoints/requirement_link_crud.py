@@ -8,7 +8,6 @@
 权限: Bearer令牌认证
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import Optional
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
@@ -65,7 +64,7 @@ async def _get_owned_link(
     return link
 
 
-def _build_auth_config_response(auth_type: str, auth_config: Optional[dict]) -> Optional[AuthConfigResponse]:
+def _build_auth_config_response(auth_type: str, auth_config: dict | None) -> AuthConfigResponse | None:
     if not auth_config:
         return AuthConfigResponse(auth_type=auth_type, has_credentials=False)
     has_credentials = False
@@ -161,8 +160,8 @@ async def create_requirement_link(
 @router.get("/list/{project_id}", response_model=RequirementLinkListResponse)
 async def get_requirement_links(
     project_id: int,
-    link_type: Optional[str] = Query(None, description="链接类型筛选"),
-    is_active: Optional[bool] = Query(None, description="是否启用筛选"),
+    link_type: str | None = Query(None, description="链接类型筛选"),
+    is_active: bool | None = Query(None, description="是否启用筛选"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),

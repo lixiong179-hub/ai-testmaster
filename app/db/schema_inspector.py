@@ -1,7 +1,7 @@
 """数据库结构检查模块 - ORM模型与数据库表结构差异检测"""
 import logging
 import re
-from typing import List, Dict, Tuple, Any, Optional
+from typing import Any
 
 from sqlalchemy import inspect
 
@@ -34,7 +34,7 @@ class SchemaInspectorMixin:
             self.engine = default_engine
         self.inspector = inspect(self.engine)
 
-    def get_model_columns(self, table_name: str, Base) -> List[Dict]:
+    def get_model_columns(self, table_name: str, Base) -> list[dict]:
         """获取ORM模型定义的列信息。
 
         Args:
@@ -63,7 +63,7 @@ class SchemaInspectorMixin:
 
         return columns
 
-    def _resolve_sql_default(self, column) -> Optional[str]:
+    def _resolve_sql_default(self, column) -> str | None:
         """解析列的 SQL DEFAULT 值，优先 server_default，其次解析 column.default。"""
         server_default = column.server_default
         if server_default is not None:
@@ -88,7 +88,7 @@ class SchemaInspectorMixin:
             return f"'{arg}'"
         return str(arg)
 
-    def get_db_columns(self, table_name: str) -> List[Dict]:
+    def get_db_columns(self, table_name: str) -> list[dict]:
         """获取数据库实际的列信息，表不存在时返回空列表。"""
         try:
             columns = self.inspector.get_columns(table_name)
@@ -104,7 +104,7 @@ class SchemaInspectorMixin:
             logger.warning(f"无法获取表 {table_name} 的列信息: {e}")
             return []
 
-    def find_missing_columns(self, table_name: str, Base) -> Tuple[List[Dict], List[str]]:
+    def find_missing_columns(self, table_name: str, Base) -> tuple[list[dict], list[str]]:
         """检测ORM模型中有但数据库中缺失的列。
 
         Returns:

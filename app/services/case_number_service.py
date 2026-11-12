@@ -14,7 +14,6 @@ seq 溢出 9999 时自动扩展位数（Python f-string 天然支持）。
     中运行的调用方使用；新增 async 版本供 case_migration 等已迁移到 AsyncSession
     的服务调用，使用 select().with_for_update() + await db.execute() 模式。
 """
-from typing import List
 
 from loguru import logger
 from sqlalchemy import select
@@ -72,7 +71,7 @@ class CaseNumberService:
         return caseNo
 
     @staticmethod
-    def generate_batch(project_id: int, count: int, db: Session) -> List[str]:
+    def generate_batch(project_id: int, count: int, db: Session) -> list[str]:
         """批量生成用例编号。
 
         一次加锁分配连续序号，减少锁持有时间和 flush 次数。
@@ -143,7 +142,7 @@ class CaseNumberService:
     @staticmethod
     async def generate_batch_async(
         project_id: int, count: int, db: AsyncSession
-    ) -> List[str]:
+    ) -> list[str]:
         """异步批量生成用例编号。
 
         一次加锁分配连续序号，减少锁持有时间和 flush 次数。

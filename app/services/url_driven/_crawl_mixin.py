@@ -6,7 +6,7 @@
 同源限制基于 scheme+host，避免爬虫越界到第三方站点（如统计、CDN 外链），
 黑名单过滤用于规避登出/删除等破坏性路径，防止探索过程误操作用户数据。
 """
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
 from app.core.config import settings
@@ -22,7 +22,7 @@ class CrawlMixin:
     阶段调用以决定下一批待探索页面，自身不持有浏览器或网络资源。
     """
 
-    def _discover_links(self, snapshot: "PageSnapshot", base_url: str) -> List[str]:
+    def _discover_links(self, snapshot: "PageSnapshot", base_url: str) -> list[str]:
         """从页面快照的导航链接中提取可探索的绝对 URL。
 
         过滤规则：
@@ -37,7 +37,7 @@ class CrawlMixin:
         Returns:
             可探索的绝对 URL 列表（已去重），可能为空。
         """
-        discovered: List[str] = []
+        discovered: list[str] = []
         seen = set()
         for nav in snapshot.navigation:
             href = nav.get("href") or ""

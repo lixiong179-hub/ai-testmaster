@@ -11,7 +11,7 @@
 所有端点均需要Bearer令牌认证。
 """
 import json
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
@@ -25,7 +25,7 @@ from app.schemas.test_case import FlowSortDataSchema
 class PreviewGraphPromptRequest(BaseModel):
     """Graph Prompt 预览请求体。"""
     flow_sort_data: FlowSortDataSchema = Field(..., description="流程编排数据")
-    context: Dict[str, Any] = Field(default_factory=dict, description="AI生成上下文")
+    context: dict[str, Any] = Field(default_factory=dict, description="AI生成上下文")
 
 
 class PreviewGraphPromptResponse(BaseModel):
@@ -37,8 +37,8 @@ class PreviewGraphPromptResponse(BaseModel):
     branch_count: int = Field(..., description="分支节点数")
     exception_count: int = Field(..., description="异常节点数")
     bypass_count: int = Field(..., description="旁路节点数")
-    errors: List[Dict[str, str]] = Field(default_factory=list, description="结构校验错误")
-    warnings: List[Dict[str, str]] = Field(default_factory=list, description="结构校验警告")
+    errors: list[dict[str, str]] = Field(default_factory=list, description="结构校验错误")
+    warnings: list[dict[str, str]] = Field(default_factory=list, description="结构校验警告")
 
 
 router = APIRouter()

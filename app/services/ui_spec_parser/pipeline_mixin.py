@@ -11,7 +11,8 @@
 """
 import os
 import asyncio
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any
+from collections.abc import Callable
 import base64
 
 from sqlalchemy.orm import Session
@@ -32,8 +33,8 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
         db: Session,
         project_id: int,
         user_id: int,
-        upload_dir: Optional[str] = None,
-        parse_mode: Optional[str] = None
+        upload_dir: str | None = None,
+        parse_mode: str | None = None
     ) -> None:
         """初始化解析管道
 
@@ -47,7 +48,7 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
         super().__init__(db, project_id, user_id, upload_dir, parse_mode)
         self.parser = UISpecParser(parse_mode=self.parse_mode)
 
-    async def parse_screen(self, screen_id: int) -> Tuple[bool, str]:
+    async def parse_screen(self, screen_id: int) -> tuple[bool, str]:
         """解析单个屏幕
 
         Args:
@@ -121,9 +122,9 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
 
     async def batch_parse_screens(
         self,
-        screen_ids: List[int],
-        progress_callback: Optional[callable] = None
-    ) -> Dict[str, Any]:
+        screen_ids: list[int],
+        progress_callback: Callable[..., Any] | None = None
+    ) -> dict[str, Any]:
         """批量解析屏幕
 
         Args:
@@ -139,7 +140,7 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
         concurrency = max(1, int(getattr(settings, "UI_PARSE_CONCURRENCY", 3)))
         semaphore = asyncio.Semaphore(concurrency)
 
-        async def _parse_one(index: int, screen_id: int) -> Dict[str, Any]:
+        async def _parse_one(index: int, screen_id: int) -> dict[str, Any]:
             async with semaphore:
                 with get_db_context() as task_db:
                     task_pipeline = UISpecParsePipelineMixin(
@@ -194,8 +195,8 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
     async def parse_prototype_project(
         self,
         prototype_project_id: int,
-        progress_callback: Optional[callable] = None
-    ) -> Dict[str, Any]:
+        progress_callback: Callable[..., Any] | None = None
+    ) -> dict[str, Any]:
         """解析整个原型项目
 
         Args:
@@ -227,7 +228,7 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
 
         return result
 
-    async def generate_flow(self, prototype_project_id: int) -> Tuple[bool, str]:
+    async def generate_flow(self, prototype_project_id: int) -> tuple[bool, str]:
         """为原型项目生成页面流转
 
         Args:
@@ -269,8 +270,8 @@ class UISpecParsePipelineMixin(PipelineUploadMixin):
 
     def get_parsed_ui_spec_for_case_generation(
         self,
-        prototype_project_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        prototype_project_id: int | None = None
+    ) -> list[dict[str, Any]]:
         """获取已解析的UI规格，用于生成测试用例
 
         Args:
@@ -317,13 +318,13 @@ class UISpecParseService:
         db: Session,
         project_id: int,
         user_id: int,
-        parse_mode: Optional[str] = None
+        parse_mode: str | None = None
     ) -> UISpecParsePipelineMixin:
         """创建解析管道实例"""
         return UISpecParsePipelineMixin(db, project_id, user_id, parse_mode=parse_mode)
 
     @staticmethod
-    def encode_image_to_base64(image_path: str) -> Optional[str]:
+    def encode_image_to_base64(image_path: str) -> str | None:
         """同步的图片编码"""
         try:
             with open(image_path, "rb") as f:

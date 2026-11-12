@@ -1,7 +1,8 @@
 import time
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError, InterfaceError
-from typing import Callable, Any
+from typing import Any
+from collections.abc import Callable
 from loguru import logger
 
 

@@ -1,6 +1,6 @@
 
 """浏览器管理Mixin - 浏览器生命周期管理。"""
-from typing import Any, Optional
+from typing import Any
 from loguru import logger
 
 from app.utils.browser_controller_v2 import (
@@ -19,8 +19,8 @@ from app.services.precondition.decorator import handle_precondition_errors
 class BrowserMixin:
     """浏览器管理Mixin - 管理浏览器实例的创建、导航和清理。"""
 
-    browser_controller: Optional[BrowserController] = None
-    _test_object_info: Optional[TestObjectInfo] = None
+    browser_controller: BrowserController | None = None
+    _test_object_info: TestObjectInfo | None = None
 
     @handle_precondition_errors
     async def execute_web_precondition(

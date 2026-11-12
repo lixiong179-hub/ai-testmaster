@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any
 from datetime import datetime
 import logging
 
@@ -63,7 +63,7 @@ def create_response(
     data: Any = None,
     msg: str = "success",
     code: int = 200
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     构建统一成功响应格式
 
@@ -103,7 +103,7 @@ def create_error_response(
     msg: str,
     code: int = 500,
     data: Any = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     构建统一错误响应格式
 

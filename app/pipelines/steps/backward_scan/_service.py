@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -24,11 +24,11 @@ class BackwardScanService:
     def scan(
         self,
         change_signals: str,
-        fingerprints: List[Dict[str, Any]],
-        check_budget: Optional[Any] = None,
+        fingerprints: list[dict[str, Any]],
+        check_budget: Any | None = None,
     ) -> tuple:
         batches = self._slice_by_module(fingerprints)
-        all_verdicts: List[BackwardCaseVerdict] = []
+        all_verdicts: list[BackwardCaseVerdict] = []
         total_retries = 0
         total_degraded = 0
         total_auto_corrected = 0
@@ -70,9 +70,9 @@ class BackwardScanService:
         return all_verdicts, stats
 
     def _slice_by_module(
-        self, fingerprints: List[Dict[str, Any]],
-    ) -> List[tuple]:
-        module_map: Dict[str, List[Dict[str, Any]]] = {}
+        self, fingerprints: list[dict[str, Any]],
+    ) -> list[tuple]:
+        module_map: dict[str, list[dict[str, Any]]] = {}
         for fp in fingerprints:
             module = fp.get("module", "未分类")
             module_map.setdefault(module, []).append(fp)
@@ -93,9 +93,9 @@ class BackwardScanService:
     def _process_batch(
         self,
         change_signals: str,
-        batch_fps: List[Dict[str, Any]],
+        batch_fps: list[dict[str, Any]],
         module_label: str,
-        check_budget: Optional[Any] = None,
+        check_budget: Any | None = None,
     ) -> tuple:
         expected_ids = [fp["case_id"] for fp in batch_fps]
         prompt = build_backward_scan_prompt(
@@ -127,8 +127,8 @@ class BackwardScanService:
     def _call_ai_with_retry(
         self,
         prompt: str,
-        expected_ids: List[int],
-    ) -> Optional[Any]:
+        expected_ids: list[int],
+    ) -> Any | None:
         last_result = None
         for attempt in range(1, MAX_BATCH_RETRIES + 1):
             try:
@@ -166,9 +166,9 @@ class BackwardScanService:
     def _fallback_split(
         self,
         change_signals: str,
-        batch_fps: List[Dict[str, Any]],
+        batch_fps: list[dict[str, Any]],
         module_label: str,
-        check_budget: Optional[Any] = None,
+        check_budget: Any | None = None,
     ) -> tuple:
         if len(batch_fps) <= 1:
             return self._mark_uncertain(batch_fps, "批次重试耗尽")
@@ -177,7 +177,7 @@ class BackwardScanService:
         left = batch_fps[:mid]
         right = batch_fps[mid:]
 
-        all_verdicts: List[BackwardCaseVerdict] = []
+        all_verdicts: list[BackwardCaseVerdict] = []
         total_retries = MAX_BATCH_RETRIES
         total_degraded = 0
         total_auto_corrected = 0
@@ -213,7 +213,7 @@ class BackwardScanService:
         return all_verdicts, total_retries, total_degraded, total_auto_corrected
 
     def _mark_uncertain(
-        self, batch_fps: List[Dict[str, Any]], reason: str,
+        self, batch_fps: list[dict[str, Any]], reason: str,
     ) -> tuple:
         verdicts = [
             BackwardCaseVerdict(
@@ -229,7 +229,7 @@ class BackwardScanService:
 
 def _record_json_validation_failure(
     step_name: str,
-    detail: Optional[Dict[str, Any]] = None,
+    detail: dict[str, Any] | None = None,
 ) -> None:
     try:
         from app.services.metrics_service import record_metric

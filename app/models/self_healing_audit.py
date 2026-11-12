@@ -27,7 +27,7 @@
     2. locator_id 外键 ondelete=SET NULL，定位器被删除时审计记录保留、仅置空引用；
     3. (test_case_id, step_index) 复合索引覆盖按用例步骤维度检索的高频查询。
 """
-from typing import Any, Dict, Optional
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -98,7 +98,7 @@ class SelfHealingAudit(Base):
             f"confidence={self.confidence})>"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         将审计记录转换为字典格式，供 API 响应与日志输出使用。
 
@@ -121,7 +121,7 @@ class SelfHealingAudit(Base):
         }
 
     @staticmethod
-    def validate_failure_type(failure_type: Optional[str]) -> bool:
+    def validate_failure_type(failure_type: str | None) -> bool:
         """
         校验失败原因是否在允许的枚举值内。
 
@@ -134,7 +134,7 @@ class SelfHealingAudit(Base):
         return failure_type in FAILURE_TYPE_VALUES
 
     @staticmethod
-    def validate_strategy(strategy: Optional[str]) -> bool:
+    def validate_strategy(strategy: str | None) -> bool:
         """
         校验自愈策略是否在允许的枚举值内。
 
@@ -147,7 +147,7 @@ class SelfHealingAudit(Base):
         return strategy in STRATEGY_VALUES
 
     @staticmethod
-    def validate_confidence(confidence: Optional[float]) -> bool:
+    def validate_confidence(confidence: float | None) -> bool:
         """
         校验置信度取值范围是否合法（0.00-1.00）。
 

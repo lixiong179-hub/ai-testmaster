@@ -5,7 +5,7 @@ VisualValidationAgent 感知「页面在哪、DOM 长什么样、视口多大」
 """
 from __future__ import annotations
 
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from app.services.agent.artifacts.base import Artifact
 
@@ -24,9 +24,9 @@ class ApplicationStateArtifact(Artifact):
     description: ClassVar[str] = "被测应用状态，含 URL、DOM 快照、视口尺寸"
 
     url: str
-    dom_snapshot: Optional[str] = None
-    tab_id: Optional[str] = None
-    viewport_size: Optional[dict] = None
+    dom_snapshot: str | None = None
+    tab_id: str | None = None
+    viewport_size: dict | None = None
 
 
 __all__ = ["ApplicationStateArtifact"]

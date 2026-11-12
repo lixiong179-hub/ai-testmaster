@@ -1,6 +1,7 @@
 import time
-from typing import Dict, Any
+from typing import Any
 from loguru import logger
+import contextlib
 
 
 class DefectCaptureMixin:
@@ -61,10 +62,8 @@ class DefectCaptureMixin:
 
     def _on_request_started(self, request: Any) -> None:
         """记录请求开始时间，用于计算响应耗时。"""
-        try:
+        with contextlib.suppress(Exception):
             self._request_start_times[request.url] = time.monotonic()
-        except Exception:
-            pass
 
     def _on_response(self, response: Any) -> None:
         """处理响应事件，收集 5xx 响应，排除预期 4xx 请求。
@@ -144,7 +143,7 @@ class DefectCaptureMixin:
                 f"{growth_mb:.2f}MB, 峰值 {recent[-1]:.2f}MB"
             )
 
-    def get_defect_evidence(self) -> Dict[str, Any]:
+    def get_defect_evidence(self) -> dict[str, Any]:
         """返回当前收集的缺陷证据字典。
 
         Returns:

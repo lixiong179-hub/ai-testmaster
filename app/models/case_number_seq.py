@@ -6,7 +6,7 @@
 核心类:
     CaseNumberSeq: 编号序列模型，project_id 为主键，current_seq 记录当前序号
 """
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer
 from app.db.database import Base
 
 

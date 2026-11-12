@@ -1,5 +1,4 @@
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -12,7 +11,7 @@ class _HelpersMixin:
         self,
         result: Any,
         test_case: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return {
             "case_id": result.case_id,
             "case_no": test_case.case_no,
@@ -30,9 +29,8 @@ class _HelpersMixin:
         self,
         case_id: int,
         limit: int = 10,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         from app.models.test_result import TestResult
-        from app.models.enums import ExecStatus
 
         results = self.db.query(TestResult).filter(
             TestResult.case_id == case_id,

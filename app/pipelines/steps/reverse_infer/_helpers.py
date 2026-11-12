@@ -1,9 +1,8 @@
 import hashlib
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from loguru import logger
 
 _CONFIDENCE_THRESHOLD: float = 0.7
 _MAX_UI_CHARS: int = 4000
@@ -27,10 +26,10 @@ def _clamp_float(value: Any, low: float, high: float) -> float:
 
 
 def _build_ui_text(
-    ui_descriptions: List[Dict[str, Any]],
-    ui_specs: List[Dict[str, Any]],
+    ui_descriptions: list[dict[str, Any]],
+    ui_specs: list[dict[str, Any]],
 ) -> str:
-    parts: List[str] = []
+    parts: list[str] = []
 
     for desc in ui_descriptions[:20]:
         screen_name = desc.get("screen_name", "未知页面")
@@ -69,7 +68,7 @@ def _build_ui_text(
     return text
 
 
-def _build_fingerprint_text(fingerprints: Optional[Dict[str, Any]]) -> str:
+def _build_fingerprint_text(fingerprints: dict[str, Any] | None) -> str:
     if not fingerprints:
         return "（无历史用例指纹）"
 
@@ -77,7 +76,7 @@ def _build_fingerprint_text(fingerprints: Optional[Dict[str, Any]]) -> str:
     if not isinstance(items, list) or len(items) == 0:
         return "（无历史用例指纹）"
 
-    parts: List[str] = []
+    parts: list[str] = []
     seen_modules: set = set()
 
     for item in items[:_MAX_FINGERPRINT_COUNT]:
@@ -99,7 +98,7 @@ def _build_fingerprint_text(fingerprints: Optional[Dict[str, Any]]) -> str:
     return text
 
 
-def _parse_infer_response(content: str) -> Optional[Dict[str, Any]]:
+def _parse_infer_response(content: str) -> dict[str, Any] | None:
     try:
         parsed = json.loads(content)
         if isinstance(parsed, dict):
@@ -120,7 +119,7 @@ def _parse_infer_response(content: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _validate_new_project_output(parsed: Dict[str, Any]) -> tuple:
+def _validate_new_project_output(parsed: dict[str, Any]) -> tuple:
     if "overall_confidence" not in parsed:
         return False, "缺少 overall_confidence 字段"
 
@@ -142,7 +141,7 @@ def _validate_new_project_output(parsed: Dict[str, Any]) -> tuple:
     return True, None
 
 
-def _validate_old_project_output(parsed: Dict[str, Any]) -> tuple:
+def _validate_old_project_output(parsed: dict[str, Any]) -> tuple:
     if "overall_confidence" not in parsed:
         return False, "缺少 overall_confidence 字段"
 

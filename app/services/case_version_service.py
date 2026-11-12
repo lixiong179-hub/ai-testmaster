@@ -18,7 +18,7 @@
       + TRACKED_FIELDS/MAX_VERSIONS_PER_CASE/ARCHIVE_OLDER_THAN_DAYS 常量
       拆分至 _case_version_archive；本模块 re-export 常量保持导入兼容
 """
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -27,9 +27,10 @@ from app.models.test_case import TestCase
 from app.models.test_case_version import TestCaseVersion
 
 from app.services._case_version_archive import (
-    TRACKED_FIELDS,
-    MAX_VERSIONS_PER_CASE,
-    ARCHIVE_OLDER_THAN_DAYS,
+    # re-export 常量：保持历史导入路径兼容（见模块 docstring）
+    TRACKED_FIELDS,  # noqa: F401
+    MAX_VERSIONS_PER_CASE,  # noqa: F401
+    ARCHIVE_OLDER_THAN_DAYS,  # noqa: F401
     archive_old_versions,
     build_changed_fields_from_state,
 )
@@ -57,12 +58,12 @@ class CaseVersionService:
         db: Session,
         test_case_id: int,
         change_type: str,
-        operator_id: Optional[int] = None,
-        operator_name: Optional[str] = None,
-        change_description: Optional[str] = None,
-        changed_fields: Optional[Dict[str, Dict[str, Any]]] = None,
+        operator_id: int | None = None,
+        operator_name: str | None = None,
+        change_description: str | None = None,
+        changed_fields: dict[str, dict[str, Any]] | None = None,
         auto_flush: bool = True,
-    ) -> Optional[TestCaseVersion]:
+    ) -> TestCaseVersion | None:
         """创建版本快照
 
         记录用例变更后的完整数据快照和变更字段对比信息。
@@ -133,7 +134,7 @@ class CaseVersionService:
         test_case_id: int,
         v1_id: int,
         v2_id: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """对比两个版本，返回字段级 diff
 
         详见 _case_version_query.compare_versions。
@@ -145,7 +146,7 @@ class CaseVersionService:
         db: Session,
         test_case_id: int,
         version_id: int,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """获取版本详情
 
         详见 _case_version_query.get_version。
@@ -157,8 +158,8 @@ class CaseVersionService:
         db: Session,
         test_case_id: int,
         version_id: int,
-        operator_id: Optional[int] = None,
-    ) -> Optional[TestCase]:
+        operator_id: int | None = None,
+    ) -> TestCase | None:
         """恢复到指定版本
 
         将用例的追踪字段恢复到目标版本的快照值，并自动创建恢复版本记录。
@@ -190,7 +191,7 @@ class CaseVersionService:
         if not snapshot:
             raise ValueError(f"版本V{version.version_number}无快照数据，无法恢复")
 
-        changed_fields: Dict[str, Dict[str, Any]] = {}
+        changed_fields: dict[str, dict[str, Any]] = {}
         restorable_fields = ["title", "module", "precondition", "steps_json",
                              "expected_result", "priority", "case_type"]
         for field in restorable_fields:
@@ -228,7 +229,7 @@ class CaseVersionService:
     def build_changed_fields(
         case: TestCase,
         state: Any,
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """根据 SQLAlchemy instance state 构建 changed_fields
 
         详见 _case_version_archive.build_changed_fields_from_state。

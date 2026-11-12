@@ -14,7 +14,6 @@
         service = PermissionService(db)  # db 为 AsyncSession
         perm = await service.create_permission_async(perm_in)
 """
-from typing import Optional, List
 
 from sqlalchemy import select
 
@@ -57,7 +56,7 @@ class PermissionServiceAsyncMixin:
         await self.db.refresh(db_perm)
         return db_perm
 
-    async def get_permission_by_id_async(self, perm_id: int) -> Optional[Permission]:
+    async def get_permission_by_id_async(self, perm_id: int) -> Permission | None:
         """根据权限ID查询权限（异步版本）。"""
         result = await self.db.execute(
             select(Permission).where(Permission.id == perm_id)
@@ -101,7 +100,7 @@ class PermissionServiceAsyncMixin:
 
     async def get_permissions_async(
         self, skip: int = 0, limit: int = 100
-    ) -> List[Permission]:
+    ) -> list[Permission]:
         """分页查询权限列表（异步版本）。"""
         result = await self.db.execute(
             select(Permission).offset(skip).limit(limit)

@@ -3,7 +3,6 @@
 业务视图面向产品经理和业务人员，仅展示操作步骤和预期结果，
 不暴露技术细节。支持导出为Markdown和HTML格式。
 """
-from typing import Optional
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep
@@ -12,7 +11,7 @@ from app.services.test_case_view.models import BusinessStepView, BusinessTestCas
 
 class BusinessViewMixin:
 
-    def get_business_view(self, test_case_id: int) -> Optional[BusinessTestCaseView]:
+    def get_business_view(self, test_case_id: int) -> BusinessTestCaseView | None:
         """获取测试用例的业务视图，仅展示is_business_view=1的步骤。"""
         test_case = self.db.query(TestCase).filter(TestCase.id == test_case_id, TestCase.is_deleted.is_(False)).first()
         if not test_case:

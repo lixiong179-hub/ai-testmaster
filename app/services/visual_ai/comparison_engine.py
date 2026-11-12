@@ -21,14 +21,13 @@ from __future__ import annotations
 
 import base64
 import json
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from PIL import Image
 
 from app.services.visual_ai.match_level import (
     MatchLevelFactory,
-    MatchLevelStrategy,
     PixelDiffResult,
 )
 
@@ -53,7 +52,7 @@ class LLMAnalysisResult:
     suggestion: str = ""
     token_cost: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """返回字典形式，供持久化到 VisualDiff.llm_analysis。"""
         return {
             "category": self.category,
@@ -81,7 +80,7 @@ class ComparisonResult:
     """
 
     pixel_diff: PixelDiffResult
-    llm_analysis: Optional[LLMAnalysisResult] = None
+    llm_analysis: LLMAnalysisResult | None = None
     match_level: str = "strict"
     total_token_cost: int = 0
 
@@ -101,7 +100,7 @@ class ComparisonResult:
         return self.pixel_diff.total_pixel_count
 
     @property
-    def diff_image(self) -> Optional[bytes]:
+    def diff_image(self) -> bytes | None:
         """差异图字节流。"""
         return self.pixel_diff.diff_image
 
@@ -140,7 +139,7 @@ class ComparisonEngine:
 
     def __init__(
         self,
-        ai_client: Optional[Any] = None,
+        ai_client: Any | None = None,
         llm_analysis_threshold: float = 5.0,
         llm_token_limit: int = 2000,
     ) -> None:

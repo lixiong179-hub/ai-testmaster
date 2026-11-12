@@ -1,7 +1,6 @@
 """时间线构建Mixin - 构建执行过程的时间线视图。
 """
 import os
-from typing import Optional
 from loguru import logger
 
 from app.models.test_case import TestCaseExecution, TestStep, TestCasePreconditionStep
@@ -13,7 +12,7 @@ from app.services.execution_replay.models import (
 class TimelineMixin:
     """执行回放时间线构建mixin，从TestStep和TestCasePreconditionStep构建ReplayEvent序列。"""
 
-    async def _load_execution_timeline(self, execution_id: int) -> Optional[ExecutionTimeline]:
+    async def _load_execution_timeline(self, execution_id: int) -> ExecutionTimeline | None:
         """加载指定执行ID的时间线，包含前置条件和用例步骤的事件序列。
 
         Args:
@@ -129,9 +128,9 @@ class TimelineMixin:
     def _resolve_screenshot_path(
         self,
         execution_id: int,
-        step_id: Optional[int] = None,
-        precondition_step_id: Optional[int] = None
-    ) -> Optional[str]:
+        step_id: int | None = None,
+        precondition_step_id: int | None = None
+    ) -> str | None:
         """根据执行ID和步骤ID解析截图文件路径，支持多种命名模式的查找。
 
         Args:

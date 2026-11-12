@@ -12,7 +12,7 @@
 模板支持模块切片占位符 {module_label}。
 """
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 BACKWARD_SCAN_SYSTEM_PROMPT = (
     "你是一个专业的测试用例评审专家。你的任务是对比现有测试用例与最新的需求变更，"
@@ -47,8 +47,8 @@ BACKWARD_SCAN_USER_TEMPLATE = (
 
 def build_backward_scan_prompt(
     change_signals: str,
-    cases: List[Dict[str, Any]],
-    module_label: Optional[str] = None,
+    cases: list[dict[str, Any]],
+    module_label: str | None = None,
 ) -> str:
     """构建反向扫描用户 prompt。
 
@@ -70,7 +70,7 @@ def build_backward_scan_prompt(
     )
 
 
-def _format_cases_for_prompt(cases: List[Dict[str, Any]]) -> str:
+def _format_cases_for_prompt(cases: list[dict[str, Any]]) -> str:
     """将用例列表格式化为 prompt 中的文本。
 
     Args:

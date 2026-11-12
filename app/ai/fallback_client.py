@@ -12,7 +12,7 @@ Fallback AI Client 实现
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -49,11 +49,11 @@ class FallbackAIClient:
         self,
         prompt: str,
         *,
-        system: Optional[str] = None,
-        schema: Optional[Dict[str, Any]] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        system: str | None = None,
+        schema: dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AIResponse:
         """执行 AI 补全调用（含主备切换逻辑）
 
@@ -117,11 +117,11 @@ class FallbackAIClient:
         self,
         prompt: str,
         *,
-        system: Optional[str] = None,
-        schema: Optional[Dict[str, Any]] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        system: str | None = None,
+        schema: dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AIResponse:
         """调用备用模型并标记 degraded"""
         response = self.fallback.complete(

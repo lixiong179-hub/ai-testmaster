@@ -1,4 +1,3 @@
-from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.models.requirement_link import RequirementLink
 from app.models.project import Project
@@ -9,9 +8,9 @@ from app.crud.requirement_link._queries import get_requirement_link_by_id
 def update_requirement_link(
     db: Session,
     link_id: int,
-    project_id: Optional[int] = None,
+    project_id: int | None = None,
     **kwargs
-) -> Optional[RequirementLink]:
+) -> RequirementLink | None:
     link = get_requirement_link_by_id(db, link_id, project_id)
     if not link:
         return None
@@ -28,7 +27,7 @@ def update_requirement_link(
 def delete_requirement_link(
     db: Session,
     link_id: int,
-    project_id: Optional[int] = None
+    project_id: int | None = None
 ) -> bool:
     link = get_requirement_link_by_id(db, link_id, project_id)
     if not link:
@@ -43,7 +42,7 @@ def update_link_cache(
     link_id: int,
     cached_content: str,
     fetch_status: str = "success"
-) -> Optional[RequirementLink]:
+) -> RequirementLink | None:
     link = db.query(RequirementLink).filter(RequirementLink.id == link_id).first()
     if not link:
         return None
@@ -60,11 +59,11 @@ def get_active_links_by_project(
     db: Session,
     project_id: int,
     user_id: int
-) -> List[RequirementLink]:
+) -> list[RequirementLink]:
     return db.query(RequirementLink).join(Project).filter(
         RequirementLink.project_id == project_id,
         Project.user_id == user_id,
-        RequirementLink.is_active == True
+        RequirementLink.is_active.is_(True)
     ).order_by(RequirementLink.link_type, RequirementLink.create_time.desc()).all()
 
 
@@ -73,7 +72,7 @@ def toggle_link_active(
     link_id: int,
     project_id: int,
     user_id: int
-) -> Optional[RequirementLink]:
+) -> RequirementLink | None:
     link = db.query(RequirementLink).join(Project).filter(
         RequirementLink.id == link_id,
         RequirementLink.project_id == project_id,

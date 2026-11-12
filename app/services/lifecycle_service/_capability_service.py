@@ -5,7 +5,6 @@ Capability 生命周期服务
 状态变更必须通过本模块，禁止直接 SQL UPDATE status 字段。
 """
 import logging
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -36,8 +35,8 @@ def transition_capability(
     capability_id: int,
     toStatus: str,
     *,
-    actor_id: Optional[int] = None,
-    reason: Optional[str] = None,
+    actor_id: int | None = None,
+    reason: str | None = None,
 ) -> TestCapability:
     """执行 Capability 状态流转并写入审计日志。
 
@@ -97,8 +96,8 @@ def _write_capability_audit_log(
     capability_id: int,
     oldStatus: str,
     newStatus: str,
-    actor_id: Optional[int],
-    reason: Optional[str],
+    actor_id: int | None,
+    reason: str | None,
 ) -> None:
     """写入 Capability 状态变更审计日志。"""
     detail: dict = {"from": oldStatus, "to": newStatus}

@@ -11,7 +11,6 @@
 import logging
 import re
 import subprocess
-from typing import List, Optional
 
 from app.services.impact_analysis.models import CodeChange
 
@@ -44,7 +43,7 @@ class ChangeAnalyzer:
         base_ref: str = "HEAD~1",
         target_ref: str = "HEAD",
         timeout: int = 10,
-    ) -> List[CodeChange]:
+    ) -> list[CodeChange]:
         """执行 git diff 命令获取变更。
 
         边界场景：
@@ -78,7 +77,7 @@ class ChangeAnalyzer:
             logger.warning(f"git diff 异常: {e}")
             return []
 
-    def parse_diff_text(self, diff_text: str) -> List[CodeChange]:
+    def parse_diff_text(self, diff_text: str) -> list[CodeChange]:
         """解析 git diff unified format 文本。
 
         边界场景：
@@ -89,8 +88,8 @@ class ChangeAnalyzer:
         if not diff_text or not diff_text.strip():
             return []
 
-        changes: List[CodeChange] = []
-        current_file: Optional[str] = None
+        changes: list[CodeChange] = []
+        current_file: str | None = None
         current_added: set = set()
         current_deleted: set = set()
         is_new_file = False

@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
 
 from sqlalchemy import (
     Boolean,
@@ -96,9 +95,9 @@ class ReviewDecision(Base):
 
     @staticmethod
     def compute_final_verdict(
-        ai_verdict: Optional[str],
-        human_verdict: Optional[str],
-    ) -> Tuple[str, bool]:
+        ai_verdict: str | None,
+        human_verdict: str | None,
+    ) -> tuple[str, bool]:
         if human_verdict is not None:
             conflict = ai_verdict is not None and human_verdict != ai_verdict
             return human_verdict, conflict

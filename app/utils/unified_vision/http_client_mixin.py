@@ -20,7 +20,7 @@
 """
 import os
 import httpx
-from typing import Dict, Any
+from typing import Any
 
 from app.utils.unified_vision.model_types import VisionModelType
 
@@ -32,7 +32,7 @@ class HTTPClientMixin:
     使用httpx同步客户端发送请求，支持超时控制和分类错误处理。
     """
 
-    def _make_request(self, payload: Dict[str, Any]) -> str:
+    def _make_request(self, payload: dict[str, Any]) -> str:
         """发送HTTP POST请求到模型API
 
         使用httpx发送JSON格式的POST请求，携带Bearer Token认证。

@@ -10,13 +10,13 @@
     - UNCERTAIN: 需人工评审
 """
 import json
-from enum import Enum
-from typing import Any, List, Optional
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field, validator
 
 
-class BackwardVerdict(str, Enum):
+class BackwardVerdict(StrEnum):
     """反向扫描判定结果枚举。"""
 
     VALID = "VALID"
@@ -60,13 +60,13 @@ class BackwardCaseVerdict(BaseModel):
 class BackwardScanOutput(BaseModel):
     """反向扫描 AI 输出的完整结构。"""
 
-    verdicts: List[BackwardCaseVerdict] = Field(
+    verdicts: list[BackwardCaseVerdict] = Field(
         ...,
         description="每条用例的判定结果列表",
     )
 
     @validator("verdicts")
-    def check_no_duplicate_case_ids(cls, v: List[BackwardCaseVerdict]) -> List[BackwardCaseVerdict]:
+    def check_no_duplicate_case_ids(cls, v: list[BackwardCaseVerdict]) -> list[BackwardCaseVerdict]:
         seen = set()
         for item in v:
             if item.case_id in seen:
@@ -79,12 +79,12 @@ class ValidationResult(BaseModel):
     """校验结果。"""
 
     valid: bool = Field(description="是否校验通过")
-    errors: List[str] = Field(default_factory=list, description="校验错误列表")
-    auto_corrected: List[str] = Field(
+    errors: list[str] = Field(default_factory=list, description="校验错误列表")
+    auto_corrected: list[str] = Field(
         default_factory=list,
         description="自动修正的项目列表",
     )
-    output: Optional[BackwardScanOutput] = Field(
+    output: BackwardScanOutput | None = Field(
         default=None,
         description="修正后的输出（校验通过时）",
     )
@@ -93,7 +93,7 @@ class ValidationResult(BaseModel):
 
 def validate_backward_output(
     raw: Any,
-    expected_case_ids: Optional[List[int]] = None,
+    expected_case_ids: list[int] | None = None,
 ) -> ValidationResult:
     """校验反向扫描 AI 输出。
 
@@ -112,8 +112,8 @@ def validate_backward_output(
     Returns:
         ValidationResult 包含校验结果、错误列表、自动修正项和修正后的输出。
     """
-    errors: List[str] = []
-    auto_corrected: List[str] = []
+    errors: list[str] = []
+    auto_corrected: list[str] = []
 
     if raw is None:
         return ValidationResult(

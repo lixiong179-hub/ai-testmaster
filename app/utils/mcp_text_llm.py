@@ -29,7 +29,7 @@ MCP文本LLM工具模块
 import asyncio
 import json
 import re
-from typing import Optional, Dict, Any
+from typing import Any
 
 from loguru import logger
 
@@ -84,7 +84,7 @@ class MCPAwareLLM:
         _vision_model: 统一视觉模型实例（延迟初始化）
     """
 
-    def __init__(self, vision_model: Optional[UnifiedVisionModel] = None):
+    def __init__(self, vision_model: UnifiedVisionModel | None = None):
         self._vision_model = vision_model
 
     @property
@@ -105,8 +105,8 @@ class MCPAwareLLM:
         self,
         accessibility_tree: str,
         operation_description: str,
-        action_type: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+        action_type: str | None = None
+    ) -> dict[str, Any] | None:
         """理解用户操作意图，返回元素定位信息
 
         将Accessibility Tree和操作描述发送给视觉大模型，
@@ -175,7 +175,7 @@ class MCPAwareLLM:
         return results
 
     @staticmethod
-    def parse_locator_result(response: str) -> Optional[Dict[str, Any]]:
+    def parse_locator_result(response: str) -> dict[str, Any] | None:
         """解析LLM返回的定位结果
 
         从模型返回的文本中提取JSON，验证必要字段是否存在。
@@ -213,7 +213,7 @@ class MCPAwareLLM:
 
 
 # 全局MCPAwareLLM单例 — 延迟初始化，首次调用get_mcp_llm()时创建
-_mcp_llm: Optional[MCPAwareLLM] = None
+_mcp_llm: MCPAwareLLM | None = None
 
 
 def get_mcp_llm() -> MCPAwareLLM:

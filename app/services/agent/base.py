@@ -16,13 +16,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     # 仅类型注解使用，运行时不导入避免循环依赖
     from app.models.agent_session import AgentSession
     from app.services.agent.artifacts.base import Artifact
-    from app.services.agent.tools.base_tool import ToolResult
 
 
 @dataclass(frozen=True)
@@ -43,10 +42,10 @@ class AgentDefinition:
 
     agent_type: str
     system_prompt: str
-    tools: List[str] = field(default_factory=list)
-    default_capabilities: List[str] = field(default_factory=list)
-    max_iterations: Optional[int] = None
-    token_budget: Optional[int] = None
+    tools: list[str] = field(default_factory=list)
+    default_capabilities: list[str] = field(default_factory=list)
+    max_iterations: int | None = None
+    token_budget: int | None = None
     description: str = ""
 
 
@@ -89,9 +88,9 @@ class AgentBase(ABC):
     @abstractmethod
     async def run(
         self,
-        artifacts: List["Artifact"],
-        execution_callback: Optional[Any] = None,
-    ) -> "AgentSession":
+        artifacts: list[Artifact],
+        execution_callback: Any | None = None,
+    ) -> AgentSession:
         """Agent 执行入口。
 
         Args:

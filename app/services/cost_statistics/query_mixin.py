@@ -1,5 +1,5 @@
 """成本统计查询Mixin - 用例/项目成本统计与趋势查询。"""
-from typing import Dict, Any, List
+from typing import Any
 from datetime import datetime
 from loguru import logger
 from sqlalchemy.orm import joinedload
@@ -85,7 +85,7 @@ class CostStatisticsQueryMixin:
                 savings_rate=0, cache_hit_rate=0, ai_dependency_rate=0
             )
 
-        total_stats: Dict[str, float] = {
+        total_stats: dict[str, float] = {
             'total_steps': 0, 'ai_vision_calls': 0, 'cache_hits': 0,
             'css_selector_used': 0, 'xpath_used': 0,
             'estimated_cost': 0, 'actual_cost': 0
@@ -129,7 +129,7 @@ class CostStatisticsQueryMixin:
             ai_dependency_rate=round(ai_dependency_rate, 1)
         )
 
-    def get_cost_summary(self, project_id: int) -> Dict[str, Any]:
+    def get_cost_summary(self, project_id: int) -> dict[str, Any]:
         stats = self.get_project_cost_statistics(project_id)
         return {
             "total_cost": stats.actual_cost,
@@ -141,7 +141,7 @@ class CostStatisticsQueryMixin:
             "optimization_potential": stats.cost_savings > 0
         }
 
-    def _get_case_cost_details(self, project_id: int) -> List[Dict[str, Any]]:
+    def _get_case_cost_details(self, project_id: int) -> list[dict[str, Any]]:
         cases = self.db.query(TestCase).filter(TestCase.project_id == project_id, TestCase.is_deleted.is_(False)).all()
         case_stats = []
         for case in cases:
@@ -165,7 +165,7 @@ class CostStatisticsQueryMixin:
 
     def _get_daily_cost_statistics(
         self, project_id: int, start_date: datetime, end_date: datetime
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         cases = self.db.query(TestCase).filter(TestCase.project_id == project_id, TestCase.is_deleted.is_(False)).all()
         case_ids = [case.id for case in cases]
         if not case_ids:
@@ -191,7 +191,7 @@ class CostStatisticsQueryMixin:
 
     def _get_cost_trend(
         self, project_id: int, start_date: datetime, end_date: datetime
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         cases = self.db.query(TestCase).filter(TestCase.project_id == project_id, TestCase.is_deleted.is_(False)).all()
         case_ids = [case.id for case in cases]
         if not case_ids:

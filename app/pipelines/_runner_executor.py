@@ -11,7 +11,6 @@
 import hashlib
 import json
 import logging
-from typing import Optional
 
 from app.models.pipeline import Artifact
 from app.pipelines.base import PipelineStep, StepResult
@@ -34,7 +33,7 @@ class _StepExecutionMixin:
 
     def _execute_step_with_retry(
         self, ctx: PipelineContext, step: PipelineStep,
-    ) -> Optional[StepResult]:
+    ) -> StepResult | None:
         """执行单个 Step（含缓存检查 + 重试 + 降级）。
 
         Args:
@@ -86,7 +85,7 @@ class _StepExecutionMixin:
         )
         ctx.register_step_record(step.name, step_record)
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
         for attempt in range(1, MAX_RETRIES + 2):
             try:
                 pipeline_service.update_step_status(

@@ -2,10 +2,10 @@
 
 提取到独立模块以避免 _graph_prompt 与 _flow_builder 之间的循环导入。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
-def _format_node_elements(elements: Optional[List[Dict[str, Any]]]) -> str:
+def _format_node_elements(elements: list[dict[str, Any]] | None) -> str:
     """格式化节点的 UI 元素列表为结构化描述。"""
     if not elements:
         return ""
@@ -30,7 +30,7 @@ def _format_node_elements(elements: Optional[List[Dict[str, Any]]]) -> str:
     return '; '.join(parts)
 
 
-def _build_image_ref(node: Dict[str, Any], include_images: bool) -> str:
+def _build_image_ref(node: dict[str, Any], include_images: bool) -> str:
     """构建节点的图片 URL 引用文本。"""
     if include_images and node.get('image_url'):
         return f" [图片URL: {node.get('image_url', '')}]"

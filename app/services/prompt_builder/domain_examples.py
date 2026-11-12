@@ -9,7 +9,7 @@ Task 13: P2-2 重复查询消除 — 改为调用 case_quality.history_cache 共
 """
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -23,8 +23,8 @@ _DOMAIN_CANDIDATE_LIMIT = 15
 
 
 def get_domain_examples(
-    db: Optional[Session], project_id: Optional[int]
-) -> Optional[str]:
+    db: Session | None, project_id: int | None
+) -> str | None:
     """从项目已有高质量用例中提取领域 Few-shot 示例文本。
 
     按 case_category 分类提取：positive/exception/boundary 各 1 条。
@@ -59,7 +59,7 @@ def get_domain_examples(
         return None
 
     # 按 case_category 分组，每类取质量分最高的 1 条
-    selected: Dict[str, Dict[str, Any]] = {}
+    selected: dict[str, dict[str, Any]] = {}
     for case in candidates:
         category = case.get("case_category") or ""
         if category in _DOMAIN_REQUIRED_CATEGORIES and category not in selected:
@@ -75,7 +75,7 @@ def get_domain_examples(
         )
         return None
 
-    sections: List[str] = ["## 同项目高质量用例参考（Few-shot 示例）："]
+    sections: list[str] = ["## 同项目高质量用例参考（Few-shot 示例）："]
     for category in _DOMAIN_REQUIRED_CATEGORIES:
         case = selected[category]
         steps = _safe_parse_steps(case.get("steps_json"))
@@ -100,7 +100,7 @@ def get_domain_examples(
     return "\n".join(sections)
 
 
-def _safe_parse_steps(steps_json: Any) -> List[Dict[str, Any]]:
+def _safe_parse_steps(steps_json: Any) -> list[dict[str, Any]]:
     """安全解析 steps_json 字段，解析失败时返回空列表。"""
     if not steps_json:
         return []

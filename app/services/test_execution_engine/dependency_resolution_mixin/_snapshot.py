@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestCase
@@ -25,7 +25,7 @@ class _SnapshotMixin:
         try:
             page = self.browser._page
             context = getattr(self.browser, '_context', None)
-            snapshot: Dict[str, Any] = {
+            snapshot: dict[str, Any] = {
                 "type": "web",
                 "url": page.url,
                 "anchor_step": anchor_step,
@@ -67,7 +67,7 @@ class _SnapshotMixin:
             ui_summary = await self._capture_mobile_ui_summary(mobile_executor)
             screenshot_hash = await self._capture_screenshot_hash(adb)
 
-            snapshot: Dict[str, Any] = {
+            snapshot: dict[str, Any] = {
                 "type": "mobile",
                 "current_activity": current_activity,
                 "ui_element_summary": ui_summary,
@@ -99,7 +99,7 @@ class _SnapshotMixin:
 
     async def _capture_mobile_ui_summary(
         self, mobile_executor: Any
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         try:
             uiautomator = getattr(mobile_executor, 'uiautomator', None)
             if not uiautomator:
@@ -108,7 +108,7 @@ class _SnapshotMixin:
             elements = await uiautomator.get_clickable_elements()
             summary = []
             for elem in elements[:20]:
-                item: Dict[str, str] = {}
+                item: dict[str, str] = {}
                 if elem.resource_id:
                     item["resource_id"] = elem.resource_id
                 if elem.text:
@@ -123,7 +123,7 @@ class _SnapshotMixin:
         except Exception:
             return []
 
-    async def _capture_screenshot_hash(self, adb: Any) -> Optional[str]:
+    async def _capture_screenshot_hash(self, adb: Any) -> str | None:
         try:
             import hashlib
             screenshot_bytes = await adb.take_screenshot()
@@ -158,7 +158,7 @@ class _SnapshotMixin:
         return await self._restore_web_snapshot(snapshot)
 
     async def _restore_web_snapshot(
-        self, snapshot: Dict[str, Any]
+        self, snapshot: dict[str, Any]
     ) -> bool:
         if not self.browser or not getattr(self.browser, '_page', None):
             logger.warning("浏览器未初始化，无法恢复Web快照")
@@ -200,7 +200,7 @@ class _SnapshotMixin:
             return False
 
     async def _restore_mobile_snapshot(
-        self, snapshot: Dict[str, Any]
+        self, snapshot: dict[str, Any]
     ) -> bool:
         mobile_executor = getattr(self, '_mobile_executor', None)
         if not mobile_executor:
@@ -256,7 +256,7 @@ class _SnapshotMixin:
 
     async def _verify_mobile_ui(
         self,
-        snapshot: Dict[str, Any],
+        snapshot: dict[str, Any],
         mobile_executor: Any,
     ) -> bool:
         expected_elements = snapshot.get("ui_element_summary", [])
@@ -291,7 +291,7 @@ class _SnapshotMixin:
 
     @staticmethod
     def _element_matches(
-        expected: Dict[str, str], current: Any
+        expected: dict[str, str], current: Any
     ) -> bool:
         match_count = 0
         total_fields = 0

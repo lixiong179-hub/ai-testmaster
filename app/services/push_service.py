@@ -21,7 +21,7 @@
     get_push_service工厂函数遵循依赖注入原则，避免调用方直接new实例，
     便于测试时替换Mock实现。
 """
-from typing import Any, Dict
+from typing import Any
 from loguru import logger
 
 from app.core.websocket import manager as ws_manager
@@ -49,7 +49,7 @@ class PushService:
         """初始化推送服务，注入WebSocket连接管理器。"""
         self._manager = ws_manager
 
-    async def push(self, channel: str, data: Dict[str, Any]) -> bool:
+    async def push(self, channel: str, data: dict[str, Any]) -> bool:
         """向指定通道推送消息，失败时返回False并记录警告日志。
 
         通道格式转换:

@@ -7,7 +7,7 @@
 供 BatchOrchestrator 通过多继承组合使用，依赖宿主类在 __init__ 中
 注入 self.db（sqlalchemy.orm.Session）。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -25,8 +25,8 @@ class ModuleFailureFeedbackMixin:
 
     # ── 模块历史失败归因（合并自 _module_failure_feedback_mixin） ──
     def _preload_module_failure_feedback(
-        self, project_id: int, test_points: List[Dict[str, Any]]
-    ) -> Dict[str, List[str]]:
+        self, project_id: int, test_points: list[dict[str, Any]]
+    ) -> dict[str, list[str]]:
         """批量预加载各模块的历史执行失败类型，消除 _refine_context_for_point 的 N+1 查询。
 
         业务原因：原实现每个测试点独立查询同模块失败用例，N 个测试点产生 N 次
@@ -57,7 +57,7 @@ class ModuleFailureFeedbackMixin:
             logger.warning(f"批量预加载历史执行失败归因失败: {e}")
             return {}
 
-        grouped: Dict[str, List[str]] = {}
+        grouped: dict[str, list[str]] = {}
         for mod, ftype in rows:
             if mod not in grouped:
                 grouped[mod] = []
@@ -67,10 +67,10 @@ class ModuleFailureFeedbackMixin:
 
     async def _refine_context_for_point(
         self,
-        context: Dict[str, Any],
-        test_point: Dict[str, Any],
+        context: dict[str, Any],
+        test_point: dict[str, Any],
         project_id: int,
-        module_failures: Optional[Dict[str, List[str]]] = None,
+        module_failures: dict[str, list[str]] | None = None,
     ) -> None:
         """查询同模块历史执行失败归因并注入生成上下文（Task 12）。
 
@@ -83,7 +83,7 @@ class ModuleFailureFeedbackMixin:
             return
 
         if module_failures is not None:
-            failure_types: List[str] = module_failures.get(module_name, [])
+            failure_types: list[str] = module_failures.get(module_name, [])
         else:
             db = getattr(self, "db", None)
             if db is None:
@@ -110,7 +110,7 @@ class ModuleFailureFeedbackMixin:
         if not failure_types:
             return
 
-        failure_summary: Dict[str, int] = {}
+        failure_summary: dict[str, int] = {}
         for ftype in failure_types:
             ftype = ftype or "other"
             failure_summary[ftype] = failure_summary.get(ftype, 0) + 1

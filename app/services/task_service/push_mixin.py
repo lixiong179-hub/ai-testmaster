@@ -52,7 +52,7 @@ class TaskPushMixin:
         被TaskService通过多继承组合，在执行流程中调用推送方法。
     """
 
-    def __init__(self, push_service: 'PushService' = None) -> None:
+    def __init__(self, push_service: PushService = None) -> None:
         """初始化推送Mixin。
 
         Args:
@@ -60,7 +60,7 @@ class TaskPushMixin:
         """
         self._push_service = push_service
 
-    def _get_push_service(self) -> 'PushService':
+    def _get_push_service(self) -> PushService:
         """获取推送服务实例，采用延迟加载模式。
 
         首次调用时从push_service模块获取实例并缓存，

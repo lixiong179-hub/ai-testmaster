@@ -12,7 +12,6 @@
 - websocket_channel 形如 `quick_test:{task_id}`，与 push_service 通道命名一致；
 - started_at 为 ISO8601 字符串，任务未启动时为 None。
 """
-from typing import Dict, Optional
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -26,10 +25,10 @@ class QuickTestLaunchRequest(BaseModel):
     """
 
     url: HttpUrl = Field(..., description="被测站点网址，必须为 http/https")
-    description: Optional[str] = Field(
+    description: str | None = Field(
         None, description="自然语言描述，聚焦测试范围，如'重点测登录和搜索功能'"
     )
-    credentials: Optional[Dict[str, str]] = Field(
+    credentials: dict[str, str] | None = Field(
         None, description="登录凭据 {username, password}，仅登录页场景使用"
     )
 
@@ -69,7 +68,7 @@ class QuickTestStatusResponse(BaseModel):
         "task_assembling/executing/completed/failed/stopped"
     )
     case_count: int = Field(..., ge=0, description="任务关联用例数")
-    started_at: Optional[str] = Field(
+    started_at: str | None = Field(
         None, description="任务开始执行时间 ISO8601，未启动时为 None"
     )
     websocket_channel: str = Field(

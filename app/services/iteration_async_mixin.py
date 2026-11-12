@@ -16,7 +16,6 @@
         iteration = await service.create_iteration_async(...)
 """
 from datetime import datetime
-from typing import Optional, List
 
 from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload
@@ -49,11 +48,11 @@ class IterationAsyncMixin:
         name: str,
         *,
         version: str = "v1.0",
-        description: Optional[str] = None,
-        base_iteration_id: Optional[int] = None,
-        created_by: Optional[int] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        description: str | None = None,
+        base_iteration_id: int | None = None,
+        created_by: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> Iteration:
         """创建迭代（异步版本）。
 
@@ -114,9 +113,9 @@ class IterationAsyncMixin:
         iteration_id: int,
         kind: str,
         *,
-        file_id: Optional[int] = None,
-        payload: Optional[dict] = None,
-        hash_value: Optional[str] = None,
+        file_id: int | None = None,
+        payload: dict | None = None,
+        hash_value: str | None = None,
     ) -> IterationInput:
         """添加迭代输入（异步版本，含幂等校验）。
 
@@ -174,7 +173,7 @@ class IterationAsyncMixin:
         *,
         skip: int = 0,
         limit: int = 100,
-    ) -> List[Iteration]:
+    ) -> list[Iteration]:
         """按项目查询迭代列表（异步版本，eager-load inputs）。"""
         result = await self.db.execute(
             select(Iteration)
@@ -186,7 +185,7 @@ class IterationAsyncMixin:
         )
         return result.unique().scalars().all()
 
-    async def get_iteration_async(self, iteration_id: int) -> Optional[Iteration]:
+    async def get_iteration_async(self, iteration_id: int) -> Iteration | None:
         """获取迭代详情（异步版本，含 inputs）。"""
         result = await self.db.execute(
             select(Iteration)
@@ -249,7 +248,7 @@ class IterationAsyncMixin:
 
     async def update_iteration_async(
         self, iteration_id: int, **kwargs
-    ) -> Optional[Iteration]:
+    ) -> Iteration | None:
         """更新迭代（异步版本）。
 
         镜像 crud.update_iteration：禁止直接修改 status，重命名时校验同名

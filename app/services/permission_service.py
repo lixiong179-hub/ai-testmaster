@@ -25,7 +25,6 @@ RBAC模型:
     - 角色分配幂等性校验，防止重复分配
     - 权限校验采用白名单模式，默认无权限
 """
-from typing import Optional, List, Union
 from sqlalchemy import select, delete, and_
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,7 +54,7 @@ class PermissionService(PermissionServiceAsyncMixin):
     async 端点通过 PermissionService(db) 实例化后调用 *_async 方法。
     """
 
-    def __init__(self, db: Optional[Union[Session, AsyncSession]] = None) -> None:
+    def __init__(self, db: Session | AsyncSession | None = None) -> None:
         """初始化权限服务。
 
         Args:
@@ -101,7 +100,7 @@ class PermissionService(PermissionServiceAsyncMixin):
         return db_perm
 
     @staticmethod
-    def get_permission_by_id(db: Session, perm_id: int) -> Optional[Permission]:
+    def get_permission_by_id(db: Session, perm_id: int) -> Permission | None:
         """根据权限ID查询权限。
 
         Args:
@@ -166,7 +165,7 @@ class PermissionService(PermissionServiceAsyncMixin):
         return True
 
     @staticmethod
-    def get_permissions(db: Session, skip: int = 0, limit: int = 100) -> List[Permission]:
+    def get_permissions(db: Session, skip: int = 0, limit: int = 100) -> list[Permission]:
         """分页查询权限列表。
 
         Args:
@@ -197,7 +196,7 @@ class UserRoleService(UserRoleServiceAsyncMixin):
     async 端点通过 UserRoleService(db) 实例化后调用 *_async 方法。
     """
 
-    def __init__(self, db: Optional[Union[Session, AsyncSession]] = None) -> None:
+    def __init__(self, db: Session | AsyncSession | None = None) -> None:
         """初始化用户-角色关联服务。
 
         Args:
@@ -268,7 +267,7 @@ class UserRoleService(UserRoleServiceAsyncMixin):
         return True
 
     @staticmethod
-    def get_user_roles(db: Session, user_id: int) -> List[Role]:
+    def get_user_roles(db: Session, user_id: int) -> list[Role]:
         """查询用户的所有角色。
 
         Args:
@@ -317,7 +316,7 @@ class RBACService:
             有权限返回True，无权限返回False。
         """
         roles = UserRoleService.get_user_roles(db, user_id)
-        for role in roles:
-            if role.permissions and permission_code in role.permissions:
-                return True
-        return False
+        return any(
+            role.permissions and permission_code in role.permissions
+            for role in roles
+        )

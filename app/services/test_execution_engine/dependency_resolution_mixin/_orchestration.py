@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 from collections import deque
 from loguru import logger
 
@@ -7,13 +7,14 @@ from app.services.test_execution_engine.models import (
     ExecutionStatus,
     TestExecutionResult,
 )
+import contextlib
 
 
 class _OrchestrationMixin:
 
     async def _navigate_to_dependency_anchor(
         self, case: TestCase
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         has_api_setup = bool(getattr(case, 'setup_api_calls', None))
         is_mobile = getattr(self, '_mobile_device_id', None) is not None
 
@@ -22,10 +23,8 @@ class _OrchestrationMixin:
             if api_ok:
                 target_url = self._extract_target_url_from_case(case)
                 if target_url and self.browser and getattr(self.browser, '_page', None):
-                    try:
+                    with contextlib.suppress(Exception):
                         await self.browser._page.goto(target_url, wait_until="networkidle")
-                    except Exception:
-                        pass
                 return True, api_desc
 
         if not is_mobile:
@@ -48,7 +47,7 @@ class _OrchestrationMixin:
 
         return False, "全部降级失败"
 
-    def _extract_target_url_from_case(self, case: TestCase) -> Optional[str]:
+    def _extract_target_url_from_case(self, case: TestCase) -> str | None:
         precondition = getattr(case, 'precondition', '') or ''
         url = self._extract_url_from_text(precondition)
         if url:
@@ -70,14 +69,14 @@ class _OrchestrationMixin:
     def _mark_dependents_blocked(
         self,
         failed_case: TestCase,
-        cases: List[TestCase],
-        case_results: Dict[int, TestExecutionResult],
-    ) -> List[int]:
-        blocked_ids: Set[int] = set()
+        cases: list[TestCase],
+        case_results: dict[int, TestExecutionResult],
+    ) -> list[int]:
+        blocked_ids: set[int] = set()
         failed_title = failed_case.title
         self._failed_main_titles.add(failed_title)
 
-        title_to_dependents: Dict[str, List[TestCase]] = {}
+        title_to_dependents: dict[str, list[TestCase]] = {}
         for case in cases:
             if case.id in case_results:
                 continue
@@ -86,7 +85,7 @@ class _OrchestrationMixin:
                 title_to_dependents.setdefault(dep, []).append(case)
 
         queue = deque([failed_title])
-        visited: Set[str] = set()
+        visited: set[str] = set()
         while queue:
             current_title = queue.popleft()
             if current_title in visited:
@@ -109,12 +108,10 @@ class _OrchestrationMixin:
 
     def _should_skip_as_blocked(self, case: TestCase) -> bool:
         depends_on = getattr(case, 'depends_on', None)
-        if depends_on and depends_on in self._failed_main_titles:
-            return True
-        return False
+        return bool(depends_on) and depends_on in self._failed_main_titles
 
     async def _save_main_flow_snapshots(
-        self, case: TestCase, step_results: List[Any]
+        self, case: TestCase, step_results: list[Any]
     ) -> None:
         if not step_results:
             return
@@ -123,7 +120,7 @@ class _OrchestrationMixin:
         if not anchor_index:
             return
 
-        anchor_steps_needed: Set[int] = set()
+        anchor_steps_needed: set[int] = set()
         for (title, step_num), _ in anchor_index.items():
             if title == case.title:
                 anchor_steps_needed.add(step_num)
@@ -133,9 +130,11 @@ class _OrchestrationMixin:
 
         for step_result in step_results:
             step_num = getattr(step_result, 'step_number', None)
-            if step_num in anchor_steps_needed:
-                if getattr(step_result, 'status', None) == ExecutionStatus.PASSED:
-                    try:
-                        await self._save_anchor_snapshot(case, step_num)
-                    except Exception as e:
-                        logger.warning(f"快照保存异常: case={case.case_no}, step={step_num}, error={e}")
+            if (
+                step_num in anchor_steps_needed
+                and getattr(step_result, 'status', None) == ExecutionStatus.PASSED
+            ):
+                try:
+                    await self._save_anchor_snapshot(case, step_num)
+                except Exception as e:
+                    logger.warning(f"快照保存异常: case={case.case_no}, step={step_num}, error={e}")

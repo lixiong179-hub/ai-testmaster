@@ -1,5 +1,4 @@
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Any, Optional
 from loguru import logger
 
 
@@ -23,10 +22,10 @@ class _UtilMixin:
         "task-undo": 3,
     }
 
-    def _get_child_topics(self, topic: ET.Element) -> List[ET.Element]:
+    def _get_child_topics(self, topic: ET.Element) -> list[ET.Element]:
         children = topic.find("xmap:children", self.NS)
         if children is None:
-            children = topic.find("{%(ns)s}children" % {"ns": self.XMAP_NS})
+            children = topic.find(f"{{{self.XMAP_NS}}}children")
         if children is None:
             return []
 
@@ -54,7 +53,7 @@ class _UtilMixin:
             return plain.text.strip()
         return ""
 
-    def _collect_notes(self, topic: ET.Element) -> List[str]:
+    def _collect_notes(self, topic: ET.Element) -> list[str]:
         notes = self._extract_topic_notes(topic)
         return [notes] if notes else []
 
@@ -62,7 +61,7 @@ class _UtilMixin:
         priority = self._extract_priority_marker(topic)
         return priority if priority is not None else 2
 
-    def _extract_priority_marker(self, topic: ET.Element) -> Optional[int]:
+    def _extract_priority_marker(self, topic: ET.Element) -> int | None:
         marker_refs = self._find_element(topic, "marker-refs")
         if marker_refs is None:
             return None
@@ -72,7 +71,7 @@ class _UtilMixin:
                 return self.PRIORITY_MAP[marker_id]
         return None
 
-    def _append_notes_to_point(self, point_text: str, notes_list: List[str]) -> str:
+    def _append_notes_to_point(self, point_text: str, notes_list: list[str]) -> str:
         if not notes_list:
             return point_text
         unique_notes = list(dict.fromkeys(note for note in notes_list if note))
@@ -80,17 +79,17 @@ class _UtilMixin:
             return point_text
         return point_text + "".join(f"\n备注: {note}" for note in unique_notes)
 
-    def extract_paths(self, file_path: str) -> List[List[str]]:
+    def extract_paths(self, file_path: str) -> list[list[str]]:
         content_xml = self._extract_content_xml(file_path)
         root = self._parse_xml(content_xml)
         root_topics = self._get_all_root_topics(root)
-        paths: List[List[str]] = []
+        paths: list[list[str]] = []
         for root_topic in root_topics:
             paths.extend(self._collect_paths(root_topic))
         return paths
 
-    def _collect_paths(self, root_topic: ET.Element) -> List[List[str]]:
-        paths: List[List[str]] = []
+    def _collect_paths(self, root_topic: ET.Element) -> list[list[str]]:
+        paths: list[list[str]] = []
         level1_topics = self._get_child_topics(root_topic)
 
         for l1_topic in level1_topics:
@@ -104,20 +103,19 @@ class _UtilMixin:
                     continue
                 for path in self._collect_leaf_paths(child, [module_name, child_text]):
                     paths.append(path)
-            if not l1_children:
-                if module_name:
-                    paths.append([module_name])
+            if not l1_children and module_name:
+                paths.append([module_name])
 
         return paths
 
     def _collect_leaf_paths(
-        self, topic: ET.Element, prefix: List[str]
-    ) -> List[List[str]]:
+        self, topic: ET.Element, prefix: list[str]
+    ) -> list[list[str]]:
         child_topics = self._get_child_topics(topic)
         if not child_topics:
             return [prefix]
 
-        paths: List[List[str]] = []
+        paths: list[list[str]] = []
         for child in child_topics:
             text = self._extract_topic_text(child)
             if not text:

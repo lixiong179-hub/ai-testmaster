@@ -4,7 +4,6 @@
     - 需求描述与UI元素描述冲突
     - 需求中的功能点在UI原型中无对应界面
 """
-from typing import Dict, List, Optional
 
 from app.services.quality.validators.base import (
     BaseValidator,
@@ -18,11 +17,11 @@ class MaterialConflictValidator(BaseValidator):
 
     def validate(
         self,
-        case_data: Dict,
-        context: Optional[Dict] = None,
+        case_data: dict,
+        context: dict | None = None,
     ) -> ValidationResult:
         """校验资料冲突。"""
-        issues: List[ValidationIssue] = []
+        issues: list[ValidationIssue] = []
         ctx = context or {}
 
         requirement_keywords = ctx.get("requirement_keywords") or set()
@@ -40,12 +39,12 @@ class MaterialConflictValidator(BaseValidator):
 
         case_text_lower = case_text.lower()
 
-        referenced_req_keywords: List[str] = []
+        referenced_req_keywords: list[str] = []
         for kw in requirement_keywords:
             if isinstance(kw, str) and kw.lower() in case_text_lower:
                 referenced_req_keywords.append(kw)
 
-        referenced_ui_screens: List[str] = []
+        referenced_ui_screens: list[str] = []
         for screen in ui_screen_names:
             if isinstance(screen, str) and screen.lower() in case_text_lower:
                 referenced_ui_screens.append(screen)

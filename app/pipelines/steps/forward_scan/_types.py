@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 FORWARD_SCAN_SYSTEM_PROMPT = """你是一个测试用例分析专家，负责判断新提出的测试场景候选与历史用例的关系。
@@ -37,7 +36,7 @@ class ForwardVerdict:
     candidate_index: int
     candidate_description: str
     label: str
-    matched_case_id: Optional[int]
+    matched_case_id: int | None
     matched_title: str
     matched_similarity: float
     confidence: float

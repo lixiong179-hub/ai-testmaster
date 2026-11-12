@@ -1,7 +1,7 @@
 """测试数据CRUD Mixin - 测试数据的数据库增删改查操作。
 """
 import json
-from typing import Optional, List, Dict, Any
+from typing import Any
 from loguru import logger
 from app.models.test_data import TestData, DataType, GenerationRule
 
@@ -13,14 +13,14 @@ class TestDataCrudMixin:
         field_name: str,
         field_type: DataType = DataType.TEXT,
         generation_rule: GenerationRule = GenerationRule.RANDOM,
-        data_value: Optional[str] = None,
-        rule_config: Optional[Dict[str, Any]] = None,
-        min_length: Optional[int] = None,
-        max_length: Optional[int] = None,
-        min_value: Optional[int] = None,
-        max_value: Optional[int] = None,
-        enum_values: Optional[List[str]] = None,
-        description: Optional[str] = None,
+        data_value: str | None = None,
+        rule_config: dict[str, Any] | None = None,
+        min_length: int | None = None,
+        max_length: int | None = None,
+        min_value: int | None = None,
+        max_value: int | None = None,
+        enum_values: list[str] | None = None,
+        description: str | None = None,
         is_required: bool = True,
         sort_order: int = 0
     ) -> TestData:
@@ -46,15 +46,15 @@ class TestDataCrudMixin:
         logger.info(f"创建测试数据成功: id={test_data.id}, field_name={field_name}")
         return test_data
 
-    def get_test_data(self, test_data_id: int) -> Optional[TestData]:
+    def get_test_data(self, test_data_id: int) -> TestData | None:
         return self.db.query(TestData).filter(TestData.id == test_data_id).first()
 
-    def get_test_data_by_step(self, step_id: int) -> List[TestData]:
+    def get_test_data_by_step(self, step_id: int) -> list[TestData]:
         return self.db.query(TestData).filter(
             TestData.step_id == step_id
         ).order_by(TestData.sort_order).all()
 
-    def update_test_data(self, test_data_id: int, **kwargs) -> Optional[TestData]:
+    def update_test_data(self, test_data_id: int, **kwargs) -> TestData | None:
         test_data = self.get_test_data(test_data_id)
         if not test_data:
             return None

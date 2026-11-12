@@ -25,7 +25,6 @@ from fastapi import (
     File,
     Form,
 )
-from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,11 +63,11 @@ router = APIRouter()
 @router.post("/batch-upload", response_model=ApiResponse)
 async def batch_upload_files(
     project_id: int = Form(...),
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     resource_type: str = Form("other"),
     description: str = Form(""),
     name: str = Form(""),
-    iteration_id: Optional[int] = Form(None),
+    iteration_id: int | None = Form(None),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -231,10 +230,7 @@ async def batch_upload_files(
 
                 file_size = get_file_size(file_path)
 
-                if name:
-                    display_name = f"{name} ({file_index})"
-                else:
-                    display_name = file.filename
+                display_name = f"{name} ({file_index})" if name else file.filename
 
                 db_iteration_id = iteration_id if iteration_id and iteration_id > 0 else None
 

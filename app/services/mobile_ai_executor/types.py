@@ -1,10 +1,10 @@
 """移动端AI执行器类型定义 - 兼容原始 mobile_ai_executor.py。"""
-from typing import Optional, Dict, Any
+from typing import Any
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class MobileActionType(str, Enum):
+class MobileActionType(StrEnum):
     CLICK = "click"
     INPUT = "input"
     SWIPE = "swipe"
@@ -37,9 +37,9 @@ class MobileActionResult:
     success: bool
     action_type: MobileActionType
     description: str
-    coordinates: Optional[Dict[str, int]] = None
-    locator_info: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
+    coordinates: dict[str, int] | None = None
+    locator_info: dict[str, Any] | None = None
+    error_message: str | None = None
     ai_confidence: float = 0.0
     used_cache: bool = False
-    cached_locator: Optional[Dict[str, Any]] = None
+    cached_locator: dict[str, Any] | None = None

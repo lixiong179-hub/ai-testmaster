@@ -7,7 +7,7 @@
 - 参数类型自动推断
 """
 import re
-from typing import List, Dict, Any
+from typing import Any
 from loguru import logger
 
 
@@ -23,9 +23,9 @@ class TestDataParameterizer:
 
     def parameterize_steps(
         self,
-        steps: List[Dict[str, Any]],
-        test_data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        steps: list[dict[str, Any]],
+        test_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         将测试数据注入测试步骤
 
@@ -44,9 +44,9 @@ class TestDataParameterizer:
 
     def _parameterize_step(
         self,
-        step: Dict[str, Any],
-        test_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        step: dict[str, Any],
+        test_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         参数化单个步骤
 
@@ -94,7 +94,7 @@ class TestDataParameterizer:
     def _replace_variables(
         self,
         text: str,
-        test_data: Dict[str, Any]
+        test_data: dict[str, Any]
     ) -> str:
         """
         替换文本中的变量占位符
@@ -120,7 +120,7 @@ class TestDataParameterizer:
 
         return self.VARIABLE_PATTERN.sub(replace_match, text)
 
-    def extract_variables(self, steps: List[Dict[str, Any]]) -> List[str]:
+    def extract_variables(self, steps: list[dict[str, Any]]) -> list[str]:
         """
         从测试步骤中提取所有变量名
 
@@ -140,8 +140,8 @@ class TestDataParameterizer:
 
     def validate_data_completeness(
         self,
-        steps: List[Dict[str, Any]],
-        test_data: Dict[str, Any]
+        steps: list[dict[str, Any]],
+        test_data: dict[str, Any]
     ) -> tuple[bool, list[str]]:
         """
         验证测试数据是否完整覆盖所有变量
@@ -159,9 +159,9 @@ class TestDataParameterizer:
 
     def create_data_driven_steps(
         self,
-        steps: List[Dict[str, Any]],
-        data_sets: List[Dict[str, Any]]
-    ) -> List[List[Dict[str, Any]]]:
+        steps: list[dict[str, Any]],
+        data_sets: list[dict[str, Any]]
+    ) -> list[list[dict[str, Any]]]:
         """
         创建数据驱动的测试步骤（多组数据）
 
@@ -184,7 +184,7 @@ class TestDataParameterizer:
     def generate_parameterized_description(
         self,
         description: str,
-        test_data: Dict[str, Any]
+        test_data: dict[str, Any]
     ) -> str:
         """
         生成参数化后的描述文本

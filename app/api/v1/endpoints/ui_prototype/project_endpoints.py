@@ -17,7 +17,6 @@
 公开符号通过本文件 re-export，保持 import 路径不变。
 """
 import os
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
@@ -92,7 +91,7 @@ async def get_prototype_projects(
     project_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    iteration_id: Optional[int] = Query(None),
+    iteration_id: int | None = Query(None),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -358,7 +357,7 @@ async def get_flow_data(
                 ProjectFlowData.project_id == project_id
             )
         )
-        result: Optional[ProjectFlowData] = flow_result.scalars().first()
+        result: ProjectFlowData | None = flow_result.scalars().first()
 
         if result:
             data = _serialize_project_flow_data(result)

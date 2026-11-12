@@ -1,6 +1,5 @@
 
 """参数化上下文 - 维护单次执行中的参数缓存和元信息。"""
-from typing import Dict, Optional
 from datetime import datetime
 from dataclasses import dataclass, field
 
@@ -17,9 +16,9 @@ class ParameterContext:
         execution_timestamp: 执行开始时间戳（固定）。
     """
     execution_id: str
-    user_id: Optional[int] = None
-    project_id: Optional[int] = None
-    cached_values: Dict[str, str] = field(default_factory=dict)
+    user_id: int | None = None
+    project_id: int | None = None
+    cached_values: dict[str, str] = field(default_factory=dict)
     execution_timestamp: str = field(default="")
 
     def __post_init__(self) -> None:

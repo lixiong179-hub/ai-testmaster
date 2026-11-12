@@ -13,7 +13,6 @@ _finalize_step_result）拆分至 _step_helpers_mixin。本模块保留核心执
 import json
 import asyncio
 import time
-from typing import Dict, Any, Optional
 from loguru import logger
 
 from app.models.test_case import TestStep
@@ -103,15 +102,14 @@ class StepExecutorMixin(
                 await self._execute_mobile_step(step, action_with_data, execution_mode, result)
                 return self._finalize_step_result(result, start_time)
 
-            if execution_mode == "preprocess":
-                if (
-                    action_type in (
-                        ActionType.INPUT, ActionType.CLICK,
-                        ActionType.HOVER, ActionType.SELECT
-                    )
-                    and not locator_record
-                ):
-                    raise StepExecutionError(f"步骤 {step.step_number} 缺少元素定位信息，请先批量补充")
+            if execution_mode == "preprocess" and (
+                action_type in (
+                    ActionType.INPUT, ActionType.CLICK,
+                    ActionType.HOVER, ActionType.SELECT
+                )
+                and not locator_record
+            ):
+                raise StepExecutionError(f"步骤 {step.step_number} 缺少元素定位信息，请先批量补充")
 
             await self._dispatch_step_action(
                 step, action_type, action_info, step_test_data,
@@ -198,17 +196,16 @@ class StepExecutorMixin(
                     await self._execute_mobile_step(step, action_with_data, execution_mode, result)
                     return self._finalize_step_result(result, start_time)
 
-                if execution_mode == "preprocess":
-                    if (
-                        action_type in (
-                            ActionType.INPUT,
-                            ActionType.CLICK,
-                            ActionType.HOVER,
-                            ActionType.SELECT,
-                        )
-                        and not locator_record
-                    ):
-                        raise StepExecutionError(f"步骤 {step.step_number} 缺少元素定位信息，请先批量补全")
+                if execution_mode == "preprocess" and (
+                    action_type in (
+                        ActionType.INPUT,
+                        ActionType.CLICK,
+                        ActionType.HOVER,
+                        ActionType.SELECT,
+                    )
+                    and not locator_record
+                ):
+                    raise StepExecutionError(f"步骤 {step.step_number} 缺少元素定位信息，请先批量补全")
 
                 before_screenshot = None
                 if self.browser and self.enable_ai_recognition:

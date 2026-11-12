@@ -1,12 +1,10 @@
 import hashlib
-from typing import Optional, List
 
 from sqlalchemy.orm import Session
 
 from app.models.pipeline import Artifact
 from app.services.pipeline_service._errors import (
     PipelineRunValidationError,
-    DuplicateArtifactHashError,
 )
 
 
@@ -17,9 +15,9 @@ def create_artifact(
     content_hash: str,
     *,
     schema_version: str = "1.0",
-    payload: Optional[dict] = None,
-    confidence: Optional[float] = None,
-    provenance: Optional[dict] = None,
+    payload: dict | None = None,
+    confidence: float | None = None,
+    provenance: dict | None = None,
 ) -> Artifact:
     from app.models.pipeline import PipelineRun
     run = db.query(PipelineRun).filter(PipelineRun.id == run_id).first()
@@ -58,5 +56,5 @@ def create_artifact(
     return artifact
 
 
-def get_artifact_by_hash(db: Session, content_hash: str) -> Optional[Artifact]:
+def get_artifact_by_hash(db: Session, content_hash: str) -> Artifact | None:
     return db.query(Artifact).filter(Artifact.content_hash == content_hash).first()

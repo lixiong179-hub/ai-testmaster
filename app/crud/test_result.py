@@ -30,9 +30,7 @@
     - 3: 阻塞
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
 from app.models.test_result import TestResult
 from app.utils.db_time import utcnow
 
@@ -44,9 +42,9 @@ def create_test_result(
     case_id: int,
     case_no: str,
     exec_status: int,
-    exec_log: Optional[str] = None,
-    error_msg: Optional[str] = None,
-    screenshot_url: Optional[str] = None
+    exec_log: str | None = None,
+    error_msg: str | None = None,
+    screenshot_url: str | None = None
 ) -> TestResult:
     """
     创建执行结果
@@ -88,7 +86,7 @@ def get_test_results_by_task(
     db: Session,
     task_id: int,
     project_id: int
-) -> List[TestResult]:
+) -> list[TestResult]:
     """
     获取任务的执行结果列表
 
@@ -118,7 +116,7 @@ def get_test_result_by_case(
     task_id: int,
     case_id: int,
     project_id: int
-) -> Optional[TestResult]:
+) -> TestResult | None:
     """
     获取指定任务和用例的执行结果
 
@@ -148,11 +146,11 @@ def update_test_result(
     db: Session,
     result_id: int,
     project_id: int,
-    exec_status: Optional[int] = None,
-    exec_log: Optional[str] = None,
-    error_msg: Optional[str] = None,
-    screenshot_url: Optional[str] = None
-) -> Optional[TestResult]:
+    exec_status: int | None = None,
+    exec_log: str | None = None,
+    error_msg: str | None = None,
+    screenshot_url: str | None = None
+) -> TestResult | None:
     """
     更新执行结果
 
@@ -208,7 +206,7 @@ def get_test_results_count(
     db: Session,
     task_id: int,
     project_id: int,
-    exec_status: Optional[int] = None
+    exec_status: int | None = None
 ) -> int:
     """
     获取执行结果数量
@@ -269,9 +267,9 @@ async def create_test_result_async(
     case_id: int,
     case_no: str,
     exec_status: int,
-    exec_log: Optional[str] = None,
-    error_msg: Optional[str] = None,
-    screenshot_url: Optional[str] = None
+    exec_log: str | None = None,
+    error_msg: str | None = None,
+    screenshot_url: str | None = None
 ) -> TestResult:
     """
     创建执行结果（异步版本）

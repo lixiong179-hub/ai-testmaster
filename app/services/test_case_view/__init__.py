@@ -51,7 +51,7 @@ class TestCaseViewService(
 
     __test__ = False
 
-    def __init__(self, db: Union[Session, AsyncSession]) -> None:
+    def __init__(self, db: Session | AsyncSession) -> None:
         """初始化视图服务。
 
         Args:

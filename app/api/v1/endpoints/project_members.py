@@ -40,7 +40,11 @@ from app.schemas.project import (
 )
 from app.services.project_access_service import ProjectAccessService
 
-# [R4-6 冻结 2026-11-10] 「项目成员管理」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
+# [B-08 结论 2026-11-12] 「项目成员管理」**待接线（当前不做）**：核查确认前端**没有**等价能力
+# ——项目详情页 6 个 Tab（basic-info/env-config/file/self-healing/quality-rule/test-capability）
+# 无成员页，全库 `/members`、`成员` 命中 0，故原「已被项目详情页取代」的判断不成立。
+# 现状是单用户归属模型（Project.user_id 直接鉴权），未具备多人协作的产品前提，故本波不接线；
+# 一旦启用多人协作，须补齐 成员列表/邀请/角色/移交 4 个前端入口。
 router = APIRouter(prefix="/projects", tags=["项目成员管理"])
 
 

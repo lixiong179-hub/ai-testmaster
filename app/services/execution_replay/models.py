@@ -1,12 +1,12 @@
 """数据模型定义 - 定义本子包所需的数据结构、枚举和结果模型。
 """
-from typing import Optional, Dict, Any, List
+from typing import Any
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 
-class ReplayEventType(str, Enum):
+class ReplayEventType(StrEnum):
     NAVIGATE = "navigate"
     CLICK = "click"
     INPUT = "input"
@@ -19,7 +19,7 @@ class ReplayEventType(str, Enum):
     ERROR = "error"
 
 
-class SessionStatus(str, Enum):
+class SessionStatus(StrEnum):
     """兼容旧测试导出的回放会话状态枚举。"""
 
     PENDING = "pending"
@@ -28,7 +28,7 @@ class SessionStatus(str, Enum):
     COMPLETED = "completed"
 
 
-class ActionType(str, Enum):
+class ActionType(StrEnum):
     """兼容旧测试导出的动作类型枚举。"""
 
     CLICK = "click"
@@ -43,12 +43,12 @@ class ReplayEvent:
     event_type: ReplayEventType
     action: str
     step_number: int
-    screenshot_path: Optional[str] = None
-    element_info: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
+    screenshot_path: str | None = None
+    element_info: dict[str, Any] | None = None
+    error_message: str | None = None
     duration_ms: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "timestamp": self.timestamp,
             "event_type": self.event_type.value,
@@ -66,11 +66,11 @@ class ExecutionTimeline:
     execution_id: int
     test_case_id: int
     start_time: datetime
-    end_time: Optional[datetime] = None
-    events: List[ReplayEvent] = field(default_factory=list)
+    end_time: datetime | None = None
+    events: list[ReplayEvent] = field(default_factory=list)
     total_duration_ms: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "execution_id": self.execution_id,
             "test_case_id": self.test_case_id,
@@ -93,7 +93,7 @@ class ReplaySession:
     created_at: datetime = field(default_factory=datetime.now)
     last_activity: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "execution_id": self.execution_id,

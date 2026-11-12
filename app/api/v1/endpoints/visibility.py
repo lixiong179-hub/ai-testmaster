@@ -3,7 +3,6 @@
 
 与前端testExecution.ts中的visibility API对齐
 """
-from typing import Optional
 """
 可见性管理端点模块
 
@@ -41,7 +40,7 @@ router = APIRouter(prefix="/visibility", tags=["可见模式配置"])
 class VisibilityConfigRequest(BaseModel):
     """可见模式配置请求"""
     level: str = Field(..., description="配置级别: global, task, case")
-    id: Optional[int] = Field(None, description="任务ID或用例ID")
+    id: int | None = Field(None, description="任务ID或用例ID")
     headless: bool = Field(True, description="是否无头模式")
     record_video: bool = Field(False, description="是否录制视频")
     video_resolution: list = Field([1280, 720], description="视频分辨率 [宽, 高]")
@@ -58,7 +57,7 @@ class VisibilityConfigRequest(BaseModel):
 @router.get("/config")
 async def get_visibility_config(
     level: str = Query(..., description="配置级别: global, task, case"),
-    id: Optional[int] = Query(None, description="任务ID或用例ID"),
+    id: int | None = Query(None, description="任务ID或用例ID"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):

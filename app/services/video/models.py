@@ -1,18 +1,18 @@
 """数据模型定义 - 定义本子包所需的数据结构、枚举和结果模型。
 """
-from typing import Optional, Dict, Any
+from typing import Any
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 
-class VideoStatus(str, Enum):
+class VideoStatus(StrEnum):
     PROCESSING = "processing"
     READY = "ready"
     FAILED = "failed"
     EXPIRED = "expired"
 
 
-class VideoRecordStatus(str, Enum):
+class VideoRecordStatus(StrEnum):
     """兼容旧测试导出的录像状态枚举。"""
 
     PENDING = "pending"
@@ -25,20 +25,20 @@ class VideoInfo:
     def __init__(
         self,
         id: int,
-        task_id: Optional[int] = None,
-        test_case_id: Optional[int] = None,
-        case_id: Optional[int] = None,
+        task_id: int | None = None,
+        test_case_id: int | None = None,
+        case_id: int | None = None,
         file_path: str = "",
         file_name: str = "",
         file_size: int = 0,
         duration: float = 0.0,
-        resolution: Optional[str] = None,
-        fps: Optional[int] = None,
+        resolution: str | None = None,
+        fps: int | None = None,
         file_format: str = "webm",
         status: VideoStatus = VideoStatus.PROCESSING,
-        thumbnail_path: Optional[str] = None,
-        created_at: Optional[datetime] = None,
-        expires_at: Optional[datetime] = None,
+        thumbnail_path: str | None = None,
+        created_at: datetime | None = None,
+        expires_at: datetime | None = None,
     ):
         self.id = id
         self.task_id = task_id
@@ -56,7 +56,7 @@ class VideoInfo:
         self.expires_at = expires_at
 
     @property
-    def case_id(self) -> Optional[int]:
+    def case_id(self) -> int | None:
         return self.test_case_id
 
     @staticmethod
@@ -69,7 +69,7 @@ class VideoInfo:
             value /= 1024
         return f"{value:.2f} TB"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "task_id": self.task_id,

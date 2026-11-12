@@ -14,7 +14,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, status
 from loguru import logger
@@ -30,7 +29,9 @@ from app.services.mfa_service import MFAService
 from app.utils.db_time import utcnow
 from app.utils.jwt_utils import create_access_token, decode_token
 
-# [R4-6 冻结 2026-11-10] 「MFA 多因子认证」无前端调用者（src/api/**/*.ts 命中 0）；接口保留供外部/脚本调用，接线或删除前请先在《架构优化执行计划清单》登记。
+# [B-08 结论 2026-11-12] 「MFA 多因子认证」**明确不做前端接线**：属企业/外部 IdP 集成能力，
+# 前端登录页（src/views/login/index.vue）只提供账号/手机号 + 图形验证码两种形态，无二次验证入口，
+# `src/` 内 mfa 命中 0。接口保留供外部系统/脚本调用（原 R4-6 冻结结论继续有效）。
 router = APIRouter()
 
 # MFA pending token 的 TTL（分钟）：密码验证后等待 MFA 验证的窗口
@@ -205,7 +206,6 @@ async def mfa_login(
         create_refresh_token_with_jti,
     )
     from app.services.session_service import SessionService
-    from starlette.requests import Request
     from datetime import timedelta
 
     # 解码 mfa_pending_token

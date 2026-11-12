@@ -6,7 +6,7 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from app.models.test_case import TestCase
 
@@ -24,7 +24,7 @@ class CaseMigrationPreviewPayloadMixin:
         source_case: TestCase,
         source_device: str,
         target_device: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         source_data = self._case_to_dict(source_case)
         preview_case = {
             "title": source_data["title"],
@@ -47,7 +47,7 @@ class CaseMigrationPreviewPayloadMixin:
             "errors": [],
         }
 
-    def _error_preview_item(self, batch_id: str, source_case_id: int, error: str) -> Dict[str, Any]:
+    def _error_preview_item(self, batch_id: str, source_case_id: int, error: str) -> dict[str, Any]:
         return {
             "batch_id": batch_id,
             "source_case_id": source_case_id,
@@ -64,8 +64,8 @@ class CaseMigrationPreviewPayloadMixin:
         batch_id: str,
         source_device: str,
         target_device: str,
-        items: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        items: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         summary = {
             "total": len(items),
             "success": sum(1 for item in items if not item.get("errors")),
@@ -84,14 +84,14 @@ class CaseMigrationPreviewPayloadMixin:
             "items": items,
         }
 
-    def _preview_batch_id(self, preview_items: List[Dict[str, Any]]) -> str:
+    def _preview_batch_id(self, preview_items: list[dict[str, Any]]) -> str:
         for item in preview_items:
             batch_id = item.get("batch_id")
             if batch_id:
                 return str(batch_id)
         return f"commit_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
-    def _case_to_dict(self, case: TestCase) -> Dict[str, Any]:
+    def _case_to_dict(self, case: TestCase) -> dict[str, Any]:
         steps_json = case.steps_json
         if isinstance(steps_json, str):
             try:

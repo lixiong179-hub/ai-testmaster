@@ -14,7 +14,6 @@
     与UserService保持一致的静态方法设计，数据库会话
     由调用方管理，确保事务边界清晰。
 """
-from typing import Optional, List, Union
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +30,7 @@ class RoleService(RoleServiceAsyncMixin):
     async 端点通过 RoleService(db) 实例化后调用 *_async 方法。
     """
 
-    def __init__(self, db: Optional[Union[Session, AsyncSession]] = None) -> None:
+    def __init__(self, db: Session | AsyncSession | None = None) -> None:
         """初始化角色服务。
 
         Args:
@@ -70,7 +69,7 @@ class RoleService(RoleServiceAsyncMixin):
         return db_role
 
     @staticmethod
-    def get_role_by_id(db: Session, role_id: int) -> Optional[Role]:
+    def get_role_by_id(db: Session, role_id: int) -> Role | None:
         """根据角色ID查询角色。
 
         Args:
@@ -141,7 +140,7 @@ class RoleService(RoleServiceAsyncMixin):
         return True
 
     @staticmethod
-    def get_roles(db: Session, skip: int = 0, limit: int = 100) -> List[Role]:
+    def get_roles(db: Session, skip: int = 0, limit: int = 100) -> list[Role]:
         """分页查询角色列表。
 
         Args:

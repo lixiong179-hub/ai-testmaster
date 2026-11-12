@@ -1,7 +1,7 @@
 import json
 import re
 import time
-from typing import Dict, Any, Optional, List
+from typing import Any
 from loguru import logger
 
 from app.utils.ai_client_core import (
@@ -25,21 +25,24 @@ from app.services.test_case_generation.quality_validator import (
 )
 from app.utils.ai_client_enhanced._repair import _repair_truncated_json
 from app.utils.ai_client_enhanced._enhanced_context import (
-    AI_GENERATE_MAX_TOKENS,
+    # 转发符号：app/utils/ai_client_enhanced/__init__.py 与测试从此模块导入
+    AI_GENERATE_MAX_TOKENS,  # noqa: F401
     AI_GENERATE_MAX_TOKENS_FULL,
     _resolve_max_tokens,
 )
 from app.utils.ai_client_enhanced._enhanced_prompt import (
-    _build_priority_rules,
+    # 转发符号：tests/test_context_precision_features.py 从此模块导入
+    _build_priority_rules,  # noqa: F401
     _build_generation_prompt,
 )
 from app.utils.ai_client_enhanced._enhanced_logging import _record_enhanced_call
+import contextlib
 
 
 def generate_test_case_enhanced(
-    context: Dict[str, Any],
-    metadata: Optional[Dict[str, Any]] = None,
-) -> List[Dict[str, Any]]:
+    context: dict[str, Any],
+    metadata: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     graph_prompt = context.get('graph_prompt')
     min_case_count = 3
     test_points = context.get('test_points', [])
@@ -123,24 +126,18 @@ def generate_test_case_enhanced(
                     except json.JSONDecodeError:
                         fixed = fix_common_json_issues(matched_str)
                         if fixed:
-                            try:
+                            with contextlib.suppress(json.JSONDecodeError):
                                 generated_case = json.loads(fixed)
-                            except json.JSONDecodeError:
-                                pass
                         if generated_case is None:
                             cleaned = clean_json_string(matched_str)
                             if cleaned:
-                                try:
+                                with contextlib.suppress(json.JSONDecodeError):
                                     generated_case = json.loads(cleaned)
-                                except json.JSONDecodeError:
-                                    pass
                         if generated_case is None:
                             repaired = _repair_truncated_json(matched_str)
                             if repaired:
-                                try:
+                                with contextlib.suppress(json.JSONDecodeError):
                                     generated_case = json.loads(repaired)
-                                except json.JSONDecodeError:
-                                    pass
             if generated_case is not None:
                 normalized_cases: list = []
                 if isinstance(generated_case, list):

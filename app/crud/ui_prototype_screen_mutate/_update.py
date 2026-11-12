@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import Any
 from sqlalchemy.orm import Session
 from app.models.ui_prototype import UIPrototypeScreen, UIScreenTestCaseLink
 from app.utils.db_time import utcnow
@@ -7,17 +7,17 @@ from app.utils.db_time import utcnow
 def update_ui_screen_parse_result(
     db: Session,
     screen_id: int,
-    ui_spec: Dict[str, Any],
+    ui_spec: dict[str, Any],
     parse_model: str,
-    summary: Optional[str] = None,
+    summary: str | None = None,
     element_count: int = 0,
     button_count: int = 0,
     input_count: int = 0,
-    layout_checks: Optional[List[Dict]] = None,
-    navigation_flow: Optional[Dict] = None,
+    layout_checks: list[dict] | None = None,
+    navigation_flow: dict | None = None,
     is_entry_point: bool = False,
     is_end_point: bool = False,
-) -> Optional[UIPrototypeScreen]:
+) -> UIPrototypeScreen | None:
     screen = db.query(UIPrototypeScreen).filter(UIPrototypeScreen.id == screen_id).first()
     if not screen:
         return None
@@ -43,8 +43,8 @@ def update_ui_screen_parse_status(
     db: Session,
     screen_id: int,
     status: str,
-    error_message: Optional[str] = None,
-) -> Optional[UIPrototypeScreen]:
+    error_message: str | None = None,
+) -> UIPrototypeScreen | None:
     screen = db.query(UIPrototypeScreen).filter(UIPrototypeScreen.id == screen_id).first()
     if not screen:
         return None
@@ -61,9 +61,9 @@ def update_ui_screen_review(
     db: Session,
     screen_id: int,
     review_status: str,
-    reviewer: Optional[str] = None,
-    review_comment: Optional[str] = None,
-) -> Optional[UIPrototypeScreen]:
+    reviewer: str | None = None,
+    review_comment: str | None = None,
+) -> UIPrototypeScreen | None:
     screen = db.query(UIPrototypeScreen).filter(UIPrototypeScreen.id == screen_id).first()
     if not screen:
         return None
@@ -79,7 +79,7 @@ def update_ui_screen_review(
 
 def update_ui_screen_order(
     db: Session, screen_id: int, screen_order: int
-) -> Optional[UIPrototypeScreen]:
+) -> UIPrototypeScreen | None:
     screen = db.query(UIPrototypeScreen).filter(UIPrototypeScreen.id == screen_id).first()
     if not screen:
         return None

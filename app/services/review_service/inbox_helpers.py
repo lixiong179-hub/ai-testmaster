@@ -3,7 +3,6 @@
 包含评审访问校验、决策序列化与「零编辑确认」指标记录，
 schema 与 `require_admin` 依赖仍保留在端点层。
 """
-from typing import Optional
 
 from fastapi import HTTPException
 from loguru import logger
@@ -57,9 +56,9 @@ def _serialize_decision(d: ReviewDecision) -> dict:
 def _check_zero_edit_confirmation(
     db: Session,
     decision: ReviewDecision,
-    ai_verdict: Optional[str],
+    ai_verdict: str | None,
     human_verdict: str,
-    human_reason: Optional[str],
+    human_reason: str | None,
 ) -> None:
     if ai_verdict == human_verdict and not human_reason:
         try:

@@ -20,12 +20,12 @@ import json
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLEnum, Boolean
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
-from enum import Enum
+from enum import StrEnum
 
 from app.db.database import Base
 
 
-class DataType(str, Enum):
+class DataType(StrEnum):
     """
     测试数据类型枚举
 
@@ -57,7 +57,7 @@ class DataType(str, Enum):
     BANK_CARD = "bank_card" # 银行卡号
 
 
-class GenerationRule(str, Enum):
+class GenerationRule(StrEnum):
     """
     数据生成规则枚举
 

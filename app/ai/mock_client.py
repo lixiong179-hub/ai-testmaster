@@ -15,7 +15,7 @@ Mock AI Client 实现
 """
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.ai.client import AIResponse, TokenUsage
 
@@ -33,8 +33,8 @@ class MockAIClient:
     def __init__(self, default_response: Any = None, model_name: str = "mock-model") -> None:
         self.default_response = default_response or {"result": "mock"}
         self.model_name = model_name
-        self.call_history: List[Dict[str, Any]] = []
-        self._response_map: Dict[str, Any] = {}
+        self.call_history: list[dict[str, Any]] = []
+        self._response_map: dict[str, Any] = {}
 
     def set_response(self, key: str, response: Any) -> None:
         """按 key 预设响应
@@ -49,11 +49,11 @@ class MockAIClient:
         self,
         prompt: str,
         *,
-        system: Optional[str] = None,
-        schema: Optional[Dict[str, Any]] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        system: str | None = None,
+        schema: dict[str, Any] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> AIResponse:
         """执行 Mock 补全调用
 

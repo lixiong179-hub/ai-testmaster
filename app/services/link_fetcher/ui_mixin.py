@@ -1,6 +1,6 @@
 """链接UI Mixin - 从Figma/蓝湖等设计工具链接提取UI原型数据。
 """
-from typing import Optional, Dict, Any, Tuple
+from typing import Any
 from bs4 import BeautifulSoup
 from loguru import logger
 from app.utils.db_time import utcnow
@@ -11,8 +11,8 @@ class LinkFetcherUIMixin:
         self,
         url: str,
         auth_type: str = "none",
-        auth_config: Optional[Dict[str, Any]] = None
-    ) -> Tuple[bool, Dict[str, Any], str]:
+        auth_config: dict[str, Any] | None = None
+    ) -> tuple[bool, dict[str, Any], str]:
         success, content, content_type = self.fetch_content(url, auth_type, auth_config)
         if not success:
             return False, {}, content
@@ -59,7 +59,7 @@ class LinkFetcherUIMixin:
             description["summary"] = content[:1000] if content else "无内容"
         return True, description, ""
 
-    def _generate_ui_summary(self, description: Dict[str, Any], content_type: str) -> str:
+    def _generate_ui_summary(self, description: dict[str, Any], content_type: str) -> str:
         summary_parts = []
         if description.get("title"):
             summary_parts.append(f"页面标题: {description['title']}")
@@ -79,15 +79,15 @@ class LinkFetcherUIMixin:
         self,
         url: str,
         auth_type: str = "none",
-        auth_config: Optional[Dict[str, Any]] = None
-    ) -> Tuple[bool, str]:
+        auth_config: dict[str, Any] | None = None
+    ) -> tuple[bool, str]:
         success, content, message = self.fetch_content(url, auth_type, auth_config)
         if success:
             return True, "链接可正常访问"
         else:
             return False, message
 
-    def extract_auth_config_from_form(self, html_content: str, form_index: int = 0) -> Optional[Dict[str, Any]]:
+    def extract_auth_config_from_form(self, html_content: str, form_index: int = 0) -> dict[str, Any] | None:
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
             forms = soup.find_all('form')

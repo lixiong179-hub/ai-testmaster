@@ -63,8 +63,8 @@ class ElementLocatorService(
         db: Session,
         browser: BrowserController,
         vision_model: UnifiedVisionModel,
-        confidence_threshold: Optional[float] = None,
-        recognizer: Optional[ElementRecognizer] = None
+        confidence_threshold: float | None = None,
+        recognizer: ElementRecognizer | None = None
     ):
         self.db = db
         self.browser = browser
@@ -83,8 +83,8 @@ class ElementLocatorService(
         db: Session,
         browser: BrowserController,
         vision_model: UnifiedVisionModel,
-        confidence_threshold: Optional[float] = None,
-        use_mcp: Optional[bool] = None
+        confidence_threshold: float | None = None,
+        use_mcp: bool | None = None
     ) -> "ElementLocatorService":
         if use_mcp is None:
             use_mcp = getattr(settings, 'PLAYWRIGHT_MCP_ENABLED', False)

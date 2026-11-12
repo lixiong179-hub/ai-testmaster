@@ -7,7 +7,7 @@
 每个策略独立实现，由 _ai_self_heal_action 统一调度。
 自愈成功后通过 _update_locator_after_healing 回写新定位器。
 """
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.services.test_execution_engine.models import ActionType, StepExecutionError
@@ -19,9 +19,9 @@ class SelfHealingStrategyMixin:
         self,
         nl_description: str,
         action_type: ActionType,
-        action_info: Dict[str, Any],
-        step_test_data: Optional[Dict[str, str]] = None
-    ) -> Optional[str]:
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str] | None = None
+    ) -> str | None:
         """AI自愈核心：使用AI理解自然语言描述并执行操作。
 
         优先使用本地AI（MCP + 视觉模型），可选使用Stagehand云服务。
@@ -56,9 +56,9 @@ class SelfHealingStrategyMixin:
         self,
         nl_description: str,
         action_type: ActionType,
-        action_info: Dict[str, Any],
-        step_test_data: Optional[Dict[str, str]] = None
-    ) -> Optional[str]:
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str] | None = None
+    ) -> str | None:
         """本地AI自愈：MCP识别器 + 视觉模型兜底。"""
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
@@ -94,9 +94,9 @@ class SelfHealingStrategyMixin:
         self,
         nl_description: str,
         action_type: ActionType,
-        action_info: Dict[str, Any],
-        step_test_data: Optional[Dict[str, str]] = None
-    ) -> Optional[str]:
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str] | None = None
+    ) -> str | None:
         """视觉模型自愈：截图识别 + 坐标执行。"""
         import asyncio
         logger.warning("MCP自愈失败，降级到视觉模型")
@@ -174,7 +174,7 @@ class SelfHealingStrategyMixin:
 
         return new_selector
 
-    def _resolve_locator_value(self, recognition_result) -> Optional[str]:
+    def _resolve_locator_value(self, recognition_result) -> str | None:
         """从识别结果中解析定位器值。"""
         loc_type = recognition_result.locator_type
         loc_value = recognition_result.locator_value
@@ -192,8 +192,8 @@ class SelfHealingStrategyMixin:
 
     def _resolve_input_text(
         self,
-        action_info: Dict[str, Any],
-        step_test_data: Optional[Dict[str, str]] = None
+        action_info: dict[str, Any],
+        step_test_data: dict[str, str] | None = None
     ) -> str:
         """从操作信息和测试数据中解析输入文本。"""
         input_text = action_info.get("input_value", "") or self._extract_input_text(action_info.get("text", ""))

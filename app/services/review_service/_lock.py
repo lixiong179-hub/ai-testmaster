@@ -1,9 +1,8 @@
-from typing import List, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.review import IterationReview, ReviewLock
+from app.models.review import IterationReview, ReviewDecision, ReviewLock
 from app.services.review_service._errors import (
     ReviewError,
     ReviewFinalizedError,
@@ -69,15 +68,15 @@ def cleanup_expired_locks(db: Session) -> int:
     return count
 
 
-def get_review(db: Session, review_id: int) -> Optional[IterationReview]:
+def get_review(db: Session, review_id: int) -> IterationReview | None:
     return db.get(IterationReview, review_id)
 
 
 def list_reviews(
     db: Session,
     iteration_id: int,
-    status: Optional[str] = None,
-) -> List[IterationReview]:
+    status: str | None = None,
+) -> list[IterationReview]:
     query = db.query(IterationReview).filter(
         IterationReview.iteration_id == iteration_id,
     )
@@ -89,11 +88,11 @@ def list_reviews(
 def get_decisions(
     db: Session,
     review_id: int,
-    target_kind: Optional[str] = None,
-    verdict: Optional[str] = None,
-    sort_by: Optional[str] = None,
-    order: Optional[str] = "desc",
-) -> List["ReviewDecision"]:
+    target_kind: str | None = None,
+    verdict: str | None = None,
+    sort_by: str | None = None,
+    order: str | None = "desc",
+) -> list["ReviewDecision"]:
     """获取评审决策列表。
 
     P2-3: 将原在端点层 Python 内存中执行的 verdict 过滤与排序下推至 SQL，

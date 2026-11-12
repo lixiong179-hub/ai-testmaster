@@ -8,7 +8,8 @@
 import asyncio
 import logging
 from functools import wraps
-from typing import Callable, TypeVar
+from typing import TypeVar
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 

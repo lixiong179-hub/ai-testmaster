@@ -25,7 +25,6 @@
     - generate_status 使用 `is not None` 判断而非布尔判断，因为0也是有效值
     - JOIN查询在Project表上有user_id索引支撑，性能可控
 """
-from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.test_case import TestCase
 from app.models.project import Project
@@ -35,7 +34,7 @@ def get_test_case_by_id(
     db: Session,
     test_case_id: int,
     project_id: int
-) -> Optional[TestCase]:
+) -> TestCase | None:
     """
     根据ID获取测试用例
 
@@ -60,7 +59,7 @@ def get_test_case_by_id(
 def get_test_case_by_case_no(
     db: Session,
     case_no: str
-) -> Optional[TestCase]:
+) -> TestCase | None:
     """
     根据用例编号获取测试用例
 
@@ -86,14 +85,14 @@ def get_test_case_by_case_no(
 def get_test_cases_by_project(
     db: Session,
     project_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
-    case_type: Optional[str] = None,
-    generate_status: Optional[int] = None,
-    lifecycle_status: Optional[str] = None,
+    module: str | None = None,
+    priority: int | None = None,
+    case_type: str | None = None,
+    generate_status: int | None = None,
+    lifecycle_status: str | None = None,
     skip: int = 0,
     limit: int = 100
-) -> List[TestCase]:
+) -> list[TestCase]:
     """
     获取项目的测试用例列表（支持多条件动态过滤+分页）
 
@@ -142,14 +141,14 @@ def get_test_cases_by_project_and_user(
     db: Session,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
-    case_type: Optional[str] = None,
-    generate_status: Optional[int] = None,
-    lifecycle_status: Optional[str] = None,
+    module: str | None = None,
+    priority: int | None = None,
+    case_type: str | None = None,
+    generate_status: int | None = None,
+    lifecycle_status: str | None = None,
     skip: int = 0,
     limit: int = 100
-) -> List[TestCase]:
+) -> list[TestCase]:
     """
     获取用户项目的测试用例列表（带权限过滤+多条件动态过滤+分页）
 
@@ -198,11 +197,11 @@ def get_test_cases_count(
     db: Session,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
-    case_type: Optional[str] = None,
-    generate_status: Optional[int] = None,
-    lifecycle_status: Optional[str] = None
+    module: str | None = None,
+    priority: int | None = None,
+    case_type: str | None = None,
+    generate_status: int | None = None,
+    lifecycle_status: str | None = None
 ) -> int:
     """
     获取测试用例数量（带权限过滤+多条件动态过滤）
@@ -247,7 +246,7 @@ def get_failed_test_cases(
     db: Session,
     project_id: int,
     user_id: int
-) -> List[TestCase]:
+) -> list[TestCase]:
     """
     获取生成失败的测试用例
 

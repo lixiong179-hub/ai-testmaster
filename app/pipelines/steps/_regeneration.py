@@ -1,5 +1,5 @@
 import json as _json
-from typing import Any, Dict, List
+from typing import Any
 
 from loguru import logger
 
@@ -12,8 +12,8 @@ from app.pipelines.steps._signal_scoring import (
 
 
 def _collect_d_grade_cases(
-    generated_cases: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+    generated_cases: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     d_entries = []
     for entry in generated_cases:
         if entry.get("status") != "success":
@@ -39,11 +39,11 @@ def _collect_d_grade_cases(
 
 def _regenerate_d_cases(
     ctx: PipelineContext,
-    d_entries: List[Dict[str, Any]],
-    signals: Dict[str, Any],
-    inferred: Dict[str, Any],
-    aligned: Dict[str, Any],
-    scores: List[Dict[str, Any]],
+    d_entries: list[dict[str, Any]],
+    signals: dict[str, Any],
+    inferred: dict[str, Any],
+    aligned: dict[str, Any],
+    scores: list[dict[str, Any]],
     analyzer: Any = None,
 ) -> None:
     from app.pipelines.steps.case_generation import (
@@ -60,7 +60,7 @@ def _regenerate_d_cases(
         good_titles_text = "、".join(f"「{t}」" for t in good_titles[:10]) if good_titles else "无"
         d_titles = [c.get("title", "未知") for c in d_cases]
 
-        regen_parts: List[str] = []
+        regen_parts: list[str] = []
         regen_parts.append("你是一名资深测试工程师。")
         regen_parts.append("")
         regen_parts.append("## 任务")
@@ -138,10 +138,7 @@ def _regenerate_d_cases(
             parent_entry["case_data"] = new_case_data
 
             regen_coverage_gap = _check_type_coverage(new_case_data)
-            if regen_coverage_gap:
-                regen_coverage_adj = -8.0 * len(regen_coverage_gap)
-            else:
-                regen_coverage_adj = 5.0
+            regen_coverage_adj = -8.0 * len(regen_coverage_gap) if regen_coverage_gap else 5.0
             per_regen_case_adj = round(regen_coverage_adj / len(new_case_data), 2) if new_case_data else 0.0
 
             for regen_case in regen_cases:

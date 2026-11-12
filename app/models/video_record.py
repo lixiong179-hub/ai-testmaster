@@ -43,18 +43,18 @@ class VideoRecord(Base):
     __mapper_args__ = {"confirm_deleted_rows": False}
 
     id = Column(Integer, primary_key=True, index=True)                                                # 视频记录主键ID
-    
+
     # 关联信息
     task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     case_id = Column(Integer, ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True)
     execution_id = Column(String(100), nullable=True, index=True, comment="执行ID")                    # 执行会话ID，关联具体的执行实例
-    
+
     # 文件信息
     file_path = Column(String(500), nullable=False, comment="视频文件路径")                            # 视频文件存储路径
     file_name = Column(String(200), nullable=False, comment="视频文件名")                              # 原始文件名
     file_size = Column(Integer, nullable=False, default=0, comment="文件大小(字节)")                    # 文件大小，单位字节
     file_format = Column(String(20), nullable=False, default="webm", comment="文件格式")                # 视频格式，默认webm
-    
+
     # 视频信息
     duration = Column(Float, nullable=True, comment="视频时长(秒)")                                    # 视频时长，单位秒
     resolution = Column(String(20), nullable=True, default="1920x1080", comment="分辨率")               # 视频分辨率，如1920x1080
@@ -67,19 +67,19 @@ class VideoRecord(Base):
     # 状态
     status = Column(String(20), nullable=False, default="recording", comment="状态: recording/completed/failed")
     error_message = Column(Text, nullable=True, comment="错误信息")                                    # 录制失败时的错误信息
-    
+
     # 时间信息
     created_at = Column(DateTime, nullable=False, default=utcnow)                                     # 创建时间，UTC时区
     updated_at = Column(DateTime, nullable=False, default=utcnow, onupdate=utcnow)                    # 更新时间
-    
+
     # 关联关系
     task = relationship("TestTask", back_populates="video_records")                                   # 所属任务
     case = relationship("TestCase", back_populates="video_records")                                   # 所属用例
-    
+
     def __repr__(self) -> str:
         """返回视频记录的字符串表示，便于调试和日志输出。"""
         return f"<VideoRecord(id={self.id}, task_id={self.task_id}, case_id={self.case_id})>"
-    
+
     def to_dict(self) -> dict:
         """
         将视频记录转换为字典格式。
@@ -106,7 +106,7 @@ class VideoRecord(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
-    
+
     @property
     def file_size_human(self) -> str:
         """

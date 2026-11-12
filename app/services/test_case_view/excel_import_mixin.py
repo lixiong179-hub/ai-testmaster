@@ -1,8 +1,6 @@
 """Excel导入Mixin - 标准格式和功能用例格式的Excel导入。"""
 import re
 import time
-from typing import List, Optional
-from datetime import datetime
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep
@@ -16,7 +14,7 @@ from app.services.case_number_service import CaseNumberService
 class ExcelImportMixin:
     """Excel导入：标准双Sheet格式、第三方功能用例格式。"""
 
-    def import_from_excel(self, file_path: str, project_id: int, user_id: int = 1, target_device: Optional[str] = None, iteration_id: Optional[int] = None) -> Optional[int]:
+    def import_from_excel(self, file_path: str, project_id: int, user_id: int = 1, target_device: str | None = None, iteration_id: int | None = None) -> int | None:
         try:
             import pandas as pd
 
@@ -92,7 +90,7 @@ class ExcelImportMixin:
             logger.error(f"从Excel导入失败: {e}")
             return None
 
-    def import_functional_excel(self, file_path: str, project_id: int, module: str = "默认模块", target_device: Optional[str] = None, iteration_id: Optional[int] = None) -> List[int]:
+    def import_functional_excel(self, file_path: str, project_id: int, module: str = "默认模块", target_device: str | None = None, iteration_id: int | None = None) -> list[int]:
         try:
             import pandas as pd
 
@@ -218,7 +216,7 @@ class ExcelImportMixin:
                 return new_case_no
             counter += 1
 
-    def _parse_functional_steps(self, step_desc: str, expected: str) -> List[BusinessStepView]:
+    def _parse_functional_steps(self, step_desc: str, expected: str) -> list[BusinessStepView]:
         steps = []
         step_pattern = r'(?:【(\d+)】|\[(\d+)\])\s*((?:(?!【\d+】|\[\d+\]).)*)'
         step_matches = re.findall(step_pattern, step_desc, re.DOTALL)

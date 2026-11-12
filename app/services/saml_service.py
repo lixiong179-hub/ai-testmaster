@@ -12,14 +12,13 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exception._base import BaseAPIException
-from app.models.user import User
 from app.services.saml import (
     build_authn_request_redirect,
     build_logout_request_redirect,
@@ -39,7 +38,7 @@ from app.utils.jwt_utils import (
 class SAMLServiceError(BaseAPIException):
     """SAML 服务异常基类。"""
 
-    def __init__(self, msg: str, code: int = 400, details: Optional[dict] = None) -> None:
+    def __init__(self, msg: str, code: int = 400, details: dict | None = None) -> None:
         super().__init__(msg=msg, code=code, details=details)
 
 
@@ -78,7 +77,7 @@ class SAMLUserNotBoundError(SAMLServiceError):
         super().__init__(msg=msg, code=403)
 
 
-def get_saml_service() -> "SAMLService":
+def get_saml_service() -> SAMLService:
     """获取 SAMLService 实例（工厂函数）。
 
     Raises:
@@ -117,7 +116,7 @@ class SAMLService:
         """列出所有已配置的 IdP 标识。"""
         return [c["provider"] for c in settings.saml_idp_configs_list]
 
-    def get_provider_config(self, provider: Optional[str]) -> Dict[str, Any]:
+    def get_provider_config(self, provider: str | None) -> dict[str, Any]:
         """获取指定 IdP 配置；provider 为 None 时使用默认 IdP。"""
         target = provider or settings.SAML_DEFAULT_PROVIDER
         cfg = settings.get_saml_provider_config(target)
@@ -126,7 +125,7 @@ class SAMLService:
             raise SAMLConfigError(f"未找到 IdP 配置: provider={target}，可用: {available}")
         return cfg
 
-    def resolve_provider(self, provider: Optional[str]) -> str:
+    def resolve_provider(self, provider: str | None) -> str:
         """解析实际使用的 provider 标识（处理 None 情况）。"""
         return provider or settings.SAML_DEFAULT_PROVIDER
 
@@ -135,8 +134,8 @@ class SAMLService:
     @staticmethod
     def build_request_data_from_request(
         request,
-        saml_response: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        saml_response: str | None = None,
+    ) -> dict[str, Any]:
         """从 FastAPI Request 构建 python3-saml 要求的 request_data 字典。"""
         forwarded_proto = request.headers.get("x-forwarded-proto", "")
         scheme = forwarded_proto or request.url.scheme
@@ -152,7 +151,7 @@ class SAMLService:
         }
 
     @staticmethod
-    def _build_minimal_request_data(script_name: str) -> Dict[str, Any]:
+    def _build_minimal_request_data(script_name: str) -> dict[str, Any]:
         """构造最小占位 request_data（无实际 HTTP 请求上下文时使用）。"""
         return {
             "https": "on",
@@ -166,7 +165,7 @@ class SAMLService:
 
     # ── SP 元数据 ──
 
-    def generate_sp_metadata(self, provider: Optional[str] = None) -> str:
+    def generate_sp_metadata(self, provider: str | None = None) -> str:
         """生成 SP 元数据 XML（供 IdP 导入配置 SP 信任关系）。"""
         idp_cfg = self.get_provider_config(provider)
         return generate_sp_metadata_xml(idp_cfg, strict=True)
@@ -175,10 +174,10 @@ class SAMLService:
 
     def build_login_redirect(
         self,
-        provider: Optional[str] = None,
-        redirect_to: Optional[str] = None,
-        request_data: Optional[Dict[str, Any]] = None,
-    ) -> Tuple[str, str]:
+        provider: str | None = None,
+        redirect_to: str | None = None,
+        request_data: dict[str, Any] | None = None,
+    ) -> tuple[str, str]:
         """构造 SAML AuthnRequest 跳转 URL（SP 发起 SSO）。
 
         Args:
@@ -212,8 +211,8 @@ class SAMLService:
         provider: str,
         saml_response: str,
         relay_state: str,
-        request_data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        request_data: dict[str, Any],
+    ) -> dict[str, Any]:
         """处理 ACS 回调（校验 RelayState → 解析 SAMLResponse → 用户映射 → 签发 token）。
 
         Raises:
@@ -295,7 +294,7 @@ class SAMLService:
         provider: str,
         name_id: str,
         session_index: str,
-        request_data: Optional[Dict[str, Any]] = None,
+        request_data: dict[str, Any] | None = None,
         relay_state: str = "",
     ) -> str:
         """构造 SAML LogoutRequest 跳转 URL（SP 发起 SLO）。"""
@@ -309,15 +308,15 @@ class SAMLService:
     def handle_slo(
         self,
         provider: str,
-        request_data: Dict[str, Any],
-    ) -> Tuple[bool, str]:
+        request_data: dict[str, Any],
+    ) -> tuple[bool, str]:
         """处理 IdP 发起的 SLO（解析 LogoutResponse）。"""
         idp_cfg = self.get_provider_config(provider)
         return parse_logout_response(request_data, idp_cfg, strict=True)
 
     # ── 元数据端点 ──
 
-    def get_provider_metadata(self, provider: Optional[str] = None) -> Dict[str, Any]:
+    def get_provider_metadata(self, provider: str | None = None) -> dict[str, Any]:
         """获取 IdP 元数据（供前端展示已配置的 IdP 列表 / 单个详情）。"""
         if provider is not None:
             cfg = self.get_provider_config(provider)

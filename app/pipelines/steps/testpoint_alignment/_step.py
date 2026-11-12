@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
@@ -22,8 +22,8 @@ class TestPointAlignment(PipelineStep):
     __test__ = False
     name: ClassVar[str] = "testpoint_alignment"
     version: ClassVar[str] = "2.0"
-    requires: ClassVar[List[str]] = ["raw_signals"]
-    produces: ClassVar[List[str]] = ["aligned_testpoints"]
+    requires: ClassVar[list[str]] = ["raw_signals"]
+    produces: ClassVar[list[str]] = ["aligned_testpoints"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         signals = ctx.get_artifact("raw_signals")
@@ -168,10 +168,10 @@ class TestPointAlignment(PipelineStep):
             confirmation_payload={"conflicts": conflicts[:10], "active_sources": active_sources},
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         return "aligned_testpoints" in payload and "sources" in payload
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         signals = ctx.get_artifact("raw_signals")
         test_points = signals.get("test_points", []) if signals else []
         aligned = [

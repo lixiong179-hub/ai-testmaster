@@ -7,7 +7,7 @@
 定位策略遵循“取首个可见”原则，覆盖中英文常见字段命名与提交按钮文案；
 page 对象由 SiteExplorer.explore 从 BrowserControllerV2.active_page 注入。
 """
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -17,7 +17,7 @@ from app.utils.browser_controller_v2 import BrowserControllerV2
 _PASSWORD_SELECTOR = 'input[type="password"]'
 
 # 用户名框候选选择器：name 语义优先于通用 type，按命中优先级排序
-_USERNAME_SELECTORS: Tuple[str, ...] = (
+_USERNAME_SELECTORS: tuple[str, ...] = (
     'input[name*="user" i]',
     'input[name*="account" i]',
     'input[name*="email" i]',
@@ -27,7 +27,7 @@ _USERNAME_SELECTORS: Tuple[str, ...] = (
 )
 
 # 提交按钮候选选择器：覆盖标准 submit 与中英文登录按钮文案
-_SUBMIT_SELECTORS: Tuple[str, ...] = (
+_SUBMIT_SELECTORS: tuple[str, ...] = (
     'button[type="submit"]',
     'button:has-text("登录")',
     'button:has-text("login")',
@@ -45,7 +45,7 @@ class LoginMixin:
     """
 
     async def _login_with_selectors(
-        self, controller: BrowserControllerV2, credentials: Dict[str, str]
+        self, controller: BrowserControllerV2, credentials: dict[str, str]
     ) -> bool:
         """用 CSS 选择器定位登录表单并提交，不依赖 AI，失败降级返回 False。
 
@@ -100,8 +100,8 @@ class LoginMixin:
             return False
 
     async def _locate_first_visible(
-        self, page: Any, selectors: Tuple[str, ...]
-    ) -> Optional[Any]:
+        self, page: Any, selectors: tuple[str, ...]
+    ) -> Any | None:
         """按候选选择器顺序取首个可见元素，全部不可见返回 None。
 
         用 locator.first + is_visible 逐个判定，避免 count() 误判隐藏元素；

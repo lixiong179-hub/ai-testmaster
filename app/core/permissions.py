@@ -22,7 +22,8 @@
     - app.api.v1.endpoints.auth.get_current_user: 获取当前登录用户
     - app.models.user.User: 用户模型（含is_superuser字段和roles关联）
 """
-from typing import List, Optional, Callable, Any
+from typing import Any
+from collections.abc import Callable
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from loguru import logger
@@ -55,7 +56,7 @@ class PermissionDenied(HTTPException):
         )
 
 
-def check_role(user: User, allowed_roles: List[str]) -> bool:
+def check_role(user: User, allowed_roles: list[str]) -> bool:
     """
     检查用户是否拥有指定角色列表中的任一角色（RBAC核心校验逻辑）
 
@@ -92,7 +93,7 @@ def check_role(user: User, allowed_roles: List[str]) -> bool:
     return any(role in allowed_roles for role in user_roles)
 
 
-def require_roles(roles: List[str]) -> Callable[..., Any]:
+def require_roles(roles: list[str]) -> Callable[..., Any]:
     """
     角色权限依赖项工厂函数
 
@@ -187,7 +188,7 @@ class ViewPermissions:
     ADMIN = ['admin']
 
 
-def can_view_technical(user: Optional[User]) -> bool:
+def can_view_technical(user: User | None) -> bool:
     """
     检查用户是否可以查看技术视图（便捷函数）
 
@@ -211,7 +212,7 @@ def can_view_technical(user: Optional[User]) -> bool:
     return check_role(user, ViewPermissions.TECHNICAL_VIEW)
 
 
-def can_edit_locator(user: Optional[User]) -> bool:
+def can_edit_locator(user: User | None) -> bool:
     """
     检查用户是否可以编辑定位信息（便捷函数）
 
@@ -280,10 +281,10 @@ def _has_permission_code(user: User, code: str) -> bool:
     """
     if getattr(user, "is_superuser", False):
         return True
-    for role in getattr(user, "roles", []) or []:
-        if role.permissions and code in role.permissions:
-            return True
-    return False
+    return any(
+        role.permissions and code in role.permissions
+        for role in getattr(user, "roles", []) or []
+    )
 
 
 def require_permission(code: str) -> Callable[..., Any]:

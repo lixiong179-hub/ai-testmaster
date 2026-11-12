@@ -6,7 +6,7 @@
 R3-1：置信度权重已外置到 `settings.AI_SELF_HEALING_CONF_WEIGHT_*`，
 模块级常量仅作为「配置缺失/非法值」时的回落默认值。
 """
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 # 置信度评分权重默认值（坐标匹配 + 属性匹配 + 模型输出）
 # 实际取值优先来自 settings；此处仅作回落，保证纯函数在无配置环境下仍可调用
@@ -20,7 +20,7 @@ _TOKEN_MINIMUM = 100
 _CONF_LAYERS = ("coordinate", "attribute", "model")
 
 
-def get_confidence_weights() -> Tuple[float, float, float]:
+def get_confidence_weights() -> tuple[float, float, float]:
     """读取置信度权重配置 (coord, attr, model)。
 
     配置项缺失、类型非法或导入失败时回落到模块级默认值，
@@ -45,9 +45,9 @@ def get_confidence_weights() -> Tuple[float, float, float]:
 
 
 def explain_confidence(
-    element_info: Dict[str, Any],
-    element_attrs: Optional[Dict[str, Any]],
-) -> Dict[str, Any]:
+    element_info: dict[str, Any],
+    element_attrs: dict[str, Any] | None,
+) -> dict[str, Any]:
     """计算置信度并返回各层级命中情况（供埋点使用）。
 
     Returns:
@@ -92,8 +92,8 @@ def explain_confidence(
 
 
 def compute_confidence(
-    element_info: Dict[str, Any],
-    element_attrs: Optional[Dict[str, Any]],
+    element_info: dict[str, Any],
+    element_attrs: dict[str, Any] | None,
 ) -> float:
     """计算视觉自愈的综合置信度。
 

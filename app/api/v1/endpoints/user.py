@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import Any
 """
 用户管理端点模块
 
@@ -38,6 +38,8 @@ from app.schemas.user import (
 from app.services.user_service import (
     UserService, UserRoleService, RoleService, PermissionService,
 )
+# R4-7：依赖实现已下沉至 app.api.v1.endpoints._deps，
+# 打破 `user ↔ _user_perm_routes/_user_role_routes` 的循环导入；此处保留同名绑定。
 from app.api.v1.endpoints._deps import _require_superuser
 from app.api.v1.endpoints.auth import get_current_user
 from app.utils.jwt_utils import create_access_token
@@ -45,11 +47,6 @@ from app.core.config import settings
 from loguru import logger
 
 router = APIRouter(prefix="/user", tags=["用户管理"])
-
-
-# R4-7：依赖实现已下沉至 app.api.v1.endpoints._deps，
-# 打破 `user ↔ _user_perm_routes/_user_role_routes` 的循环导入；此处保留同名绑定。
-from app.api.v1.endpoints._deps import _require_superuser  # noqa: E402
 
 
 @router.post("/login", response_model=Token)
@@ -103,13 +100,13 @@ async def create_user(
     return user
 
 
-@router.get("/", response_model=List[User])
+@router.get("/", response_model=list[User])
 async def get_users(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
-) -> List[User]:
+) -> list[User]:
     """获取用户列表（需认证）"""
     users = await UserService(db).get_users_async(skip=skip, limit=limit)
     return users
@@ -131,13 +128,13 @@ async def create_role(
     return role
 
 
-@router.get("/role", response_model=List[Role])
+@router.get("/role", response_model=list[Role])
 async def get_roles(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
-) -> List[Role]:
+) -> list[Role]:
     """获取角色列表（需认证）"""
     service = RoleService(db)
     roles = await service.get_roles_async(skip=skip, limit=limit)
@@ -234,13 +231,13 @@ async def create_permission(
     return permission
 
 
-@router.get("/permission", response_model=List[Permission])
+@router.get("/permission", response_model=list[Permission])
 async def get_permissions(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
-) -> List[Permission]:
+) -> list[Permission]:
     """获取权限列表（需认证）"""
     service = PermissionService(db)
     permissions = await service.get_permissions_async(skip=skip, limit=limit)

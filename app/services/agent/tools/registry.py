@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import threading
-from typing import Dict, List, Optional, Set
 
 from app.services.agent.tools.base_tool import Tool
 
@@ -33,17 +32,17 @@ class ToolRegistry:
 
     def __init__(self) -> None:
         # tool_name -> Tool 实例
-        self._tools: Dict[str, Tool] = {}
+        self._tools: dict[str, Tool] = {}
         # tool_name -> 允许使用的 agent_type 集合；None 表示全局可用
-        self._agent_scopes: Dict[str, Optional[Set[str]]] = {}
+        self._agent_scopes: dict[str, set[str] | None] = {}
         # 已禁用的 tool_name 集合
-        self._disabled: Set[str] = set()
+        self._disabled: set[str] = set()
         self._lock = threading.Lock()
 
     def register(
         self,
         tool: Tool,
-        agent_types: Optional[List[str]] = None,
+        agent_types: list[str] | None = None,
     ) -> None:
         """注册工具。
 
@@ -65,11 +64,11 @@ class ToolRegistry:
             )
             self._disabled.discard(tool.name)
 
-    def get(self, tool_name: str) -> Optional[Tool]:
+    def get(self, tool_name: str) -> Tool | None:
         """查询工具实例。"""
         return self._tools.get(tool_name)
 
-    def list_for_agent(self, agent_type: str) -> List[Tool]:
+    def list_for_agent(self, agent_type: str) -> list[Tool]:
         """列出指定 Agent 可用的工具。
 
         过滤规则：

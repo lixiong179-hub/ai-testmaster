@@ -1,6 +1,5 @@
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 class ExecutionMode(Enum):
@@ -36,7 +35,7 @@ class ExecutionConfig:
     strategy: ExecutionStrategy = ExecutionStrategy.SMART
     headless: bool = True
     record_video: bool = False
-    video_path: Optional[str] = None
+    video_path: str | None = None
     strategy_config: StrategyConfig = field(default_factory=StrategyConfig)
 
     def is_ai_vision(self) -> bool:

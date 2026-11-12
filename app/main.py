@@ -1,6 +1,6 @@
 import asyncio
 import sys
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 # Windows 平台必须使用 ProactorEventLoop 才能启动 Playwright 子进程
 # （asyncio.create_subprocess_exec 在 SelectorEventLoop 下抛 NotImplementedError）。

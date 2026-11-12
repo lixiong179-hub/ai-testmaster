@@ -1,6 +1,6 @@
 """批量任务管理器 - 管理并发批量定位任务。
 """
-from typing import Dict, Optional, Any
+from typing import Any
 from loguru import logger
 from app.utils.db_time import utcnow
 
@@ -8,8 +8,8 @@ from app.utils.db_time import utcnow
 class BatchTaskManager:
 
     _instance = None
-    _tasks: Dict[int, Any] = {}
-    _reports: Dict[int, tuple] = {}
+    _tasks: dict[int, Any] = {}
+    _reports: dict[int, tuple] = {}
 
     def __new__(cls) -> 'BatchTaskManager':
         if cls._instance is None:
@@ -34,7 +34,7 @@ class BatchTaskManager:
     def get_task(self, case_id: int) -> Any | None:
         return self._tasks.get(case_id)
 
-    def get_report(self, case_id: int) -> Optional[Any]:
+    def get_report(self, case_id: int) -> Any | None:
         service = self._tasks.get(case_id)
         if service:
             return service.get_report()
@@ -50,7 +50,7 @@ class BatchTaskManager:
             return True
         return False
 
-    def get_all_tasks(self) -> Dict[int, Any]:
+    def get_all_tasks(self) -> dict[int, Any]:
         return self._tasks.copy()
 
     def _cleanup_expired_reports(self) -> None:

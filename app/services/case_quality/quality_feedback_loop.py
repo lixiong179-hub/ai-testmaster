@@ -14,7 +14,8 @@
 - 第 N+1 轮注入 quality_signals（禁止盲重试，历史避坑要点 4）。
 - on_round 回调供流式端点收集 SSE regen 事件。
 """
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
+from typing import Any
+from collections.abc import Awaitable, Callable
 
 from loguru import logger
 
@@ -23,17 +24,17 @@ from app.services.test_case_generation.quality_validator import validate_single_
 
 # 重生成函数：接收 extra_context dict（含 quality_feedback 与 quality_signals），
 # 返回新用例 dict 或 None（本轮生成失败）
-AsyncRegenFn = Callable[[Dict[str, Any]], Awaitable[Optional[Dict[str, Any]]]]
+AsyncRegenFn = Callable[[dict[str, Any]], Awaitable[dict[str, Any] | None]]
 # 反馈文本构建器：(issues, case, status) -> 反馈文本
-FeedbackBuilder = Callable[[List[str], Dict[str, Any], str], str]
+FeedbackBuilder = Callable[[list[str], dict[str, Any], str], str]
 # 轮次回调：(round_idx, status, issues) -> None，供流式端点收集 SSE 事件
-RoundCallback = Callable[[int, str, List[str]], None]
+RoundCallback = Callable[[int, str, list[str]], None]
 
 
 # 质量反馈修复示例库（Task 9 spec L140/L202）。
 # key 为问题关键词，value 为对应修复示例文本。build_quality_feedback_text
 # 对每个 issue 按关键词匹配，将示例注入反馈供 AI 修复参考。
-_QUALITY_FIX_EXAMPLES: Dict[str, str] = {
+_QUALITY_FIX_EXAMPLES: dict[str, str] = {
     "标题为空": "示例标题：'正常登录_正确账号密码_跳转首页'（场景+条件+验证重点，15-40字）",
     "标题过短": "示例标题：'异常登录_密码错误三次锁定账号显示等待时间'（需含场景+操作+验证重点，≥8字）",
     "标题过长": "示例标题：'正常登录_正确账号密码跳转首页'（控制在50字以内，删除冗余修饰词）",
@@ -57,7 +58,7 @@ _QUALITY_FIX_EXAMPLES: Dict[str, str] = {
 }
 
 
-def _match_quality_fix_example(issue: str) -> Optional[str]:
+def _match_quality_fix_example(issue: str) -> str | None:
     """从 _QUALITY_FIX_EXAMPLES 按关键词匹配修复示例。
 
     Args:
@@ -73,7 +74,7 @@ def _match_quality_fix_example(issue: str) -> Optional[str]:
 
 
 def build_quality_feedback_text(
-    issues: List[str], case: Dict[str, Any], status: str = "pending_review"
+    issues: list[str], case: dict[str, Any], status: str = "pending_review"
 ) -> str:
     """将校验问题转为 AI 可理解的修复指引，按严重程度排序并匹配修复示例。
 
@@ -94,13 +95,13 @@ def build_quality_feedback_text(
     severe_keywords = ("为空", "不足", "非法")
     if status == "rejected":
         severe_issues = list(issues)
-        normal_issues: List[str] = []
+        normal_issues: list[str] = []
     else:
         severe_issues = [i for i in issues if any(k in str(i) for k in severe_keywords)]
         normal_issues = [i for i in issues if not any(k in str(i) for k in severe_keywords)]
     sorted_issues = severe_issues + normal_issues
 
-    feedback_lines: List[str] = []
+    feedback_lines: list[str] = []
     for issue in sorted_issues:
         fix_example = _match_quality_fix_example(str(issue))
         if fix_example:
@@ -115,12 +116,12 @@ def build_quality_feedback_text(
 
 
 async def run_quality_feedback_loop(
-    case: Dict[str, Any],
+    case: dict[str, Any],
     regen_fn: AsyncRegenFn,
-    feedback_builder: Optional[FeedbackBuilder] = None,
-    max_rounds: Optional[int] = None,
-    on_round: Optional[RoundCallback] = None,
-) -> Tuple[Dict[str, Any], str, List[str]]:
+    feedback_builder: FeedbackBuilder | None = None,
+    max_rounds: int | None = None,
+    on_round: RoundCallback | None = None,
+) -> tuple[dict[str, Any], str, list[str]]:
     """执行质量反馈闭环（最多 max_rounds 轮，含首轮校验）。
 
     首轮直接校验输入 case；不通过则通过 regen_fn 重生成，每轮注入
@@ -164,7 +165,7 @@ async def run_quality_feedback_loop(
         feedback_text = builder(issues, current_case, status)
         dim_scores = QualityScoringService.score_dimensions(current_case)
         signals = build_quality_signals(issues, dim_scores, current_case)
-        extra_context: Dict[str, Any] = {
+        extra_context: dict[str, Any] = {
             "quality_feedback": feedback_text,
             "quality_signals": signals,
         }

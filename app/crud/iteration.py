@@ -69,7 +69,7 @@ from app.crud.iteration_query import (
 )
 from app.crud.iteration_mutate import (
     # 私有工具函数保持模块级可用：app/services/iteration_async_mixin.py 直接引用
-    _normalize_iteration_name,
+    _normalize_iteration_name,  # noqa: F401
     MAX_ITERATION_NAME_LENGTH,
     create_iteration,
     update_iteration,

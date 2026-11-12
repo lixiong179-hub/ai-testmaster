@@ -18,6 +18,7 @@ APScheduler 定时任务调度服务模块
 """
 from loguru import logger
 from apscheduler.schedulers.background import BackgroundScheduler
+import contextlib
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -36,10 +37,8 @@ def _run_pipeline_timeout_check() -> None:
         cancel_timed_out_pipelines(db)
     except Exception as e:
         logger.error("Pipeline 超时检查定时任务执行失败: %s", e)
-        try:
+        with contextlib.suppress(Exception):
             db.rollback()
-        except Exception:
-            pass
     finally:
         db.close()
 

@@ -42,17 +42,16 @@
     - other: 其他
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.project import ProjectFile
-from typing import List, Optional
 from app.utils.db_time import utcnow
 
 
 def create_project_file(db: Session, project_id: int, file_name: str, file_type: str,
-                       file_url: str, file_source: str = "file", size: Optional[int] = None,
+                       file_url: str, file_source: str = "file", size: int | None = None,
                        resource_type: str = "other", description: str = None,
-                       iteration_id: Optional[int] = None) -> ProjectFile:
+                       iteration_id: int | None = None) -> ProjectFile:
     """
     创建项目文件记录
 
@@ -94,7 +93,7 @@ def create_project_file(db: Session, project_id: int, file_name: str, file_type:
 
 
 def update_file_content(db: Session, file_id: int, content: str, extract_status: str,
-                        extract_error: str = None) -> Optional[ProjectFile]:
+                        extract_error: str = None) -> ProjectFile | None:
     """
     更新文件提取内容和状态
 
@@ -127,7 +126,7 @@ def update_file_content(db: Session, file_id: int, content: str, extract_status:
 
 
 def update_file_resource_type(db: Session, file_id: int, project_id: int,
-                               resource_type: str) -> Optional[ProjectFile]:
+                               resource_type: str) -> ProjectFile | None:
     """
     更新文件资源类型
 
@@ -155,7 +154,7 @@ def update_file_resource_type(db: Session, file_id: int, project_id: int,
 
 
 def get_project_files(db: Session, project_id: int, is_active: bool = True,
-                      iteration_id: Optional[int] = None) -> List[ProjectFile]:
+                      iteration_id: int | None = None) -> list[ProjectFile]:
     """
     获取项目文件列表（支持活跃状态/迭代过滤，按上传时间倒序）
 
@@ -191,7 +190,7 @@ def get_project_files(db: Session, project_id: int, is_active: bool = True,
     return query.order_by(ProjectFile.upload_time.desc()).all()
 
 
-def get_project_files_by_type(db: Session, project_id: int, resource_type: str) -> List[ProjectFile]:
+def get_project_files_by_type(db: Session, project_id: int, resource_type: str) -> list[ProjectFile]:
     """
     根据资源类型获取项目文件
 
@@ -209,11 +208,11 @@ def get_project_files_by_type(db: Session, project_id: int, resource_type: str) 
     return db.query(ProjectFile).filter(
         ProjectFile.project_id == project_id,
         ProjectFile.resource_type == resource_type,
-        ProjectFile.is_active == True  # 仅查询活跃文件，排除已软删除的
+        ProjectFile.is_active.is_(True)  # 仅查询活跃文件，排除已软删除的
     ).order_by(ProjectFile.upload_time.desc()).all()
 
 
-def get_file_by_id(db: Session, file_id: int, project_id: int) -> Optional[ProjectFile]:
+def get_file_by_id(db: Session, file_id: int, project_id: int) -> ProjectFile | None:
     """
     根据ID获取文件，带项目ID过滤
 
@@ -283,7 +282,7 @@ def permanent_delete_file(db: Session, file_id: int, project_id: int) -> bool:
 
 
 def get_project_files_by_iteration(db: Session, project_id: int,
-                                    iteration_id: int) -> List[ProjectFile]:
+                                    iteration_id: int) -> list[ProjectFile]:
     """
     根据迭代ID获取项目文件
 
@@ -314,7 +313,7 @@ async def update_file_content_async(
     content: str,
     extract_status: str,
     extract_error: str = None
-) -> Optional[ProjectFile]:
+) -> ProjectFile | None:
     """
     更新文件提取内容和状态（异步版本）
 

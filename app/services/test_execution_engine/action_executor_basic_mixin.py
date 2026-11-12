@@ -2,7 +2,7 @@
 """
 import asyncio
 import re
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.services.test_execution_engine.models import (
@@ -12,7 +12,7 @@ from app.services.test_execution_engine.models import (
 
 class ActionExecutorBasicMixin:
 
-    def _parse_step_action(self, action_text: str) -> Dict[str, Any]:
+    def _parse_step_action(self, action_text: str) -> dict[str, Any]:
         action_lower = action_text.lower()
         if "导航" in action_text or "访问" in action_text or "打开" in action_text or "navigate" in action_lower:
             return {"type": ActionType.NAVIGATE, "text": action_text}
@@ -49,7 +49,7 @@ class ActionExecutorBasicMixin:
         else:
             return {"type": ActionType.CLICK, "text": action_text}
 
-    async def _execute_navigate(self, action_info: Dict[str, Any]) -> None:
+    async def _execute_navigate(self, action_info: dict[str, Any]) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         text = action_info.get("text", "")
@@ -90,13 +90,13 @@ class ActionExecutorBasicMixin:
 
         raise StepExecutionError(f"无法从动作中提取URL或路径: {text}")
 
-    async def _execute_refresh(self, action_info: Dict[str, Any]) -> None:
+    async def _execute_refresh(self, action_info: dict[str, Any]) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         await self.browser.refresh()
         logger.info("页面刷新完成")
 
-    async def _execute_keypress(self, action_info: Dict[str, Any]) -> None:
+    async def _execute_keypress(self, action_info: dict[str, Any]) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         text = action_info.get("text", "")
@@ -116,13 +116,13 @@ class ActionExecutorBasicMixin:
         else:
             return "Enter"
 
-    async def _execute_wait(self, action_info: Dict[str, Any]) -> None:
+    async def _execute_wait(self, action_info: dict[str, Any]) -> None:
         text = action_info.get("text", "")
         wait_seconds = self._extract_wait_time(text)
         logger.info(f"等待 {wait_seconds} 秒")
         await asyncio.sleep(wait_seconds)
 
-    async def _execute_scroll(self, action_info: Dict[str, Any]) -> None:
+    async def _execute_scroll(self, action_info: dict[str, Any]) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         text = action_info.get("text", "")
@@ -136,7 +136,7 @@ class ActionExecutorBasicMixin:
             await self.browser.execute_javascript("window.scrollBy(0, 500)")
             logger.info("默认向下滚动")
 
-    async def _execute_switch_frame(self, action_info: Dict[str, Any], step=None) -> None:
+    async def _execute_switch_frame(self, action_info: dict[str, Any], step=None) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         page = getattr(self.browser, "active_page", None) or getattr(self.browser, "_page", None)
@@ -176,7 +176,7 @@ class ActionExecutorBasicMixin:
         except Exception as exc:
             raise StepExecutionError(f"切换iframe失败: {exc}") from exc
 
-    async def _execute_switch_window(self, action_info: Dict[str, Any], step=None) -> None:
+    async def _execute_switch_window(self, action_info: dict[str, Any], step=None) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         context = getattr(self.browser, "_context", None) or getattr(self.browser, "context", None)
@@ -216,7 +216,7 @@ class ActionExecutorBasicMixin:
         except Exception as exc:
             raise StepExecutionError(f"切换窗口失败: {exc}") from exc
 
-    async def _execute_upload(self, action_info: Dict[str, Any], step=None) -> None:
+    async def _execute_upload(self, action_info: dict[str, Any], step=None) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         page = getattr(self.browser, "active_page", None) or getattr(self.browser, "_page", None)
@@ -242,7 +242,7 @@ class ActionExecutorBasicMixin:
         except Exception as exc:
             raise StepExecutionError(f"文件上传失败: {exc}") from exc
 
-    async def _execute_execute_script(self, action_info: Dict[str, Any], step=None) -> None:
+    async def _execute_execute_script(self, action_info: dict[str, Any], step=None) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         page = getattr(self.browser, "active_page", None) or getattr(self.browser, "_page", None)
@@ -262,7 +262,7 @@ class ActionExecutorBasicMixin:
         except Exception as exc:
             raise StepExecutionError(f"脚本执行失败: {exc}") from exc
 
-    async def _execute_screenshot(self, action_info: Dict[str, Any]) -> None:
+    async def _execute_screenshot(self, action_info: dict[str, Any]) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         try:
@@ -291,24 +291,24 @@ class ActionExecutorBasicMixin:
         )
         return not any(re.search(pattern, sanitized, re.IGNORECASE) for pattern in dangerous_patterns)
 
-    def _extract_url(self, text: str) -> Optional[str]:
+    def _extract_url(self, text: str) -> str | None:
         url_pattern = r'https?://[^\s<>"{}|\\^`\[\]\']+'
         match = re.search(url_pattern, text)
         return match.group(0) if match else None
 
-    def _extract_relative_path(self, text: str) -> Optional[str]:
+    def _extract_relative_path(self, text: str) -> str | None:
         if not text or self._extract_url(text):
             return None
         match = re.search(r"(?<!\S)(/[A-Za-z0-9][A-Za-z0-9/_\-.]*)", text)
         return match.group(1) if match else None
 
-    def _get_base_url(self) -> Optional[str]:
+    def _get_base_url(self) -> str | None:
         precondition_service = getattr(self, "precondition_service", None)
         test_object_info = getattr(precondition_service, "test_object_info", None)
         url = getattr(test_object_info, "url", None)
         return str(url) if url else None
 
-    def _is_css_selector(self, value: Optional[str]) -> bool:
+    def _is_css_selector(self, value: str | None) -> bool:
         if not value or not isinstance(value, str):
             return False
         if value.startswith(("http://", "https://", "/")):

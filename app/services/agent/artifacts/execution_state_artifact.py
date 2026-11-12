@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from pydantic import Field
 
@@ -26,9 +26,9 @@ class ExecutionStateArtifact(Artifact):
     artifact_type: ClassVar[str] = "execution_state"
     description: ClassVar[str] = "测试执行状态，含当前步骤、错误信息、截图"
 
-    current_step: Optional[str] = None
-    last_error: Optional[str] = None
-    screenshot_url: Optional[str] = None
+    current_step: str | None = None
+    last_error: str | None = None
+    screenshot_url: str | None = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 

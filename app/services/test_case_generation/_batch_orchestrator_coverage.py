@@ -6,7 +6,7 @@
 供 BatchOrchestrator 通过多继承组合使用，依赖宿主类在 __init__ 中
 注入 self._ai_generator（提供 _build_ui_description）。
 """
-from typing import Any, Dict, List
+from typing import Any
 
 from loguru import logger
 
@@ -24,10 +24,10 @@ class CoverageEnhancementMixin:
     # ── 类型覆盖补全（合并自 _coverage_enhancement_mixin） ──
     async def _enhance_coverage_for_point(
         self,
-        candidate_cases: List[Dict[str, Any]],
-        test_point: Dict[str, Any],
-        point_context: Dict[str, Any],
-    ) -> List[Dict[str, Any]]:
+        candidate_cases: list[dict[str, Any]],
+        test_point: dict[str, Any],
+        point_context: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         """检测类型覆盖缺失并补充生成缺失类型的用例。
 
         并发安全：point_context 已由调用方深拷贝，candidate_cases 为本测试点
@@ -51,7 +51,7 @@ class CoverageEnhancementMixin:
             has_ui = bool(ui_description and ui_description.strip()) or bool(
                 point_context.get("ui_specs", [])
             )
-            supplemental_context: Dict[str, Any] = {
+            supplemental_context: dict[str, Any] = {
                 "prd_content": point_context.get("requirement_content", ""),
                 "ui_description": ui_description,
                 "ui_specs": point_context.get("ui_specs", []),

@@ -11,7 +11,7 @@ A/B测试指标服务
     - async 方法（*_async）供 ab_test endpoint 在 AsyncSession 上下文调用
 """
 import math
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +43,7 @@ class ABTestService:
         - async 方法（*_async）供 ab_test endpoint 在 AsyncSession 上下文调用
     """
 
-    def __init__(self, db: Union[Session, AsyncSession]) -> None:
+    def __init__(self, db: Session | AsyncSession) -> None:
         self.db = db
 
     def record_metric(
@@ -52,9 +52,9 @@ class ABTestService:
         variant: str,
         metric_name: str,
         metric_value: float,
-        project_id: Optional[int] = None,
-        test_point_id: Optional[int] = None,
-        detail: Optional[Dict[str, Any]] = None,
+        project_id: int | None = None,
+        test_point_id: int | None = None,
+        detail: dict[str, Any] | None = None,
     ) -> ABTestMetric:
         """记录一条A/B测试指标数据
 
@@ -94,8 +94,8 @@ class ABTestService:
     def get_experiment_summary(
         self,
         experiment_id: str,
-        project_ids: Optional[List[int]] = None,
-    ) -> Dict[str, Any]:
+        project_ids: list[int] | None = None,
+    ) -> dict[str, Any]:
         """获取实验汇总统计，按变体分组计算均值、标准差和样本数
 
         Args:
@@ -111,12 +111,12 @@ class ABTestService:
         )
         if project_ids is not None:
             query = query.filter(ABTestMetric.project_id.in_(project_ids))
-        rows: List[ABTestMetric] = query.all()
+        rows: list[ABTestMetric] = query.all()
         if not rows:
             return {"experiment_id": experiment_id, "variants": {}}
 
         # 按变体分组收集指标值
-        grouped: Dict[str, Dict[str, List[float]]] = {}
+        grouped: dict[str, dict[str, list[float]]] = {}
         for row in rows:
             variant_key = row.variant
             if variant_key not in grouped:
@@ -126,9 +126,9 @@ class ABTestService:
             grouped[variant_key][row.metric_name].append(row.metric_value)
 
         # 计算每个变体下每个指标的统计量
-        variants: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        variants: dict[str, dict[str, dict[str, Any]]] = {}
         for variant_key, metrics in grouped.items():
-            variant_stats: Dict[str, Dict[str, Any]] = {}
+            variant_stats: dict[str, dict[str, Any]] = {}
             for name, values in metrics.items():
                 count = len(values)
                 mean_val = sum(values) / count if count > 0 else 0.0
@@ -149,8 +149,8 @@ class ABTestService:
 
     def list_experiments(
         self,
-        project_ids: Optional[List[int]] = None,
-    ) -> List[Dict[str, Any]]:
+        project_ids: list[int] | None = None,
+    ) -> list[dict[str, Any]]:
         """列出所有实验ID及其样本数
 
         Args:
@@ -177,9 +177,9 @@ class ABTestService:
         variant: str,
         metric_name: str,
         metric_value: float,
-        project_id: Optional[int] = None,
-        test_point_id: Optional[int] = None,
-        detail: Optional[Dict[str, Any]] = None,
+        project_id: int | None = None,
+        test_point_id: int | None = None,
+        detail: dict[str, Any] | None = None,
     ) -> ABTestMetric:
         """记录一条A/B测试指标数据（async 版本）
 
@@ -220,8 +220,8 @@ class ABTestService:
     async def get_experiment_summary_async(
         self,
         experiment_id: str,
-        project_ids: Optional[List[int]] = None,
-    ) -> Dict[str, Any]:
+        project_ids: list[int] | None = None,
+    ) -> dict[str, Any]:
         """获取实验汇总统计（async 版本），逻辑与 sync 版本一致
 
         Args:
@@ -236,11 +236,11 @@ class ABTestService:
         )
         if project_ids is not None:
             stmt = stmt.where(ABTestMetric.project_id.in_(project_ids))
-        rows: List[ABTestMetric] = list((await self.db.execute(stmt)).scalars().all())
+        rows: list[ABTestMetric] = list((await self.db.execute(stmt)).scalars().all())
         if not rows:
             return {"experiment_id": experiment_id, "variants": {}}
 
-        grouped: Dict[str, Dict[str, List[float]]] = {}
+        grouped: dict[str, dict[str, list[float]]] = {}
         for row in rows:
             variant_key = row.variant
             if variant_key not in grouped:
@@ -249,9 +249,9 @@ class ABTestService:
                 grouped[variant_key][row.metric_name] = []
             grouped[variant_key][row.metric_name].append(row.metric_value)
 
-        variants: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        variants: dict[str, dict[str, dict[str, Any]]] = {}
         for variant_key, metrics in grouped.items():
-            variant_stats: Dict[str, Dict[str, Any]] = {}
+            variant_stats: dict[str, dict[str, Any]] = {}
             for name, values in metrics.items():
                 count = len(values)
                 mean_val = sum(values) / count if count > 0 else 0.0
@@ -272,8 +272,8 @@ class ABTestService:
 
     async def list_experiments_async(
         self,
-        project_ids: Optional[List[int]] = None,
-    ) -> List[Dict[str, Any]]:
+        project_ids: list[int] | None = None,
+    ) -> list[dict[str, Any]]:
         """列出所有实验ID及其样本数（async 版本）
 
         Args:

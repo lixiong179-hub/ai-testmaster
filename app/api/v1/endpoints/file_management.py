@@ -26,7 +26,6 @@ from fastapi import (
     status,
     Query,
 )
-from typing import Optional
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
@@ -46,7 +45,7 @@ router = APIRouter()
 @router.get("/list", response_model=ApiResponse)
 async def get_all_files(
     resource_type: str = None,
-    iteration_id: Optional[int] = Query(None),
+    iteration_id: int | None = Query(None),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
@@ -114,7 +113,7 @@ async def get_all_files(
 async def get_file_list(
     project_id: int,
     resource_type: str = None,
-    iteration_id: Optional[int] = Query(None),
+    iteration_id: int | None = Query(None),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),

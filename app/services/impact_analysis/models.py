@@ -4,7 +4,6 @@
 所有数据结构为 dataclass，纯数据无副作用，便于序列化与测试。
 """
 from dataclasses import dataclass, field
-from typing import List, Optional, Set
 
 
 @dataclass(frozen=True)
@@ -45,8 +44,8 @@ class CodeChange:
     业务用途：标识哪些文件哪些行范围发生了变更，供影响映射查询。
     """
     file_path: str
-    added_lines: Set[int] = field(default_factory=set)  # 新增行号集合
-    deleted_lines: Set[int] = field(default_factory=set)  # 删除行号集合
+    added_lines: set[int] = field(default_factory=set)  # 新增行号集合
+    deleted_lines: set[int] = field(default_factory=set)  # 删除行号集合
     is_new_file: bool = False  # 是否新增文件
     is_deleted: bool = False  # 是否删除文件
 
@@ -64,7 +63,7 @@ class CodeChange:
 class ImpactRange:
     """影响范围：单个测试用例受影响的代码区域。"""
     test_case_id: int
-    impacted_files: List[str] = field(default_factory=list)
+    impacted_files: list[str] = field(default_factory=list)
     impacted_line_count: int = 0
     confidence: float = 0.0  # 置信度 0.0-1.0，基于覆盖率匹配度计算
 
@@ -76,9 +75,9 @@ class ImpactRange:
 @dataclass(frozen=True)
 class ImpactResult:
     """TIA 分析结果：受影响的测试用例集合与调度建议。"""
-    impacted_test_ids: List[int] = field(default_factory=list)
+    impacted_test_ids: list[int] = field(default_factory=list)
     total_test_count: int = 0  # 全量测试用例数
-    impacted_files: List[str] = field(default_factory=list)
+    impacted_files: list[str] = field(default_factory=list)
     reduction_ratio: float = 0.0  # 用例缩减比例（0.0-1.0）
     analysis_basis: str = ""  # 分析依据描述，如 "git diff vs coverage map"
 

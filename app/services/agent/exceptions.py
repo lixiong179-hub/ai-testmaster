@@ -18,7 +18,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional
 
 
 class AgentError(Exception):
@@ -34,7 +33,7 @@ class AgentError(Exception):
         message: str,
         *,
         agent_type: str = "",
-        session_id: Optional[int] = None,
+        session_id: int | None = None,
     ) -> None:
         super().__init__(message)
         self.agent_type = agent_type
@@ -58,7 +57,7 @@ class ToolExecutionError(AgentError):
         *,
         tool_name: str = "",
         agent_type: str = "",
-        session_id: Optional[int] = None,
+        session_id: int | None = None,
     ) -> None:
         super().__init__(message, agent_type=agent_type, session_id=session_id)
         self.tool_name = tool_name

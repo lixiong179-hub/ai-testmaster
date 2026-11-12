@@ -381,7 +381,6 @@ async def save_generation_batch(
                 reason=str(e)[:500],
             ))
 
-    total = len(cases_to_save)
     saved_count = len(saved_case_ids)
     failed_count = len(failures)
 

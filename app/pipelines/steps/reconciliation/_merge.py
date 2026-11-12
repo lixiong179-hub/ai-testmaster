@@ -1,9 +1,9 @@
-from enum import Enum
+from enum import StrEnum
 from dataclasses import dataclass
-from typing import Any, Dict, Final, List, Literal, Optional
+from typing import Any, Final, Literal
 
 
-class MergedAction(str, Enum):
+class MergedAction(StrEnum):
     KEEP = "keep"
     NEEDS_MODIFY = "needs_modify"
     LOCATOR_BROKEN = "locator_broken"
@@ -15,9 +15,9 @@ class MergedAction(str, Enum):
 
 
 BackwardVerdict = Literal["VALID", "LOCATOR_ONLY", "NEEDS_MODIFY", "DEPRECATED", "UNCERTAIN"]
-ForwardLabel = Optional[Literal["EXISTING", "MODIFY"]]
+ForwardLabel = Literal["EXISTING", "MODIFY"] | None
 
-MERGE_MATRIX: Final[Dict[BackwardVerdict, Dict[ForwardLabel, MergedAction]]] = {
+MERGE_MATRIX: Final[dict[BackwardVerdict, dict[ForwardLabel, MergedAction]]] = {
     "VALID": {
         "EXISTING": MergedAction.KEEP,
         "MODIFY": MergedAction.NEEDS_MODIFY,
@@ -54,28 +54,28 @@ CONFLICT_PAIRS = [
 @dataclass
 class MergedVerdict:
     source: str
-    case_id: Optional[int]
-    candidate_index: Optional[int]
+    case_id: int | None
+    candidate_index: int | None
     action: MergedAction
-    backward_verdict: Optional[str]
-    forward_label: Optional[str]
+    backward_verdict: str | None
+    forward_label: str | None
     confidence: float
     reason: str
     conflict_marker: bool
 
 
 def merge(
-    backward_verdicts: List[Dict[str, Any]],
-    forward_verdicts: List[Dict[str, Any]],
-) -> List[MergedVerdict]:
-    bw_index: Dict[int, Dict[str, Any]] = {}
+    backward_verdicts: list[dict[str, Any]],
+    forward_verdicts: list[dict[str, Any]],
+) -> list[MergedVerdict]:
+    bw_index: dict[int, dict[str, Any]] = {}
     for v in backward_verdicts:
         cid = v.get("case_id")
         if cid is not None:
             bw_index[cid] = v
 
     forward_case_ids: set = set()
-    merged: List[MergedVerdict] = []
+    merged: list[MergedVerdict] = []
 
     for fv in forward_verdicts:
         fw_label = fv.get("label", "NEW")
@@ -145,7 +145,7 @@ def merge(
     return merged
 
 
-def _lookup_matrix(bw_verdict: str, fw_label: Optional[str]) -> tuple:
+def _lookup_matrix(bw_verdict: str, fw_label: str | None) -> tuple:
     if bw_verdict not in MERGE_MATRIX:
         return MergedAction.PENDING_REVIEW, False
     row = MERGE_MATRIX[bw_verdict]
@@ -157,7 +157,7 @@ def _lookup_matrix(bw_verdict: str, fw_label: Optional[str]) -> tuple:
 
 def _build_merge_reason(
     action: MergedAction, conflict: bool,
-    bw: Dict[str, Any], fv: Dict[str, Any],
+    bw: dict[str, Any], fv: dict[str, Any],
 ) -> str:
     if conflict:
         return f"冲突: 反向={bw.get('verdict')}, 前向={fv.get('label')}，需人工决策"
@@ -172,7 +172,7 @@ def _build_merge_reason(
     return base[:100]
 
 
-def _verdict_to_dict(v: MergedVerdict) -> Dict[str, Any]:
+def _verdict_to_dict(v: MergedVerdict) -> dict[str, Any]:
     return {
         "source": v.source, "case_id": v.case_id,
         "candidate_index": v.candidate_index,
@@ -182,21 +182,21 @@ def _verdict_to_dict(v: MergedVerdict) -> Dict[str, Any]:
     }
 
 
-def _compute_reconciliation_stats(verdicts: List[MergedVerdict]) -> Dict[str, int]:
-    stats: Dict[str, int] = {a.value: 0 for a in MergedAction}
+def _compute_reconciliation_stats(verdicts: list[MergedVerdict]) -> dict[str, int]:
+    stats: dict[str, int] = {a.value: 0 for a in MergedAction}
     for v in verdicts:
         stats[v.action.value] += 1
     return stats
 
 
-def _compute_avg_confidence(verdicts: List[MergedVerdict]) -> float:
+def _compute_avg_confidence(verdicts: list[MergedVerdict]) -> float:
     if not verdicts:
         return 0.0
     return sum(v.confidence for v in verdicts) / len(verdicts)
 
 
 def _record_conflict_metric(
-    db, project_id: int = 0, detail: Optional[Dict[str, Any]] = None,
+    db, project_id: int = 0, detail: dict[str, Any] | None = None,
 ) -> None:
     try:
         from app.services.metrics_service import record_metric

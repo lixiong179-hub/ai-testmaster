@@ -19,7 +19,6 @@ AI 调用日志模块
     - app.db.database.Base     : SQLAlchemy 声明性基类
     - app.core.config.settings : AI_TOKEN_BUDGET_PER_RUN
 """
-from typing import Optional
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, ForeignKey, Text, Numeric, text,
@@ -75,24 +74,24 @@ class AICallLog(Base):
 
 
 def record_call(
-    db: Optional[Session] = None,
+    db: Session | None = None,
     *,
     model: str,
     prompt_tokens: int = 0,
     completion_tokens: int = 0,
     cost_usd: float = 0.0,
     latency_ms: int = 0,
-    step_name: Optional[str] = None,
-    run_id: Optional[int] = None,
+    step_name: str | None = None,
+    run_id: int | None = None,
     status: str = "success",
-    error_message: Optional[str] = None,
-    generation_batch_id: Optional[int] = None,
-    scenario_type: Optional[str] = None,
-    generation_strategy: Optional[str] = None,
-    prompt_key: Optional[str] = None,
-    prompt_version: Optional[int] = None,
-    prompt_hash: Optional[str] = None,
-    error_code: Optional[str] = None,
+    error_message: str | None = None,
+    generation_batch_id: int | None = None,
+    scenario_type: str | None = None,
+    generation_strategy: str | None = None,
+    prompt_key: str | None = None,
+    prompt_version: int | None = None,
+    prompt_hash: str | None = None,
+    error_code: str | None = None,
 ) -> AICallLog:
     """写入 AI 调用日志
 

@@ -1,5 +1,5 @@
 from contextlib import contextmanager, asynccontextmanager
-from typing import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Generator
 import logging
 
 from sqlalchemy.orm import Session

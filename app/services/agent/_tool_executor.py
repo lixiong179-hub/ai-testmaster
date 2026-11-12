@@ -14,26 +14,27 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.services.agent.exceptions import ToolExecutionError
 from app.services.agent.tools.base_tool import ToolContext, ToolResult
+import contextlib
 
 
 async def execute_tool_call(
     *,
-    tool_call: Dict[str, Any],
-    session_id: Optional[int],
+    tool_call: dict[str, Any],
+    session_id: int | None,
     iteration: int,
     agent_type: str,
     project_id: int,
-    execution_callback: Optional[Any],
-    history: List[Dict[str, Any]],
-    db: Optional[Any],
-    tool_registry: Optional[Any],
-    audit_service: Optional[Any],
-    circuit_breaker: Optional[Any],
-    metrics: Optional[Any],
+    execution_callback: Any | None,
+    history: list[dict[str, Any]],
+    db: Any | None,
+    tool_registry: Any | None,
+    audit_service: Any | None,
+    circuit_breaker: Any | None,
+    metrics: Any | None,
     append_message_fn: Any,
 ) -> None:
     """执行单个 tool_call 的完整流程。
@@ -125,14 +126,12 @@ async def execute_tool_call(
             await circuit_breaker.record_failure(agent_type)
 
 
-def _record_tool_call(metrics: Optional[Any], tool_name: str, success: bool) -> None:
+def _record_tool_call(metrics: Any | None, tool_name: str, success: bool) -> None:
     """埋点工具调用结果（吞异常，不阻断主流程）。"""
     if metrics is None:
         return
-    try:
+    with contextlib.suppress(Exception):
         metrics.record_tool_call(tool_name, success)
-    except Exception:
-        pass
 
 
 __all__ = ["execute_tool_call"]

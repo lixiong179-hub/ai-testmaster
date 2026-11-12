@@ -61,7 +61,7 @@ async def _run_review_mutation(fn):
 @router.get("/by-iteration/{iteration_id}", response_model=ApiResponse)
 async def list_reviews_by_iteration(
     iteration_id: int,
-    status: Optional[str] = Query(
+    status: str | None = Query(
         None, description="按评审状态过滤：draft/in_progress/finalized/cancelled"
     ),
     db: AsyncSession = Depends(async_get_db),
@@ -115,10 +115,10 @@ async def list_reviews_by_iteration(
 @router.get("/{review_id}/decisions", response_model=ApiResponse)
 async def list_decisions(
     review_id: int,
-    verdict: Optional[str] = None,
-    target_kind: Optional[str] = None,
-    sort_by: Optional[str] = None,
-    order: Optional[str] = "desc",
+    verdict: str | None = None,
+    target_kind: str | None = None,
+    sort_by: str | None = None,
+    order: str | None = "desc",
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),

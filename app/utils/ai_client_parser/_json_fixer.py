@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 from loguru import logger
 
 # AI 误产的 JS 字符串方法调用：形如 "literal".repeat(500) / "x".padEnd(100, "0")
@@ -31,7 +31,7 @@ def strip_js_string_methods(text: str) -> str:
     return text
 
 
-def fix_common_json_issues(json_str: str) -> Optional[str]:
+def fix_common_json_issues(json_str: str) -> str | None:
     if not json_str:
         return None
     try:
@@ -55,7 +55,7 @@ def fix_common_json_issues(json_str: str) -> Optional[str]:
         return None
 
 
-def clean_json_string(json_str: str) -> Optional[str]:
+def clean_json_string(json_str: str) -> str | None:
     if not json_str:
         return None
     json_str = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', json_str)
@@ -146,7 +146,7 @@ def _extract_json_candidates(raw: str):
         yield raw[start:end]
 
 
-def parse_ai_json_response(raw: str) -> Optional[Any]:
+def parse_ai_json_response(raw: str) -> Any | None:
     """4级容错解析AI响应JSON。
 
     解析策略:
@@ -190,6 +190,6 @@ def parse_ai_json_response(raw: str) -> Optional[Any]:
     return None
 
 
-def parse_ai_json_object(raw: str) -> Optional[Dict[str, Any]]:
+def parse_ai_json_object(raw: str) -> dict[str, Any] | None:
     result = parse_ai_json_response(raw)
     return result if isinstance(result, dict) else None

@@ -17,12 +17,11 @@
     - 列表查询使用 order_by+offset+limit 实现分页，依赖 create_time 索引
     - count 查询仅返回整型，不加载完整对象，开销低
 """
-from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.test_task import TestTask
 
 
-def get_test_task_by_id(db: Session, task_id: int, project_id: int) -> Optional[TestTask]:
+def get_test_task_by_id(db: Session, task_id: int, project_id: int) -> TestTask | None:
     """
     根据ID获取测试任务
 
@@ -45,10 +44,10 @@ def get_test_task_by_id(db: Session, task_id: int, project_id: int) -> Optional[
 def get_test_tasks_by_project(
     db: Session,
     project_id: int,
-    status: Optional[int] = None,
+    status: int | None = None,
     skip: int = 0,
     limit: int = 100
-) -> List[TestTask]:
+) -> list[TestTask]:
     """
     获取项目的测试任务列表（支持状态过滤+分页+时间倒序）
 
@@ -77,7 +76,7 @@ def get_test_tasks_by_project(
     return query.order_by(TestTask.create_time.desc()).offset(skip).limit(limit).all()
 
 
-def get_test_tasks_count(db: Session, project_id: int, status: Optional[int] = None) -> int:
+def get_test_tasks_count(db: Session, project_id: int, status: int | None = None) -> int:
     """
     获取项目的测试任务数量
 

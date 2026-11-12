@@ -19,7 +19,7 @@ Bug缺陷管理模型模块
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
 from app.utils.db_time import utcnow
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, text as sa_text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 

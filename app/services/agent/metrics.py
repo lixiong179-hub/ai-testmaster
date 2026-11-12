@@ -27,7 +27,6 @@ prometheus-fastapi-instrumentator 暴露的 /metrics 端点采集。
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from loguru import logger
 from prometheus_client import Counter, Gauge, Histogram
@@ -168,7 +167,7 @@ class AgentMetrics:
 
 
 # 全局单例
-_global_metrics: Optional[AgentMetrics] = None
+_global_metrics: AgentMetrics | None = None
 
 
 def get_metrics() -> AgentMetrics:

@@ -1,8 +1,7 @@
 """OIDC token 换取与 id_token 解析 mixin（从 oidc_service.py 拆出）。"""
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -25,7 +24,7 @@ class OIDCTokenMixin:
         provider: str,
         code: str,
         state: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """用授权码换取 IdP 的 access_token / id_token。
 
         Args:
@@ -77,8 +76,8 @@ class OIDCTokenMixin:
         self,
         provider: str,
         id_token: str,
-        nonce: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        nonce: str | None = None,
+    ) -> dict[str, Any]:
         """解析并验证 id_token，返回 claims。
 
         Args:
@@ -159,7 +158,7 @@ class OIDCTokenMixin:
                 raise OIDCTokenError(f"id_token 标准声明校验失败: {e}") from e
         return dict(claims)
 
-    def _decode_jwt_payload_unverified(self, id_token: str) -> Dict[str, Any]:
+    def _decode_jwt_payload_unverified(self, id_token: str) -> dict[str, Any]:
         """解析 JWT 的 payload 部分但不验签（仅用于开发/测试环境）。
 
         标准 JWT 格式：header.payload.signature

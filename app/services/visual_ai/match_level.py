@@ -20,10 +20,9 @@ from __future__ import annotations
 
 import io
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
 
 import numpy as np
-from PIL import Image, ImageChops
+from PIL import Image
 
 
 class PixelDiffResult:
@@ -41,7 +40,7 @@ class PixelDiffResult:
         diff_percentage: float,
         diff_pixel_count: int,
         total_pixel_count: int,
-        diff_image: Optional[bytes] = None,
+        diff_image: bytes | None = None,
     ) -> None:
         self.diff_percentage = diff_percentage
         self.diff_pixel_count = diff_pixel_count
@@ -81,7 +80,7 @@ class MatchLevelStrategy(ABC):
         raise NotImplementedError
 
     @staticmethod
-    def _ensure_same_size(baseline: Image.Image, current: Image.Image) -> Tuple[int, int]:
+    def _ensure_same_size(baseline: Image.Image, current: Image.Image) -> tuple[int, int]:
         """校验两张图片尺寸一致，返回 (width, height)。
 
         Raises:
@@ -96,7 +95,7 @@ class MatchLevelStrategy(ABC):
     @staticmethod
     def _generate_diff_image(
         baseline: Image.Image, current: Image.Image, diff_mask: np.ndarray
-    ) -> Optional[bytes]:
+    ) -> bytes | None:
         """生成差异图：基线图上用红色高亮差异区域。
 
         Args:
@@ -186,7 +185,6 @@ class LayoutMatchLevel(MatchLevelStrategy):
     def compare(self, baseline: Image.Image, current: Image.Image) -> PixelDiffResult:
         """网格布局对比。"""
         width, height = self._ensure_same_size(baseline, current)
-        total_pixels = width * height
 
         base_gray = np.array(baseline.convert("L"), dtype=np.int16)
         curr_gray = np.array(current.convert("L"), dtype=np.int16)

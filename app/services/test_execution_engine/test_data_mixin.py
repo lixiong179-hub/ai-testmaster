@@ -3,7 +3,6 @@
 负责创建参数化解析器、生成步骤测试数据、替换操作描述中的参数占位符。
 与TestDataService和TestDataParameterizer协作完成测试数据的参数化。
 """
-from typing import Optional, Dict
 from loguru import logger
 
 from app.services.test_data.parameterizer_mixin import TestDataParameterizer
@@ -12,7 +11,7 @@ from app.services.test_data_parameterizer import ParameterContext
 
 class TestDataMixin:
 
-    def _create_parameterizer(self, execution_id: int, case_id: int) -> Optional[TestDataParameterizer]:
+    def _create_parameterizer(self, execution_id: int, case_id: int) -> TestDataParameterizer | None:
         """创建参数化解析器。
 
         Args:
@@ -33,8 +32,8 @@ class TestDataMixin:
     def _generate_step_test_data(
         self,
         step_id: int,
-        parameterizer: Optional[TestDataParameterizer] = None
-    ) -> Dict[str, str]:
+        parameterizer: TestDataParameterizer | None = None
+    ) -> dict[str, str]:
         """生成步骤的测试数据。
 
         Args:
@@ -56,7 +55,7 @@ class TestDataMixin:
     def _substitute_parameters_in_action(
         self,
         action: str,
-        test_data: Dict[str, str]
+        test_data: dict[str, str]
     ) -> str:
         """替换操作描述中的参数占位符。
 

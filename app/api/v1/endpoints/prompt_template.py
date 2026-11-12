@@ -9,7 +9,6 @@
     - POST /{key}/set-default      — 设为默认版本
     - POST /{key}/rollback         — 回滚到指定版本
 """
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -39,7 +38,7 @@ router = APIRouter(tags=["Prompt模板"])
 
 @router.get("/", response_model=PromptTemplateListResponse)
 async def list_prompt_templates(
-    prompt_key: Optional[str] = None,
+    prompt_key: str | None = None,
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),

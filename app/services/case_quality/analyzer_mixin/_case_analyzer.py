@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestCase, TestStep, TestCasePreconditionStep
@@ -63,11 +63,11 @@ class _CaseAnalyzerMixin:
     async def _analyze_case_quality_internal(
         self,
         case: TestCase,
-        steps: List[TestStep],
-        precondition_steps: List[TestCasePreconditionStep],
-        all_cases: List[TestCase],
-        case_text_map: Dict[int, str],
-        coverage_context: Dict[str, Any],
+        steps: list[TestStep],
+        precondition_steps: list[TestCasePreconditionStep],
+        all_cases: list[TestCase],
+        case_text_map: dict[int, str],
+        coverage_context: dict[str, Any],
     ) -> QualityReport:
         logger.info(f"开始分析用例质量: {case.title} (ID: {case.id})")
 

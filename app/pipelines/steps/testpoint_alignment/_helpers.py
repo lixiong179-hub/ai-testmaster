@@ -1,7 +1,7 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
-def _extract_inferred_capabilities(inferred: Optional[Any]) -> List[Dict[str, Any]]:
+def _extract_inferred_capabilities(inferred: Any | None) -> list[dict[str, Any]]:
     if not inferred:
         return []
     parsed = inferred.get("parsed", {})
@@ -20,7 +20,7 @@ def _extract_inferred_capabilities(inferred: Optional[Any]) -> List[Dict[str, An
     return [c for c in caps if isinstance(c, dict)]
 
 
-def _extract_scenario_candidates(candidates: Optional[Any]) -> List[Dict[str, Any]]:
+def _extract_scenario_candidates(candidates: Any | None) -> list[dict[str, Any]]:
     if not candidates:
         return []
     cands = candidates.get("candidates", [])
@@ -30,8 +30,8 @@ def _extract_scenario_candidates(candidates: Optional[Any]) -> List[Dict[str, An
 
 
 def _find_matching_screens(
-    tp: Dict[str, Any], ui_specs: List[Dict[str, Any]]
-) -> List[Dict[str, Any]]:
+    tp: dict[str, Any], ui_specs: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     tp_module = (tp.get("module") or "").lower().strip()
     tp_point = (tp.get("point") or "").lower().strip()
     tp_function = (tp.get("function") or "").lower().strip()
@@ -77,8 +77,8 @@ def _find_matching_screens(
 
 
 def _find_matching_capability(
-    tp: Dict[str, Any], caps: List[Dict[str, Any]]
-) -> Optional[Dict[str, Any]]:
+    tp: dict[str, Any], caps: list[dict[str, Any]]
+) -> dict[str, Any] | None:
     tp_point = (tp.get("point") or "").lower().strip()
     tp_module = (tp.get("module") or "").lower().strip()
     tp_function = (tp.get("function") or "").lower().strip()
@@ -117,8 +117,8 @@ def _find_matching_capability(
 
 
 def _find_matching_scenario(
-    tp: Dict[str, Any], cands: List[Dict[str, Any]]
-) -> Optional[Dict[str, Any]]:
+    tp: dict[str, Any], cands: list[dict[str, Any]]
+) -> dict[str, Any] | None:
     tp_point = (tp.get("point") or "").lower().strip()
     tp_function = (tp.get("function") or "").lower().strip()
     search_texts = [s for s in [tp_point, tp_function] if s]
@@ -152,7 +152,7 @@ def _find_matching_scenario(
     return best if best_score >= 0.3 else None
 
 
-def _build_no_match_note(tp: Dict[str, Any], active_sources: List[str]) -> str:
+def _build_no_match_note(tp: dict[str, Any], active_sources: list[str]) -> str:
     tp_point = tp.get("point", "")
     source_labels = {
         "ui": "UI 控件",
@@ -164,7 +164,7 @@ def _build_no_match_note(tp: Dict[str, Any], active_sources: List[str]) -> str:
 
 
 def _align_from_inferred_only(
-    inferred_caps: List[Dict[str, Any]],
+    inferred_caps: list[dict[str, Any]],
 ) -> tuple:
     aligned = []
     conflicts = []
@@ -194,10 +194,10 @@ def _align_from_inferred_only(
 
 
 def _compute_coverage(
-    aligned: List[Dict[str, Any]],
-    conflicts: List[Dict[str, Any]],
-    inferred_caps: List[Dict[str, Any]],
-) -> Optional[Dict[str, Any]]:
+    aligned: list[dict[str, Any]],
+    conflicts: list[dict[str, Any]],
+    inferred_caps: list[dict[str, Any]],
+) -> dict[str, Any] | None:
     if not inferred_caps:
         return None
 
@@ -254,7 +254,7 @@ def _is_cjk(char: str) -> bool:
 
 
 def _compute_alignment_confidence(
-    aligned: List[Dict], conflicts: List[Dict]
+    aligned: list[dict], conflicts: list[dict]
 ) -> float:
     if not aligned:
         return 0.0

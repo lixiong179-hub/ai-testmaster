@@ -13,7 +13,7 @@
 `scheduler._execute_ui_automation(...)` 等调用方式零改动。
 """
 import asyncio
-from typing import Dict, Iterable, Optional
+from collections.abc import Iterable
 
 from loguru import logger
 from sqlalchemy import select
@@ -214,11 +214,11 @@ class SelfTestExecutorMixin:
         project: Project,
         failure_type: str,
         error_message: str,
-        defect_evidence: Optional[Dict] = None,
-        test_case_id: Optional[int] = None,
-        test_result_id: Optional[int] = None,
+        defect_evidence: dict | None = None,
+        test_case_id: int | None = None,
+        test_result_id: int | None = None,
         step_description: str = "",
-    ) -> Optional[Bug]:
+    ) -> Bug | None:
         """处理步骤失败：自动创建 Bug 并按严重度决定是否立即通知。
 
         P0/P1 缺陷自动创建 Bug 后立即通过 WebSocket 推送通知；

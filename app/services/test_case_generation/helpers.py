@@ -21,9 +21,10 @@ from app.services.test_case_generation._helpers_constants import (
     REQUIRED_UI_ELEMENT_HINTS,
     REQUIREMENT_ACTION_VERBS,
     REQUIREMENT_MIN_CHAR_COUNT,
-    TEST_CATEGORY_API_AUTO,
-    TEST_CATEGORY_MANUAL,
-    TEST_CATEGORY_UI_AUTO,
+    # 转发符号：本文件为向后兼容 wrapper，下游从该路径导入（勿按 F401 删除）
+    TEST_CATEGORY_API_AUTO,  # noqa: F401
+    TEST_CATEGORY_MANUAL,  # noqa: F401
+    TEST_CATEGORY_UI_AUTO,  # noqa: F401
 )
 from app.services.test_case_generation._helpers_sanitizer import ContentSanitizer
 from app.services.test_case_generation._helpers_text import (

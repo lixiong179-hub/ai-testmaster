@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 @dataclass
@@ -38,15 +38,15 @@ class DOMTreeNode:
     """
 
     tag: str = ""
-    attributes: Dict[str, str] = field(default_factory=dict)
+    attributes: dict[str, str] = field(default_factory=dict)
     x: float = 0.0
     y: float = 0.0
     width: float = 0.0
     height: float = 0.0
     visible: bool = True
-    children: List["DOMTreeNode"] = field(default_factory=list)
+    children: list[DOMTreeNode] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典。"""
         return {
             "tag": self.tag,
@@ -89,7 +89,7 @@ class DOMDiffResult:
         has_diff   : 是否存在差异
     """
 
-    entries: List[DOMDiffEntry] = field(default_factory=list)
+    entries: list[DOMDiffEntry] = field(default_factory=list)
 
     @property
     def total_count(self) -> int:
@@ -99,7 +99,7 @@ class DOMDiffResult:
     def has_diff(self) -> bool:
         return self.total_count > 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为字典。"""
         return {
             "total_count": self.total_count,
@@ -242,7 +242,7 @@ def child_path(parent_path: str, node: DOMTreeNode) -> str:
 
 def generate_diff_report(
     pixel_diff_percentage: float,
-    dom_diff: Optional[DOMDiffResult] = None,
+    dom_diff: DOMDiffResult | None = None,
     llm_description: str = "",
 ) -> str:
     """生成人类可读的 Markdown Diff 报告。

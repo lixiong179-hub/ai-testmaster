@@ -3,7 +3,6 @@
 校验用例标题与已有用例的相似度，超过阈值时标记为 pending_review。
 使用简单的字符级 Jaccard 相似度计算。
 """
-from typing import Dict, List, Optional, Set
 
 from app.services.quality.validators.base import (
     BaseValidator,
@@ -19,7 +18,7 @@ class DuplicationValidator(BaseValidator):
         self.similarityThreshold = similarity_threshold
 
     @staticmethod
-    def _char_ngrams(text: str, n: int = 2) -> Set[str]:
+    def _char_ngrams(text: str, n: int = 2) -> set[str]:
         """生成字符n-gram集合。"""
         text = text.strip()
         if len(text) < n:
@@ -40,8 +39,8 @@ class DuplicationValidator(BaseValidator):
 
     def validate(
         self,
-        case_data: Dict,
-        context: Optional[Dict] = None,
+        case_data: dict,
+        context: dict | None = None,
     ) -> ValidationResult:
         """校验用例重复。"""
         ctx = context or {}
@@ -52,7 +51,7 @@ class DuplicationValidator(BaseValidator):
         if not title or not existing_titles:
             return ValidationResult(status="passed", issues=[])
 
-        similar: List[str] = []
+        similar: list[str] = []
         for existing in existing_titles:
             existing_str = str(existing).strip()
             if not existing_str:

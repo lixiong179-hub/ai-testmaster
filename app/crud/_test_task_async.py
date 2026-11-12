@@ -12,7 +12,6 @@
 兼容性：`test_task.py` 通过 re-export 保持 `from app.crud.test_task import
 create_test_task_async` 等导入路径不变，调用方零改动。
 """
-from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +24,7 @@ async def create_test_task_async(
     db: AsyncSession,
     task_name: str,
     project_id: int,
-    case_ids: List[int],
+    case_ids: list[int],
     executor_id: int
 ) -> TestTask:
     """创建测试任务（异步版本）。
@@ -61,7 +60,7 @@ async def create_test_task_async(
     return test_task
 
 
-async def get_test_task_by_id_async(db: AsyncSession, task_id: int, project_id: int) -> Optional[TestTask]:
+async def get_test_task_by_id_async(db: AsyncSession, task_id: int, project_id: int) -> TestTask | None:
     """根据ID获取测试任务（异步版本）。
 
     get_test_task_by_id 的异步实现，通过任务ID和项目ID联合过滤定位唯一任务。
@@ -88,7 +87,7 @@ async def update_test_task_status_async(
     task_id: int,
     project_id: int,
     status: int
-) -> Optional[TestTask]:
+) -> TestTask | None:
     """更新测试任务状态（异步版本）。
 
     update_test_task_status 的异步实现，根据新状态自动记录开始时间或结束时间。
@@ -123,9 +122,9 @@ async def update_test_task_progress_async(
     task_id: int,
     project_id: int,
     progress: int,
-    success_count: Optional[int] = None,
-    fail_count: Optional[int] = None
-) -> Optional[TestTask]:
+    success_count: int | None = None,
+    fail_count: int | None = None
+) -> TestTask | None:
     """更新测试任务进度（异步版本）。
 
     update_test_task_progress 的异步实现，更新任务执行进度和成功/失败计数。

@@ -9,7 +9,6 @@
     - ApiResponse[CoverageIngestResponse]   覆盖率写入结果
 """
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +16,7 @@ from pydantic import BaseModel, Field
 class SchedulePlanResponse(BaseModel):
     """TIA 调度计划响应模型，对应 ImpactSchedulePlan。"""
 
-    test_case_ids: List[int] = Field(default_factory=list, description="待执行测试用例 ID 列表")
+    test_case_ids: list[int] = Field(default_factory=list, description="待执行测试用例 ID 列表")
     is_full_run: bool = Field(..., description="是否全量执行（True 表示降级全量）")
     fallback_reason: str = Field("", description="降级原因（is_full_run=True 时填写）")
     reduction_ratio: float = Field(0.0, description="用例缩减比例（0.0-1.0）")
@@ -46,7 +45,7 @@ class CoverageMapItem(BaseModel):
 class CoverageListResponse(BaseModel):
     """覆盖率映射分页列表响应。"""
 
-    items: List[CoverageMapItem]
+    items: list[CoverageMapItem]
     total: int
     page: int
     page_size: int
@@ -70,8 +69,8 @@ class CoverageIngestRequest(BaseModel):
 
     test_case_id: int = Field(..., gt=0, description="测试用例 ID")
     test_name: str = Field("", description="测试函数名（调试用）")
-    json_path: Optional[str] = Field(None, description="coverage.json 文件路径（服务端可访问）")
-    json_content: Optional[dict] = Field(None, description="coverage.py JSON 内容（直接传入）")
+    json_path: str | None = Field(None, description="coverage.json 文件路径（服务端可访问）")
+    json_content: dict | None = Field(None, description="coverage.py JSON 内容（直接传入）")
 
 
 class CoverageIngestResponse(BaseModel):
@@ -86,9 +85,9 @@ class SchedulePlanRequest(BaseModel):
     """生成 TIA 调度计划的请求。"""
 
     total_test_count: int = Field(0, ge=0, description="全量测试用例总数")
-    base_ref: Optional[str] = Field(None, description="git diff 基准版本（默认 HEAD~1）")
-    target_ref: Optional[str] = Field(None, description="git diff 目标版本（默认 HEAD）")
-    avg_test_duration_seconds: Optional[float] = Field(
+    base_ref: str | None = Field(None, description="git diff 基准版本（默认 HEAD~1）")
+    target_ref: str | None = Field(None, description="git diff 目标版本（默认 HEAD）")
+    avg_test_duration_seconds: float | None = Field(
         None, ge=0.0, description="单次测试用例平均执行时长（秒）"
     )
 

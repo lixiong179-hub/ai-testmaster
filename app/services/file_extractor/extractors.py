@@ -2,19 +2,18 @@
 """
 import os
 import re
-from typing import Optional
 from loguru import logger
 
 from app.models.project import ProjectFile
 
 
-async def extract_text_file(file: ProjectFile) -> Optional[str]:
+async def extract_text_file(file: ProjectFile) -> str | None:
     """提取文本文件内容"""
     if not os.path.exists(file.file_url):
         logger.warning(f"文件不存在: {file.file_url}")
         return None
     try:
-        with open(file.file_url, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(file.file_url, encoding='utf-8', errors='ignore') as f:
             content = f.read()
         return clean_text(content) if len(content) > 0 else None
     except Exception as e:
@@ -22,7 +21,7 @@ async def extract_text_file(file: ProjectFile) -> Optional[str]:
         return None
 
 
-async def extract_docx(file: ProjectFile) -> Optional[str]:
+async def extract_docx(file: ProjectFile) -> str | None:
     """提取 Word 文档内容"""
     try:
         from docx import Document
@@ -40,7 +39,7 @@ async def extract_docx(file: ProjectFile) -> Optional[str]:
         return None
 
 
-async def extract_pdf(file: ProjectFile) -> Optional[str]:
+async def extract_pdf(file: ProjectFile) -> str | None:
     """提取 PDF 文档内容"""
     try:
         import pypdf
@@ -62,7 +61,7 @@ async def extract_pdf(file: ProjectFile) -> Optional[str]:
         return None
 
 
-async def extract_excel(file: ProjectFile) -> Optional[str]:
+async def extract_excel(file: ProjectFile) -> str | None:
     """提取 Excel 表格内容"""
     try:
         import openpyxl

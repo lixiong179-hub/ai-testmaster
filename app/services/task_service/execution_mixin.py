@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +21,7 @@ class TaskExecutionMixin:
         project_id: int,
         case_id: int,
         precondition_service=None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         执行单个测试用例（使用V2执行引擎）
 

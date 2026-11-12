@@ -20,7 +20,7 @@ AutoCaseGenerator.generate → TaskAssembler.assemble，每步异常捕获并降
   execution_id 广播，与执行引擎的 `task:{task_id}` 通道互不干扰。
 """
 import asyncio
-from typing import Callable, Dict, List, Optional
+from collections.abc import Callable
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -51,13 +51,13 @@ class QuickLauncher:
 
     def __init__(
         self,
-        project_builder: Optional[AutoProjectBuilder] = None,
-        explorer_factory: Optional[Callable[[], SiteExplorer]] = None,
-        case_generator_factory: Optional[Callable[[], AutoCaseGenerator]] = None,
-        assembler: Optional[TaskAssembler] = None,
-        push_service: Optional[PushService] = None,
-        ai_client: Optional[AIClient] = None,
-        pipeline_session_factory: Optional[Callable[[], Session]] = None,
+        project_builder: AutoProjectBuilder | None = None,
+        explorer_factory: Callable[[], SiteExplorer] | None = None,
+        case_generator_factory: Callable[[], AutoCaseGenerator] | None = None,
+        assembler: TaskAssembler | None = None,
+        push_service: PushService | None = None,
+        ai_client: AIClient | None = None,
+        pipeline_session_factory: Callable[[], Session] | None = None,
     ) -> None:
         """注入编排链路组件，None 时用默认实现。
 
@@ -92,8 +92,8 @@ class QuickLauncher:
     async def launch(
         self,
         url: str,
-        description: Optional[str],
-        credentials: Optional[Dict[str, str]],
+        description: str | None,
+        credentials: dict[str, str] | None,
         user_id: int,
         session: Session,
     ) -> QuickTestLaunchResponse:
@@ -146,8 +146,8 @@ class QuickLauncher:
         task_id: int,
         project_id: int,
         url: str,
-        credentials: Optional[Dict[str, str]],
-        description: Optional[str],
+        credentials: dict[str, str] | None,
+        description: str | None,
         user_id: int,
         channel: str,
     ) -> None:
@@ -204,7 +204,7 @@ class QuickLauncher:
         return PrimarySessionLocal()
 
     async def _explore_safely(
-        self, url: str, credentials: Optional[Dict[str, str]], channel: str
+        self, url: str, credentials: dict[str, str] | None, channel: str
     ) -> SiteMap:
         """站点探索，异常降级为空 SiteMap 并推送 failed 状态。"""
         try:
@@ -226,9 +226,9 @@ class QuickLauncher:
             )
 
     async def _generate_cases_safely(
-        self, site_map: SiteMap, project_id: int, description: Optional[str],
+        self, site_map: SiteMap, project_id: int, description: str | None,
         user_id: int, session: Session, channel: str,
-    ) -> List[TestCase]:
+    ) -> list[TestCase]:
         """用例生成，异常降级为空用例并推送 failed 状态。
 
         sync generate 通过 asyncio.to_thread 放到独立线程执行，避免阻塞事件循环；
@@ -258,7 +258,7 @@ class QuickLauncher:
             return []
 
     async def _assemble_safely(
-        self, project_id: int, case_ids: List[int], user_id: int,
+        self, project_id: int, case_ids: list[int], user_id: int,
         session: Session, task_id: int, channel: str,
     ) -> None:
         """任务装配，异常不阻断（仍返回已预创建 task_id）。
@@ -283,7 +283,7 @@ class QuickLauncher:
             )
 
     async def _push(
-        self, channel: str, stage: str, status: str, progress: int, detail: Dict,
+        self, channel: str, stage: str, status: str, progress: int, detail: dict,
     ) -> None:
         """推送阶段进度到 WebSocket，失败仅记录不阻断业务。"""
         data = {

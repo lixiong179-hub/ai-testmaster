@@ -3,7 +3,6 @@
 综合评分权重调整：
     复杂度 0.3 + 冗余度 0.3 + 覆盖度 0.4（覆盖度内部已按三维度加权）
 """
-from typing import List
 from loguru import logger
 
 from app.services.case_quality.models import (
@@ -18,7 +17,7 @@ class SuggestionMixin:
         complexity: ComplexityScore,
         redundancy: RedundancyScore,
         coverage: CoverageScore
-    ) -> List[str]:
+    ) -> list[str]:
         """基于三维度覆盖率生成改进建议。
 
         Args:
@@ -29,7 +28,7 @@ class SuggestionMixin:
         Returns:
             List[str]: 改进建议列表。
         """
-        suggestions: List[str] = []
+        suggestions: list[str] = []
 
         # --- 复杂度相关建议 ---
         if complexity.has_captcha:
@@ -107,7 +106,7 @@ class SuggestionMixin:
     async def _generate_ai_suggestions(
         self,
         quality_report: QualityReport
-    ) -> List[str]:
+    ) -> list[str]:
         """基于AI模型生成优化建议。
 
         Args:
@@ -116,7 +115,7 @@ class SuggestionMixin:
         Returns:
             List[str]: AI生成的优化建议列表（最多5条）。
         """
-        aiSuggestions: List[str] = []
+        aiSuggestions: list[str] = []
 
         try:
             from app.utils.unified_vision_model import get_default_vision_model

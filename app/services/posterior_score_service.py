@@ -18,7 +18,6 @@
     - W_modification = 0.2
 """
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 from loguru import logger
 from sqlalchemy import func, case
@@ -55,21 +54,21 @@ class PosteriorInput:
 class PosteriorResult:
     """单个用例的后验质量分计算结果"""
     case_id: int
-    score: Optional[float]
+    score: float | None
     review_pass_rate: float
     execution_pass_rate: float
     modification_rate: float
     skipped: bool
-    skip_reason: Optional[str]
+    skip_reason: str | None
     no_review_data: bool = False
 
 
 def compute_posterior_score(
     inp: PosteriorInput,
-    w_review: Optional[float] = None,
-    w_execution: Optional[float] = None,
-    w_modification: Optional[float] = None,
-    min_executions: Optional[int] = None,
+    w_review: float | None = None,
+    w_execution: float | None = None,
+    w_modification: float | None = None,
+    min_executions: int | None = None,
 ) -> PosteriorResult:
     """计算单个用例的后验质量分
 
@@ -132,8 +131,8 @@ def compute_posterior_score(
 
 def fetch_posterior_inputs(
     db: Session,
-    case_ids: Optional[List[int]] = None,
-) -> List[PosteriorInput]:
+    case_ids: list[int] | None = None,
+) -> list[PosteriorInput]:
     """批量查询用例的后验质量分输入数据
 
     Args:
@@ -191,7 +190,7 @@ def fetch_posterior_inputs(
         .group_by(ReviewDecision.target_id)
     )
 
-    review_map: dict[int, Tuple[int, int, int]] = {}
+    review_map: dict[int, tuple[int, int, int]] = {}
     for row in review_query.all():
         review_map[row.case_id] = (
             int(row.review_total),
@@ -199,7 +198,7 @@ def fetch_posterior_inputs(
             int(row.review_modify_count),
         )
 
-    inputs: List[PosteriorInput] = []
+    inputs: list[PosteriorInput] = []
     for row in exec_stats:
         r_total, r_keep, r_modify = review_map.get(row.case_id, (0, 0, 0))
         inputs.append(PosteriorInput(
@@ -216,8 +215,8 @@ def fetch_posterior_inputs(
 
 def backfill_posterior_scores(
     db: Session,
-    case_ids: Optional[List[int]] = None,
-) -> List[PosteriorResult]:
+    case_ids: list[int] | None = None,
+) -> list[PosteriorResult]:
     """批量回填用例的后验质量分
 
     Args:
@@ -228,7 +227,7 @@ def backfill_posterior_scores(
         PosteriorResult 列表，包含每个用例的计算结果
     """
     inputs = fetch_posterior_inputs(db, case_ids=case_ids)
-    results: List[PosteriorResult] = []
+    results: list[PosteriorResult] = []
 
     score_map: dict[int, float] = {}
     for inp in inputs:
@@ -272,7 +271,7 @@ def _batch_update_posterior_scores(
         )
         .all()
     )
-    for case in cases:
-        target_score = score_map.get(case.id)
-        if target_score is not None and case.posterior_quality_score != target_score:
-            case.posterior_quality_score = target_score
+    for test_case in cases:
+        target_score = score_map.get(test_case.id)
+        if target_score is not None and test_case.posterior_quality_score != target_score:
+            test_case.posterior_quality_score = target_score

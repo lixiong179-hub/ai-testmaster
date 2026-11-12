@@ -18,7 +18,7 @@
 """
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Dict, Optional
+from collections.abc import Awaitable, Callable
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,11 +31,11 @@ from app.utils.db_time import utcnow
 
 # RollbackHandler 协议：异步可调用，接收 (db, original_audit) 返回补偿详情 dict
 RollbackHandler = Callable[
-    [AsyncSession, AgentAudit], Awaitable[Dict[str, object]]
+    [AsyncSession, AgentAudit], Awaitable[dict[str, object]]
 ]
 
 
-_REGISTRY: Dict[str, RollbackHandler] = {}
+_REGISTRY: dict[str, RollbackHandler] = {}
 
 
 def register(action_type: str, handler: RollbackHandler) -> None:
@@ -43,14 +43,14 @@ def register(action_type: str, handler: RollbackHandler) -> None:
     _REGISTRY[action_type] = handler
 
 
-def get_rollback_handler(action_type: str) -> Optional[RollbackHandler]:
+def get_rollback_handler(action_type: str) -> RollbackHandler | None:
     """获取回滚处理器；未注册返回 None。"""
     return _REGISTRY.get(action_type)
 
 
 async def _handle_create_test_case(
     db: AsyncSession, original_audit: AgentAudit,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """回滚 create_test_case：软删除对应测试用例。
 
     action_detail 期望含 test_case_id；若用例不存在或已删除，视为已回滚。
@@ -89,7 +89,7 @@ async def _handle_create_test_case(
 
 async def _handle_update_locator(
     db: AsyncSession, original_audit: AgentAudit,
-) -> Dict[str, object]:
+) -> dict[str, object]:
     """回滚 update_locator：将 ElementLocator.css_selector 恢复为 old_selector。
 
     action_detail 期望含 locator_id 与 old_selector；缺字段返回未恢复说明。

@@ -22,12 +22,11 @@
     - app.models.enums : IterationPipelineStatus, IterationInputKind
     - app.models.project : ProjectFile
 """
-from typing import Optional, List
 from datetime import datetime
 
 from sqlalchemy.orm import Session, joinedload
 from app.models.iteration import Iteration, IterationInput
-from app.models.enums import IterationPipelineStatus, IterationInputKind
+from app.models.enums import IterationPipelineStatus
 from app.models.project import ProjectFile
 from app.utils.db_time import utcnow
 
@@ -51,11 +50,11 @@ def create_iteration(
     name: str,
     *,
     version: str = "v1.0",
-    description: Optional[str] = None,
-    base_iteration_id: Optional[int] = None,
-    created_by: Optional[int] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    description: str | None = None,
+    base_iteration_id: int | None = None,
+    created_by: int | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
 ) -> Iteration:
     """创建迭代。
 
@@ -121,8 +120,8 @@ def add_input(
     iteration_id: int,
     kind: str,
     *,
-    file_id: Optional[int] = None,
-    payload: Optional[dict] = None,
+    file_id: int | None = None,
+    payload: dict | None = None,
     hash_value: str = None,
 ) -> IterationInput:
     """添加迭代输入。
@@ -192,7 +191,7 @@ def list_iterations(
     *,
     skip: int = 0,
     limit: int = 100,
-) -> List[Iteration]:
+) -> list[Iteration]:
     """按项目查询迭代列表（按创建时间倒序，eager-load inputs）。
 
     Args:
@@ -215,7 +214,7 @@ def list_iterations(
     )
 
 
-def get_iteration(db: Session, iteration_id: int) -> Optional[Iteration]:
+def get_iteration(db: Session, iteration_id: int) -> Iteration | None:
     """获取迭代详情（含 inputs）。
 
     Args:
@@ -296,7 +295,6 @@ def transition_iteration_status(
 
 # 异步 mixin 在模块末尾导入，避免与上方异常类/常量的定义产生循环导入。
 # 加载顺序：本模块先定义异常类与常量 → 再导入 mixin（mixin 反向导入这些名称）。
-from typing import Union
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.iteration_async_mixin import IterationAsyncMixin  # noqa: E402
@@ -312,5 +310,5 @@ class IterationService(IterationAsyncMixin):
         db: 数据库会话，async 端点传 AsyncSession。
     """
 
-    def __init__(self, db: Union[Session, AsyncSession]) -> None:
+    def __init__(self, db: Session | AsyncSession) -> None:
         self.db = db

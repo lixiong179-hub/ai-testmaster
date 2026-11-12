@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, case
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
 from loguru import logger
 
 from app.db.database import async_get_db
@@ -30,13 +28,13 @@ class PosteriorResultResponse(BaseModel):
 
 class PosteriorStatsResponse(BaseModel):
     project_id: int
-    avg_posterior_score: Optional[float]
-    max_posterior_score: Optional[float]
-    min_posterior_score: Optional[float]
+    avg_posterior_score: float | None
+    max_posterior_score: float | None
+    min_posterior_score: float | None
     total_cases: int
     scored_cases: int
     unscored_cases: int
-    distribution: Dict[str, int]
+    distribution: dict[str, int]
 
     class Config:
         from_attributes = True
@@ -129,7 +127,7 @@ async def get_posterior_result(
     scored_cases = stats.scored_cases or 0
     unscored_cases = total_cases - scored_cases
 
-    distribution: Dict[str, int] = {
+    distribution: dict[str, int] = {
         "A_90_100": 0,
         "B_75_89": 0,
         "C_60_74": 0,

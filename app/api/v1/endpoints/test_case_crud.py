@@ -22,7 +22,6 @@
 公开符号通过本文件 re-export，保持 import 路径不变
 （from app.api.v1.endpoints.test_case_crud import xxx）。
 """
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
@@ -116,17 +115,17 @@ async def create_test_case(
 
 
 async def get_test_cases(
-    project_id: Optional[int] = Query(default=None, description="项目ID"),
-    requirement_file_id: Optional[int] = Query(default=None, description="需求文件ID"),
-    lifecycle_status: Optional[str] = Query(default=None, description="生命周期状态（逗号分隔多值）"),
-    keyword: Optional[str] = Query(default=None, description="关键词"),
-    module: Optional[str] = Query(default=None, description="模块"),
-    priority: Optional[int] = Query(default=None, ge=1, le=3, description="优先级"),
-    case_type: Optional[str] = Query(default=None, description="用例类型"),
-    target_device: Optional[str] = Query(default=None, description="按目标设备类型筛选"),
-    status_filter: Optional[str] = Query(default=None, alias="status", description="生命周期状态别名"),
-    sort_by: Optional[str] = Query(default="create_time", description="排序字段"),
-    sort_order: Optional[str] = Query(default="desc", pattern="^(asc|desc)$", description="排序方向"),
+    project_id: int | None = Query(default=None, description="项目ID"),
+    requirement_file_id: int | None = Query(default=None, description="需求文件ID"),
+    lifecycle_status: str | None = Query(default=None, description="生命周期状态（逗号分隔多值）"),
+    keyword: str | None = Query(default=None, description="关键词"),
+    module: str | None = Query(default=None, description="模块"),
+    priority: int | None = Query(default=None, ge=1, le=3, description="优先级"),
+    case_type: str | None = Query(default=None, description="用例类型"),
+    target_device: str | None = Query(default=None, description="按目标设备类型筛选"),
+    status_filter: str | None = Query(default=None, alias="status", description="生命周期状态别名"),
+    sort_by: str | None = Query(default="create_time", description="排序字段"),
+    sort_order: str | None = Query(default="desc", pattern="^(asc|desc)$", description="排序方向"),
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=500, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
@@ -360,7 +359,7 @@ async def update_test_case(
 
 async def delete_test_case(
     test_case_id: int,
-    project_id: Optional[int] = Query(default=None, description="项目ID"),
+    project_id: int | None = Query(default=None, description="项目ID"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):

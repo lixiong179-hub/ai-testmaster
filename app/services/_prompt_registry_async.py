@@ -9,7 +9,6 @@
     - rollback_async: 异步回滚到指定版本
     - list_versions_async: 异步列出所有版本
 """
-from typing import Optional
 
 from sqlalchemy import asc, desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +29,7 @@ class _PromptRegistryAsyncMixin:
         self,
         key: str,
         content: str,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> PromptTemplate:
         """异步注册 Prompt 新版本，自动递增版本号并计算哈希。
 

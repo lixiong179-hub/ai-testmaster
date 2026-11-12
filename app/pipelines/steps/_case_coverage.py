@@ -8,7 +8,7 @@ _append_supplement_examples）行为完全不变。
 迁移原因：覆盖补全逻辑需同时服务 Pipeline 和批量生成流程，提取为纯函数
 消除重复，详见 coverage_service 模块文档。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.pipelines.context import PipelineContext
 from app.services.case_quality.coverage_service import (
@@ -26,20 +26,20 @@ _append_supplement_examples = append_supplement_examples
 
 def _generate_supplemental(
     ctx: PipelineContext,
-    tp: Dict[str, Any],
+    tp: dict[str, Any],
     prd_content: str,
     ui_description: str,
-    ui_specs: List[Dict[str, Any]],
-    missing_types: List[str],
-    existing_titles: List[str],
+    ui_specs: list[dict[str, Any]],
+    missing_types: list[str],
+    existing_titles: list[str],
     has_ui: bool,
-) -> Optional[List[Dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     """Pipeline 适配器：将 ctx 风格入参转换为 coverage_service 纯函数调用。
 
     行为与迁移前完全一致：缺失为空或生成失败时返回 None，
     成功时返回补充用例列表。
     """
-    context: Dict[str, Any] = {
+    context: dict[str, Any] = {
         "prd_content": prd_content,
         "ui_description": ui_description,
         "ui_specs": ui_specs,

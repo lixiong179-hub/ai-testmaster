@@ -23,7 +23,7 @@
 import copy
 import logging
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -35,7 +35,7 @@ _HISTORY_CACHE_TTL_SECONDS = 300
 # 模块级缓存：key=(project_id, min_score, limit) -> (序列化用例 dict 列表, 创建时间戳)
 # 使用显式 dict 而非 lru_cache，因 db session 不可哈希且会关闭，
 # 缓存序列化后的 dict 列表可安全跨 session 边界使用
-_history_cache: Dict[Tuple[Any, ...], Tuple[List[Dict[str, Any]], float]] = {}
+_history_cache: dict[tuple[Any, ...], tuple[list[dict[str, Any]], float]] = {}
 
 
 def get_history_cases_for_project(
@@ -43,7 +43,7 @@ def get_history_cases_for_project(
     project_id: int,
     min_score: float = 80.0,
     limit: int = 10,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """获取项目历史高质量用例，带 TTL 缓存。
 
     业务原因：domain_examples 和评分混入逻辑重复查询同项目历史高质量用例，
@@ -125,7 +125,7 @@ def _query_history_cases(
     project_id: int,
     min_score: float,
     limit: int,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """执行实际 DB 查询并序列化结果（从 domain_examples.py 提取）。
 
     查询条件：
@@ -162,7 +162,7 @@ def _query_history_cases(
     return [_serialize_case(case) for case in cases]
 
 
-def _serialize_case(case: Any) -> Dict[str, Any]:
+def _serialize_case(case: Any) -> dict[str, Any]:
     """将 ORM 用例对象序列化为字典。
 
     业务原因：缓存需跨 session 边界使用，ORM 对象在 session 关闭后变为

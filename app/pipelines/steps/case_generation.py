@@ -5,38 +5,40 @@
 但通过 Pipeline AIClient 抽象层调用模型。
 """
 import hashlib
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from app.pipelines.base import PipelineStep, StepResult
 from app.pipelines.context import PipelineContext
 from app.pipelines.steps._dedup import _dedup_cases_global
 from app.pipelines.steps._execution import _execute_task_based, _execute_legacy
 
-from app.pipelines.steps._prompt import (
+# 以下为历史转发符号：测试与下游模块仍从本模块导入（勿按 F401 删除）
+from app.pipelines.steps._prompt import (  # noqa: F401
     _build_full_prompt,
     _filter_prd_by_testpoint,
     _filter_ui_specs_by_testpoint,
 )
-from app.pipelines.steps._parsing import (
+from app.pipelines.steps._parsing import (  # noqa: F401
     _parse_case_response,
     _validate_test_data,
     _enrich_case_data,
     _enrich_case_data_with_task,
 )
-from app.pipelines.steps._dedup import (
+from app.pipelines.steps._dedup import (  # noqa: F401
     _jaccard_similarity,
     _dedup_cases_by_title,
 )
-from app.pipelines.steps._case_coverage import (
+from app.pipelines.steps._case_coverage import (  # noqa: F401
     _classify_case_type,
     _check_type_coverage,
     _generate_supplemental,
 )
-from app.pipelines.steps._task_generators import (
+from app.pipelines.steps._task_generators import (  # noqa: F401
     _generate_create_case,
     _generate_modify_case,
     _generate_locator_fix,
 )
+
 
 
 class CaseGeneration(PipelineStep):
@@ -44,8 +46,8 @@ class CaseGeneration(PipelineStep):
 
     name: ClassVar[str] = "case_generation"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = ["generation_tasks"]
-    produces: ClassVar[List[str]] = ["generated_cases"]
+    requires: ClassVar[list[str]] = ["generation_tasks"]
+    produces: ClassVar[list[str]] = ["generated_cases"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         tasks_artifact = ctx.get_artifact("generation_tasks")
@@ -55,11 +57,7 @@ class CaseGeneration(PipelineStep):
                 t for t in tasks
                 if t.get("task_type") in ("create", "modify", "locator_fix")
             ]
-            if len(actionable) > 0:
-                return True
-            if ctx.config.get("scenario") in (4, 5):
-                return True
-            return False
+            return bool(actionable) or ctx.config.get("scenario") in (4, 5)
         if ctx.config.get("scenario") in (4, 5):
             return True
         aligned = ctx.get_artifact("aligned_testpoints")
@@ -127,7 +125,7 @@ class CaseGeneration(PipelineStep):
             deprecation_suggestions = []
             actionable_tasks = []
 
-        history_cases: List[Dict[str, Any]] = []
+        history_cases: list[dict[str, Any]] = []
         if actionable_tasks:
             hf_artifact = ctx.get_artifact("history_fingerprints")
             if hf_artifact:
@@ -223,10 +221,10 @@ class CaseGeneration(PipelineStep):
             },
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         return "generated_cases" in payload and "total" in payload
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         return StepResult(
             success=False,
             error=f"用例生成降级: {error}",

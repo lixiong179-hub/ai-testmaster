@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -32,7 +31,7 @@ from app.utils.db_time import utcnow
 
 INTERRUPTED_REASON = "marked_interrupted"
 
-_monitor_task: Optional[asyncio.Task] = None
+_monitor_task: asyncio.Task | None = None
 
 
 class TaskRecoveryService:
@@ -45,8 +44,8 @@ class TaskRecoveryService:
     def scan_orphan_running(
         self,
         *,
-        now: Optional[datetime] = None,
-        timeout_seconds: Optional[int] = None,
+        now: datetime | None = None,
+        timeout_seconds: int | None = None,
     ) -> list[dict]:
         """把超时的 RUNNING 任务标记为 FAILED。
 

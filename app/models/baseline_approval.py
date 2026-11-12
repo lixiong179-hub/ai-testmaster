@@ -17,7 +17,7 @@
     - reviewer_id : 审批人用户 ID
     - reviewed_at : 审批时间
 """
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -78,7 +78,7 @@ class BaselineApproval(Base):
             f"action={self.action}, reviewer_id={self.reviewer_id})>"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """返回审批核心字段字典，供 API 响应与日志输出使用。"""
         return {
             "id": self.id,

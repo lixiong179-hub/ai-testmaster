@@ -22,8 +22,8 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from app.services.agent.runtime import AgentRuntime
 
 
-class PipelineStatus(str, Enum):
+class PipelineStatus(StrEnum):
     """编排管线状态。"""
 
     PENDING = "pending"
@@ -60,7 +60,7 @@ class PipelineStepResult:
     """
 
     agent_type: str
-    session_id: Optional[int]
+    session_id: int | None
     status: str
     duration_seconds: float
     token_cost: int
@@ -82,10 +82,10 @@ class OrchestrationResult:
 
     pipeline_id: str
     status: PipelineStatus
-    steps: List[PipelineStepResult] = field(default_factory=list)
+    steps: list[PipelineStepResult] = field(default_factory=list)
     total_duration_seconds: float = 0.0
     total_token_cost: int = 0
-    final_artifacts: List[Artifact] = field(default_factory=list)
+    final_artifacts: list[Artifact] = field(default_factory=list)
 
 
 class AgentOrchestrator:
@@ -113,9 +113,9 @@ class AgentOrchestrator:
 
     def __init__(
         self,
-        runtime: "AgentRuntime",
+        runtime: AgentRuntime,
         *,
-        agent_registry: Optional[Any] = None,
+        agent_registry: Any | None = None,
     ) -> None:
         """初始化编排器。
 
@@ -128,11 +128,11 @@ class AgentOrchestrator:
 
     async def execute_pipeline(
         self,
-        pipeline: List[str],
+        pipeline: list[str],
         project_id: int,
-        initial_artifacts: List[Artifact],
-        created_by: Optional[int] = None,
-        execution_callback: Optional[Any] = None,
+        initial_artifacts: list[Artifact],
+        created_by: int | None = None,
+        execution_callback: Any | None = None,
         stop_on_failure: bool = True,
     ) -> OrchestrationResult:
         """执行多 Agent 串联管线。
@@ -244,7 +244,7 @@ class AgentOrchestrator:
         )
         return result
 
-    def _validate_pipeline(self, pipeline: List[str]) -> None:
+    def _validate_pipeline(self, pipeline: list[str]) -> None:
         """校验 pipeline 中所有 agent_type 已注册且未禁用。"""
         for agent_type in pipeline:
             definition = self._registry.get(agent_type)
@@ -261,8 +261,8 @@ class AgentOrchestrator:
 
     @staticmethod
     def _merge_artifacts(
-        base: List[Artifact], new: List[Artifact]
-    ) -> List[Artifact]:
+        base: list[Artifact], new: list[Artifact]
+    ) -> list[Artifact]:
         """合并两个 artifact 列表，同类型 new 覆盖 base。
 
         Args:
@@ -272,7 +272,7 @@ class AgentOrchestrator:
         Returns:
             合并后的 artifacts 列表（按 artifact_type 去重）。
         """
-        merged: Dict[str, Artifact] = {}
+        merged: dict[str, Artifact] = {}
         for artifact in base:
             merged[artifact.artifact_type] = artifact
         for artifact in new:
@@ -281,8 +281,8 @@ class AgentOrchestrator:
 
     @staticmethod
     def _extract_output_artifacts(
-        session: "AgentSession",
-    ) -> List[Artifact]:
+        session: AgentSession,
+    ) -> list[Artifact]:
         """从 AgentSession 提取输出 artifacts。
 
         当前实现从 session.final_answer 中解析 artifacts；

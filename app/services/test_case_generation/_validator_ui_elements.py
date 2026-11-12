@@ -6,7 +6,7 @@
 被 validator.py 的 CaseValidator 通过多继承组合，不单独对外暴露。
 """
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class UIElementValidationMixin:
@@ -37,7 +37,7 @@ class UIElementValidationMixin:
         return text.lower()
 
     @classmethod
-    def _collect_ui_element_names(cls, ui_specs: Optional[List[Dict[str, Any]]]) -> set[str]:
+    def _collect_ui_element_names(cls, ui_specs: list[dict[str, Any]] | None) -> set[str]:
         names: set[str] = set()
 
         def add(value: Any) -> None:
@@ -48,7 +48,7 @@ class UIElementValidationMixin:
                 return
             names.add(normalized)
 
-        def walk(value: Any, key_hint: Optional[str] = None) -> None:
+        def walk(value: Any, key_hint: str | None = None) -> None:
             if isinstance(value, dict):
                 for key, item in value.items():
                     key_text = str(key).lower()
@@ -70,8 +70,8 @@ class UIElementValidationMixin:
         return names
 
     @classmethod
-    def _extract_step_target_elements(cls, step: Dict[str, Any]) -> List[str]:
-        candidates: List[str] = []
+    def _extract_step_target_elements(cls, step: dict[str, Any]) -> list[str]:
+        candidates: list[str] = []
         explicit = step.get("target_element")
         if explicit:
             candidates.append(str(explicit))
@@ -91,7 +91,7 @@ class UIElementValidationMixin:
         for pattern in bracket_patterns:
             candidates.extend(re.findall(pattern, action))
 
-        result: List[str] = []
+        result: list[str] = []
         seen = set()
         for item in candidates:
             normalized = cls._normalize_ui_element_name(item)
@@ -118,16 +118,16 @@ class UIElementValidationMixin:
     @classmethod
     def _ui_executability_issues(
         cls,
-        steps: List[Dict[str, Any]],
-        ui_specs: Optional[List[Dict[str, Any]]] = None,
-    ) -> List[str]:
+        steps: list[dict[str, Any]],
+        ui_specs: list[dict[str, Any]] | None = None,
+    ) -> list[str]:
         element_names = cls._collect_ui_element_names(ui_specs)
         if not element_names:
             return []
 
         checked = 0
         hit = 0
-        missing: List[str] = []
+        missing: list[str] = []
         for step in steps or []:
             targets = cls._extract_step_target_elements(step)
             for target in targets:

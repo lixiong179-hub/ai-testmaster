@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from loguru import logger
 
@@ -42,8 +42,8 @@ def _grade_to_quality_status(grade: str) -> str:
 class QualityGate(PipelineStep):
     name: ClassVar[str] = "quality_gate"
     version: ClassVar[str] = "2.0"
-    requires: ClassVar[List[str]] = ["generated_cases"]
-    produces: ClassVar[List[str]] = ["quality_scores"]
+    requires: ClassVar[list[str]] = ["generated_cases"]
+    produces: ClassVar[list[str]] = ["quality_scores"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         cases = ctx.get_artifact("generated_cases")
@@ -116,7 +116,7 @@ class QualityGate(PipelineStep):
         # 避免在评分循环内对每条用例重复查询 IterationInput 表（N+1）
         user_confirmed = _check_user_confirmed(ctx.db, ctx.iteration_id)
 
-        tp_coverage_adj: Dict[Any, float] = {}
+        tp_coverage_adj: dict[Any, float] = {}
         for entry in generated_cases:
             if entry.get("status") != "success":
                 continue
@@ -226,10 +226,10 @@ class QualityGate(PipelineStep):
             },
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         return "scores" in payload and "average_score" in payload
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         cases_artifact = ctx.get_artifact("generated_cases")
         generated_cases = cases_artifact.get("generated_cases", []) if cases_artifact else []
         scores = []

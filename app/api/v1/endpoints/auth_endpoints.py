@@ -17,7 +17,6 @@
     - /captcha, /captcha/generate, /login, /register: 无需认证
     - /me: 需要Bearer令牌认证
 """
-from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,10 +74,10 @@ async def get_captcha(request: Request) -> dict:
 @router.post("/login", response_model=ApiResponse, summary="用户登录", description="通过用户名/密码+验证码进行身份认证，成功后返回 JWT access_token。token 有效期由 ACCESS_TOKEN_EXPIRE_MINUTES 控制。")
 async def login(
     request: Request,
-    username: Optional[str] = Form(None),
-    password: Optional[str] = Form(None),
-    captcha_id: Optional[str] = Form(None),
-    captcha_code: Optional[str] = Form(None),
+    username: str | None = Form(None),
+    password: str | None = Form(None),
+    captcha_id: str | None = Form(None),
+    captcha_code: str | None = Form(None),
     db: AsyncSession = Depends(async_get_db)
 ):
     try:

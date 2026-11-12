@@ -1,6 +1,5 @@
 """可见模式配置服务 - 核心配置CRUD
 """
-from typing import Optional, Dict, Tuple
 from pathlib import Path
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -33,9 +32,9 @@ class VisibilityConfigCoreMixin:
 
     def __init__(self):
         """初始化服务"""
-        self._global_config: Optional[VisibilityConfig] = None
-        self._task_configs: Dict[int, VisibilityConfig] = {}
-        self._case_configs: Dict[int, VisibilityConfig] = {}
+        self._global_config: VisibilityConfig | None = None
+        self._task_configs: dict[int, VisibilityConfig] = {}
+        self._case_configs: dict[int, VisibilityConfig] = {}
         self._video_base_dir = Path("./videos")
         self._screenshot_base_dir = Path("./screenshots")
         self._ensure_directories()
@@ -84,7 +83,7 @@ class VisibilityConfigCoreMixin:
             return VisibilityConfigMerger.merge(global_config, project_vis_config)
         return global_config
 
-    def get_case_config(self, case: TestCase, task: Optional[TestTask] = None) -> VisibilityConfig:
+    def get_case_config(self, case: TestCase, task: TestTask | None = None) -> VisibilityConfig:
         """获取用例级别的可见模式配置"""
         config = self.get_global_config()
         if task:
@@ -122,7 +121,7 @@ class VisibilityConfigCoreMixin:
         filename = f"task_{task_id}_case_{case_id}_step_{step_number}_{timestamp}.png"
         return self._screenshot_base_dir / filename
 
-    def validate_config(self, config: VisibilityConfig) -> Tuple[bool, str]:
+    def validate_config(self, config: VisibilityConfig) -> tuple[bool, str]:
         """验证配置是否有效"""
         return VisibilityConfigValidator.validate(config)
 

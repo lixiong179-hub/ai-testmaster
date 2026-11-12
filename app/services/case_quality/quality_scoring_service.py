@@ -6,7 +6,7 @@ _classify_* 判定与 quality_scoring_constants 常量，消除同一字段在�
 评分函数中给出冲突分数的问题。常量与正则统一在 quality_scoring_constants
 定义，本模块仅包含判定与评分逻辑。
 """
-from typing import Any, Dict, List, Literal, Tuple
+from typing import Any, Literal
 
 from app.services.case_quality.quality_scoring_constants import (
     CLICK_ACTION_KEYWORDS,
@@ -33,7 +33,7 @@ from app.services.case_quality.quality_scoring_constants import (
 )
 
 CaseStatus = Literal["passed", "warning", "pending_review", "rejected"]
-_STATUS_ORDER: Dict[str, int] = {"passed": 0, "warning": 1, "pending_review": 2, "rejected": 3}
+_STATUS_ORDER: dict[str, int] = {"passed": 0, "warning": 1, "pending_review": 2, "rejected": 3}
 _STATUS_BY_SEVERITY = ("passed", "warning", "pending_review", "rejected")
 
 
@@ -83,7 +83,7 @@ class QualityScoringService:
 
     # ── 核心判定：步骤 ──
     @staticmethod
-    def _classify_steps(steps: List[Dict[str, Any]], case_type: str = "") -> str:
+    def _classify_steps(steps: list[dict[str, Any]], case_type: str = "") -> str:
         """判定步骤质量等级（数量问题与内容问题区分）。"""
         if not steps or len(steps) == 0:
             return "empty"
@@ -136,7 +136,7 @@ class QualityScoringService:
 
     # ── 4 档状态：grade_status ──
     @staticmethod
-    def grade_status(case: Dict[str, Any]) -> CaseStatus:
+    def grade_status(case: dict[str, Any]) -> CaseStatus:
         """对单条用例执行全量质量校验，返回 4 档状态。
 
         与 score_dimensions 共享 _classify_* 判定。只 rejected 阻断入库，
@@ -192,7 +192,7 @@ class QualityScoringService:
         return _STATUS_BY_SEVERITY[severity]
 
     @staticmethod
-    def _check_test_data(steps: List[Dict[str, Any]]) -> bool:
+    def _check_test_data(steps: list[dict[str, Any]]) -> bool:
         """校验 input/select 步骤有具体输入值（True=通过）。"""
         if not steps:
             return True
@@ -205,7 +205,7 @@ class QualityScoringService:
         return True
 
     @staticmethod
-    def _check_atomicity(steps: List[Dict[str, Any]]) -> bool:
+    def _check_atomicity(steps: list[dict[str, Any]]) -> bool:
         """校验步骤原子性（无混合点击+输入，True=通过）。"""
         if not steps:
             return True
@@ -218,7 +218,7 @@ class QualityScoringService:
         return True
 
     @staticmethod
-    def _boundary_issues(case: Dict[str, Any]) -> bool:
+    def _boundary_issues(case: dict[str, Any]) -> bool:
         """边界用例是否使用占位符而非实际边界值（True=有问题）。"""
         if case.get("case_category") != "boundary":
             return False
@@ -236,7 +236,7 @@ class QualityScoringService:
         return False
 
     @staticmethod
-    def _type_consistency_issues(case: Dict[str, Any]) -> bool:
+    def _type_consistency_issues(case: dict[str, Any]) -> bool:
         """case_type 与 action_type 组合是否矛盾（True=有问题）。"""
         case_type = case.get("case_type", "")
         steps = case.get("steps", [])
@@ -256,7 +256,7 @@ class QualityScoringService:
 
     # ── 7 维度评分：score_dimensions ──
     @staticmethod
-    def score_dimensions(case: Dict[str, Any]) -> Dict[str, float]:
+    def score_dimensions(case: dict[str, Any]) -> dict[str, float]:
         """计算单条用例的 7 维度连续评分（每维度 0-10）。
 
         与 grade_status 共享 _classify_* 判定，消除与 prior 评分的冲突。
@@ -302,7 +302,7 @@ class QualityScoringService:
         }
 
     @staticmethod
-    def _score_action_type_dim(steps: List[Dict[str, Any]]) -> float:
+    def _score_action_type_dim(steps: list[dict[str, Any]]) -> float:
         """action_type 维度评分：全部合法10/缺失7/非法0。"""
         if not steps:
             return 10.0
@@ -318,7 +318,7 @@ class QualityScoringService:
 
     # ── prior 评分：prior_score ──
     @staticmethod
-    def prior_score(case: Dict[str, Any]) -> Tuple[float, Dict[str, float]]:
+    def prior_score(case: dict[str, Any]) -> tuple[float, dict[str, float]]:
         """计算 prior content 质量分（0-100）与维度明细。
 
         prior 保留 0-25 分制精排序（长度细分/堆砌降分/步骤序号连续性），
@@ -341,7 +341,7 @@ class QualityScoringService:
         content_score = max(
             0.0, min(100.0, title_score + steps_score + expected_score + precondition_score)
         )
-        breakdown: Dict[str, float] = {
+        breakdown: dict[str, float] = {
             "title_quality": round(title_score, 2),
             "steps_quality": round(steps_score, 2),
             "expected_result_quality": round(expected_score, 2),

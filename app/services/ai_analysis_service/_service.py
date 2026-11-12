@@ -1,5 +1,4 @@
-import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any
 from loguru import logger
 
 from app.ai.openai_client import AsyncOpenAIClient
@@ -10,15 +9,15 @@ from app.services.ai_analysis_service._extract import _ExtractMixin
 
 class AIAnalysisService(_ExtractMixin):
 
-    def __init__(self, ai_client: Optional[AsyncOpenAIClient]) -> None:
+    def __init__(self, ai_client: AsyncOpenAIClient | None) -> None:
         self.ai_client = ai_client
 
     async def analyze_requirement(
         self,
         content: str,
-        project_id: Optional[int] = None,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        project_id: int | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         if not content or not content.strip():
             return {"test_points": [], "summary": "", "risk_areas": []}
 
@@ -55,7 +54,7 @@ class AIAnalysisService(_ExtractMixin):
                 timeout=float(settings.AI_CALL_TIMEOUT_SECONDS),
             )
             return response.content.strip()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(f"AI生成摘要超时（>{settings.AI_CALL_TIMEOUT_SECONDS}s）")
             return ""
         except AIServiceError as e:
@@ -66,9 +65,9 @@ class AIAnalysisService(_ExtractMixin):
             return ""
 
     def _identify_risk_areas(
-        self, test_points: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        risk_areas: List[Dict[str, Any]] = []
+        self, test_points: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        risk_areas: list[dict[str, Any]] = []
 
         high_priority_count = sum(
             1 for tp in test_points if tp.get("priority") == 1
@@ -96,7 +95,7 @@ class AIAnalysisService(_ExtractMixin):
         return risk_areas
 
 
-ai_analysis_service: Optional[AIAnalysisService] = None
+ai_analysis_service: AIAnalysisService | None = None
 
 
 def get_ai_analysis_service() -> AIAnalysisService:

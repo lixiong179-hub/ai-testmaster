@@ -15,7 +15,7 @@ M2 再考虑将错误返回前端展示。
         - 分支/异常缺少 condition 且无法自动推断
         - 存在孤立节点（无任何连线关联）
 """
-from typing import List, Dict, Any, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -23,9 +23,9 @@ from app.services.prompt_builder.helpers import _safe_int
 
 
 def validate_flow_structure(
-    nodes: List[Dict[str, Any]],
-    edges: List[Dict[str, Any]]
-) -> Tuple[List[str], List[str]]:
+    nodes: list[dict[str, Any]],
+    edges: list[dict[str, Any]]
+) -> tuple[list[str], list[str]]:
     """校验流程图数据结构，返回 (errors, warnings)。
 
     Args:
@@ -35,8 +35,8 @@ def validate_flow_structure(
     Returns:
         (errors, warnings) 元组，errors 为错误列表，warnings 为警告列表。
     """
-    errors: List[str] = []
-    warnings: List[str] = []
+    errors: list[str] = []
+    warnings: list[str] = []
 
     # 1. graph 模式下 nodes 为空
     if not nodes:

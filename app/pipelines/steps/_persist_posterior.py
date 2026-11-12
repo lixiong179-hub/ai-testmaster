@@ -2,7 +2,7 @@
 
 根据配置开关触发后验质量评分，评分失败不阻断主流程。
 """
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -11,8 +11,8 @@ from app.pipelines.context import PipelineContext
 
 def _trigger_posterior_scoring(
     ctx: PipelineContext,
-    project_id: Optional[int],
-) -> Optional[Dict[str, Any]]:
+    project_id: int | None,
+) -> dict[str, Any] | None:
     """触发后验评分，返回 posterior_result 或 None。
 
     开关来源优先级：

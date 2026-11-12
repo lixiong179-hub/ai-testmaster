@@ -1,5 +1,4 @@
 """Legacy 查询Mixin - execution_replay_service.py 原始查询逻辑。"""
-from typing import Optional, List
 
 from app.services.execution_replay.legacy_models import ReplayEvent
 
@@ -9,7 +8,7 @@ class LegacyQueryMixin:
 
     async def get_screenshot_at_time(
         self, execution_id: str, timestamp: float
-    ) -> Optional[str]:
+    ) -> str | None:
         session = self._active_replays.get(execution_id)
         if not session:
             return None
@@ -24,7 +23,7 @@ class LegacyQueryMixin:
 
     async def get_events_in_range(
         self, execution_id: str, start_time: float, end_time: float
-    ) -> List[ReplayEvent]:
+    ) -> list[ReplayEvent]:
         session = self._active_replays.get(execution_id)
         if not session:
             return []

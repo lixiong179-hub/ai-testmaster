@@ -6,7 +6,6 @@
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -18,8 +17,8 @@ class StorageObject:
     """
     key: str
     size: int
-    content_type: Optional[str] = None
-    url: Optional[str] = None
+    content_type: str | None = None
+    url: str | None = None
 
 
 class StorageBackend(ABC):
@@ -30,7 +29,7 @@ class StorageBackend(ABC):
     """
 
     @abstractmethod
-    async def save(self, key: str, data: bytes, content_type: Optional[str] = None) -> StorageObject:
+    async def save(self, key: str, data: bytes, content_type: str | None = None) -> StorageObject:
         """保存字节流到存储后端。
 
         参数：
@@ -67,7 +66,7 @@ class StorageBackend(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def url(self, key: str, expires: int = 3600) -> Optional[str]:
+    async def url(self, key: str, expires: int = 3600) -> str | None:
         """获取对象访问 URL。
 
         参数：

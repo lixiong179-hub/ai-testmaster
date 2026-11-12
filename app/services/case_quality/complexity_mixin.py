@@ -1,6 +1,5 @@
 """复杂度评估Mixin - 评估测试用例的步骤复杂度。
 """
-from typing import List
 from loguru import logger
 
 from app.models.test_case import TestStep, TestCasePreconditionStep
@@ -9,7 +8,7 @@ from app.services.case_quality.models import ComplexityScore
 
 class ComplexityMixin:
 
-    def _analyze_complexity(self, steps: List[TestStep], precondition_steps: List[TestCasePreconditionStep]) -> ComplexityScore:
+    def _analyze_complexity(self, steps: list[TestStep], precondition_steps: list[TestCasePreconditionStep]) -> ComplexityScore:
         score = ComplexityScore()
 
         score.step_count = len(steps)

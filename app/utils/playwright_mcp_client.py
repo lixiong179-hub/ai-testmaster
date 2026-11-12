@@ -2,18 +2,18 @@ import asyncio
 import atexit
 import base64
 import json
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 from loguru import logger
 
 
 class PlaywrightMCPClient:
 
-    def __init__(self, server_command: Optional[str] = None, port: Optional[int] = None):
+    def __init__(self, server_command: str | None = None, port: int | None = None):
         self._server_command = server_command or "npx"
         self._server_args = ["@playwright/mcp@latest"]
         self._port = port
-        self._process: Optional[asyncio.subprocess.Process] = None
+        self._process: asyncio.subprocess.Process | None = None
         self._request_id = 0
         self._connected = False
 
@@ -54,7 +54,7 @@ class PlaywrightMCPClient:
                 self._process.terminate()
                 try:
                     await asyncio.wait_for(self._process.wait(), timeout=5)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     self._process.kill()
                     await self._process.wait()
             except Exception as e:
@@ -63,7 +63,7 @@ class PlaywrightMCPClient:
                 self._connected = False
                 self._process = None
 
-    async def _send_request(self, method: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _send_request(self, method: str, params: dict[str, Any]) -> dict[str, Any] | None:
         if not self._process or self._process.returncode is not None:
             logger.error("MCP Server未运行")
             return None
@@ -84,7 +84,7 @@ class PlaywrightMCPClient:
                     response_line = await asyncio.wait_for(
                         self._process.stdout.readline(), timeout=30
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.error(f"MCP请求超时: {method}")
                     return None
                 if not response_line:
@@ -114,7 +114,7 @@ class PlaywrightMCPClient:
             self._connected = False
             return None
 
-    async def _send_notification(self, method: str, params: Dict[str, Any]):
+    async def _send_notification(self, method: str, params: dict[str, Any]):
         if not self._process or self._process.returncode is not None:
             return
         notification = {
@@ -129,7 +129,7 @@ class PlaywrightMCPClient:
         except Exception as e:
             logger.error(f"MCP通知发送异常: {e}")
 
-    async def _call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[Any]:
+    async def _call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any | None:
         result = await self._send_request("tools/call", {
             "name": tool_name,
             "arguments": arguments
@@ -147,7 +147,7 @@ class PlaywrightMCPClient:
             return contents
         return result
 
-    async def browser_snapshot(self) -> Optional[str]:
+    async def browser_snapshot(self) -> str | None:
         result = await self._call_tool("browser_snapshot", {})
         if isinstance(result, str):
             return result
@@ -155,43 +155,43 @@ class PlaywrightMCPClient:
             return json.dumps(result, ensure_ascii=False)
         return result
 
-    async def browser_click(self, element: str, ref: Optional[str] = None) -> Optional[Any]:
+    async def browser_click(self, element: str, ref: str | None = None) -> Any | None:
         arguments = {"element": element}
         if ref:
             arguments["ref"] = ref
         return await self._call_tool("browser_click", arguments)
 
-    async def browser_type(self, element: str, text: str, ref: Optional[str] = None) -> Optional[Any]:
+    async def browser_type(self, element: str, text: str, ref: str | None = None) -> Any | None:
         arguments = {"element": element, "text": text}
         if ref:
             arguments["ref"] = ref
         return await self._call_tool("browser_type", arguments)
 
-    async def browser_navigate(self, url: str) -> Optional[Any]:
+    async def browser_navigate(self, url: str) -> Any | None:
         return await self._call_tool("browser_navigate", {"url": url})
 
-    async def browser_screenshot(self) -> Optional[bytes]:
+    async def browser_screenshot(self) -> bytes | None:
         result = await self._call_tool("browser_screenshot", {})
         if isinstance(result, dict) and "data" in result:
             return base64.b64decode(result["data"])
         return None
 
-    async def browser_select_option(self, element: str, values: List[str], ref: Optional[str] = None) -> Optional[Any]:
+    async def browser_select_option(self, element: str, values: list[str], ref: str | None = None) -> Any | None:
         arguments = {"element": element, "values": values}
         if ref:
             arguments["ref"] = ref
         return await self._call_tool("browser_select_option", arguments)
 
-    async def browser_hover(self, element: str, ref: Optional[str] = None) -> Optional[Any]:
+    async def browser_hover(self, element: str, ref: str | None = None) -> Any | None:
         arguments = {"element": element}
         if ref:
             arguments["ref"] = ref
         return await self._call_tool("browser_hover", arguments)
 
-    async def browser_press_key(self, key: str) -> Optional[Any]:
+    async def browser_press_key(self, key: str) -> Any | None:
         return await self._call_tool("browser_press_key", {"key": key})
 
-    async def browser_wait_for(self, time: Optional[float] = None, text: Optional[str] = None) -> Optional[Any]:
+    async def browser_wait_for(self, time: float | None = None, text: str | None = None) -> Any | None:
         arguments = {}
         if time is not None:
             arguments["time"] = time
@@ -224,7 +224,7 @@ class PlaywrightMCPClient:
         return False
 
 
-_mcp_client: Optional[PlaywrightMCPClient] = None
+_mcp_client: PlaywrightMCPClient | None = None
 
 
 async def get_mcp_client() -> PlaywrightMCPClient:

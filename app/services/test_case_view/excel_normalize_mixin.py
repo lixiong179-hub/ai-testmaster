@@ -2,11 +2,11 @@
 """Excel格式规范化预处理Mixin - 合并单元格展开、多步骤拆分、多Sheet合并、列名智能映射。"""
 import os
 import re
-from typing import Dict, Any, List, Optional
+from typing import Any
 from loguru import logger
 
 
-COLUMN_ALIASES: Dict[str, List[str]] = {
+COLUMN_ALIASES: dict[str, list[str]] = {
     "title": ["用例描述", "标题", "用例标题", "Test Case", "case_title"],
     "action": ["操作步骤", "步骤描述", "操作", "Step", "step_desc"],
     "expected_result": ["期望结果", "预期结果", "Expected", "expected"],
@@ -21,7 +21,7 @@ COLUMN_ALIASES: Dict[str, List[str]] = {
 class ExcelNormalizeMixin:
     """Excel格式规范化预处理：合并单元格展开、多步骤拆分、多Sheet合并、列名智能映射。"""
 
-    _temp_files: List[str] = []
+    _temp_files: list[str] = []
 
     def _register_temp_file(self, path: str) -> None:
         self._temp_files.append(path)
@@ -35,8 +35,8 @@ class ExcelNormalizeMixin:
                 pass
         self._temp_files.clear()
 
-    def normalize_excel(self, file_path: str) -> Dict[str, Any]:
-        result: Dict[str, Any] = {
+    def normalize_excel(self, file_path: str) -> dict[str, Any]:
+        result: dict[str, Any] = {
             "detected_format": "unknown",
             "normalization_needed": False,
             "issues": [],
@@ -91,8 +91,8 @@ class ExcelNormalizeMixin:
     def apply_normalization(
         self,
         file_path: str,
-        column_mapping: Optional[Dict[str, str]] = None,
-        normalize_options: Optional[Dict[str, bool]] = None,
+        column_mapping: dict[str, str] | None = None,
+        normalize_options: dict[str, bool] | None = None,
     ) -> str:
         import pandas as pd
         import tempfile
@@ -105,7 +105,7 @@ class ExcelNormalizeMixin:
         sheet_names = xl.sheet_names
         if "用例信息" in sheet_names and "测试步骤" in sheet_names:
             return file_path
-        dfs: List[pd.DataFrame] = []
+        dfs: list[pd.DataFrame] = []
         for sheet_name in sheet_names:
             df = pd.read_excel(file_path, sheet_name=sheet_name)
             if df.empty:
@@ -140,8 +140,8 @@ class ExcelNormalizeMixin:
         logger.info(f"Excel规范化完成，输出: {normalized_path}")
         return normalized_path
 
-    def _detect_merged_cells(self, df: Any) -> List[Dict[str, Any]]:
-        issues: List[Dict[str, Any]] = []
+    def _detect_merged_cells(self, df: Any) -> list[dict[str, Any]]:
+        issues: list[dict[str, Any]] = []
         try:
             for col in df.columns:
                 null_count = df[col].isna().sum()
@@ -158,8 +158,8 @@ class ExcelNormalizeMixin:
             logger.debug(f"合并单元格检测异常: {e}")
         return issues
 
-    def _detect_multi_step_cells(self, df: Any, columns: List[str]) -> List[Dict[str, Any]]:
-        issues: List[Dict[str, Any]] = []
+    def _detect_multi_step_cells(self, df: Any, columns: list[str]) -> list[dict[str, Any]]:
+        issues: list[dict[str, Any]] = []
         try:
             step_col = next((c for c in ["操作步骤", "步骤描述", "action"] if c in columns), None)
             if step_col is None:
@@ -178,7 +178,7 @@ class ExcelNormalizeMixin:
             logger.debug(f"多步骤检测异常: {e}")
         return issues
 
-    def _expand_merged_cells(self, df: Any, merged_columns: Optional[List[str]] = None) -> Any:
+    def _expand_merged_cells(self, df: Any, merged_columns: list[str] | None = None) -> Any:
         try:
             cols_to_fill = merged_columns if merged_columns else [
                 col for col in df.columns
@@ -199,7 +199,7 @@ class ExcelNormalizeMixin:
             if step_col is None:
                 return df
             expected_col = next((c for c in ["期望结果", "预期结果", "expected_result"] if c in df.columns), None)
-            new_rows: List[Dict[str, Any]] = []
+            new_rows: list[dict[str, Any]] = []
             step_pattern = re.compile(r'(?:【(\d+)】|\[(\d+)\])\s*((?:(?!【\d+】|\[\d+\]).)*)', re.DOTALL)
             for _, row in df.iterrows():
                 step_val = str(row.get(step_col, ""))
@@ -222,8 +222,8 @@ class ExcelNormalizeMixin:
             logger.warning(f"多步骤拆分失败: {e}")
             return df
 
-    def _infer_column_mapping(self, columns: List[str]) -> Dict[str, str]:
-        mapping: Dict[str, str] = {}
+    def _infer_column_mapping(self, columns: list[str]) -> dict[str, str]:
+        mapping: dict[str, str] = {}
         for col in columns:
             col_stripped = col.strip()
             for standard_name, aliases in COLUMN_ALIASES.items():
@@ -232,7 +232,7 @@ class ExcelNormalizeMixin:
                     break
         return mapping
 
-    def _calc_mapping_confidence(self, mapping: Dict[str, str], columns: List[str]) -> float:
+    def _calc_mapping_confidence(self, mapping: dict[str, str], columns: list[str]) -> float:
         if not columns:
             return 0.0
         required = {"title", "action", "expected_result"}

@@ -38,8 +38,8 @@ class MobileAIExecutor(
         self,
         db: Session,
         adb: AdbController,
-        vision_model: Optional[UnifiedVisionModel] = None,
-        uiautomator: Optional[UIAutomatorHelper] = None,
+        vision_model: UnifiedVisionModel | None = None,
+        uiautomator: UIAutomatorHelper | None = None,
     ):
         self.db = db
         self.adb = adb

@@ -24,7 +24,6 @@
 """
 from __future__ import annotations
 
-from typing import Optional, Union
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -136,7 +135,7 @@ class ProjectAccessService:
     @staticmethod
     def get_user_role(
         db: Session, project_id: int, user_id: int
-    ) -> Optional[str]:
+    ) -> str | None:
         """查询用户在项目中的角色（sync 模式）。
 
         Returns:
@@ -153,7 +152,7 @@ class ProjectAccessService:
     @staticmethod
     async def get_user_role_async(
         db: AsyncSession, project_id: int, user_id: int
-    ) -> Optional[str]:
+    ) -> str | None:
         """查询用户在项目中的角色（async 模式）。
 
         Returns:
@@ -219,7 +218,7 @@ def _has_sufficient_role(user_role: str, required_role: str) -> bool:
     return user_level >= required_level
 
 
-def _build_superuser_member(project_id: int, user_id: Optional[int]) -> ProjectMember:
+def _build_superuser_member(project_id: int, user_id: int | None) -> ProjectMember:
     """为超级管理员构造虚拟 owner 成员记录（不落库）。"""
     return ProjectMember(
         project_id=project_id, user_id=user_id or 0, role="owner",

@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Dict, Any, List
+from typing import Any
 from loguru import logger
 
 from app.models.test_case import TestCase
@@ -18,14 +18,14 @@ class _ExecutorMixin:
     async def execute_test_task(
         self,
         task_id: int,
-        global_headless: Optional[bool] = None,
-        global_record_video: Optional[bool] = None,
+        global_headless: bool | None = None,
+        global_record_video: bool | None = None,
         target_env: str = "test",
         skip_init: bool = False,
         execution_mode: str = "smart",
-        mobile_device_id: Optional[str] = None,
-        use_mcp: Optional[bool] = None
-    ) -> Dict[str, Any]:
+        mobile_device_id: str | None = None,
+        use_mcp: bool | None = None
+    ) -> dict[str, Any]:
         from app.models.test_task import TestTask, TaskStatus
         from app.models.test_result import TestResult
         from app.models.project import Project
@@ -147,7 +147,7 @@ class _ExecutorMixin:
             self._pending_cases = sorted_cases
             self._anchor_step_index = self._build_anchor_step_index(sorted_cases)
 
-            result_map: Dict[int, TestResult] = {r.case_id: r for r in test_results if r.case_id}
+            result_map: dict[int, TestResult] = {r.case_id: r for r in test_results if r.case_id}
 
             for test_case in sorted_cases:
                 test_result = result_map.get(test_case.id)
@@ -165,7 +165,7 @@ class _ExecutorMixin:
                     continue
 
                 depends_on = getattr(test_case, 'depends_on', None)
-                nav_level_used: Optional[str] = None
+                nav_level_used: str | None = None
                 nav_failed = False
                 if depends_on:
                     nav_ok, nav_level = await self._navigate_to_dependency_anchor(test_case)
@@ -252,7 +252,7 @@ class _ExecutorMixin:
         return self._get_task_summary(task_id)
 
     @staticmethod
-    def _aggregate_defect_evidence(result: "TestExecutionResult") -> Optional[Dict[str, Any]]:
+    def _aggregate_defect_evidence(result: "TestExecutionResult") -> dict[str, Any] | None:
         """聚合步骤级别的 defect_evidence 为用例级别的缺陷证据。
 
         合并所有步骤的 console_errors、network_failures、uncaught_exceptions，
@@ -261,7 +261,7 @@ class _ExecutorMixin:
         if not result or not result.steps:
             return None
 
-        merged: Dict[str, list] = {
+        merged: dict[str, list] = {
             "console_errors": [],
             "network_failures": [],
             "uncaught_exceptions": [],
@@ -290,10 +290,7 @@ class _ExecutorMixin:
             seen = set()
             unique = []
             for item in merged[key]:
-                if isinstance(item, dict):
-                    ident = tuple(sorted(item.items()))
-                else:
-                    ident = str(item)
+                ident = tuple(sorted(item.items())) if isinstance(item, dict) else str(item)
                 if ident not in seen:
                     seen.add(ident)
                     unique.append(item)

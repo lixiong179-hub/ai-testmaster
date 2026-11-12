@@ -11,7 +11,7 @@ Pipeline 运行时上下文
     - 产物通过 get_artifact / set_artifact 在 Step 间传递
     - 预算检查通过 ctx.check_budget() 统一入口
 """
-from typing import Any, Dict, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -43,8 +43,8 @@ class PipelineContext:
         ai_client: AIClient,
         run: PipelineRun,
         iteration_id: int,
-        user_id: Optional[int] = None,
-        config: Optional[Dict[str, Any]] = None,
+        user_id: int | None = None,
+        config: dict[str, Any] | None = None,
     ):
         self.db = db
         self.ai_client = ai_client
@@ -53,13 +53,13 @@ class PipelineContext:
         self.user_id = user_id
         self.config = config or {}
 
-        self._step_records: Dict[str, PipelineStepModel] = {}
-        self._artifacts: Dict[str, Artifact] = {}
-        self._confirmation_payload: Optional[Dict[str, Any]] = None
-        self._pause_info: Optional[Dict[str, Any]] = None
-        self._cached_project_id: Optional[int] = None
+        self._step_records: dict[str, PipelineStepModel] = {}
+        self._artifacts: dict[str, Artifact] = {}
+        self._confirmation_payload: dict[str, Any] | None = None
+        self._pause_info: dict[str, Any] | None = None
+        self._cached_project_id: int | None = None
 
-    def get_artifact(self, kind: str) -> Optional[Dict[str, Any]]:
+    def get_artifact(self, kind: str) -> dict[str, Any] | None:
         """获取指定类型的产物载荷。
 
         Args:
@@ -91,7 +91,7 @@ class PipelineContext:
         """
         self._step_records[step_name] = record
 
-    def get_step_record(self, step_name: str) -> Optional[PipelineStepModel]:
+    def get_step_record(self, step_name: str) -> PipelineStepModel | None:
         """获取 Step 执行记录。
 
         Args:
@@ -126,13 +126,13 @@ class PipelineContext:
         from app.services.config_service import get_config
         return get_config(self.db, key, default)
 
-    def set_confirmation_payload(self, payload: Dict[str, Any]) -> None:
+    def set_confirmation_payload(self, payload: dict[str, Any]) -> None:
         self._confirmation_payload = payload
 
-    def get_confirmation_payload(self) -> Optional[Dict[str, Any]]:
+    def get_confirmation_payload(self) -> dict[str, Any] | None:
         return self._confirmation_payload
 
-    def set_pause_info(self, reason: str, step_name: str, schema: Optional[Dict[str, Any]] = None) -> None:
+    def set_pause_info(self, reason: str, step_name: str, schema: dict[str, Any] | None = None) -> None:
         self._pause_info = {
             "reason": reason,
             "step_name": step_name,
@@ -156,5 +156,5 @@ class PipelineContext:
             self.ai_client = FallbackAIClient(primary=self.ai_client, fallback=fallback)
         return self.ai_client
 
-    def get_pause_info(self) -> Optional[Dict[str, Any]]:
+    def get_pause_info(self) -> dict[str, Any] | None:
         return self._pause_info

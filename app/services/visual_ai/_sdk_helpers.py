@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Optional
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,7 +37,7 @@ async def load_baseline_dom(
     storage: StorageBackend,
     baseline: VisualBaseline,
     current_dom_html: str,
-) -> Optional[DOMDiffResult]:
+) -> DOMDiffResult | None:
     """加载基线 DOM 并与当前 DOM 对比。
 
     业务用途：视觉校验时附加 DOM 结构差异，辅助定位视觉变更根因。
@@ -72,8 +71,8 @@ def build_diff_record(
     project_id: int,
     baseline: VisualBaseline,
     result: ComparisonResult,
-    test_case_id: Optional[int],
-    test_result_id: Optional[int],
+    test_case_id: int | None,
+    test_result_id: int | None,
     diff_status: str,
 ) -> VisualDiff:
     """根据对比结果构造 VisualDiff ORM 对象（未持久化）。
@@ -147,7 +146,7 @@ async def persist_diff_image(
 
 def build_dom_diff_report(
     pixel_diff_percentage: float,
-    dom_diff: Optional[DOMDiffResult],
+    dom_diff: DOMDiffResult | None,
     llm_description: str,
 ) -> str:
     """生成 Markdown Diff 报告。

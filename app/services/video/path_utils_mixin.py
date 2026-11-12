@@ -1,7 +1,6 @@
 """路径工具Mixin - 视频文件路径管理工具。
 """
 from pathlib import Path
-from typing import Optional, Union
 from app.models.video_record import VideoRecord
 
 
@@ -10,10 +9,10 @@ class PathUtilsMixin:
 
     def get_video_path(
         self,
-        video_id: Optional[int] = None,
-        task_id: Optional[int] = None,
-        case_id: Optional[int] = None,
-    ) -> Optional[Union[str, Path]]:
+        video_id: int | None = None,
+        task_id: int | None = None,
+        case_id: int | None = None,
+    ) -> str | Path | None:
         """根据视频ID返回存在的物理文件路径。
 
         Args:
@@ -32,7 +31,7 @@ class PathUtilsMixin:
                 return str(file_path)
         return None
 
-    def get_video_url(self, video_id: Union[int, str]) -> Optional[str]:
+    def get_video_url(self, video_id: int | str) -> str | None:
         """根据视频ID生成流媒体访问URL。
 
         Args:

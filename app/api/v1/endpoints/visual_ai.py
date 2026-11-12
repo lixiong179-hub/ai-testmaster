@@ -20,10 +20,9 @@
 from __future__ import annotations
 
 import base64
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,7 +33,7 @@ from app.db.database import async_get_db
 from app.models.baseline_approval import BaselineApproval, APPROVAL_ACTION_VALUES
 from app.models.project import Project
 from app.models.user import User
-from app.models.visual_baseline import VisualBaseline, MATCH_LEVEL_VALUES
+from app.models.visual_baseline import MATCH_LEVEL_VALUES
 from app.models.visual_diff import VisualDiff, DIFF_STATUS_VALUES
 from app.schemas.common import ApiResponse
 from app.schemas.visual_ai import (
@@ -103,7 +102,7 @@ async def create_baseline(
     body: BaselineCreateRequest,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """上传截图创建视觉基线。"""
     _check_visual_ai_enabled()
     await _verify_project_owner(db, project_id, current_user.id)
@@ -137,13 +136,13 @@ async def create_baseline(
 )
 async def list_baselines(
     project_id: int,
-    status_filter: Optional[str] = Query(None, alias="status", description="基线状态过滤"),
-    test_case_id: Optional[int] = Query(None, description="按用例过滤"),
+    status_filter: str | None = Query(None, alias="status", description="基线状态过滤"),
+    test_case_id: int | None = Query(None, description="按用例过滤"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """按项目列出视觉基线，支持状态与用例过滤。"""
     _check_visual_ai_enabled()
     await _verify_project_owner(db, project_id, current_user.id)
@@ -171,7 +170,7 @@ async def get_baseline(
     baseline_id: int,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """按 ID 查询视觉基线详情。"""
     _check_visual_ai_enabled()
     await _verify_project_owner(db, project_id, current_user.id)
@@ -194,7 +193,7 @@ async def update_baseline(
     body: BaselineUpdateRequest,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """更新基线截图，旧版本归档，创建新版本。"""
     _check_visual_ai_enabled()
     await _verify_project_owner(db, project_id, current_user.id)
@@ -218,7 +217,7 @@ async def update_baseline(
 
 @router.delete(
     "/projects/{project_id}/visual-ai/baselines/{baseline_id}",
-    response_model=ApiResponse[Dict[str, Any]],
+    response_model=ApiResponse[dict[str, Any]],
     summary="删除视觉基线",
 )
 async def delete_baseline(
@@ -226,7 +225,7 @@ async def delete_baseline(
     baseline_id: int,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """删除基线及其存储文件。"""
     _check_visual_ai_enabled()
     await _verify_project_owner(db, project_id, current_user.id)
@@ -253,7 +252,7 @@ async def compare_screenshot(
     body: CompareRequest,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """对比当前截图与活跃基线，生成 Diff 记录。"""
     _check_visual_ai_enabled()
     await _verify_project_owner(db, project_id, current_user.id)
@@ -284,8 +283,8 @@ async def compare_screenshot(
     )
 
     # 保存 Diff 图片到存储
-    diff_image_key: Optional[str] = None
-    diff_image_base64: Optional[str] = None
+    diff_image_key: str | None = None
+    diff_image_base64: str | None = None
     if result.diff_image:
         import hashlib
 
@@ -345,12 +344,12 @@ async def compare_screenshot(
 )
 async def list_diffs(
     project_id: int,
-    status_filter: Optional[str] = Query(None, alias="status", description="审批状态过滤"),
+    status_filter: str | None = Query(None, alias="status", description="审批状态过滤"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """按项目列出视觉差异记录。"""
     _check_visual_ai_enabled()
     await _verify_project_owner(db, project_id, current_user.id)
@@ -393,7 +392,7 @@ async def approve_diff(
     body: ApprovalRequest,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """审批视觉差异记录（approve/reject/update_baseline）。"""
     _check_visual_ai_enabled()
     await _verify_project_owner(db, project_id, current_user.id)

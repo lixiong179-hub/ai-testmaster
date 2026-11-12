@@ -12,7 +12,7 @@ _quality_gate_issues 内部调用 cls._ui_executability_issues，由
 UIElementValidationMixin 提供，运行时通过 CaseValidator MRO 解析。
 """
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -96,7 +96,7 @@ class QualityGateMixin:
         return cleaned
 
     @classmethod
-    def _normalize_case_type(cls, *values: Optional[str]) -> str:
+    def _normalize_case_type(cls, *values: str | None) -> str:
         for value in values:
             if not value:
                 continue
@@ -109,12 +109,12 @@ class QualityGateMixin:
     @classmethod
     def _quality_gate_issues(
         cls,
-        generated_case: Dict[str, Any],
-        quality_score: Optional[float],
-        ui_specs: Optional[List[Dict[str, Any]]] = None,
-        project_id: Optional[int] = None,
+        generated_case: dict[str, Any],
+        quality_score: float | None,
+        ui_specs: list[dict[str, Any]] | None = None,
+        project_id: int | None = None,
         db: Any = None,
-    ) -> Tuple[List[str], str]:
+    ) -> tuple[list[str], str]:
         """使用 QualityGateService 执行统一校验，返回 (issues, status) 元组。
 
         分级阻断规则:
@@ -124,7 +124,7 @@ class QualityGateMixin:
         本地硬性校验（quality_score/precondition/UI可执行性）失败时，
         状态提升为 rejected，确保硬性质量门槛始终阻断。
         """
-        context: Dict[str, Any] = {
+        context: dict[str, Any] = {
             "ui_specs": ui_specs or generated_case.get("_context_ui_specs"),
         }
         gate_service = QualityGateService(db=db)
@@ -135,7 +135,7 @@ class QualityGateMixin:
                 project_id=project_id,
             )
             gate_status: str = result.status
-            issues: List[str] = [issue.message for issue in result.issues]
+            issues: list[str] = [issue.message for issue in result.issues]
         except Exception as e:
             logger.warning(f"QualityGate 编排异常，降级为 warning: {e}")
             gate_status = "warning"
@@ -175,8 +175,8 @@ class QualityGateMixin:
     @classmethod
     def _resolve_generated_priority(
         cls,
-        generated_case: Dict[str, Any],
-        test_point: Dict[str, Any],
+        generated_case: dict[str, Any],
+        test_point: dict[str, Any],
     ) -> int:
         priority = normalize_priority(
             generated_case.get("priority", test_point.get("priority", 2))

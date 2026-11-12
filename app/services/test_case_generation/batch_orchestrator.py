@@ -14,7 +14,8 @@ _batch_orchestrator_failure_feedback.py / _batch_orchestrator_coverage.py），
 """
 import asyncio
 import copy
-from typing import Any, Dict, List, Optional, AsyncGenerator
+from typing import Any
+from collections.abc import AsyncGenerator
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -70,14 +71,14 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
         self,
         project_id: int,
         user_id: int,
-        test_point_ids: Optional[List[int]] = None,
-        requirement_file_ids: Optional[List[int]] = None,
-        ui_file_ids: Optional[List[int]] = None,
-        ui_screen_ids: Optional[List[int]] = None,
+        test_point_ids: list[int] | None = None,
+        requirement_file_ids: list[int] | None = None,
+        ui_file_ids: list[int] | None = None,
+        ui_screen_ids: list[int] | None = None,
         test_point_page: int = 1,
         test_point_page_size: int = 100,
-        case_type: Optional[str] = None
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        case_type: str | None = None
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """批量生成测试用例（流式输出）。
 
         Args:
@@ -152,7 +153,7 @@ class BatchOrchestrator(ModuleFailureFeedbackMixin, CoverageEnhancementMixin):
 
         from app.utils.ai_concurrency import ai_generation_slot
 
-        async def _generate_one(index: int, point: Dict[str, Any]) -> Dict[str, Any]:
+        async def _generate_one(index: int, point: dict[str, Any]) -> dict[str, Any]:
             async with ai_generation_slot():
                 try:
                     point_context = copy.deepcopy(context)

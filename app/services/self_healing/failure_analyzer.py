@@ -6,7 +6,7 @@
     3. suggested_strategy 映射: load_delay→retry, env_noise→skip, 其余→ai_heal
 """
 import re
-from typing import Any, Optional
+from typing import Any
 
 from app.services.self_healing.models import FailureAnalysis, FailureType
 
@@ -32,9 +32,9 @@ class FailureAnalyzer:
 
     def analyze(
         self,
-        error: Optional[Exception],
+        error: Exception | None,
         dom_snapshot: str,
-        old_selector: Optional[str] = None,
+        old_selector: str | None = None,
     ) -> FailureAnalysis:
         """分析失败类型，先按错误关键词初判，再用 DOM 快照校正。
 
@@ -57,7 +57,7 @@ class FailureAnalyzer:
 
         err_type, err_conf, matched_keywords = self._classify_by_error(error_str)
         final_type, final_conf = err_type, err_conf
-        dom_evidence: Optional[dict[str, Any]] = None
+        dom_evidence: dict[str, Any] | None = None
 
         if dom_snapshot and dom_snapshot.strip():
             dom_type, dom_conf, dom_evidence = self._classify_by_dom(dom_snapshot, old_selector)
@@ -91,7 +91,7 @@ class FailureAnalyzer:
     def _classify_by_dom(
         self,
         dom_snapshot: str,
-        old_selector: Optional[str],
+        old_selector: str | None,
     ) -> tuple[FailureType, float, dict[str, Any]]:
         """DOM 检查校正:
         - 元素存在于 DOM 但可能不可见 → load_delay

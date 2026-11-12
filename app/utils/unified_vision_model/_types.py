@@ -1,9 +1,9 @@
-from typing import Dict, Optional, Callable
+from collections.abc import Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class VisionModelType(str, Enum):
+class VisionModelType(StrEnum):
     KIMI = "kimi"
     ZHIPU = "zhipu"
     BAIDU = "baidu"
@@ -31,12 +31,12 @@ class ModelProviderConfig:
     model_name_env: str
     default_base_url: str
     default_model_name: str
-    build_payload_fn: Optional[Callable] = None
-    parse_response_fn: Optional[Callable] = None
+    build_payload_fn: Callable | None = None
+    parse_response_fn: Callable | None = None
     api_endpoint: str = "/chat/completions"
 
 
-MODEL_PROVIDER_CONFIGS: Dict[VisionModelType, ModelProviderConfig] = {
+MODEL_PROVIDER_CONFIGS: dict[VisionModelType, ModelProviderConfig] = {
     VisionModelType.KIMI: ModelProviderConfig(
         model_type=VisionModelType.KIMI,
         api_key_env="KIMI_API_KEY",

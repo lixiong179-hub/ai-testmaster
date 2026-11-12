@@ -18,7 +18,7 @@ Agent 消息模型模块
     - tool_name       : 工具名称（仅 assistant 触发工具调用时有值）
     - token_cost      : 本条消息消耗的 Token 数
 """
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -86,7 +86,7 @@ class AgentMessage(Base):
             f"role={self.role}, tool={self.tool_name})>"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """返回消息核心字段字典，供 API 响应使用。"""
         return {
             "id": self.id,

@@ -3,7 +3,7 @@
 支持 PDF、Word (docx)、Excel、文本文件、图片和压缩包
 """
 import os
-from typing import Optional, Dict, Any, List
+from typing import Any
 from sqlalchemy.orm import Session
 from loguru import logger
 
@@ -27,7 +27,7 @@ class FileContentExtractor:
     def __init__(self, db: Session):
         self.db = db
 
-    async def extract_file_content(self, file: ProjectFile, force_refresh: bool = False) -> Dict[str, Any]:
+    async def extract_file_content(self, file: ProjectFile, force_refresh: bool = False) -> dict[str, Any]:
         """提取单个文件的内容"""
         if file.content and file.extract_status == 'completed' and not force_refresh:
             return {"success": True, "content": file.content, "from_cache": True}
@@ -54,7 +54,7 @@ class FileContentExtractor:
             )
             return {"success": False, "error": error_msg}
 
-    async def _extract_by_type(self, file: ProjectFile) -> Optional[str]:
+    async def _extract_by_type(self, file: ProjectFile) -> str | None:
         """根据文件类型选择提取方法"""
         file_type = file.file_type.lower()
 
@@ -72,11 +72,11 @@ class FileContentExtractor:
             return await self._extract_archive(file)
         return None
 
-    async def _extract_image(self, file: ProjectFile) -> Optional[str]:
+    async def _extract_image(self, file: ProjectFile) -> str | None:
         """提取图片中的文字（OCR 或 AI 视觉分析）"""
         return f"【图片文件】{file.file_name} - 图片内容需要通过 AI 视觉分析提取"
 
-    async def _extract_archive(self, file: ProjectFile) -> Optional[str]:
+    async def _extract_archive(self, file: ProjectFile) -> str | None:
         """提取压缩包文件内容（列出文件清单）"""
         if not os.path.exists(file.file_url):
             logger.warning(f"文件不存在: {file.file_url}")
@@ -122,14 +122,14 @@ async def extract_file_background(file_id: int, db: Session, force_refresh: bool
     await extractor.extract_file_content(file, force_refresh)
 
 
-async def batch_extract_files(file_ids: List[int], db: Session, force_refresh: bool = False) -> Dict[str, Any]:
+async def batch_extract_files(file_ids: list[int], db: Session, force_refresh: bool = False) -> dict[str, Any]:
     """批量提取文件内容"""
     results = {"total": len(file_ids), "success": 0, "failed": 0, "skipped": 0, "details": []}
     extractor = FileContentExtractor(db)
 
     # P1-2: 批量查询替代循环内逐个查询，消除 N+1
     files = db.query(ProjectFile).filter(ProjectFile.id.in_(file_ids)).all()
-    files_by_id: Dict[int, ProjectFile] = {f.id: f for f in files}
+    files_by_id: dict[int, ProjectFile] = {f.id: f for f in files}
 
     for file_id in file_ids:
         file = files_by_id.get(file_id)
@@ -154,7 +154,7 @@ async def batch_extract_files(file_ids: List[int], db: Session, force_refresh: b
     return results
 
 
-def get_file_content(file: ProjectFile) -> Optional[str]:
+def get_file_content(file: ProjectFile) -> str | None:
     """获取文件已提取的内容（如果存在）"""
     if file.content and file.extract_status == 'completed':
         return file.content

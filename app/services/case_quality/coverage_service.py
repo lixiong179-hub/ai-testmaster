@@ -18,7 +18,7 @@ detect_missing_categories 和依赖 AI 客户端的 generate_supplemental_cases�
     - 保持与 Pipeline 原有行为完全一致
 """
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -27,7 +27,7 @@ from loguru import logger
 # coverage_service 的循环导入。
 
 # 类型关键词表：标题/步骤文本无法从 case_category 判定时的回退匹配
-_TYPE_KEYWORDS: Dict[str, List[str]] = {
+_TYPE_KEYWORDS: dict[str, list[str]] = {
     "positive": ["正向", "正常", "主流程", "happy", "成功提交", "完整流程", "正确输入", "常规"],
     "boundary": ["边界", "上限", "下限", "最大", "最小", "临界", "超长", "超限", "空值", "极值",
                  "最多", "最少", "最长", "最短", "极限", "范围", "阈值"],
@@ -36,10 +36,10 @@ _TYPE_KEYWORDS: Dict[str, List[str]] = {
 }
 
 # 必须覆盖的类型全集
-_REQUIRED_CATEGORIES: List[str] = ["positive", "boundary", "negative"]
+_REQUIRED_CATEGORIES: list[str] = ["positive", "boundary", "negative"]
 
 # 正反用例对比示例：用于补充生成 Prompt 中引导 AI 学习优秀写法
-_SUPPLEMENT_EXAMPLES: Dict[str, Tuple[str, List[str]]] = {
+_SUPPLEMENT_EXAMPLES: dict[str, tuple[str, list[str]]] = {
     "positive": ("对比1-主流程", [
         "❌差劲：测试拍照提交作文功能 | 前置：账号已登录，APP运行正常 | 预期：页面正常→提交成功",
         "问题：描述笼统；前置缺网络/权限；预期模糊无判定标准",
@@ -74,7 +74,7 @@ def _match_type_by_text(text: str) -> str:
     return ""
 
 
-def classify_case_type(case: Dict[str, Any]) -> str:
+def classify_case_type(case: dict[str, Any]) -> str:
     """判定单条用例的测试类型（positive/boundary/negative）。
 
     判定优先级：
@@ -117,7 +117,7 @@ def classify_case_type(case: Dict[str, Any]) -> str:
     return "positive"
 
 
-def detect_missing_categories(cases: List[Dict[str, Any]]) -> List[str]:
+def detect_missing_categories(cases: list[dict[str, Any]]) -> list[str]:
     """检测用例列表中缺失的测试类型。
 
     Args:
@@ -137,7 +137,7 @@ def detect_missing_categories(cases: List[Dict[str, Any]]) -> List[str]:
     return sorted(required - covered)
 
 
-def append_supplement_examples(parts: List[str], missing_types: List[str]) -> None:
+def append_supplement_examples(parts: list[str], missing_types: list[str]) -> None:
     """向 Prompt 片段列表追加正反用例对比示例。
 
     优先级顺序为 negative > boundary > positive，最多追加 2 个示例，
@@ -166,11 +166,11 @@ def append_supplement_examples(parts: List[str], missing_types: List[str]) -> No
 
 
 def generate_supplemental_cases(
-    missing_categories: List[str],
-    test_point: Dict[str, Any],
-    context: Dict[str, Any],
+    missing_categories: list[str],
+    test_point: dict[str, Any],
+    context: dict[str, Any],
     ai_client: Any,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """为缺失的测试类型生成补充用例。
 
     纯函数：不修改入参，AI 客户端通过参数注入。失败时返回空列表，
@@ -200,10 +200,10 @@ def generate_supplemental_cases(
         "negative": "异常用例",
     }
     missing_labels = [type_labels.get(t, t) for t in missing_categories]
-    existing_titles: List[str] = context.get("existing_titles", []) or []
+    existing_titles: list[str] = context.get("existing_titles", []) or []
     existing_titles_text = "、".join(f"「{t}」" for t in existing_titles[:10])
 
-    parts: List[str] = []
+    parts: list[str] = []
     parts.append("你是一名资深测试工程师。")
     parts.append("")
     parts.append("## 任务")

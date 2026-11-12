@@ -10,7 +10,7 @@
 """
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
 
 from celery import Task
 
@@ -27,7 +27,7 @@ TASK_STATE_FAILURE = "failure"
 TASK_STATE_RETRY = "retry"
 
 
-def task_state_callback(task_id: str, state: str, result: Optional[Any] = None) -> None:
+def task_state_callback(task_id: str, state: str, result: Any | None = None) -> None:
     """任务状态变更回调（DB + Redis 双写）。
 
     业务用途：进度查询端点优先读 Redis，回退读 DB。

@@ -12,7 +12,6 @@
 - exec_status -> TestResult.exec_status (整数枚举：0未执行/1成功/2失败/3阻塞)
 """
 from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
 
 
@@ -25,15 +24,15 @@ class TestResultResponse(BaseModel):
     与Model映射：完整映射 TestResult Model 的所有业务字段
     """
     id: int
-    task_id: Optional[int] = None
+    task_id: int | None = None
     project_id: int  # 所属项目ID，与TestResult.project_id对应
     case_id: int  # 关联用例ID，与TestResult.case_id对应
     case_no: str  # 用例编号，与TestResult.case_no对应
     exec_status: int  # 执行状态：0未执行/1成功/2失败/3阻塞，与TestResult.exec_status对应
     exec_time: datetime  # 执行时间，与TestResult.exec_time对应
-    exec_log: Optional[str] = None  # 可选，单条用例执行日志
-    error_msg: Optional[str] = None  # 可选，失败时的错误信息
-    screenshot_url: Optional[str] = None  # 可选，失败截图存储路径
+    exec_log: str | None = None  # 可选，单条用例执行日志
+    error_msg: str | None = None  # 可选，失败时的错误信息
+    screenshot_url: str | None = None  # 可选，失败截图存储路径
     create_time: datetime  # 创建时间
     update_time: datetime  # 更新时间
 
@@ -67,6 +66,6 @@ class TestResultCreate(BaseModel):
     case_id: int = Field(..., description="用例ID")  # 必填，关联的测试用例
     case_no: str = Field(..., description="用例编号")  # 必填，用例编号，便于快速定位
     exec_status: int = Field(..., description="执行状态")  # 必填，0未执行/1成功/2失败/3阻塞
-    exec_log: Optional[str] = Field(None, description="执行日志")  # 可选，详细执行日志
-    error_msg: Optional[str] = Field(None, description="错误信息")  # 可选，失败时的错误描述
-    screenshot_url: Optional[str] = Field(None, description="截图路径")  # 可选，失败截图URL
+    exec_log: str | None = Field(None, description="执行日志")  # 可选，详细执行日志
+    error_msg: str | None = Field(None, description="错误信息")  # 可选，失败时的错误描述
+    screenshot_url: str | None = Field(None, description="截图路径")  # 可选，失败截图URL

@@ -1,4 +1,3 @@
-from typing import Optional, List
 """
 执行视频回放端点模块
 
@@ -67,7 +66,7 @@ async def get_video_storage_stats(
         sync_db.close()
 
 
-@router.get("/videos/task/{task_id}", response_model=List[VideoInfoResponse])
+@router.get("/videos/task/{task_id}", response_model=list[VideoInfoResponse])
 async def get_task_videos(
     task_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -83,7 +82,7 @@ async def get_task_videos(
         sync_db.close()
 
 
-@router.get("/videos/case/{case_id}", response_model=List[VideoInfoResponse])
+@router.get("/videos/case/{case_id}", response_model=list[VideoInfoResponse])
 async def get_case_videos(
     case_id: int,
     db: AsyncSession = Depends(async_get_db),
@@ -122,7 +121,7 @@ async def delete_video(
 
 @router.post("/videos/cleanup")
 async def cleanup_expired_videos(
-    retention_days: Optional[int] = Query(None, description="保留天数"),
+    retention_days: int | None = Query(None, description="保留天数"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):

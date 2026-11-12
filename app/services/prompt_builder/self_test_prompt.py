@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 TESTID_MAP_PATH = Path("docs/testid-map.json")
 
@@ -105,7 +105,7 @@ SELF_TEST_DEFECT_DISTRIBUTION = """## 缺陷挖掘指导 - 用例类型分布控
 - 用例的case_category字段需标注类型：boundary、exception、security、stress、normal"""
 
 
-def _format_testid_entries(testids: List[Dict[str, Any]]) -> str:
+def _format_testid_entries(testids: list[dict[str, Any]]) -> str:
     lines = [
         "## 平台元素定位器映射",
         "以下元素已配置 data-testid，生成自测用例时优先使用这些稳定定位器：",
@@ -149,9 +149,9 @@ def build_self_test_prompt(
     function: str,
     point: str,
     priority: int,
-    ui_specs: Optional[List[Dict[str, Any]]] = None,
-    history_cases: Optional[List[Dict[str, Any]]] = None,
-    extra_context: Optional[Dict[str, Any]] = None,
+    ui_specs: list[dict[str, Any]] | None = None,
+    history_cases: list[dict[str, Any]] | None = None,
+    extra_context: dict[str, Any] | None = None,
 ) -> str:
     from app.services.prompt_builder.builder import PromptBuilder
 

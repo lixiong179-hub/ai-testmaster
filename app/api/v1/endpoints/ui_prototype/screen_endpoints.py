@@ -21,7 +21,6 @@ UI原型页面端点模块
 import os
 import shutil
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
-from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, delete as sa_delete
@@ -48,7 +47,7 @@ from loguru import logger
 router = APIRouter(tags=["UI原型管理"])
 
 
-def _apply_iteration_filter_stmt(stmt, iteration_id: Optional[int]):
+def _apply_iteration_filter_stmt(stmt, iteration_id: int | None):
     """async 风格的迭代过滤条件构建器，用于 select 语句链式构建。
 
     与 crud/ui_prototype_screen._apply_iteration_filter 同义，但作用在 select 对象上。
@@ -76,9 +75,9 @@ def _apply_iteration_filter_stmt(stmt, iteration_id: Optional[int]):
 async def upload_ui_screens(
     project_id: int = Form(...),
     prototype_name: str = Form(...),
-    prototype_project_id: Optional[int] = Form(None),
-    iteration_id: Optional[int] = Form(None),
-    files: List[UploadFile] = File(...),
+    prototype_project_id: int | None = Form(None),
+    iteration_id: int | None = Form(None),
+    files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -221,9 +220,9 @@ async def upload_ui_screens(
 @router.get("/screens/{project_id}", response_model=ApiResponse)
 async def get_ui_screens(
     project_id: int,
-    prototype_project_id: Optional[int] = Query(None),
-    parse_status: Optional[str] = Query(None),
-    iteration_id: Optional[int] = Query(None),
+    prototype_project_id: int | None = Query(None),
+    parse_status: str | None = Query(None),
+    iteration_id: int | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(async_get_db),

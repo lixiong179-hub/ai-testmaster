@@ -6,7 +6,7 @@
 """
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
@@ -43,8 +43,8 @@ class CaseMigrationService(
         source_device: str = "tablet",
         target_ui_specs: str = "",
         ai_client: Any = None,
-        batch_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        batch_id: str | None = None,
+    ) -> dict[str, Any]:
         source_case = await self._get_source_case(source_case_id)
         if not source_case:
             return {"success": False, "error": f"源用例不存在: {source_case_id}"}
@@ -69,16 +69,16 @@ class CaseMigrationService(
 
     async def preview_batch(
         self,
-        source_case_ids: List[int],
+        source_case_ids: list[int],
         target_device: str,
         target_project_id: int,
         source_device: str = "tablet",
         target_ui_specs: str = "",
         ai_client: Any = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """批量迁移预览，不写入正式目标用例。"""
         batch_id = f"preview_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
-        items: List[Dict[str, Any]] = []
+        items: list[dict[str, Any]] = []
         for case_id in source_case_ids:
             source_case = await self._get_source_case(case_id)
             if not source_case:
@@ -106,14 +106,14 @@ class CaseMigrationService(
 
     async def commit_batch(
         self,
-        preview_items: List[Dict[str, Any]],
+        preview_items: list[dict[str, Any]],
         target_project_id: int,
         target_device: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """确认批量迁移预览结果并写入目标项目。"""
         batch_id = self._preview_batch_id(preview_items)
-        created_case_ids: List[int] = []
-        errors: List[str] = []
+        created_case_ids: list[int] = []
+        errors: list[str] = []
         try:
             enable_lifecycle_transition()
             for item in preview_items:
@@ -172,7 +172,7 @@ class CaseMigrationService(
             "errors": errors,
         }
 
-    async def get_batch_cases(self, batch_id: str) -> Dict[str, Any]:
+    async def get_batch_cases(self, batch_id: str) -> dict[str, Any]:
         stmt = select(TestCase).where(
             TestCase.migration_batch_id == batch_id, TestCase.is_deleted.is_(False)
         )
@@ -183,7 +183,7 @@ class CaseMigrationService(
             "case_ids": [case.id for case in cases],
         }
 
-    async def rollback_batch(self, batch_id: str) -> Dict[str, Any]:
+    async def rollback_batch(self, batch_id: str) -> dict[str, Any]:
         stmt = select(TestCase).where(
             TestCase.migration_batch_id == batch_id, TestCase.is_deleted.is_(False)
         )

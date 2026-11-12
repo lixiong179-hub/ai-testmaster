@@ -23,7 +23,7 @@
     - 编排函数（validate_single_case/validate_single_case_status/
       validate_cases_quality/compute_quality_score）保留在此模块
 """
-from typing import List, Dict, Any, Tuple
+from typing import Any
 
 from app.services.case_quality.quality_scoring_constants import (
     INPUT_VALUE_PLACEHOLDERS,
@@ -73,7 +73,7 @@ __all__ = [
 ]
 
 
-def validate_single_case(case: Dict[str, Any]) -> List[str]:
+def validate_single_case(case: dict[str, Any]) -> list[str]:
     """对单条用例执行全量质量校验。
 
     Args:
@@ -83,8 +83,8 @@ def validate_single_case(case: Dict[str, Any]) -> List[str]:
         问题描述列表，空列表表示全部通过
     """
     case_type = case.get("case_type", "")
-    issues: List[str] = []
-    checks: List[Tuple[str, Tuple[bool, str]]] = [
+    issues: list[str] = []
+    checks: list[tuple[str, tuple[bool, str]]] = [
         ("标题", validate_title(case.get("title", ""))),
         ("前置条件", validate_precondition(case.get("precondition", ""))),
         ("步骤", validate_steps(case.get("steps", []), case_type=case_type)),
@@ -101,7 +101,7 @@ def validate_single_case(case: Dict[str, Any]) -> List[str]:
     return issues
 
 
-def validate_single_case_status(case: Dict[str, Any]) -> Tuple[str, List[str]]:
+def validate_single_case_status(case: dict[str, Any]) -> tuple[str, list[str]]:
     """对单条用例执行全量质量校验，返回4档状态。
 
     状态由 QualityScoringService.grade_status 权威判定（Task 14 三合一），
@@ -119,7 +119,7 @@ def validate_single_case_status(case: Dict[str, Any]) -> Tuple[str, List[str]]:
     return status, issues
 
 
-def validate_cases_quality(cases: List[Dict[str, Any]], min_count: int = 0) -> Tuple[bool, List[str]]:
+def validate_cases_quality(cases: list[dict[str, Any]], min_count: int = 0) -> tuple[bool, list[str]]:
     """对用例列表执行全量质量校验。
 
     Args:
@@ -129,7 +129,7 @@ def validate_cases_quality(cases: List[Dict[str, Any]], min_count: int = 0) -> T
     Returns:
         (是否全部通过, 所有问题描述列表)
     """
-    all_issues: List[str] = []
+    all_issues: list[str] = []
     if min_count > 0 and len(cases) < min_count:
         all_issues.append(f"[数量] 生成{len(cases)}条用例，要求至少{min_count}条")
     for i, case in enumerate(cases):
@@ -139,7 +139,7 @@ def validate_cases_quality(cases: List[Dict[str, Any]], min_count: int = 0) -> T
     return len(all_issues) == 0, all_issues
 
 
-def compute_quality_score(cases: List[Dict[str, Any]]) -> float:
+def compute_quality_score(cases: list[dict[str, Any]]) -> float:
     """计算用例列表的质量分（0~100）。
 
     使用7维度连续评分加权平均（Task 8）：
@@ -155,7 +155,7 @@ def compute_quality_score(cases: List[Dict[str, Any]]) -> float:
     if not cases:
         return 0.0
     from app.services.test_case_generation.continuous_scorer import compute_continuous_score
-    scores: List[float] = [compute_continuous_score(case) for case in cases]
+    scores: list[float] = [compute_continuous_score(case) for case in cases]
     return round(sum(scores) / len(scores), 1)
 
 

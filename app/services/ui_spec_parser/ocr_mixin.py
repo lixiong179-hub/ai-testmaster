@@ -5,7 +5,7 @@ UI Spec Parser - OCR与文本模型Mixin
 提供OCR文字提取、带位置信息提取、LLM文本结构化能力
 """
 import time
-from typing import Dict, Any, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 from loguru import logger
 
 from app.utils.ocr_extractor import OCRExtractor, OCRExtractorError
@@ -24,7 +24,7 @@ class UISpecOcrMixin:
             self._ocr_extractor = OCRExtractor()
         return self._ocr_extractor
 
-    def _get_text_model(self) -> "OpenAI":
+    def _get_text_model(self) -> OpenAI:
         """
         获取 DeepSeek 文本模型实例（懒加载）。
         用于 text 模式的 OCR 结果结构化，根据配置初始化模型客户端。
@@ -68,7 +68,7 @@ class UISpecOcrMixin:
             logger.error(f"OCR提取异常: {e}")
             return ""
 
-    def _extract_positioned_text(self, image_bytes: bytes) -> Optional[str]:
+    def _extract_positioned_text(self, image_bytes: bytes) -> str | None:
         """
         尝试提取带位置信息的文字（垂直坐标）
 
@@ -101,8 +101,8 @@ class UISpecOcrMixin:
     def _structure_text_with_llm(
         self,
         ocr_text: str,
-        screen_name_hint: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+        screen_name_hint: str | None = None
+    ) -> dict[str, Any] | None:
         """
         使用 DeepSeek 文本模型将 OCR 提取的文字结构化为 UI 规格。
         在 text 模式下调用，避免使用视觉模型以降低成本。

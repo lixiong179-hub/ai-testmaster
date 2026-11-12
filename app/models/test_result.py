@@ -16,7 +16,7 @@
     - app.utils.db_time.utcnow : UTC 时间戳生成
     - app.db.database.Base     : SQLAlchemy 声明性基类
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, and_
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.orm import relationship
 from app.utils.db_time import utcnow
@@ -44,7 +44,7 @@ class TestResult(TenantAwareMixin, Base):
     """
     __test__ = False
     __tablename__ = "test_results"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)                                        # 结果主键ID
     task_id = Column(Integer, ForeignKey("test_tasks.id", ondelete="SET NULL"), nullable=True, comment="任务ID")  # 所属任务ID，任务删除时保留结果
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, comment="项目ID")  # 所属项目ID，级联删除

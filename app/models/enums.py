@@ -18,7 +18,7 @@
     - TestPoint.status 字段引用
     - TestCase.lifecycle_status 字段引用
 """
-from enum import Enum, IntEnum
+from enum import IntEnum, StrEnum
 
 
 class ExecStatus(IntEnum):
@@ -28,7 +28,7 @@ class ExecStatus(IntEnum):
     BLOCKED = 3
 
 
-class LocatorStatus(str, Enum):
+class LocatorStatus(StrEnum):
     """
     元素定位状态枚举
 
@@ -48,7 +48,7 @@ class LocatorStatus(str, Enum):
 CAPABILITY_STATUS_PATTERN = r"^(active|deprecated|archived)$"
 
 
-class CapabilityStatus(str, Enum):
+class CapabilityStatus(StrEnum):
     """
     业务能力状态枚举
 
@@ -68,7 +68,7 @@ class CapabilityStatus(str, Enum):
 TEST_POINT_STATUS_PATTERN = r"^(draft|active|deprecated|archived)$"
 
 
-class TestPointStatus(str, Enum):
+class TestPointStatus(StrEnum):
     """
     测试点状态枚举
 
@@ -90,7 +90,7 @@ class TestPointStatus(str, Enum):
 TEST_CASE_LIFECYCLE_STATUS_PATTERN = r"^(draft|active|pending_review|needs_modify|locator_broken|deprecated|archived)$"
 
 
-class TestCaseLifecycleStatus(str, Enum):
+class TestCaseLifecycleStatus(StrEnum):
     """
     测试用例生命周期状态枚举
 
@@ -120,7 +120,7 @@ class TestCaseLifecycleStatus(str, Enum):
 ITERATION_PIPELINE_STATUS_PATTERN = r"^(draft|in_pipeline|in_review|finalized|archived)$"
 
 
-class IterationPipelineStatus(str, Enum):
+class IterationPipelineStatus(StrEnum):
     """
     迭代流水线状态枚举
 
@@ -146,7 +146,7 @@ class IterationPipelineStatus(str, Enum):
 ITERATION_INPUT_KIND_PATTERN = r"^(prd|prototype|xmind|testpoint|supplement_form|change_notes)$"
 
 
-class IterationInputKind(str, Enum):
+class IterationInputKind(StrEnum):
     """
     迭代输入类型枚举
 
@@ -168,7 +168,7 @@ class IterationInputKind(str, Enum):
     CHANGE_NOTES = "change_notes"       # 变更说明
 
 
-class PipelineRunStatus(str, Enum):
+class PipelineRunStatus(StrEnum):
     """
     Pipeline 运行状态枚举
 
@@ -190,7 +190,7 @@ class PipelineRunStatus(str, Enum):
     CANCELLED = "cancelled"                # 已取消
 
 
-class PipelineStepStatus(str, Enum):
+class PipelineStepStatus(StrEnum):
 
     PENDING = "pending"
     RUNNING = "running"
@@ -200,14 +200,14 @@ class PipelineStepStatus(str, Enum):
     DEGRADED = "degraded"
 
 
-class ReviewKind(str, Enum):
+class ReviewKind(StrEnum):
 
     FORWARD = "forward"
     BACKWARD = "backward"
     MERGED = "merged"
 
 
-class ReviewStatus(str, Enum):
+class ReviewStatus(StrEnum):
 
     DRAFT = "draft"
     IN_PROGRESS = "in_progress"
@@ -215,7 +215,7 @@ class ReviewStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class ReviewTargetKind(str, Enum):
+class ReviewTargetKind(StrEnum):
 
     CASE = "case"
     TESTPOINT = "testpoint"

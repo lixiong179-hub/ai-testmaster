@@ -1,4 +1,3 @@
-from typing import Optional, List
 """
 执行可视化数据Schema模块
 
@@ -31,7 +30,7 @@ class VisibilityConfigSchema(BaseModel):
     action_delay_ms: int = Field(500, ge=0, le=5000, description="操作延迟毫秒")
     highlight_elements: bool = Field(True, description="高亮元素")
     show_ai_analysis: bool = Field(True, description="显示AI分析")
-    hidden_fields: List[str] = Field(default_factory=list, description="API响应中隐藏的字段列表")
+    hidden_fields: list[str] = Field(default_factory=list, description="API响应中隐藏的字段列表")
 
     @validator('execution_speed')
     def validate_speed(cls, v: str) -> str:
@@ -48,16 +47,16 @@ class VisibilityConfigResponse(BaseModel):
 
 class VideoInfoResponse(BaseModel):
     id: int
-    task_id: Optional[int] = None
-    test_case_id: Optional[int] = None
+    task_id: int | None = None
+    test_case_id: int | None = None
     file_path: str = ""
     file_name: str = ""
     file_size: int = 0
     duration: float = 0.0
     status: str = "processing"
-    thumbnail_path: Optional[str] = None
-    created_at: Optional[str] = None
-    expires_at: Optional[str] = None
+    thumbnail_path: str | None = None
+    created_at: str | None = None
+    expires_at: str | None = None
 
 
 class StorageStatsResponse(BaseModel):
@@ -72,8 +71,8 @@ class StorageStatsResponse(BaseModel):
 
 class ReplaySessionRequest(BaseModel):
     execution_id: str
-    video_path: Optional[str] = None
-    screenshots: Optional[List[str]] = None
+    video_path: str | None = None
+    screenshots: list[str] | None = None
 
 
 class ReplaySessionResponse(BaseModel):

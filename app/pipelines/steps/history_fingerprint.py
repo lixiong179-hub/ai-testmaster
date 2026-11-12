@@ -10,7 +10,7 @@
 """
 import hashlib
 import json
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from loguru import logger
 
@@ -23,8 +23,8 @@ class HistoryFingerprint(PipelineStep):
 
     name: ClassVar[str] = "history_fingerprint"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = ["raw_signals"]
-    produces: ClassVar[List[str]] = ["history_fingerprints"]
+    requires: ClassVar[list[str]] = ["raw_signals"]
+    produces: ClassVar[list[str]] = ["history_fingerprints"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         raw_signals = ctx.get_artifact("raw_signals")
@@ -90,11 +90,11 @@ class HistoryFingerprint(PipelineStep):
             },
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         required = ["project_id", "fingerprints", "total_count", "stale_backfilled_count"]
         return all(k in payload for k in required)
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         project_id = 0
         if ctx is not None:
             raw_signals = ctx.get_artifact("raw_signals")
@@ -124,10 +124,10 @@ class HistoryFingerprint(PipelineStep):
 def _load_fingerprints(
     ctx: PipelineContext,
     project_id: int,
-    module: Optional[str] = None,
+    module: str | None = None,
     limit: int = 1000,
     offset: int = 0,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """加载项目下所有非 archived 用例的指纹数据。
 
     Args:
@@ -294,7 +294,7 @@ def _get_current_model_version(ctx: PipelineContext) -> str:
     return "unknown"
 
 
-def _compute_fingerprint_confidence(fingerprints: List[Dict[str, Any]]) -> float:
+def _compute_fingerprint_confidence(fingerprints: list[dict[str, Any]]) -> float:
     """计算指纹产物的置信度。
 
     规则：

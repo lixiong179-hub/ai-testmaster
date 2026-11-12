@@ -21,9 +21,9 @@ UI原型解析端点模块
 import asyncio
 import traceback
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session  # 同步会话：_validate_and_create 在线程池内使用 .query()
 from loguru import logger
 
 from app.db.database import async_get_db, get_db_context
@@ -166,7 +166,7 @@ async def parse_ui_screens(
 @router.post("/parse/project/{prototype_project_id}", response_model=ApiResponse)
 async def parse_prototype_project(
     prototype_project_id: int,
-    parse_mode: Optional[str] = Query("text"),
+    parse_mode: str | None = Query("text"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -322,7 +322,7 @@ async def generate_page_flow(
 @router.get("/specs/{project_id}", response_model=ApiResponse)
 async def get_ui_specs_for_case_generation(
     project_id: int,
-    prototype_project_id: Optional[int] = Query(None),
+    prototype_project_id: int | None = Query(None),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
 ):

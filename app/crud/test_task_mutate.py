@@ -31,7 +31,6 @@
     - delete_test_task 为硬删除，物理移除数据库记录
     - 关联的测试结果（TestResult）需在调用方处理级联清理
 """
-from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.test_task import TestTask
 from app.utils.db_time import utcnow
@@ -42,7 +41,7 @@ def create_test_task(
     db: Session,
     task_name: str,
     project_id: int,
-    case_ids: List[int],
+    case_ids: list[int],
     executor_id: int
 ) -> TestTask:
     """
@@ -88,7 +87,7 @@ def update_test_task_status(
     task_id: int,
     project_id: int,
     status: int
-) -> Optional[TestTask]:
+) -> TestTask | None:
     """
     更新测试任务状态
 
@@ -132,9 +131,9 @@ def update_test_task_progress(
     task_id: int,
     project_id: int,
     progress: int,
-    success_count: Optional[int] = None,
-    fail_count: Optional[int] = None
-) -> Optional[TestTask]:
+    success_count: int | None = None,
+    fail_count: int | None = None
+) -> TestTask | None:
     """
     更新任务进度
 

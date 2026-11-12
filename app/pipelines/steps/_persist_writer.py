@@ -4,7 +4,7 @@
 推导 parent_case_id / ai_change_type，并关联测试步骤。
 """
 import threading
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -17,7 +17,7 @@ from app.pipelines.steps._persist_utils import (
 )
 
 
-def _derive_task_fields(task: Optional[Dict[str, Any]]) -> Tuple[Optional[int], Optional[str]]:
+def _derive_task_fields(task: dict[str, Any] | None) -> tuple[int | None, str | None]:
     """从 entry.task 推导 parent_case_id 与 ai_change_type。
 
     Args:
@@ -31,7 +31,7 @@ def _derive_task_fields(task: Optional[Dict[str, Any]]) -> Tuple[Optional[int], 
 
     task_type = task.get("task_type", "")
     parent_case_id = task.get("case_id")  # 原用例ID（modify/locator_fix 模式）
-    ai_change_type: Optional[str] = None
+    ai_change_type: str | None = None
     if task_type == "modify":
         ai_change_type = "modified"
     elif task_type == "locator_fix":
@@ -49,9 +49,9 @@ def _derive_task_fields(task: Optional[Dict[str, Any]]) -> Tuple[Optional[int], 
 
 
 def _resolve_quality_grade(
-    case_data: Dict[str, Any],
-    score_map: Dict[str, Dict],
-) -> Tuple[Optional[Any], Optional[str]]:
+    case_data: dict[str, Any],
+    score_map: dict[str, dict],
+) -> tuple[Any | None, str | None]:
     """解析用例的 prior_quality_score 与 quality_grade。
 
     优先从 case_data 取 QualityGate 直接写入的分数（解决同 tp 多用例覆盖问题）；
@@ -93,12 +93,12 @@ def _resolve_quality_grade(
 
 def _persist_generated_cases(
     ctx: PipelineContext,
-    generated_cases: List[Dict[str, Any]],
-    project_id: Optional[int],
-    score_map: Dict[str, Dict],
+    generated_cases: list[dict[str, Any]],
+    project_id: int | None,
+    score_map: dict[str, dict],
     has_ui: bool,
     lifecycle_lock: threading.Lock,
-) -> Tuple[List[int], int]:
+) -> tuple[list[int], int]:
     """执行用例持久化主循环，返回 (persisted_ids, failed_persist)。
 
     在类级线程锁保护下启用 lifecycle_transition，逐条构建 TestCase 并写入，
@@ -117,7 +117,7 @@ def _persist_generated_cases(
     """
     from app.models.test_case import TestCase, enable_lifecycle_transition
 
-    persisted_ids: List[int] = []
+    persisted_ids: list[int] = []
     failed_persist = 0
 
     # 使用类级线程锁保护全局生命周期状态，防止并发任务互相干扰

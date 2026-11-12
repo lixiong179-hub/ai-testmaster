@@ -11,24 +11,23 @@
 import logging
 import threading
 import time
-from typing import Optional
 
 from app.core.config import settings
 from app.db.database._engine import _has_slave_url
 
 logger = logging.getLogger(__name__)
 
-_current_lag: Optional[float] = None
+_current_lag: float | None = None
 _last_probe_at: float = 0.0
 _lock = threading.Lock()
 
 
-def get_current_lag() -> Optional[float]:
+def get_current_lag() -> float | None:
     """获取最近一次采样的从库延迟（秒）。"""
     return _current_lag
 
 
-def probe_replica_lag() -> Optional[float]:
+def probe_replica_lag() -> float | None:
     """主动采样一次从库延迟。
 
     实现：直连从库执行 `SHOW REPLICA STATUS`（MySQL 8.0+）或
@@ -109,7 +108,7 @@ def start_lag_monitor() -> None:
         logger.warning(f"启动从库延迟监控失败: {e}")
 
 
-def _find_lag_column(cols: list[str]) -> Optional[int]:
+def _find_lag_column(cols: list[str]) -> int | None:
     """兼容定位 Seconds_Behind_Master 列索引。"""
     for name in ("Seconds_Behind_Source", "Seconds_Behind_Master"):
         if name in cols:

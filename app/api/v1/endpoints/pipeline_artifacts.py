@@ -310,7 +310,6 @@ async def cancel_pipeline_run(
 
         from_status = run.status
         iteration_id = run.iteration_id
-        triggered_by = run.triggered_by
 
         # _check_cancel_permission + pipeline_service.update_run_status + audit_service.log_action 都是 sync 调用，
         # 使用独立 sync 会话 + to_thread 释放事件循环

@@ -1,4 +1,3 @@
-from typing import Optional
 from loguru import logger
 
 from app.utils.unified_vision_model._types import VisionModelType, resolve_default_model_type
@@ -9,10 +8,10 @@ from app.utils.unified_vision_model._api_mixin import _VisionApiMixin
 class UnifiedVisionModel(_VisionCoreMixin, _VisionApiMixin):
     def __init__(
         self,
-        model_type: Optional[VisionModelType] = None,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        model_name: Optional[str] = None,
+        model_type: VisionModelType | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model_name: str | None = None,
         max_retries: int = 3,
         retry_delay: int = 2,
         timeout: int = 300,
@@ -33,7 +32,7 @@ class UnifiedVisionModel(_VisionCoreMixin, _VisionApiMixin):
 
 
 def create_vision_model(
-    model_type: Optional[str] = None,
+    model_type: str | None = None,
     **kwargs,
 ) -> UnifiedVisionModel:
     if model_type is None:

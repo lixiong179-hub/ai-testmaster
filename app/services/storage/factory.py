@@ -4,7 +4,6 @@
 单例缓存避免重复创建连接池。
 """
 from functools import lru_cache
-from typing import Optional
 
 from app.core.config import settings
 from app.services.storage.base import StorageBackend

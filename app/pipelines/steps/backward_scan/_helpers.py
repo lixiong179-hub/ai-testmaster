@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List
+from typing import Any
 
 from app.pipelines.schemas.backward_verdict import (
     BackwardCaseVerdict,
@@ -7,7 +7,7 @@ from app.pipelines.schemas.backward_verdict import (
 )
 
 
-def _extract_change_signals(raw_signals: Dict[str, Any]) -> str:
+def _extract_change_signals(raw_signals: dict[str, Any]) -> str:
     parts = []
     prd = raw_signals.get("prd_content", "")
     if prd:
@@ -32,7 +32,7 @@ def _extract_change_signals(raw_signals: Dict[str, Any]) -> str:
     return "\n\n".join(parts)
 
 
-def _extract_ui_change_text(raw_signals: Dict[str, Any]) -> str:
+def _extract_ui_change_text(raw_signals: dict[str, Any]) -> str:
     ui_descriptions = raw_signals.get("ui_descriptions", []) or []
     ui_specs = raw_signals.get("ui_specs", []) or []
     parts = []
@@ -61,7 +61,7 @@ def _extract_ui_change_text(raw_signals: Dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def _compute_scan_confidence(verdicts: List[BackwardCaseVerdict]) -> float:
+def _compute_scan_confidence(verdicts: list[BackwardCaseVerdict]) -> float:
     if not verdicts:
         return 0.0
 

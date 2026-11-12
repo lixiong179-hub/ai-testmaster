@@ -13,7 +13,6 @@ Pipeline = [S1 SignalGatherer, S2 HistoryFingerprint, S3 ReverseInfer,
     - 场景 5：无 PRD/测试点时，ReverseInfer 从历史用例反向推断业务能力，
               再输入 TestPointAlignment 做对齐，后续流程同场景 4
 """
-from typing import List, Type
 
 from app.pipelines.base import PipelineStep
 from app.pipelines.steps.signal_gatherer import SignalGatherer
@@ -29,7 +28,7 @@ from app.pipelines.steps.case_generation import CaseGeneration
 from app.pipelines.steps.quality_gate import QualityGate
 from app.pipelines.steps.persist import Persist
 
-SCENARIO_5_STEPS: List[Type[PipelineStep]] = [
+SCENARIO_5_STEPS: list[type[PipelineStep]] = [
     SignalGatherer,
     HistoryFingerprint,
     ReverseInfer,

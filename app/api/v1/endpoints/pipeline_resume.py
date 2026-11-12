@@ -2,7 +2,6 @@
 
 提供恢复暂停 Pipeline 的端点，以及创建 AI 客户端的工厂函数。
 """
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +20,7 @@ from app.schemas.common import ApiResponse
 router = APIRouter(tags=["Pipeline管理"])
 
 
-def create_ai_client(model_name: Optional[str] = None) -> AIClient:
+def create_ai_client(model_name: str | None = None) -> AIClient:
     """创建 AI 客户端实例，支持主模型 + 降级模型。"""
     from app.ai.openai_client import OpenAIClient
     from app.ai.fallback_client import FallbackAIClient

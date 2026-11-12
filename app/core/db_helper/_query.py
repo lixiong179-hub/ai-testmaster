@@ -1,12 +1,12 @@
 from sqlalchemy.orm import Session, Query
-from typing import TypeVar, Type, Any
+from typing import TypeVar, Any
 
 T = TypeVar('T')
 
 
 class QueryHelper:
     @staticmethod
-    def build_filter_conditions(model: Type[T], **filters) -> list:
+    def build_filter_conditions(model: type[T], **filters) -> list:
         conditions = []
         for field, value in filters.items():
             if value is not None and hasattr(model, field):

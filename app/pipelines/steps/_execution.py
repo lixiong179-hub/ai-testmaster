@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -16,14 +16,14 @@ from app.pipelines.steps._task_generators import (
 
 def _execute_task_based(
     ctx: PipelineContext,
-    actionable_tasks: List[Dict[str, Any]],
+    actionable_tasks: list[dict[str, Any]],
     prd_content: str,
     ui_description: str,
-    ui_specs: List[Dict[str, Any]],
+    ui_specs: list[dict[str, Any]],
     has_ui: bool,
-    history_cases: List[Dict[str, Any]],
-) -> Tuple[List[Dict[str, Any]], int]:
-    generated_cases: List[Dict[str, Any]] = []
+    history_cases: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    generated_cases: list[dict[str, Any]] = []
     failed_count = 0
 
     for task in actionable_tasks:
@@ -104,16 +104,16 @@ def _execute_task_based(
 
 def _execute_legacy(
     ctx: PipelineContext,
-    aligned: Optional[Dict[str, Any]],
-    signals: Optional[Dict[str, Any]],
+    aligned: dict[str, Any] | None,
+    signals: dict[str, Any] | None,
     prd_content: str,
     ui_description: str,
-    ui_specs: List[Dict[str, Any]],
+    ui_specs: list[dict[str, Any]],
     has_ui: bool,
-) -> Tuple[List[Dict[str, Any]], int]:
+) -> tuple[list[dict[str, Any]], int]:
     from app.pipelines.steps._parsing import _parse_case_response
 
-    generated_cases: List[Dict[str, Any]] = []
+    generated_cases: list[dict[str, Any]] = []
     failed_count = 0
 
     if aligned:

@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any, List
+from typing import Any
 from loguru import logger
 
 from app.utils.browser_controller_base import (
@@ -70,10 +70,10 @@ class ActionMixin:
 
     @require_initialized
     @handle_browser_errors
-    async def wait_for_selector(self, selector: str, timeout: Optional[int] = None) -> None:
+    async def wait_for_selector(self, selector: str, timeout: int | None = None) -> None:
         if not selector:
             raise ValueError("CSS选择器不能为空")
-        wait_options: Dict[str, Any] = {"state": "visible"}
+        wait_options: dict[str, Any] = {"state": "visible"}
         if timeout:
             wait_options["timeout"] = timeout
         assert self._page is not None
@@ -82,7 +82,7 @@ class ActionMixin:
 
     @require_initialized
     @handle_browser_errors
-    async def get_page_info(self) -> Dict[str, Any]:
+    async def get_page_info(self) -> dict[str, Any]:
         assert self._page is not None
         title = await self._page.title()
         url = self._page.url
@@ -125,7 +125,7 @@ class ActionMixin:
 
     @require_initialized
     @handle_browser_errors
-    async def get_element_info(self, selector: str) -> Optional[ElementInfo]:
+    async def get_element_info(self, selector: str) -> ElementInfo | None:
         if not selector:
             return None
         try:
@@ -186,7 +186,7 @@ class ActionMixin:
 
     @require_initialized
     @handle_browser_errors
-    async def find_elements_by_text(self, text: str, tag: str = "*") -> List[Dict[str, Any]]:
+    async def find_elements_by_text(self, text: str, tag: str = "*") -> list[dict[str, Any]]:
         assert self._page is not None
         return await self._page.evaluate("""
             ([tag, text]) => {
@@ -208,7 +208,7 @@ class ActionMixin:
 
     @require_initialized
     @handle_browser_errors
-    async def get_all_input_elements(self) -> List[Dict[str, Any]]:
+    async def get_all_input_elements(self) -> list[dict[str, Any]]:
         assert self._page is not None
         return await self._page.evaluate("""
             () => {

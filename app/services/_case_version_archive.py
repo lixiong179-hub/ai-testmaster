@@ -3,8 +3,8 @@
 从 case_version_service.py 拆分，包含版本保留策略归档、changed_fields 构建
 与相关常量。所有函数均为模块级纯函数，由 CaseVersionService 类方法薄委托调用。
 """
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List
+from datetime import datetime, timedelta, UTC
+from typing import Any
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ from app.models.test_case import TestCase
 from app.models.test_case_version import TestCaseVersion
 
 # 需要追踪变更的核心字段
-TRACKED_FIELDS: List[str] = [
+TRACKED_FIELDS: list[str] = [
     "title", "module", "precondition", "steps_json",
     "expected_result", "priority",
 ]
@@ -41,7 +41,7 @@ def archive_old_versions(db: Session, test_case_id: int) -> None:
     if total <= MAX_VERSIONS_PER_CASE:
         return
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=ARCHIVE_OLDER_THAN_DAYS)
+    cutoff = datetime.now(UTC) - timedelta(days=ARCHIVE_OLDER_THAN_DAYS)
     old_versions = (
         db.query(TestCaseVersion)
         .filter(
@@ -71,7 +71,7 @@ def archive_old_versions(db: Session, test_case_id: int) -> None:
 def build_changed_fields_from_state(
     case: TestCase,
     state: Any,
-) -> Dict[str, Dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
     """根据 SQLAlchemy instance state 构建 changed_fields
 
     对比追踪字段的新旧值，只记录真正变更的字段。
@@ -83,7 +83,7 @@ def build_changed_fields_from_state(
     Returns:
         变更字段字典，格式 {"field_name": {"old": old_val, "new": new_val}}。
     """
-    changed_fields: Dict[str, Dict[str, Any]] = {}
+    changed_fields: dict[str, dict[str, Any]] = {}
     for field in TRACKED_FIELDS:
         hist = getattr(state.attrs, field, None)
         if hist is None:

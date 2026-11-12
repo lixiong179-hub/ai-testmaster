@@ -19,9 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
 
-from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -42,7 +40,7 @@ class ChainIntegrityResult:
 
     is_valid: bool
     total_checked: int
-    broken_at_id: Optional[int]
+    broken_at_id: int | None
     broken_reason: str
     last_valid_hash: str
 
@@ -98,7 +96,7 @@ class AuditChainService:
         self,
         *,
         start_id: int = 1,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> ChainIntegrityResult:
         """校验审计日志 hash chain 完整性。
 
@@ -119,7 +117,7 @@ class AuditChainService:
         if limit:
             stmt = stmt.limit(limit)
 
-        records: List[AuditLog] = list(self._db.execute(stmt).scalars().all())
+        records: list[AuditLog] = list(self._db.execute(stmt).scalars().all())
 
         if not records:
             return ChainIntegrityResult(

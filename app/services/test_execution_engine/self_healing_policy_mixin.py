@@ -13,7 +13,7 @@
     - 审计写入：`self_healing_audits` 仅追加落库
 """
 import asyncio
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 from loguru import logger
 
 from app.models.element_locator import ElementLocator
@@ -26,10 +26,10 @@ class SelfHealingPolicyMixin:
     async def _retry_after_locator_failure(
         self,
         action_type: ActionType,
-        action_info: Dict[str, Any],
-        locator_record: Optional[ElementLocator],
-        step_test_data: Optional[Dict[str, str]],
-        old_selector: Optional[str],
+        action_info: dict[str, Any],
+        locator_record: ElementLocator | None,
+        step_test_data: dict[str, str] | None,
+        old_selector: str | None,
     ) -> bool:
         """load_delay 策略：等待后重执行一次，成功返回 True。"""
         from app.core.config import settings
@@ -67,7 +67,7 @@ class SelfHealingPolicyMixin:
         return snapshot if isinstance(snapshot, str) else ""
 
     def _is_self_healing_enabled(
-        self, step, locator_record: Optional[ElementLocator]
+        self, step, locator_record: ElementLocator | None
     ) -> bool:
         """灰度闸门：全局开关 AND 项目级 `self_healing_config.enabled`。
 
@@ -93,8 +93,8 @@ class SelfHealingPolicyMixin:
             return True
 
     def _resolve_project_id(
-        self, step, locator_record: Optional[ElementLocator]
-    ) -> Optional[int]:
+        self, step, locator_record: ElementLocator | None
+    ) -> int | None:
         """从步骤（或定位器）反查所属项目 ID，失败返回 None。"""
         if self.db is None:
             return None
@@ -155,7 +155,7 @@ class SelfHealingPolicyMixin:
     @staticmethod
     def _normalize_heal_result(
         heal_output: Any,
-    ) -> Tuple[Optional[str], Optional[float], int, str]:
+    ) -> tuple[str | None, float | None, int, str]:
         """归一化自愈返回值。
 
         兼容两种契约：生产链路 `_ai_self_heal_action` 返回选择器字符串，
@@ -183,12 +183,12 @@ class SelfHealingPolicyMixin:
         self,
         *,
         step,
-        locator_record: Optional[ElementLocator],
-        old_selector: Optional[str],
-        new_selector: Optional[str],
+        locator_record: ElementLocator | None,
+        old_selector: str | None,
+        new_selector: str | None,
         failure_type: str,
         strategy: str,
-        confidence: Optional[float],
+        confidence: float | None,
         token_cost: int,
         low_confidence: bool = False,
     ) -> None:

@@ -109,13 +109,13 @@ class TestExecutionEngineV2(
     def __init__(
         self,
         db=None,
-        precondition_service: Optional[PreconditionService] = None,
-        locator_service: Optional[ElementLocatorService] = None,
-        browser: Optional[BrowserControllerV2] = None,
-        vision_model: Optional[UnifiedVisionModel] = None,
+        precondition_service: PreconditionService | None = None,
+        locator_service: ElementLocatorService | None = None,
+        browser: BrowserControllerV2 | None = None,
+        vision_model: UnifiedVisionModel | None = None,
         enable_ai_recognition: bool = True,
         enable_test_data_param: bool = True,
-        mobile_device_id: Optional[str] = None,
+        mobile_device_id: str | None = None,
         **kwargs
     ):
         """初始化测试执行引擎。
@@ -141,7 +141,7 @@ class TestExecutionEngineV2(
 
         self.enable_ai_recognition = enable_ai_recognition
         self.enable_test_data_param = enable_test_data_param
-        self.test_data_service: Optional[TestDataService] = None
+        self.test_data_service: TestDataService | None = None
         self.parameterizer = None
 
         if self.enable_test_data_param and db:

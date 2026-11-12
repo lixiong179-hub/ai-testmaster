@@ -30,7 +30,7 @@
     init_simple.py 使用原生 SQL，不依赖 ORM 模型，适用于模型未就绪时的紧急初始化。
 """
 from contextlib import contextmanager
-from typing import Generator
+from collections.abc import Generator
 import logging
 import os
 import secrets

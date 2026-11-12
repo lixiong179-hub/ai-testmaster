@@ -3,7 +3,6 @@
 
 提供测试数据的CRUD接口
 """
-from typing import Optional, List
 """
 测试数据端点模块
 
@@ -51,33 +50,33 @@ class TestDataCreateRequest(BaseModel):
     field_name: str = Field(..., description="字段名称")
     field_type: DataType = Field(default=DataType.TEXT, description="字段类型")
     generation_rule: GenerationRule = Field(default=GenerationRule.RANDOM, description="生成规则")
-    data_value: Optional[str] = Field(None, description="数据值（自定义规则时使用）")
-    rule_config: Optional[dict] = Field(None, description="规则配置")
-    min_length: Optional[int] = Field(None, description="最小长度")
-    max_length: Optional[int] = Field(None, description="最大长度")
-    min_value: Optional[int] = Field(None, description="最小值")
-    max_value: Optional[int] = Field(None, description="最大值")
-    enum_values: Optional[List[str]] = Field(None, description="枚举值列表")
-    description: Optional[str] = Field(None, description="描述")
+    data_value: str | None = Field(None, description="数据值（自定义规则时使用）")
+    rule_config: dict | None = Field(None, description="规则配置")
+    min_length: int | None = Field(None, description="最小长度")
+    max_length: int | None = Field(None, description="最大长度")
+    min_value: int | None = Field(None, description="最小值")
+    max_value: int | None = Field(None, description="最大值")
+    enum_values: list[str] | None = Field(None, description="枚举值列表")
+    description: str | None = Field(None, description="描述")
     is_required: bool = Field(default=True, description="是否必填")
     sort_order: int = Field(default=0, description="排序顺序")
 
 
 class TestDataUpdateRequest(BaseModel):
     """更新测试数据请求"""
-    field_name: Optional[str] = Field(None, description="字段名称")
-    field_type: Optional[DataType] = Field(None, description="字段类型")
-    generation_rule: Optional[GenerationRule] = Field(None, description="生成规则")
-    data_value: Optional[str] = Field(None, description="数据值")
-    rule_config: Optional[dict] = Field(None, description="规则配置")
-    min_length: Optional[int] = Field(None, description="最小长度")
-    max_length: Optional[int] = Field(None, description="最大长度")
-    min_value: Optional[int] = Field(None, description="最小值")
-    max_value: Optional[int] = Field(None, description="最大值")
-    enum_values: Optional[List[str]] = Field(None, description="枚举值列表")
-    description: Optional[str] = Field(None, description="描述")
-    is_required: Optional[bool] = Field(None, description="是否必填")
-    sort_order: Optional[int] = Field(None, description="排序顺序")
+    field_name: str | None = Field(None, description="字段名称")
+    field_type: DataType | None = Field(None, description="字段类型")
+    generation_rule: GenerationRule | None = Field(None, description="生成规则")
+    data_value: str | None = Field(None, description="数据值")
+    rule_config: dict | None = Field(None, description="规则配置")
+    min_length: int | None = Field(None, description="最小长度")
+    max_length: int | None = Field(None, description="最大长度")
+    min_value: int | None = Field(None, description="最小值")
+    max_value: int | None = Field(None, description="最大值")
+    enum_values: list[str] | None = Field(None, description="枚举值列表")
+    description: str | None = Field(None, description="描述")
+    is_required: bool | None = Field(None, description="是否必填")
+    sort_order: int | None = Field(None, description="排序顺序")
 
 
 class TestDataResponse(BaseModel):
@@ -86,15 +85,15 @@ class TestDataResponse(BaseModel):
     step_id: int
     field_name: str
     field_type: str
-    data_value: Optional[str]
+    data_value: str | None
     generation_rule: str
-    rule_config: Optional[dict]
-    min_length: Optional[int]
-    max_length: Optional[int]
-    min_value: Optional[int]
-    max_value: Optional[int]
-    enum_values: Optional[List[str]]
-    description: Optional[str]
+    rule_config: dict | None
+    min_length: int | None
+    max_length: int | None
+    min_value: int | None
+    max_value: int | None
+    enum_values: list[str] | None
+    description: str | None
     is_required: bool
     sort_order: int
 
@@ -105,7 +104,7 @@ class TestDataResponse(BaseModel):
 class StepTestDataResponse(BaseModel):
     """步骤测试数据响应"""
     step_id: int
-    data_list: List[TestDataResponse]
+    data_list: list[TestDataResponse]
 
 
 class GenerateStepDataResponse(BaseModel):

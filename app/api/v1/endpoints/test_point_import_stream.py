@@ -7,9 +7,10 @@
     - error: 错误事件，包含错误信息
 """
 import asyncio
+import contextlib
 import json
 import os
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
@@ -67,7 +68,8 @@ async def _run_ai_parse_with_progress(
         """线程安全的进度回调，将进度事件放入异步队列。"""
         progress_state["completed_batches"] = completed_batches
         progress_state["total_batches"] = total_batches
-        try:
+        # 事件循环已关闭时忽略（如客户端断开连接）
+        with contextlib.suppress(RuntimeError):
             loop.call_soon_threadsafe(
                 queue.put_nowait,
                 _sse_event("progress", {
@@ -78,9 +80,6 @@ async def _run_ai_parse_with_progress(
                     "percentage": round(completed_batches / total_batches * 100) if total_batches > 0 else 0,
                 }),
             )
-        except RuntimeError:
-            # 事件循环已关闭时忽略（如客户端断开连接）
-            pass
 
     # 发送初始进度
     yield _sse_event("progress", {
@@ -104,7 +103,7 @@ async def _run_ai_parse_with_progress(
         try:
             event = await asyncio.wait_for(queue.get(), timeout=0.5)
             yield event
-        except asyncio.TimeoutError:
+        except TimeoutError:
             continue
 
     # 读取队列中剩余的进度事件

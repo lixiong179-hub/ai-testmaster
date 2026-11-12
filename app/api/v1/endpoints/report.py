@@ -20,7 +20,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
 from sqlalchemy import select, func
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import async_get_db
 from app.schemas.test_report import TestReportResponse, TestReportList, ReportGenerateRequest, ReportExportRequest
@@ -33,7 +32,7 @@ from app.models.report import TestReport
 from app.models.agent_message import AgentMessage
 from app.models.agent_session import AgentSession
 from app.models.test_result import TestResult
-from typing import Any, Optional
+from typing import Any
 import json
 from loguru import logger
 
@@ -90,7 +89,7 @@ async def generate_test_report(
 
 @router.get("/", response_model=TestReportList)
 async def get_test_reports_list(
-    project_id: Optional[int] = Query(None, description="项目ID，不传则返回所有报告"),
+    project_id: int | None = Query(None, description="项目ID，不传则返回所有报告"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     db: AsyncSession = Depends(async_get_db),
@@ -142,7 +141,7 @@ async def get_test_reports_list(
             total=0
         )
 
-def _extract_final_answer(content: Any) -> Optional[str]:
+def _extract_final_answer(content: Any) -> str | None:
     """从 Agent 的 final_answer 消息内容提取结论文本（截断 500 字符）。"""
     data = content
     if isinstance(data, str):
@@ -172,7 +171,7 @@ def _extract_final_answer(content: Any) -> Optional[str]:
 
 async def _load_visual_validation_summary(
     db: AsyncSession, project_id: int
-) -> Optional[dict]:
+) -> dict | None:
     """汇总最近一次视觉校验会话的结论与截图引用（R3-3）。
 
     数据来源：`agent_sessions`（agent_type=visual_validation）+

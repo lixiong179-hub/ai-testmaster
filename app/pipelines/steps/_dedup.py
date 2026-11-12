@@ -1,5 +1,5 @@
 import hashlib
-from typing import Any, Dict, List
+from typing import Any
 
 from loguru import logger
 
@@ -20,11 +20,11 @@ def _jaccard_similarity(a: str, b: str) -> float:
     return intersection / union if union > 0 else 0.0
 
 
-def _dedup_cases_by_title(cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _dedup_cases_by_title(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if len(cases) <= 1:
         return cases
 
-    kept: List[Dict[str, Any]] = []
+    kept: list[dict[str, Any]] = []
     for case in cases:
         title = case.get("title", "")
         is_dup = False
@@ -43,7 +43,7 @@ def _dedup_cases_by_title(cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return kept
 
 
-def _compute_step_hash(case: Dict[str, Any]) -> str:
+def _compute_step_hash(case: dict[str, Any]) -> str:
     """计算用例步骤序列的哈希值。
 
     业务原因：标题不同但步骤完全相同的用例是冗余的，
@@ -57,7 +57,7 @@ def _compute_step_hash(case: Dict[str, Any]) -> str:
     if not isinstance(steps, list) or not steps:
         return ""
 
-    step_parts: List[str] = []
+    step_parts: list[str] = []
     for step in steps:
         if not isinstance(step, dict):
             continue
@@ -74,10 +74,10 @@ def _compute_step_hash(case: Dict[str, Any]) -> str:
 
 
 def _dedup_cases_global(
-    generated_cases: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
-    kept: List[Dict[str, Any]] = []
-    kept_titles: List[str] = []
+    generated_cases: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    kept: list[dict[str, Any]] = []
+    kept_titles: list[str] = []
     seen_step_hashes: set = set()
 
     for entry in generated_cases:
@@ -86,7 +86,7 @@ def _dedup_cases_global(
             continue
 
         case_data = entry.get("case_data", [])
-        filtered_cases: List[Dict[str, Any]] = []
+        filtered_cases: list[dict[str, Any]] = []
 
         for case in case_data:
             title = case.get("title", "")

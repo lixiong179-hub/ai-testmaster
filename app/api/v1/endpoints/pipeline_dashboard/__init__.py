@@ -37,7 +37,7 @@ trends_router = APIRouter()
 
 @router.get("/overview", response_model=ApiResponse)
 async def get_dashboard_overview(
-    project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
+    project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(7, ge=1, le=90, description="统计天数"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
@@ -144,7 +144,7 @@ async def get_dashboard_overview(
 
 @trends_router.get("/token-usage", response_model=ApiResponse)
 async def get_token_usage(
-    project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
+    project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
@@ -185,7 +185,7 @@ async def get_token_usage(
 
 @trends_router.get("/run-duration", response_model=ApiResponse)
 async def get_run_duration(
-    project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
+    project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
@@ -234,7 +234,7 @@ async def get_run_duration(
 
 @trends_router.get("/step-latency", response_model=ApiResponse)
 async def get_step_latency(
-    project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
+    project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),
@@ -280,7 +280,7 @@ async def get_step_latency(
 
 @trends_router.get("/cache-hit-rate", response_model=ApiResponse)
 async def get_cache_hit_rate(
-    project_id: Optional[int] = Query(None, description="项目 ID 过滤"),
+    project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user),

@@ -1,10 +1,9 @@
 import json
 import zipfile
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Any, Optional
+from typing import Any
 from loguru import logger
 
-from app.services.xmind_parser._util import _UtilMixin
 
 
 class XmindParseError(Exception):
@@ -13,11 +12,11 @@ class XmindParseError(Exception):
 
 class _ParseMixin:
 
-    def parse(self, file_path: str) -> List[Dict[str, Any]]:
+    def parse(self, file_path: str) -> list[dict[str, Any]]:
         content_xml = self._extract_content_xml(file_path)
         root = self._parse_xml(content_xml)
         root_topics = self._get_all_root_topics(root)
-        test_points: List[Dict[str, Any]] = []
+        test_points: list[dict[str, Any]] = []
         for root_topic in root_topics:
             test_points.extend(self._parse_topics(root_topic))
         logger.info(f"XMind 解析完成，共提取 {len(test_points)} 条测试点")
@@ -126,13 +125,13 @@ class _ParseMixin:
             logger.error(f"XML 解析失败: {e}")
             raise XmindParseError("无法解析 XMind 文件内容，请确认文件格式正确") from e
 
-    def _get_all_root_topics(self, root: ET.Element) -> List[ET.Element]:
+    def _get_all_root_topics(self, root: ET.Element) -> list[ET.Element]:
         sheets = root.findall("xmap:sheet", self.NS)
         if not sheets:
             sheets = root.findall(f"{{{self.XMAP_NS}}}sheet")
         if not sheets:
             raise XmindParseError("XMind 文件中未找到 sheet 元素")
-        topics: List[ET.Element] = []
+        topics: list[ET.Element] = []
         for sheet in sheets:
             topic = self._find_element(sheet, "topic")
             if topic is not None:
@@ -141,14 +140,14 @@ class _ParseMixin:
             raise XmindParseError("XMind 文件中未找到根主题")
         return topics
 
-    def _find_element(self, parent: ET.Element, tag: str) -> Optional[ET.Element]:
+    def _find_element(self, parent: ET.Element, tag: str) -> ET.Element | None:
         elem = parent.find(f"xmap:{tag}", self.NS)
         if elem is None:
             elem = parent.find(f"{{{self.XMAP_NS}}}{tag}")
         return elem
 
-    def _parse_topics(self, root_topic: ET.Element) -> List[Dict[str, Any]]:
-        test_points: List[Dict[str, Any]] = []
+    def _parse_topics(self, root_topic: ET.Element) -> list[dict[str, Any]]:
+        test_points: list[dict[str, Any]] = []
         level1_topics = self._get_child_topics(root_topic)
 
         for l1_topic in level1_topics:
@@ -186,10 +185,10 @@ class _ParseMixin:
         topic: ET.Element,
         module_name: str,
         function_name: str,
-        inherited_priority: Optional[int],
-        inherited_notes: List[str],
+        inherited_priority: int | None,
+        inherited_notes: list[str],
         current_depth: int,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         if current_depth >= self.MAX_DEPTH:
             logger.warning(f"递归深度达到上限 {self.MAX_DEPTH} 层，截断深层节点")
             return []
@@ -206,7 +205,7 @@ class _ParseMixin:
                 self._build_test_point(module_name, function_name, point_text, priority)
             ]
 
-        test_points: List[Dict[str, Any]] = []
+        test_points: list[dict[str, Any]] = []
         for child in child_topics:
             child_priority = self._extract_priority_marker(child)
             next_priority = (
@@ -231,7 +230,7 @@ class _ParseMixin:
 
     def _build_test_point(
         self, module: str, function: str, point: str, priority: int
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return {
             "module": module,
             "function": function,

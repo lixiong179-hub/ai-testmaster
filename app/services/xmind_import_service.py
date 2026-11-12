@@ -52,7 +52,8 @@ async def save_upload_file(file: UploadFile) -> str:
     Raises:
         HTTPException: 文件过大时抛出。
     """
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xmind")
+    # 临时文件路径需返回给调用方后续解析，无法用 with 作用域管理
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xmind")  # noqa: SIM115
     try:
         total_size = 0
         while True:

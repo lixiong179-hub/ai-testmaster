@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
+from collections.abc import Callable
 
 from loguru import logger
 from openai import OpenAI
@@ -22,13 +23,13 @@ class XmindAIParser:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
-        model: Optional[str] = None,
-        batch_size: Optional[int] = None,
-        timeout: Optional[int] = None,
-        max_workers: Optional[int] = None,
-        max_tokens: Optional[int] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        batch_size: int | None = None,
+        timeout: int | None = None,
+        max_workers: int | None = None,
+        max_tokens: int | None = None,
     ) -> None:
         self._api_key = api_key if api_key is not None else settings.DEEPSEEK_API_KEY
         self._base_url = base_url if base_url is not None else "https://api.deepseek.com"
@@ -58,7 +59,7 @@ class XmindAIParser:
             raise ValueError(f"max_workers must be positive, got {self._max_workers}")
         if self._max_tokens <= 0:
             raise ValueError(f"max_tokens must be positive, got {self._max_tokens}")
-        self._client: Optional[OpenAI] = None
+        self._client: OpenAI | None = None
 
     @property
     def client(self) -> OpenAI:
@@ -72,13 +73,13 @@ class XmindAIParser:
 
     def parse_paths(
         self,
-        paths: List[List[str]],
-        progress_callback: Optional[Callable[[int, int, int, int], None]] = None,
-    ) -> List[Dict[str, Any]]:
+        paths: list[list[str]],
+        progress_callback: Callable[[int, int, int, int], None] | None = None,
+    ) -> list[dict[str, Any]]:
         if not paths:
             return []
 
-        batches: List[tuple] = []
+        batches: list[tuple] = []
         for batch_start in range(0, len(paths), self._batch_size):
             batch = paths[batch_start : batch_start + self._batch_size]
             batches.append((batch_start, batch))
@@ -90,7 +91,7 @@ class XmindAIParser:
         )
 
         overall_start = time.perf_counter()
-        results_by_index: Dict[int, List[Dict[str, Any]]] = {}
+        results_by_index: dict[int, list[dict[str, Any]]] = {}
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             future_to_meta = {
                 executor.submit(self._call_ai, batch): (idx, batch_start, batch)
@@ -107,7 +108,7 @@ class XmindAIParser:
                     )
                     batch_results = None
 
-                normalized: List[Dict[str, Any]] = []
+                normalized: list[dict[str, Any]] = []
                 if batch_results is not None:
                     if len(batch_results) != len(batch):
                         logger.warning(
@@ -132,7 +133,7 @@ class XmindAIParser:
                         completed_batches, len(batches), completed_paths, len(paths)
                     )
 
-        all_results: List[Dict[str, Any]] = []
+        all_results: list[dict[str, Any]] = []
         for idx in range(len(batches)):
             all_results.extend(results_by_index.get(idx, []))
 
@@ -143,7 +144,7 @@ class XmindAIParser:
         )
         return all_results
 
-    def _call_ai(self, batch: List[List[str]]) -> Optional[List[Dict[str, Any]]]:
+    def _call_ai(self, batch: list[list[str]]) -> list[dict[str, Any]] | None:
         user_prompt = _build_user_prompt(batch)
         start = time.perf_counter()
         try:

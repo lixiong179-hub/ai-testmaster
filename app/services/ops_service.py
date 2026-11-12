@@ -9,7 +9,6 @@ import logging
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -31,7 +30,7 @@ _ALLOWED_TABLE_NAMES = {t["name"] for t in _TABLES_FOR_BACKUP}
 _COLUMN_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
 
-def archive_iterations(db: Session, retention_days: Optional[int] = None, dry_run: bool = False) -> int:
+def archive_iterations(db: Session, retention_days: int | None = None, dry_run: bool = False) -> int:
     """归档超期 finalized 迭代
 
     将 finalized_at 超过 retention_days 的迭代状态改为 archived，
@@ -100,7 +99,7 @@ def archive_iterations(db: Session, retention_days: Optional[int] = None, dry_ru
     return len(rows)
 
 
-def cleanup_audit_logs(db: Session, retention_days: Optional[int] = None, dry_run: bool = False, output_dir: Optional[str] = None) -> int:
+def cleanup_audit_logs(db: Session, retention_days: int | None = None, dry_run: bool = False, output_dir: str | None = None) -> int:
     """清理超期 audit_log（导出后删除）
 
     先将超期 audit_log 导出为 JSONL 文件，再从数据库删除。
@@ -182,7 +181,7 @@ def _row_to_dict(row, columns: list) -> dict:
     return result
 
 
-def backup_tables(db: Session, output_dir: Optional[str] = None) -> Dict[str, int]:
+def backup_tables(db: Session, output_dir: str | None = None) -> dict[str, int]:
     """全量备份 pipeline_runs + artifacts + review_decision
 
     将三张表的数据导出为 JSONL 文件，支持恢复演练。
@@ -206,7 +205,7 @@ def backup_tables(db: Session, output_dir: Optional[str] = None) -> Dict[str, in
         _logger.error("创建备份目录失败: %s", exc)
         raise
 
-    stats: Dict[str, int] = {}
+    stats: dict[str, int] = {}
     for table_info in _TABLES_FOR_BACKUP:
         table_name = table_info["name"]
         if table_name not in _ALLOWED_TABLE_NAMES:

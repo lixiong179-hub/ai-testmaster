@@ -1,5 +1,4 @@
 import xml.etree.ElementTree as ET
-from typing import List, Optional
 from loguru import logger
 
 
@@ -11,13 +10,13 @@ class _UtilMixin:
     TITLE_MAX_LEN = 255
     POINT_MAX_LEN = 500
 
-    def _find_element(self, parent: ET.Element, tag: str) -> Optional[ET.Element]:
+    def _find_element(self, parent: ET.Element, tag: str) -> ET.Element | None:
         elem = parent.find(f"xmap:{tag}", self.NS)
         if elem is None:
             elem = parent.find(f"{{{self.XMAP_NS}}}{tag}")
         return elem
 
-    def _get_child_topics(self, topic: ET.Element) -> List[ET.Element]:
+    def _get_child_topics(self, topic: ET.Element) -> list[ET.Element]:
         children = self._find_element(topic, "children")
         if children is None:
             return []
@@ -44,7 +43,7 @@ class _UtilMixin:
             return plain.text.strip()
         return ""
 
-    def _extract_priority_marker(self, topic: ET.Element) -> Optional[int]:
+    def _extract_priority_marker(self, topic: ET.Element) -> int | None:
         marker_refs = self._find_element(topic, "marker-refs")
         if marker_refs is None:
             return None

@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar
 
 from loguru import logger
 
@@ -25,13 +25,13 @@ class DecisionDispatch(PipelineStep):
 
     name: ClassVar[str] = "decision_dispatch"
     version: ClassVar[str] = "1.0"
-    requires: ClassVar[List[str]] = [
+    requires: ClassVar[list[str]] = [
         "merged_verdicts",
         "aligned_testpoints",
         "history_fingerprints",
         "scenario_candidates",
     ]
-    produces: ClassVar[List[str]] = ["generation_tasks"]
+    produces: ClassVar[list[str]] = ["generation_tasks"]
 
     def should_run(self, ctx: PipelineContext) -> bool:
         merged = ctx.get_artifact("merged_verdicts")
@@ -69,14 +69,14 @@ class DecisionDispatch(PipelineStep):
         cands = candidates.get("candidates", []) if candidates else []
         _ = aligned.get("aligned_testpoints", []) if aligned else []
 
-        fp_by_case_id: Dict[int, Dict[str, Any]] = {}
+        fp_by_case_id: dict[int, dict[str, Any]] = {}
         for fp in fps:
             cid = fp.get("case_id")
             if cid is not None:
                 fp_by_case_id[cid] = fp
 
-        generation_tasks: List[Dict[str, Any]] = []
-        deprecation_suggestions: List[Dict[str, Any]] = []
+        generation_tasks: list[dict[str, Any]] = []
+        deprecation_suggestions: list[dict[str, Any]] = []
         budget_exhausted = False
         stats = {
             "keep_count": 0,
@@ -140,10 +140,7 @@ class DecisionDispatch(PipelineStep):
                 for skip_task in skip_tasks:
                     skip_reason = skip_task.get("skip_reason", "")
                     case_id_for_verdict = skip_task.get("case_id") or 0
-                    if "冲突" in skip_reason:
-                        ai_verdict = "modify"
-                    else:
-                        ai_verdict = "keep"
+                    ai_verdict = "modify" if "冲突" in skip_reason else "keep"
                     add_decision(
                         db=ctx.db,
                         review_id=review_id,
@@ -188,7 +185,7 @@ class DecisionDispatch(PipelineStep):
             confirmation_payload=payload if budget_exhausted else None,
         )
 
-    def validate_output(self, payload: Dict[str, Any]) -> bool:
+    def validate_output(self, payload: dict[str, Any]) -> bool:
         if not isinstance(payload, dict):
             return False
         tasks = payload.get("generation_tasks")
@@ -205,5 +202,5 @@ class DecisionDispatch(PipelineStep):
         ]
         return all(k in stats for k in required_stats)
 
-    def fallback(self, ctx: PipelineContext, error: Exception) -> Optional[StepResult]:
+    def fallback(self, ctx: PipelineContext, error: Exception) -> StepResult | None:
         return _dispatch_fallback(self.name, self.version, ctx, error)

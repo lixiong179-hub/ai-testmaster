@@ -18,7 +18,6 @@
     async 调用方通过实例化 UserService(db: AsyncSession) 调用 *_async 方法。
     纯计算方法（verify_password/get_password_hash）保持静态，供 sync/async 复用。
 """
-from typing import Optional, List, Union
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,7 +41,7 @@ class UserService(UserServiceAsyncMixin):
           ``await UserService(db).create_user_async(user_in)``，此时 db 必须为 AsyncSession。
     """
 
-    def __init__(self, db: Optional[Union[Session, AsyncSession]] = None) -> None:
+    def __init__(self, db: Session | AsyncSession | None = None) -> None:
         """初始化服务实例。
 
         Args:
@@ -142,7 +141,7 @@ class UserService(UserServiceAsyncMixin):
         return db_user
 
     @staticmethod
-    def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
+    def authenticate_user(db: Session, username: str, password: str) -> User | None:
         """用户认证，验证用户名和密码是否正确。
 
         认证流程:
@@ -176,7 +175,7 @@ class UserService(UserServiceAsyncMixin):
         return user
 
     @staticmethod
-    def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+    def get_user_by_id(db: Session, user_id: int) -> User | None:
         """根据用户ID查询用户。
 
         Args:
@@ -189,7 +188,7 @@ class UserService(UserServiceAsyncMixin):
         return db.execute(select(User).where(User.id == user_id)).scalars().first()
 
     @staticmethod
-    def get_user_by_username(db: Session, username: str) -> Optional[User]:
+    def get_user_by_username(db: Session, username: str) -> User | None:
         """根据用户名查询用户。
 
         Args:
@@ -252,7 +251,7 @@ class UserService(UserServiceAsyncMixin):
         return True
 
     @staticmethod
-    def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[User]:
+    def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[User]:
         """分页查询用户列表。
 
         Args:

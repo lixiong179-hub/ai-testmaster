@@ -1,7 +1,7 @@
 """输入点击动作执行Mixin - 处理点击、双击、右键点击、输入和文件上传操作。
 """
 import asyncio
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.services.test_execution_engine.models import (
@@ -11,7 +11,7 @@ from app.services.test_execution_engine.models import (
 
 class ActionExecutorInputClickMixin:
 
-    async def _execute_input(self, action_info: Dict[str, Any], step_id: Optional[int], step_test_data: Optional[Dict[str, str]] = None) -> None:
+    async def _execute_input(self, action_info: dict[str, Any], step_id: int | None, step_test_data: dict[str, str] | None = None) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         text = action_info.get("text", "")
@@ -68,7 +68,7 @@ class ActionExecutorInputClickMixin:
         logger.error(f"无法定位输入元素: {text}")
         raise StepExecutionError(f"无法定位输入元素: {text}")
 
-    async def _execute_click(self, action_info: Dict[str, Any], step_id: Optional[int], step_test_data: Optional[Dict[str, str]] = None) -> None:
+    async def _execute_click(self, action_info: dict[str, Any], step_id: int | None, step_test_data: dict[str, str] | None = None) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         text = action_info.get("text", "")

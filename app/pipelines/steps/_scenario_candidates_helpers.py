@@ -9,19 +9,19 @@
 """
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.pipelines.steps.reverse_infer._helpers import _CONFIDENCE_THRESHOLD
 
 
-def _extract_prd(raw_signals: Dict[str, Any]) -> str:
+def _extract_prd(raw_signals: dict[str, Any]) -> str:
     prd = raw_signals.get("prd_content", "")
     if prd:
         return prd[:3000]
     return "（无 PRD 文档）"
 
 
-def _extract_ui(raw_signals: Dict[str, Any]) -> str:
+def _extract_ui(raw_signals: dict[str, Any]) -> str:
     ui_specs = raw_signals.get("ui_specs", [])
     if not ui_specs:
         return "（无 UI 规格）"
@@ -38,7 +38,7 @@ def _extract_ui(raw_signals: Dict[str, Any]) -> str:
     return "\n\n".join(parts) if parts else "（无 UI 规格）"
 
 
-def _extract_inferred(inferred: Any, raw_signals: Optional[Dict[str, Any]] = None) -> str:
+def _extract_inferred(inferred: Any, raw_signals: dict[str, Any] | None = None) -> str:
     parts = []
     raw_signals = raw_signals or {}
 
@@ -80,7 +80,7 @@ def _extract_inferred(inferred: Any, raw_signals: Optional[Dict[str, Any]] = Non
     return "\n\n".join(parts) if parts else "（无反推摘要/变更线索）"
 
 
-def _extract_existing_modules(fingerprints: Any) -> List[str]:
+def _extract_existing_modules(fingerprints: Any) -> list[str]:
     if fingerprints is None:
         return []
     fps = fingerprints.get("fingerprints", [])
@@ -100,7 +100,7 @@ def _extract_existing_summaries(fingerprints: Any) -> str:
     return "\n".join(parts)
 
 
-def _parse_candidates(content: str) -> Optional[List[Dict[str, Any]]]:
+def _parse_candidates(content: str) -> list[dict[str, Any]] | None:
     try:
         data = json.loads(content)
     except (json.JSONDecodeError, TypeError):
@@ -120,7 +120,7 @@ def _parse_candidates(content: str) -> Optional[List[Dict[str, Any]]]:
     return None
 
 
-def _try_extract_json_array(text: str) -> Optional[List[Dict[str, Any]]]:
+def _try_extract_json_array(text: str) -> list[dict[str, Any]] | None:
     match = re.search(r'\[[\s\S]*\]', text)
     if match:
         try:
@@ -131,9 +131,9 @@ def _try_extract_json_array(text: str) -> Optional[List[Dict[str, Any]]]:
 
 
 def _validate_candidates(
-    candidates: List[Dict[str, Any]],
-    existing_modules: List[str],
-) -> List[Dict[str, Any]]:
+    candidates: list[dict[str, Any]],
+    existing_modules: list[str],
+) -> list[dict[str, Any]]:
     validated = []
     for c in candidates:
         if not isinstance(c, dict):
@@ -163,7 +163,7 @@ def _validate_candidates(
     return validated
 
 
-def _find_closest_module(target: str, modules: List[str]) -> Optional[str]:
+def _find_closest_module(target: str, modules: list[str]) -> str | None:
     target_lower = target.lower()
     for m in modules:
         if m.lower() == target_lower:
@@ -174,23 +174,21 @@ def _find_closest_module(target: str, modules: List[str]) -> Optional[str]:
     return None
 
 
-def _estimate_ui_controls(raw_signals: Dict[str, Any]) -> int:
+def _estimate_ui_controls(raw_signals: dict[str, Any]) -> int:
     ui_specs = raw_signals.get("ui_specs", [])
     count = 0
     for spec in ui_specs:
         ui_spec = spec.get("ui_spec")
         if isinstance(ui_spec, dict):
             components = ui_spec.get("components", ui_spec.get("elements", []))
-            if isinstance(components, list):
-                count += len(components)
-            elif isinstance(components, dict):
+            if isinstance(components, (list, dict)):
                 count += len(components)
         elif isinstance(ui_spec, list):
             count += len(ui_spec)
     return max(count, len(ui_specs))
 
 
-def _compute_confidence(candidates: List[Dict[str, Any]], coverage_ok: bool) -> float:
+def _compute_confidence(candidates: list[dict[str, Any]], coverage_ok: bool) -> float:
     if not candidates:
         return 0.0
     base = 0.7 if coverage_ok else 0.4

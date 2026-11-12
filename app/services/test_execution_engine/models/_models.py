@@ -1,4 +1,5 @@
-from typing import Optional, Dict, Any, List, Callable
+from typing import Any
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 import functools
@@ -9,7 +10,6 @@ from app.services.test_execution_engine.models._enums import (
     ExecutionStatus,
     FailureCategory,
     ActionType,
-    ExecutionMode,
 )
 
 
@@ -32,24 +32,24 @@ class StepExecutionResult:
     action: str = ""
     status: ExecutionStatus = ExecutionStatus.PENDING
     description: str = ""
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
     duration_ms: int = 0
-    error_message: Optional[str] = None
-    screenshot_path: Optional[str] = None
-    element_info: Optional[Dict[str, Any]] = None
+    error_message: str | None = None
+    screenshot_path: str | None = None
+    element_info: dict[str, Any] | None = None
     healing_applied: bool = False
-    original_selector: Optional[str] = None
-    healed_selector: Optional[str] = None
-    failure_category: Optional[FailureCategory] = None
+    original_selector: str | None = None
+    healed_selector: str | None = None
+    failure_category: FailureCategory | None = None
     retry_count: int = 0
-    execution_detail: Optional[str] = None
-    screenshot: Optional[Any] = None
-    ai_analysis: Optional[str] = None
-    element_locator: Optional[str] = None
-    defect_evidence: Optional[Dict[str, Any]] = None
+    execution_detail: str | None = None
+    screenshot: Any | None = None
+    ai_analysis: str | None = None
+    element_locator: str | None = None
+    defect_evidence: dict[str, Any] | None = None
 
-    def to_dict(self, hidden_fields: Optional[list] = None) -> Dict[str, Any]:
+    def to_dict(self, hidden_fields: list | None = None) -> dict[str, Any]:
         result = {
             "step_number": self.step_number,
             "action_type": self.action_type.value,
@@ -76,19 +76,19 @@ class TestExecutionResult:
 
     case_id: int
     status: ExecutionStatus = ExecutionStatus.PENDING
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
     duration_ms: int = 0
-    steps: List[StepExecutionResult] = field(default_factory=list)
-    error_message: Optional[str] = None
+    steps: list[StepExecutionResult] = field(default_factory=list)
+    error_message: str | None = None
     total_steps: int = 0
     passed_steps: int = 0
     failed_steps: int = 0
     healing_count: int = 0
-    failure_category: Optional[FailureCategory] = None
-    navigation_level: Optional[str] = None
+    failure_category: FailureCategory | None = None
+    navigation_level: str | None = None
 
-    def to_dict(self, hidden_fields: Optional[list] = None) -> Dict[str, Any]:
+    def to_dict(self, hidden_fields: list | None = None) -> dict[str, Any]:
         result = {
             "case_id": self.case_id,
             "status": self.status.value,

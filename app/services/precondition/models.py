@@ -1,11 +1,11 @@
 
 """前置条件数据模型 - 定义前置条件体系所需的数据类和枚举。"""
-from typing import Optional, Dict, Any
+from typing import Any
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class TestObjectType(str, Enum):
+class TestObjectType(StrEnum):
     """被测对象类型枚举。"""
     WEB = "web"
     APP = "app"
@@ -30,12 +30,12 @@ class LoginError(PreconditionError):
 class TestObjectInfo:
     """被测对象信息。"""
     type: TestObjectType
-    url: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
-    device_id: Optional[str] = None
-    app_package: Optional[str] = None
-    app_activity: Optional[str] = None
+    url: str | None = None
+    username: str | None = None
+    password: str | None = None
+    device_id: str | None = None
+    app_package: str | None = None
+    app_activity: str | None = None
 
     def validate_web(self) -> None:
         if not self.url:
@@ -53,11 +53,11 @@ class TestObjectInfo:
 @dataclass
 class LoginFormInfo:
     """Web登录表单信息。"""
-    username_input: Optional[Dict[str, Any]] = None
-    password_input: Optional[Dict[str, Any]] = None
-    submit_button: Optional[Dict[str, Any]] = None
-    captcha_input: Optional[Dict[str, Any]] = None
-    captcha_image: Optional[Dict[str, Any]] = None
+    username_input: dict[str, Any] | None = None
+    password_input: dict[str, Any] | None = None
+    submit_button: dict[str, Any] | None = None
+    captcha_input: dict[str, Any] | None = None
+    captcha_image: dict[str, Any] | None = None
 
     def is_complete(self) -> bool:
         return all([
@@ -73,15 +73,15 @@ class LoginFormInfo:
 @dataclass
 class MobileLoginFormInfo:
     """移动端登录表单信息。"""
-    username_input: Optional[Dict[str, Any]] = None
-    password_input: Optional[Dict[str, Any]] = None
-    submit_button: Optional[Dict[str, Any]] = None
-    captcha_input: Optional[Dict[str, Any]] = None
-    captcha_image: Optional[Dict[str, Any]] = None
-    agree_checkbox: Optional[Dict[str, Any]] = None
-    phone_input: Optional[Dict[str, Any]] = None
-    sms_code_input: Optional[Dict[str, Any]] = None
-    get_sms_code_button: Optional[Dict[str, Any]] = None
+    username_input: dict[str, Any] | None = None
+    password_input: dict[str, Any] | None = None
+    submit_button: dict[str, Any] | None = None
+    captcha_input: dict[str, Any] | None = None
+    captcha_image: dict[str, Any] | None = None
+    agree_checkbox: dict[str, Any] | None = None
+    phone_input: dict[str, Any] | None = None
+    sms_code_input: dict[str, Any] | None = None
+    get_sms_code_button: dict[str, Any] | None = None
 
     def is_complete(self) -> bool:
         has_account_login = all([
@@ -101,14 +101,14 @@ class MobileLoginFormInfo:
 class MobileAppConfig:
     """移动端App配置。"""
     platform_name: str = "Android"
-    device_name: Optional[str] = None
-    udid: Optional[str] = None
-    platform_version: Optional[str] = None
-    app_package: Optional[str] = None
-    app_activity: Optional[str] = None
-    bundle_id: Optional[str] = None
-    app_path: Optional[str] = None
-    automation_name: Optional[str] = None
+    device_name: str | None = None
+    udid: str | None = None
+    platform_version: str | None = None
+    app_package: str | None = None
+    app_activity: str | None = None
+    bundle_id: str | None = None
+    app_path: str | None = None
+    automation_name: str | None = None
     no_reset: bool = False
     full_reset: bool = False
     new_command_timeout: int = 300

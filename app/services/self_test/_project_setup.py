@@ -51,7 +51,7 @@ async def _auto_import_requirement_doc(db: AsyncSession, project: Project) -> No
 
     try:
         file_size = doc_path.stat().st_size
-        with open(doc_path, "r", encoding="utf-8") as f:
+        with open(doc_path, encoding="utf-8") as f:
             content = f.read()
 
         project_file = ProjectFile(

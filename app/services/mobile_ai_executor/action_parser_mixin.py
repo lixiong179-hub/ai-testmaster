@@ -1,6 +1,5 @@
 """移动端AI动作解析Mixin - 自然语言描述到动作类型的解析。"""
 import re
-from typing import Optional
 
 from app.services.mobile_ai_executor.types import MobileActionType
 
@@ -12,9 +11,9 @@ class MobileActionParserMixin:
         desc = description.lower().strip()
         if any(kw in desc for kw in ["返回", "后退", "back"]):
             return MobileActionType.GO_BACK
-        if any(kw in desc for kw in ["主页", "首页", "home", "桌面"]):
-            if "导航" not in desc and "跳转" not in desc:
-                return MobileActionType.GO_HOME
+        is_home = any(kw in desc for kw in ["主页", "首页", "home", "桌面"])
+        if is_home and "导航" not in desc and "跳转" not in desc:
+            return MobileActionType.GO_HOME
         if any(kw in desc for kw in ["向上滑动", "上滑", "scroll up", "向上滚动"]):
             return MobileActionType.SCROLL_UP
         if any(kw in desc for kw in ["向下滑动", "下滑", "scroll down", "向下滚动"]):
@@ -37,7 +36,7 @@ class MobileActionParserMixin:
             return MobileActionType.VERIFY
         return MobileActionType.CLICK
 
-    def _extract_input_text(self, description: str) -> Optional[str]:
+    def _extract_input_text(self, description: str) -> str | None:
         patterns = [
             r"输入[\"\"'](.+?)[\"\"']",
             r"输入(.+?)(?:到|进|入|$)",
@@ -53,7 +52,7 @@ class MobileActionParserMixin:
                 return match.group(1).strip()
         return None
 
-    def _extract_input_target(self, description: str) -> Optional[str]:
+    def _extract_input_target(self, description: str) -> str | None:
         patterns = [
             r"在(.+?)中输入",
             r"在(.+?)里输入",
@@ -68,7 +67,7 @@ class MobileActionParserMixin:
                 return match.group(1).strip()
         return None
 
-    def _extract_package_activity(self, description: str) -> Optional[tuple]:
+    def _extract_package_activity(self, description: str) -> tuple | None:
         match = re.search(r"([\w.]+)/([\w.]+)", description)
         if match:
             package, activity = match.group(1), match.group(2)

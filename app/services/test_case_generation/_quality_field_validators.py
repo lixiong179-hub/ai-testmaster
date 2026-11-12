@@ -3,7 +3,6 @@
 从 quality_validator.py 拆分，包含标题、前置条件、预期结果与
 case_category 单字段校验。所有函数均为模块级纯函数。
 """
-from typing import Tuple
 
 from app.services.case_quality.quality_scoring_constants import (
     EXPECTED_VAGUE_WORDS,
@@ -15,7 +14,7 @@ from app.services.case_quality.quality_scoring_constants import (
 )
 
 
-def validate_title(title: str) -> Tuple[bool, str]:
+def validate_title(title: str) -> tuple[bool, str]:
     """校验标题质量。
 
     Args:
@@ -39,7 +38,7 @@ def validate_title(title: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_precondition(precondition: str) -> Tuple[bool, str]:
+def validate_precondition(precondition: str) -> tuple[bool, str]:
     """校验前置条件完整性。
 
     Args:
@@ -64,7 +63,7 @@ def validate_precondition(precondition: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_expected_result(expected_result: str) -> Tuple[bool, str]:
+def validate_expected_result(expected_result: str) -> tuple[bool, str]:
     """校验总体预期结果质量。
 
     检查策略：
@@ -88,7 +87,7 @@ def validate_expected_result(expected_result: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_case_category(case_category: str) -> Tuple[bool, str]:
+def validate_case_category(case_category: str) -> tuple[bool, str]:
     """校验 case_category 合法性。
 
     Args:

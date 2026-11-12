@@ -14,10 +14,10 @@ Playwright 1.58 兼容性：page.accessibility 已被移除（3 年弃用期结�
 """
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from hashlib import sha256
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -51,7 +51,7 @@ _ARIA_TEXT_PATTERN = re.compile(r'^-\s+text:\s+"(?P<text>[^"]*)"\s*$')
 _ARIA_ATTR_PATTERN = re.compile(r'(\w+)=([^\s\]]+)')
 
 
-def _parse_aria_attrs(attr_text: Optional[str]) -> Dict[str, str]:
+def _parse_aria_attrs(attr_text: str | None) -> dict[str, str]:
     """解析 aria_snapshot 行的 [key=value key2=value2] 属性段为 dict。
 
     输入示例：' [level=1 ref=e5]'  →  {'level': '1', 'ref': 'e5'}
@@ -62,7 +62,7 @@ def _parse_aria_attrs(attr_text: Optional[str]) -> Dict[str, str]:
     return {m.group(1): m.group(2) for m in _ARIA_ATTR_PATTERN.finditer(attr_text)}
 
 
-def _parse_aria_yaml(text: Optional[str]) -> Optional[Dict[str, Any]]:
+def _parse_aria_yaml(text: str | None) -> dict[str, Any] | None:
     """解析 Playwright aria_snapshot() 返回的 YAML 字符串为 dict 树。
 
     输入格式（每行缩进 2 空格表示层级）：
@@ -92,9 +92,9 @@ def _parse_aria_yaml(text: Optional[str]) -> Optional[Dict[str, Any]]:
     """
     if not text or not text.strip():
         return None
-    root: Dict[str, Any] = {"role": "root", "name": "", "children": []}
+    root: dict[str, Any] = {"role": "root", "name": "", "children": []}
     # 栈元素：(indent_level, node)，根节点 indent_level=-1 保证永远不被弹出
-    stack: List[tuple] = [(-1, root)]
+    stack: list[tuple] = [(-1, root)]
     for raw_line in text.splitlines():
         if not raw_line.strip():
             continue
@@ -122,7 +122,7 @@ def _parse_aria_yaml(text: Optional[str]) -> Optional[Dict[str, Any]]:
         if not node_match:
             continue
         attrs = _parse_aria_attrs(node_match.group("attrs"))
-        node: Dict[str, Any] = {
+        node: dict[str, Any] = {
             "role": node_match.group("role"),
             "name": node_match.group("name") or "",
             "children": [],
@@ -176,10 +176,10 @@ class SnapshotMixin:
             navigation=navigation,
             is_login_page=is_login_page,
             screenshot_path=screenshot_path,
-            captured_at=datetime.now(timezone.utc).isoformat(),
+            captured_at=datetime.now(UTC).isoformat(),
         )
 
-    async def _collect_interactive_elements(self, page: Any) -> List[Dict[str, Any]]:
+    async def _collect_interactive_elements(self, page: Any) -> list[dict[str, Any]]:
         """采集 aria_snapshot YAML 并提取可交互元素。
 
         Playwright 1.58 起 page.accessibility.snapshot 被移除，本方法封装
@@ -201,17 +201,17 @@ class SnapshotMixin:
             logger.warning(f"采集{label}失败: {e}")
             return default if default is not None else []
 
-    def _extract_interactive_elements(self, tree: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _extract_interactive_elements(self, tree: dict[str, Any] | None) -> list[dict[str, Any]]:
         """递归遍历无障碍树，提取 INTERACTIVE_ROLES 内的可交互元素。
 
         为每个元素生成 Playwright locator 字符串（优先 get_by_role），
         css_selector 留空（a11y tree 不含 DOM 选择器），元素锚定主依赖 locator。
         """
-        elements: List[Dict[str, Any]] = []
+        elements: list[dict[str, Any]] = []
         if not tree or not isinstance(tree, dict):
             return elements
         # 用栈迭代避免递归栈溢出，逆序入栈保证文档顺序稳定
-        stack: List[Dict[str, Any]] = [tree]
+        stack: list[dict[str, Any]] = [tree]
         while stack:
             node = stack.pop()
             role = node.get("role") or ""
@@ -240,7 +240,7 @@ class SnapshotMixin:
             return f'get_by_role("{role}", name="{safe_name}")'
         return f'get_by_role("{role}")'
 
-    async def _collect_forms(self, page: Any) -> List[Dict[str, Any]]:
+    async def _collect_forms(self, page: Any) -> list[dict[str, Any]]:
         """采集页面表单结构，含表单内可交互控件清单。
 
         用 JS 遍历 form 元素，提取 action/method 及其内 input/button 的
@@ -261,7 +261,7 @@ class SnapshotMixin:
             };
         })""")
 
-    async def _collect_navigation(self, page: Any) -> List[Dict[str, str]]:
+    async def _collect_navigation(self, page: Any) -> list[dict[str, str]]:
         """采集所有带 href 的导航链接 {text, href}，供 _discover_links BFS 使用。"""
         links = await page.eval_on_selector_all("a[href]", """els => els.map(e => ({
             text: (e.textContent || '').trim().substring(0, 80),
@@ -290,7 +290,7 @@ class SnapshotMixin:
         }}""")
         return bool(result and result.get("hasPassword") and result.get("hasLoginButton"))
 
-    async def _save_screenshot(self, page: Any, url: str) -> Optional[str]:
+    async def _save_screenshot(self, page: Any, url: str) -> str | None:
         """截图并保存到 site_explorer 目录，返回文件绝对路径。
 
         路径按 URL 哈希分桶避免单目录文件过多；截图失败仅记录警告返回 None，
@@ -302,7 +302,7 @@ class SnapshotMixin:
             logger.warning(f"截图失败: {e}")
             return None
         url_hash = sha256(url.encode("utf-8")).hexdigest()[:12]
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         screenshot_dir = Path(settings.UPLOAD_DIR) / "site_explorer" / url_hash
         screenshot_dir.mkdir(parents=True, exist_ok=True)
         screenshot_path = screenshot_dir / f"{timestamp}.png"

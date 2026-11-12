@@ -5,7 +5,7 @@
 
 与 _ContextLoadersMixin 组合后由 ContextBuilder（context_builder.py）统一对外暴露。
 """
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.crud import file as file_crud
 from app.models.requirement import Requirement
@@ -40,9 +40,9 @@ class _RequirementUiLoadersMixin:
     # ── 需求加载器 ──
     async def _load_requirement_from_files(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
-        requirement_file_ids: List[int],
+        requirement_file_ids: list[int],
         budget: ContextBudgetController,
         force_refresh: bool,
     ) -> None:
@@ -65,9 +65,9 @@ class _RequirementUiLoadersMixin:
 
     def _load_requirement_from_test_points(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
-        selected_point_models: List[TestPoint],
+        selected_point_models: list[TestPoint],
         search_terms: Any,
         budget: ContextBudgetController,
     ) -> None:
@@ -75,7 +75,7 @@ class _RequirementUiLoadersMixin:
         if context["requirement_content"]:
             return
         requirement_ids = _dedupe_ints([p.requirement_id for p in selected_point_models if p.requirement_id])
-        requirements: List[Requirement] = []
+        requirements: list[Requirement] = []
         if requirement_ids:
             requirements = self.db.query(Requirement).filter(
                 Requirement.project_id == project_id,
@@ -132,10 +132,10 @@ class _RequirementUiLoadersMixin:
     # ── UI 加载器 ──
     def _load_ui_descriptions(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
-        ui_screen_ids: Optional[List[int]],
-        ui_file_ids: Optional[List[int]],
+        ui_screen_ids: list[int] | None,
+        ui_file_ids: list[int] | None,
         search_text: str,
         search_terms: Any,
     ) -> None:
@@ -149,16 +149,16 @@ class _RequirementUiLoadersMixin:
 
     def _load_ui_from_screen_ids(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
-        ui_screen_ids: List[int],
+        ui_screen_ids: list[int],
     ) -> None:
         """按屏幕 ID 批量查询 UI（规避 N+1）。"""
         screens = self.db.query(UIPrototypeScreen).filter(
             UIPrototypeScreen.id.in_(ui_screen_ids),
             UIPrototypeScreen.project_id == project_id,
         ).all()
-        screen_map: Dict[int, UIPrototypeScreen] = {screen.id: screen for screen in screens}
+        screen_map: dict[int, UIPrototypeScreen] = {screen.id: screen for screen in screens}
         found_screen_ids = set()
         for screen_id in ui_screen_ids:
             screen = screen_map.get(screen_id)
@@ -188,9 +188,9 @@ class _RequirementUiLoadersMixin:
 
     def _load_ui_from_file_ids(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
-        ui_file_ids: List[int],
+        ui_file_ids: list[int],
     ) -> None:
         """按 UI 文件加载已解析屏幕。"""
         for file_id in ui_file_ids:
@@ -227,13 +227,13 @@ class _RequirementUiLoadersMixin:
 
     def _load_ui_by_keyword_match(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
         search_text: str,
         search_terms: Any,
     ) -> None:
         """按测试点关键词匹配 UI 屏幕，必要时扩展相邻导航屏幕。"""
-        matched_screens: List[UIPrototypeScreen] = []
+        matched_screens: list[UIPrototypeScreen] = []
         if search_terms:
             screen_candidates = []
             screens = self.db.query(UIPrototypeScreen).filter(UIPrototypeScreen.project_id == project_id).all()
@@ -248,7 +248,7 @@ class _RequirementUiLoadersMixin:
         if matched_screens:
             seen_screen_ids = {screen.id for screen in matched_screens}
             if _has_flow_intent(search_text):
-                adjacent_ids: List[int] = []
+                adjacent_ids: list[int] = []
                 for screen in matched_screens:
                     adjacent_ids.extend(_collect_navigation_screen_ids(screen))
                 adjacent_ids = [sid for sid in _dedupe_ints(adjacent_ids) if sid not in seen_screen_ids]

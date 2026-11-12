@@ -1,4 +1,3 @@
-from typing import List
 
 SYSTEM_PROMPT = """\
 你是一名资深测试工程师，擅长将思维导图路径转换为结构化测试用例。
@@ -136,7 +135,7 @@ title:"进入听写记录页面验证历史听写记录列表与得分详情展�
 """
 
 
-def _build_user_prompt(paths: List[List[str]]) -> str:
+def _build_user_prompt(paths: list[list[str]]) -> str:
     lines = []
     for i, path in enumerate(paths, 1):
         lines.append(f"{i}. {' → '.join(path)}")

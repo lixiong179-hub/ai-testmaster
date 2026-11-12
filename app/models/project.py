@@ -28,7 +28,7 @@
     数据库中仅存储加密后的密文（test_object_password_encrypted 列）。
 """
 from app.utils.db_time import utcnow
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Index, and_, text as sa_text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON, Boolean, Index, text as sa_text
 from sqlalchemy.orm import relationship, Session
 from sqlalchemy import event, inspect as sa_inspect
 from app.db.database import Base

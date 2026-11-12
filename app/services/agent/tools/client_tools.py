@@ -16,7 +16,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from app.services.agent.exceptions import ToolExecutionError
 from app.services.agent.tools.base_tool import Tool, ToolContext, ToolResult
@@ -29,7 +29,7 @@ class _BaseClientTool(Tool):
 
     async def _invoke_callback(
         self,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         context: ToolContext,
     ) -> ToolResult:
         """统一调用 execution_callback 并处理异常。"""
@@ -66,7 +66,7 @@ class ClickElementTool(_BaseClientTool):
         "required": ["selector"],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         return await self._invoke_callback(params, context)
 
 
@@ -85,7 +85,7 @@ class InputElementTool(_BaseClientTool):
         "required": ["selector", "text"],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         return await self._invoke_callback(params, context)
 
 
@@ -102,7 +102,7 @@ class ScreenshotTool(_BaseClientTool):
         "required": [],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         return await self._invoke_callback(params, context)
 
 
@@ -119,7 +119,7 @@ class GetDomTool(_BaseClientTool):
         "required": [],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         return await self._invoke_callback(params, context)
 
 
@@ -137,7 +137,7 @@ class ScrollTool(_BaseClientTool):
         "required": [],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         return await self._invoke_callback(params, context)
 
 
@@ -155,7 +155,7 @@ class WaitTool(_BaseClientTool):
         "required": [],
     }
 
-    async def execute(self, params: Dict[str, Any], context: ToolContext) -> ToolResult:
+    async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         return await self._invoke_callback(params, context)
 
 

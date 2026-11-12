@@ -2,7 +2,6 @@ import asyncio
 import re
 import subprocess
 import sys
-from typing import Optional, List, Tuple
 from dataclasses import dataclass
 
 
@@ -22,9 +21,9 @@ class AdbCommandTimeoutError(AdbError):
 class DeviceInfo:
     udid: str
     state: str
-    model: Optional[str] = None
-    android_version: Optional[str] = None
-    screen_size: Optional[Tuple[int, int]] = None
+    model: str | None = None
+    android_version: str | None = None
+    screen_size: tuple[int, int] | None = None
 
 
 _PACKAGE_NAME_PATTERN = re.compile(r'^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$')
@@ -34,16 +33,16 @@ class _AdbControllerBase:
 
     def __init__(
         self,
-        udid: Optional[str] = None,
+        udid: str | None = None,
         adb_path: str = "adb",
         default_timeout: int = 30
     ):
         self.udid = udid
         self.adb_path = adb_path
         self.default_timeout = default_timeout
-        self._screen_size: Optional[Tuple[int, int]] = None
+        self._screen_size: tuple[int, int] | None = None
 
-    def _build_command(self, *args) -> List[str]:
+    def _build_command(self, *args) -> list[str]:
         cmd = [self.adb_path]
         if self.udid:
             cmd.extend(["-s", self.udid])
@@ -53,9 +52,9 @@ class _AdbControllerBase:
     async def _execute_command(
         self,
         *args,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
         check: bool = True
-    ) -> Tuple[int, str, str]:
+    ) -> tuple[int, str, str]:
         cmd = self._build_command(*args)
         effective_timeout = timeout or self.default_timeout
         try:
@@ -65,8 +64,7 @@ class _AdbControllerBase:
                     None,
                     lambda: subprocess.run(
                         cmd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
+                        capture_output=True,
                         timeout=effective_timeout,
                         check=False
                     )
@@ -90,7 +88,7 @@ class _AdbControllerBase:
             if check and return_code != 0:
                 raise AdbError(f"ADB command failed: {stderr_str or stdout_str}")
             return return_code, stdout_str, stderr_str
-        except (asyncio.TimeoutError, subprocess.TimeoutExpired):
+        except (TimeoutError, subprocess.TimeoutExpired):
             raise AdbCommandTimeoutError(
                 f"ADB command timed out after {effective_timeout}s: {' '.join(cmd)}"
             )

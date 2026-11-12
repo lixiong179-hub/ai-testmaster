@@ -1,5 +1,4 @@
 import logging
-from typing import List, Dict
 
 from sqlalchemy import text
 
@@ -7,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 class _ExecutorMixin:
-    def generate_add_column_sql(self, table_name: str, col_info: Dict) -> str:
+    def generate_add_column_sql(self, table_name: str, col_info: dict) -> str:
         col_name = col_info['name']
         if not self._validate_column_name(col_name):
             raise ValueError(f"Invalid column name: {col_name}")
@@ -30,7 +29,7 @@ class _ExecutorMixin:
         sql = f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type} {nullable}{default}{comment}"
         return sql
 
-    def sync_table(self, table_name: str, Base, auto_fix: bool = True) -> Dict:
+    def sync_table(self, table_name: str, Base, auto_fix: bool = True) -> dict:
         result = {
             'table': table_name,
             'status': 'ok',
@@ -81,7 +80,7 @@ class _ExecutorMixin:
 
         return result
 
-    def sync_all_tables(self, Base, auto_fix: bool = True, exclude_tables: List[str] = None) -> Dict:
+    def sync_all_tables(self, Base, auto_fix: bool = True, exclude_tables: list[str] = None) -> dict:
         report = {
             'total_tables': 0,
             'synced': 0,

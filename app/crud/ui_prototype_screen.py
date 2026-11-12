@@ -28,7 +28,7 @@ UI原型页面查询操作模块
     - _apply_iteration_filter 使用outerjoin处理-1（未关联迭代）的情况，
       因为页面可能没有关联的原型项目
 """
-from typing import List, Optional, Any
+from typing import Any
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from app.models.ui_prototype import (
@@ -38,7 +38,7 @@ from app.models.ui_prototype import (
 from app.models.project import Project
 
 
-def _apply_iteration_filter(query: Any, iteration_id: Optional[int]) -> Any:
+def _apply_iteration_filter(query: Any, iteration_id: int | None) -> Any:
     """
     迭代过滤条件构建器（内部函数）
 
@@ -85,8 +85,8 @@ def _apply_iteration_filter(query: Any, iteration_id: Optional[int]) -> Any:
 
 
 def get_ui_screen_by_id(
-    db: Session, screen_id: int, project_id: Optional[int] = None
-) -> Optional[UIPrototypeScreen]:
+    db: Session, screen_id: int, project_id: int | None = None
+) -> UIPrototypeScreen | None:
     """
     根据ID获取UI页面
 
@@ -110,12 +110,12 @@ def get_ui_screens_by_project(
     db: Session,
     project_id: int,
     user_id: int,
-    prototype_project_id: Optional[int] = None,
-    parse_status: Optional[str] = None,
-    iteration_id: Optional[int] = None,
+    prototype_project_id: int | None = None,
+    parse_status: str | None = None,
+    iteration_id: int | None = None,
     skip: int = 0,
     limit: int = 100,
-) -> List[UIPrototypeScreen]:
+) -> list[UIPrototypeScreen]:
     """
     获取项目的UI页面列表（多条件动态过滤+迭代过滤+排序+分页）
 
@@ -158,9 +158,9 @@ def get_ui_screens_count(
     db: Session,
     project_id: int,
     user_id: int,
-    prototype_project_id: Optional[int] = None,
-    parse_status: Optional[str] = None,
-    iteration_id: Optional[int] = None,
+    prototype_project_id: int | None = None,
+    parse_status: str | None = None,
+    iteration_id: int | None = None,
 ) -> int:
     """
     获取UI页面数量
@@ -191,7 +191,7 @@ def get_ui_screens_count(
     return query.count()
 
 
-def get_test_cases_by_screen(db: Session, screen_id: int) -> List[int]:
+def get_test_cases_by_screen(db: Session, screen_id: int) -> list[int]:
     """
     获取页面关联的测试用例ID列表
 
@@ -218,9 +218,9 @@ def get_parsed_ui_screens_for_case_generation(
     db: Session,
     project_id: int,
     user_id: int,
-    prototype_project_id: Optional[int] = None,
+    prototype_project_id: int | None = None,
     approved_only: bool = True,
-) -> List[UIPrototypeScreen]:
+) -> list[UIPrototypeScreen]:
     """
     获取已解析的UI页面（用于AI用例生成）
 

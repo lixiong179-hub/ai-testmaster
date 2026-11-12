@@ -19,7 +19,7 @@
     - status          : 基线状态（active/archived/superseded）
     - version         : 基线版本号，每次更新基线递增
 """
-from typing import Any, Dict
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -29,7 +29,6 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    Float,
 )
 
 from app.db.database import Base
@@ -93,7 +92,7 @@ class VisualBaseline(Base):
             f"name={self.name}, version={self.version}, status={self.status})>"
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """返回基线核心字段字典，供 API 响应与日志输出使用。"""
         return {
             "id": self.id,

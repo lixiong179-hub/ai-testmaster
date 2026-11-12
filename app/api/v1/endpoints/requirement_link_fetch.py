@@ -18,7 +18,6 @@ import json
     - 同步为增量同步，避免重复拉取
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
@@ -133,12 +132,12 @@ async def fetch_link_content(
 async def validate_link_access(
     link_url: str,
     auth_type: str = Query("none", description="认证类型"),
-    username: Optional[str] = Query(None, description="用户名"),
-    password: Optional[str] = Query(None, description="密码"),
-    token: Optional[str] = Query(None, description="Token"),
-    api_key: Optional[str] = Query(None, description="API Key"),
-    api_key_header: Optional[str] = Query(None, description="API Key Header"),
-    cookie: Optional[str] = Query(None, description="Cookie"),
+    username: str | None = Query(None, description="用户名"),
+    password: str | None = Query(None, description="密码"),
+    token: str | None = Query(None, description="Token"),
+    api_key: str | None = Query(None, description="API Key"),
+    api_key_header: str | None = Query(None, description="API Key Header"),
+    cookie: str | None = Query(None, description="Cookie"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):

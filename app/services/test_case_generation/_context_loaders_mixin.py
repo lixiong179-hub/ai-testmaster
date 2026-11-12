@@ -7,7 +7,7 @@
 由 _get_context_for_generation_precision 通过 self.* 调用，借助 ContextBuilder 多继承 MRO 解析。
 与 _HistoryScoringMixin 组合后由 ContextBuilder（context_builder.py）统一对外暴露。
 """
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from app.crud import test_point as test_point_crud
 from app.models.test_case import TestCase
@@ -37,14 +37,14 @@ class _ContextLoadersMixin:
         self,
         project_id: int,
         user_id: int,
-        requirement_file_ids: List[int] | None = None,
-        ui_file_ids: List[int] | None = None,
-        ui_screen_ids: List[int] | None = None,
-        test_point_ids: List[int] | None = None,
+        requirement_file_ids: list[int] | None = None,
+        ui_file_ids: list[int] | None = None,
+        ui_screen_ids: list[int] | None = None,
+        test_point_ids: list[int] | None = None,
         force_refresh: bool = False,
         test_point_page: int = 1,
         test_point_page_size: int = DEFAULT_TEST_POINT_PAGE_SIZE,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取测试用例生成的上下文信息（公开入口）。"""
         return await self._get_context_for_generation_precision(
             project_id=project_id,
@@ -58,7 +58,7 @@ class _ContextLoadersMixin:
             test_point_page_size=test_point_page_size,
         )
 
-    def _build_ui_description(self, ui_descriptions: List[Dict[str, Any]]) -> str:
+    def _build_ui_description(self, ui_descriptions: list[dict[str, Any]]) -> str:
         """构建 UI 描述文本（含屏幕名/功能/元素统计）。"""
         if not ui_descriptions:
             return ""
@@ -94,14 +94,14 @@ class _ContextLoadersMixin:
         self,
         project_id: int,
         user_id: int,
-        requirement_file_ids: Optional[List[int]] = None,
-        ui_file_ids: Optional[List[int]] = None,
-        ui_screen_ids: Optional[List[int]] = None,
-        test_point_ids: Optional[List[int]] = None,
+        requirement_file_ids: list[int] | None = None,
+        ui_file_ids: list[int] | None = None,
+        ui_screen_ids: list[int] | None = None,
+        test_point_ids: list[int] | None = None,
         force_refresh: bool = False,
         test_point_page: int = 1,
         test_point_page_size: int = DEFAULT_TEST_POINT_PAGE_SIZE,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """上下文加载编排器：测试点 → 需求 → UI → 质量检查 → 收尾。"""
         requirement_file_ids = _dedupe_ints(requirement_file_ids)
         ui_file_ids = _dedupe_ints(ui_file_ids)
@@ -130,7 +130,7 @@ class _ContextLoadersMixin:
 
         return context
 
-    def _init_context_skeleton(self, budget: ContextBudgetController) -> Dict[str, Any]:
+    def _init_context_skeleton(self, budget: ContextBudgetController) -> dict[str, Any]:
         """初始化上下文骨架（含 stats 与 evidence_refs 默认结构）。"""
         return {
             "requirement_content": "",
@@ -158,14 +158,14 @@ class _ContextLoadersMixin:
 
     def _load_test_points(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         project_id: int,
-        test_point_ids: Optional[List[int]],
+        test_point_ids: list[int] | None,
         test_point_page: int,
         test_point_page_size: int,
-    ) -> Tuple[List[TestPoint], str, Any]:
+    ) -> tuple[list[TestPoint], str, Any]:
         """加载测试点，返回 (selected_models, search_text, search_terms)。"""
-        selected_point_models: List[TestPoint] = []
+        selected_point_models: list[TestPoint] = []
         if test_point_ids:
             for point_id in test_point_ids:
                 point = test_point_crud.get_test_point_by_id(self.db, point_id, project_id)
@@ -220,7 +220,7 @@ class _ContextLoadersMixin:
 
     def _check_required_ui_terms(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         search_text: str,
     ) -> None:
         """检查 UI 元素是否覆盖测试点所需关键词，缺失时记录警告。"""
@@ -234,7 +234,7 @@ class _ContextLoadersMixin:
 
     def _finalize_context(
         self,
-        context: Dict[str, Any],
+        context: dict[str, Any],
         budget: ContextBudgetController,
     ) -> None:
         """去重 files_used/evidence_refs，计算最终统计指标。"""
@@ -267,7 +267,7 @@ class _ContextLoadersMixin:
         context["evidence_refs"]["warnings"] = context["warnings"]
 
     # ── 需求质量评估 ──
-    def _assess_requirement_quality(self, context: Dict[str, Any]) -> None:
+    def _assess_requirement_quality(self, context: dict[str, Any]) -> None:
         """需求文档质量预检：基于字数与操作动词判定 requirement_quality。"""
         requirement_text = context["requirement_content"].strip()
         requirement_quality, quality_warning = _assess_requirement_quality(requirement_text)

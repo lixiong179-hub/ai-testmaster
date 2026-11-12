@@ -3,7 +3,7 @@
 加载测试点数据（指定 ID 或分页+未覆盖优先排序），并获取项目文件内容
 （支持缓存与强制刷新）。
 """
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -23,18 +23,18 @@ from app.services.test_case_generation._helpers_text import _extract_function_fr
 def load_test_points(
     db: Session,
     project_id: int,
-    test_point_ids: Optional[List[int]] = None,
+    test_point_ids: list[int] | None = None,
     page: int = 1,
     page_size: int = DEFAULT_TEST_POINT_PAGE_SIZE,
-) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
     """加载测试点数据。
 
     加载策略：
         1. 指定 test_point_ids -> 加载指定测试点
         2. 未指定 -> 分页查询项目测试点（未覆盖优先排序）
     """
-    test_points: List[Dict[str, Any]] = []
-    pagination: Optional[Dict[str, Any]] = None
+    test_points: list[dict[str, Any]] = []
+    pagination: dict[str, Any] | None = None
 
     if test_point_ids:
         for point_id in test_point_ids:
@@ -95,7 +95,7 @@ async def get_file_content_helper(
     db: Session,
     file: ProjectFile,
     force_refresh: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """获取文件内容，支持缓存和强制刷新。
 
     策略：

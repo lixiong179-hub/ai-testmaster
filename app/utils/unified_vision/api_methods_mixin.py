@@ -16,7 +16,7 @@
     - app.utils.unified_vision.model_types: ElementInfo数据类
     - app.utils.unified_vision.response_parser_mixin: 响应解析
 """
-from typing import Optional, Dict, Any
+from typing import Any
 
 from app.utils.unified_vision.model_types import ElementInfo
 
@@ -29,7 +29,7 @@ class APIMethodsMixin:
     ResponseParserMixin解析响应，形成完整的调用链。
     """
 
-    async def recognize_elements(self, screenshot: bytes, action_description: str) -> Optional[ElementInfo]:
+    async def recognize_elements(self, screenshot: bytes, action_description: str) -> ElementInfo | None:
         """识别页面截图中与操作描述匹配的目标元素
 
         Args:
@@ -103,7 +103,7 @@ class APIMethodsMixin:
         screenshot: bytes,
         action_description: str,
         expected_result: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """验证测试操作执行结果
 
         将操作后的截图与预期结果进行对比，判断操作是否成功。
@@ -123,7 +123,7 @@ class APIMethodsMixin:
         from app.utils.unified_vision.response_parser_mixin import ResponseParserMixin
         return ResponseParserMixin._parse_verification_result(response)
 
-    async def find_element_center(self, screenshot: bytes, action_description: str) -> Optional[Dict[str, int]]:
+    async def find_element_center(self, screenshot: bytes, action_description: str) -> dict[str, int] | None:
         """定位元素中心点坐标
 
         先识别元素位置，再计算元素中心点坐标，用于模拟点击操作。

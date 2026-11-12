@@ -6,7 +6,6 @@
     - 前置条件非空
     - 预期结果非空
 """
-from typing import Dict, List, Optional
 
 from app.services.quality.validators.base import (
     BaseValidator,
@@ -32,11 +31,11 @@ class CaseValidator(BaseValidator):
 
     def validate(
         self,
-        case_data: Dict,
-        context: Optional[Dict] = None,
+        case_data: dict,
+        context: dict | None = None,
     ) -> ValidationResult:
         """校验用例基本格式。"""
-        issues: List[ValidationIssue] = []
+        issues: list[ValidationIssue] = []
         ctx = context or {}
 
         title_min = ctx.get("title_min", self.titleMin)

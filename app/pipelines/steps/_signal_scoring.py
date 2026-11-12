@@ -1,6 +1,5 @@
-from typing import Any, Dict, Optional
+from typing import Any
 
-from loguru import logger
 
 from app.services.case_quality.quality_scoring_service import QualityScoringService
 from app.services.quality.grade import score_to_grade
@@ -32,8 +31,8 @@ def _check_user_confirmed(db: Any, iteration_id: int) -> bool:
 
 def _compute_analyzer_score(
     analyzer: Any,
-    case_data: Dict[str, Any],
-) -> tuple[float, str, Dict[str, float]]:
+    case_data: dict[str, Any],
+) -> tuple[float, str, dict[str, float]]:
     result = analyzer.analyze_case(case_data)
 
     complexity_score = result["complexity_score"]
@@ -49,7 +48,7 @@ def _compute_analyzer_score(
     score = complexity_norm * 0.3 + coverage_norm * 0.3 + redundancy_norm * 0.2 + suggestion_norm * 0.2
     score = max(0.0, min(100.0, round(score, 2)))
 
-    breakdown: Dict[str, float] = {
+    breakdown: dict[str, float] = {
         "analyzer_complexity": round(complexity_score, 2),
         "analyzer_coverage": round(coverage_score, 2),
         "analyzer_redundancy": round(redundancy_score, 2),
@@ -65,15 +64,15 @@ def _compute_analyzer_score(
 
 
 def _compute_prior_score(
-    case_data: Dict[str, Any],
-    tp: Dict[str, Any],
-    signals: Dict[str, Any],
-    inferred: Dict[str, Any],
-    aligned: Dict[str, Any],
+    case_data: dict[str, Any],
+    tp: dict[str, Any],
+    signals: dict[str, Any],
+    inferred: dict[str, Any],
+    aligned: dict[str, Any],
     iteration_id: int,
     db: Any,
-    user_confirmed: Optional[bool] = None,
-) -> tuple[float, str, Dict[str, float]]:
+    user_confirmed: bool | None = None,
+) -> tuple[float, str, dict[str, float]]:
     """计算 prior 质量分。
 
     Args:
@@ -89,7 +88,7 @@ def _compute_prior_score(
             None 表示未传入，函数内部回退到查询 DB（保留向后兼容）。
     """
     signal_score = 0.0
-    signal_breakdown: Dict[str, float] = {}
+    signal_breakdown: dict[str, float] = {}
 
     signals = signals or {}
     inferred = inferred or {}
@@ -123,10 +122,7 @@ def _compute_prior_score(
     signal_score += history_score
 
     # 调用方在循环前查询一次传入，避免 N+1；None 时回退到 DB 查询（向后兼容）
-    if user_confirmed is None:
-        confirmed = _check_user_confirmed(db, iteration_id)
-    else:
-        confirmed = user_confirmed
+    confirmed = _check_user_confirmed(db, iteration_id) if user_confirmed is None else user_confirmed
     confirmed_score = 15.0 if confirmed else 0.0
     signal_breakdown["user_confirmed"] = confirmed_score
     signal_score += confirmed_score
@@ -145,7 +141,7 @@ def _compute_prior_score(
     final_score = round(0.4 * signal_score + 0.6 * content_score, 2)
     final_score = max(0.0, min(100.0, final_score))
 
-    breakdown: Dict[str, float] = {}
+    breakdown: dict[str, float] = {}
     breakdown["signal_score"] = round(signal_score, 2)
     breakdown["content_score"] = round(content_score, 2)
     breakdown.update(signal_breakdown)

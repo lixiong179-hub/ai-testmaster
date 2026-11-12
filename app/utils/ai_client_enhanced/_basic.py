@@ -1,11 +1,11 @@
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.ai_client_parser import infer_action_type
 from app.utils.ai_client_enhanced._enhanced import generate_test_case_enhanced
 
 
-def generate_test_case(test_point: Any, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def generate_test_case(test_point: Any, context: dict[str, Any] | None = None) -> dict[str, Any]:
     if isinstance(test_point, str):
         test_point = {"point": test_point, "module": "未知模块", "function": "未知功能", "priority": 2}
     if context:
@@ -30,7 +30,7 @@ async def analyze_requirements_stream(content: str) -> Any:
         yield chunk
 
 
-async def generate_test_case_stream(test_point: Dict[str, Any]) -> Any:
+async def generate_test_case_stream(test_point: dict[str, Any]) -> Any:
     from app.utils.ai_client_core import AIClientBase
     from app.utils.ai_client_stream import AIStreamMixin
     class _TempClient(AIStreamMixin, AIClientBase):
@@ -40,7 +40,7 @@ async def generate_test_case_stream(test_point: Dict[str, Any]) -> Any:
         yield chunk
 
 
-def parse_precondition_to_steps(precondition: str) -> List[Dict[str, Any]]:
+def parse_precondition_to_steps(precondition: str) -> list[dict[str, Any]]:
     if not precondition or not precondition.strip():
         return []
     steps = []

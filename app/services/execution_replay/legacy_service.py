@@ -2,7 +2,7 @@
 
 所有逻辑已拆分为独立Mixin，本文件仅做最终组合并提供全局单例函数。
 """
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.services.execution_replay.legacy_models import (
     ReplayEvent, ExecutionTimeline, ReplaySession
@@ -19,7 +19,7 @@ class ExecutionReplayService(LegacySessionMixin, LegacyPlaybackMixin, LegacyQuer
         super().__init__()
         self._start_cleanup_task()
 
-    async def get_session(self, execution_id: str) -> Optional[Dict[str, Any]]:
+    async def get_session(self, execution_id: str) -> dict[str, Any] | None:
         """获取指定执行回放会话的可序列化快照。"""
         session = self._active_replays.get(execution_id)
         if not session:

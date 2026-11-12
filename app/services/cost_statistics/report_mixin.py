@@ -1,5 +1,5 @@
 """成本报表Mixin - 报表生成与优化建议。"""
-from typing import Optional, List, Dict, Any
+from typing import Any
 from datetime import datetime, timedelta
 from loguru import logger
 
@@ -21,8 +21,8 @@ class CostStatisticsReportMixin:
     def generate_cost_report(
         self,
         project_id: int,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        start_date: datetime | None = None,
+        end_date: datetime | None = None
     ) -> CostReport:
         if not end_date:
             end_date = utcnow()
@@ -51,7 +51,7 @@ class CostStatisticsReportMixin:
 
     def _generate_cost_optimization_suggestions(
         self, project_id: int, overall_stats: CostStatistics
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         suggestions = []
 
         if overall_stats.ai_dependency_rate > self.AI_DEPENDENCY_THRESHOLD:

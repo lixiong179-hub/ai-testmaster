@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -90,7 +90,7 @@ class PreconditionMixin:
 
         logger.info("Precondition execution completed")
 
-    def _resolve_web_env_config(self, project, target_env: str) -> Dict[str, Any]:
+    def _resolve_web_env_config(self, project, target_env: str) -> dict[str, Any]:
         raw_web_cfg = getattr(project, "web_env_configs", None)
         resolved_web_cfg = None
 
@@ -237,7 +237,7 @@ class PreconditionMixin:
 
         return result
 
-    async def _save_realtime_locator(self, step: TestStep, element_info: Dict[str, Any]) -> Optional[ElementLocator]:
+    async def _save_realtime_locator(self, step: TestStep, element_info: dict[str, Any]) -> ElementLocator | None:
         if not self.locator_service or not self.browser:
             return None
         try:
@@ -281,7 +281,7 @@ class PreconditionMixin:
             logger.warning(f"Failed to save realtime locator: {e}")
             return None
 
-    async def _get_current_page_title(self) -> Optional[str]:
+    async def _get_current_page_title(self) -> str | None:
         try:
             if self.browser:
                 title = await self.browser.execute_javascript("document.title")

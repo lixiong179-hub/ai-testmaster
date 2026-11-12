@@ -1,4 +1,4 @@
-from typing import Dict, Any, Tuple
+from typing import Any
 
 from app.services.prompt_builder.comparison_examples import (
     get_comparison_examples,
@@ -37,7 +37,7 @@ def _build_priority_rules(has_ui: bool, has_requirement: bool, has_test_point: b
     return rules
 
 
-def _build_generation_prompt(context: Dict[str, Any]) -> Tuple[str, int]:
+def _build_generation_prompt(context: dict[str, Any]) -> tuple[str, int]:
     """构建线性模式的测试用例生成 Prompt。
 
     从 context 中提取并归一化需求、测试点、UI 原型、历史用例等信息，
@@ -77,7 +77,6 @@ def _build_generation_prompt(context: Dict[str, Any]) -> Tuple[str, int]:
         else sanitize_input(raw_ui_description)
     )
     has_ui = bool(ui_specs)
-    has_ui_reference = has_ui or bool(ui_desc and ui_desc.strip() and ui_desc.strip() not in ("[]", "{}", ""))
     has_test_point = bool(test_points)
     min_case_count = 3 if (len(test_points) >= 2 if test_points else False) else 1
     priority_rules = _build_priority_rules(has_ui, has_requirement, has_test_point)
@@ -181,7 +180,7 @@ def _build_generation_prompt(context: Dict[str, Any]) -> Tuple[str, int]:
 
     case_type = context.get('case_type')
     if case_type:
-        prompt += f"\n## 用例类型约束\n"
+        prompt += "\n## 用例类型约束\n"
         if case_type == "ui_automation" and not has_ui:
             prompt += (
                 "当前项目未提供UI原型图，ui_automation降级为草稿模式。\n"

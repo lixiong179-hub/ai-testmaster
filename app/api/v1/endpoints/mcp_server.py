@@ -9,7 +9,7 @@
     - POST /mcp/sse:  查询类工具仅需登录；写类工具（generate_test_case）需 mcp:write 权限
 """
 import json
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
@@ -36,12 +36,12 @@ class MCPCallRequest(BaseModel):
     """MCP 工具调用请求体。"""
 
     tool_name: str = Field(..., description="MCP 工具名称")
-    arguments: Dict[str, Any] = Field(
+    arguments: dict[str, Any] = Field(
         default_factory=dict, description="工具入参 JSON"
     )
 
 
-def _sse(event: str, payload: Dict[str, Any]) -> Dict[str, str]:
+def _sse(event: str, payload: dict[str, Any]) -> dict[str, str]:
     """构造 SSE 事件 dict，data 字段 JSON 序列化为字符串。"""
     return {
         "event": event,
@@ -57,20 +57,20 @@ def _has_permission_code(user: User, code: str) -> bool:
     """
     if getattr(user, "is_superuser", False):
         return True
-    for role in getattr(user, "roles", []) or []:
-        if role.permissions and code in role.permissions:
-            return True
-    return False
+    return any(
+        role.permissions and code in role.permissions
+        for role in getattr(user, "roles", []) or []
+    )
 
 
 @router.get(
     "/tools",
-    response_model=ApiResponse[List[Dict[str, Any]]],
+    response_model=ApiResponse[list[dict[str, Any]]],
     summary="获取 MCP 工具列表",
 )
 async def list_mcp_tools(
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """返回当前 MCPServer 注册的所有工具元信息。
 
     仅校验登录态，不要求 mcp:read scope（与任务规格一致）。

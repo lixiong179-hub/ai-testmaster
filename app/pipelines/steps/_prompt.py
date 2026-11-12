@@ -1,23 +1,23 @@
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 _PRD_MAX_CHARS = 6000
 
 
 def _build_full_prompt(
-    tp: Dict[str, Any],
+    tp: dict[str, Any],
     prd_content: str,
     ui_description: str,
-    ui_specs: List[Dict[str, Any]],
-    task_type: Optional[str] = None,
-    task_context: Optional[Dict[str, Any]] = None,
-    history_cases: Optional[List[Dict[str, Any]]] = None,
+    ui_specs: list[dict[str, Any]],
+    task_type: str | None = None,
+    task_context: dict[str, Any] | None = None,
+    history_cases: list[dict[str, Any]] | None = None,
     is_self_test: bool = False,
 ) -> str:
     filtered_prd = _filter_prd_by_testpoint(prd_content, tp)
     filtered_ui_specs = _filter_ui_specs_by_testpoint(ui_specs, tp)
 
-    extra_context: Dict[str, Any] = {}
+    extra_context: dict[str, Any] = {}
     if task_type:
         extra_context["task_type"] = task_type
     if task_context:
@@ -54,7 +54,7 @@ def _build_full_prompt(
     )
 
 
-def _filter_prd_by_testpoint(prd_content: str, tp: Dict[str, Any]) -> str:
+def _filter_prd_by_testpoint(prd_content: str, tp: dict[str, Any]) -> str:
     if not prd_content or not prd_content.strip():
         return prd_content
 
@@ -109,8 +109,8 @@ def _filter_prd_by_testpoint(prd_content: str, tp: Dict[str, Any]) -> str:
 
 
 def _filter_ui_specs_by_testpoint(
-    ui_specs: List[Dict[str, Any]], tp: Dict[str, Any]
-) -> List[Dict[str, Any]]:
+    ui_specs: list[dict[str, Any]], tp: dict[str, Any]
+) -> list[dict[str, Any]]:
     if not ui_specs or len(ui_specs) <= 10:
         return ui_specs
 
@@ -136,7 +136,7 @@ def _filter_ui_specs_by_testpoint(
             spec_text += " " + (ui_spec.get("purpose", "") or "").lower()
             regions = ui_spec.get("regions", {})
             if isinstance(regions, dict):
-                spec_text += " " + " ".join(k.lower() for k in regions.keys() if k)
+                spec_text += " " + " ".join(k.lower() for k in regions if k)
 
         if any(kw in spec_text for kw in keywords):
             matched.append(spec)

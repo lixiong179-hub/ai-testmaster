@@ -2,7 +2,7 @@
 """
 from pathlib import Path
 import os
-from typing import Optional, Dict, Any
+from typing import Any
 from datetime import timedelta
 from loguru import logger
 
@@ -16,7 +16,7 @@ class CleanupMixin:
     def __init__(self) -> None:
         self._retention_days: int = 30
 
-    async def cleanup_expired_videos(self, days: Optional[int] = None) -> Dict[str, Any]:
+    async def cleanup_expired_videos(self, days: int | None = None) -> dict[str, Any]:
         """删除创建时间早于保留期的所有视频记录及物理文件。
 
         Args:
@@ -68,7 +68,7 @@ class CleanupMixin:
         logger.info(f"过期视频清理完成: 删除{deleted_count}个, 失败{failed_count}个, 释放{result['freed_mb']}MB")
         return result
 
-    async def _cleanup_orphaned_videos(self) -> Dict[str, int]:
+    async def _cleanup_orphaned_videos(self) -> dict[str, int]:
         """清理数据库中有记录但物理文件已不存在（孤立）的视频记录。
 
         Returns:
@@ -94,7 +94,7 @@ class CleanupMixin:
         logger.info(f"孤立视频清理: 发现{orphaned_count}个, 清理{cleaned_count}个")
         return {"orphaned_count": orphaned_count, "cleaned_count": cleaned_count}
 
-    async def get_storage_stats(self) -> Dict[str, Any]:
+    async def get_storage_stats(self) -> dict[str, Any]:
         """统计当前所有视频的存储用量，包括记录数和磁盘占用。
 
         Returns:

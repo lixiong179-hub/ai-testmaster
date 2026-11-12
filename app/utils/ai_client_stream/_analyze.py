@@ -1,7 +1,7 @@
 import asyncio
 import json
 import re
-from typing import Dict, Any, Optional, List
+from typing import Any
 from loguru import logger
 
 import httpx
@@ -54,24 +54,25 @@ class _AnalyzeStreamMixin:
         for attempt in range(self.max_retries):
             try:
                 logger.info(f"AI分析需求（流式响应） - 尝试 {attempt + 1}/{self.max_retries}")
-                async with httpx.AsyncClient(timeout=TimeoutConfig.AI_API) as client:
-                    async with client.stream("POST", self.api_url, headers=headers, json=data) as response:
-                        response.raise_for_status()
-                        async for line in response.aiter_lines():
-                            if line.startswith('data: '):
-                                data_part = line[6:]
-                                if data_part == '[DONE]':
-                                    break
-                                try:
-                                    chunk_data = json.loads(data_part)
-                                    if 'choices' in chunk_data:
-                                        delta = chunk_data['choices'][0].get('delta', {})
-                                        if 'content' in delta:
-                                            full_content += delta['content']
-                                            progress = min(int(len(full_content) / 20), 95)
-                                            yield {"progress": progress, "message": "分析中..."}
-                                except json.JSONDecodeError:
-                                    pass
+                async with httpx.AsyncClient(timeout=TimeoutConfig.AI_API) as client, client.stream(
+                    "POST", self.api_url, headers=headers, json=data
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if line.startswith('data: '):
+                            data_part = line[6:]
+                            if data_part == '[DONE]':
+                                break
+                            try:
+                                chunk_data = json.loads(data_part)
+                                if 'choices' in chunk_data:
+                                    delta = chunk_data['choices'][0].get('delta', {})
+                                    if 'content' in delta:
+                                        full_content += delta['content']
+                                        progress = min(int(len(full_content) / 20), 95)
+                                        yield {"progress": progress, "message": "分析中..."}
+                            except json.JSONDecodeError:
+                                pass
                 logger.info(f"AI流式响应接收完成，内容长度: {len(full_content)} 字符")
                 test_points = self._parse_stream_test_points(full_content)
                 if test_points is not None:
@@ -97,7 +98,7 @@ class _AnalyzeStreamMixin:
                 yield {"progress": 100, "message": error_message, "status": "error", "error": True}
                 return
 
-    def _parse_stream_test_points(self, full_content: str) -> Optional[List[Dict[str, Any]]]:
+    def _parse_stream_test_points(self, full_content: str) -> list[dict[str, Any]] | None:
         try:
             test_points = json.loads(full_content)
             if isinstance(test_points, list):

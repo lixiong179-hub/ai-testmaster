@@ -1,7 +1,7 @@
 """Legacy 会话管理Mixin - execution_replay_service.py 原始会话管理逻辑。"""
 import asyncio
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from typing import Any
+from datetime import timedelta
 from loguru import logger
 from sqlalchemy.orm import Session
 
@@ -16,10 +16,10 @@ class LegacySessionMixin:
     """回放会话管理：创建、加载时间轴、清理。"""
 
     def __init__(self):
-        self._active_replays: Dict[str, ReplaySession] = {}
+        self._active_replays: dict[str, ReplaySession] = {}
         self._replay_speed: float = 1.0
         self._session_timeout_minutes: int = 30
-        self._cleanup_task: Optional[asyncio.Task] = None
+        self._cleanup_task: asyncio.Task | None = None
 
     def _start_cleanup_task(self):
         if self._cleanup_task is None or self._cleanup_task.done():
@@ -57,9 +57,9 @@ class LegacySessionMixin:
         self,
         db: Session,
         execution_id: str,
-        video_path: Optional[str] = None,
-        screenshots: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        video_path: str | None = None,
+        screenshots: list[str] | None = None
+    ) -> dict[str, Any]:
         timeline = await self._load_execution_timeline(db, execution_id)
         session: ReplaySession = {
             "execution_id": execution_id,
@@ -84,7 +84,7 @@ class LegacySessionMixin:
 
     async def _load_execution_timeline(
         self, db: Session, execution_id: str
-    ) -> Optional[ExecutionTimeline]:
+    ) -> ExecutionTimeline | None:
         try:
             parts = execution_id.split('_')
             if len(parts) >= 4:

@@ -2,7 +2,6 @@
 
 所有实现已迁移到 test_data/ 子包，本文件仅保留向后兼容的导入。
 """
-from typing import Union
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.test_data_crud_mixin import TestDataCrudMixin
@@ -21,7 +20,7 @@ class TestDataService(TestDataCrudMixin, TestDataGenServiceMixin, TestDataServic
 
     __test__ = False
 
-    def __init__(self, db: Union[Session, AsyncSession]) -> None:
+    def __init__(self, db: Session | AsyncSession) -> None:
         """初始化测试数据服务。
 
         Args:

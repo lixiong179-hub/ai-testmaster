@@ -3,7 +3,7 @@
 从 quality_validator.py 拆分，包含步骤完整性、测试数据质量、
 边界值策略与类型一致性校验。所有函数均为模块级纯函数。
 """
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from app.services.case_quality.quality_scoring_constants import (
     CLICK_ACTION_KEYWORDS,
@@ -18,7 +18,7 @@ from app.services.case_quality.quality_scoring_constants import (
 )
 
 
-def validate_steps(steps: List[Dict[str, Any]], case_type: str = "") -> Tuple[bool, str]:
+def validate_steps(steps: list[dict[str, Any]], case_type: str = "") -> tuple[bool, str]:
     """校验步骤完整性、确定性和自动化可执行性。
 
     Args:
@@ -59,7 +59,7 @@ def validate_steps(steps: List[Dict[str, Any]], case_type: str = "") -> Tuple[bo
     return True, ""
 
 
-def validate_test_data_quality(steps: List[Dict[str, Any]]) -> Tuple[bool, str]:
+def validate_test_data_quality(steps: list[dict[str, Any]]) -> tuple[bool, str]:
     """校验测试数据质量，确保 input/select 步骤有具体输入值。
 
     Args:
@@ -81,7 +81,7 @@ def validate_test_data_quality(steps: List[Dict[str, Any]]) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_boundary_strategy(case: Dict[str, Any]) -> List[str]:
+def validate_boundary_strategy(case: dict[str, Any]) -> list[str]:
     """校验边界用例是否使用实际边界值而非占位符。
 
     业务原因：case_category=boundary 的用例应使用最大值/最小值/空值/特殊字符等边界值，
@@ -93,7 +93,7 @@ def validate_boundary_strategy(case: Dict[str, Any]) -> List[str]:
     Returns:
         问题描述列表，空列表表示全部通过
     """
-    issues: List[str] = []
+    issues: list[str] = []
     case_category = case.get("case_category", "")
     if case_category != "boundary":
         return issues
@@ -117,7 +117,7 @@ def validate_boundary_strategy(case: Dict[str, Any]) -> List[str]:
     return issues
 
 
-def validate_type_consistency(case: Dict[str, Any]) -> List[str]:
+def validate_type_consistency(case: dict[str, Any]) -> list[str]:
     """校验 case_type/case_category/action_type 三者组合一致性。
 
     业务原因：api_automation 用例不应包含 UI 操作动作（click/hover 等），
@@ -129,7 +129,7 @@ def validate_type_consistency(case: Dict[str, Any]) -> List[str]:
     Returns:
         问题描述列表，空列表表示全部通过
     """
-    issues: List[str] = []
+    issues: list[str] = []
     case_type = case.get("case_type", "")
     steps = case.get("steps", [])
     if not isinstance(steps, list):

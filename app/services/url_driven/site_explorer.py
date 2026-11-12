@@ -14,7 +14,7 @@ import json
 from collections import deque
 from dataclasses import asdict, dataclass
 from hashlib import sha256
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -35,11 +35,11 @@ class PageSnapshot:
     """
     url: str
     title: str
-    elements: List[Dict[str, Any]]
-    forms: List[Dict[str, Any]]
-    navigation: List[Dict[str, str]]
+    elements: list[dict[str, Any]]
+    forms: list[dict[str, Any]]
+    navigation: list[dict[str, str]]
     is_login_page: bool
-    screenshot_path: Optional[str]
+    screenshot_path: str | None
     captured_at: str
 
 
@@ -47,13 +47,13 @@ class PageSnapshot:
 class SiteMap:
     """站点探索产物，含入口 URL、页面快照列表与探索统计。"""
     entry_url: str
-    pages: List[PageSnapshot]
+    pages: list[PageSnapshot]
     max_depth_reached: int
     explored_count: int
     skipped_count: int
     cache_key: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """序列化为可 JSON 化的字典，供 Redis 缓存存储。"""
         return {
             "entry_url": self.entry_url,
@@ -65,7 +65,7 @@ class SiteMap:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SiteMap":
+    def from_dict(cls, data: dict[str, Any]) -> "SiteMap":
         """从字典反序列化 SiteMap，pages 字段重建为 PageSnapshot。"""
         pages = [PageSnapshot(**page) for page in data.get("pages", [])]
         return cls(
@@ -91,7 +91,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
         self._redis_client: Any = None
         self._redis_available: bool = True
 
-    async def explore(self, url: str, credentials: Optional[Dict[str, str]] = None) -> SiteMap:
+    async def explore(self, url: str, credentials: dict[str, str] | None = None) -> SiteMap:
         """探索站点：缓存校验 → 启动浏览器 → 登录检测 → BFS 采集 → 缓存写入。
 
         Args:
@@ -108,7 +108,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
             return cached
 
         controller = BrowserControllerV2(self._build_browser_config())
-        pages: List[PageSnapshot] = []
+        pages: list[PageSnapshot] = []
         skipped_count = 0
         max_depth_reached = 0
         try:
@@ -165,7 +165,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
 
     async def _bfs_crawl(
         self, controller: BrowserControllerV2, entry_snapshot: PageSnapshot, base_url: str
-    ) -> Tuple[List[PageSnapshot], int, int]:
+    ) -> tuple[list[PageSnapshot], int, int]:
         """BFS 遍历同源链接逐页采集，深度受 URL_QUICK_TEST_MAX_DEPTH 限制。
 
         Returns:
@@ -176,7 +176,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
         queue: deque = deque(
             (link_url, 1) for link_url in self._discover_links(entry_snapshot, base_url)
         )
-        pages: List[PageSnapshot] = []
+        pages: list[PageSnapshot] = []
         skipped = 0
         max_depth_reached = 0
         while queue:
@@ -196,7 +196,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
                         queue.append((next_url, depth + 1))
         return pages, skipped, max_depth_reached
 
-    async def _capture_current(self, controller: BrowserControllerV2) -> Optional[PageSnapshot]:
+    async def _capture_current(self, controller: BrowserControllerV2) -> PageSnapshot | None:
         """采集当前页快照（不导航），用于登录后重新采集登录后页面。"""
         page = controller.active_page
         if page is None:
@@ -209,7 +209,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
 
     async def _navigate_and_capture(
         self, controller: BrowserControllerV2, url: str
-    ) -> Optional[PageSnapshot]:
+    ) -> PageSnapshot | None:
         """导航到指定 URL 并采集快照，导航超时或失败返回 None。"""
         page = controller.active_page
         if page is None:
@@ -229,7 +229,7 @@ class SiteExplorer(CrawlMixin, SnapshotMixin, LoginMixin):
             action_timeout=self._page_timeout_ms,
         )
 
-    def _get_cached_sitemap(self, cache_key: str) -> Optional[SiteMap]:
+    def _get_cached_sitemap(self, cache_key: str) -> SiteMap | None:
         """读取 Redis 缓存的 SiteMap，不可用或未命中返回 None。"""
         client = self._get_redis_client()
         if client is None:

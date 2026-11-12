@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any
+from typing import Any
 
 from app.utils.ai_client_parser import (
     infer_test_category,
@@ -8,7 +8,7 @@ from app.utils.ai_client_parser import (
 )
 
 
-def normalize_new_format(case: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_new_format(case: dict[str, Any]) -> dict[str, Any]:
     steps = case.get('steps', [])
     expected_results = case.get('expected_results', [])
     normalized_steps = []
@@ -87,7 +87,7 @@ def normalize_new_format(case: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def normalize_old_format(case: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_old_format(case: dict[str, Any]) -> dict[str, Any]:
     from app.core.constants import normalize_priority
     raw_priority = case.get('priority', 2)
     priority_val = normalize_priority(raw_priority)
@@ -98,10 +98,7 @@ def normalize_old_format(case: Dict[str, Any]) -> Dict[str, Any]:
     for i, step in enumerate(raw_steps):
         raw_action = step.get('action', '')
         raw_description = step.get('description', '')
-        if not raw_action and raw_description:
-            action = raw_description
-        else:
-            action = raw_action
+        action = raw_description if not raw_action and raw_description else raw_action
         action_type = infer_action_type(action)
         input_value = ''
         if action_type == 'input':

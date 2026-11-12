@@ -21,7 +21,7 @@ AI提示词构建模块
     - loguru.logger: 日志记录
 """
 import re
-from typing import Dict, Any, Optional, List
+from typing import Any
 
 
 def build_weight_model(has_ui: bool, has_requirement: bool, has_test_point: bool) -> tuple:
@@ -145,7 +145,7 @@ def sanitize_input(text: str, max_length: int = 50000) -> str:
     return text.strip()
 
 
-def build_ui_spec_description(ui_spec: Dict[str, Any], screen_name: Optional[str] = None) -> str:
+def build_ui_spec_description(ui_spec: dict[str, Any], screen_name: str | None = None) -> str:
     """将单个UI规格对象格式化为可读文本描述
 
     根据UI规格字典中的各个字段，生成结构化的文本描述，供AI理解页面布局和元素。
@@ -233,7 +233,7 @@ def build_ui_spec_description(ui_spec: Dict[str, Any], screen_name: Optional[str
     return '\n'.join(parts) if parts else "无有效UI原型图解析结果"
 
 
-def build_ui_specs_description(ui_specs: List[Dict[str, Any]]) -> str:
+def build_ui_specs_description(ui_specs: list[dict[str, Any]]) -> str:
     """批量格式化多个UI规格对象
 
     遍历UI规格列表，对每个规格调用build_ui_spec_description生成描述，
@@ -259,7 +259,7 @@ def build_ui_specs_description(ui_specs: List[Dict[str, Any]]) -> str:
     return '\n\n'.join(all_parts) if all_parts else "无有效UI原型图解析结果"
 
 
-def build_project_env_info(project_config: Dict[str, Any]) -> str:
+def build_project_env_info(project_config: dict[str, Any]) -> str:
     """构建项目环境配置信息
 
     生成项目环境描述文本，包含项目名称、类型，以及关于前置条件的重要说明。
@@ -278,10 +278,7 @@ def build_project_env_info(project_config: Dict[str, Any]) -> str:
     project_type = project_config.get('project_type', 'web')
 
     login_hint = "账号已登录"
-    if project_type == 'web':
-        env_hint = "浏览器网络正常"
-    else:
-        env_hint = "设备网络正常"
+    env_hint = "浏览器网络正常" if project_type == 'web' else "设备网络正常"
 
     parts = [
         "## 项目环境配置",

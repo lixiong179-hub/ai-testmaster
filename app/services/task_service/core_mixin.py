@@ -1,5 +1,4 @@
 import asyncio
-from typing import List
 
 from app.crud.test_task import (
     update_test_task_status_async,
@@ -14,7 +13,7 @@ class TaskCoreMixin:
     def __init__(self):
         self.running_tasks = {}  # 存储正在运行的任务
 
-    def start_task(self, task_id: int, project_id: int, case_ids: List[int]) -> None:
+    def start_task(self, task_id: int, project_id: int, case_ids: list[int]) -> None:
         """
         开始执行任务
 
@@ -49,7 +48,7 @@ class TaskCoreMixin:
         if task_id in self.running_tasks:
             self.running_tasks[task_id]["status"] = "stopped"
 
-    async def _execute_task(self, task_id: int, project_id: int, case_ids: List[int]):
+    async def _execute_task(self, task_id: int, project_id: int, case_ids: list[int]):
         """
         执行测试任务（批量执行用例）
 
@@ -136,11 +135,8 @@ class TaskCoreMixin:
 
             # 任务执行完成
             if task_id in self.running_tasks and self.running_tasks[task_id]["status"] == "running":
-                # 根据执行结果更新任务状态
-                if fail_count == 0:
-                    status = 2  # 2: 执行完成
-                else:
-                    status = 3  # 3: 执行失败
+                # 根据执行结果更新任务状态：2=执行完成，3=执行失败
+                status = 2 if fail_count == 0 else 3
 
                 await update_test_task_status_async(db, task_id, project_id, status)
 

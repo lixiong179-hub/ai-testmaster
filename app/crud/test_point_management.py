@@ -7,7 +7,6 @@
 3. 测试点关联用例列表查询
 """
 from datetime import date, datetime, time
-from typing import List, Optional, Tuple
 
 from sqlalchemy import asc, desc, func, or_
 from sqlalchemy.orm import Session
@@ -29,13 +28,13 @@ def _build_test_point_filters(
     query,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
-    created_by: Optional[str] = None,
-    requirement_id: Optional[int] = None,
-    keyword: Optional[str] = None,
-    created_from: Optional[date] = None,
-    created_to: Optional[date] = None,
+    module: str | None = None,
+    priority: int | None = None,
+    created_by: str | None = None,
+    requirement_id: int | None = None,
+    keyword: str | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
     apply_priority: bool = True,
 ):
     """构建测试点管理页的通用筛选条件。"""
@@ -75,18 +74,18 @@ def get_test_points_with_case_count(
     db: Session,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
-    created_by: Optional[str] = None,
-    requirement_id: Optional[int] = None,
-    keyword: Optional[str] = None,
-    created_from: Optional[date] = None,
-    created_to: Optional[date] = None,
+    module: str | None = None,
+    priority: int | None = None,
+    created_by: str | None = None,
+    requirement_id: int | None = None,
+    keyword: str | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
     skip: int = 0,
     limit: int = 100,
     sort_by: str = "create_time",
     sort_order: str = "desc",
-) -> List[Tuple[TestPoint, int]]:
+) -> list[tuple[TestPoint, int]]:
     """获取带关联用例数量的测试点列表。"""
     case_count_subquery = (
         db.query(
@@ -134,13 +133,13 @@ def get_test_points_with_case_count_total(
     db: Session,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    priority: Optional[int] = None,
-    created_by: Optional[str] = None,
-    requirement_id: Optional[int] = None,
-    keyword: Optional[str] = None,
-    created_from: Optional[date] = None,
-    created_to: Optional[date] = None,
+    module: str | None = None,
+    priority: int | None = None,
+    created_by: str | None = None,
+    requirement_id: int | None = None,
+    keyword: str | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
 ) -> int:
     """获取增强筛选后的测试点总数。"""
     query = db.query(func.count(TestPoint.id))
@@ -163,12 +162,12 @@ def get_test_point_list_stats(
     db: Session,
     project_id: int,
     user_id: int,
-    module: Optional[str] = None,
-    created_by: Optional[str] = None,
-    requirement_id: Optional[int] = None,
-    keyword: Optional[str] = None,
-    created_from: Optional[date] = None,
-    created_to: Optional[date] = None,
+    module: str | None = None,
+    created_by: str | None = None,
+    requirement_id: int | None = None,
+    keyword: str | None = None,
+    created_from: date | None = None,
+    created_to: date | None = None,
 ) -> dict:
     """获取测试点列表的全局统计信息。
 
@@ -233,7 +232,7 @@ def get_requirements_by_project(
     db: Session,
     project_id: int,
     user_id: int,
-) -> List[Requirement]:
+) -> list[Requirement]:
     """获取项目下可供测试点筛选使用的需求列表。"""
     return (
         db.query(Requirement)
@@ -254,7 +253,7 @@ def get_test_cases_by_test_point(
     test_point_id: int,
     skip: int = 0,
     limit: int = 100,
-) -> List[TestCase]:
+) -> list[TestCase]:
     """获取测试点关联的测试用例列表。"""
     return (
         db.query(TestCase)

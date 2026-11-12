@@ -4,7 +4,7 @@ UI Spec Parser - 流程与适配测试点Mixin
 """
 import json
 import asyncio
-from typing import List, Dict, Any, Optional
+from typing import Any
 from loguru import logger
 
 
@@ -13,8 +13,8 @@ class UISpecFlowMixin:
 
     async def parse_multiple_screen_flows(
         self,
-        screens_data: List[Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+        screens_data: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
         """
         多图合并生成页面流转（增强版：传入可点击元素）
 
@@ -88,8 +88,8 @@ class UISpecFlowMixin:
 
     async def generate_ui_adaptation_test_points(
         self,
-        screens_data: List[Dict[str, Any]]
-    ) -> Optional[List[Dict[str, Any]]]:
+        screens_data: list[dict[str, Any]]
+    ) -> list[dict[str, Any]] | None:
         """
         为已解析的UI屏幕生成UI适配测试检查点（基于layout_constraints）
 

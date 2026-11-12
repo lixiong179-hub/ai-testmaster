@@ -3,7 +3,7 @@
 import json
 import asyncio
 import re
-from typing import Optional, Dict, Any
+from typing import Any
 from loguru import logger
 
 from app.services.test_execution_engine.models import (
@@ -18,7 +18,7 @@ CAPTCHA_MAX_RETRIES = 2
 class ActionExecutorVerifyCaptchaMixin:
 
     @staticmethod
-    def _eval_math_expression(expr: str) -> Optional[str]:
+    def _eval_math_expression(expr: str) -> str | None:
         cleaned = re.sub(r'[=?\s]', '', expr)
         match = re.match(r'^([\d.]+)([+\-*/])([\d.]+)$', cleaned)
         if not match:
@@ -42,7 +42,7 @@ class ActionExecutorVerifyCaptchaMixin:
             return None
 
     @staticmethod
-    def _extract_captcha_text(response: str) -> Optional[str]:
+    def _extract_captcha_text(response: str) -> str | None:
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if not json_match:
             return None
@@ -80,7 +80,7 @@ class ActionExecutorVerifyCaptchaMixin:
             timeout=CAPTCHA_RECOGNIZE_TIMEOUT,
         )
 
-    async def _execute_captcha(self, action_info: Dict[str, Any], step_id: Optional[int]) -> None:
+    async def _execute_captcha(self, action_info: dict[str, Any], step_id: int | None) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         if not self.vision_model:
@@ -117,8 +117,8 @@ class ActionExecutorVerifyCaptchaMixin:
     "error": "未找到验证码"
 }"""
 
-        captcha_text: Optional[str] = None
-        last_error: Optional[Exception] = None
+        captcha_text: str | None = None
+        last_error: Exception | None = None
 
         for attempt in range(1, CAPTCHA_MAX_RETRIES + 1):
             try:
@@ -134,7 +134,7 @@ class ActionExecutorVerifyCaptchaMixin:
                     logger.warning(f"验证码识别结果为空(第{attempt}次)")
                     if attempt < CAPTCHA_MAX_RETRIES:
                         await asyncio.sleep(1)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = StepExecutionError(
                     f"验证码识别超时({CAPTCHA_RECOGNIZE_TIMEOUT}秒)，第{attempt}次尝试"
                 )
@@ -208,7 +208,7 @@ class ActionExecutorVerifyCaptchaMixin:
         """, captcha_text)
         logger.info(f"验证码输入完成(坐标方式): {captcha_text}")
 
-    async def _execute_verify(self, action_info: Dict[str, Any], step_id: Optional[int]) -> None:
+    async def _execute_verify(self, action_info: dict[str, Any], step_id: int | None) -> None:
         if not self.browser:
             raise StepExecutionError("浏览器未初始化")
         text = action_info.get("text", "")
@@ -234,7 +234,7 @@ class ActionExecutorVerifyCaptchaMixin:
                     ),
                     timeout=CAPTCHA_RECOGNIZE_TIMEOUT,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 raise VerificationError("AI验证超时")
             except Exception as e:
                 raise VerificationError(f"AI验证请求失败: {str(e)}")

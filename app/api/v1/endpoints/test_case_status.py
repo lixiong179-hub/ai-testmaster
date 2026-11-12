@@ -1,4 +1,3 @@
-from typing import Optional
 
 """
 测试用例状态端点模块
@@ -59,7 +58,7 @@ STATUS_LABELS = {
 class WorkflowTransitionRequest(BaseModel):
     """工作流状态转换请求模型"""
     target_status: str
-    comment: Optional[str] = None
+    comment: str | None = None
 
     @field_validator('target_status')
     @classmethod
