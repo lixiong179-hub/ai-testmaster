@@ -102,6 +102,72 @@ def _mounted_routers() -> list[str]:
     return sorted(modules)
 
 
+def _mounted_prefix_map() -> dict[str, str]:
+    """解析每个已挂载 router 在 main.py 里的 `prefix=`（无则空串）。
+
+    B-08 修复：`test_capability` 的路由是 `""` + `"/{id}"`，资源名只存在于
+    `APIRouter(prefix=...)` / `include_router(prefix=...)` 中，此前取不到任何
+    字面量路径段 → 被误判为「无前端调用者」。
+    """
+    try:
+        tree = ast.parse(_read(MAIN_PY))
+    except SyntaxError:
+        return {}
+    aliases = _router_alias_map()
+    mapping: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+            continue
+        if node.func.attr != "include_router" or not node.args:
+            continue
+        arg = node.args[0]
+        if not (isinstance(arg, ast.Attribute) and arg.attr == "router"
+                and isinstance(arg.value, ast.Name)):
+            continue
+        alias = arg.value.id
+        module = aliases.get(alias, alias)
+        prefix = ""
+        for kw in node.keywords:
+            if kw.arg == "prefix" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                prefix = kw.value.value
+        mapping[module] = prefix
+    return mapping
+
+
+_GENERIC_SEGMENTS = {"api", "v1", "v2"}
+
+
+def _prefix_segment(prefix: str) -> str | None:
+    """取前缀中最后一个非参数段（`/api/v1/test-capability` → `test-capability`）。"""
+    for segment in reversed(prefix.strip("/").split("/")):
+        if (
+            segment
+            and not segment.startswith("{")
+            and not segment.startswith(":")
+            and segment not in _GENERIC_SEGMENTS
+        ):
+            return segment
+    return None
+
+
+def _router_prefix_from_tree(tree: ast.AST) -> str | None:
+    """提取模块级 `router = APIRouter(prefix="...")` 的 prefix。"""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == "router" for t in node.targets):
+            continue
+        call = node.value
+        if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)):
+            continue
+        if call.func.id != "APIRouter":
+            continue
+        for kw in call.keywords:
+            if kw.arg == "prefix" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                return kw.value.value
+    return None
+
+
 def _router_module_files(module: str) -> list[Path]:
     """定位 router 模块涉及的全部源文件。
 
@@ -119,20 +185,35 @@ _VERBS = {"get", "post", "put", "delete", "patch", "options", "head"}
 
 
 def _paths_from_tree(tree: ast.AST) -> list[str]:
-    """提取单棵 AST 中 `@router.<verb>("<path>")` 的路径。"""
+    """提取单棵 AST 中的路由路径。两种写法都支持（B-08 修复漏解析）：
+
+    ① 装饰器风格：`@router.get("<path>")`
+    ② 命令式风格：`router.add_api_route("<path>", handler, methods=["POST"])`
+       —— `app/api/v1/endpoints/generation_batch.py` 即属此类，此前被误判为
+       「AST 未解析」。
+    """
     paths: list[str] = []
     for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        # ① 装饰器风格
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for decorator in node.decorator_list:
+                if not isinstance(decorator, ast.Call) or not isinstance(decorator.func, ast.Attribute):
+                    continue
+                if decorator.func.attr not in _VERBS:
+                    continue
+                if not isinstance(decorator.func.value, ast.Name) or decorator.func.value.id != "router":
+                    continue
+                if decorator.args and isinstance(decorator.args[0], ast.Constant) and isinstance(decorator.args[0].value, str):
+                    paths.append(decorator.args[0].value)
             continue
-        for decorator in node.decorator_list:
-            if not isinstance(decorator, ast.Call) or not isinstance(decorator.func, ast.Attribute):
+        # ② 命令式风格：router.add_api_route("<path>", ...)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            if node.func.attr != "add_api_route":
                 continue
-            if decorator.func.attr not in _VERBS:
+            if not isinstance(node.func.value, ast.Name) or node.func.value.id != "router":
                 continue
-            if not isinstance(decorator.func.value, ast.Name) or decorator.func.value.id != "router":
-                continue
-            if decorator.args and isinstance(decorator.args[0], ast.Constant) and isinstance(decorator.args[0].value, str):
-                paths.append(decorator.args[0].value)
+            if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                paths.append(node.args[0].value)
     return paths
 
 
@@ -147,16 +228,20 @@ def _router_reexports(tree: ast.AST) -> list[str]:
     return modules
 
 
-def _router_paths(module: str) -> list[str]:
-    """用 AST 提取 router 全部路径。
+def _router_paths(module: str) -> tuple[list[str], list[str]]:
+    """用 AST 提取 router 的全部路径与 router 级 prefix。
 
     端点模块常见两种形态：① 单文件内直接 `@router.get`；② 聚合 shim
     （如 `endpoints/auth.py` 仅 `from ...auth_endpoints import router`）。
     后者需沿重导出链继续追溯，因此这里做有界广度优先遍历。
+
+    返回 `(paths, router_prefixes)`：`router_prefixes` 用于路径全为参数
+    （如 `""`、`"/{id}"`）时兜底推断资源名。
     """
     queue = [module]
     visited: set[str] = set()
     paths: list[str] = []
+    prefixes: list[str] = []
     while queue:
         current = queue.pop(0)
         if current in visited or len(visited) > 40:
@@ -168,9 +253,12 @@ def _router_paths(module: str) -> list[str]:
             except SyntaxError:
                 continue
             paths.extend(_paths_from_tree(tree))
+            local_prefix = _router_prefix_from_tree(tree)
+            if local_prefix:
+                prefixes.append(local_prefix)
             queue.extend(_router_reexports(tree))
     # 去重且保持顺序
-    return list(dict.fromkeys(paths))
+    return list(dict.fromkeys(paths)), list(dict.fromkeys(prefixes))
 
 
 def _resource_segment(route: str) -> str | None:
@@ -216,11 +304,20 @@ def build_report() -> str:
     rows.sort(key=lambda r: (-r["total"], r["module"]))
 
     routers = _mounted_routers()
+    mount_prefixes = _mounted_prefix_map()
     frontend = _frontend_corpus()
     endpoint_rows = []
     for module in routers:
-        paths = _router_paths(module)
-        segments = sorted({s for s in (_resource_segment(p) for p in paths) if s})
+        paths, local_prefixes = _router_paths(module)
+        segments = {s for s in (_resource_segment(p) for p in paths) if s}
+        if not segments:
+            # 路径全是参数（`""`、`"/{id}"`）时，资源名在 router/include_router 的 prefix 里
+            for prefix in [*local_prefixes, mount_prefixes.get(module, "")]:
+                seg = _prefix_segment(prefix)
+                if seg:
+                    segments.add(seg)
+                    break
+        segments = sorted(segments)
         hits = {seg: frontend.count(seg) for seg in segments}
         endpoint_rows.append({
             "module": module,
@@ -228,6 +325,7 @@ def build_report() -> str:
             "segments": segments,
             "hits": hits,
             "total_hits": sum(hits.values()),
+            "mount_prefix": mount_prefixes.get(module, ""),
         })
     endpoint_rows.sort(key=lambda r: (r["total_hits"], r["module"]))
 
@@ -251,8 +349,9 @@ def build_report() -> str:
     lines.append("1. **后端模块引用数**：以模块全限定名（如 `app.services.foo.bar`）在 `app/` + `tests/` 的 `.py` 源码中"
                  "统计命中次数（`from <模块> import` 与 `<模块>.` 两种形态都计入），排除定义文件自身。")
     lines.append("2. **端点 → 前端调用**：从 `app/main.py` 的 `include_router` 解析已挂载 router，用 AST 提取"
-                 "`@router.<verb>(\"...\")` 路径，取首个非参数段作为资源名，在 `src/api/**/*.ts` 中统计命中数；"
-                 "命中 0 即「该 router 无前端调用者」。")
+                "`@router.<verb>(\"...\")` 与 `router.add_api_route(\"...\")` 两种写法的路径，"
+                "取首个非参数段作为资源名（路径全为参数时回退到 `APIRouter(prefix=...)` / `include_router(prefix=...)`），"
+                "在 `src/api/**/*.ts` 中统计命中数；命中 0 即「该 router 无前端调用者」。")
     lines.append("3. **覆盖口径**：表 ① 覆盖 `app/services/` 下 **全部** `.py` 模块，不做抽样。")
     lines.append("")
     lines.append("## 表 ① 服务模块引用数")
@@ -268,11 +367,12 @@ def build_report() -> str:
     lines.append("")
     lines.append(f"共 **{len(routers)}** 个已挂载 router（按前端命中数升序）。")
     lines.append("")
-    lines.append("| # | router 模块 | 路由数 | 资源段 | 前端命中 |")
-    lines.append("| --- | --- | --- | --- | --- |")
+    lines.append("| # | router 模块 | 路由数 | 挂载前缀 | 资源段 | 前端命中 |")
+    lines.append("| --- | --- | --- | --- | --- | --- |")
     for idx, row in enumerate(endpoint_rows, 1):
         segments = ", ".join(row["segments"][:6]) or "-"
-        lines.append(f"| {idx} | `{row['module']}` | {row['route_count']} | {segments} | {row['total_hits']} |")
+        lines.append(f"| {idx} | `{row['module']}` | {row['route_count']} | "
+                     f"`{row['mount_prefix'] or '-'}` | {segments} | {row['total_hits']} |")
     lines.append("")
     lines.append("## 表 ③ 零引用清单与处置建议")
     lines.append("")
