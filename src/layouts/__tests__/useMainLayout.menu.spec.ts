@@ -23,12 +23,12 @@ vi.mock('@/store/flowSort', () => ({
 vi.mock('@/directives/permission', () => ({ hasPermission: mockHasPermission }))
 vi.mock('@element-plus/icons-vue', () => ({
   HomeFilled: {},
-  DataAnalysis: {},
   Setting: {},
   Message: {},
   Check: {},
   Timer: {},
-  DataLine: {},
+  Document: {},
+  Odometer: {},
   Lightning: {},
 }))
 
@@ -54,11 +54,18 @@ describe('useMainLayout — 菜单权限过滤', () => {
     mockHasPermission.mockReturnValue(true)
   })
 
-  it('全部有权限时菜单结构完整（含 3 个分组）', () => {
+  it('全部有权限时菜单结构完整（含 6 个分组）', () => {
     const { api, wrapper } = withSetup()
 
     const groups = api.menuItems.value.filter((item) => item.children)
-    expect(groups.map((g) => g.index)).toEqual(['case', 'iteration', 'system'])
+    expect(groups.map((g) => g.index)).toEqual([
+      'resource',
+      'case',
+      'execution',
+      'review',
+      'ops',
+      'system',
+    ])
     expect(api.menuItems.value.map((i) => i.index)).toContain('/home/quick-test')
 
     wrapper.unmount()
@@ -99,10 +106,14 @@ describe('useMainLayout — activeMenu 映射', () => {
     ['/home/case/quality/3', '/home/case'],
     ['/home/case/test-point-extract', '/home/case/test-point-management'],
     ['/home/case/pipeline/run-1', '/home/pipeline-dashboard'],
-    ['/home/requirement/ui-prototype/8', '/home/requirement'],
-    ['/home/analysis', '/home/requirement'],
+    ['/home/requirement/ui-prototype/8', '/home/requirement/ui-prototype'],
+    ['/home/analysis', '/home/requirement/analysis'],
     ['/home/task/detail/5', '/home/task'],
-    ['/home/report/detail/2', '/home/report'],
+    ['/home/execution/report/detail/2', '/home/execution/report'],
+    ['/home/execution/bug/detail/7', '/home/execution/bug'],
+    ['/home/iteration/review/42', '/home/iteration/review/0'],
+    ['/home/iteration/list', '/home/iteration/list'],
+    ['/home/report/detail/2', '/home/execution/report'],
   ])('子路径 %s 高亮 %s', (path, expected) => {
     const { api, wrapper } = withSetup(path)
 
@@ -138,10 +149,10 @@ describe('useMainLayout — 面包屑', () => {
     wrapper.unmount()
   })
 
-  it('/home/pipeline-dashboard 前插入「迭代中心」', () => {
+  it('/home/pipeline-dashboard 前插入「运营看板」', () => {
     const { api, wrapper } = withSetup('/home/pipeline-dashboard')
 
-    expect(api.breadcrumbList.value.map((i) => i.name)).toEqual(['迭代中心', 'Pipeline仪表盘'])
+    expect(api.breadcrumbList.value.map((i) => i.name)).toEqual(['运营看板', 'Pipeline仪表盘'])
 
     wrapper.unmount()
   })

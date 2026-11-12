@@ -1,81 +1,52 @@
-import { ref, computed, watch, onMounted, onUnmounted, type Component } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import {
-  HomeFilled,
-  DataAnalysis,
-  Setting,
-  Message,
-  Check,
-  Timer,
-  DataLine,
-  Lightning,
-} from '@element-plus/icons-vue'
 import { useFlowSortStore } from '@/store/flowSort'
-import { hasPermission } from '@/directives/permission'
+import { MENU_CONFIG, filterMenuByPermission, breadcrumbMap, type MenuItem } from './menuConfig'
 
-export interface MenuItem {
-  index: string
-  label: string
-  icon?: Component
-  permission?: string
-  children?: MenuItem[]
+export type { MenuItem }
+
+// 收集所有叶子菜单的 index，用于侧边栏高亮匹配
+const collectLeafIndices = (items: MenuItem[]): string[] =>
+  items.flatMap((item) =>
+    item.children && item.children.length > 0 ? collectLeafIndices(item.children) : [item.index]
+  )
+
+const LEAF_INDICES = collectLeafIndices(MENU_CONFIG)
+
+// 详情页/隐藏子路由 → 所属菜单项 index，保证侧边栏高亮不丢失
+const ACTIVE_MENU_ALIASES: Record<string, string> = {
+  '/home/case/test-point-extract': '/home/case/test-point-management',
+  '/home/case/pipeline': '/home/pipeline-dashboard',
+  '/home/case/iteration/regression-generate': '/home/iteration/list',
+  '/home/iteration/pipeline': '/home/pipeline-dashboard',
+  '/home/iteration/review': '/home/iteration/review/0',
+  '/home/iteration/regression-generate': '/home/iteration/list',
+  '/home/requirement/upload': '/home/requirement',
+  '/home/analysis': '/home/requirement/analysis',
+  // 旧路径兼容（/home/report、/home/bug 已重定向至执行中心）
+  '/home/report': '/home/execution/report',
+  '/home/bug': '/home/execution/bug',
 }
 
-const MENU_CONFIG: MenuItem[] = [
-  // 快速测试：网址驱动一键编排，置顶以便用户最快触达
-  { index: '/home/quick-test', label: '快速测试', icon: Lightning },
-  { index: '/home/project', label: '项目中心', icon: HomeFilled },
-  { index: '/home/requirement', label: '资源中心', icon: Message },
-  {
-    index: 'case',
-    label: '测试资产',
-    icon: Check,
-    children: [
-      { index: '/home/case', label: '用例列表' },
-      { index: '/home/case/test-point-management', label: '测试点管理' },
-      { index: '/home/case/smart-generate', label: '智能生成用例' },
-    ],
-  },
-  { index: '/home/task', label: '执行中心', icon: Timer },
-  { index: '/home/report', label: '报告中心', icon: DataAnalysis },
-  {
-    index: 'iteration',
-    label: '迭代中心',
-    icon: DataLine,
-    children: [
-      { index: '/home/pipeline-dashboard', label: 'Pipeline仪表盘' },
-      { index: '/home/ai-cost-dashboard', label: 'AI成本仪表盘' },
-      { index: '/home/iteration/regression-generate', label: '回归变更分析' },
-    ],
-  },
-  {
-    index: 'system',
-    label: '系统管理',
-    icon: Setting,
-    children: [
-      { index: '/home/system/user', label: '用户管理', permission: 'user:list' },
-      { index: '/home/system/role', label: '角色管理', permission: 'role:list' },
-      { index: '/home/system/audit-log', label: '审计日志', permission: 'system:manage' },
-      { index: '/home/system/test-capability', label: '测试能力', permission: 'system:manage' },
-      { index: '/home/system/quality-rule', label: '质量规则配置', permission: 'system:manage' },
-      { index: '/home/system/feature-flag', label: 'FeatureFlag管理', permission: 'system:manage' },
-    ],
-  },
-]
+const resolveActiveMenu = (path: string): string => {
+  // 1. 精确命中菜单项
+  const exact = LEAF_INDICES.find((index) => index === path)
+  if (exact) return exact
 
-function filterMenuByPermission(items: MenuItem[]): MenuItem[] {
-  return items
-    .map((item) => {
-      if (!hasPermission(item.permission)) return null
-      if (item.children) {
-        const filteredChildren = filterMenuByPermission(item.children)
-        if (filteredChildren.length === 0) return null
-        return { ...item, children: filteredChildren }
-      }
-      return item
-    })
-    .filter((item): item is MenuItem => item !== null)
+  // 2. 显式别名（隐藏子路由）
+  const aliasKey = Object.keys(ACTIVE_MENU_ALIASES)
+    .filter((prefix) => path === prefix || path.startsWith(prefix + '/'))
+    .sort((a, b) => b.length - a.length)[0]
+  if (aliasKey) return ACTIVE_MENU_ALIASES[aliasKey]
+
+  // 3. 最长前缀匹配（如 /home/task/detail/1 → /home/task）
+  const prefixed = LEAF_INDICES.filter((index) => path.startsWith(index + '/')).sort(
+    (a, b) => b.length - a.length
+  )[0]
+  if (prefixed) return prefixed
+
+  return path
 }
 
 export function useMainLayout() {
@@ -90,71 +61,9 @@ export function useMainLayout() {
 
   const menuItems = computed(() => filterMenuByPermission(MENU_CONFIG))
 
-  const activeMenu = computed(() => {
-    if (route.path.startsWith('/home/project/detail')) return '/home/project'
-    if (route.path.startsWith('/home/case/detail/')) return '/home/case'
-    if (route.path.startsWith('/home/case/quality/')) return '/home/case'
-    if (route.path.startsWith('/home/case/test-point-extract'))
-      return '/home/case/test-point-management'
-    if (route.path.startsWith('/home/case/smart-generate')) return '/home/case/smart-generate'
-    if (route.path.startsWith('/home/case/migration')) return '/home/case/migration'
-    if (route.path.startsWith('/home/case/case-refresh')) return '/home/case/case-refresh'
-    if (route.path.startsWith('/home/case/iteration/regression-generate'))
-      return '/home/iteration/regression-generate'
-    if (route.path.startsWith('/home/case/pipeline/')) return '/home/pipeline-dashboard'
-    if (route.path.startsWith('/home/iteration/pipeline/')) return '/home/pipeline-dashboard'
-    if (route.path.startsWith('/home/ai-cost-dashboard')) return '/home/ai-cost-dashboard'
-    if (route.path.startsWith('/home/iteration/regression-generate'))
-      return '/home/iteration/regression-generate'
-    if (route.path.startsWith('/home/requirement/ui-prototype')) return '/home/requirement'
-    if (route.path.startsWith('/home/requirement/upload')) return '/home/requirement'
-    if (route.path.startsWith('/home/analysis')) return '/home/requirement'
-    if (route.path.startsWith('/home/task/')) return '/home/task'
-    if (route.path.startsWith('/home/report/')) return '/home/report'
-    return route.path
-  })
+  const activeMenu = computed(() => resolveActiveMenu(route.path))
 
   const breadcrumbList = ref<{ path: string; name: string }[]>([])
-
-  const breadcrumbMap: Record<string, string> = {
-    '/home/dashboard': '仪表盘',
-    '/home/quick-test': '快速测试',
-    '/home/project': '项目中心',
-    '/home/project/detail': '项目详情',
-    '/home/requirement': '资源中心',
-    '/home/requirement/upload': '上传资源',
-    '/home/requirement/ui-prototype': 'UI原型详情',
-    '/home/case': '测试资产',
-    '/home/case/detail': '用例详情',
-    '/home/case/test-point-management': '测试点管理',
-    '/home/case/test-point-extract': '测试点提取',
-    '/home/case/smart-generate': '智能生成用例',
-    '/home/case/migration': '用例迁移',
-    '/home/case/case-refresh': '保鲜建议',
-    '/home/case/quality': '用例质量分析',
-    '/home/case/iteration/regression-generate': '回归变更分析',
-    '/home/task': '执行中心',
-    '/home/task/list': '任务列表',
-    '/home/task/create': '创建任务',
-    '/home/task/detail': '任务详情',
-    '/home/task/execution': '测试执行',
-    '/home/report': '报告中心',
-    '/home/report/detail': '报告详情',
-    '/home/pipeline-dashboard': 'Pipeline仪表盘',
-    '/home/ai-cost-dashboard': 'AI成本仪表盘',
-    '/home/iteration': '迭代中心',
-    '/home/iteration/pipeline': 'Pipeline进度',
-    '/home/iteration/regression-generate': '回归变更分析',
-    '/home/system': '系统管理',
-    '/home/system/user': '用户管理',
-    '/home/system/role': '角色管理',
-    '/home/system/audit-log': '审计日志',
-    '/home/system/test-capability': '测试能力',
-    '/home/system/quality-rule': '质量规则配置',
-    '/home/system/feature-flag': 'FeatureFlag管理',
-    '/home/system/profile': '个人中心',
-    '/home/analysis': '需求分析',
-  }
 
   const updateBreadcrumb = (path: string) => {
     const pathParts = path.split('/').filter(Boolean)
@@ -175,7 +84,7 @@ export function useMainLayout() {
     if (path === '/home/pipeline-dashboard' && result.length > 0) {
       const idx = result.findIndex((r) => r.name === 'Pipeline仪表盘')
       if (idx >= 0) {
-        result.splice(idx, 0, { path: '/home/iteration', name: '迭代中心' })
+        result.splice(idx, 0, { path: '/home/ops', name: '运营看板' })
       }
     }
     breadcrumbList.value = result
