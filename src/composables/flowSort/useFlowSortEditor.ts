@@ -485,6 +485,33 @@ function createFlowSortEditorContext(props: FlowSortEditorProps, emit: FlowSortE
       }
       return node
     })
+    // 同步重建主干连线：emitSortData 会从边反推 main_order，若沿用旧边会把顺序改回去
+    const mainNodeIdSet = new Set(orderedIds)
+    const untouchedEdges = vueFlowEdges.value.filter(
+      (edge: FlowGraphEdge) => !(mainNodeIdSet.has(edge.source) && mainNodeIdSet.has(edge.target))
+    )
+    const rebuiltEdges: FlowGraphEdge[] = []
+    for (let i = 0; i < orderedIds.length - 1; i++) {
+      const source = orderedIds[i]
+      const target = orderedIds[i + 1]
+      const existing = vueFlowEdges.value.find(
+        (edge: FlowGraphEdge) => edge.source === source && edge.target === target
+      )
+      rebuiltEdges.push(
+        existing
+          ? { ...existing }
+          : ({
+              id: `edge_${source}_${target}`,
+              source,
+              target,
+              sourceHandle: 'source-right',
+              targetHandle: 'target-left',
+              type: 'default',
+              data: { edge_type: 'normal' },
+            } as unknown as FlowGraphEdge)
+      )
+    }
+    vueFlowEdges.value = applyAllEdgeStyles([...untouchedEdges, ...rebuiltEdges])
     emitSortData()
   }
 
