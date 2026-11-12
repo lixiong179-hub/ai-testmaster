@@ -76,9 +76,9 @@ export function createSaveActions(state: GenerateState, computed: GenerateComput
   }
 
   const handleSaveCase = async () => {
-    const caseToSave = state.isEditingResult.value
-      ? state.editingCase.value
-      : computed.viewingCase.value
+    // 在首个 await 之前固化「是否为编辑态保存」，避免等待期间的 currentCaseIndex watcher 复位该标记
+    const wasEditing = state.isEditingResult.value
+    const caseToSave = wasEditing ? state.editingCase.value : computed.viewingCase.value
     if (!caseToSave) {
       ElMessage.warning('没有可保存的用例')
       return
@@ -141,8 +141,6 @@ export function createSaveActions(state: GenerateState, computed: GenerateComput
           state.generatedCases.value[state.currentCaseIndex.value]._dbId = created.id
         }
       }
-
-      const wasEditing = state.isEditingResult.value
 
       state.isEditingResult.value = false
       if (

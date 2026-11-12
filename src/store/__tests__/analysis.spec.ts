@@ -15,7 +15,10 @@ vi.mock('@/api/testPoint', () => ({
 import { useAnalysisStore } from '../analysis'
 import type { TestPoint } from '@/types/testPoint'
 
-function makePoint(overrides: Partial<TestPoint> = {}): TestPoint {
+// priority 放宽为 number：用于模拟后端返回超出 TestPointPriority(1|2|3) 声明的脏数据
+type PointOverrides = Omit<Partial<TestPoint>, 'priority'> & { priority?: number }
+
+function makePoint(overrides: PointOverrides = {}): TestPoint {
   return {
     id: 1,
     project_id: 10,
