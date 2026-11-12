@@ -84,15 +84,19 @@ export function useFlowGroupBackground(
 
     // Group by parent main node (for branch/exception/bypass children)
     const groups = new Map<string, FlowEditorNode[]>()
+    // 隐藏节点不参与分组，否则会留下只有边框没有内容的空分组背景
     const mainNodes = getMainNodesInOrder(
       vueFlowNodes.value,
       vueFlowEdges.value as unknown as Edge[]
-    )
+    ).filter((mainNode) => !mainNode.hidden)
 
     mainNodes.forEach((mainNode) => {
       const children = branchChildrenMap.value.get(mainNode.id)
       if (children && children.length > 0) {
-        groups.set(mainNode.id, [mainNode, ...children.map((c) => c.node)])
+        groups.set(mainNode.id, [
+          mainNode,
+          ...children.map((c) => c.node).filter((child) => !child.hidden),
+        ])
       }
     })
 
