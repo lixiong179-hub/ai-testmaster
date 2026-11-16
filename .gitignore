@@ -170,4 +170,7 @@ recovery_*.txt
 .codebuddy/
 .workbuddy/
 
+# 前端单测覆盖率报告
+coverage/
+
 # Misc

@@ -202,7 +202,10 @@ const loadLoginLogs = async () => {
       end_date: logDateRange.value?.[1]?.toISOString(),
     })
     loginLogs.value = response.data
-    logsPagination.total = response.headers['x-total-count'] || loginLogs.value.length
+    // 响应头为字符串，分页组件要求 number，直接赋值会触发 prop 类型告警并影响总数展示
+    const totalHeader = Number(response.headers['x-total-count'])
+    logsPagination.total =
+      Number.isFinite(totalHeader) && totalHeader > 0 ? totalHeader : loginLogs.value.length
   } catch (error) {
     ElMessage.error('获取登录日志失败')
   } finally {

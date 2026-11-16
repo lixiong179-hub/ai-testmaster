@@ -207,14 +207,17 @@ const handleDelete = (report: Report) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning',
-  }).then(async () => {
-    try {
-      await reportStore.deleteReport(report.id, report.project_id)
-      ElMessage.success('删除成功')
-    } catch (error) {
-      ElMessage.error('删除失败')
-    }
   })
+    .then(async () => {
+      try {
+        await reportStore.deleteReport(report.id, report.project_id)
+        ElMessage.success('删除成功')
+      } catch (error) {
+        ElMessage.error('删除失败')
+      }
+    })
+    // 取消确认会以 reject 结束，未捕获会产生 unhandled rejection
+    .catch(() => {})
 }
 
 // 初始化

@@ -25,15 +25,12 @@ export function useVideoReplay(options: UseVideoReplayOptions) {
   const videoDuration = ref(0)
   const replaySpeed = ref(1)
 
-  /** 构建回放执行ID */
+  /** 构建回放执行ID（优先任务级 case_id，回退嵌套 task.case_id） */
   const buildExecutionId = (): string => {
-    const taskInfoVal = options.taskInfo.value
-    const caseId = taskInfoVal
-      ? ((taskInfoVal as Record<string, unknown>).case_id ??
-        (taskInfoVal as Record<string, unknown>)?.task)
-        ? ((taskInfoVal as Record<string, unknown>).task as Record<string, unknown>)?.case_id
-        : undefined
-      : undefined
+    const taskInfoVal = options.taskInfo.value as Record<string, unknown> | null
+    const nestedTask = taskInfoVal?.task as Record<string, unknown> | undefined
+    const caseId =
+      (taskInfoVal?.case_id as number | undefined) ?? (nestedTask?.case_id as number | undefined)
     return `${options.taskId()}_${caseId ?? ''}`
   }
 

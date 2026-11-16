@@ -3,7 +3,7 @@ module.exports = {
   env: {
     node: true,
   },
-  ignorePatterns: ['dist/**', 'src/backup/**'],
+  ignorePatterns: ['dist/**', 'src/backup/**', 'coverage/**'],
   extends: ['eslint:recommended', '@vue/eslint-config-typescript', '@vue/eslint-config-prettier'],
   parser: 'vue-eslint-parser',
   parserOptions: {
@@ -29,4 +29,27 @@ module.exports = {
       },
     ],
   },
+  overrides: [
+    {
+      // 测试代码与测试工具：允许 mock 场景下的非空断言与调试输出
+      files: [
+        'src/**/__tests__/**/*.{ts,tsx}',
+        'src/**/*.{spec,test}.{ts,tsx}',
+        'src/test-utils/**/*.ts',
+        'vitest.setup.ts',
+      ],
+      rules: {
+        '@typescript-eslint/no-non-null-assertion': 'off',
+        'no-console': 'off',
+      },
+    },
+    {
+      // 命令行脚本使用 Node 环境
+      files: ['scripts/**/*.{js,mjs,cjs}'],
+      env: { node: true, es2022: true },
+      rules: {
+        'no-console': 'off',
+      },
+    },
+  ],
 }

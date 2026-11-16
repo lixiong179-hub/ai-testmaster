@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { defineComponent } from 'vue'
 import type { PipelineRun, PipelineStep, PipelineArtifact } from '@/api/pipeline'
+import PipelineProgress from '../PipelineProgress.vue'
 
 // --- Mock 句柄（hoisted 保证 vi.mock 工厂可引用） ---
 
@@ -130,7 +131,8 @@ function findButton(wrapper: ReturnType<typeof mount>, text: string) {
 }
 
 async function mountView() {
-  const PipelineProgress = (await import('../PipelineProgress.vue')).default
+  // 组件在顶层静态导入：14 个用例各做一次动态 import 会让大 SFC + Element Plus
+  // 的转换开销叠加到单个用例的超时预算上（全量并行时曾触发 5s 超时）。
   return mount(PipelineProgress, {
     global: {
       stubs: {
