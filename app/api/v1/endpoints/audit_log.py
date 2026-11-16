@@ -1,4 +1,4 @@
-"""
+﻿"""
 审计日志端点模块
 
 本模块定义审计日志查询的API端点，仅管理员可访问。
@@ -11,12 +11,14 @@
 
 权限要求: Bearer令牌认证 + Pipeline admin 角色
 """
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from typing import Any
 from datetime import datetime
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.services import audit_service
 from app.core.exception import create_response
@@ -31,7 +33,7 @@ def _get_current_user():
     return get_current_user
 
 
-def _require_admin(db: AsyncSession, user_id: int) -> None:
+def _require_admin(db: Session, user_id: int) -> None:
     """验证当前用户是否为 Pipeline 管理员（在 run_sync 上下文内调用）。"""
     from app.services.pipeline_permission_service import check_pipeline_permission
     if not check_pipeline_permission(db, user_id, "config", "read", "all"):
@@ -51,7 +53,7 @@ async def get_audit_logs(
     until: datetime | None = Query(None, description="截止时间（含）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(_get_current_user()),
 ) -> dict[str, Any]:
     """查询审计日志（管理员权限）"""
@@ -84,13 +86,7 @@ async def get_audit_logs(
             )
             return logs, total
 
-        import asyncio
-        from app.db.database import PrimarySessionLocal
-        sync_db = PrimarySessionLocal()
-        try:
-            logs, total = await asyncio.to_thread(_do_query, sync_db)
-        finally:
-            sync_db.close()
+        logs, total = await asyncio.to_thread(_do_query, db)
 
         items = [
             {

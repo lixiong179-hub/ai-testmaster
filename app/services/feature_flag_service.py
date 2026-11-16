@@ -1,5 +1,5 @@
 """
-运行时特性开关服务（已迁移至 AsyncSession）
+运行时特性开关服务（R2-1 单范式：同步 Session）
 
 提供特性开关的 CRUD、启用/禁用切换以及灰度评估逻辑。
 灰度评估规则：
@@ -9,32 +9,29 @@
     4. rollout_percentage == 0 → False
     5. 否则按 hash(key + str(project_id or "")) % 100 < rollout_percentage 决定
 
-迁移说明（任务1 续作 - service 层 async 试点）:
-    本模块作为首个 async service 试点，验证 service 层迁移模式。
-    改造要点:
-        1. __init__(db: Session) → __init__(db: AsyncSession)
-        2. db.query(Model).filter().first() → (await db.execute(select(...))).scalar_one_or_none()
-        3. db.query(Model).order_by().all() → (await db.execute(select(...).order_by(...))).scalars().all()
-        4. db.flush() → await db.commit() + await db.refresh() 修复持久化 bug
-        5. db.delete(flag) → await db.delete(flag)
-    试点通过后，可参照本文件模式批量迁移其他 service。
+范式说明（R2-1 阶段三）:
+    本模块曾是「service 层 async 试点」，2026-11-16 收敛回同步实现：
+        - 本服务只做 DB 访问，不涉及 IO 阻塞之外的异步依赖；
+        - 端点 ``Depends(get_db)`` 注入同步 ``Session``，调用侧统一用
+          ``await asyncio.to_thread(service.xxx, ...)`` 释放事件循环；
+        - 保持 ``commit + refresh`` 语义（原 async 试点修复的持久化 bug 不回退）。
 """
 import hashlib
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.feature_flag import FeatureFlag
 
 
 class FeatureFlagService:
-    """运行时特性开关服务，封装 CRUD 与灰度评估逻辑"""
+    """运行时特性开关服务，封装 CRUD 与灰度评估逻辑（同步 Session）。"""
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: Session) -> None:
         self.db = db
 
-    async def is_enabled(self, key: str, context: dict | None = None) -> bool:
-        """检查特性开关是否启用（简化入口，context 可传递 project_id / user_id）
+    def is_enabled(self, key: str, context: dict | None = None) -> bool:
+        """检查特性开关是否启用（简化入口，context 可传递 project_id / user_id）。
 
         Args:
             key: 特性开关唯一标识
@@ -44,19 +41,19 @@ class FeatureFlagService:
             bool: 特性开关是否对当前上下文生效
         """
         ctx = context or {}
-        return await self.evaluate(
+        return self.evaluate(
             key,
             project_id=ctx.get("project_id"),
             user_id=ctx.get("user_id"),
         )
 
-    async def evaluate(
+    def evaluate(
         self,
         key: str,
         project_id: int | None = None,
         user_id: int | None = None,
     ) -> bool:
-        """评估特性开关值，按灰度规则判断是否生效
+        """评估特性开关值，按灰度规则判断是否生效。
 
         Args:
             key: 特性开关唯一标识
@@ -66,7 +63,7 @@ class FeatureFlagService:
         Returns:
             bool: 特性开关是否对当前上下文生效
         """
-        flag = await self.get_flag(key)
+        flag = self.get_flag(key)
         if flag is None or not flag.enabled:
             return False
 
@@ -84,8 +81,8 @@ class FeatureFlagService:
         bucket_value = int(hashlib.md5(bucket_key.encode()).hexdigest(), 16) % 100
         return bucket_value < flag.rollout_percentage
 
-    async def get_flag(self, key: str) -> FeatureFlag | None:
-        """根据 key 获取特性开关
+    def get_flag(self, key: str) -> FeatureFlag | None:
+        """根据 key 获取特性开关。
 
         Args:
             key: 特性开关唯一标识
@@ -93,12 +90,10 @@ class FeatureFlagService:
         Returns:
             FeatureFlag 实例，不存在时返回 None
         """
-        result = await self.db.execute(
-            select(FeatureFlag).where(FeatureFlag.key == key)
-        )
+        result = self.db.execute(select(FeatureFlag).where(FeatureFlag.key == key))
         return result.scalar_one_or_none()
 
-    async def list_flags(
+    def list_flags(
         self,
         *,
         page: int = 1,
@@ -113,13 +108,11 @@ class FeatureFlagService:
         Returns:
             (分页后的 FeatureFlag 列表, 总数)
         """
-        total_result = await self.db.execute(
-            select(func.count()).select_from(FeatureFlag)
-        )
+        total_result = self.db.execute(select(func.count()).select_from(FeatureFlag))
         total = total_result.scalar_one()
 
         skip = (page - 1) * page_size
-        result = await self.db.execute(
+        result = self.db.execute(
             select(FeatureFlag)
             .order_by(FeatureFlag.key)
             .offset(skip)
@@ -127,7 +120,7 @@ class FeatureFlagService:
         )
         return result.scalars().all(), total
 
-    async def create_flag(
+    def create_flag(
         self,
         key: str,
         name: str,
@@ -137,7 +130,7 @@ class FeatureFlagService:
         target_type: str = "all",
         target_project_ids: list[int] | None = None,
     ) -> FeatureFlag:
-        """创建特性开关
+        """创建特性开关。
 
         Args:
             key: 特性开关唯一标识
@@ -154,7 +147,7 @@ class FeatureFlagService:
         Raises:
             ValueError: key 已存在
         """
-        existing = await self.get_flag(key)
+        existing = self.get_flag(key)
         if existing is not None:
             raise ValueError(f"特性开关已存在: {key}")
 
@@ -168,14 +161,13 @@ class FeatureFlagService:
             target_project_ids=target_project_ids,
         )
         self.db.add(flag)
-        # 修复：原代码仅 flush 不 commit，依赖外部自动提交，
-        # 但 endpoint 未配置自动 commit，导致创建在连接归还时被回滚。
-        await self.db.commit()
-        await self.db.refresh(flag)
+        # 保持原 async 试点修复的持久化语义：显式 commit + refresh
+        self.db.commit()
+        self.db.refresh(flag)
         return flag
 
-    async def update_flag(self, key: str, **kwargs) -> FeatureFlag:
-        """更新特性开关属性
+    def update_flag(self, key: str, **kwargs) -> FeatureFlag:
+        """更新特性开关属性。
 
         Args:
             key: 特性开关唯一标识
@@ -187,24 +179,28 @@ class FeatureFlagService:
         Raises:
             ValueError: key 不存在
         """
-        flag = await self.get_flag(key)
+        flag = self.get_flag(key)
         if flag is None:
             raise ValueError(f"特性开关不存在: {key}")
 
         allowed_fields = {
-            "name", "description", "enabled",
-            "rollout_percentage", "target_type", "target_project_ids",
+            "name",
+            "description",
+            "enabled",
+            "rollout_percentage",
+            "target_type",
+            "target_project_ids",
         }
         for field_name, value in kwargs.items():
             if field_name in allowed_fields and value is not None:
                 setattr(flag, field_name, value)
 
-        await self.db.commit()
-        await self.db.refresh(flag)
+        self.db.commit()
+        self.db.refresh(flag)
         return flag
 
-    async def toggle_flag(self, key: str, enabled: bool) -> FeatureFlag:
-        """切换特性开关启用/禁用状态
+    def toggle_flag(self, key: str, enabled: bool) -> FeatureFlag:
+        """切换特性开关启用/禁用状态。
 
         Args:
             key: 特性开关唯一标识
@@ -216,17 +212,17 @@ class FeatureFlagService:
         Raises:
             ValueError: key 不存在
         """
-        flag = await self.get_flag(key)
+        flag = self.get_flag(key)
         if flag is None:
             raise ValueError(f"特性开关不存在: {key}")
 
         flag.enabled = enabled
-        await self.db.commit()
-        await self.db.refresh(flag)
+        self.db.commit()
+        self.db.refresh(flag)
         return flag
 
-    async def delete_flag(self, key: str) -> bool:
-        """删除特性开关
+    def delete_flag(self, key: str) -> bool:
+        """删除特性开关。
 
         Args:
             key: 特性开关唯一标识
@@ -237,10 +233,10 @@ class FeatureFlagService:
         Raises:
             ValueError: key 不存在
         """
-        flag = await self.get_flag(key)
+        flag = self.get_flag(key)
         if flag is None:
             raise ValueError(f"特性开关不存在: {key}")
 
-        await self.db.delete(flag)
-        await self.db.commit()
+        self.db.delete(flag)
+        self.db.commit()
         return True

@@ -1,5 +1,5 @@
-"""
-运行时特性开关端点模块（已迁移至 AsyncSession）
+﻿"""
+运行时特性开关端点模块（R2-1 单范式：同步 Session + asyncio.to_thread）
 
 提供特性开关的 CRUD 与启用/禁用切换接口。
 
@@ -13,21 +13,22 @@
     - DELETE /{key}               — 删除
     - POST   /{key}/toggle        — 启用/禁用
 
-迁移说明（任务1 续作 - endpoint + service 全链路 async 试点）:
-    本模块与 FeatureFlagService 一并迁移，验证 endpoint → service → AsyncSession
-    全链路异步模式。改造要点:
-        1. db: Session → db: AsyncSession，依赖 get_db → async_get_db
-        2. service.list_flags() → await service.list_flags()（service 方法已改 async）
-        3. _require_admin 保持 async，依赖 get_current_user 不变
+范式说明（R2-1 阶段三，2026-11-16）:
+    本模块曾是「endpoint + service 全链路 async 试点」，现随会话层收敛回单范式:
+        1. 依赖改为注入同步 Session（get_db）；
+        2. FeatureFlagService 收敛为同步实现，端点统一用 asyncio.to_thread 调用，
+           保持事件循环不被 DB IO 阻塞；
+        3. _require_admin 依赖注入不变。
 """
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.schemas.feature_flag import (
     FeatureFlagCreate,
@@ -51,12 +52,12 @@ router = APIRouter(tags=["特性开关"])
 async def list_feature_flags(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """获取所有特性开关列表（分页）"""
     service = FeatureFlagService(db)
-    flags, total = await service.list_flags(page=page, page_size=page_size)
+    flags, total = await asyncio.to_thread(service.list_flags, page=page, page_size=page_size)
     items = [
         FeatureFlagResponse.model_validate(f).model_dump(mode="json")
         for f in flags
@@ -69,13 +70,14 @@ async def list_feature_flags(
 @router.post("/", response_model=FeatureFlagResponse, status_code=status.HTTP_201_CREATED)
 async def create_feature_flag(
     data: FeatureFlagCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(_require_admin),
 ) -> FeatureFlagResponse:
     """创建特性开关"""
     service = FeatureFlagService(db)
     try:
-        flag = await service.create_flag(
+        flag = await asyncio.to_thread(
+            service.create_flag,
             key=data.key,
             name=data.name,
             description=data.description,
@@ -96,14 +98,14 @@ async def create_feature_flag(
 async def update_feature_flag(
     key: str,
     data: FeatureFlagUpdate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(_require_admin),
 ) -> FeatureFlagResponse:
     """更新特性开关"""
     service = FeatureFlagService(db)
     update_kwargs = data.model_dump(exclude_unset=True)
     try:
-        flag = await service.update_flag(key, **update_kwargs)
+        flag = await asyncio.to_thread(service.update_flag, key, **update_kwargs)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -115,13 +117,13 @@ async def update_feature_flag(
 @router.delete("/{key}", response_model=ApiResponse)
 async def delete_feature_flag(
     key: str,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(_require_admin),
 ) -> dict[str, Any]:
     """删除特性开关"""
     service = FeatureFlagService(db)
     try:
-        await service.delete_flag(key)
+        await asyncio.to_thread(service.delete_flag, key)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -134,13 +136,13 @@ async def delete_feature_flag(
 async def toggle_feature_flag(
     key: str,
     enabled: bool,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(_require_admin),
 ) -> FeatureFlagResponse:
     """启用/禁用特性开关"""
     service = FeatureFlagService(db)
     try:
-        flag = await service.toggle_flag(key, enabled=enabled)
+        flag = await asyncio.to_thread(service.toggle_flag, key, enabled=enabled)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
