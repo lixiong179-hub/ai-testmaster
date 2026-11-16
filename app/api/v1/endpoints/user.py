@@ -1,4 +1,4 @@
-from typing import Any
+﻿from typing import Any
 """
 用户管理端点模块
 
@@ -26,9 +26,9 @@ from typing import Any
 """
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.schemas.common import ApiResponse
 from app.schemas.user import (
     User, UserCreate, UserUpdate, UserWithRoles,
@@ -52,7 +52,7 @@ router = APIRouter(prefix="/user", tags=["用户管理"])
 @router.post("/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(async_get_db)
+    db: Session = Depends(get_db)
 ) -> Token:
     """用户登录 - 使用JWT令牌"""
     user = await UserService(db).authenticate_user_async(
@@ -76,7 +76,7 @@ async def login(
 @router.get("/me")
 async def get_current_user_info(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(async_get_db)
+    db: Session = Depends(get_db)
 ) -> dict[str, Any]:
     """获取当前登录用户信息"""
     return {
@@ -91,7 +91,7 @@ async def get_current_user_info(
 @router.post("/", response_model=User)
 async def create_user(
     user_in: UserCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> User:
     """创建用户（需认证）"""
@@ -104,7 +104,7 @@ async def create_user(
 async def get_users(
     skip: int = 0,
     limit: int = 100,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> list[User]:
     """获取用户列表（需认证）"""
@@ -117,7 +117,7 @@ async def get_users(
 @router.post("/role", response_model=Role)
 async def create_role(
     role_in: RoleCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Role:
     """创建角色（需超级管理员）"""
@@ -132,7 +132,7 @@ async def create_role(
 async def get_roles(
     skip: int = 0,
     limit: int = 100,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> list[Role]:
     """获取角色列表（需认证）"""
@@ -144,7 +144,7 @@ async def get_roles(
 @router.get("/role/{role_id}", response_model=Role)
 async def get_role(
     role_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Role:
     """获取角色详情（需认证）"""
@@ -162,7 +162,7 @@ async def get_role(
 async def update_role(
     role_id: int,
     role_in: RoleUpdate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Role:
     """更新角色（需超级管理员）"""
@@ -176,7 +176,7 @@ async def update_role(
 @router.delete("/role/{role_id}", response_model=ApiResponse)
 async def delete_role(
     role_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> dict[str, str]:
     """删除角色（需超级管理员）"""
@@ -191,7 +191,7 @@ async def delete_role(
 async def assign_role(
     user_id: int = Body(...),
     role_id: int = Body(...),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> dict[str, str]:
     """分配角色给用户（需超级管理员）"""
@@ -206,7 +206,7 @@ async def assign_role(
 async def remove_role(
     user_id: int = Body(...),
     role_id: int = Body(...),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> dict[str, str]:
     """移除用户角色（需超级管理员）"""
@@ -220,7 +220,7 @@ async def remove_role(
 @router.post("/permission", response_model=Permission)
 async def create_permission(
     permission_in: PermissionCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Permission:
     """创建权限（需超级管理员）"""
@@ -235,7 +235,7 @@ async def create_permission(
 async def get_permissions(
     skip: int = 0,
     limit: int = 100,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> list[Permission]:
     """获取权限列表（需认证）"""
@@ -247,7 +247,7 @@ async def get_permissions(
 @router.get("/permission/{perm_id}", response_model=Permission)
 async def get_permission(
     perm_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Permission:
     """获取权限详情（需认证）"""
@@ -265,7 +265,7 @@ async def get_permission(
 async def update_permission(
     perm_id: int,
     permission_in: PermissionUpdate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> Permission:
     """更新权限（需超级管理员）"""
@@ -279,7 +279,7 @@ async def update_permission(
 @router.delete("/permission/{perm_id}", response_model=ApiResponse)
 async def delete_permission(
     perm_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> dict[str, str]:
     """删除权限（需超级管理员）"""
@@ -293,7 +293,7 @@ async def delete_permission(
 @router.get("/{user_id}", response_model=UserWithRoles)
 async def get_user(
     user_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> UserWithRoles:
     """获取用户详情（需认证）"""
@@ -313,7 +313,7 @@ async def get_user(
 async def update_user(
     user_id: int,
     user_in: UserUpdate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> User:
     """更新用户信息（需认证，仅自己或管理员可操作）"""
@@ -330,7 +330,7 @@ async def update_user(
 @router.delete("/{user_id}", response_model=ApiResponse)
 async def delete_user(
     user_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> dict[str, str]:
     """删除用户（需超级管理员）"""

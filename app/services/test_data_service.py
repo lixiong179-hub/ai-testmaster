@@ -1,4 +1,4 @@
-"""Test Data Service - 兼容代理模块
+﻿"""Test Data Service - 兼容代理模块
 
 所有实现已迁移到 test_data/ 子包，本文件仅保留向后兼容的导入。
 """
@@ -24,7 +24,7 @@ class TestDataService(TestDataCrudMixin, TestDataGenServiceMixin, TestDataServic
         """初始化测试数据服务。
 
         Args:
-            db: 数据库会话，sync 端点传 Session，async 端点传 AsyncSession。
+            db: 数据库会话，sync 端点传 Session，async 端点同样传同步 Session（R2-1 单范式）。
         """
         self.db = db
         self.generator = TestDataGenerator()

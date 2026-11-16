@@ -30,42 +30,128 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import create_engine, event
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import Session as SyncSession
+from sqlalchemy.util import greenlet_spawn
 
-from app.db.database import Base, async_get_db
+from app.db.database import Base, async_get_db, get_db
 from app.db import database as db_module
 from app.db.smart_sync import DatabaseSyncTool
 from app.utils.jwt_utils import get_password_hash
 from app.models.project import Project
 from app.models.user import User, Role, user_role
-from app.db.database._engine import _to_async_url
 import app.models  # noqa: F401 — ensure all models registered
+
+
+class _NestedTransactionBridge:
+    """``async with db.begin_nested():`` 的同步 savepoint 适配。"""
+
+    def __init__(self, sync_session: SyncSession) -> None:
+        self._sync = sync_session
+        self._ctx = None
+
+    async def __aenter__(self):
+        self._ctx = self._sync.begin_nested()
+        await greenlet_spawn(self._ctx.__enter__)
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return await greenlet_spawn(self._ctx.__exit__, exc_type, exc, tb)
+
+
+class SyncBackedAsyncSession:
+    """AsyncSession 兼容壳，委托给同步 Session 执行（R2-1 过渡期测试桥接）。
+
+    R2-1 阶段三把端点依赖从 ``async_get_db``（异步驱动）切到 ``get_db``（同步 Session），
+    因此测试侧不再需要真正的异步连接：``async_db`` 改为「同步 Session + 本桥接」，
+    使同一测试内的异步 fixture、同步端点、异步端点共享同一个事务与 identity map。
+
+    阶段四（会话层收尾）会连同端点侧的 ``async_get_db`` 一并删除。
+    """
+
+    def __init__(self, sync_session: SyncSession) -> None:
+        self._sync = sync_session
+
+    @property
+    def sync_session(self) -> SyncSession:
+        return self._sync
+
+    async def run_sync(self, fn, *args, **kwargs):
+        return await greenlet_spawn(fn, self._sync, *args, **kwargs)
+
+    async def execute(self, stmt, *args, **kwargs):
+        return await greenlet_spawn(self._sync.execute, stmt, *args, **kwargs)
+
+    async def scalar(self, stmt, *args, **kwargs):
+        return await greenlet_spawn(self._sync.scalar, stmt, *args, **kwargs)
+
+    async def scalars(self, stmt, *args, **kwargs):
+        result = await greenlet_spawn(self._sync.execute, stmt, *args, **kwargs)
+        return result.scalars()
+
+    async def commit(self):
+        await greenlet_spawn(self._sync.flush)
+
+    async def rollback(self):
+        await greenlet_spawn(self._sync.rollback)
+
+    async def refresh(self, instance, *args, **kwargs):
+        await greenlet_spawn(self._sync.refresh, instance, *args, **kwargs)
+
+    async def flush(self, *args, **kwargs):
+        await greenlet_spawn(self._sync.flush)
+
+    async def close(self):
+        return None
+
+    async def merge(self, instance, *args, **kwargs):
+        return await greenlet_spawn(self._sync.merge, instance, *args, **kwargs)
+
+    async def get(self, entity, ident, *args, **kwargs):
+        return await greenlet_spawn(self._sync.get, entity, ident, *args, **kwargs)
+
+    async def delete(self, instance, *args, **kwargs):
+        return await greenlet_spawn(self._sync.delete, instance, *args, **kwargs)
+
+    def begin_nested(self):
+        return _NestedTransactionBridge(self._sync)
+
+    def begin(self):
+        return _NestedTransactionBridge(self._sync)
+
+    def add(self, instance, *args, **kwargs):
+        self._sync.add(instance, *args, **kwargs)
+
+    def add_all(self, instances):
+        self._sync.add_all(instances)
+
+    def query(self, *args, **kwargs):
+        return self._sync.query(*args, **kwargs)
+
+    @property
+    def is_active(self):
+        return self._sync.is_active
+
+    @property
+    def in_transaction(self):
+        return self._sync.in_transaction
 
 
 def _build_primary_session_patches(shared_ref, async_db):
     """构建 PrimarySessionLocal patch 管理器列表。
 
-    返回 (patch_managers, create_shared_session) 元组。
-    create_shared_session 懒创建共享 sync session，绑定到 async_db 的底层 sync connection，
-    使端点内 PrimarySessionLocal() 创建的独立 sync session 可见 async_db 事务内的测试数据。
+    单范式收敛后测试侧只有一个同步 Session（``async_db`` 的内部 sync session），
+    端点内 ``PrimarySessionLocal()`` 与 ``Depends(get_db)`` 必须复用同一个实例，
+    才能保证「同事务 + 同 identity map」下的跨调用可见性。
 
     设计要点：
-    - singleton 模式：同一测试内多次调用 PrimarySessionLocal() 返回同一 session 实例，
-      保证跨调用数据可见性（同事务 + 同 identity map）
-    - commit → flush、rollback → no-op、close → no-op，保持外层事务隔离不被破坏
+    - singleton：所有 patch 目标都返回 ``async_db.sync_session``；
+    - 该 session 的 commit → flush、rollback → savepoint、close → no-op 已在
+      ``async_db`` fixture 内改写，保持外层事务隔离不被破坏。
     """
     from unittest.mock import patch
 
     def _create_shared_sync_session():
-        if shared_ref["session"] is None:
-            sync_conn = async_db.sync_session.connection()
-            session = SyncSession(bind=sync_conn)
-            session.commit = session.flush
-            session.rollback = lambda *a, **kw: None
-            session.close = lambda *a, **kw: None  # type: ignore[assignment]
-            shared_ref["session"] = session
-        return shared_ref["session"]
+        return async_db.sync_session
 
     patch_targets = []
     for _mod in list(sys.modules.values()):
@@ -106,44 +192,50 @@ def _sync_schema_setup():
     sync_engine.dispose()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def async_db(_sync_schema_setup):
-    """异步测试会话 — 事务隔离策略与同步 db fixture 对齐。
+@pytest.fixture(scope="function")
+def async_db(_sync_schema_setup):
+    """测试会话（R2-1 单范式：同步 Session + 异步兼容壳），保持事务隔离。
 
     1. 外层事务包裹整个测试，结束 rollback 不落库
     2. session.commit 改写为 flush，使 endpoint 内的 commit 不破坏隔离
     3. savepoint 自动重启，兼容显式 begin_nested
+    4. 迁移后的端点用 ``Depends(get_db)`` 拿到同一 session，未迁移端点用本异步壳，
+       两者共享事务与 identity map（阶段四删除异步壳后只剩同步 Session）
     """
-    async_engine = create_async_engine(
-        _to_async_url(_TEST_DB_URL),
-        pool_size=5,
-        max_overflow=5,
-        pool_pre_ping=True,
-    )
+    connection = _sync_schema_setup.connect()
+    transaction = connection.begin()
+    session = SyncSession(bind=connection, expire_on_commit=False)
+    session.commit = session.flush
 
-    async with async_engine.connect() as conn:
-        await conn.begin()
-        async with AsyncSession(bind=conn, expire_on_commit=False) as session:
-            session.commit = session.flush
+    _savepoint = {"ref": session.begin_nested()}
 
-            _savepoint = {"ref": None}
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(sess, trans):
+        if trans.nested and not trans._parent.nested:
+            _savepoint["ref"] = sess.begin_nested()
 
-            @event.listens_for(session.sync_session, "after_transaction_end")
-            def restart_savepoint(sess, trans):
-                if trans.nested and not trans._parent.nested:
-                    _savepoint["ref"] = sess.begin_nested()
+    _orig_rollback = session.rollback
 
-            _savepoint["ref"] = session.sync_session.begin_nested()
+    def _safe_rollback(*args, **kwargs):
+        sp = _savepoint["ref"]
+        if sp is not None and sp.is_active:
+            sp.rollback()
+            _savepoint["ref"] = session.begin_nested()
+        else:
+            _orig_rollback(*args, **kwargs)
 
-            yield session
+    session.rollback = _safe_rollback
+    _orig_close = session.close
+    session.close = lambda *a, **kw: None  # type: ignore[assignment]
 
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", message="transaction already deassociated"
-                )
-                await session.rollback()
-
-    await async_engine.dispose()
+    try:
+        yield SyncBackedAsyncSession(session)
+    finally:
+        session.close = _orig_close
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="transaction already deassociated")
+            transaction.rollback()
+        connection.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -241,7 +333,11 @@ async def async_client(async_db):
     async def override_async_get_db():
         yield async_db
 
+    def override_get_db():
+        yield async_db.sync_session
+
     app.dependency_overrides[async_get_db] = override_async_get_db
+    app.dependency_overrides[get_db] = override_get_db
 
     _shared_ref = {"session": None}
     _patch_mgrs = _build_primary_session_patches(_shared_ref, async_db)
@@ -258,6 +354,7 @@ async def async_client(async_db):
         ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
+    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -295,6 +392,7 @@ async def async_auth_client(async_db, async_test_user):
         ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
+    app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
 
 
@@ -334,4 +432,5 @@ async def async_admin_client(async_db, async_admin_user):
         ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
+    app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)

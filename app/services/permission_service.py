@@ -1,4 +1,4 @@
-"""权限服务 - 提供权限CRUD、用户角色分配与RBAC访问控制。
+﻿"""权限服务 - 提供权限CRUD、用户角色分配与RBAC访问控制。
 
 本模块实现平台权限体系的核心服务，包括权限的创建/查询/更新/删除、
 用户与角色的关联管理、以及基于角色的访问控制（RBAC）校验。
@@ -58,7 +58,7 @@ class PermissionService(PermissionServiceAsyncMixin):
         """初始化权限服务。
 
         Args:
-            db: 数据库会话，async 端点传 AsyncSession；sync 调用方
+            db: 数据库会话，async 端点同样传同步 Session（R2-1 单范式）；sync 调用方
                 无需实例化，直接使用静态方法。
         """
         self.db = db
@@ -200,7 +200,7 @@ class UserRoleService(UserRoleServiceAsyncMixin):
         """初始化用户-角色关联服务。
 
         Args:
-            db: 数据库会话，async 端点传 AsyncSession；sync 调用方
+            db: 数据库会话，async 端点同样传同步 Session（R2-1 单范式）；sync 调用方
                 无需实例化，直接使用静态方法。
         """
         self.db = db

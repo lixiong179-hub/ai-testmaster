@@ -1,4 +1,4 @@
-"""
+﻿"""
 测试数据API
 
 提供测试数据的CRUD接口
@@ -27,11 +27,11 @@
     - AI生成基于字段规则自动构造测试数据
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from loguru import logger
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.models.test_data import DataType, GenerationRule
 from app.api.v1.endpoints.auth import get_current_user
@@ -120,7 +120,7 @@ class GenerateStepDataResponse(BaseModel):
 @router.post("/", response_model=TestDataResponse)
 async def create_test_data(
     request: TestDataCreateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """创建测试数据"""
@@ -139,7 +139,7 @@ async def create_test_data(
 @router.get("/{test_data_id}", response_model=TestDataResponse)
 async def get_test_data(
     test_data_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取单个测试数据"""
@@ -156,7 +156,7 @@ async def get_test_data(
 @router.get("/step/{step_id}", response_model=StepTestDataResponse)
 async def get_test_data_by_step(
     step_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取步骤的所有测试数据"""
@@ -172,7 +172,7 @@ async def get_test_data_by_step(
 async def update_test_data(
     test_data_id: int,
     request: TestDataUpdateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """更新测试数据"""
@@ -190,7 +190,7 @@ async def update_test_data(
 @router.delete("/{test_data_id}")
 async def delete_test_data(
     test_data_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """删除测试数据"""
@@ -207,7 +207,7 @@ async def delete_test_data(
 @router.post("/step/{step_id}/generate", response_model=GenerateStepDataResponse)
 async def generate_step_data(
     step_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """生成步骤的测试数据"""
@@ -230,7 +230,7 @@ async def generate_step_data(
 async def auto_generate_test_data(
     step_id: int,
     action_description: str,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """根据操作描述自动推断生成测试数据"""

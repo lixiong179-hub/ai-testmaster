@@ -1,4 +1,4 @@
-
+﻿
 """角色服务 - 处理角色CRUD与权限分配。
 
 职责:
@@ -34,7 +34,7 @@ class RoleService(RoleServiceAsyncMixin):
         """初始化角色服务。
 
         Args:
-            db: 数据库会话，async 端点传 AsyncSession；sync 调用方
+            db: 数据库会话，async 端点同样传同步 Session（R2-1 单范式）；sync 调用方
                 无需实例化，直接使用静态方法。
         """
         self.db = db
