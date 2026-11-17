@@ -52,6 +52,9 @@ jobs:
           pip install pytest pytest-cov pytest-asyncio pytest-split ruff mypy
       - name: Ruff lint
         run: ruff check app
+      - name: AsyncSession convergence gate
+        # R2-1 阶段三：async_get_db 只减不增（白名单 + 总量预算见 scripts/check_async_session_convergence.py）
+        run: python scripts/check_async_session_convergence.py
       - name: Alembic migrations
         env:
           DATABASE_URL: mysql+pymysql://test_user:test_pw@127.0.0.1:3306/ai_testmaster_test
