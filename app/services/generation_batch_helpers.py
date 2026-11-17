@@ -1,12 +1,13 @@
+import asyncio
 """生成批次共享常量与业务工具（R2-3：从 `endpoints/_generation_batch_helpers.py` 下沉）。
 
 职责：状态迁移校验、批次号生成、ORM→响应转换，以及「版本快照 / 用例废弃」两个
-跨表业务动作。均以 `AsyncSession` 入参，不自行建会话。
+跨表业务动作。均以同步 `Session` 入参（R2-1），不自行建会话。
 """
 from datetime import datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.generation_batch import GenerationBatch
 from app.schemas.generation_batch import GenerationBatchResponse
@@ -64,14 +65,14 @@ def _batch_to_response(batch: GenerationBatch) -> dict:
 
 
 async def _create_case_version_snapshot(
-    db: AsyncSession,
+    db: Session,
     case_id: int,
     change_type: str,
     operator_id: int,
     change_description: str,
     changed_fields: dict | None = None,
 ) -> None:
-    """创建用例版本快照（sync 依赖通过 run_sync 桥接）。
+    """创建用例版本快照（sync 依赖经 asyncio.to_thread 转线程池）。
 
     跳过自动版本快照事件，由 CaseVersionService 手动创建。
     """
@@ -89,15 +90,15 @@ async def _create_case_version_snapshot(
                 change_description=change_description,
                 changed_fields=changed_fields,
             )
-        await db.run_sync(_sync_snapshot)
+        await asyncio.to_thread(_sync_snapshot, db)
     finally:
         resume_version_snapshot()
 
 
 async def _deprecate_case(
-    db: AsyncSession, case_id: int, actor_id: int, reason: str
+    db: Session, case_id: int, actor_id: int, reason: str
 ) -> None:
-    """通过 lifecycle_service 标记用例为 deprecated（sync 依赖通过 run_sync 桥接）。"""
+    """通过 lifecycle_service 标记用例为 deprecated（sync 依赖经 asyncio.to_thread 转线程池）。"""
     def _sync_lifecycle(sync_db):
         lifecycle_transition(
             db=sync_db,
@@ -106,4 +107,4 @@ async def _deprecate_case(
             actor_id=actor_id,
             reason=reason,
         )
-    await db.run_sync(_sync_lifecycle)
+    await asyncio.to_thread(_sync_lifecycle, db)

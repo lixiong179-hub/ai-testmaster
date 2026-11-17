@@ -5,17 +5,18 @@
 
 公开符号通过本文件 re-export，保持 import 路径不变。
 """
+import asyncio
 import hashlib
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.generation_batch import GenerationBatch, GenerationBatchSave
 from app.models.project import Project, ProjectFile
 from app.models.test_case import TestCase, TestStep
@@ -42,11 +43,11 @@ from app.utils.db_time import utcnow
 
 async def create_generation_batch(
     body: GenerationBatchCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """创建生成批次。"""
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == body.project_id, Project.user_id == current_user.id
         )
@@ -72,18 +73,18 @@ async def create_generation_batch(
         client_request_id=body.client_request_id,
     )
     db.add(batch)
-    await db.commit()
-    await db.refresh(batch)
+    await asyncio.to_thread(db.commit)
+    await asyncio.to_thread(db.refresh, batch)
     return create_response(data=_batch_to_response(batch))
 
 
 async def get_generation_batch(
     batch_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """获取生成批次详情。"""
-    batch_result = await db.execute(
+    batch_result = await _execute(db,
         select(GenerationBatch).where(GenerationBatch.id == batch_id)
     )
     batch = batch_result.scalar_one_or_none()
@@ -101,11 +102,11 @@ async def get_generation_batch(
 async def update_generation_batch(
     batch_id: int,
     body: GenerationBatchUpdate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """更新生成批次状态与上下文统计。"""
-    batch_result = await db.execute(
+    batch_result = await _execute(db,
         select(GenerationBatch).where(GenerationBatch.id == batch_id)
     )
     batch = batch_result.scalar_one_or_none()
@@ -132,19 +133,19 @@ async def update_generation_batch(
         batch.quality_summary_json = body.quality_summary
 
     batch.updated_at = utcnow()
-    await db.commit()
-    await db.refresh(batch)
+    await asyncio.to_thread(db.commit)
+    await asyncio.to_thread(db.refresh, batch)
     return create_response(data=_batch_to_response(batch))
 
 
 async def save_generation_batch(
     batch_id: int,
     body: GenerationBatchSaveRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """保存批次预览用例（支持新增/更新/废弃，幂等键防重）。"""
-    batch_result = await db.execute(
+    batch_result = await _execute(db,
         select(GenerationBatch).where(GenerationBatch.id == batch_id)
     )
     batch = batch_result.scalar_one_or_none()
@@ -157,7 +158,7 @@ async def save_generation_batch(
             status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此批次"
         )
 
-    existing_save_result = await db.execute(
+    existing_save_result = await _execute(db,
         select(GenerationBatchSave).where(
             GenerationBatchSave.batch_id == batch_id,
             GenerationBatchSave.idempotency_key == body.idempotency_key,
@@ -180,7 +181,7 @@ async def save_generation_batch(
 
     _validate_status_transition(batch.status, "saving")
     batch.status = "saving"
-    await db.flush()
+    await asyncio.to_thread(db.flush)
 
     request_hash = hashlib.sha256(
         json.dumps(
@@ -219,7 +220,7 @@ async def save_generation_batch(
         if isinstance(rid, int):
             all_req_file_ids.add(rid)
     if all_req_file_ids:
-        valid_files_result = await db.execute(
+        valid_files_result = await _execute(db,
             select(ProjectFile.id).where(
                 ProjectFile.id.in_(all_req_file_ids),
                 ProjectFile.project_id == batch.project_id,
@@ -236,9 +237,9 @@ async def save_generation_batch(
 
     for idx, case_payload in enumerate(cases_to_save):
         try:
-            async with db.begin_nested():
+            with db.begin_nested():
                 if case_payload.update_action == "update_existing" and case_payload.history_case_id:
-                    existing_case_result = await db.execute(
+                    existing_case_result = await _execute(db,
                         select(TestCase).where(
                             TestCase.id == case_payload.history_case_id,
                             TestCase.project_id == batch.project_id,
@@ -269,7 +270,7 @@ async def save_generation_batch(
                     if case_payload.steps:
                         steps_list = [step.model_dump() for step in case_payload.steps]
                         existing_case.steps_json = steps_list
-                        await db.execute(
+                        await _execute(db,
                             delete(TestStep).where(TestStep.test_case_id == existing_case.id)
                         )
                         for step_idx, step_data in enumerate(case_payload.steps):
@@ -286,10 +287,10 @@ async def save_generation_batch(
                             )
                             db.add(test_step)
 
-                    await db.flush()
+                    await asyncio.to_thread(db.flush)
                     saved_case_ids.append(existing_case.id)
                 elif case_payload.update_action == "deprecate" and case_payload.history_case_id:
-                    existing_case_result = await db.execute(
+                    existing_case_result = await _execute(db,
                         select(TestCase).where(
                             TestCase.id == case_payload.history_case_id,
                             TestCase.project_id == batch.project_id,
@@ -310,7 +311,7 @@ async def save_generation_batch(
                         change_description=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
                         changed_fields={"lifecycle_status": {"old": existing_case.lifecycle_status, "new": "deprecated"}},
                     )
-                    await db.flush()
+                    await asyncio.to_thread(db.flush)
 
                     await _deprecate_case(
                         db=db,
@@ -318,7 +319,7 @@ async def save_generation_batch(
                         actor_id=batch.user_id,
                         reason=f"历史资产更新批次 {batch.batch_no} 标记为可能废弃",
                     )
-                    await db.flush()
+                    await asyncio.to_thread(db.flush)
                     saved_case_ids.append(existing_case.id)
                 else:
                     req_file_id = case_payload.requirement_file_id
@@ -336,7 +337,9 @@ async def save_generation_batch(
                     steps_list = [step.model_dump() for step in case_payload.steps]
                     test_category = case_payload.case_category or ""
 
-                    case_no = await CaseNumberService.generate_async(batch.project_id, db)
+                    case_no = await asyncio.to_thread(
+                        CaseNumberService.generate, batch.project_id, db
+                    )
 
                     new_case = TestCase(
                         case_no=case_no,
@@ -355,7 +358,7 @@ async def save_generation_batch(
                         lifecycle_status=lifecycle_status,
                     )
                     db.add(new_case)
-                    await db.flush()
+                    await asyncio.to_thread(db.flush)
 
                     for step_idx, step_data in enumerate(case_payload.steps):
                         test_step = TestStep(
@@ -371,7 +374,7 @@ async def save_generation_batch(
                         )
                         db.add(test_step)
 
-                    await db.flush()
+                    await asyncio.to_thread(db.flush)
                     saved_case_ids.append(new_case.id)
         except Exception as e:
             logger.warning(f"batch save 单条用例保存失败: {e}")
@@ -413,9 +416,14 @@ async def save_generation_batch(
         result_json=save_result,
     )
     db.add(batch_save_record)
-    await db.commit()
+    await asyncio.to_thread(db.commit)
 
     return create_response(data=save_result)
+
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
 
 
 router = APIRouter(tags=["生成批次"])

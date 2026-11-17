@@ -14,17 +14,18 @@
 权限要求: 所有端点需要Bearer令牌认证
 
 迁移说明（P0 服务 async 化）:
-    消除所有 db.run_sync() 包裹，内联 DB 操作改为 select() + await db.execute()。
+    消除所有 db.run_sync() 包裹，内联 DB 操作改为 select() + await _execute(db, )。
     create_steps_and_test_data 已在 test_case_crud.py 中改为 async，此处直接 await 调用。
 """
+import asyncio
 from datetime import datetime
 
 from app.utils.db_time import utcnow
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from sqlalchemy.orm import Session
+from app.db.database import get_db
 from app.models.test_case import TestCase
 from app.models.project import Project
 from app.models.user import User
@@ -36,6 +37,11 @@ from app.api.v1.endpoints.test_case_crud import (
 )
 from app.core.exception import create_response
 from loguru import logger
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter()
 
@@ -57,7 +63,7 @@ class BatchCreateRequest(BaseModel):
 @router.post("/batch-create")
 async def batch_create_test_cases(
     request: BatchCreateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -76,7 +82,7 @@ async def batch_create_test_cases(
         })
 
     project_ids = {tc.project_id for tc in request.cases}
-    auth_result = await db.execute(
+    auth_result = await _execute(db,
         select(Project.id).where(
             Project.id.in_(project_ids),
             Project.user_id == current_user.id,
@@ -121,13 +127,13 @@ async def batch_create_test_cases(
             )
 
             db.add(new_test_case)
-            await db.flush()
+            await asyncio.to_thread(db.flush)
 
             await create_steps_and_test_data(test_case, new_test_case.id, db)
 
             created_ids.append(new_test_case.id)
 
-        await db.commit()
+        await asyncio.to_thread(db.commit)
         logger.info(
             f"[批量创建] 用户ID={current_user.id}, 用户名={current_user.username}, "
             f"成功创建{len(created_ids)}个用例, IDs={created_ids}"
@@ -141,7 +147,7 @@ async def batch_create_test_cases(
             "message": f"全部创建成功，共 {len(created_ids)} 条",
         })
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"[批量创建] 事务回滚: {e}")
         return create_response(data={
             "success_count": len(created_ids),
@@ -186,7 +192,7 @@ class BatchDeleteRequest(BaseModel):
 @router.post("/batch-restore")
 async def batch_restore_test_cases(
     request: BatchRestoreRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -209,7 +215,7 @@ async def batch_restore_test_cases(
     if request.project_id:
         query = query.where(TestCase.project_id == request.project_id)
 
-    result = await db.execute(query)
+    result = await _execute(db, query)
     deleted_cases = result.scalars().all()
 
     existing_ids = {case.id for case in deleted_cases}
@@ -228,7 +234,7 @@ async def batch_restore_test_cases(
             logger.error(f"恢复用例 {test_case.id} 失败: {e}")
             fail_count += 1
 
-    await db.commit()
+    await asyncio.to_thread(db.commit)
 
     logger.info(
         f"[批量恢复] 用户ID={current_user.id}, 用户名={current_user.username}, "
@@ -249,7 +255,7 @@ async def batch_restore_test_cases(
 @router.post("/batch-delete")
 async def batch_delete_test_cases(
     request: BatchDeleteRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -272,7 +278,7 @@ async def batch_delete_test_cases(
     if request.project_id:
         query = query.where(TestCase.project_id == request.project_id)
 
-    result = await db.execute(query)
+    result = await _execute(db, query)
     existing_cases = result.scalars().all()
 
     existing_ids = {case.id for case in existing_cases}
@@ -291,7 +297,7 @@ async def batch_delete_test_cases(
             logger.error(f"删除用例 {test_case.id} 失败: {e}")
             fail_count += 1
 
-    await db.commit()
+    await asyncio.to_thread(db.commit)
 
     logger.info(
         f"[批量删除] 用户ID={current_user.id}, 用户名={current_user.username}, "

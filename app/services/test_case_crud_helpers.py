@@ -1,11 +1,13 @@
 ﻿"""测试用例 CRUD 共享工具（R2-3：从 `endpoints/_test_case_crud_helpers.py` 下沉）。
 
 职责：`TestStep` / `TestData` 的构造与批量持久化（async），供用例 CRUD 与批量生成两条链路共享。
-依赖 AsyncSession 参数传入，不自行建会话，便于端点与服务层复用。
+依赖同步 Session 参数传入（R2-1），不自行建会话，便于端点与服务层复用；
+阻塞调用经 `asyncio.to_thread` 转线程池。
 """
+import asyncio
 import json
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.schemas.test_case import TestCaseCreate
 from app.models.test_case import TestStep
@@ -21,7 +23,7 @@ def merge_test_data_to_steps(test_case: TestCaseCreate) -> list:
 
 
 async def create_steps_and_test_data(
-    test_case: TestCaseCreate, new_test_case_id: int, db: AsyncSession
+    test_case: TestCaseCreate, new_test_case_id: int, db: Session
 ) -> None:
     """创建用例步骤与关联测试数据（async 版本，供 crud 与 batch 端点共享）。"""
     for i, step_data in enumerate(test_case.steps or []):
@@ -37,7 +39,7 @@ async def create_steps_and_test_data(
             is_technical_view=1
         )
         db.add(step)
-        await db.flush()
+        await asyncio.to_thread(db.flush)
 
         step_test_data = step_data.test_data if hasattr(step_data, 'test_data') and step_data.test_data else None
         if step_test_data and isinstance(step_test_data, list):

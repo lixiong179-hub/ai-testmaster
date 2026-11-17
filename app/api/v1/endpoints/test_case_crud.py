@@ -16,21 +16,22 @@
 权限要求: 所有端点需要Bearer令牌认证
 
 迁移说明（P0 服务 async 化）:
-    消除所有 db.run_sync() 包裹，内联 DB 操作改为 select() + await db.execute()。
+    消除所有 db.run_sync() 包裹，内联 DB 操作改为 select() + await _execute(db, )。
     create_steps_and_test_data 改为 async，供本模块与 test_case_crud_batch 共享。
 
 公开符号通过本文件 re-export，保持 import 路径不变
 （from app.api.v1.endpoints.test_case_crud import xxx）。
 """
 
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from sqlalchemy import delete, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.enums import TestCaseLifecycleStatus
 from app.models.project import Project
 from app.models.test_case import TestCase, TestStep
@@ -51,12 +52,12 @@ from app.utils.test_case_helpers import build_test_case_response
 
 async def create_test_case(
     test_case: TestCaseCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """创建测试用例（含步骤和测试数据，编号自动生成）"""
     try:
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == test_case.project_id,
                 Project.user_id == current_user.id,
@@ -71,7 +72,9 @@ async def create_test_case(
 
         case_no = test_case.case_no
         if not case_no:
-            case_no = await CaseNumberService.generate_async(test_case.project_id, db)
+            case_no = await asyncio.to_thread(
+                CaseNumberService.generate, test_case.project_id, db
+            )
 
         new_test_case = TestCase(
             project_id=test_case.project_id,
@@ -95,18 +98,18 @@ async def create_test_case(
         )
 
         db.add(new_test_case)
-        await db.flush()
+        await asyncio.to_thread(db.flush)
 
         await create_steps_and_test_data(test_case, new_test_case.id, db)
 
-        await db.commit()
-        await db.refresh(new_test_case)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, new_test_case)
 
         return create_response(data=build_test_case_response(new_test_case))
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"创建测试用例失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -128,7 +131,7 @@ async def get_test_cases(
     sort_order: str | None = Query(default="desc", pattern="^(asc|desc)$", description="排序方向"),
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=10, ge=1, le=500, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """查询测试用例列表（分页，按项目/需求文件筛选，排除已删除，只返回用户有权访问的项目的用例）"""
@@ -144,7 +147,7 @@ async def get_test_cases(
         ]
 
         if project_id:
-            project_access_result = await db.execute(
+            project_access_result = await _execute(db,
                 select(Project.id).where(
                     Project.id == project_id,
                     Project.user_id == current_user.id,
@@ -194,24 +197,24 @@ async def get_test_cases(
 
         offset = (page - 1) * page_size
 
-        total = (await db.execute(
+        total = (await _execute(db,
             select(func.count()).select_from(TestCase).where(*conditions)
         )).scalar() or 0
 
         automated_conditions = conditions + [
             TestCase.case_type.in_(["ui_automation", "api_automation"])
         ]
-        automated = (await db.execute(
+        automated = (await _execute(db,
             select(func.count()).select_from(TestCase).where(*automated_conditions)
         )).scalar() or 0
 
         manual_conditions = conditions + [TestCase.case_type == "manual"]
-        manual = (await db.execute(
+        manual = (await _execute(db,
             select(func.count()).select_from(TestCase).where(*manual_conditions)
         )).scalar() or 0
 
         high_priority_conditions = conditions + [TestCase.priority == 1]
-        high_priority = (await db.execute(
+        high_priority = (await _execute(db,
             select(func.count()).select_from(TestCase).where(*high_priority_conditions)
         )).scalar() or 0
 
@@ -224,7 +227,7 @@ async def get_test_cases(
         sort_column = sort_columns.get(sort_by or "create_time", TestCase.create_time)
         order_clause = sort_column.asc() if sort_order == "asc" else sort_column.desc()
 
-        result = await db.execute(
+        result = await _execute(db,
             select(TestCase).where(*conditions).order_by(order_clause).offset(offset).limit(page_size)
         )
         test_cases = result.scalars().all()
@@ -256,12 +259,12 @@ async def get_test_cases(
 
 async def get_test_case(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取测试用例详情（含步骤和测试数据，只允许访问用户有权访问的项目的用例）"""
     try:
-        result = await db.execute(
+        result = await _execute(db,
             select(TestCase).join(Project).where(
                 TestCase.id == test_case_id,
                 TestCase.is_deleted.is_(False),
@@ -290,12 +293,12 @@ async def get_test_case(
 async def update_test_case(
     test_case_id: int,
     test_case_update: TestCaseUpdate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """更新测试用例（部分更新，步骤变更时重建，只允许操作用户有权访问的项目的用例）"""
     try:
-        result = await db.execute(
+        result = await _execute(db,
             select(TestCase).join(Project).where(
                 TestCase.id == test_case_id,
                 TestCase.is_deleted.is_(False),
@@ -321,10 +324,10 @@ async def update_test_case(
         for field, value in update_data.items():
             setattr(test_case, field, value)
 
-        await db.flush()
+        await asyncio.to_thread(db.flush)
 
         if steps_data is not None:
-            await db.execute(
+            await _execute(db,
                 delete(TestStep).where(TestStep.test_case_id == test_case_id)
             )
 
@@ -342,14 +345,14 @@ async def update_test_case(
                 )
                 db.add(step)
 
-        await db.commit()
-        await db.refresh(test_case)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, test_case)
 
         return create_response(data=build_test_case_response(test_case))
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"更新测试用例失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -360,7 +363,7 @@ async def update_test_case(
 async def delete_test_case(
     test_case_id: int,
     project_id: int | None = Query(default=None, description="项目ID"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """软删除测试用例（is_deleted标记，可批量恢复）"""
@@ -377,7 +380,7 @@ async def delete_test_case(
         if project_id:
             query = query.where(TestCase.project_id == project_id)
 
-        result = await db.execute(query)
+        result = await _execute(db, query)
         test_case = result.scalar_one_or_none()
         if not test_case:
             raise HTTPException(
@@ -387,7 +390,7 @@ async def delete_test_case(
 
         test_case.is_deleted = True
         test_case.deleted_at = utcnow()
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         logger.info(f"[删除用例] 用户ID={current_user.id}, 用户名={current_user.username}, 用例ID={test_case_id}")
 
@@ -395,12 +398,17 @@ async def delete_test_case(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"删除测试用例失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除测试用例失败"
         )
+
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
 
 
 router = APIRouter()

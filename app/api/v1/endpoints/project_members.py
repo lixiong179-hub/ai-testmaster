@@ -16,18 +16,19 @@
     - 超级管理员自动绕过所有校验
 
 设计说明：
-    - 端点接收 AsyncSession 且仅 flush，由端点显式 await db.commit() 落库。
+    - 端点接收同步 Session（R2-1），写操作 flush/commit 经 `asyncio.to_thread` 转线程池。
     - 复用 ProjectAccessService 完成角色层级校验，避免在本模块重复实现。
     - ProjectMember.role 为 owner/admin/member/viewer 四级，层级数值由 ROLE_LEVEL 定义。
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.user import User
@@ -45,12 +46,17 @@ from app.services.project_access_service import ProjectAccessService
 # 无成员页，全库 `/members`、`成员` 命中 0，故原「已被项目详情页取代」的判断不成立。
 # 现状是单用户归属模型（Project.user_id 直接鉴权），未具备多人协作的产品前提，故本波不接线；
 # 一旦启用多人协作，须补齐 成员列表/邀请/角色/移交 4 个前端入口。
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter(prefix="/projects", tags=["项目成员管理"])
 
 
-async def _ensure_user_exists_async(db: AsyncSession, user_id: int) -> User:
+async def _ensure_user_exists_async(db: Session, user_id: int) -> User:
     """校验用户存在并返回 User 对象，不存在抛 404。"""
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await _execute(db, select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(
@@ -60,9 +66,9 @@ async def _ensure_user_exists_async(db: AsyncSession, user_id: int) -> User:
     return user
 
 
-async def _ensure_project_exists_async(db: AsyncSession, project_id: int) -> Project:
+async def _ensure_project_exists_async(db: Session, project_id: int) -> Project:
     """校验项目存在并返回 Project 对象，不存在抛 404。"""
-    result = await db.execute(select(Project).where(Project.id == project_id))
+    result = await _execute(db, select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
     if project is None:
         raise HTTPException(
@@ -87,10 +93,10 @@ def _member_to_response(member: ProjectMember, user: User) -> ProjectMemberRespo
 
 
 async def _load_member_with_user(
-    db: AsyncSession, project_id: int, user_id: int
+    db: Session, project_id: int, user_id: int
 ) -> tuple[ProjectMember, User]:
     """加载成员记录及关联用户，成员不存在抛 404。"""
-    result = await db.execute(
+    result = await _execute(db,
         select(ProjectMember).where(
             ProjectMember.project_id == project_id,
             ProjectMember.user_id == user_id,
@@ -114,7 +120,7 @@ async def _load_member_with_user(
 async def add_project_member(
     project_id: int,
     payload: ProjectMemberCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """添加项目成员（需 admin 或 owner 角色）。
@@ -125,7 +131,8 @@ async def add_project_member(
         - 目标用户必须存在于 users 表
     """
     await _ensure_project_exists_async(db, project_id)
-    await ProjectAccessService.check_project_access_async(
+    await asyncio.to_thread(
+        ProjectAccessService.check_project_access,
         db, project_id, current_user, "admin",
     )
 
@@ -142,7 +149,7 @@ async def add_project_member(
 
     await _ensure_user_exists_async(db, payload.user_id)
 
-    existing = await db.execute(
+    existing = await _execute(db,
         select(ProjectMember).where(
             ProjectMember.project_id == project_id,
             ProjectMember.user_id == payload.user_id,
@@ -160,10 +167,10 @@ async def add_project_member(
         role=payload.role,
     )
     db.add(member)
-    await db.flush()
+    await asyncio.to_thread(db.flush)
 
     user = await _ensure_user_exists_async(db, member.user_id)
-    await db.commit()
+    await asyncio.to_thread(db.commit)
     logger.info(
         f"用户 {current_user.id} 添加成员 {payload.user_id} 到项目 {project_id}，角色={payload.role}"
     )
@@ -176,16 +183,17 @@ async def add_project_member(
 @router.get("/{project_id}/members", response_model=ApiResponse)
 async def list_project_members(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """查询项目成员列表（项目任意成员均可查看）。"""
     await _ensure_project_exists_async(db, project_id)
-    await ProjectAccessService.check_project_access_async(
+    await asyncio.to_thread(
+        ProjectAccessService.check_project_access,
         db, project_id, current_user, "viewer",
     )
 
-    result = await db.execute(
+    result = await _execute(db,
         select(ProjectMember, User)
         .join(User, User.id == ProjectMember.user_id)
         .where(ProjectMember.project_id == project_id)
@@ -204,7 +212,7 @@ async def update_project_member_role(
     project_id: int,
     user_id: int,
     payload: ProjectMemberUpdate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """修改成员角色（需 admin 或 owner 角色）。
@@ -215,7 +223,8 @@ async def update_project_member_role(
         - owner 角色不能被降级（需先转让所有权）
     """
     await _ensure_project_exists_async(db, project_id)
-    await ProjectAccessService.check_project_access_async(
+    await asyncio.to_thread(
+        ProjectAccessService.check_project_access,
         db, project_id, current_user, "admin",
     )
 
@@ -243,9 +252,9 @@ async def update_project_member_role(
         )
 
     member.role = payload.role
-    await db.flush()
+    await asyncio.to_thread(db.flush)
     user = await _ensure_user_exists_async(db, member.user_id)
-    await db.commit()
+    await asyncio.to_thread(db.commit)
     logger.info(
         f"用户 {current_user.id} 修改项目 {project_id} 成员 {user_id} 角色为 {payload.role}"
     )
@@ -259,7 +268,7 @@ async def update_project_member_role(
 async def remove_project_member(
     project_id: int,
     user_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """移除项目成员（需 admin 或 owner 角色）。
@@ -269,7 +278,8 @@ async def remove_project_member(
         - 不能移除自己（避免误操作把自己踢出项目）
     """
     await _ensure_project_exists_async(db, project_id)
-    await ProjectAccessService.check_project_access_async(
+    await asyncio.to_thread(
+        ProjectAccessService.check_project_access,
         db, project_id, current_user, "admin",
     )
 
@@ -286,8 +296,8 @@ async def remove_project_member(
             detail="不能移除 owner，请先转让所有权",
         )
 
-    await db.delete(member)
-    await db.commit()
+    await asyncio.to_thread(db.delete, member)
+    await asyncio.to_thread(db.commit)
     logger.info(
         f"用户 {current_user.id} 从项目 {project_id} 移除成员 {user_id}"
     )
@@ -298,7 +308,7 @@ async def remove_project_member(
 async def transfer_project_ownership(
     project_id: int,
     payload: TransferOwnershipRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """转让项目所有权（仅 owner 可发起）。
@@ -310,7 +320,8 @@ async def transfer_project_ownership(
         - 不能转让给自己
     """
     await _ensure_project_exists_async(db, project_id)
-    current_member = await ProjectAccessService.check_project_access_async(
+    current_member = await asyncio.to_thread(
+        ProjectAccessService.check_project_access,
         db, project_id, current_user, "owner",
     )
 
@@ -320,7 +331,7 @@ async def transfer_project_ownership(
             detail="不能转让给自己",
         )
 
-    target_result = await db.execute(
+    target_result = await _execute(db,
         select(ProjectMember).where(
             ProjectMember.project_id == project_id,
             ProjectMember.user_id == payload.new_owner_user_id,
@@ -336,10 +347,10 @@ async def transfer_project_ownership(
     # 双向更新：原 owner → admin，目标成员 → owner
     target_member.role = "owner"
     current_member.role = "admin"
-    await db.flush()
+    await asyncio.to_thread(db.flush)
 
     target_user = await _ensure_user_exists_async(db, target_member.user_id)
-    await db.commit()
+    await asyncio.to_thread(db.commit)
     logger.info(
         f"项目 {project_id} 所有权由用户 {current_user.id} 转让给用户 {payload.new_owner_user_id}"
     )
