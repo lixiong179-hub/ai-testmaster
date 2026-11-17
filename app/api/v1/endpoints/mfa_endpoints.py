@@ -14,15 +14,16 @@
 """
 from __future__ import annotations
 
+import asyncio
 
 from fastapi import APIRouter, Depends, Form, HTTPException, status
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth_deps import get_current_user
 from app.core.config import settings
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.schemas.common import ApiResponse
 from app.services.mfa_service import MFAService
@@ -32,6 +33,11 @@ from app.utils.jwt_utils import create_access_token, decode_token
 # [B-08 结论 2026-11-12] 「MFA 多因子认证」**明确不做前端接线**：属企业/外部 IdP 集成能力，
 # 前端登录页（src/views/login/index.vue）只提供账号/手机号 + 图形验证码两种形态，无二次验证入口，
 # `src/` 内 mfa 命中 0。接口保留供外部系统/脚本调用（原 R4-6 冻结结论继续有效）。
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter()
 
 # MFA pending token 的 TTL（分钟）：密码验证后等待 MFA 验证的窗口
@@ -45,7 +51,7 @@ _mfa_service = MFAService()
              description="生成 TOTP 密钥与 otpauth URI。密钥仅返回一次，需调用 /mfa/verify 确认后持久化。")
 async def mfa_setup(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
 ) -> dict:
     """生成 TOTP 密钥与 otpauth URI（不持久化，verify 通过后才写入 DB）。"""
     if current_user.mfa_enabled:
@@ -76,7 +82,7 @@ async def mfa_verify(
     secret: str = Form(...),
     code: str = Form(...),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
 ) -> dict:
     """校验 TOTP 动态码并启用 MFA。"""
     if current_user.mfa_enabled:
@@ -97,7 +103,7 @@ async def mfa_verify(
     # 生成备份码
     plaintext_codes, hashed_codes = _mfa_service.generate_backup_codes()
     current_user.mfa_backup_codes = hashed_codes
-    await db.commit()
+    await asyncio.to_thread(db.commit)
 
     logger.info(f"[MFA] 用户 {current_user.id} 启用 MFA 成功")
 
@@ -115,7 +121,7 @@ async def mfa_verify(
 async def mfa_disable(
     code: str = Form(...),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
 ) -> dict:
     """禁用 MFA（需当前 TOTP 码确认）。"""
     if not current_user.mfa_enabled:
@@ -150,7 +156,7 @@ async def mfa_disable(
     current_user.mfa_secret = None
     current_user.mfa_enabled = False
     current_user.mfa_backup_codes = None
-    await db.commit()
+    await asyncio.to_thread(db.commit)
 
     logger.info(f"[MFA] 用户 {current_user.id} 禁用 MFA (backup_consumed={backup_consumed})")
 
@@ -162,7 +168,7 @@ async def mfa_disable(
 async def mfa_regenerate_backup_codes(
     code: str = Form(...),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
 ) -> dict:
     """重新生成备份码（需当前 TOTP 码确认）。"""
     if not current_user.mfa_enabled:
@@ -182,7 +188,7 @@ async def mfa_regenerate_backup_codes(
 
     plaintext_codes, hashed_codes = _mfa_service.generate_backup_codes()
     current_user.mfa_backup_codes = hashed_codes
-    await db.commit()
+    await asyncio.to_thread(db.commit)
 
     logger.info(f"[MFA] 用户 {current_user.id} 重新生成备份码")
 
@@ -199,7 +205,7 @@ async def mfa_regenerate_backup_codes(
 async def mfa_login(
     mfa_pending_token: str = Form(...),
     code: str = Form(...),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
 ) -> dict:
     """MFA 登录验证：校验 mfa_pending_token + TOTP 码，返回正式 access_token + refresh_token。"""
     from app.utils.jwt_utils import (
@@ -232,7 +238,7 @@ async def mfa_login(
 
     # 查询用户
     from sqlalchemy import select
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await _execute(db, select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None or not user.mfa_enabled:
         raise HTTPException(
@@ -281,7 +287,7 @@ async def mfa_login(
     # 更新登录信息
     user.last_login_time = utcnow()
     user.login_count = (user.login_count or 0) + 1
-    await db.commit()
+    await asyncio.to_thread(db.commit)
 
     logger.info(f"[MFA] 用户 {user.id} MFA 登录成功 (backup_consumed={backup_consumed})")
 

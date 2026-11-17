@@ -17,6 +17,8 @@ from loguru import logger
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.db_async_compat import commit_async, execute_async, refresh_async
+
 from app.models.user_session import UserSession
 from app.utils.db_time import utcnow
 from app.utils.jwt_utils import blacklist_token
@@ -61,8 +63,8 @@ class SessionService:
             expires_at=expires_at,
         )
         self.db.add(session)
-        await self.db.commit()
-        await self.db.refresh(session)
+        await commit_async(self.db)
+        await refresh_async(self.db, session)
         logger.info(f"创建会话: user_id={user_id} jti={refresh_jti[:8]}...")
         return session
 
@@ -77,7 +79,7 @@ class SessionService:
         Returns:
             Optional[UserSession]: 会话对象；不存在返回 None
         """
-        result = await self.db.execute(
+        result = await execute_async(self.db,
             select(UserSession).where(UserSession.id == session_id)
         )
         return result.scalar_one_or_none()
@@ -93,7 +95,7 @@ class SessionService:
         Returns:
             Optional[UserSession]: 撤销后的会话对象；不存在返回 None
         """
-        result = await self.db.execute(
+        result = await execute_async(self.db,
             select(UserSession).where(UserSession.id == session_id)
         )
         session = result.scalar_one_or_none()
@@ -101,8 +103,8 @@ class SessionService:
             return None
         if session.revoked_at is None:
             session.revoked_at = utcnow()
-            await self.db.commit()
-            await self.db.refresh(session)
+            await commit_async(self.db)
+            await refresh_async(self.db, session)
             # 同步 refresh_jti 到黑名单（防止 refresh_token 仍可用）
             blacklist_token(session.refresh_jti, session.expires_at)
             logger.info(f"撤销会话: id={session_id} jti={session.refresh_jti[:8]}...")
@@ -117,7 +119,7 @@ class SessionService:
         Returns:
             bool: True 表示找到并撤销；False 表示未找到
         """
-        result = await self.db.execute(
+        result = await execute_async(self.db,
             select(UserSession).where(UserSession.refresh_jti == refresh_jti)
         )
         session = result.scalar_one_or_none()
@@ -125,7 +127,7 @@ class SessionService:
             return False
         if session.revoked_at is None:
             session.revoked_at = utcnow()
-            await self.db.commit()
+            await commit_async(self.db)
             logger.info(f"按 jti 撤销会话: jti={refresh_jti[:8]}...")
         # 同步到黑名单
         blacklist_token(refresh_jti, session.expires_at)
@@ -141,7 +143,7 @@ class SessionService:
             int: 撤销的会话数
         """
         # 先查询所有有效会话（需要 jti 加入黑名单）
-        result = await self.db.execute(
+        result = await execute_async(self.db,
             select(UserSession).where(
                 UserSession.user_id == user_id,
                 UserSession.revoked_at.is_(None),
@@ -153,7 +155,8 @@ class SessionService:
 
         now = utcnow()
         # 批量更新 revoked_at
-        await self.db.execute(
+        await execute_async(
+            self.db,
             update(UserSession)
             .where(
                 UserSession.user_id == user_id,
@@ -161,7 +164,7 @@ class SessionService:
             )
             .values(revoked_at=now)
         )
-        await self.db.commit()
+        await commit_async(self.db)
 
         # 同步所有 jti 到黑名单
         for session in sessions:
@@ -186,7 +189,7 @@ class SessionService:
         if not include_revoked:
             stmt = stmt.where(UserSession.revoked_at.is_(None))
         stmt = stmt.order_by(UserSession.created_at.desc())
-        result = await self.db.execute(stmt)
+        result = await execute_async(self.db, stmt)
         return list(result.scalars().all())
 
     async def get_session_by_jti(self, refresh_jti: str) -> UserSession | None:
@@ -198,7 +201,7 @@ class SessionService:
         Returns:
             Optional[UserSession]: 会话对象；不存在返回 None
         """
-        result = await self.db.execute(
+        result = await execute_async(self.db,
             select(UserSession).where(UserSession.refresh_jti == refresh_jti)
         )
         return result.scalar_one_or_none()
@@ -209,9 +212,10 @@ class SessionService:
         Args:
             refresh_jti: refresh_token 的 jti
         """
-        await self.db.execute(
+        await execute_async(
+            self.db,
             update(UserSession)
             .where(UserSession.refresh_jti == refresh_jti)
             .values(last_active_at=utcnow())
         )
-        await self.db.commit()
+        await commit_async(self.db)
