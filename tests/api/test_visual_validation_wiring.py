@@ -13,8 +13,6 @@ import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from app.api.v1.endpoints.execution_core import analyze_failure
 from app.api.v1.endpoints.report import _load_visual_validation_summary
 from app.core.config import settings
@@ -229,16 +227,16 @@ class TestExecutionCoreWiring:
         ])
         user = MagicMock(id=7)
 
-        with patch(f"{_EP}._get_hidden_fields", new=MagicMock(return_value=[])):
-            with patch(f"{_EP}._spawn_failure_analysis_agent"):
-                with patch(
-                    f"{_EP}.is_visual_validation_enabled_sync",
-                    new=MagicMock(return_value=True),
-                ):
-                    with patch(f"{_EP}.spawn_visual_validation_agent") as spawn:
-                        resp = await analyze_failure(
-                            result_id=999, db=db, current_user=user
-                        )
+        with (
+            patch(f"{_EP}._get_hidden_fields", new=MagicMock(return_value=[])),
+            patch(f"{_EP}._spawn_failure_analysis_agent"),
+            patch(
+                f"{_EP}.is_visual_validation_enabled_sync",
+                new=MagicMock(return_value=True),
+            ),
+            patch(f"{_EP}.spawn_visual_validation_agent") as spawn,
+        ):
+            resp = await analyze_failure(result_id=999, db=db, current_user=user)
 
         assert resp["code"] == 200
         spawn.assert_called_once()
@@ -270,12 +268,12 @@ class TestExecutionCoreWiring:
         ])
         user = MagicMock(id=7)
 
-        with patch(f"{_EP}._get_hidden_fields", new=MagicMock(return_value=[])):
-            with patch(f"{_EP}._spawn_failure_analysis_agent"):
-                with patch(f"{_EP}.spawn_visual_validation_agent") as spawn:
-                    resp = await analyze_failure(
-                        result_id=999, db=mock_db, current_user=user
-                    )
+        with (
+            patch(f"{_EP}._get_hidden_fields", new=MagicMock(return_value=[])),
+            patch(f"{_EP}._spawn_failure_analysis_agent"),
+            patch(f"{_EP}.spawn_visual_validation_agent") as spawn,
+        ):
+            resp = await analyze_failure(result_id=999, db=mock_db, current_user=user)
 
         assert resp["code"] == 200
         spawn.assert_not_called()
@@ -303,17 +301,19 @@ class TestSpawnCreatesSession:
         db.flush()
 
         captured = []
-        with patch(_SESSION_LOCAL, new=_FakeSessionFactory(_AsyncDBWrapper(db))):
-            with patch(_RUNTIME, new=_StubAgentRuntime):
-                with patch("asyncio.create_task", new=_capture_task(captured)):
-                    spawn_visual_validation_agent(
-                        project_id=project.id,
-                        created_by=testUser.id,
-                        screenshot_url="https://cdn.example.com/a.png",
-                        last_error="element not found",
-                    )
-                    assert len(captured) == 1
-                    await captured[0]
+        with (
+            patch(_SESSION_LOCAL, new=_FakeSessionFactory(_AsyncDBWrapper(db))),
+            patch(_RUNTIME, new=_StubAgentRuntime),
+            patch("asyncio.create_task", new=_capture_task(captured)),
+        ):
+            spawn_visual_validation_agent(
+                project_id=project.id,
+                created_by=testUser.id,
+                screenshot_url="https://cdn.example.com/a.png",
+                last_error="element not found",
+            )
+            assert len(captured) == 1
+            await captured[0]
 
         assert _count_visual_sessions(db, project.id) == 1
         session = (
