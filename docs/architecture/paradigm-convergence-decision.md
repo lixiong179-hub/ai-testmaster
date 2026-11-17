@@ -54,7 +54,7 @@
 | --- | --- | --- | --- |
 | **一 · 决策** | 本文件（Q1/Q2 决策 + 批次表） | 决策记录存在且含批次划分 | ✅ 2026-11-10 |
 | **二 · 引擎/会话层收敛（部分）** | `_session.py` 的 4 个 `async_*` 入口与 `_engine.py` 的异步引擎/工厂**标注 deprecated**（docstring + 注释），禁止新增调用；不删除实现 | 新增调用数 = 0（CI 可用 grep 门禁）；`import app.main` 成功 | 🔄 已标注，未删除 |
-| **三 · 端点迁移（6 批）** | 409 处引用 → `await asyncio.to_thread(sync_fn, ...)` | `grep -rc "async_get_db" app/api/v1/endpoints` → **0** | 🔄 2026-11-16：W2-1a 405/76 → **377/74**（`test_data` 8 + `user` 20；5 个 `*_async_mixin` 改 `to_thread`，测试侧 `async_db` 改同步 Session + 壳）；W2-1b → **369/73**（`audit_log` 2 + `feature_flag` 7，`FeatureFlagService` 反向收敛为同步）。`agents`/`visual_ai` 19 处因 async storage 与 AgentRuntime/MCP 共用 AsyncSession 阻塞，转 **B-14** |
+| **三 · 端点迁移（6 批）** | 409 处引用 → `await asyncio.to_thread(sync_fn, ...)` | `grep -rc "async_get_db" app/api/v1/endpoints` → **0** | 🔄 2026-11-16：W2-1a 405/76 → **377/74**（`test_data` 8 + `user` 20；5 个 `*_async_mixin` 改 `to_thread`，测试侧 `async_db` 改同步 Session + 壳）；W2-1b → **369/73**（`audit_log` 2 + `feature_flag` 7，`FeatureFlagService` 反向收敛为同步）。`agents`/`visual_ai` 19 处因 async storage 与 AgentRuntime/MCP 共用 AsyncSession 阻塞，转 **B-14**。W2-2a（2026-11-17）→ **352/71**（`execution_vis_video_replay` 14 + `test_task_exec` 3；删除手写独立 sync 会话） |
 | **四 · 测试侧收口** | 移除 `_SyncBackedAsyncSession`，删除 deprecated 别名与异步引擎 | `grep -rn "_SyncBackedAsyncSession" tests/` → **0**；`pytest tests -q` 无新增失败 | ⬜ 未开始 |
 
 ### 阶段三批次表（按子目录，逐批独立提交 + 跑该子域测试）

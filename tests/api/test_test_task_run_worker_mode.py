@@ -6,7 +6,7 @@
     - `EXECUTOR_MODE=inprocess`（默认）→ 走原执行路径（回归由既有测试覆盖）
 """
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -14,21 +14,6 @@ from app.api.v1.endpoints import test_task_exec
 from app.core.config import settings
 from app.models.project import Project
 from app.models.test_task import TaskStatus, TestTask
-
-_MOD = "app.api.v1.endpoints.test_task_exec"
-
-
-class _NoCloseProxy:
-    """包装测试会话：`close()` 置空，避免端点关闭共享的测试事务会话。"""
-
-    def __init__(self, db):
-        self._db = db
-
-    def __getattr__(self, name):
-        return getattr(self._db, name)
-
-    def close(self):
-        return None
 
 
 @pytest.fixture
@@ -66,15 +51,13 @@ class TestWorkerModeEnqueue:
         task.status = TaskStatus.COMPLETED
         db.flush()
 
-        with patch.object(settings, "EXECUTOR_MODE", "worker"):
-            with patch(f"{_MOD}.PrimarySessionLocal", return_value=_NoCloseProxy(db)):
-                with patch.object(
-                    test_task_exec,
-                    "TestExecutionEngineV2",
-                ) as engine_cls:
-                    resp = await test_task_exec.run_test_task(
-                        task_id=task.id, task=task, db=AsyncMock()
-                    )
+        with patch.object(settings, "EXECUTOR_MODE", "worker"), patch.object(
+            test_task_exec,
+            "TestExecutionEngineV2",
+        ) as engine_cls:
+            resp = await test_task_exec.run_test_task(
+                task_id=task.id, task=task, db=db
+            )
 
         engine_cls.assert_not_called()
         assert resp["executor_mode"] == "worker"
@@ -96,12 +79,8 @@ class TestWorkerModeEnqueue:
         task.status = TaskStatus.RUNNING
         db.flush()
 
-        with patch.object(settings, "EXECUTOR_MODE", "worker"):
-            with patch(f"{_MOD}.PrimarySessionLocal", return_value=_NoCloseProxy(db)):
-                with pytest.raises(HTTPException) as exc:
-                    await test_task_exec.run_test_task(
-                        task_id=task.id, task=task, db=AsyncMock()
-                    )
+        with patch.object(settings, "EXECUTOR_MODE", "worker"), pytest.raises(HTTPException) as exc:
+            await test_task_exec.run_test_task(task_id=task.id, task=task, db=db)
 
         assert exc.value.status_code == 409
 
