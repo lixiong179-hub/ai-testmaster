@@ -1,3 +1,4 @@
+import asyncio
 import os
 import uuid
 from typing import Any
@@ -5,11 +6,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
 from loguru import logger
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.history_asset import HistoryAsset
 from app.models.project import Project
 from app.models.test_case import TestCase
@@ -32,6 +33,11 @@ router = APIRouter(tags=["历史资产"])
 
 UPLOAD_DIR = "uploads/history_assets"
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 _ALLOWED_ASSET_TYPES = {"excel", "xmind", "system_cases"}
 _ALLOWED_EXCEL_EXTS = {".xlsx", ".xls"}
 _ALLOWED_XMIND_EXTS = {".xmind"}
@@ -42,10 +48,10 @@ async def upload_history_asset(
     project_id: int = Form(...),
     asset_type: str = Form(...),
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
         )
@@ -117,8 +123,8 @@ async def upload_history_asset(
         case_count=final_case_count,
     )
     db.add(asset)
-    await db.commit()
-    await db.refresh(asset)
+    await asyncio.to_thread(db.commit)
+    await asyncio.to_thread(db.refresh, asset)
 
     return create_response(data=_asset_to_upload_response(asset))
 
@@ -128,10 +134,10 @@ async def list_history_assets(
     project_id: int,
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
         )
@@ -142,13 +148,13 @@ async def list_history_assets(
             status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
         )
 
-    total_result = await db.execute(
+    total_result = await _execute(db,
         select(func.count()).select_from(HistoryAsset)
         .where(HistoryAsset.project_id == project_id)
     )
     total = total_result.scalar() or 0
     skip = (page - 1) * page_size
-    assets_result = await db.execute(
+    assets_result = await _execute(db,
         select(HistoryAsset).where(HistoryAsset.project_id == project_id)
         .order_by(HistoryAsset.created_at.desc())
         .offset(skip).limit(page_size)
@@ -168,7 +174,7 @@ async def align_history_assets(
     requirement_file_ids: str | None = Form(None),
     test_point_ids: str | None = Form(None),
     ui_screen_ids: str | None = Form(None),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     import json
@@ -187,7 +193,7 @@ async def align_history_assets(
             detail=f"参数 JSON 解析失败: {e}",
         ) from e
 
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
         )
@@ -198,7 +204,7 @@ async def align_history_assets(
             status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
         )
 
-    assets_result = await db.execute(
+    assets_result = await _execute(db,
         select(HistoryAsset).where(
             HistoryAsset.id.in_(asset_ids),
             HistoryAsset.project_id == project_id,
@@ -218,7 +224,7 @@ async def align_history_assets(
         if asset.parsed_cases_json:
             all_cases.extend(asset.parsed_cases_json)
 
-    system_cases_result = await db.execute(
+    system_cases_result = await _execute(db,
         select(TestCase).where(
             TestCase.project_id == project_id,
             TestCase.is_deleted.is_(False),
@@ -240,7 +246,7 @@ async def align_history_assets(
     requirement_keywords: list[str] = []
     if req_file_ids:
         from app.models.project import ProjectFile
-        req_files_result = await db.execute(
+        req_files_result = await _execute(db,
             select(ProjectFile).where(
                 ProjectFile.id.in_(req_file_ids),
                 ProjectFile.project_id == project_id,
@@ -271,7 +277,7 @@ async def align_history_assets(
 async def import_system_cases(
     project_id: int = Form(...),
     case_ids: str = Form(...),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     import json
@@ -284,7 +290,7 @@ async def import_system_cases(
             detail=f"case_ids JSON 解析失败: {e}",
         ) from e
 
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
         )
@@ -295,7 +301,7 @@ async def import_system_cases(
             status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在或无权限"
         )
 
-    cases_result = await db.execute(
+    cases_result = await _execute(db,
         select(TestCase).where(
             TestCase.id.in_(parsed_case_ids),
             TestCase.project_id == project_id,
@@ -336,8 +342,8 @@ async def import_system_cases(
         case_count=len(parsed_cases),
     )
     db.add(asset)
-    await db.commit()
-    await db.refresh(asset)
+    await asyncio.to_thread(db.commit)
+    await asyncio.to_thread(db.refresh, asset)
 
     return create_response(data=_asset_to_upload_response(asset))
 
@@ -345,10 +351,10 @@ async def import_system_cases(
 @router.get("/{asset_id}")
 async def get_history_asset(
     asset_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    asset_result = await db.execute(
+    asset_result = await _execute(db,
         select(HistoryAsset).where(HistoryAsset.id == asset_id)
     )
     asset = asset_result.scalars().first()

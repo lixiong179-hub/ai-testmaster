@@ -21,18 +21,19 @@ optimize-case-generation-flow Task 6.1）。
     - 等价性：批量接口返回的某 id 的 data URL 解码后的字节，与单条接口
       返回该 id 的图片字节完全一致（同一文件）。
 """
+import asyncio
 import base64
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
 from app.schemas.common import ApiResponse
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.project import Project
 from app.models.ui_prototype import UIPrototypeScreen
 from app.models.user import User
@@ -137,7 +138,7 @@ def _build_data_url(screen: UIPrototypeScreen) -> str | None:
 @router.get("/batch", response_model=ApiResponse)
 async def batch_get_ui_screens(
     ids: str = Query(..., description="逗号分隔的UI屏幕ID列表，如 1,2,3，最多100个"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """批量获取UI屏幕截图预览 data URL 映射。
@@ -168,13 +169,14 @@ async def batch_get_ui_screens(
 
         # 参数化批量查询：join Project 校验权限，使用 in_ 列表传参杜绝 SQL 注入
         # 单次查询返回所有所需屏幕，杜绝循环内执行 SQL 的 N+1 问题
-        screens_result = await db.execute(
+        screens_result = await asyncio.to_thread(
+            db.execute,
             select(UIPrototypeScreen)
             .join(Project, UIPrototypeScreen.project_id == Project.id)
             .where(
                 UIPrototypeScreen.id.in_(parsed_ids),
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         screens = screens_result.scalars().all()
 

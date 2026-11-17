@@ -13,10 +13,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import PrimarySessionLocal, get_db
 from app.models.test_case import TestCase
 from app.models.project import Project
 from app.models.user import User
@@ -76,11 +76,11 @@ def _excel_file_response(
     )
 
 
-async def _get_owned_test_case(
-    db: AsyncSession, test_case_id: int, user_id: int
+def _get_owned_test_case(
+    db: Session, test_case_id: int, user_id: int
 ) -> TestCase:
     """查询当前用户拥有的未删除测试用例，不存在则抛 404。"""
-    result = await db.execute(
+    result = db.execute(
         select(TestCase).join(Project).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),
@@ -99,7 +99,8 @@ async def _get_owned_test_case(
 async def _run_export_sync(fn, *args):
     """在独立线程中执行 sync TestCaseViewService 导出方法，释放事件循环。
 
-    使用 PrimarySessionLocal 创建独立 sync 会话，避免与 AsyncSession 事务冲突。
+    使用 PrimarySessionLocal 创建独立 sync 会话，避免与请求级会话的事务边界互相干扰
+    （导出服务自带提交语义，不与端点事务共享）。
     """
     sync_db = PrimarySessionLocal()
     try:
@@ -111,11 +112,11 @@ async def _run_export_sync(fn, *args):
 @router.get("/{test_case_id}/export-markdown")
 async def export_markdown(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """导出Markdown格式"""
-    await _get_owned_test_case(db, test_case_id, current_user.id)
+    await asyncio.to_thread(_get_owned_test_case, db, test_case_id, current_user.id)
 
     try:
         def _do_export(sync_db):
@@ -135,11 +136,11 @@ async def export_markdown(
 @router.get("/{test_case_id}/export-html")
 async def export_html(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """导出HTML格式"""
-    await _get_owned_test_case(db, test_case_id, current_user.id)
+    await asyncio.to_thread(_get_owned_test_case, db, test_case_id, current_user.id)
 
     try:
         def _do_export(sync_db):
@@ -159,11 +160,11 @@ async def export_html(
 @router.get("/{test_case_id}/export-python")
 async def export_python(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """导出Python自动化脚本"""
-    await _get_owned_test_case(db, test_case_id, current_user.id)
+    await asyncio.to_thread(_get_owned_test_case, db, test_case_id, current_user.id)
 
     try:
         def _do_export(sync_db):
@@ -183,11 +184,11 @@ async def export_python(
 @router.get("/{test_case_id}/export-json")
 async def export_json(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """导出JSON格式"""
-    await _get_owned_test_case(db, test_case_id, current_user.id)
+    await asyncio.to_thread(_get_owned_test_case, db, test_case_id, current_user.id)
 
     try:
         def _do_export(sync_db):
@@ -207,11 +208,13 @@ async def export_json(
 @router.post("/{test_case_id}/export-excel")
 async def export_excel(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """导出单条测试用例为标准Excel（双Sheet：用例信息 + 测试步骤，包含定位信息）。"""
-    test_case = await _get_owned_test_case(db, test_case_id, current_user.id)
+    test_case = await asyncio.to_thread(
+        _get_owned_test_case, db, test_case_id, current_user.id
+    )
 
     # 临时文件需存活到 FileResponse 读取完成，无法用 with 作用域管理
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)  # noqa: SIM115
@@ -246,7 +249,7 @@ async def export_excel(
 @router.post("/export-functional-excel")
 async def export_functional_excel(
     payload: FunctionalExcelExportRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """批量导出测试用例为功能用例Excel（单Sheet，按模块分组，面向第三方公司）。"""
@@ -256,12 +259,13 @@ async def export_functional_excel(
             detail="请选择要导出的用例"
         )
 
-    result = await db.execute(
+    result = await asyncio.to_thread(
+        db.execute,
         select(TestCase.id).join(Project).where(
             TestCase.id.in_(payload.case_ids),
             TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id,
-        )
+        ),
     )
     owned_ids = set(result.scalars().all())
     if not owned_ids:

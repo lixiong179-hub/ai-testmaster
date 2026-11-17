@@ -1,5 +1,5 @@
 """
-AI 调用审计查询端点模块（已迁移至 AsyncSession）
+AI 调用审计查询端点模块（R2-1：同步 Session + 线程池执行）
 
 本模块提供 AIInvocationGateway 审计增强的查询 API：
     - GET /stats  — 项目维度成本聚合（按模型/策略/日期）
@@ -8,30 +8,22 @@ AI 调用审计查询端点模块（已迁移至 AsyncSession）
 路由前缀: /ai-invocation（由 main.py 注册）
 标签: AI调用审计
 
-迁移说明（任务1 续作 - endpoint + 测试同步双迁）:
-    本端点无独立 service 层。endpoint 改 async 后，原 sync TestClient 测试与
-    async DB 依赖不兼容（aiomysql ping 因 transport._loop=None 失败），因此
-    endpoint 测试同步改为 httpx.AsyncClient 模式（参考 tests/api/conftest.py）。
-    改造要点:
-        1. db: Session → db: AsyncSession，依赖 get_db → async_get_db
-        2. db.query(Model).filter().all() →
-           (await db.execute(select(Model).where(...))).scalars().all()
-        3. db.query(col).subquery() → select(col).subquery()
-        4. db.query(...).group_by().all() →
-           (await db.execute(select(...).group_by(...))).all()
-        5. query.count() → (await db.execute(select(func.count()).select_from(...))).scalar_one()
-        6. AICallLog.generation_batch_id.in_(db.query(subq.c.id)) →
-           AICallLog.generation_batch_id.in_(select(subq.c.id))
+实现说明（R2-1 阶段三 W2-5）:
+    本端点无独立 service 层。改为同步 `Depends(get_db)` 后：
+    1. 查询统一经模块级 `_execute(db, stmt)`（内部 `asyncio.to_thread`）在线程池执行；
+    2. 仍需原生 SQL 表达式（`select(col).subquery()`、`in_(select(subq.c.id))`）；
+    3. 端点保持 `async def`，测试仍可用 `httpx.AsyncClient` 或直调。
 """
+import asyncio
 from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.generation_batch import GenerationBatch
 from app.models.user import User
 from app.ai.call_log import AICallLog
@@ -39,6 +31,11 @@ from app.schemas.ai_invocation import (
     AIInvocationListItem,
     AIInvocationStatsResponse,
 )
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter(tags=["AI调用审计"])
 
@@ -49,7 +46,7 @@ async def get_ai_invocation_stats(
     start_date: date | None = Query(None, description="起始日期（含）"),
     end_date: date | None = Query(None, description="截止日期（含）"),
     group_by: str = Query("model", pattern="^(model|strategy|date)$", description="聚合维度"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """项目维度 AI 调用成本聚合
@@ -93,7 +90,7 @@ async def get_ai_invocation_stats(
 
     rows = (
         (
-            await db.execute(
+            await _execute(db,
                 select(
                     group_col.label("group_key"),
                     func.count(AICallLog.id).label("total_calls"),
@@ -132,7 +129,7 @@ async def get_ai_invocation_list(
     run_id: int | None = Query(None, description="Pipeline 运行ID"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """AI 调用记录分页查询
@@ -172,7 +169,7 @@ async def get_ai_invocation_list(
 
     # 统计总数
     total = (
-        await db.execute(
+        await _execute(db,
             select(func.count())
             .select_from(AICallLog)
             .where(*filters)
@@ -183,7 +180,7 @@ async def get_ai_invocation_list(
     offset = (page - 1) * page_size
     rows = (
         (
-            await db.execute(
+            await _execute(db,
                 select(AICallLog)
                 .where(*filters)
                 .order_by(AICallLog.created_at.desc())

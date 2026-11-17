@@ -30,8 +30,7 @@ from fastapi import (
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import get_db, PrimarySessionLocal
 from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
@@ -55,6 +54,11 @@ try:
     _MAGIC_AVAILABLE = True
 except ImportError:
     _MAGIC_AVAILABLE = False
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter()
 
@@ -93,12 +97,12 @@ async def upload_file(
     resource_type: str = Form("other"),
     description: str = Form(""),
     iteration_id: int | None = Form(None),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     saved_file_path = None
     try:
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == project_id, Project.user_id == current_user.id
             )
@@ -204,7 +208,7 @@ async def upload_file(
 @router.post("/submit-url", response_model=ApiResponse)
 async def submit_url(
     url_request: UrlSubmitRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     raise HTTPException(
@@ -215,7 +219,7 @@ async def submit_url(
 @router.post("/update-sort")
 async def update_file_sort(
     file_ids: list[int] = Body(..., description="文件ID列表（按新顺序排列）"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -230,13 +234,13 @@ async def update_file_sort(
         unique_file_ids = list(dict.fromkeys(file_ids))
 
         # 查询用户拥有的项目ID集合（参数化批量查询，杜绝SQL注入）
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project.id).where(Project.user_id == current_user.id)
         )
         user_project_ids = set(project_result.scalars().all())
 
         # 批量查询所有文件记录，避免循环内逐条查询（N+1 修复）
-        file_result = await db.execute(
+        file_result = await _execute(db,
             select(ProjectFile).where(
                 ProjectFile.id.in_(unique_file_ids),
                 ProjectFile.is_active.is_(True),
@@ -253,7 +257,7 @@ async def update_file_sort(
                 file_record.sort_order = index + 1
                 updated_count += 1
 
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         logger.info(
 
@@ -270,6 +274,6 @@ async def update_file_sort(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"更新排序失败: {e}")
         raise HTTPException(status_code=500, detail="更新排序失败")

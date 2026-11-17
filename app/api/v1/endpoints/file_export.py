@@ -25,8 +25,7 @@ from fastapi.responses import FileResponse
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import get_db, PrimarySessionLocal
 from app.models.project import Project, ProjectFile
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
@@ -43,6 +42,11 @@ from app.utils.file_utils import (
 from app.crud import file as file_crud
 from app.api.v1.endpoints.file_upload import _file_to_dict
 from loguru import logger
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter()
 
@@ -198,7 +202,7 @@ def _extract_images_from_zip(
 @router.post("/extract-content", response_model=ApiResponse)
 async def extract_file_content(
     extract_request: FileExtractRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -244,17 +248,17 @@ async def extract_file_content(
 @router.get("/preview/{file_id}")
 async def preview_file(
     file_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    file_result = await db.execute(
+    file_result = await _execute(db,
         select(ProjectFile).where(ProjectFile.id == file_id)
     )
     file_record = file_result.scalars().first()
     if not file_record:
         raise HTTPException(status_code=404, detail="文件不存在")
 
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == file_record.project_id,
             Project.user_id == current_user.id,
@@ -274,19 +278,19 @@ async def preview_file(
 @router.get("/preview-screen/{screen_id}")
 async def preview_screen(
     screen_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     from app.models.ui_prototype import UIPrototypeScreen
 
-    screen_result = await db.execute(
+    screen_result = await _execute(db,
         select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
     )
     screen = screen_result.scalars().first()
     if not screen:
         raise HTTPException(status_code=404, detail="屏幕不存在")
 
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == screen.project_id, Project.user_id == current_user.id
         )

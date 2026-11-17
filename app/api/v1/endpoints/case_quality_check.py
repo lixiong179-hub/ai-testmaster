@@ -18,17 +18,16 @@
 
 CaseQualityAnalyzer 的 async 方法实质上使用 sync_db.query（声明 async 但内部为同步 DB 操作），
 端点使用 asyncio.to_thread + PrimarySessionLocal + asyncio.run 在独立线程中执行完整逻辑，
-释放事件循环并避免与 AsyncSession 事务冲突。
+释放事件循环并避免与请求级会话的事务边界互相干扰。
 """
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 from loguru import logger
 
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import PrimarySessionLocal, get_db
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.case_quality import CaseQualityAnalyzer
 from app.models.user import User
@@ -39,7 +38,7 @@ router = APIRouter()
 async def _run_analyzer(fn):
     """在独立线程中执行 CaseQualityAnalyzer 相关 sync 逻辑，释放事件循环。
 
-    使用 PrimarySessionLocal 创建独立 sync 会话，避免与 AsyncSession 事务冲突。
+    使用 PrimarySessionLocal 创建独立 sync 会话，避免与请求级会话的事务边界互相干扰。
     fn 接收 sync_db 参数并返回结果（可为 sync 值或协程，协程会在新事件循环中执行）。
     """
     sync_db = PrimarySessionLocal()
@@ -167,7 +166,7 @@ class StepEditRequest(BaseModel):
 @router.get("/cases/{case_id}/quality", response_model=QualityReportSchema)
 async def analyze_case_quality(
     case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     def _do_analyze(sync_db: Session):
@@ -191,7 +190,7 @@ async def analyze_case_quality(
 @router.get("/projects/{project_id}/quality", response_model=ProjectQualitySummarySchema)
 async def analyze_project_quality(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     def _do_analyze(sync_db: Session):
@@ -212,7 +211,7 @@ async def analyze_project_quality(
 async def get_case_quality_trend(
     case_id: int,
     days: int = Query(default=30, ge=1, le=365),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     def _do_get_trend(sync_db: Session):
@@ -246,7 +245,7 @@ async def get_case_quality_trend(
 @router.post("/cases/{case_id}/optimize-locators")
 async def optimize_case_locators(
     case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     def _do_optimize(sync_db: Session):
@@ -314,7 +313,7 @@ async def optimize_case_locators(
 @router.post("/batch-analyze")
 async def batch_analyze_cases(
     case_ids: list[int],
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     def _do_batch_analyze(sync_db: Session):

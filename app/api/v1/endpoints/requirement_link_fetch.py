@@ -1,3 +1,4 @@
+import asyncio
 import json
 """
 需求链接获取端点模块
@@ -19,10 +20,9 @@ import json
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
 from app.utils.db_time import utcnow
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.schemas.requirement_link import FetchContentRequest, FetchContentResponse
 from app.models.user import User
 from app.models.project import Project
@@ -37,7 +37,7 @@ router = APIRouter()
 @router.post("/fetch-content", response_model=FetchContentResponse)
 async def fetch_link_content(
     request: FetchContentRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     def _fetch(sync_db: Session):
@@ -117,7 +117,7 @@ async def fetch_link_content(
                 )
 
     try:
-        return await db.run_sync(_fetch)
+        return await asyncio.to_thread(_fetch, db)
     except HTTPException:
         raise
     except Exception as e:
@@ -138,7 +138,7 @@ async def validate_link_access(
     api_key: str | None = Query(None, description="API Key"),
     api_key_header: str | None = Query(None, description="API Key Header"),
     cookie: str | None = Query(None, description="Cookie"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:

@@ -1,4 +1,4 @@
-"""Bug缺陷管理API端点模块（已迁移至 AsyncSession）
+"""Bug缺陷管理API端点模块（R2-1：同步 Session + 线程池执行）
 
 本模块定义Bug缺陷的列表查询API端点，支持按项目、严重程度、
 来源、UX分类等维度筛选。
@@ -11,27 +11,30 @@
 
 权限要求: 所有端点需要Bearer令牌认证
 
-迁移说明（任务1 续作 - endpoint 迁移）:
+实现说明（R2-1 阶段三 W2-5）:
     本端点无独立 service 层，查询逻辑直接在 endpoint 中。
-    改造要点:
-        1. db: Session → db: AsyncSession，依赖 get_db → async_get_db
-        2. db.query(Project).filter().first() →
-           (await db.execute(select(Project).where(...))).scalar_one_or_none()
-        3. db.query(Bug).filter().order_by().offset().limit().all() →
-           (await db.execute(select(Bug).where().order_by().offset().limit())).scalars().all()
-        4. query.count() → (await db.execute(select(func.count()).select_from(Bug).where(...))).scalar_one()
+    1. 依赖 `Depends(get_db)`（同步 Session）；
+    2. 查询统一经模块级 `_execute(db, stmt)`（内部 `asyncio.to_thread`）在
+       线程池执行，事件循环不被阻塞；
+    3. 端点仍为 `async def`，保持 OpenAPI 与调用方签名不变。
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import Session
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.bug import Bug, VALID_UX_CATEGORIES
 from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.core.exception import create_response
 from app.schemas.common import ApiResponse
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter(tags=["Bug缺陷管理"])
 
@@ -45,7 +48,7 @@ async def list_bugs(
     status_filter: str | None = Query(None, alias="status", description="状态: open/in_progress/fixed/closed/rejected"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """获取Bug列表，支持多维度筛选。
@@ -69,7 +72,7 @@ async def list_bugs(
     """
     # 校验项目存在
     project = (
-        await db.execute(
+        await _execute(db,
             select(Project).where(Project.id == project_id)
         )
     ).scalar_one_or_none()
@@ -99,7 +102,7 @@ async def list_bugs(
 
     # 统计总数
     total = (
-        await db.execute(
+        await _execute(db,
             select(func.count())
             .select_from(Bug)
             .where(*filters)
@@ -110,7 +113,7 @@ async def list_bugs(
     offset = (page - 1) * page_size
     bugs = (
         (
-            await db.execute(
+            await _execute(db,
                 select(Bug)
                 .where(*filters)
                 .order_by(Bug.create_time.desc())

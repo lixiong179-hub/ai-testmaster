@@ -21,18 +21,24 @@
     - 可见性控制决定项目数据对其他用户的可见范围
     - 支持公开/私有/团队三种可见性级别
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.visibility_config_service import (
     VisibilityConfig,
     get_visibility_config_service
 )
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter(prefix="/visibility", tags=["可见模式配置"])
 
@@ -58,7 +64,7 @@ class VisibilityConfigRequest(BaseModel):
 async def get_visibility_config(
     level: str = Query(..., description="配置级别: global, task, case"),
     id: int | None = Query(None, description="任务ID或用例ID"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取可见模式配置"""
@@ -70,14 +76,14 @@ async def get_visibility_config(
         from app.models.test_task import TestTask
         task = None
         if id is not None:
-            result = await db.execute(select(TestTask).where(TestTask.id == id))
+            result = await _execute(db, select(TestTask).where(TestTask.id == id))
             task = result.scalar_one_or_none()
         config = service.get_task_config(task) if task else service.get_global_config()
     elif level == "case":
         from app.models.test_case import TestCase
         case = None
         if id is not None:
-            result = await db.execute(
+            result = await _execute(db,
                 select(TestCase).where(TestCase.id == id, TestCase.is_deleted.is_(False))
             )
             case = result.scalar_one_or_none()
@@ -95,7 +101,7 @@ async def get_visibility_config(
 @router.put("/config")
 async def update_visibility_config(
     request: VisibilityConfigRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """更新可见模式配置"""
@@ -131,7 +137,7 @@ async def update_visibility_config(
         service.set_global_config(new_config)
     elif request.level == "task" and request.id:
         from app.models.test_task import TestTask
-        result = await db.execute(select(TestTask).where(TestTask.id == request.id))
+        result = await _execute(db, select(TestTask).where(TestTask.id == request.id))
         task = result.scalar_one_or_none()
         if task:
             service.update_task_config(task, new_config)
@@ -142,7 +148,7 @@ async def update_visibility_config(
             )
     elif request.level == "case" and request.id:
         from app.models.test_case import TestCase
-        result = await db.execute(
+        result = await _execute(db,
             select(TestCase).where(TestCase.id == request.id, TestCase.is_deleted.is_(False))
         )
         case = result.scalar_one_or_none()

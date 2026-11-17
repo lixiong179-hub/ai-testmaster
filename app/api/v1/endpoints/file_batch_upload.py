@@ -27,8 +27,7 @@ from fastapi import (
 )
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import get_db, PrimarySessionLocal
 from app.models.project import Project
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
@@ -57,6 +56,11 @@ except ImportError:
 from app.api.v1.endpoints.file_export import _extract_images_from_zip
 from loguru import logger
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter()
 
 
@@ -68,7 +72,7 @@ async def batch_upload_files(
     description: str = Form(""),
     name: str = Form(""),
     iteration_id: int | None = Form(None),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -79,7 +83,7 @@ async def batch_upload_files(
                 detail=f"无效的资源类型，允许值: {', '.join(valid_resource_types)}",
             )
 
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == project_id, Project.user_id == current_user.id
             )

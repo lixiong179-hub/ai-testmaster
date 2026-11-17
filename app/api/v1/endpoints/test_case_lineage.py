@@ -3,12 +3,12 @@
 端点:
     GET /{test_case_id}/lineage - 返回血缘树（祖先 + 后代）
 """
+from sqlalchemy.orm import Session
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import get_db, PrimarySessionLocal
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.services.lineage_service import get_lineage, LineageResult
@@ -19,7 +19,7 @@ router = APIRouter()
 @router.get("/{test_case_id}/lineage", response_model=LineageResult)
 async def get_case_lineage(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> LineageResult:
     """获取用例血缘树

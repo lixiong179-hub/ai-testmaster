@@ -23,13 +23,12 @@ from collections.abc import Callable
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.config import settings
 from app.core.exception import create_response
-from app.db.database import PrimarySessionLocal, async_get_db
+from app.db.database import PrimarySessionLocal, get_db
 from app.models.project import Project
 from app.models.test_coverage_map import TestCoverageMap
 from app.models.user import User
@@ -48,11 +47,11 @@ from app.services.impact_analysis.integration_service import TIAIntegrationServi
 router = APIRouter(tags=["TIA智能调度"])
 
 
-async def _verify_project_owner(
-    db: AsyncSession, project_id: int, user_id: int
+def _verify_project_owner(
+    db: Session, project_id: int, user_id: int
 ) -> None:
     """校验项目归属当前用户，不存在或无权限抛 403。"""
-    result = await db.execute(
+    result = db.execute(
         select(Project).where(
             Project.id == project_id, Project.user_id == user_id
         )
@@ -84,7 +83,7 @@ def _run_sync(fn: Callable[[Session], Any]) -> Any:
 async def build_schedule_plan(
     project_id: int,
     body: SchedulePlanRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """根据代码变更与覆盖率映射生成 TIA 调度计划。
@@ -96,7 +95,9 @@ async def build_schedule_plan(
     3. git diff 失败 → 返回全量执行计划。
     """
     try:
-        await _verify_project_owner(db, project_id, current_user.id)
+        await asyncio.to_thread(
+            _verify_project_owner, db, project_id, current_user.id
+        )
 
         def _do(sync_db: Session) -> Any:
             service = TIAIntegrationService(db=sync_db)
@@ -138,12 +139,14 @@ async def list_coverage_maps(
     file_path: str | None = Query(None, description="按文件路径过滤（精确匹配）"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """分页查询项目覆盖率映射，支持按用例 ID / 文件路径过滤。"""
     try:
-        await _verify_project_owner(db, project_id, current_user.id)
+        await asyncio.to_thread(
+            _verify_project_owner, db, project_id, current_user.id
+        )
 
         def _do(sync_db: Session) -> tuple[list[TestCoverageMap], int]:
             query = select(TestCoverageMap).where(
@@ -190,12 +193,14 @@ async def list_coverage_maps(
 )
 async def get_coverage_stats(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """查询项目级覆盖率统计：映射总数、唯一文件数、唯一用例数。"""
     try:
-        await _verify_project_owner(db, project_id, current_user.id)
+        await asyncio.to_thread(
+            _verify_project_owner, db, project_id, current_user.id
+        )
 
         def _do(sync_db: Session) -> dict:
             base_query = select(TestCoverageMap).where(
@@ -240,7 +245,7 @@ async def get_coverage_stats(
 async def ingest_coverage(
     project_id: int,
     body: CoverageIngestRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """写入覆盖率映射：支持 coverage.json 文件路径或直接传 JSON 内容。
@@ -249,7 +254,9 @@ async def ingest_coverage(
     实现采用 delete + insert 模式保证幂等：同用例重跑覆盖率时不会残留过期行。
     """
     try:
-        await _verify_project_owner(db, project_id, current_user.id)
+        await asyncio.to_thread(
+            _verify_project_owner, db, project_id, current_user.id
+        )
 
         if not body.json_path and not body.json_content:
             raise HTTPException(
@@ -303,7 +310,7 @@ async def ingest_coverage(
 async def clear_coverage_maps(
     project_id: int,
     test_case_id: int | None = Query(None, description="仅清空指定用例的映射，不传则清空项目全部"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """清空项目（或指定用例）的覆盖率映射。
@@ -311,7 +318,9 @@ async def clear_coverage_maps(
     业务用途：覆盖率数据过期或重置 TIA 时调用。
     """
     try:
-        await _verify_project_owner(db, project_id, current_user.id)
+        await asyncio.to_thread(
+            _verify_project_owner, db, project_id, current_user.id
+        )
 
         def _do(sync_db: Session) -> int:
             query = select(TestCoverageMap).where(

@@ -6,10 +6,10 @@ import threading
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from loguru import logger
 
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import PrimarySessionLocal, get_db
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.models.project import Project
@@ -81,14 +81,14 @@ def _validate_device_pair(source_device: str, target_device: str) -> None:
         )
 
 
-async def _verify_target_project(
-    db: AsyncSession, target_project_id: int, current_user: User
+def _verify_target_project(
+    db: Session, target_project_id: int, current_user: User
 ) -> None:
     stmt = select(Project).where(
         Project.id == target_project_id,
         Project.user_id == current_user.id,
     )
-    target_project = (await db.execute(stmt)).scalar_one_or_none()
+    target_project = db.execute(stmt).scalar_one_or_none()
     if not target_project:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -108,7 +108,7 @@ def _remove_temp_file(path: str) -> None:
 @router.post("/normalize-excel", response_model=ApiResponse, summary="Excel格式规范化预处理")
 async def normalize_excel(
     file: UploadFile = File(..., description="Excel文件"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     if not file.filename or not file.filename.endswith((".xlsx", ".xls")):
@@ -153,7 +153,7 @@ async def import_excel(
     project_id: int = Form(..., description="项目ID"),
     target_device: str | None = Form(None, description="目标设备类型：tablet/phone/desktop/web"),
     iteration_id: int | None = Form(None, description="迭代ID"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     if not file.filename or not file.filename.endswith((".xlsx", ".xls")):
@@ -234,11 +234,11 @@ async def migrate_single_case(
     target_project_id: int = Form(..., description="目标项目ID"),
     source_device: str = Form("tablet", description="源设备类型"),
     target_ui_specs: str | None = Form(None, description="目标设备UI规格描述"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     _validate_device_pair(source_device, target_device)
-    await _verify_target_project(db, target_project_id, current_user)
+    await asyncio.to_thread(_verify_target_project, db, target_project_id, current_user)
     try:
         service = CaseMigrationService(db)
         result = await service.migrate_single_case(
@@ -268,11 +268,11 @@ async def migrate_single_case(
 @router.post("/preview-batch", response_model=ApiResponse, summary="批量用例跨设备迁移预览")
 async def preview_batch_migration(
     body: BatchMigrationPreviewRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     _validate_device_pair(body.source_device, body.target_device)
-    await _verify_target_project(db, body.target_project_id, current_user)
+    await asyncio.to_thread(_verify_target_project, db, body.target_project_id, current_user)
     service = CaseMigrationService(db)
     result = await service.preview_batch(
         source_case_ids=body.source_case_ids,
@@ -288,10 +288,10 @@ async def preview_batch_migration(
 @router.post("/commit-batch", response_model=ApiResponse, summary="确认批量迁移并入库")
 async def commit_batch_migration(
     body: BatchMigrationCommitRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    await _verify_target_project(db, body.target_project_id, current_user)
+    await asyncio.to_thread(_verify_target_project, db, body.target_project_id, current_user)
     if body.target_device not in VALID_DEVICES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -313,7 +313,7 @@ async def commit_batch_migration(
 @router.get("/batches/{batch_id}", response_model=ApiResponse, summary="查询迁移批次")
 async def get_migration_batch(
     batch_id: str,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     result = await CaseMigrationService(db).get_batch_cases(batch_id)
@@ -323,7 +323,7 @@ async def get_migration_batch(
 @router.post("/batches/{batch_id}/rollback", response_model=ApiResponse, summary="回滚迁移批次")
 async def rollback_migration_batch(
     batch_id: str,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     result = await CaseMigrationService(db).rollback_batch(batch_id)
