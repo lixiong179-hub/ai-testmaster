@@ -10,20 +10,26 @@
 详见各 @router 装饰器，主要包括:
     - 版本列表/详情/恢复
 """
+import asyncio
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.test_case import TestCase
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.utils.test_case_helpers import build_test_case_response
 from app.core.exception import create_response
 from loguru import logger
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter()
 
@@ -50,7 +56,7 @@ async def get_test_case_versions(
     test_case_id: int,
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -66,7 +72,7 @@ async def get_test_case_versions(
     from app.models.project import Project
     from app.models.test_case_version import TestCaseVersion
 
-    test_case_result = await db.execute(
+    test_case_result = await _execute(db,
         select(TestCase).join(Project).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),
@@ -81,13 +87,13 @@ async def get_test_case_versions(
         )
 
     base_filter = TestCaseVersion.test_case_id == test_case_id
-    count_result = await db.execute(
+    count_result = await _execute(db,
         select(func.count()).select_from(TestCaseVersion).where(base_filter)
     )
     total = count_result.scalar() or 0
 
     offset = (page - 1) * page_size
-    versions_result = await db.execute(
+    versions_result = await _execute(db,
         select(TestCaseVersion).where(base_filter)
         .order_by(TestCaseVersion.version_number.desc())
         .offset(offset).limit(page_size)
@@ -116,7 +122,7 @@ async def get_test_case_versions(
 async def get_test_case_version_detail(
     test_case_id: int,
     version_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -132,7 +138,7 @@ async def get_test_case_version_detail(
     from app.models.test_case_version import TestCaseVersion
     from app.models.project import Project
 
-    test_case_result = await db.execute(
+    test_case_result = await _execute(db,
         select(TestCase).join(Project).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),
@@ -146,7 +152,7 @@ async def get_test_case_version_detail(
             detail="测试用例不存在"
         )
 
-    version_result = await db.execute(
+    version_result = await _execute(db,
         select(TestCaseVersion).where(
             TestCaseVersion.id == version_id,
             TestCaseVersion.test_case_id == test_case_id
@@ -178,7 +184,7 @@ async def get_test_case_version_detail(
 async def restore_test_case_version(
     test_case_id: int,
     version_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -197,7 +203,7 @@ async def restore_test_case_version(
     from app.services.case_version_service import CaseVersionService
 
     # async 权限校验：查询当前用户是否拥有该用例
-    test_case_result = await db.execute(
+    test_case_result = await _execute(db,
         select(TestCase).join(Project).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),
@@ -256,7 +262,7 @@ async def diff_test_case_versions(
     test_case_id: int,
     v1_id: int,
     v2_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """对比两个版本的字段级差异
@@ -278,7 +284,7 @@ async def diff_test_case_versions(
     from app.services.case_version_service import CaseVersionService
 
     # async 权限校验
-    test_case_result = await db.execute(
+    test_case_result = await _execute(db,
         select(TestCase).join(Project).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),

@@ -17,11 +17,12 @@
     - 汇总报告包含通过率、用例分布、执行耗时等统计
     - 详细报告包含每个用例的执行步骤和结果
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from sqlalchemy.orm import Session
+from app.db.database import get_db
 from app.schemas.test_report import TestReportResponse, TestReportList, ReportGenerateRequest, ReportExportRequest
 from app.services.report_service import ReportService
 from app.utils.report_utils import ReportUtils
@@ -36,12 +37,17 @@ from typing import Any
 import json
 from loguru import logger
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter(prefix="/report", tags=["测试报告管理"])
 
 @router.post("/generate", response_model=TestReportResponse)
 async def generate_test_report(
     request: ReportGenerateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """生成测试报告"""
@@ -49,7 +55,7 @@ async def generate_test_report(
     from app.db.database import PrimarySessionLocal
 
     # async 权限校验
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == request.project_id,
             Project.user_id == current_user.id
@@ -92,36 +98,36 @@ async def get_test_reports_list(
     project_id: int | None = Query(None, description="项目ID，不传则返回所有报告"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取测试报告列表"""
     try:
         # 多项目隔离：查询时根据project_id过滤，如果不传则查询用户所有项目的报告
         if project_id:
-            reports_result = await db.execute(
+            reports_result = await _execute(db,
                 select(TestReport).where(TestReport.project_id == project_id)
                 .offset((page - 1) * page_size).limit(page_size)
             )
             reports = reports_result.scalars().all()
-            total_result = await db.execute(
+            total_result = await _execute(db,
                 select(func.count()).select_from(TestReport)
                 .where(TestReport.project_id == project_id)
             )
             total = total_result.scalar() or 0
         else:
-            user_projects_result = await db.execute(
+            user_projects_result = await _execute(db,
                 select(Project.id).where(Project.user_id == current_user.id)
             )
             project_ids = list(user_projects_result.scalars().all())
 
             if project_ids:
-                reports_result = await db.execute(
+                reports_result = await _execute(db,
                     select(TestReport).where(TestReport.project_id.in_(project_ids))
                     .offset((page - 1) * page_size).limit(page_size)
                 )
                 reports = reports_result.scalars().all()
-                total_result = await db.execute(
+                total_result = await _execute(db,
                     select(func.count()).select_from(TestReport)
                     .where(TestReport.project_id.in_(project_ids))
                 )
@@ -170,7 +176,7 @@ def _extract_final_answer(content: Any) -> str | None:
 
 
 async def _load_visual_validation_summary(
-    db: AsyncSession, project_id: int
+    db: Session, project_id: int
 ) -> dict | None:
     """汇总最近一次视觉校验会话的结论与截图引用（R3-3）。
 
@@ -180,7 +186,7 @@ async def _load_visual_validation_summary(
     """
     try:
         session = (
-            await db.execute(
+            await _execute(db,
                 select(AgentSession)
                 .where(
                     AgentSession.project_id == project_id,
@@ -194,7 +200,7 @@ async def _load_visual_validation_summary(
             return None
 
         message = (
-            await db.execute(
+            await _execute(db,
                 select(AgentMessage)
                 .where(
                     AgentMessage.session_id == session.id,
@@ -207,7 +213,7 @@ async def _load_visual_validation_summary(
         conclusion = _extract_final_answer(message.content) if message else None
 
         screenshot_url = (
-            await db.execute(
+            await _execute(db,
                 select(TestResult.screenshot_url)
                 .where(
                     TestResult.project_id == project_id,
@@ -235,7 +241,7 @@ async def _load_visual_validation_summary(
 
 
 async def _attach_visual_validation(
-    db: AsyncSession, report: TestReport
+    db: Session, report: TestReport
 ) -> TestReportResponse:
     """在报告详情中附加视觉校验结论与截图引用。"""
     data = TestReportResponse.model_validate(report)
@@ -251,11 +257,11 @@ async def _attach_visual_validation(
 async def get_test_report_detail(
     report_id: int,
     project_id: int = Query(..., description="项目ID"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取测试报告详情"""
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == project_id,
             Project.user_id == current_user.id
@@ -270,7 +276,7 @@ async def get_test_report_detail(
         )
 
     # 多项目隔离：查询时必带project_id过滤
-    report_result = await db.execute(
+    report_result = await _execute(db,
         select(TestReport).where(
             TestReport.id == report_id,
             TestReport.project_id == project_id
@@ -289,11 +295,11 @@ async def export_test_report(
     report_id: int,
     request: ReportExportRequest,
     project_id: int = Query(..., description="项目ID"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """导出测试报告"""
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == project_id,
             Project.user_id == current_user.id
@@ -308,7 +314,7 @@ async def export_test_report(
         )
 
     # 多项目隔离：导出时必带project_id过滤
-    report_result = await db.execute(
+    report_result = await _execute(db,
         select(TestReport).where(
             TestReport.id == report_id,
             TestReport.project_id == project_id
@@ -355,11 +361,11 @@ async def export_test_report(
 async def delete_test_report(
     report_id: int,
     project_id: int = Query(..., description="项目ID"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """删除测试报告"""
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(
             Project.id == project_id,
             Project.user_id == current_user.id
@@ -374,7 +380,7 @@ async def delete_test_report(
         )
 
     # 多项目隔离：删除时必带project_id过滤
-    report_result = await db.execute(
+    report_result = await _execute(db,
         select(TestReport).where(
             TestReport.id == report_id,
             TestReport.project_id == project_id
@@ -387,6 +393,6 @@ async def delete_test_report(
             detail="测试报告不存在"
         )
 
-    await db.delete(report)
-    await db.commit()
+    await asyncio.to_thread(db.delete, report)
+    await asyncio.to_thread(db.commit)
     return {"message": "测试报告删除成功"}

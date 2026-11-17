@@ -373,9 +373,7 @@ class TestReportVisualSection:
         )
         db.flush()
 
-        summary = await _load_visual_validation_summary(
-            _AsyncDBWrapper(db), project.id
-        )
+        summary = await _load_visual_validation_summary(db, project.id)
 
         assert summary is not None
         assert summary["session_id"] == session.id

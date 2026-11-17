@@ -7,10 +7,11 @@
 端点: POST /, GET /list/{project_id}, GET /{link_id}, PUT /{link_id}, DELETE /{link_id}
 权限: Bearer令牌认证
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from sqlalchemy.orm import Session
+from app.db.database import get_db
 from app.models.requirement_link import RequirementLink
 from app.schemas.requirement_link import (
     RequirementLinkCreate,
@@ -26,14 +27,19 @@ from app.api.v1.endpoints.auth import get_current_user
 from app.utils.db_time import utcnow
 from loguru import logger
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter()
 
 
 async def _verify_project_permission(
-    db: AsyncSession, project_id: int, user_id: int
+    db: Session, project_id: int, user_id: int
 ) -> None:
     """验证用户对项目的操作权限，不存在或无权限时抛403。"""
-    result = await db.execute(
+    result = await _execute(db,
         select(Project).where(
             Project.id == project_id,
             Project.user_id == user_id,
@@ -48,10 +54,10 @@ async def _verify_project_permission(
 
 
 async def _get_owned_link(
-    db: AsyncSession, link_id: int, user_id: int
+    db: Session, link_id: int, user_id: int
 ) -> RequirementLink:
     """查询链接并验证用户对所属项目的权限，不存在抛404、无权限抛403。"""
-    result = await db.execute(
+    result = await _execute(db,
         select(RequirementLink).where(RequirementLink.id == link_id)
     )
     link = result.scalars().first()
@@ -101,13 +107,13 @@ def _build_link_response(link) -> RequirementLinkResponse:
 @router.post("/", response_model=RequirementLinkResponse, status_code=status.HTTP_201_CREATED)
 async def create_requirement_link(
     link_data: RequirementLinkCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
         await _verify_project_permission(db, link_data.project_id, current_user.id)
 
-        exists_result = await db.execute(
+        exists_result = await _execute(db,
             select(RequirementLink).where(
                 RequirementLink.project_id == link_data.project_id,
                 RequirementLink.link_url == link_data.link_url,
@@ -143,8 +149,8 @@ async def create_requirement_link(
         )
         link.auth_config = auth_config
         db.add(link)
-        await db.commit()
-        await db.refresh(link)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, link)
         return _build_link_response(link)
 
     except HTTPException:
@@ -164,7 +170,7 @@ async def get_requirement_links(
     is_active: bool | None = Query(None, description="是否启用筛选"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -180,14 +186,14 @@ async def get_requirement_links(
         if is_active is not None:
             conditions.append(RequirementLink.is_active == is_active)
 
-        links_result = await db.execute(
+        links_result = await _execute(db,
             select(RequirementLink).join(Project).where(*conditions)
             .order_by(RequirementLink.create_time.desc())
             .offset(skip).limit(page_size)
         )
         links = links_result.scalars().all()
 
-        count_result = await db.execute(
+        count_result = await _execute(db,
             select(func.count()).select_from(RequirementLink).join(Project).where(*conditions)
         )
         total = count_result.scalar() or 0
@@ -212,7 +218,7 @@ async def get_requirement_links(
 @router.get("/{link_id}", response_model=RequirementLinkResponse)
 async def get_requirement_link_detail(
     link_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -233,7 +239,7 @@ async def get_requirement_link_detail(
 async def update_requirement_link(
     link_id: int,
     link_data: RequirementLinkUpdate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -259,8 +265,8 @@ async def update_requirement_link(
             if key not in protected_fields and hasattr(link, key):
                 setattr(link, key, value)
         link.update_time = utcnow()
-        await db.commit()
-        await db.refresh(link)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, link)
         return _build_link_response(link)
 
     except HTTPException:
@@ -276,13 +282,13 @@ async def update_requirement_link(
 @router.delete("/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_requirement_link(
     link_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
         link = await _get_owned_link(db, link_id, current_user.id)
-        await db.delete(link)
-        await db.commit()
+        await asyncio.to_thread(db.delete, link)
+        await asyncio.to_thread(db.commit)
     except HTTPException:
         raise
     except Exception as e:

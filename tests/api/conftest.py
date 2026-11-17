@@ -219,10 +219,16 @@ def async_db(_sync_schema_setup):
     def _safe_rollback(*args, **kwargs):
         sp = _savepoint["ref"]
         if sp is not None and sp.is_active:
-            sp.rollback()
-            _savepoint["ref"] = session.begin_nested()
-        else:
-            _orig_rollback(*args, **kwargs)
+            try:
+                sp.rollback()
+                _savepoint["ref"] = session.begin_nested()
+                return
+            except Exception:
+                # R2-1：端点内的 rollback 经 asyncio.to_thread 在 worker 线程执行，
+                # 与外层 savepoint 的内部事务栈可能不同步（is_active 仍为 True 但
+                # 底层 transaction 已出栈）。此时退化为常规 rollback，保证会话可用。
+                _savepoint["ref"] = None
+        _orig_rollback(*args, **kwargs)
 
     session.rollback = _safe_rollback
     _orig_close = session.close

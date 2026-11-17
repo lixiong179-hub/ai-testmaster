@@ -20,17 +20,23 @@
     - 工作流状态: draft -> review -> approved/rejected -> deprecated
     - 纠正状态: None -> failed_correction -> correcting -> verifying -> verified
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from sqlalchemy.orm import Session
+from app.db.database import get_db
 from app.models.test_case import TestCase, enable_lifecycle_transition, disable_lifecycle_transition
 from app.models.user import User
 from app.models.enums import TestCaseLifecycleStatus
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
 from loguru import logger
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter()
 
@@ -69,10 +75,10 @@ class WorkflowTransitionRequest(BaseModel):
         return v
 
 
-async def _get_test_case(test_case_id: int, db: AsyncSession) -> TestCase:
-    """按 ID 查询未删除的测试用例，不存在则抛 404"""
+async def _get_test_case(test_case_id: int, db: Session) -> TestCase:
+    """按 ID 查询未删除的测试用例，不存在则抛 404（查询经 `_execute` 转线程池）"""
     test_case = (
-        await db.execute(
+        await _execute(db,
             select(TestCase).where(
                 TestCase.id == test_case_id,
                 TestCase.is_deleted.is_(False),
@@ -90,7 +96,7 @@ async def _get_test_case(test_case_id: int, db: AsyncSession) -> TestCase:
 @router.get("/{test_case_id}/workflow")
 async def get_test_case_workflow(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -128,7 +134,7 @@ async def get_test_case_workflow(
 async def transition_test_case_workflow(
     test_case_id: int,
     request: WorkflowTransitionRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -166,7 +172,7 @@ async def transition_test_case_workflow(
         enable_lifecycle_transition()
         try:
             test_case.lifecycle_status = request.target_status
-            await db.commit()
+            await asyncio.to_thread(db.commit)
         finally:
             disable_lifecycle_transition()
 
@@ -193,7 +199,7 @@ async def transition_test_case_workflow(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"工作流状态转换失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -222,7 +228,7 @@ CORRECTION_STATUS_LABELS = {
 @router.get("/{test_case_id}/correction-status")
 async def get_correction_status(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -257,7 +263,7 @@ async def get_correction_status(
 @router.post("/{test_case_id}/start-correction")
 async def start_correction(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -286,7 +292,7 @@ async def start_correction(
 
     try:
         test_case.correction_status = 'correcting'
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         logger.info(f"[纠正开始] 用户ID={current_user.id}, 用例ID={test_case_id}")
 
@@ -297,7 +303,7 @@ async def start_correction(
             "message": "已进入纠正模式"
         })
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"开始纠正失败: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="开始纠正失败")
 
@@ -305,7 +311,7 @@ async def start_correction(
 @router.post("/{test_case_id}/submit-verification")
 async def submit_verification(
     test_case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -333,7 +339,7 @@ async def submit_verification(
 
     try:
         test_case.correction_status = 'verifying'
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         logger.info(f"[提交验证] 用户ID={current_user.id}, 用例ID={test_case_id}")
 
@@ -344,6 +350,6 @@ async def submit_verification(
             "message": "已提交验证"
         })
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"提交验证失败: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="提交验证失败")

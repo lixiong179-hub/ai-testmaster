@@ -19,11 +19,12 @@
     - 项目详情包含关联文件列表，Web环境密码脱敏返回
     - 删除为物理删除，会永久移除项目数据
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from sqlalchemy.orm import Session
+from app.db.database import get_db
 from app.schemas.common import ApiResponse
 from app.schemas.project import (
     ProjectCreate,
@@ -36,6 +37,11 @@ from app.core.exception import create_response
 from loguru import logger
 import json
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter()
 
 
@@ -47,12 +53,12 @@ class SelfTestScheduleRequest(BaseModel):
 @router.post("/create", response_model=ApiResponse)
 async def create_project(
     project: ProjectCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """创建项目"""
     try:
-        result = await db.execute(
+        result = await _execute(db,
             select(Project).where(Project.name == project.name)
         )
         if result.scalar_one_or_none():
@@ -88,8 +94,8 @@ async def create_project(
         if project.device_config:
             new_project.device_config = json.dumps(project.device_config.model_dump(exclude_none=True))
         db.add(new_project)
-        await db.commit()
-        await db.refresh(new_project)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, new_project)
         return create_response(
             data={
                 "project_id": new_project.id,
@@ -103,7 +109,7 @@ async def create_project(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"创建项目失败: {e}")
         raise HTTPException(status_code=500, detail="创建项目失败")
 
@@ -112,20 +118,20 @@ async def create_project(
 async def get_projects(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=1000, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取项目列表（分页）"""
     try:
         offset = (page - 1) * page_size
-        result = await db.execute(
+        result = await _execute(db,
             select(Project)
             .where(Project.user_id == current_user.id)
             .offset(offset)
             .limit(page_size)
         )
         projects = result.scalars().all()
-        count_result = await db.execute(
+        count_result = await _execute(db,
             select(func.count()).select_from(Project)
             .where(Project.user_id == current_user.id)
         )
@@ -150,12 +156,12 @@ async def get_projects(
 @router.get("/{project_id}", response_model=ApiResponse)
 async def get_project(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取项目详情（含关联文件列表，Web环境密码脱敏）"""
     try:
-        result = await db.execute(
+        result = await _execute(db,
             select(Project).where(
                 Project.id == project_id,
                 Project.user_id == current_user.id
@@ -166,7 +172,7 @@ async def get_project(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目")
 
         # 内联 async 查询替代 get_project_files sync crud
-        files_result = await db.execute(
+        files_result = await _execute(db,
             select(ProjectFile)
             .where(
                 ProjectFile.project_id == project_id,
@@ -233,51 +239,51 @@ def _delete_project_core_assets(db, project_id: int) -> None:
         db.delete(test_case)
 
 
-async def _delete_project_core_assets_async(db: AsyncSession, project_id: int) -> None:
-    """async 版本的项目核心资产删除，纯ORM操作。"""
+async def _delete_project_core_assets_async(db: Session, project_id: int) -> None:
+    """项目核心资产删除（纯 ORM），DB 调用经 `_execute` 转线程池。"""
     from sqlalchemy import delete as sa_delete
     from app.models.test_case import TestCase
     from app.models.test_result import TestResult
     from app.models.test_task import TestTask
     from app.models.test_case_version import TestCaseVersion
 
-    await db.execute(
+    await _execute(db,
         sa_delete(TestResult).where(TestResult.project_id == project_id)
     )
 
-    tasks_result = await db.execute(
+    tasks_result = await _execute(db,
         select(TestTask).where(TestTask.project_id == project_id)
     )
     for task in tasks_result.scalars().all():
-        await db.delete(task)
+        await asyncio.to_thread(db.delete, task)
 
-    case_ids_result = await db.execute(
+    case_ids_result = await _execute(db,
         select(TestCase.id).where(TestCase.project_id == project_id)
     )
     case_ids = [row[0] for row in case_ids_result.all()]
     if case_ids:
-        await db.execute(
+        await _execute(db,
             sa_delete(TestCaseVersion).where(
                 TestCaseVersion.test_case_id.in_(case_ids)
             )
         )
 
-    test_cases_result = await db.execute(
+    test_cases_result = await _execute(db,
         select(TestCase).where(TestCase.project_id == project_id)
     )
     for test_case in test_cases_result.scalars().all():
-        await db.delete(test_case)
+        await asyncio.to_thread(db.delete, test_case)
 
 
 @router.delete("/{project_id}", response_model=ApiResponse)
 async def delete_project(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """删除项目（物理删除，不可逆）"""
     try:
-        result = await db.execute(
+        result = await _execute(db,
             select(Project).where(
                 Project.id == project_id,
                 Project.user_id == current_user.id
@@ -290,13 +296,13 @@ async def delete_project(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="自测项目不可删除")
 
         await _delete_project_core_assets_async(db, project_id)
-        await db.delete(project)
-        await db.commit()
+        await asyncio.to_thread(db.delete, project)
+        await asyncio.to_thread(db.commit)
         return create_response(data={}, msg="删除成功")
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"删除项目失败: {e}")
         raise HTTPException(status_code=500, detail="删除项目失败")
 
@@ -305,10 +311,10 @@ async def delete_project(
 async def update_self_test_schedule(
     project_id: int,
     body: SelfTestScheduleRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
+    result = await _execute(db,
         select(Project).where(
             Project.id == project_id,
             Project.user_id == current_user.id,
@@ -327,8 +333,8 @@ async def update_self_test_schedule(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效的cron表达式")
 
     project.self_test_schedule = body.schedule
-    await db.commit()
-    await db.refresh(project)
+    await asyncio.to_thread(db.commit)
+    await asyncio.to_thread(db.refresh, project)
 
     return create_response(
         data={"project_id": project.id, "self_test_schedule": project.self_test_schedule},

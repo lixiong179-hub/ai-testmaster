@@ -19,6 +19,7 @@
     - 删除为物理删除，同时移除磁盘文件
 """
 
+import asyncio
 from fastapi import (
     APIRouter,
     Depends,
@@ -27,8 +28,8 @@ from fastapi import (
     Query,
 )
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from sqlalchemy.orm import Session
+from app.db.database import get_db
 from app.models.project import Project, ProjectFile
 from app.models.iteration import Iteration
 from app.api.v1.endpoints.auth import get_current_user
@@ -39,6 +40,11 @@ from app.api.v1.endpoints.file_upload import _file_to_dict
 from app.core.exception import create_response
 from loguru import logger
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter()
 
 
@@ -48,11 +54,11 @@ async def get_all_files(
     iteration_id: int | None = Query(None),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        user_projects_result = await db.execute(
+        user_projects_result = await _execute(db,
             select(Project).where(Project.user_id == current_user.id)
         )
         user_projects = user_projects_result.scalars().all()
@@ -75,12 +81,12 @@ async def get_all_files(
                 conditions.append(ProjectFile.iteration_id == iteration_id)
 
         # P1-1: 添加分页支持，避免全量加载
-        total_result = await db.execute(
+        total_result = await _execute(db,
             select(func.count()).select_from(ProjectFile).where(*conditions)
         )
         total = total_result.scalar() or 0
         skip = (page - 1) * page_size
-        files_result = await db.execute(
+        files_result = await _execute(db,
             select(ProjectFile)
             .where(*conditions)
             .order_by(
@@ -116,11 +122,11 @@ async def get_file_list(
     iteration_id: int | None = Query(None),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == project_id, Project.user_id == current_user.id
             )
@@ -148,12 +154,12 @@ async def get_file_list(
             else:
                 conditions.append(ProjectFile.iteration_id == iteration_id)
 
-        total_result = await db.execute(
+        total_result = await _execute(db,
             select(func.count()).select_from(ProjectFile).where(*conditions)
         )
         total = total_result.scalar() or 0
         skip = (page - 1) * page_size
-        files_result = await db.execute(
+        files_result = await _execute(db,
             select(ProjectFile)
             .where(*conditions)
             .order_by(
@@ -188,18 +194,18 @@ async def get_file_list(
 async def update_file(
     file_id: int,
     update_data: FileUpdateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        file_result = await db.execute(
+        file_result = await _execute(db,
             select(ProjectFile).where(ProjectFile.id == file_id)
         )
         file = file_result.scalars().first()
         if not file:
             raise HTTPException(status_code=404, detail="文件不存在")
 
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == file.project_id,
                 Project.user_id == current_user.id,
@@ -231,7 +237,7 @@ async def update_file(
             )
 
             if iteration_value:
-                iteration_result = await db.execute(
+                iteration_result = await _execute(db,
                     select(Iteration).where(
                         Iteration.id == iteration_value,
                         Iteration.project_id == file.project_id,
@@ -246,8 +252,8 @@ async def update_file(
 
             file.iteration_id = iteration_value
 
-        await db.commit()
-        await db.refresh(file)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, file)
 
         return {
             "code": 200,
@@ -257,7 +263,7 @@ async def update_file(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"更新文件失败: {e}")
         raise HTTPException(status_code=500, detail="更新文件失败")
 
@@ -266,11 +272,11 @@ async def update_file(
 async def delete_file(
     file_id: int,
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == project_id, Project.user_id == current_user.id
             )
@@ -283,7 +289,7 @@ async def delete_file(
                 detail="无权限操作此项目",
             )
 
-        file_result = await db.execute(
+        file_result = await _execute(db,
             select(ProjectFile).where(
                 ProjectFile.id == file_id, ProjectFile.project_id == project_id
             )
@@ -296,7 +302,7 @@ async def delete_file(
             )
 
         file.is_active = False
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         return {"code": 200, "message": "删除成功", "data": {}}
     except HTTPException:

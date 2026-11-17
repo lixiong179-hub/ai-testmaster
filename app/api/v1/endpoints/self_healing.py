@@ -24,12 +24,11 @@ from collections.abc import Callable
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import PrimarySessionLocal, async_get_db
+from app.db.database import PrimarySessionLocal, get_db
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.common import ApiResponse
@@ -47,14 +46,19 @@ from app.services.self_healing.config_service import (
     SelfHealingConfigService,
 )
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter(tags=["自愈管理"])
 
 
 async def _verify_project_owner(
-    db: AsyncSession, project_id: int, user_id: int
+    db: Session, project_id: int, user_id: int
 ) -> None:
-    """校验项目归属当前用户，不存在或无权限抛 403。"""
-    result = await db.execute(
+    """校验项目归属当前用户，不存在或无权限抛 403（查询经 `_execute` 转线程池）。"""
+    result = await _execute(db,
         select(Project).where(
             Project.id == project_id, Project.user_id == user_id
         )
@@ -93,7 +97,7 @@ async def list_audits(
     test_case_id: int | None = Query(None, description="用例ID过滤"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """分页查询自愈审计记录，支持按项目/用例过滤。
@@ -134,7 +138,7 @@ async def list_audits(
 )
 async def get_audit(
     audit_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """获取单条自愈审计记录详情，不存在返回 404。"""
@@ -165,7 +169,7 @@ async def get_audit(
 )
 async def rollback_audit(
     audit_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """回滚指定审计记录的自愈变更，恢复旧选择器并写入回滚审计。
@@ -204,7 +208,7 @@ async def rollback_audit(
 )
 async def get_self_healing_config(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """查询项目级自愈配置（enabled 已合并全局开关，全局关则必为 False）。"""
@@ -233,7 +237,7 @@ async def get_self_healing_config(
 async def update_self_healing_config(
     project_id: int,
     config_data: SelfHealingConfigUpdate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """更新项目级自愈配置，仅更新传入字段，未传字段保留原值。

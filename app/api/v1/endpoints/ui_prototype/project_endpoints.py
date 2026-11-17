@@ -16,16 +16,17 @@
 
 公开符号通过本文件 re-export，保持 import 路径不变。
 """
+import asyncio
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.project import Project
 from app.models.project_flow_data import ProjectFlowData
 from app.models.ui_prototype import (
@@ -43,17 +44,22 @@ from app.services.ui_prototype_flow import (
 )
 from app.utils.db_time import utcnow
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter(tags=["UI原型管理"])
 
 
 async def create_prototype_project(
     project_data: UIPrototypeProjectCreate,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
         # 内联 async 实现, 替代 db.run_sync(_create) + sync crud
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == project_data.project_id,
                 Project.user_id == current_user.id,
@@ -73,8 +79,8 @@ async def create_prototype_project(
             created_by=current_user.id,
         )
         db.add(record)
-        await db.commit()
-        await db.refresh(record)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, record)
         data = record
         return create_response(data=data, msg="创建成功")
     except HTTPException:
@@ -92,12 +98,12 @@ async def get_prototype_projects(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     iteration_id: int | None = Query(None),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
         # 内联 async 实现, 替代 db.run_sync(_list) + sync crud
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == project_id, Project.user_id == current_user.id
             )
@@ -126,7 +132,7 @@ async def get_prototype_projects(
                     UIPrototypeProject.iteration_id == iteration_id
                 )
         list_stmt = list_stmt.offset(skip).limit(page_size)
-        db_projects_result = await db.execute(list_stmt)
+        db_projects_result = await _execute(db, list_stmt)
         db_projects = db_projects_result.scalars().all()
 
         # 内联 async 聚合查询替代 get_ui_prototype_projects_count
@@ -147,7 +153,7 @@ async def get_prototype_projects(
                 count_stmt = count_stmt.where(
                     UIPrototypeProject.iteration_id == iteration_id
                 )
-        total = (await db.execute(count_stmt)).scalar() or 0
+        total = (await _execute(db, count_stmt)).scalar() or 0
 
         items = []
         for p in db_projects:
@@ -187,11 +193,11 @@ async def get_prototype_projects(
 
 async def delete_prototype_project(
     prototype_project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        proto_result = await db.execute(
+        proto_result = await _execute(db,
             select(UIPrototypeProject).where(
                 UIPrototypeProject.id == prototype_project_id
             )
@@ -203,7 +209,7 @@ async def delete_prototype_project(
                 status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
             )
 
-        db_project_result = await db.execute(
+        db_project_result = await _execute(db,
             select(Project).where(
                 Project.id == proto_project.project_id,
                 Project.user_id == current_user.id,
@@ -216,7 +222,7 @@ async def delete_prototype_project(
                 status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
 
-        screens_result = await db.execute(
+        screens_result = await _execute(db,
             select(UIPrototypeScreen).where(
                 UIPrototypeScreen.prototype_project_id == prototype_project_id
             )
@@ -234,16 +240,16 @@ async def delete_prototype_project(
                     logger.warning(
                         f"删除UI原型文件失败: {screen.original_file_path}, 错误: {e}"
                     )
-            await db.execute(
+            await _execute(db,
                 delete(UIScreenTestCaseLink).where(
                     UIScreenTestCaseLink.screen_id == screen.id
                 )
             )
-            await db.delete(screen)
+            await asyncio.to_thread(db.delete, screen)
             deleted_screens += 1
 
-        await db.delete(proto_project)
-        await db.commit()
+        await asyncio.to_thread(db.delete, proto_project)
+        await asyncio.to_thread(db.commit)
 
         return create_response(
             data={"deleted_screens": deleted_screens},
@@ -252,7 +258,7 @@ async def delete_prototype_project(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"删除UI原型项目失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -263,7 +269,7 @@ async def delete_prototype_project(
 async def save_flow_data(
     project_id: int,
     flow_request: FlowDataSaveRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -283,7 +289,7 @@ async def save_flow_data(
             )
 
         # 内联 async 实现, 替代 db.run_sync(_save) + sync crud
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == project_id, Project.user_id == current_user.id
             )
@@ -294,7 +300,7 @@ async def save_flow_data(
                 status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
 
-        existing_result = await db.execute(
+        existing_result = await _execute(db,
             select(ProjectFlowData).where(
                 ProjectFlowData.project_id == project_id
             )
@@ -303,8 +309,8 @@ async def save_flow_data(
         if existing:
             existing.flow_data = flow_request.flow_data
             existing.update_time = utcnow()
-            await db.commit()
-            await db.refresh(existing)
+            await asyncio.to_thread(db.commit)
+            await asyncio.to_thread(db.refresh, existing)
             result = existing
         else:
             record = ProjectFlowData(
@@ -312,8 +318,8 @@ async def save_flow_data(
                 flow_data=flow_request.flow_data,
             )
             db.add(record)
-            await db.commit()
-            await db.refresh(record)
+            await asyncio.to_thread(db.commit)
+            await asyncio.to_thread(db.refresh, record)
             result = record
 
         data = _serialize_project_flow_data(result)
@@ -330,7 +336,7 @@ async def save_flow_data(
 
 async def get_flow_data(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -341,7 +347,7 @@ async def get_flow_data(
     """
     try:
         # 内联 async 实现, 替代 db.run_sync(_get) + sync crud
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == project_id, Project.user_id == current_user.id
             )
@@ -352,7 +358,7 @@ async def get_flow_data(
                 status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
 
-        flow_result = await db.execute(
+        flow_result = await _execute(db,
             select(ProjectFlowData).where(
                 ProjectFlowData.project_id == project_id
             )
