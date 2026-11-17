@@ -1,4 +1,4 @@
-"""
+﻿"""
 执行可视化配置端点模块
 
 本模块定义执行可视化的配置API端点，管理可视化展示的参数设置。
@@ -15,10 +15,13 @@
 业务说明:
     - 配置包括截图质量、视频帧率、展示模式等参数
 """
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from sqlalchemy.orm import Session
+
+from app.db.database import get_db
 from app.models.test_case import TestCase
 from app.models.test_task import TestTask
 from app.models.user import User
@@ -37,7 +40,7 @@ router = APIRouter()
 
 @router.get("/config/global", response_model=VisibilityConfigResponse)
 async def get_global_config(
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     service = get_visibility_config_service()
@@ -52,7 +55,7 @@ async def get_global_config(
 @router.put("/config/global", response_model=VisibilityConfigResponse)
 async def update_global_config(
     config: VisibilityConfigSchema,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     service = get_visibility_config_service()
@@ -78,12 +81,12 @@ async def update_global_config(
 @router.get("/config/task/{task_id}", response_model=VisibilityConfigResponse)
 async def get_task_config(
     task_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     service = get_visibility_config_service()
-    task_result = await db.execute(
-        select(TestTask).where(TestTask.id == task_id)
+    task_result = await asyncio.to_thread(
+        db.execute, select(TestTask).where(TestTask.id == task_id)
     )
     task = task_result.scalars().first()
     if not task:
@@ -103,12 +106,12 @@ async def get_task_config(
 async def update_task_config(
     task_id: int,
     config: VisibilityConfigSchema,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     service = get_visibility_config_service()
-    task_result = await db.execute(
-        select(TestTask).where(TestTask.id == task_id)
+    task_result = await asyncio.to_thread(
+        db.execute, select(TestTask).where(TestTask.id == task_id)
     )
     task = task_result.scalars().first()
     if not task:
@@ -128,7 +131,7 @@ async def update_task_config(
             detail=error_msg
         )
     service.update_task_config(task, new_config)
-    await db.commit()
+    await asyncio.to_thread(db.commit)
     return VisibilityConfigResponse(
         config=new_config.to_dict(),
         level="task",
@@ -140,15 +143,16 @@ async def update_task_config(
 async def get_case_config(
     case_id: int,
     task_id: int | None = None,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     service = get_visibility_config_service()
-    case_result = await db.execute(
+    case_result = await asyncio.to_thread(
+        db.execute,
         select(TestCase).where(
             TestCase.id == case_id,
             TestCase.is_deleted.is_(False),
-        )
+        ),
     )
     case = case_result.scalars().first()
     if not case:
@@ -158,8 +162,8 @@ async def get_case_config(
         )
     task = None
     if task_id:
-        task_result = await db.execute(
-            select(TestTask).where(TestTask.id == task_id)
+        task_result = await asyncio.to_thread(
+            db.execute, select(TestTask).where(TestTask.id == task_id)
         )
         task = task_result.scalars().first()
     config = service.get_case_config(case, task)

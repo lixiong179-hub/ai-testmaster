@@ -1,4 +1,4 @@
-"""
+﻿"""
 测试任务端点模块
 
 本模块定义测试任务的API端点，用于管理测试执行任务的创建、查询和状态控制。
@@ -18,11 +18,14 @@
 
 权限要求: 所有端点需要Bearer令牌认证
 """
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func, insert, asc, desc
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
+
 from app.utils.db_time import utcnow
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import get_db
 from app.models.test_task import TestTask
 from app.models.test_result import TestResult
 from app.models.enums import ExecStatus
@@ -42,7 +45,7 @@ from app.api.v1.endpoints.test_task_helpers import (
 )
 from app.api.v1.endpoints.access_deps import (
     require_task_access,
-    verify_project_access_async,
+    verify_project_access,
 )
 from app.api.v1.endpoints.test_task_exec import router as exec_router
 
@@ -66,7 +69,7 @@ TASK_SORT_FIELD_MAP = {
 @router.post("/", response_model=ApiResponse)
 async def create_test_task(
     request_data: CreateTaskRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """创建测试任务"""
@@ -75,7 +78,7 @@ async def create_test_task(
         task_name = request_data.task_name
         test_case_ids = request_data.case_ids
 
-        await verify_project_access_async(db, project_id, current_user)
+        await asyncio.to_thread(verify_project_access, db, project_id, current_user)
         new_task = TestTask(
             project_id=project_id,
             task_name=task_name,
@@ -85,15 +88,16 @@ async def create_test_task(
             total_count=len(test_case_ids) if test_case_ids else 0
         )
         db.add(new_task)
-        await db.flush()
+        await asyncio.to_thread(db.flush)
 
         if test_case_ids:
-            cases_result = await db.execute(
+            cases_result = await asyncio.to_thread(
+                db.execute,
                 select(TestCase).where(
                     TestCase.id.in_(test_case_ids),
                     TestCase.project_id == project_id,
-                    TestCase.is_deleted.is_(False)
-                )
+                    TestCase.is_deleted.is_(False),
+                ),
             )
             test_cases = cases_result.scalars().all()
             case_map = {tc.id: tc for tc in test_cases}
@@ -109,10 +113,12 @@ async def create_test_task(
                         "exec_status": ExecStatus.NOT_EXECUTED
                     })
             if task_results_to_insert:
-                await db.execute(insert(TestResult), task_results_to_insert)
+                await asyncio.to_thread(
+                    db.execute, insert(TestResult), task_results_to_insert
+                )
 
-        await db.commit()
-        await db.refresh(new_task)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, new_task)
         data = {
             "task_id": new_task.id,
             "task_name": new_task.task_name,
@@ -124,7 +130,7 @@ async def create_test_task(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"创建测试任务失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -140,7 +146,7 @@ async def get_test_tasks(
     sort_order: str = Query("desc", description="排序方向: asc/desc"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(10, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """获取测试任务列表
@@ -161,7 +167,7 @@ async def get_test_tasks(
             detail="排序方向仅支持 asc/desc"
         )
     if project_id is not None:
-        await verify_project_access_async(db, project_id, current_user)
+        await asyncio.to_thread(verify_project_access, db, project_id, current_user)
         base_query = select(TestTask).where(TestTask.project_id == project_id)
         count_query = select(func.count()).select_from(TestTask).where(TestTask.project_id == project_id)
     else:
@@ -181,11 +187,11 @@ async def get_test_tasks(
     order_clause = asc(sort_column) if sort_order == "asc" else desc(sort_column)
     base_query = base_query.order_by(order_clause, TestTask.id.desc())
     offset = (page - 1) * page_size
-    tasks_result = await db.execute(
-        base_query.offset(offset).limit(page_size)
+    tasks_result = await asyncio.to_thread(
+        db.execute, base_query.offset(offset).limit(page_size)
     )
     test_tasks = tasks_result.scalars().all()
-    total_result = await db.execute(count_query)
+    total_result = await asyncio.to_thread(db.execute, count_query)
     total = total_result.scalar() or 0
     items = []
     for task in test_tasks:
@@ -214,28 +220,23 @@ async def get_test_tasks(
 async def get_test_task(
     task_id: int,
     task: TestTask = Depends(require_task_access),
-    db: AsyncSession = Depends(async_get_db)
+    db: Session = Depends(get_db)
 ):
     """获取测试任务详情（存在性与归属校验由 require_task_access 完成）"""
     try:
         # 提前提取 project_id，避免 task 对象跨会话属性访问
         project_id = task.project_id
 
-        results_result = await db.execute(
-            select(TestResult).where(TestResult.task_id == task_id)
+        results_result = await asyncio.to_thread(
+            db.execute, select(TestResult).where(TestResult.task_id == task_id)
         )
         task_results = results_result.scalars().all()
 
-        # VisibilityConfigService 是 sync service，使用 PrimarySessionLocal 通过 to_thread 释放事件循环
-        import asyncio
+        # VisibilityConfigService 是 sync service，用 to_thread 释放事件循环
         vis_service = VisibilityConfigService()
-        sync_db = PrimarySessionLocal()
-        try:
-            vis_config = await asyncio.to_thread(
-                vis_service.get_project_config, sync_db, project_id
-            )
-        finally:
-            sync_db.close()
+        vis_config = await asyncio.to_thread(
+            vis_service.get_project_config, db, project_id
+        )
         hidden_fields = vis_config.hidden_fields or []
         results_data = []
         for tr in task_results:
@@ -268,7 +269,7 @@ async def start_test_task(
     task_id: int,
     task: TestTask = Depends(require_task_access),
     config: TaskStartConfig | None = None,
-    db: AsyncSession = Depends(async_get_db)
+    db: Session = Depends(get_db)
 ):
     """开始执行测试任务（支持执行模式和设备参数）
 
@@ -296,13 +297,14 @@ async def start_test_task(
         # 重试场景（FAILED/STOPPED）：重置计数器和旧执行结果，保证干净重跑
         is_retry = task.status in [3, 4]
         if is_retry:
-            await db.execute(
-                TestResult.__table__.delete().where(TestResult.task_id == task_id)
+            await asyncio.to_thread(
+                db.execute,
+                TestResult.__table__.delete().where(TestResult.task_id == task_id),
             )
 
         # 标记任务为运行中
-        running_result = await db.execute(
-            select(TestTask).where(TestTask.id == task_id)
+        running_result = await asyncio.to_thread(
+            db.execute, select(TestTask).where(TestTask.id == task_id)
         )
         running_task = running_result.scalars().first()
         running_task.status = 1
@@ -312,17 +314,16 @@ async def start_test_task(
         running_task.progress = 0
         running_task.success_count = 0
         running_task.fail_count = 0
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
-        # TestExecutionEngineV2 内部使用 sync Session API，需独立 sync 会话
-        # 性能优化：将 async service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
+        # TestExecutionEngineV2 内部为 sync API，复用请求级会话（单事务），
+        # 用 to_thread 释放事件循环
         from app.utils.async_sync_bridge import run_async_coro_in_thread
         from app.services.execution_control_manager import execution_controller
-        sync_db = PrimarySessionLocal()
         # P1 E-04: 注册执行控制器，支持暂停/恢复
         execution_controller.register(task_id)
         try:
-            executor = TestExecutionEngineV2(sync_db)
+            executor = TestExecutionEngineV2(db)
             try:
                 await run_async_coro_in_thread(
                     executor.execute_test_task(
@@ -333,19 +334,18 @@ async def start_test_task(
                 )
             except Exception as e:
                 logger.error("任务执行异常: {}", e, exc_info=True)
-                # 异常路径：_mark_running 已 commit，async 会话干净，
+                # 异常路径：_mark_running 已 commit，会话干净，
                 # 直接重新查询并标记失败（status=3=FAILED，非 2=COMPLETED）
-                failed_result = await db.execute(
-                    select(TestTask).where(TestTask.id == task_id)
+                failed_result = await asyncio.to_thread(
+                    db.execute, select(TestTask).where(TestTask.id == task_id)
                 )
                 failed_task = failed_result.scalars().first()
                 if failed_task:
                     failed_task.status = 3
                     failed_task.error_message = f"任务执行异常：{e}"
                     failed_task.end_time = utcnow()
-                    await db.commit()
+                    await asyncio.to_thread(db.commit)
         finally:
-            sync_db.close()
             # P1 E-04: 执行结束（正常/异常/停止）后注销控制器
             execution_controller.unregister(task_id)
 
@@ -368,9 +368,9 @@ async def start_test_task(
 async def delete_test_task(
     task_id: int,
     task: TestTask = Depends(require_task_access),
-    db: AsyncSession = Depends(async_get_db)
+    db: Session = Depends(get_db)
 ):
     """删除测试任务（存在性与归属校验由 require_task_access 完成）"""
-    await db.delete(task)
-    await db.commit()
+    await asyncio.to_thread(db.delete, task)
+    await asyncio.to_thread(db.commit)
     return {"message": "测试任务删除成功"}

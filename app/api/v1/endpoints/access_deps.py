@@ -1,4 +1,4 @@
-"""项目 / 任务级「归属校验」统一入口（R0-3）。
+﻿"""项目 / 任务级「归属校验」统一入口（R0-3）。
 
 ## 为什么存在
 
@@ -35,7 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth_deps import get_current_user
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.iteration import Iteration
 from app.models.project import Project
 from app.models.test_task import TestTask
@@ -146,18 +146,18 @@ async def verify_iteration_access_async(
     return iteration
 
 
-async def require_task_access(
+def require_task_access(
     task_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
 ) -> TestTask:
-    """任务归属校验依赖：路径参数 task_id → 返回任务对象。
+    """任务归属校验依赖：路径参数 task_id → 返回任务对象（R2-1：同步 Session）。
 
     用法::
 
         @router.post("/{task_id}/run")
-        async def run(task_id: int, task: TestTask = Depends(require_task_access),
-                      db: AsyncSession = Depends(async_get_db)):
+        def run(task_id: int, task: TestTask = Depends(require_task_access),
+                db: Session = Depends(get_db)):
             ...
 
     语义（与重构前的端点内联实现等价）：
@@ -166,26 +166,24 @@ async def require_task_access(
         - 任务不属于当前用户项目 → 403「无权限操作此任务」
 
     说明：
-        1. 依赖内部使用的 `async_get_db` / `get_current_user` 与端点使用的是
-           同一对象，FastAPI 按请求缓存依赖结果，因此返回的 task 与端点 `db`
-           绑定同一会话，访问 `task.project_id` 等属性安全；
-        2. 404 文案统一为「测试任务不存在」（重构前部分端点写作「任务不存在」），
+        1. 本依赖为 **同步函数**，FastAPI 会自动放到线程池执行，不阻塞事件循环；
+        2. 依赖内部 `get_db` 与端点使用的 `get_db` 是同一对象（FastAPI 按请求缓存），
+           因此返回的 task 与端点 `db` 绑定同一会话，`delete` / 属性访问均安全；
+        3. 404 文案统一为「测试任务不存在」（重构前部分端点写作「任务不存在」），
            403 文案保持原样。
     """
-    task = (
-        await db.execute(select(TestTask).where(TestTask.id == task_id))
+    task = db.execute(
+        select(TestTask).where(TestTask.id == task_id)
     ).scalar_one_or_none()
     if task is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="测试任务不存在"
         )
 
-    project = (
-        await db.execute(
-            select(Project).where(
-                Project.id == task.project_id,
-                Project.user_id == current_user.id,
-            )
+    project = db.execute(
+        select(Project).where(
+            Project.id == task.project_id,
+            Project.user_id == current_user.id,
         )
     ).scalar_one_or_none()
     if project is None:
