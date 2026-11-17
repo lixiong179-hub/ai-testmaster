@@ -1,21 +1,22 @@
-"""执行链路端点包。
+﻿"""执行链路端点包。
 
 路由处理函数已内联在本模块（原 `_execution.py` / `_analysis.py` 已合并），
 权限校验与失败分析逻辑下沉至 `app.services.execution_core`。
 
 公开符号（`_perform_failure_analysis` 等）通过本模块 re-export，保持 import 路径不变。
 """
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.execution_core.schemas import SpeedReplayRequest
 from app.core.exception import create_response
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import get_db
 from app.models.enums import ExecStatus
 from app.models.project import Project
 from app.models.test_case import TestCase, TestStep
@@ -31,6 +32,7 @@ from app.services.execution_core.failure_analysis import (
 )
 from app.services.execution_core.helpers import (
     _filter_by_visibility,
+    _get_hidden_fields,
     _get_hidden_fields_async,
     get_task_or_404,
     verify_project_permission,
@@ -40,6 +42,7 @@ from app.services.execution_replay.legacy_service import get_execution_replay_se
 from app.services.test_execution_engine_v2 import TestExecutionEngineV2
 from app.services.visual_validation import (
     is_visual_validation_enabled,
+    is_visual_validation_enabled_sync,
     spawn_visual_validation_agent,
 )
 from app.utils.db_time import utcnow
@@ -96,12 +99,12 @@ async def list_connected_devices(
 async def start_test_execution(
     task_id: int,
     config: dict | None = None,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        task_result = await db.execute(
-            select(TestTask).where(TestTask.id == task_id)
+        task_result = await asyncio.to_thread(
+            db.execute, select(TestTask).where(TestTask.id == task_id)
         )
         task = task_result.scalars().first()
         if not task:
@@ -110,11 +113,12 @@ async def start_test_execution(
                 detail="任务不存在"
             )
 
-        project_result = await db.execute(
+        project_result = await asyncio.to_thread(
+            db.execute,
             select(Project).where(
                 Project.id == task.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         project = project_result.scalars().first()
         if not project:
@@ -133,7 +137,7 @@ async def start_test_execution(
         task.status = 1
         task.start_time = utcnow()
         task.error_message = None
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         headless = True
         record_video = False
@@ -162,48 +166,46 @@ async def start_test_execution(
 
         logger.info(f"执行配置: headless={headless}, recordVideo={record_video}, targetEnv={target_env}, skipInit={skip_init}, useMcp={use_mcp}")
 
-        # 性能优化：将 async service 调用放到独立线程，避免 sync_db.query() 阻塞事件循环
+        # 性能优化：引擎为 sync API，跑在独立线程释放事件循环；会话复用请求级 Session
         from app.utils.async_sync_bridge import run_async_coro_in_thread
-        exec_db = PrimarySessionLocal()
+        executor = TestExecutionEngineV2(db)
         try:
-            executor = TestExecutionEngineV2(exec_db)
-            try:
-                await run_async_coro_in_thread(
-                    executor.execute_test_task(
-                        task_id=task_id,
-                        global_headless=headless,
-                        global_record_video=record_video,
-                        target_env=target_env,
-                        skip_init=skip_init,
-                        execution_mode=execution_mode,
-                        mobile_device_id=mobile_device_id,
-                        use_mcp=use_mcp
-                    )
+            await run_async_coro_in_thread(
+                executor.execute_test_task(
+                    task_id=task_id,
+                    global_headless=headless,
+                    global_record_video=record_video,
+                    target_env=target_env,
+                    skip_init=skip_init,
+                    execution_mode=execution_mode,
+                    mobile_device_id=mobile_device_id,
+                    use_mcp=use_mcp
                 )
-            except Exception as e:
-                logger.error(f"任务执行异常: {e}")
-                # 3=FAILED：异常中断必须记为失败（此前误用 2=COMPLETED，前端无法区分成功/失败）。
-                # 用 Core UPDATE 原子收尾：条件命中 1=RUNNING 才改写，
-                # 不覆盖引擎内部已写入的终态（如已停止），也避免 ORM 过期属性触发懒加载 IO。
-                failed = await db.execute(
-                    update(TestTask)
-                    .where(TestTask.id == task_id, TestTask.status == 1)
-                    .values(
-                        status=3,
-                        error_message=f"任务执行异常：{e}",
-                        end_time=utcnow(),
-                    )
-                    .execution_options(synchronize_session=False)
+            )
+        except Exception as e:
+            logger.error(f"任务执行异常: {e}")
+            # 3=FAILED：异常中断必须记为失败（此前误用 2=COMPLETED，前端无法区分成功/失败）。
+            # 用 Core UPDATE 原子收尾：条件命中 1=RUNNING 才改写，
+            # 不覆盖引擎内部已写入的终态（如已停止），也避免 ORM 过期属性触发懒加载 IO。
+            failed = await asyncio.to_thread(
+                db.execute,
+                update(TestTask)
+                .where(TestTask.id == task_id, TestTask.status == 1)
+                .values(
+                    status=3,
+                    error_message=f"任务执行异常：{e}",
+                    end_time=utcnow(),
                 )
-                if failed.rowcount:
-                    await db.commit()
-        finally:
-            exec_db.close()
+                .execution_options(synchronize_session=False),
+            )
+            if failed.rowcount:
+                await asyncio.to_thread(db.commit)
 
         # 本端点同步等待执行结束后才返回，因此读取真实终态（此前固定返回 running 会误导调用方）。
         # 用 Core 列表查询读取，避免访问 commit 后已过期的 ORM 实例属性而触发同步懒加载。
         final_row = (
-            await db.execute(
+            await asyncio.to_thread(
+                db.execute,
                 select(
                     TestTask.status,
                     TestTask.progress,
@@ -211,7 +213,7 @@ async def start_test_execution(
                     TestTask.fail_count,
                     TestTask.total_count,
                     TestTask.error_message,
-                ).where(TestTask.id == task_id)
+                ).where(TestTask.id == task_id),
             )
         ).first()
         final_status = int(final_row.status) if final_row else TaskStatus.RUNNING
@@ -241,22 +243,23 @@ async def start_test_execution(
 @router.post("/{task_id}/pause")
 async def pause_test_execution(
     task_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        task_result = await db.execute(
-            select(TestTask).where(TestTask.id == task_id)
+        task_result = await asyncio.to_thread(
+            db.execute, select(TestTask).where(TestTask.id == task_id)
         )
         task = task_result.scalars().first()
         if not task:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-        project_result = await db.execute(
+        project_result = await asyncio.to_thread(
+            db.execute,
             select(Project).where(
                 Project.id == task.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         project = project_result.scalars().first()
         if not project:
@@ -267,7 +270,7 @@ async def pause_test_execution(
 
         # 5 = PAUSED（此前误用 3，与 FAILED 冲突，导致前端无法区分"失败"与"暂停"）
         task.status = 5
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         return create_response(data={"task_id": task_id, "status": "paused"})
     except HTTPException:
@@ -280,22 +283,23 @@ async def pause_test_execution(
 @router.post("/{task_id}/resume")
 async def resume_test_execution(
     task_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        task_result = await db.execute(
-            select(TestTask).where(TestTask.id == task_id)
+        task_result = await asyncio.to_thread(
+            db.execute, select(TestTask).where(TestTask.id == task_id)
         )
         task = task_result.scalars().first()
         if not task:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-        project_result = await db.execute(
+        project_result = await asyncio.to_thread(
+            db.execute,
             select(Project).where(
                 Project.id == task.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         project = project_result.scalars().first()
         if not project:
@@ -305,7 +309,7 @@ async def resume_test_execution(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="任务不在暂停状态，无法恢复")
 
         task.status = 1
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         return create_response(data={"task_id": task_id, "status": "running"})
     except HTTPException:
@@ -318,22 +322,23 @@ async def resume_test_execution(
 @router.post("/{task_id}/stop")
 async def stop_test_execution(
     task_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        task_result = await db.execute(
-            select(TestTask).where(TestTask.id == task_id)
+        task_result = await asyncio.to_thread(
+            db.execute, select(TestTask).where(TestTask.id == task_id)
         )
         task = task_result.scalars().first()
         if not task:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-        project_result = await db.execute(
+        project_result = await asyncio.to_thread(
+            db.execute,
             select(Project).where(
                 Project.id == task.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
         project = project_result.scalars().first()
         if not project:
@@ -345,7 +350,7 @@ async def stop_test_execution(
 
         task.status = 4
         task.end_time = utcnow()
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         return create_response(data={"task_id": task_id, "status": "stopped"})
     except HTTPException:
@@ -358,7 +363,7 @@ async def stop_test_execution(
 @router.get("/replay/{execution_id}")
 async def get_replay_session(
     execution_id: str,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -376,7 +381,7 @@ async def get_replay_session(
 async def set_replay_speed(
     execution_id: str,
     data: SpeedReplayRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -392,7 +397,7 @@ async def set_replay_speed(
 @router.post("/results/{result_id}/analyze-failure")
 async def analyze_failure(
     result_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """失败原因分析。
@@ -405,8 +410,8 @@ async def analyze_failure(
     try:
         # 1. async 查询 TestResult
         result = (
-            await db.execute(
-                select(TestResult).where(TestResult.id == result_id)
+            await asyncio.to_thread(
+                db.execute, select(TestResult).where(TestResult.id == result_id)
             )
         ).scalar_one_or_none()
         if not result:
@@ -417,11 +422,12 @@ async def analyze_failure(
 
         # 2. async 查询 TestCase
         test_case = (
-            await db.execute(
+            await asyncio.to_thread(
+                db.execute,
                 select(TestCase).where(
                     TestCase.id == result.case_id,
                     TestCase.is_deleted.is_(False),
-                )
+                ),
             )
         ).scalar_one_or_none()
         if not test_case:
@@ -430,10 +436,11 @@ async def analyze_failure(
         # 3. async 查询 TestStep (原 _perform_failure_analysis 内部 sync 查询)
         steps = list(
             (
-                await db.execute(
+                await asyncio.to_thread(
+                    db.execute,
                     select(TestStep)
                     .where(TestStep.test_case_id == test_case.id)
-                    .order_by(TestStep.step_number)
+                    .order_by(TestStep.step_number),
                 )
             ).scalars().all()
         )
@@ -441,9 +448,10 @@ async def analyze_failure(
         # 4. 纯计算失败原因分析
         analysis = _perform_failure_analysis_with_steps(result, test_case, steps)
 
-        # 5. async 查询项目可见模式配置（替代原 PrimarySessionLocal + asyncio.to_thread
-        #    桥接 sync VisibilityConfigService，避免测试嵌套事务中 MissingGreenlet）
-        hidden_fields = await _get_hidden_fields_async(db, test_case.project_id)
+        # 5. sync 查询项目可见模式配置（VisibilityConfigService 为 sync 实现，包 to_thread）
+        hidden_fields = await asyncio.to_thread(
+            _get_hidden_fields, db, test_case.project_id
+        )
 
         analysis = _filter_by_visibility(analysis, hidden_fields)
 
@@ -456,7 +464,9 @@ async def analyze_failure(
         )
 
         # 7. R3-3：视觉校验（默认关；全局关闭时零查询、零会话）
-        if await is_visual_validation_enabled(db, test_case.project_id):
+        if await asyncio.to_thread(
+            is_visual_validation_enabled_sync, db, test_case.project_id
+        ):
             spawn_visual_validation_agent(
                 project_id=test_case.project_id,
                 created_by=current_user.id if current_user else None,
@@ -476,24 +486,26 @@ async def analyze_failure(
 async def create_quick_verify_task(
     case_id: int = Body(..., embed=True),
     step_indices: list[int] = Body(default=[], embed=True),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        test_case_result = await db.execute(
+        test_case_result = await asyncio.to_thread(
+            db.execute,
             select(TestCase).where(
                 TestCase.id == case_id, TestCase.is_deleted.is_(False)
-            )
+            ),
         )
         test_case = test_case_result.scalars().first()
         if not test_case:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="测试用例不存在")
 
         if not step_indices:
-            steps_result = await db.execute(
-                select(TestStep).where(
-                    TestStep.test_case_id == case_id
-                ).order_by(TestStep.step_number)
+            steps_result = await asyncio.to_thread(
+                db.execute,
+                select(TestStep)
+                .where(TestStep.test_case_id == case_id)
+                .order_by(TestStep.step_number),
             )
             steps = steps_result.scalars().all()
             step_indices = [s.step_number for s in steps]
@@ -508,14 +520,14 @@ async def create_quick_verify_task(
 
         if test_case.correction_status:
             test_case.correction_status = "verifying"
-            await db.commit()
+            await asyncio.to_thread(db.commit)
 
         logger.info(f"创建快速验证任务: 用例ID={case_id}, 步骤={step_indices}, 操作人={current_user.username if current_user else 'system'}")
         return create_response(data=task_data, message="快速验证任务已创建")
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"创建快速验证任务失败: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建快速验证任务失败")
 

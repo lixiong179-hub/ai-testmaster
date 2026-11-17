@@ -16,6 +16,7 @@ from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.project import Project
@@ -43,6 +44,26 @@ async def is_visual_validation_enabled(db: Any, project_id: int | None) -> bool:
             select(Project.config).where(Project.id == project_id)
         )
         project_config = result.scalar_one_or_none()
+    except Exception:
+        logger.warning("读取项目级视觉校验配置失败，按关闭处理", exc_info=True)
+        return False
+    return resolve_enabled(project_config)
+
+
+def is_visual_validation_enabled_sync(db: Session, project_id: int | None) -> bool:
+    """同步版视觉校验开关判断（R2-1 单范式，语义与 async 版完全一致）。
+
+    全局关闭时直接返回 False —— 不产生任何 SQL 查询与会话，保证零开销。
+    调用方（同步会话端点）应包在 ``asyncio.to_thread`` 中执行。
+    """
+    if not settings.AI_VISUAL_VALIDATION_ENABLED:
+        return False
+    if db is None or project_id is None:
+        return False
+    try:
+        project_config = db.execute(
+            select(Project.config).where(Project.id == project_id)
+        ).scalar_one_or_none()
     except Exception:
         logger.warning("读取项目级视觉校验配置失败，按关闭处理", exc_info=True)
         return False

@@ -13,6 +13,7 @@ from app.services.visual_validation.config_service import (
 )
 from app.services.visual_validation.service import (
     is_visual_validation_enabled,
+    is_visual_validation_enabled_sync,
     spawn_visual_validation_agent,
 )
 
@@ -22,5 +23,6 @@ __all__ = [
     "VisualValidationConfigService",
     "resolve_enabled",
     "is_visual_validation_enabled",
+    "is_visual_validation_enabled_sync",
     "spawn_visual_validation_agent",
 ]

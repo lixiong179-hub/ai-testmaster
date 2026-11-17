@@ -61,6 +61,15 @@ def _make_db(execute_results):
     return db
 
 
+def _make_sync_db(execute_results):
+    """构造同步 Session 替身（R2-1：端点已切 `Depends(get_db)`）：execute 按序返回预置结果。"""
+    db = MagicMock()
+    db.execute = MagicMock(side_effect=execute_results)
+    db.commit = MagicMock()
+    db.rollback = MagicMock()
+    return db
+
+
 def _failed_result(case_id=321, error_msg="element not found"):
     result = MagicMock()
     result.id = 999
@@ -213,18 +222,18 @@ class TestExecutionCoreWiring:
 
     async def test_enabled_triggers_visual_validation(self, monkeypatch):
         monkeypatch.setattr(settings, "AI_VISUAL_VALIDATION_ENABLED", True)
-        db = _make_db([
+        db = _make_sync_db([
             _query_result(_failed_result()),
             _query_result(_test_case()),
             _query_result(None, []),
         ])
         user = MagicMock(id=7)
 
-        with patch(f"{_EP}._get_hidden_fields_async", new=AsyncMock(return_value=[])):
+        with patch(f"{_EP}._get_hidden_fields", new=MagicMock(return_value=[])):
             with patch(f"{_EP}._spawn_failure_analysis_agent"):
                 with patch(
-                    f"{_EP}.is_visual_validation_enabled",
-                    new=AsyncMock(return_value=True),
+                    f"{_EP}.is_visual_validation_enabled_sync",
+                    new=MagicMock(return_value=True),
                 ):
                     with patch(f"{_EP}.spawn_visual_validation_agent") as spawn:
                         resp = await analyze_failure(
@@ -254,14 +263,14 @@ class TestExecutionCoreWiring:
         db.add(project)
         db.flush()
 
-        mock_db = _make_db([
+        mock_db = _make_sync_db([
             _query_result(_failed_result()),
             _query_result(_test_case(project_id=project.id)),
             _query_result(None, []),
         ])
         user = MagicMock(id=7)
 
-        with patch(f"{_EP}._get_hidden_fields_async", new=AsyncMock(return_value=[])):
+        with patch(f"{_EP}._get_hidden_fields", new=MagicMock(return_value=[])):
             with patch(f"{_EP}._spawn_failure_analysis_agent"):
                 with patch(f"{_EP}.spawn_visual_validation_agent") as spawn:
                     resp = await analyze_failure(
