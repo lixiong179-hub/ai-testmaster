@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.test_case_ai_helpers import (
@@ -32,7 +32,7 @@ from app.api.v1.endpoints.test_case_ai_schemas import (
 )
 from app.core.constants import normalize_priority, DEFAULT_AI_FALLBACK_CASE_TYPE
 from app.core.exception import create_response
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import PrimarySessionLocal, get_db
 from app.models.project import Project
 from app.models.test_case import TestCase, TestCasePreconditionStep, TestStep
 from app.models.user import User
@@ -81,16 +81,17 @@ def _raise_ai_error(e: Exception) -> None:
 @router.post("/ai-generate")
 async def ai_generate_test_case(
     request_data: AIGenerateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     project_id = request_data.project_id
     description = request_data.description
 
-    project_result = await db.execute(
+    project_result = await asyncio.to_thread(
+        db.execute,
         select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
-        )
+        ),
     )
     project = project_result.scalars().first()
     if not project:
@@ -111,7 +112,7 @@ async def ai_generate_test_case(
             test_category=generated_case.get("test_category", None),
         )
         db.add(new_test_case)
-        await db.flush()
+        await asyncio.to_thread(db.flush)
         for i, step in enumerate(generated_case.get("steps", [])):
             action = step.get("action") or step.get("step") or f"步骤{i + 1}"
             expected_result = (
@@ -126,12 +127,12 @@ async def ai_generate_test_case(
                 is_business_view=1, is_technical_view=1,
             )
             db.add(test_step)
-        await db.commit()
-        await db.refresh(new_test_case)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, new_test_case)
         data = build_test_case_response(new_test_case)
         return create_response(data=data)
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"AI生成测试用例失败: {e}")
         _raise_ai_error(e)
 
@@ -139,16 +140,17 @@ async def ai_generate_test_case(
 @router.post("/ai-enhanced-generate")
 async def ai_enhanced_generate(
     request: AIGenerateEnhancedRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     project_id = request.project_id
     description = request.description
 
-    project_result = await db.execute(
+    project_result = await asyncio.to_thread(
+        db.execute,
         select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
-        )
+        ),
     )
     project = project_result.scalars().first()
     if not project:
@@ -216,13 +218,14 @@ async def ai_enhanced_generate(
 @router.post("/generate-context", response_model=ApiResponse)
 async def get_generation_context(
     request: GenerateContextRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    project_result = await db.execute(
+    project_result = await asyncio.to_thread(
+        db.execute,
         select(Project).where(
             Project.id == request.project_id, Project.user_id == current_user.id
-        )
+        ),
     )
     project = project_result.scalars().first()
     if not project:
@@ -295,13 +298,14 @@ async def get_generation_context(
 @router.post("/generate-single")
 async def generate_single_test_case(
     request: SingleGenerateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    project_result = await db.execute(
+    project_result = await asyncio.to_thread(
+        db.execute,
         select(Project).where(
             Project.id == request.project_id, Project.user_id == current_user.id
-        )
+        ),
     )
     project = project_result.scalars().first()
     if not project:
@@ -382,7 +386,7 @@ async def generate_single_test_case(
 @router.post("/ai-batch-generate")
 async def ai_batch_generate_test_cases(
     request: BatchGenerateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     raise HTTPException(
@@ -394,23 +398,25 @@ async def ai_batch_generate_test_cases(
 @router.get("/{case_id}/precondition-steps")
 async def get_precondition_steps(
     case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    test_case_result = await db.execute(
+    test_case_result = await asyncio.to_thread(
+        db.execute,
         select(TestCase).join(Project).where(
             TestCase.id == case_id,
             TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        )
+        ),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
-    steps_result = await db.execute(
+    steps_result = await asyncio.to_thread(
+        db.execute,
         select(TestCasePreconditionStep).where(
             TestCasePreconditionStep.test_case_id == case_id
-        ).order_by(TestCasePreconditionStep.step_number)
+        ).order_by(TestCasePreconditionStep.step_number),
     )
     steps = steps_result.scalars().all()
     data = [PreconditionStepResponse.model_validate(s) for s in steps]
@@ -421,22 +427,24 @@ async def get_precondition_steps(
 async def batch_save_precondition_steps(
     case_id: int,
     request: PreconditionStepBatchSave,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    test_case_result = await db.execute(
+    test_case_result = await asyncio.to_thread(
+        db.execute,
         select(TestCase).join(Project).where(
             TestCase.id == case_id, TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        )
+        ),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
         raise HTTPException(status_code=404, detail="测试用例不存在")
-    await db.execute(
+    await asyncio.to_thread(
+        db.execute,
         delete(TestCasePreconditionStep).where(
             TestCasePreconditionStep.test_case_id == case_id
-        )
+        ),
     )
     for i, step_data in enumerate(request.steps):
         step = TestCasePreconditionStep(
@@ -450,11 +458,12 @@ async def batch_save_precondition_steps(
             has_locator=0, locator_status="pending",
         )
         db.add(step)
-    await db.commit()
-    steps_result = await db.execute(
+    await asyncio.to_thread(db.commit)
+    steps_result = await asyncio.to_thread(
+        db.execute,
         select(TestCasePreconditionStep).where(
             TestCasePreconditionStep.test_case_id == case_id
-        ).order_by(TestCasePreconditionStep.step_number)
+        ).order_by(TestCasePreconditionStep.step_number),
     )
     steps = steps_result.scalars().all()
     data = [PreconditionStepResponse.model_validate(s) for s in steps]
@@ -464,14 +473,15 @@ async def batch_save_precondition_steps(
 @router.post("/{case_id}/parse-precondition")
 async def parse_precondition(
     case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    test_case_result = await db.execute(
+    test_case_result = await asyncio.to_thread(
+        db.execute,
         select(TestCase).join(Project).where(
             TestCase.id == case_id, TestCase.is_deleted.is_(False),
             Project.user_id == current_user.id
-        )
+        ),
     )
     test_case = test_case_result.scalars().first()
     if not test_case:
@@ -484,10 +494,11 @@ async def parse_precondition(
             precondition=precondition,
         )
         if steps:
-            await db.execute(
+            await asyncio.to_thread(
+                db.execute,
                 delete(TestCasePreconditionStep).where(
                     TestCasePreconditionStep.test_case_id == case_id
-                )
+                ),
             )
             for i, step_data in enumerate(steps):
                 pc_step = TestCasePreconditionStep(
@@ -501,11 +512,12 @@ async def parse_precondition(
                     has_locator=0, locator_status="pending",
                 )
                 db.add(pc_step)
-            await db.commit()
-            saved_result = await db.execute(
+            await asyncio.to_thread(db.commit)
+            saved_result = await asyncio.to_thread(
+                db.execute,
                 select(TestCasePreconditionStep).where(
                     TestCasePreconditionStep.test_case_id == case_id
-                ).order_by(TestCasePreconditionStep.step_number)
+                ).order_by(TestCasePreconditionStep.step_number),
             )
             saved_steps = saved_result.scalars().all()
             saved = [PreconditionStepResponse.model_validate(s) for s in saved_steps]

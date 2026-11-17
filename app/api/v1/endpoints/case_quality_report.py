@@ -23,10 +23,10 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from loguru import logger
 
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import PrimarySessionLocal, get_db
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
 from app.models.test_case import TestCase, TestStep
@@ -45,7 +45,7 @@ router = APIRouter()
 async def review_case(
     case_id: int,
     request: CaseReviewRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     valid_statuses = ["pending", "approved", "rejected", "needs_optimization"]
@@ -53,10 +53,11 @@ async def review_case(
         raise HTTPException(status_code=400, detail=f"无效的状态值，可选值: {valid_statuses}")
 
     try:
-        result = await db.execute(
+        result = await asyncio.to_thread(
+            db.execute,
             select(TestCase).where(
                 TestCase.id == case_id, TestCase.is_deleted.is_(False)
-            )
+            ),
         )
         test_case = result.scalars().first()
         if not test_case:
@@ -69,8 +70,8 @@ async def review_case(
         if request.priority:
             test_case.priority = request.priority
 
-        await db.commit()
-        await db.refresh(test_case)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, test_case)
 
         logger.info(f"用例 {case_id} 审核状态更新为: {request.status}, 审核人: {current_user.username if current_user else 'unknown'}")
 
@@ -85,7 +86,7 @@ async def review_case(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"审核用例失败 {case_id}: {e}")
         raise HTTPException(status_code=500, detail="审核失败")
 
@@ -93,14 +94,15 @@ async def review_case(
 @router.get("/cases/{case_id}/review")
 async def get_case_review_status(
     case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        result = await db.execute(
+        result = await asyncio.to_thread(
+            db.execute,
             select(TestCase).where(
                 TestCase.id == case_id, TestCase.is_deleted.is_(False)
-            )
+            ),
         )
         test_case = result.scalars().first()
         if not test_case:
@@ -127,7 +129,7 @@ async def get_pending_reviews(
     project_id: int,
     page: int = Query(default=1, ge=1, description="页码"),
     page_size: int = Query(default=20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -138,13 +140,15 @@ async def get_pending_reviews(
             TestCase.is_deleted.is_(False)
         )
 
-        count_result = await db.execute(
-            select(func.count()).select_from(TestCase).where(*base_filter)
+        count_result = await asyncio.to_thread(
+            db.execute,
+            select(func.count()).select_from(TestCase).where(*base_filter),
         )
         total_count = count_result.scalar() or 0
 
-        cases_result = await db.execute(
-            select(TestCase).where(*base_filter).offset(offset).limit(page_size)
+        cases_result = await asyncio.to_thread(
+            db.execute,
+            select(TestCase).where(*base_filter).offset(offset).limit(page_size),
         )
         cases = cases_result.scalars().all()
 
@@ -176,14 +180,15 @@ async def get_pending_reviews(
 async def edit_case(
     case_id: int,
     request: CaseEditRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        result = await db.execute(
+        result = await asyncio.to_thread(
+            db.execute,
             select(TestCase).where(
                 TestCase.id == case_id, TestCase.is_deleted.is_(False)
-            )
+            ),
         )
         test_case = result.scalars().first()
         if not test_case:
@@ -201,8 +206,8 @@ async def edit_case(
             test_case.priority = request.priority
 
         test_case.update_time = utcnow()
-        await db.commit()
-        await db.refresh(test_case)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, test_case)
 
         logger.info(f"用例 {case_id} 已编辑, 操作人: {current_user.username if current_user else 'unknown'}")
 
@@ -220,7 +225,7 @@ async def edit_case(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"编辑用例失败 {case_id}: {e}")
         raise HTTPException(status_code=500, detail="编辑失败")
 
@@ -230,24 +235,26 @@ async def edit_case_step(
     case_id: int,
     step_id: int,
     request: StepEditRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
-        case_result = await db.execute(
+        case_result = await asyncio.to_thread(
+            db.execute,
             select(TestCase).where(
                 TestCase.id == case_id, TestCase.is_deleted.is_(False)
-            )
+            ),
         )
         test_case = case_result.scalars().first()
         if not test_case:
             raise HTTPException(status_code=404, detail="测试用例不存在")
 
-        step_result = await db.execute(
+        step_result = await asyncio.to_thread(
+            db.execute,
             select(TestStep).where(
                 TestStep.id == step_id,
                 TestStep.test_case_id == case_id
-            )
+            ),
         )
         step = step_result.scalars().first()
 
@@ -263,8 +270,8 @@ async def edit_case_step(
         if request.expected_result:
             step.expected_result = request.expected_result
 
-        await db.commit()
-        await db.refresh(step)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, step)
 
         logger.info(f"用例 {case_id} 步骤 {step_id} 已编辑")
 
@@ -276,7 +283,7 @@ async def edit_case_step(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"编辑步骤失败 {case_id}/{step_id}: {e}")
         raise HTTPException(status_code=500, detail="编辑失败")
 
@@ -284,7 +291,8 @@ async def edit_case_step(
 async def _run_cost_service(fn):
     """在独立线程中执行 sync CostStatisticsService 方法，释放事件循环。
 
-    使用 PrimarySessionLocal 创建独立 sync 会话，避免与 AsyncSession 事务冲突。
+    使用 PrimarySessionLocal 创建独立 sync 会话，避免与请求级会话的事务边界互相干扰
+    （成本服务内部自行 commit，不与端点事务共享）。
     """
     sync_db = PrimarySessionLocal()
     try:
@@ -296,7 +304,7 @@ async def _run_cost_service(fn):
 @router.get("/projects/{project_id}/cost-statistics")
 async def get_project_cost_statistics(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -315,7 +323,7 @@ async def get_project_cost_statistics(
 async def get_project_cost_report(
     project_id: int,
     days: int = Query(default=30, ge=1, le=365),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
@@ -360,7 +368,7 @@ async def get_project_cost_report(
 @router.get("/cases/{case_id}/cost-statistics")
 async def get_case_cost_statistics(
     case_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     try:
