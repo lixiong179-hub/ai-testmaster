@@ -13,7 +13,7 @@
 权限要求: 所有端点需要Bearer令牌认证
 
 范式说明（R2-1 阶段三，2026-11-17）:
-    - 依赖由 async_get_db 改为 get_db（同步 Session）；
+    - 依赖由异步会话依赖收敛为 get_db（同步 Session）；
     - 原「PrimarySessionLocal() 独立会话 + try/finally close」删除，执行引擎与
       可见性配置统一复用请求级会话（单事务）；
     - 引擎内部为同步 API，仍用 asyncio.to_thread / run_async_coro_in_thread

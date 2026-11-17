@@ -10,13 +10,14 @@
 XMind导入端点已迁移至 test_point_import.py。
 所有端点均需要Bearer令牌认证。
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import PrimarySessionLocal, get_db
 from app.models.project import Project, ProjectFile
 from app.models.ui_prototype import UIPrototypeScreen
 from app.models.user import User
@@ -30,6 +31,11 @@ from app.services.ai_analysis_service import (
 )
 from app.services.file_content_extractor import FileContentExtractor
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter()
 
 
@@ -39,7 +45,7 @@ router = APIRouter()
 @router.post("/extract")
 async def extract_test_points(
     request: TestPointExtractRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """从需求文件内容中AI提取测试点。"""
@@ -49,7 +55,7 @@ async def extract_test_points(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="请提供 file_id"
             )
 
-        file_result = await db.execute(
+        file_result = await _execute(db,
             select(ProjectFile).where(
                 ProjectFile.id == request.file_id, ProjectFile.is_active == True  # noqa: E712
             )
@@ -59,7 +65,7 @@ async def extract_test_points(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在"
             )
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == file.project_id, Project.user_id == current_user.id,
             )
@@ -114,12 +120,12 @@ async def extract_test_points(
 @router.post("/extract-from-ui")
 async def extract_test_points_from_ui(
     request: TestPointExtractFromUiRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """从UI原型屏幕提取测试点（三维策略：页面 x 可交互元素 x 流程边）。"""
     try:
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == request.project_id, Project.user_id == current_user.id,
             )
@@ -129,7 +135,7 @@ async def extract_test_points_from_ui(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="无权限操作此项目"
             )
-        count_result = await db.execute(
+        count_result = await _execute(db,
             select(func.count()).select_from(UIPrototypeScreen).where(
                 UIPrototypeScreen.id.in_(request.ui_screen_ids),
                 UIPrototypeScreen.project_id == request.project_id,
@@ -141,7 +147,7 @@ async def extract_test_points_from_ui(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="部分屏幕ID不存在或不属于当前项目",
             )
-        pending_result = await db.execute(
+        pending_result = await _execute(db,
             select(UIPrototypeScreen).where(
                 UIPrototypeScreen.id.in_(request.ui_screen_ids),
                 UIPrototypeScreen.parse_status != "completed",

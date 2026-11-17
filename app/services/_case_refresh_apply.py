@@ -18,6 +18,8 @@ from datetime import datetime, UTC
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.db_async_compat import execute_async, flush_async, run_sync_async
+
 from app.models.case_refresh_suggestion import CaseRefreshSuggestion
 from app.models.test_case import (
     TestCase,
@@ -51,7 +53,7 @@ async def review_suggestion(
     Raises:
         ValueError: 建议不存在或已审核、动作非法时抛出。
     """
-    result = await db.execute(
+    result = await execute_async(db,
         select(CaseRefreshSuggestion).where(
             CaseRefreshSuggestion.id == suggestion_id,
         )
@@ -76,7 +78,7 @@ async def review_suggestion(
     else:
         raise ValueError(f"无效的审核操作: {action}")
 
-    await db.flush()
+    await flush_async(db)
     return suggestion
 
 
@@ -93,7 +95,7 @@ async def apply_suggestion(db: AsyncSession, suggestion: CaseRefreshSuggestion) 
     Returns:
         版本快照ID，若用例不存在则返回 0。
     """
-    result = await db.execute(
+    result = await execute_async(db,
         select(TestCase).where(TestCase.id == suggestion.case_id)
     )
     case = result.scalar_one_or_none()
@@ -118,7 +120,7 @@ async def apply_suggestion(db: AsyncSession, suggestion: CaseRefreshSuggestion) 
                     actor_id=suggestion.reviewer_id,
                     reason=suggestion.deprecation_reason,
                 )
-            await db.run_sync(_sync_lifecycle)
+            await run_sync_async(db, _sync_lifecycle)
         finally:
             disable_lifecycle_transition()
         suggestion.suggestion_status = "applied"
@@ -130,8 +132,8 @@ async def apply_suggestion(db: AsyncSession, suggestion: CaseRefreshSuggestion) 
         case.expected_result = suggestion.suggested_expected_result
     if suggestion.suggested_steps:
         case.steps_json = suggestion.suggested_steps
-        await db.execute(
-            delete(TestStep).where(TestStep.test_case_id == case.id)
+        await execute_async(
+            db, delete(TestStep).where(TestStep.test_case_id == case.id)
         )
         for idx, step_data in enumerate(suggestion.suggested_steps):
             if isinstance(step_data, dict):
@@ -178,7 +180,7 @@ async def create_version_snapshot(
                 change_type=change_type,
                 change_description="保鲜建议应用前自动快照",
             )
-        version = await db.run_sync(_sync_snapshot)
+        version = await run_sync_async(db, _sync_snapshot)
     finally:
         resume_version_snapshot()
 

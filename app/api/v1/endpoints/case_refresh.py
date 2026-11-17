@@ -5,15 +5,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db, AsyncPrimarySessionLocal
+from app.db.database import AsyncPrimarySessionLocal, get_db
 from app.schemas.common import ApiResponse
 from app.models.project import Project
 from app.models.user import User
 from app.services.case_refresh_service import CaseRefreshService
+from app.services.db_async_compat import commit_async, execute_async, rollback_async
 
 router = APIRouter(tags=["用例保鲜"])
 
@@ -28,11 +29,11 @@ class ScanStaleRequest(BaseModel):
 
 
 async def _verify_project_ownership(
-    project_id: int, current_user: User, db: AsyncSession
+    project_id: int, current_user: User, db: Session
 ) -> Project:
     """校验当前用户对项目的所有权，不通过时抛 404/403。"""
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
+    result = await execute_async(
+        db, select(Project).where(Project.id == project_id)
     )
     project = result.scalar_one_or_none()
     if not project:
@@ -49,7 +50,7 @@ async def list_refresh_suggestions(
     page_size: int = 20,
     suggestion_status: str | None = None,
     review_status: str | None = None,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     await _verify_project_ownership(project_id, current_user, db)
@@ -63,7 +64,7 @@ async def list_refresh_suggestions(
 @router.get("/projects/{project_id}/refresh-suggestions/stats", response_model=ApiResponse)
 async def get_refresh_suggestions_stats(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     await _verify_project_ownership(project_id, current_user, db)
@@ -76,7 +77,7 @@ async def get_refresh_suggestions_stats(
 async def review_refresh_suggestion(
     suggestion_id: int,
     request: ReviewSuggestionRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     service = CaseRefreshService(db)
@@ -95,13 +96,13 @@ async def review_refresh_suggestion(
             reviewer_name=current_user.username,
             reject_reason=request.reject_reason,
         )
-        await db.commit()
+        await commit_async(db)
         return create_response(data=service._suggestion_to_dict(suggestion), msg="审核完成")
     except ValueError as e:
-        await db.rollback()
+        await rollback_async(db)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        await db.rollback()
+        await rollback_async(db)
         logger.error(f"审核保鲜建议失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="审核失败"
@@ -111,7 +112,7 @@ async def review_refresh_suggestion(
 @router.post("/projects/{project_id}/scan-stale-cases", response_model=ApiResponse)
 async def scan_stale_cases(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     await _verify_project_ownership(project_id, current_user, db)
@@ -140,7 +141,7 @@ async def _run_auto_refresh_async(project_id: int, max_cases: int) -> None:
 async def auto_refresh_suggestions(
     project_id: int,
     max_cases: int = 10,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     await _verify_project_ownership(project_id, current_user, db)
