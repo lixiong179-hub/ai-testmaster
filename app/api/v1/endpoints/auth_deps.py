@@ -15,20 +15,26 @@
 设计说明:
     get_current_user 内部使用 sync Session（Depends(get_db)）。曾尝试改为 AsyncSession
     以简化 async endpoint 测试 fixture（避免 override get_current_user），但 sync
-    TestClient（starlette.TestClient）与 async DB 依赖不兼容：
-    async_get_db 在事件循环外被调用时，aiomysql 的 ping 操作会因 transport._loop=None
-    抛 AttributeError。
-    全栈 async 化需要把所有 sync TestClient 改为 httpx.AsyncClient，是更大工程，
-    暂保持 sync get_current_user。async endpoint 测试通过 conftest.py 的
-    async_auth_client / async_admin_client fixture override get_current_user 绕过。
+    TestClient（starlette.TestClient）与 async DB 依赖不兼容（异步驱动的 ping 在
+    事件循环外会失败）。
+    R2-1 阶段三 W2-5c：本模块随范式收敛统一为同步 Session，DB 调用经模块级
+    `_execute`（内部 `asyncio.to_thread`）转线程池；函数仍保留 `async def` 签名，
+    调用方无需改动。
 """
+import asyncio
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from sqlalchemy.orm import Session
+from app.db.database import get_db
 from app.models.user import User
 from app.utils.jwt_utils import verify_access_token
+
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
 
 # OAuth2令牌提取器，指定登录端点路径用于Swagger文档自动生成
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -36,7 +42,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: AsyncSession = Depends(async_get_db)
+    db: Session = Depends(get_db)
 ) -> User:
     """
     获取当前登录用户
@@ -70,9 +76,9 @@ async def get_current_user(
 
         # 先尝试按 user_id 查找，如果不行就按 username 查找
         if user_id:
-            result = await db.execute(select(User).where(User.id == int(user_id)))
+            result = await _execute(db, select(User).where(User.id == int(user_id)))
         else:
-            result = await db.execute(select(User).where(User.username == username))
+            result = await _execute(db, select(User).where(User.username == username))
         user = result.scalar_one_or_none()
 
         if user is None:
@@ -87,7 +93,7 @@ async def get_current_user(
 async def require_project_owner(
     project_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(async_get_db)
+    db: Session = Depends(get_db)
 ) -> User:
     """
     校验当前用户是否为项目所有者
@@ -108,7 +114,7 @@ async def require_project_owner(
         HTTPException 403: 当前用户非项目所有者
     """
     from app.models.project import Project
-    result = await db.execute(
+    result = await _execute(db,
         select(Project).where(
             Project.id == project_id,
             Project.user_id == current_user.id
@@ -134,7 +140,7 @@ class ProjectAccessChecker:
         await checker.check_project_access(project_id)
     """
 
-    def __init__(self, db: AsyncSession, user: User) -> None:
+    def __init__(self, db: Session, user: User) -> None:
         """
         初始化权限校验器
 
@@ -156,7 +162,7 @@ class ProjectAccessChecker:
             HTTPException 403: 当前用户非项目所有者
         """
         from app.models.project import Project
-        result = await self.db.execute(
+        result = await _execute(self.db,
             select(Project).where(
                 Project.id == project_id,
                 Project.user_id == self.user.id

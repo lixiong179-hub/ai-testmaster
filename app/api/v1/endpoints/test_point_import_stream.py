@@ -14,12 +14,12 @@ from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
-from app.services.test_point.helpers import check_project_permission_async
+from app.services.test_point.helpers import check_project_permission
 from app.services.xmind_parser import XmindParser, XmindParseError
 from app.services.xmind_ai_parser import XmindAIParser
 from app.services.xmind_import_service import (
@@ -196,14 +196,16 @@ async def import_xmind_stream(
     project_id: int = Form(..., description="项目ID"),
     preview: bool = Form(False, description="是否预览模式"),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
 ):
     """XMind AI增强导入SSE流式端点。
 
     返回Server-Sent Events流，实时推送AI解析进度和最终结果。
     仅支持AI增强模式（自动启用）。
     """
-    await check_project_permission_async(db, project_id, current_user.id)
+    await asyncio.to_thread(
+        check_project_permission, db, project_id, current_user.id
+    )
     validate_file(file)
 
     logger.info(f"XMind SSE导入请求: project_id={project_id}, preview={preview}")

@@ -22,11 +22,10 @@ import asyncio
 import traceback
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session  # 同步会话：_validate_and_create 在线程池内使用 .query()
 from loguru import logger
 
-from app.db.database import async_get_db, get_db_context
+from app.db.database import get_db, get_db_context
 from app.schemas.common import ApiResponse
 from app.schemas.ui_prototype import (
     UIScreenParseRequest,
@@ -41,13 +40,18 @@ from app.services.ui_spec_parse_pipeline import UISpecParsePipeline
 from app.api.v1.endpoints.ui_prototype.helpers import UPLOAD_DIR
 from app.core.exception import create_response
 
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
+
 router = APIRouter(tags=["UI原型管理"])
 
 
 @router.post("/parse", response_model=ApiResponse)
 async def parse_ui_screens(
     parse_request: UIScreenParseRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     logger.info(
@@ -61,7 +65,7 @@ async def parse_ui_screens(
             )
 
         # 一次性批量查询所有屏幕，防止N+1及越权风险
-        screens_result = await db.execute(
+        screens_result = await _execute(db,
             select(UIPrototypeScreen).where(
                 UIPrototypeScreen.id.in_(parse_request.screen_ids)
             )
@@ -87,7 +91,7 @@ async def parse_ui_screens(
                 detail="screen_ids 必须属于同一项目",
             )
         # 一次性校验所有屏幕均属于当前用户拥有的项目
-        authorized_result = await db.execute(
+        authorized_result = await _execute(db,
             select(Project.id).where(
                 Project.id.in_(screen_project_ids),
                 Project.user_id == current_user.id,
@@ -167,11 +171,11 @@ async def parse_ui_screens(
 async def parse_prototype_project(
     prototype_project_id: int,
     parse_mode: str | None = Query("text"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        proto_result = await db.execute(
+        proto_result = await _execute(db,
             select(UIPrototypeProject).where(
                 UIPrototypeProject.id == prototype_project_id
             )
@@ -183,7 +187,7 @@ async def parse_prototype_project(
                 status_code=status.HTTP_404_NOT_FOUND, detail="原型项目不存在"
             )
 
-        db_project_result = await db.execute(
+        db_project_result = await _execute(db,
             select(Project).where(
                 Project.id == prototype_project.project_id,
                 Project.user_id == current_user.id,
@@ -258,7 +262,7 @@ async def parse_prototype_project(
 @router.post("/flow/generate", response_model=ApiResponse)
 async def generate_page_flow(
     flow_request: UIFlowGenerateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -323,7 +327,7 @@ async def generate_page_flow(
 async def get_ui_specs_for_case_generation(
     project_id: int,
     prototype_project_id: int | None = Query(None),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:

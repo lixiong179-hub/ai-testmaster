@@ -411,7 +411,7 @@ class TestImportXmindAiEnhance:
     """
 
     _PATCH_PARSE = "app.api.v1.endpoints.test_point_import.XmindAIParser"
-    _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission_async"
+    _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission"
 
     def _post_ai(self, ai_client, valid_xmind, preview="true"):
         with open(valid_xmind, "rb") as f:
@@ -630,24 +630,23 @@ class TestImportXmindAiReal:
     环境要求：DEEPSEEK_API_KEY 已配置，不满足时自动 skip。
     """
 
-    _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission_async"
+    _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission"
 
     @pytest.mark.skipif(not _ai_key_configured(), reason="DeepSeek API Key 未配置")
     def test_ai_preview_returns_structured_cases(
         self, real_ai_client, ai_xmind
     ) -> None:
         """AI 增强预览模式应返回包含用例的结构化响应。"""
-        with patch(self._PATCH_PERM):
-            with open(ai_xmind, "rb") as f:
-                resp = real_ai_client.post(
-                    "/api/v1/test-point/import-xmind",
-                    files={"file": ("ai_test.xmind", f, "application/octet-stream")},
-                    data={
-                        "project_id": "1",
-                        "preview": "true",
-                        "ai_enhance": "true",
-                    },
-                )
+        with patch(self._PATCH_PERM), open(ai_xmind, "rb") as f:
+            resp = real_ai_client.post(
+                "/api/v1/test-point/import-xmind",
+                files={"file": ("ai_test.xmind", f, "application/octet-stream")},
+                data={
+                    "project_id": "1",
+                    "preview": "true",
+                    "ai_enhance": "true",
+                },
+            )
 
         assert resp.status_code == 200
         body = resp.json()
@@ -685,17 +684,16 @@ class TestImportXmindAiReal:
         self, real_ai_client
     ) -> None:
         """使用真实 XMind 样例文件测试 AI 增强预览。"""
-        with patch(self._PATCH_PERM):
-            with open(SAMPLE_XMIND, "rb") as f:
-                resp = real_ai_client.post(
-                    "/api/v1/test-point/import-xmind",
-                    files={"file": ("听写任务.xmind", f, "application/octet-stream")},
-                    data={
-                        "project_id": "1",
-                        "preview": "true",
-                        "ai_enhance": "true",
-                    },
-                )
+        with patch(self._PATCH_PERM), open(SAMPLE_XMIND, "rb") as f:
+            resp = real_ai_client.post(
+                "/api/v1/test-point/import-xmind",
+                files={"file": ("听写任务.xmind", f, "application/octet-stream")},
+                data={
+                    "project_id": "1",
+                    "preview": "true",
+                    "ai_enhance": "true",
+                },
+            )
 
         assert resp.status_code == 200
         body = resp.json()

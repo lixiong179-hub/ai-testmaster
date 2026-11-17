@@ -1,12 +1,18 @@
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, case
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from loguru import logger
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.api.v1.endpoints.auth import get_current_user
 from app.models.user import User
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter()
 
@@ -43,7 +49,7 @@ class PosteriorStatsResponse(BaseModel):
 @router.post("/posterior/{project_id}", response_model=PosteriorResultResponse)
 async def trigger_posterior_scoring(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     import asyncio
@@ -52,7 +58,7 @@ async def trigger_posterior_scoring(
     from app.db.database import PrimarySessionLocal
 
     # async 权限校验
-    project_result = await db.execute(
+    project_result = await _execute(db,
         sa_select(Project).where(Project.id == project_id)
     )
     project = project_result.scalars().first()
@@ -92,21 +98,21 @@ async def trigger_posterior_scoring(
 @router.get("/posterior/{project_id}/result", response_model=PosteriorStatsResponse)
 async def get_posterior_result(
     project_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     from app.models.project import Project
     from app.models.test_case import TestCase
     from sqlalchemy import select
 
-    project_result = await db.execute(
+    project_result = await _execute(db,
         select(Project).where(Project.id == project_id)
     )
     project = project_result.scalars().first()
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
 
-    stats_result = await db.execute(
+    stats_result = await _execute(db,
         select(
             func.count(TestCase.id).label("total_cases"),
             func.sum(case(
@@ -135,7 +141,7 @@ async def get_posterior_result(
     }
 
     if scored_cases > 0:
-        scored_result = await db.execute(
+        scored_result = await _execute(db,
             select(TestCase.posterior_quality_score).where(
                 TestCase.project_id == project_id,
                 TestCase.is_deleted.is_(False),

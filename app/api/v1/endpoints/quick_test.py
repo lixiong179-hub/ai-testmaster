@@ -14,6 +14,7 @@
 异常处理：URL 非法（ValueError）返回 422，与 spec Scenario "URL 非法 → 422"
 一致；建项/探索等服务依赖异常返回 503，表示快速测试服务暂不可用。
 """
+import asyncio
 import time
 from collections import defaultdict, deque
 from uuid import uuid4
@@ -21,11 +22,11 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.config import settings
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.test_task import TaskStatus, TestTask
 from app.models.user import User
 from app.schemas.quick_test import (
@@ -34,6 +35,11 @@ from app.schemas.quick_test import (
     QuickTestStatusResponse,
 )
 from app.services.url_driven.quick_launcher import QuickLauncher
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter(tags=["快速测试"])
 
@@ -169,7 +175,7 @@ def _require_launch_quota(current_user: User = Depends(get_current_user)) -> Non
 @router.post("/launch", response_model=QuickTestLaunchResponse)
 async def launch_quick_test(
     request: QuickTestLaunchRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _quota: None = Depends(_require_launch_quota),
 ) -> QuickTestLaunchResponse:
@@ -177,9 +183,8 @@ async def launch_quick_test(
 
     编排顺序由 QuickLauncher 负责：AutoProjectBuilder → 预创建任务 →
     SiteExplorer → AutoCaseGenerator → TaskAssembler。HttpUrl 在 schema 层
-    已校验 scheme，此处转 str 传入 launcher。QuickLauncher.launch 仍使用
-    sync Session（服务层 sync 化在后续 Task 处理），通过 db.sync_session 透传，
-    保留原有事务隔离语义。
+    已校验 scheme，此处转 str 传入 launcher。QuickLauncher.launch 本身就是
+    sync Session 语义（R2-1 后请求级 `db` 即同步会话），直接透传即可。
     """
     try:
         launcher = QuickLauncher()
@@ -188,7 +193,7 @@ async def launch_quick_test(
             description=request.description,
             credentials=request.credentials,
             user_id=current_user.id,
-            session=db.sync_session,
+            session=db,
         )
     except HTTPException:
         # 限流等中间件/依赖异常向上透传，不被通用分支吞掉
@@ -212,7 +217,7 @@ async def launch_quick_test(
 @router.get("/{task_id}/status", response_model=QuickTestStatusResponse)
 async def get_quick_test_status(
     task_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> QuickTestStatusResponse:
     """查询快速测试任务进度。
@@ -220,7 +225,7 @@ async def get_quick_test_status(
     仅返回当前用户执行的任务（executor_id 过滤），避免越权查询他人任务。
     参数化查询 TestTask.id，防 SQL 注入。
     """
-    result = await db.execute(
+    result = await _execute(db,
         select(TestTask).where(
             TestTask.id == task_id,
             TestTask.executor_id == current_user.id,

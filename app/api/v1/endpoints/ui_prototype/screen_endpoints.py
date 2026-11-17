@@ -18,15 +18,15 @@ UI原型页面端点模块
     - 上传支持批量文件，自动解析UI元素
     - 页面元素包括按钮、输入框、链接等可交互组件
 """
+import asyncio
 import os
 import shutil
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, delete as sa_delete
 from datetime import datetime
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.models.project import Project
 from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen, UIScreenTestCaseLink
@@ -43,6 +43,11 @@ from app.services.ui_spec_parse_pipeline import UISpecParsePipeline
 from app.core.exception import create_response
 from app.schemas.common import ApiResponse
 from loguru import logger
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter(tags=["UI原型管理"])
 
@@ -78,12 +83,12 @@ async def upload_ui_screens(
     prototype_project_id: int | None = Form(None),
     iteration_id: int | None = Form(None),
     files: list[UploadFile] = File(...),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """上传UI屏幕图片"""
     try:
-        result = await db.execute(
+        result = await _execute(db,
             select(Project).where(
                 Project.id == project_id,
                 Project.user_id == current_user.id,
@@ -225,12 +230,12 @@ async def get_ui_screens(
     iteration_id: int | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """获取UI屏幕列表"""
     try:
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == project_id, Project.user_id == current_user.id
             )
@@ -256,7 +261,7 @@ async def get_ui_screens(
         stmt = stmt.order_by(
             UIPrototypeScreen.screen_order, UIPrototypeScreen.create_time
         ).offset(skip).limit(page_size)
-        screens_result = await db.execute(stmt)
+        screens_result = await _execute(db, stmt)
         screens = screens_result.scalars().all()
 
         # 内联 async 查询替代 ui_prototype_crud.get_ui_screens_count
@@ -271,7 +276,7 @@ async def get_ui_screens(
         if parse_status:
             count_stmt = count_stmt.where(UIPrototypeScreen.parse_status == parse_status)
         count_stmt = _apply_iteration_filter_stmt(count_stmt, iteration_id)
-        total = (await db.execute(count_stmt)).scalar() or 0
+        total = (await _execute(db, count_stmt)).scalar() or 0
 
         data = {
             "total": total,
@@ -293,12 +298,12 @@ async def get_ui_screens(
 @router.get("/screen/{screen_id}", response_model=ApiResponse)
 async def get_ui_screen_detail(
     screen_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """获取UI屏幕详情"""
     try:
-        screen_result = await db.execute(
+        screen_result = await _execute(db,
             select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
         )
         screen = screen_result.scalars().first()
@@ -307,7 +312,7 @@ async def get_ui_screen_detail(
                 status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
             )
 
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == screen.project_id, Project.user_id == current_user.id
             )
@@ -332,12 +337,12 @@ async def get_ui_screen_detail(
 @router.delete("/screen/{screen_id}", response_model=ApiResponse)
 async def delete_ui_screen(
     screen_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """删除UI屏幕"""
     try:
-        screen_result = await db.execute(
+        screen_result = await _execute(db,
             select(UIPrototypeScreen).where(UIPrototypeScreen.id == screen_id)
         )
         screen = screen_result.scalars().first()
@@ -346,7 +351,7 @@ async def delete_ui_screen(
                 status_code=status.HTTP_404_NOT_FOUND, detail="屏幕不存在"
             )
 
-        project_result = await db.execute(
+        project_result = await _execute(db,
             select(Project).where(
                 Project.id == screen.project_id, Project.user_id == current_user.id
             )
@@ -366,13 +371,13 @@ async def delete_ui_screen(
                 )
 
         # 内联 async 级联删除替代 ui_prototype_crud.delete_ui_screen
-        await db.execute(
+        await _execute(db,
             sa_delete(UIScreenTestCaseLink).where(
                 UIScreenTestCaseLink.screen_id == screen_id
             )
         )
-        await db.delete(screen)
-        await db.commit()
+        await asyncio.to_thread(db.delete, screen)
+        await asyncio.to_thread(db.commit)
 
         return create_response(msg="删除成功")
     except HTTPException:

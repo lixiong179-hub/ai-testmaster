@@ -16,11 +16,11 @@
     - 文件大小限制：≤10MB
     - 支持格式：.xmind 标准格式（ZIP + XML）
 """
+import asyncio
 import os
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.schemas.test_point import (
     TestPointXmindPreviewItem,
     TestPointXmindPreviewResponse,
@@ -28,7 +28,7 @@ from app.schemas.test_point import (
 )
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
-from app.services.test_point.helpers import check_project_permission_async
+from app.services.test_point.helpers import check_project_permission
 from app.services.xmind_parser import XmindParser, XmindParseError
 from app.services.xmind_case_parser import XmindCaseParser
 from app.services.xmind_ai_parser import XmindAIParser
@@ -49,7 +49,7 @@ from app.utils.ai_client_core import (
     AIServiceError,
     AITimeoutError,
 )
-from app.crud.test_point import batch_create_test_points_async
+from app.crud.test_point import batch_create_test_points
 from loguru import logger
 
 router = APIRouter()
@@ -61,7 +61,7 @@ async def import_xmind(
     project_id: int = Form(..., description="项目ID"),
     preview: bool = Form(False, description="是否预览模式"),
     ai_enhance: bool = Form(False, description="是否AI增强模式"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """导入 XMind 测试点文件。
@@ -83,7 +83,9 @@ async def import_xmind(
         预览模式返回 TestPointXmindPreviewResponse，
         导入模式返回 TestPointXmindImportResponse。
     """
-    await check_project_permission_async(db, project_id, current_user.id)
+    await asyncio.to_thread(
+        check_project_permission, db, project_id, current_user.id
+    )
 
     validate_file(file)
 
@@ -166,7 +168,7 @@ async def import_xmind(
                     total_paths=total_paths,
                 )
 
-            return await db.run_sync(_ai_import)
+            return await asyncio.to_thread(_ai_import, db)
 
         parsed_points = parser.parse(tmp_path)
         case_parser = XmindCaseParser()
@@ -183,7 +185,7 @@ async def import_xmind(
                     ai_timeout=False,
                 )
 
-            return await db.run_sync(_case_import)
+            return await asyncio.to_thread(_case_import, db)
 
         if not parsed_points:
             raise HTTPException(
@@ -216,7 +218,8 @@ async def import_xmind(
                 ai_timeout=False,
             )
 
-        saved = await batch_create_test_points_async(
+        saved = await asyncio.to_thread(
+            batch_create_test_points,
             db=db,
             project_id=project_id,
             test_points_data=valid_points,

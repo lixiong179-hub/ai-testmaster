@@ -17,18 +17,24 @@
     - /captcha, /captcha/generate, /login, /register: 无需认证
     - /me: 需要Bearer令牌认证
 """
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from app.core.exception import create_response
 from loguru import logger
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.schemas.auth import RegisterRequest
 from app.api.v1.endpoints.auth_deps import get_current_user
 from app.utils.jwt_utils import verify_password, get_password_hash, create_access_token
 from app.services.captcha_service import captcha_service
 from app.schemas.common import ApiResponse
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter()
 
@@ -78,7 +84,7 @@ async def login(
     password: str | None = Form(None),
     captcha_id: str | None = Form(None),
     captcha_code: str | None = Form(None),
-    db: AsyncSession = Depends(async_get_db)
+    db: Session = Depends(get_db)
 ):
     try:
         if username is None or password is None:
@@ -112,7 +118,7 @@ async def login(
                 detail="验证码错误或已过期"
             )
 
-        result = await db.execute(select(User).where(User.username == username))
+        result = await _execute(db, select(User).where(User.username == username))
         user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(
@@ -157,7 +163,7 @@ async def login(
 @router.post("/register", response_model=ApiResponse, summary="用户注册", description="注册新用户账号。需提供用户名、邮箱、密码，注册成功后可使用 /login 登录。")
 async def register(
     register_data: RegisterRequest,
-    db: AsyncSession = Depends(async_get_db)
+    db: Session = Depends(get_db)
 ):
     """
     用户注册
@@ -187,7 +193,7 @@ async def register(
         password = register_data.password
         email = register_data.email
         # 校验用户名唯一性
-        result = await db.execute(select(User).where(User.username == username))
+        result = await _execute(db, select(User).where(User.username == username))
         if result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -195,7 +201,7 @@ async def register(
             )
         # 校验邮箱唯一性（仅当提供了邮箱时）
         if email:
-            result = await db.execute(select(User).where(User.email == email))
+            result = await _execute(db, select(User).where(User.email == email))
             if result.scalar_one_or_none():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -221,8 +227,8 @@ async def register(
             is_active=True
         )
         db.add(new_user)
-        await db.commit()
-        await db.refresh(new_user)
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, new_user)
         logger.info(f"用户注册成功: username={username}")
         return create_response(
             data={
@@ -235,7 +241,7 @@ async def register(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error(f"注册异常: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

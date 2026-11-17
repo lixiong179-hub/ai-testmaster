@@ -102,7 +102,7 @@ async def _callParse(async_db: AsyncSession, currentUser: User, screenIds):
     """调用 parse_ui_screens 端点协程，捕获 HTTPException。"""
     request = UIScreenParseRequest(screen_ids=screenIds)
     return await parse_ui_screens(
-        parse_request=request, db=async_db, current_user=currentUser
+        parse_request=request, db=async_db.sync_session, current_user=currentUser
     )
 
 
