@@ -3,13 +3,15 @@
 提供恢复暂停 Pipeline 的端点，以及创建 AI 客户端的工厂函数。
 """
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from loguru import logger
 
 from app.ai.client import AIClient
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.pipeline_schemas import PipelineResumeRequest
@@ -49,7 +51,7 @@ def create_ai_client(model_name: str | None = None) -> AIClient:
 async def resume_pipeline(
     run_id: int,
     body: PipelineResumeRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """恢复暂停的 Pipeline。"""
@@ -112,4 +114,4 @@ async def resume_pipeline(
             logger.error("Pipeline 恢复失败: {}", e)
             raise HTTPException(status_code=500, detail="Pipeline 恢复失败")
 
-    return await db.run_sync(_resume)
+    return await asyncio.to_thread(_resume, db)

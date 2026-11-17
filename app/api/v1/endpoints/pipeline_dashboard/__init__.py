@@ -6,18 +6,19 @@ SQL 方言适配与子查询构建下沉至 `app.services.pipeline_service.dashb
 `trends_router` 单独导出：`pipeline.py` 仍以无 `/dashboard` 前缀的方式二次注册
 趋势类端点，保持既有前端调用路径不变。
 """
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, case, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.ai.call_log import AICallLog
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.pipeline import PipelineRun, PipelineStep
 from app.models.pipeline_metric import PipelineMetric
 from app.models.user import User
@@ -39,7 +40,7 @@ trends_router = APIRouter()
 async def get_dashboard_overview(
     project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(7, ge=1, le=90, description="统计天数"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -114,10 +115,10 @@ async def get_dashboard_overview(
             fmea_stmt = fmea_stmt.where(PipelineMetric.id.in_(metric_subq))
 
         # 4 次 SQL 往返（原 8 次）
-        run_row = (await db.execute(run_stmt)).one()
-        ai_row = (await db.execute(ai_stmt)).one()
-        step_row = (await db.execute(step_stmt)).one()
-        fmea_active_val = (await db.execute(fmea_stmt)).scalar() or 0
+        run_row = (await asyncio.to_thread(db.execute, run_stmt)).one()
+        ai_row = (await asyncio.to_thread(db.execute, ai_stmt)).one()
+        step_row = (await asyncio.to_thread(db.execute, step_stmt)).one()
+        fmea_active_val = (await asyncio.to_thread(db.execute, fmea_stmt)).scalar() or 0
 
         total_runs_val = run_row.total_runs or 0
         completed_runs_val = run_row.completed_runs or 0
@@ -146,7 +147,7 @@ async def get_dashboard_overview(
 async def get_token_usage(
     project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -166,7 +167,7 @@ async def get_token_usage(
         if project_id is not None:
             run_subq = build_run_subquery(db, project_id)
             stmt = stmt.where(AICallLog.run_id.in_(run_subq))
-        rows_result = await db.execute(stmt)
+        rows_result = await asyncio.to_thread(db.execute, stmt)
         rows = rows_result.all()
         result = [
             {
@@ -187,7 +188,7 @@ async def get_token_usage(
 async def get_run_duration(
     project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -215,7 +216,7 @@ async def get_run_duration(
             stmt = stmt.join(Iteration, PipelineRun.iteration_id == Iteration.id).where(
                 Iteration.project_id == project_id
             )
-        rows_result = await db.execute(stmt)
+        rows_result = await asyncio.to_thread(db.execute, stmt)
         rows = rows_result.all()
         result = [
             {
@@ -236,7 +237,7 @@ async def get_run_duration(
 async def get_step_latency(
     project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -260,7 +261,7 @@ async def get_step_latency(
         if project_id is not None:
             run_subq = build_run_subquery(db, project_id)
             stmt = stmt.where(PipelineStep.run_id.in_(run_subq))
-        rows_result = await db.execute(stmt)
+        rows_result = await asyncio.to_thread(db.execute, stmt)
         rows = rows_result.all()
         result = [
             {
@@ -282,7 +283,7 @@ async def get_step_latency(
 async def get_cache_hit_rate(
     project_id: int | None = Query(None, description="项目 ID 过滤"),
     days: int = Query(30, ge=1, le=90, description="统计天数"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -300,7 +301,7 @@ async def get_cache_hit_rate(
         if project_id is not None:
             run_subq = build_run_subquery(db, project_id)
             stmt = stmt.where(PipelineStep.run_id.in_(run_subq))
-        rows_result = await db.execute(stmt)
+        rows_result = await asyncio.to_thread(db.execute, stmt)
         rows = rows_result.all()
         result = [
             {

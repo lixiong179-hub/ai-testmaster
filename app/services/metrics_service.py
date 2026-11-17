@@ -123,6 +123,52 @@ def record_metrics(
     return results
 
 
+def _build_query_metrics_stmt(
+    *,
+    metric_name: str | None = None,
+    project_id: int | None = None,
+    iteration_id: int | None = None,
+    run_id: int | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+):
+    """构建聚合查询语句（sync/async 共用，不含会话）。"""
+    filters = _build_filters(
+        metric_name=metric_name,
+        project_id=project_id,
+        iteration_id=iteration_id,
+        run_id=run_id,
+        since=since,
+        until=until,
+    )
+    return (
+        select(
+            PipelineMetric.metric_name,
+            func.count(PipelineMetric.id).label("count"),
+            func.coalesce(func.sum(PipelineMetric.value), 0).label("total"),
+            func.coalesce(func.avg(PipelineMetric.value), 0).label("avg_value"),
+        )
+        .where(and_(*filters) if filters else True)
+        .group_by(PipelineMetric.metric_name)
+    )
+
+
+def _format_query_rows(rows) -> list[dict[str, Any]]:
+    """聚合结果行 → 对外字典（含 FMEA 元数据）。"""
+    results = []
+    for row in rows:
+        meta = FMEA_METRICS.get(row.metric_name, {})
+        results.append({
+            "metric_name": row.metric_name,
+            "fmea_id": meta.get("fmea_id", ""),
+            "description": meta.get("description", ""),
+            "count": row.count,
+            "total": float(row.total),
+            "avg_value": round(float(row.avg_value), 4),
+        })
+    return results
+
+
 async def query_metrics(
     db: AsyncSession,
     *,
@@ -147,7 +193,7 @@ async def query_metrics(
     Returns:
         聚合结果列表，每项含 metric_name, count, total, avg_value, fmea_id, description。
     """
-    filters = _build_filters(
+    stmt = _build_query_metrics_stmt(
         metric_name=metric_name,
         project_id=project_id,
         iteration_id=iteration_id,
@@ -155,31 +201,73 @@ async def query_metrics(
         since=since,
         until=until,
     )
+    rows = (await db.execute(stmt)).all()
+    return _format_query_rows(rows)
 
-    stmt = (
+
+def query_metrics_sync(
+    db: Session,
+    *,
+    metric_name: str | None = None,
+    project_id: int | None = None,
+    iteration_id: int | None = None,
+    run_id: int | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """`query_metrics` 的同步版（R2-1：端点经 `asyncio.to_thread` 调用）。"""
+    stmt = _build_query_metrics_stmt(
+        metric_name=metric_name,
+        project_id=project_id,
+        iteration_id=iteration_id,
+        run_id=run_id,
+        since=since,
+        until=until,
+    )
+    return _format_query_rows(db.execute(stmt).all())
+
+
+def _build_timeseries_stmt(
+    db: "Session | AsyncSession",
+    *,
+    metric_name: str,
+    project_id: int | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    interval: str = "day",
+):
+    """构建时序查询语句（sync/async 共用）。"""
+    filters = _build_filters(
+        metric_name=metric_name,
+        project_id=project_id,
+        since=since,
+        until=until,
+    )
+    if interval == "hour":
+        date_expr = _date_trunc_hour(PipelineMetric.created_at, db)
+    else:
+        date_expr = _date_trunc_day(PipelineMetric.created_at, db)
+    return (
         select(
-            PipelineMetric.metric_name,
+            date_expr.label("time_bucket"),
             func.count(PipelineMetric.id).label("count"),
             func.coalesce(func.sum(PipelineMetric.value), 0).label("total"),
-            func.coalesce(func.avg(PipelineMetric.value), 0).label("avg_value"),
         )
         .where(and_(*filters) if filters else True)
-        .group_by(PipelineMetric.metric_name)
+        .group_by("time_bucket")
+        .order_by("time_bucket")
     )
-    rows = (await db.execute(stmt)).all()
 
-    results = []
-    for row in rows:
-        meta = FMEA_METRICS.get(row.metric_name, {})
-        results.append({
-            "metric_name": row.metric_name,
-            "fmea_id": meta.get("fmea_id", ""),
-            "description": meta.get("description", ""),
+
+def _format_timeseries_rows(rows) -> list[dict[str, Any]]:
+    return [
+        {
+            "time_bucket": row.time_bucket,
             "count": row.count,
             "total": float(row.total),
-            "avg_value": round(float(row.avg_value), 4),
-        })
-    return results
+        }
+        for row in rows
+    ]
 
 
 async def get_metric_timeseries(
@@ -204,60 +292,41 @@ async def get_metric_timeseries(
     Returns:
         时序数据列表，每项含 time_bucket, count, total。
     """
-    filters = _build_filters(
+    stmt = _build_timeseries_stmt(
+        db,
         metric_name=metric_name,
         project_id=project_id,
         since=since,
         until=until,
-    )
-
-    if interval == "hour":
-        date_expr = _date_trunc_hour(PipelineMetric.created_at, db)
-    else:
-        date_expr = _date_trunc_day(PipelineMetric.created_at, db)
-
-    stmt = (
-        select(
-            date_expr.label("time_bucket"),
-            func.count(PipelineMetric.id).label("count"),
-            func.coalesce(func.sum(PipelineMetric.value), 0).label("total"),
-        )
-        .where(and_(*filters) if filters else True)
-        .group_by("time_bucket")
-        .order_by("time_bucket")
+        interval=interval,
     )
     rows = (await db.execute(stmt)).all()
-
-    return [
-        {
-            "time_bucket": row.time_bucket,
-            "count": row.count,
-            "total": float(row.total),
-        }
-        for row in rows
-    ]
+    return _format_timeseries_rows(rows)
 
 
-async def get_dashboard_summary(
-    db: AsyncSession,
+def get_metric_timeseries_sync(
+    db: Session,
+    metric_name: str,
     *,
     project_id: int | None = None,
     since: datetime | None = None,
-) -> dict[str, Any]:
-    """获取仪表盘摘要（所有 FMEA 指标的当前值）。
-
-    Args:
-        db: 异步数据库会话。
-        project_id: 按项目过滤（可选）。
-        since: 起始时间（含）。
-
-    Returns:
-        摘要字典，含 metrics 列表和 generated_at 时间戳。
-    """
-    aggregated = await query_metrics(
-        db, project_id=project_id, since=since,
+    until: datetime | None = None,
+    interval: str = "day",
+) -> list[dict[str, Any]]:
+    """`get_metric_timeseries` 的同步版（R2-1：端点经 `asyncio.to_thread` 调用）。"""
+    stmt = _build_timeseries_stmt(
+        db,
+        metric_name=metric_name,
+        project_id=project_id,
+        since=since,
+        until=until,
+        interval=interval,
     )
+    return _format_timeseries_rows(db.execute(stmt).all())
 
+
+def _build_dashboard_summary(aggregated: list[dict[str, Any]]) -> dict[str, Any]:
+    """聚合结果 → 仪表盘摘要（sync/async 共用）。"""
     all_metrics = []
     for name, meta in FMEA_METRICS.items():
         found = None
@@ -279,6 +348,39 @@ async def get_dashboard_summary(
         "total_metric_types": len(FMEA_METRICS),
         "active_metric_types": len([m for m in all_metrics if m["count"] > 0]),
     }
+
+
+async def get_dashboard_summary(
+    db: AsyncSession,
+    *,
+    project_id: int | None = None,
+    since: datetime | None = None,
+) -> dict[str, Any]:
+    """获取仪表盘摘要（所有 FMEA 指标的当前值）。
+
+    Args:
+        db: 异步数据库会话。
+        project_id: 按项目过滤（可选）。
+        since: 起始时间（含）。
+
+    Returns:
+        摘要字典，含 metrics 列表和 generated_at 时间戳。
+    """
+    aggregated = await query_metrics(
+        db, project_id=project_id, since=since,
+    )
+    return _build_dashboard_summary(aggregated)
+
+
+def get_dashboard_summary_sync(
+    db: Session,
+    *,
+    project_id: int | None = None,
+    since: datetime | None = None,
+) -> dict[str, Any]:
+    """`get_dashboard_summary` 的同步版（R2-1：端点经 `asyncio.to_thread` 调用）。"""
+    aggregated = query_metrics_sync(db, project_id=project_id, since=since)
+    return _build_dashboard_summary(aggregated)
 
 
 def _build_filters(

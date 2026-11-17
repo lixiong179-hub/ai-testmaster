@@ -20,7 +20,7 @@ from types import SimpleNamespace
 from app.models.iteration import Iteration
 from app.models.test_point import TestPoint
 from app.models.iteration import IterationInput
-from app.models.pipeline import PipelineRun, PipelineStep, Artifact
+from app.models.pipeline import PipelineStep, Artifact
 from app.services import pipeline_service
 from app.ai.mock_client import MockAIClient
 
@@ -233,7 +233,7 @@ def pipeline_api_mock_ai():
 class TestPipelineRunApi:
     @pytest.mark.asyncio
     async def test_run_pipeline_returns_pipeline_run_id(
-        self, db, sync_backed_async_db, testUser, runnable_iteration, pipeline_api_mock_ai, monkeypatch
+        self, db, testUser, runnable_iteration, pipeline_api_mock_ai, monkeypatch
     ):
         from app.api.v1.endpoints import pipeline as pipeline_endpoint
 
@@ -246,7 +246,7 @@ class TestPipelineRunApi:
         response = await pipeline_endpoint.run_pipeline(
             iteration_id=runnable_iteration.id,
             body=pipeline_endpoint.PipelineRunRequest(scenario=2),
-            db=sync_backed_async_db,
+            db=db,
             current_user=SimpleNamespace(id=testUser.id),
         )
 
@@ -257,7 +257,7 @@ class TestPipelineRunApi:
 
 class TestScenario4Precheck:
     async def test_precheck_no_project_access(
-        self, db, sync_backed_async_db, testUser, testProject
+        self, db, testUser, testProject
     ):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
         from fastapi import HTTPException
@@ -266,18 +266,18 @@ class TestScenario4Precheck:
         with pytest_mod.raises(HTTPException):
             await precheck_scenario_4(
                 body=Scenario4PrecheckRequest(project_id=99999),
-                db=sync_backed_async_db,
+                db=db,
                 current_user=SimpleNamespace(id=testUser.id),
             )
 
     async def test_precheck_empty_project(
-        self, db, sync_backed_async_db, testUser, testProject
+        self, db, testUser, testProject
     ):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
 
         response = await precheck_scenario_4(
             body=Scenario4PrecheckRequest(project_id=testProject.id),
-            db=sync_backed_async_db,
+            db=db,
             current_user=SimpleNamespace(id=testUser.id),
         )
         assert response["code"] == 200
@@ -289,7 +289,7 @@ class TestScenario4Precheck:
         assert len(data["blocking_reasons"]) > 0
 
     async def test_precheck_with_history_cases(
-        self, db, sync_backed_async_db, testUser, testProject
+        self, db, testUser, testProject
     ):
         from app.models.test_case import TestCase
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
@@ -323,7 +323,7 @@ class TestScenario4Precheck:
 
         response = await precheck_scenario_4(
             body=Scenario4PrecheckRequest(project_id=testProject.id),
-            db=sync_backed_async_db,
+            db=db,
             current_user=SimpleNamespace(id=testUser.id),
         )
         data = response["data"]
@@ -334,7 +334,7 @@ class TestScenario4Precheck:
         assert data["history_cases"]["archived"] == 1
 
     async def test_precheck_with_test_points(
-        self, db, sync_backed_async_db, testUser, testProject
+        self, db, testUser, testProject
     ):
         from app.models.test_point import TestPoint
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
@@ -355,7 +355,7 @@ class TestScenario4Precheck:
                 project_id=testProject.id,
                 test_point_ids=[tp1.id, tp2.id],
             ),
-            db=sync_backed_async_db,
+            db=db,
             current_user=SimpleNamespace(id=testUser.id),
         )
         data = response["data"]
@@ -363,7 +363,7 @@ class TestScenario4Precheck:
         assert data["test_points"]["selected"] == 2
 
     async def test_precheck_test_points_wrong_project(
-        self, db, sync_backed_async_db, testUser, testProject
+        self, db, testUser, testProject
     ):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
         from fastapi import HTTPException
@@ -375,12 +375,12 @@ class TestScenario4Precheck:
                     project_id=testProject.id,
                     test_point_ids=[99999],
                 ),
-                db=sync_backed_async_db,
+                db=db,
                 current_user=SimpleNamespace(id=testUser.id),
             )
 
     async def test_precheck_with_ui_screens(
-        self, db, sync_backed_async_db, testUser, testProject
+        self, db, testUser, testProject
     ):
         from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
@@ -421,7 +421,7 @@ class TestScenario4Precheck:
                 project_id=testProject.id,
                 ui_project_id=proto_project.id,
             ),
-            db=sync_backed_async_db,
+            db=db,
             current_user=SimpleNamespace(id=testUser.id),
         )
         data = response["data"]
@@ -433,20 +433,20 @@ class TestScenario4Precheck:
         assert data["warnings"]
 
     async def test_precheck_without_ui_project_id(
-        self, db, sync_backed_async_db, testUser, testProject
+        self, db, testUser, testProject
     ):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
 
         response = await precheck_scenario_4(
             body=Scenario4PrecheckRequest(project_id=testProject.id),
-            db=sync_backed_async_db,
+            db=db,
             current_user=SimpleNamespace(id=testUser.id),
         )
         data = response["data"]
         assert data["ui"]["selected_screen_count"] == 0
 
     async def test_precheck_cannot_access_ui_project(
-        self, db, sync_backed_async_db, testUser, testProject
+        self, db, testUser, testProject
     ):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
         from fastapi import HTTPException
@@ -458,13 +458,13 @@ class TestScenario4Precheck:
                     project_id=testProject.id,
                     ui_project_id=99999,
                 ),
-                db=sync_backed_async_db,
+                db=db,
                 current_user=SimpleNamespace(id=testUser.id),
             )
 
     @pytest.mark.asyncio
     async def test_compatible_iteration_route_returns_pipeline_run_id(
-        self, db, sync_backed_async_db, testUser, runnable_iteration, pipeline_api_mock_ai, monkeypatch
+        self, db, testUser, runnable_iteration, pipeline_api_mock_ai, monkeypatch
     ):
         from app.api.v1.endpoints import pipeline as pipeline_endpoint
         from app.api.v1.endpoints import iteration as iteration_endpoint
@@ -478,7 +478,7 @@ class TestScenario4Precheck:
         response = await iteration_endpoint.run_iteration_pipeline(
             iteration_id=runnable_iteration.id,
             body=pipeline_endpoint.PipelineRunRequest(scenario=2),
-            db=sync_backed_async_db,
+            db=db,
             current_user=SimpleNamespace(id=testUser.id),
         )
 

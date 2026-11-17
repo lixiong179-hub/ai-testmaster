@@ -2,34 +2,46 @@
 
 提供场景4运行前的预检功能，检查历史用例、测试点、UI页面等前置条件。
 """
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.pipeline_schemas import Scenario4PrecheckRequest
-from app.api.v1.endpoints.pipeline_deps import verify_project_access_async
+from app.api.v1.endpoints.pipeline_deps import verify_project_access
 from app.core.exception import create_response
 from app.schemas.common import ApiResponse
 
 router = APIRouter(tags=["Pipeline管理"])
 
 
-async def _count(db: AsyncSession, stmt) -> int:
-    """执行 count 查询并返回标量值"""
-    return (await db.execute(stmt)).scalar() or 0
+async def _count(db: Session, stmt) -> int:
+    """执行 count 查询并返回标量值（同步执行转入线程池）。"""
+    return (await asyncio.to_thread(db.execute, stmt)).scalar() or 0
+
+
+async def _scalar_one_or_none(db: Session, stmt):
+    """执行查询并返回 `scalar_one_or_none()`（同步执行转入线程池）。"""
+    return (await asyncio.to_thread(db.execute, stmt)).scalar_one_or_none()
+
+
+async def _all(db: Session, stmt) -> list:
+    """执行查询并返回行列表（同步执行转入线程池）。"""
+    return (await asyncio.to_thread(db.execute, stmt)).all()
 
 
 @router.post("/scenario-4/precheck", response_model=ApiResponse)
 async def precheck_scenario_4(
     body: Scenario4PrecheckRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """场景4运行前预检，验证历史用例、测试点、UI页面等前置条件是否满足。"""
-    await verify_project_access_async(db, body.project_id, current_user)
+    await asyncio.to_thread(verify_project_access, db, body.project_id, current_user)
 
     from app.models.project import ProjectFile
     from app.models.test_case import TestCase
@@ -117,39 +129,36 @@ async def precheck_scenario_4(
 
     screen_ids_to_check = body.screen_ids
     if body.ui_project_id and not body.screen_ids:
-        prototype_project = (
-            await db.execute(
-                select(UIPrototypeProject).where(
-                    UIPrototypeProject.id == body.ui_project_id,
-                    UIPrototypeProject.project_id == body.project_id,
-                )
-            )
-        ).scalar_one_or_none()
+        prototype_project = await _scalar_one_or_none(
+            db,
+            select(UIPrototypeProject).where(
+                UIPrototypeProject.id == body.ui_project_id,
+                UIPrototypeProject.project_id == body.project_id,
+            ),
+        )
         if not prototype_project:
             raise HTTPException(
                 status_code=403,
                 detail="UI原型项目不属于当前项目",
             )
-        screens = (
-            await db.execute(
-                select(UIPrototypeScreen.id).where(
-                    UIPrototypeScreen.prototype_project_id == body.ui_project_id,
-                )
-            )
-        ).all()
+        screens = await _all(
+            db,
+            select(UIPrototypeScreen.id).where(
+                UIPrototypeScreen.prototype_project_id == body.ui_project_id,
+            ),
+        )
         screen_ids_to_check = [s[0] for s in screens]
     elif not body.ui_project_id:
         screen_ids_to_check = []
 
     if screen_ids_to_check and body.ui_project_id:
-        owner_check = (
-            await db.execute(
-                select(UIPrototypeScreen.id).where(
-                    UIPrototypeScreen.id.in_(screen_ids_to_check),
-                    UIPrototypeScreen.prototype_project_id == body.ui_project_id,
-                )
-            )
-        ).all()
+        owner_check = await _all(
+            db,
+            select(UIPrototypeScreen.id).where(
+                UIPrototypeScreen.id.in_(screen_ids_to_check),
+                UIPrototypeScreen.prototype_project_id == body.ui_project_id,
+            ),
+        )
         valid_ids = {s[0] for s in owner_check}
         invalid_ids = set(screen_ids_to_check) - valid_ids
         if invalid_ids:
@@ -166,10 +175,11 @@ async def precheck_scenario_4(
 
     if screen_ids_to_check:
         all_screens = (
-            await db.execute(
+            await asyncio.to_thread(
+                db.execute,
                 select(UIPrototypeScreen).where(
                     UIPrototypeScreen.id.in_(screen_ids_to_check),
-                )
+                ),
             )
         ).scalars().all()
         for screen in all_screens:

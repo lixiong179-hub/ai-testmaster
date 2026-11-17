@@ -3,12 +3,12 @@
 包含 payload 截断、取消权限校验、版本重跑指标记录等纯工具逻辑，
 供路由处理函数与外部模块复用。保持原 `_` 前缀函数名以兼容既有调用点。
 """
+import asyncio
 import json
 from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
 
 from loguru import logger
@@ -112,33 +112,36 @@ def record_version_rerun_metric(
         logger.debug("记录pipeline版本重跑指标失败(不影响业务): %s", e)
 
 
-async def _get_run_async(
-    db: AsyncSession, run_id: int
-) -> PipelineRun | None:
-    """async 版本的 pipeline_service.get_run，joinedload steps/artifacts。"""
-    result = await db.execute(
-        select(PipelineRun)
+def _get_run(db: Session, run_id: int) -> PipelineRun | None:
+    """pipeline_service.get_run 的同步版，joinedload steps/artifacts。"""
+    return (
+        db.query(PipelineRun)
         .options(
             joinedload(PipelineRun.steps),
             joinedload(PipelineRun.artifacts),
         )
-        .where(PipelineRun.id == run_id)
+        .filter(PipelineRun.id == run_id)
+        .first()
     )
-    return result.scalars().first()
 
 
-async def _get_artifact_async(
-    db: AsyncSession,
+async def _get_run_async(db: Session, run_id: int) -> PipelineRun | None:
+    """`_get_run` 的异步壳（R2-1：线程池执行，不阻塞事件循环）。"""
+    return await asyncio.to_thread(_get_run, db, run_id)
+
+
+def _get_artifact(
+    db: Session,
     run_id: int,
     *,
     artifact_id: int | None = None,
     kind: str | None = None,
     order_by_created_desc: bool = False,
 ) -> Artifact | None:
-    """async 版本的 Artifact 查询，支持按 artifact_id 或 kind 过滤。
+    """Artifact 同步查询，支持按 artifact_id 或 kind 过滤。
 
     Args:
-        db: AsyncSession
+        db: 同步 Session
         run_id: PipelineRun ID
         artifact_id: 可选, 按产物ID过滤
         kind: 可选, 按产物kind过滤
@@ -154,5 +157,23 @@ async def _get_artifact_async(
         stmt = stmt.where(Artifact.kind == kind)
     if order_by_created_desc:
         stmt = stmt.order_by(Artifact.created_at.desc())
-    result = await db.execute(stmt)
-    return result.scalars().first()
+    return db.execute(stmt).scalars().first()
+
+
+async def _get_artifact_async(
+    db: Session,
+    run_id: int,
+    *,
+    artifact_id: int | None = None,
+    kind: str | None = None,
+    order_by_created_desc: bool = False,
+) -> Artifact | None:
+    """`_get_artifact` 的异步壳（R2-1：线程池执行，不阻塞事件循环）。"""
+    return await asyncio.to_thread(
+        _get_artifact,
+        db,
+        run_id,
+        artifact_id=artifact_id,
+        kind=kind,
+        order_by_created_desc=order_by_created_desc,
+    )

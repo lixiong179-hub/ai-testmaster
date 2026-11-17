@@ -8,12 +8,14 @@
     - pipeline_resume     - Pipeline恢复 + AI客户端工厂
     - pipeline_artifacts  - 反推摘要、信号补充与取消运行
 """
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from loguru import logger
 
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.models.pipeline import PipelineRun
 from app.api.v1.endpoints.auth import get_current_user
@@ -76,7 +78,7 @@ router.include_router(_artifacts_router)
 async def run_pipeline(
     iteration_id: int,
     body: PipelineRunRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """触发 Pipeline 运行。"""
@@ -186,13 +188,13 @@ async def run_pipeline(
             logger.error("Pipeline 运行失败: {}", e)
             raise HTTPException(status_code=500, detail="Pipeline 运行失败")
 
-    return await db.run_sync(_run)
+    return await asyncio.to_thread(_run, db)
 
 
 @router.get("/{run_id}", response_model=ApiResponse)
 async def get_pipeline_run(
     run_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """查询 Pipeline 运行状态。"""
@@ -253,4 +255,4 @@ async def get_pipeline_run(
             logger.error("获取 Pipeline 状态失败: {}", e)
             raise HTTPException(status_code=500, detail="获取 Pipeline 状态失败")
 
-    return await db.run_sync(_get)
+    return await asyncio.to_thread(_get, db)

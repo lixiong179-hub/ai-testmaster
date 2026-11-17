@@ -5,7 +5,7 @@ schema 拆至 `review_inbox/schemas.py`；访问校验、决策序列化与指�
 `app.services.review_service.inbox_helpers`。
 
 `review_service` 为 sync 实现，端点使用 `asyncio.to_thread` + `PrimarySessionLocal`
-在独立线程中执行 sync 业务逻辑，释放事件循环并避免与 AsyncSession 事务冲突。
+在独立线程中执行 sync 业务逻辑，释放事件循环并避免与请求级会话事务边界互相干扰。
 """
 import asyncio
 from typing import Optional
@@ -13,7 +13,6 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
@@ -26,7 +25,7 @@ from app.api.v1.endpoints.review_inbox.schemas import (
     RollbackRequest,
 )
 from app.core.exception import create_response
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import PrimarySessionLocal, get_db
 from app.models.user import User
 from app.schemas.common import ApiResponse
 from app.services import review_service
@@ -48,7 +47,7 @@ def require_admin(current_user: User = Depends(get_current_user)):
 async def _run_review_mutation(fn):
     """在独立线程中执行 sync review_service 逻辑，释放事件循环。
 
-    使用 PrimarySessionLocal 创建独立 sync 会话，避免与 AsyncSession 事务冲突。
+    使用 PrimarySessionLocal 创建独立 sync 会话，避免与请求级会话事务边界互相干扰。
     fn 接收 sync_db 参数，需自行管理 commit/rollback/savepoint。
     """
     sync_db = PrimarySessionLocal()
@@ -64,7 +63,7 @@ async def list_reviews_by_iteration(
     status: str | None = Query(
         None, description="按评审状态过滤：draft/in_progress/finalized/cancelled"
     ),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """按迭代列出评审记录（created_at 倒序，最新在前）。
@@ -72,11 +71,10 @@ async def list_reviews_by_iteration(
     供前端「查看评审」「前往评审 Inbox」定位该迭代最新一条评审使用；
     前端此前调用 `GET /review/by-iteration/{id}` 但后端未实现，属接线缺口。
 
-    实现说明：本端点走 **async 查询**（与 ai_invocation 等只读端点一致），
-    而非其它评审写端点的「sync service + to_thread + PrimarySessionLocal」模式——
-    后者需要一个独立的 sync 会话，在测试的共享事务补丁下会触发
-    `MissingGreenlet`（既有 `/decisions` 端点测试只能放宽到「允许 500」即因此）。
-    只读列表查询无需复用 sync service，可直接用依赖注入的 AsyncSession。
+    实现说明：本端点直接使用依赖注入的同步 Session（R2-1 W2-4a 起），
+    `db.execute` 经 `asyncio.to_thread` 转入线程执行，无需同步 service 的独立会话。
+    （历史备注：改造前为异步查询，用于规避共享事务补丁下的 `MissingGreenlet`；
+    端点切同步会话后该约束已消失。）
     """
     try:
         from app.models.review import IterationReview
@@ -89,7 +87,7 @@ async def list_reviews_by_iteration(
         if status:
             stmt = stmt.where(IterationReview.status == status)
 
-        rows = (await db.execute(stmt)).scalars().all()
+        rows = (await asyncio.to_thread(db.execute, stmt)).scalars().all()
         reviews = [
             {
                 "id": r.id,
@@ -121,7 +119,7 @@ async def list_decisions(
     order: str | None = "desc",
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -168,7 +166,7 @@ async def decide_single(
     review_id: int,
     decision_id: int,
     body: DecideRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -225,7 +223,7 @@ async def decide_single(
 async def decide_batch(
     review_id: int,
     body: BatchDecideRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -296,7 +294,7 @@ async def decide_batch(
 @router.post("/{review_id}/finalize", response_model=ApiResponse)
 async def finalize_review(
     review_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -335,7 +333,7 @@ async def rollback_decision(
     review_id: int,
     decision_id: int,
     body: None = None,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -367,7 +365,7 @@ async def rollback_decision(
 async def undo_decision(
     review_id: int,
     decision_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -403,7 +401,7 @@ async def undo_decision(
 @router.post("/{review_id}/undo-finalize", response_model=ApiResponse)
 async def undo_finalize(
     review_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
     try:
@@ -433,7 +431,7 @@ async def undo_finalize(
 @router.post("/{review_id}/apply-decisions", response_model=ApiResponse)
 async def apply_decisions_endpoint(
     review_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:

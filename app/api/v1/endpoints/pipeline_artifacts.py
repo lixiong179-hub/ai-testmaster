@@ -15,16 +15,16 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.pipeline_schemas import SupplementSignalsRequest
 from app.core.exception import create_response
-from app.db.database import async_get_db, PrimarySessionLocal
+from app.db.database import PrimarySessionLocal, get_db
 from app.models.pipeline import Artifact
 from app.models.user import User
 from app.api.v1.endpoints.access_deps import (
-    verify_iteration_access_async as _verify_iteration_access_async,
+    verify_iteration_access as _verify_iteration_access,
 )
 from app.schemas.common import ApiResponse
 from app.services.pipeline_artifacts_helpers import (
@@ -42,7 +42,7 @@ router = APIRouter(tags=["Pipeline管理"])
 
 async def get_pipeline_summary(
     run_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
@@ -50,7 +50,9 @@ async def get_pipeline_summary(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await _verify_iteration_access_async(db, run.iteration_id, current_user)
+        await asyncio.to_thread(
+            _verify_iteration_access, db, run.iteration_id, current_user
+        )
 
         from app.pipelines.scenarios import get_scenario_by_version, list_scenarios
         scenario_config = get_scenario_by_version(run.pipeline_version)
@@ -102,7 +104,7 @@ async def get_pipeline_summary(
 
 async def get_inferred_summary(
     run_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """获取 AI 反推的业务摘要（供用户确认/补全）"""
@@ -111,7 +113,9 @@ async def get_inferred_summary(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await _verify_iteration_access_async(db, run.iteration_id, current_user)
+        await asyncio.to_thread(
+            _verify_iteration_access, db, run.iteration_id, current_user
+        )
 
         artifact = await _get_artifact_async(
             db,
@@ -157,7 +161,7 @@ async def get_inferred_summary(
 async def get_artifact_detail(
     run_id: int,
     artifact_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """按 artifact_id 查询产物完整 payload。
@@ -170,7 +174,9 @@ async def get_artifact_detail(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await _verify_iteration_access_async(db, run.iteration_id, current_user)
+        await asyncio.to_thread(
+            _verify_iteration_access, db, run.iteration_id, current_user
+        )
 
         artifact = await _get_artifact_async(
             db, run_id, artifact_id=artifact_id,
@@ -207,7 +213,7 @@ async def get_artifact_detail(
 async def supplement_signals(
     run_id: int,
     body: SupplementSignalsRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """保存用户补全的信号（确认能力 + 回答疑问）"""
@@ -216,7 +222,9 @@ async def supplement_signals(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await _verify_iteration_access_async(db, run.iteration_id, current_user)
+        await asyncio.to_thread(
+            _verify_iteration_access, db, run.iteration_id, current_user
+        )
 
         has_changes = (
             len(body.confirmed_capabilities) > 0
@@ -238,12 +246,13 @@ async def supplement_signals(
         raw = json.dumps(supplement_payload, sort_keys=True, ensure_ascii=False, default=str)
         content_hash = hashlib.sha256(raw.encode()).hexdigest()
 
-        # async 查询现有 Artifact
-        existing_result = await db.execute(
+        # 查询现有 Artifact
+        existing_result = await asyncio.to_thread(
+            db.execute,
             select(Artifact).where(
                 Artifact.run_id == run_id,
                 Artifact.kind == "supplemented_signals",
-            )
+            ),
         )
         existing = existing_result.scalars().first()
 
@@ -266,7 +275,7 @@ async def supplement_signals(
             )
             db.add(supplement_artifact)
 
-        await db.commit()
+        await asyncio.to_thread(db.commit)
 
         return create_response(
             data={
@@ -280,14 +289,14 @@ async def supplement_signals(
     except HTTPException:
         raise
     except Exception as e:
-        await db.rollback()
+        await asyncio.to_thread(db.rollback)
         logger.error("保存补全信号失败: %s", e)
         raise HTTPException(status_code=500, detail="保存补全信号失败")
 
 
 async def cancel_pipeline_run(
     run_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """取消 Pipeline 运行。
@@ -300,7 +309,9 @@ async def cancel_pipeline_run(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline 运行不存在")
 
-        await _verify_iteration_access_async(db, run.iteration_id, current_user)
+        await asyncio.to_thread(
+            _verify_iteration_access, db, run.iteration_id, current_user
+        )
 
         if run.status not in CANCELLABLE_STATUSES:
             raise HTTPException(

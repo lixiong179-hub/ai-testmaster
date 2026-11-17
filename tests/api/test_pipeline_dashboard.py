@@ -9,9 +9,10 @@ from datetime import timedelta
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.models.pipeline import PipelineRun, PipelineStep, Base as PipelineBase
-from app.models.pipeline_metric import PipelineMetric, Base as MetricBase
+from app.models.pipeline_metric import Base as MetricBase
 from app.ai.call_log import AICallLog, Base as CallLogBase
 from app.models.iteration import Iteration, Base as IterationBase
 from app.models.project import Project, Base as ProjectBase
@@ -19,27 +20,15 @@ from app.models.user import User, Base as UserBase
 from app.utils.db_time import utcnow
 
 
-class _AsyncSessionWrapper:
-    """轻量级 AsyncSession 包装器，委托 run_sync 和 execute 给 sync Session。
-
-    用于直接调用 async 端点函数（端点内部用 db.run_sync(fn) 或 await db.execute(stmt) 执行查询）。
-    """
-
-    def __init__(self, sync_session) -> None:
-        self._sync = sync_session
-        # 暴露 bind 给 dialect 检测辅助函数使用
-        self.bind = sync_session.bind
-
-    async def run_sync(self, fn, *args, **kwargs):
-        return fn(self._sync, *args, **kwargs)
-
-    async def execute(self, stmt, *args, **kwargs):
-        return self._sync.execute(stmt, *args, **kwargs)
-
-
 @pytest.fixture
 def db():
-    engine = create_engine("sqlite:///:memory:")
+    # 端点已切同步 Session，SQL 经 asyncio.to_thread 在其它线程执行：
+    # 需允许跨线程 + StaticPool 保持同一内存库（否则新线程看不到表）
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     for base in [ProjectBase, IterationBase, PipelineBase, MetricBase, CallLogBase, UserBase]:
         base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
@@ -120,8 +109,7 @@ def _make_call_log(db, run_id: int) -> AICallLog:
 class TestDashboardOverview:
     async def test_overview_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_dashboard_overview(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_dashboard_overview(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert data["total_runs"] == 0
         assert data["success_rate"] == 0.0
@@ -135,8 +123,7 @@ class TestDashboardOverview:
         _make_call_log(db, run.id)
 
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_dashboard_overview(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_dashboard_overview(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert data["total_runs"] >= 1
         assert data["total_tokens"] >= 1500
@@ -148,8 +135,7 @@ class TestDashboardOverview:
         _make_call_log(db, run.id)
 
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_dashboard_overview(db=async_db, project_id=project.id, days=7, current_user=_get_user(db))
+        result = await get_dashboard_overview(db=db, project_id=project.id, days=7, current_user=_get_user(db))
         data = result["data"]
         assert data["total_runs"] >= 1
 
@@ -157,8 +143,7 @@ class TestDashboardOverview:
 class TestTokenUsage:
     async def test_token_usage_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_token_usage
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_token_usage(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_token_usage(db=db, project_id=None, days=7, current_user=_get_user(db))
         assert result["data"] == {}
 
     async def test_token_usage_with_data(self, db):
@@ -168,8 +153,7 @@ class TestTokenUsage:
         _make_call_log(db, run.id)
 
         from app.api.v1.endpoints.pipeline_dashboard import get_token_usage
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_token_usage(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_token_usage(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert len(data) >= 1
         assert data[0]["total_tokens"] >= 1500
@@ -178,8 +162,7 @@ class TestTokenUsage:
 class TestRunDuration:
     async def test_run_duration_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_run_duration
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_run_duration(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_run_duration(db=db, project_id=None, days=7, current_user=_get_user(db))
         assert result["data"] == {}
 
     async def test_run_duration_with_data(self, db):
@@ -188,8 +171,7 @@ class TestRunDuration:
         _make_run(db, iteration.id, "completed")
 
         from app.api.v1.endpoints.pipeline_dashboard import get_run_duration
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_run_duration(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_run_duration(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert len(data) >= 1
 
@@ -197,8 +179,7 @@ class TestRunDuration:
 class TestStepLatency:
     async def test_step_latency_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_step_latency
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_step_latency(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_step_latency(db=db, project_id=None, days=7, current_user=_get_user(db))
         assert result["data"] == {}
 
     async def test_step_latency_with_data(self, db):
@@ -208,8 +189,7 @@ class TestStepLatency:
         _make_step(db, run.id, "backward_scan", "done")
 
         from app.api.v1.endpoints.pipeline_dashboard import get_step_latency
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_step_latency(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_step_latency(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert len(data) >= 1
         assert data[0]["step_name"] == "backward_scan"
@@ -218,8 +198,7 @@ class TestStepLatency:
 class TestCacheHitRate:
     async def test_cache_hit_rate_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_cache_hit_rate
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_cache_hit_rate(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_cache_hit_rate(db=db, project_id=None, days=7, current_user=_get_user(db))
         assert result["data"] == {}
 
     async def test_cache_hit_rate_with_data(self, db):
@@ -230,7 +209,6 @@ class TestCacheHitRate:
         _make_step(db, run.id, "forward_scan", "skipped")
 
         from app.api.v1.endpoints.pipeline_dashboard import get_cache_hit_rate
-        async_db = _AsyncSessionWrapper(db)
-        result = await get_cache_hit_rate(db=async_db, project_id=None, days=7, current_user=_get_user(db))
+        result = await get_cache_hit_rate(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert len(data) >= 1
