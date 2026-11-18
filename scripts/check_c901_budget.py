@@ -40,7 +40,8 @@ APP = "app"
 # → 146（build_ui_spec_description）→ 145（_repair_truncated_json）
 # → 144（B1 结批：extract_json_objects_fallback 34 拆分，非豁免）
 # → 143（B2a：auth_endpoints.login）→ 142（B2a：file_management.update_file）
-TOTAL_BUDGET = 142
+# → 139（B2b：update_requirement_link / run_pipeline / decide_batch）
+TOTAL_BUDGET = 139
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5

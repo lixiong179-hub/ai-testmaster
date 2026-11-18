@@ -79,6 +79,65 @@ router.include_router(_metrics_router)
 router.include_router(_artifacts_router)
 
 
+def _prepare_pipeline_run(sync_db, iteration_id: int, body, current_user):
+    """校验迭代可运行性与场景入参，返回 (iteration, scenario_config)。"""
+    iteration = _verify_iteration_access(sync_db, iteration_id, current_user)
+
+    if iteration.status not in ("draft", "in_pipeline"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"迭代状态 '{iteration.status}' 不允许启动 Pipeline",
+        )
+
+    from app.pipelines.scenarios import get_scenario, validate_scenario_inputs
+
+    scenario_config = get_scenario(body.scenario)
+    if not scenario_config:
+        raise HTTPException(status_code=400, detail=f"场景 {body.scenario} 不存在")
+
+    validation_errors = validate_scenario_inputs(sync_db, iteration, body.scenario)
+    if validation_errors:
+        raise HTTPException(
+            status_code=400,
+            detail="；".join(validation_errors),
+        )
+    return iteration, scenario_config
+
+
+def _maybe_record_version_rerun(sync_db, iteration_id: int, run, scenario_config) -> None:
+    """同一迭代存在历史运行且版本变化时，记一次「版本重跑」埋点。"""
+    existing_runs = (
+        sync_db.query(PipelineRun)
+        .filter(
+            PipelineRun.iteration_id == iteration_id,
+            PipelineRun.id != run.id,
+        )
+        .count()
+    )
+    current_version = scenario_config.get("version", "1.0")
+    if existing_runs <= 0 or current_version == "1.0":
+        return
+
+    last_run = (
+        sync_db.query(PipelineRun)
+        .filter(
+            PipelineRun.iteration_id == iteration_id,
+            PipelineRun.id != run.id,
+        )
+        .order_by(PipelineRun.id.desc())
+        .first()
+    )
+    if last_run and last_run.pipeline_version != current_version:
+        _record_version_rerun_metric(
+            sync_db,
+            iteration_id=iteration_id,
+            detail={
+                "old_version": last_run.pipeline_version,
+                "new_version": current_version,
+            },
+        )
+
+
 @router.post("/iteration/{iteration_id}/run", response_model=ApiResponse)
 async def run_pipeline(
     iteration_id: int,
@@ -90,26 +149,7 @@ async def run_pipeline(
 
     def _run(sync_db):
         try:
-            iteration = _verify_iteration_access(sync_db, iteration_id, current_user)
-
-            if iteration.status not in ("draft", "in_pipeline"):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"迭代状态 '{iteration.status}' 不允许启动 Pipeline",
-                )
-
-            from app.pipelines.scenarios import get_scenario, validate_scenario_inputs
-
-            scenario_config = get_scenario(body.scenario)
-            if not scenario_config:
-                raise HTTPException(status_code=400, detail=f"场景 {body.scenario} 不存在")
-
-            validation_errors = validate_scenario_inputs(sync_db, iteration, body.scenario)
-            if validation_errors:
-                raise HTTPException(
-                    status_code=400,
-                    detail="；".join(validation_errors),
-                )
+            iteration, scenario_config = _prepare_pipeline_run(sync_db, iteration_id, body, current_user)
 
             from app.services import pipeline_service
             from app.pipelines.runner import PipelineRunner
@@ -125,34 +165,7 @@ async def run_pipeline(
             )
             sync_db.flush()
 
-            existing_runs = (
-                sync_db.query(PipelineRun)
-                .filter(
-                    PipelineRun.iteration_id == iteration_id,
-                    PipelineRun.id != run.id,
-                )
-                .count()
-            )
-            current_version = scenario_config.get("version", "1.0")
-            if existing_runs > 0 and current_version != "1.0":
-                last_run = (
-                    sync_db.query(PipelineRun)
-                    .filter(
-                        PipelineRun.iteration_id == iteration_id,
-                        PipelineRun.id != run.id,
-                    )
-                    .order_by(PipelineRun.id.desc())
-                    .first()
-                )
-                if last_run and last_run.pipeline_version != current_version:
-                    _record_version_rerun_metric(
-                        sync_db,
-                        iteration_id=iteration_id,
-                        detail={
-                            "old_version": last_run.pipeline_version,
-                            "new_version": current_version,
-                        },
-                    )
+            _maybe_record_version_rerun(sync_db, iteration_id, run, scenario_config)
 
             if iteration.status == "draft":
                 from app.services.iteration_service import transition_iteration_status

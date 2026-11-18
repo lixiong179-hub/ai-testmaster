@@ -222,6 +222,57 @@ async def decide_single(
         raise HTTPException(status_code=500, detail="提交人工判定失败")
 
 
+def _acquire_batch_locks(sync_db: Session, review_id: int, decisions, decision_map: dict, savepoint) -> None:
+    """先整体加锁：目标不存在 → 404，被锁 → 409，已最终化 → 400；失败回滚 savepoint。"""
+    for item in decisions:
+        decision = decision_map.get(item.decision_id)
+        if decision is None:
+            savepoint.rollback()
+            raise HTTPException(
+                status_code=404,
+                detail=f"决策 {item.decision_id} 不存在或不属于此评审",
+            )
+
+        try:
+            review_service.acquire_lock(
+                sync_db,
+                review_id,
+                decision.target_kind,
+                decision.target_id,
+            )
+        except review_service.ReviewLockConflictError:
+            savepoint.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail=f"决策目标 ({decision.target_kind}, {decision.target_id}) 已被锁定",
+            )
+        except review_service.ReviewFinalizedError:
+            savepoint.rollback()
+            raise HTTPException(status_code=400, detail="评审已最终化，无法批量决策")
+
+
+def _apply_batch_verdicts(sync_db: Session, decisions, user_id: int, savepoint) -> list:
+    """再逐条写入人工判定；判定值非法 → 400 并回滚 savepoint。"""
+    results = []
+    for item in decisions:
+        try:
+            result = review_service.set_human_verdict(
+                db=sync_db,
+                decision_id=item.decision_id,
+                human_verdict=item.human_verdict,
+                human_user_id=user_id,
+                human_reason=item.human_reason,
+            )
+            results.append(_serialize_decision(result))
+        except review_service.ReviewError:
+            savepoint.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail=f"决策 {item.decision_id} 判定值无效",
+            )
+    return results
+
+
 @router.post("/{review_id}/decisions/batch-decide", response_model=ApiResponse)
 async def decide_batch(
     review_id: int,
@@ -239,49 +290,8 @@ async def decide_batch(
 
             savepoint = sync_db.begin_nested()
 
-            for item in body.decisions:
-                decision = decision_map.get(item.decision_id)
-                if decision is None:
-                    savepoint.rollback()
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"决策 {item.decision_id} 不存在或不属于此评审",
-                    )
-
-                try:
-                    review_service.acquire_lock(
-                        sync_db,
-                        review_id,
-                        decision.target_kind,
-                        decision.target_id,
-                    )
-                except review_service.ReviewLockConflictError:
-                    savepoint.rollback()
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"决策目标 ({decision.target_kind}, {decision.target_id}) 已被锁定",
-                    )
-                except review_service.ReviewFinalizedError:
-                    savepoint.rollback()
-                    raise HTTPException(status_code=400, detail="评审已最终化，无法批量决策")
-
-            results = []
-            for item in body.decisions:
-                try:
-                    result = review_service.set_human_verdict(
-                        db=sync_db,
-                        decision_id=item.decision_id,
-                        human_verdict=item.human_verdict,
-                        human_user_id=current_user.id,
-                        human_reason=item.human_reason,
-                    )
-                    results.append(_serialize_decision(result))
-                except review_service.ReviewError:
-                    savepoint.rollback()
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"决策 {item.decision_id} 判定值无效",
-                    )
+            _acquire_batch_locks(sync_db, review_id, body.decisions, decision_map, savepoint)
+            results = _apply_batch_verdicts(sync_db, body.decisions, current_user.id, savepoint)
 
             sync_db.commit()
 

@@ -233,6 +233,40 @@ async def get_requirement_link_detail(
         )
 
 
+#: 认证类字段：并入 `auth_config`，不直接落表列。
+_AUTH_FIELDS = ("username", "password", "token", "api_key", "api_key_header", "cookie")
+
+#: 不允许被请求体覆盖的字段。
+_PROTECTED_LINK_FIELDS = frozenset({"id", "project_id", "created_by", "create_time"})
+
+
+def _fold_auth_fields(link, update_data: dict) -> None:
+    """把认证字段折进 `auth_config`，并从 update_data 中剔除（原值基础上覆盖）。"""
+    if any(k in update_data for k in _AUTH_FIELDS):
+        auth_config = dict(link.auth_config) if link.auth_config else {}
+        for field in _AUTH_FIELDS:
+            if update_data.get(field) is not None:
+                auth_config[field] = update_data.pop(field)
+        update_data["auth_config"] = auth_config
+    for field in _AUTH_FIELDS:
+        update_data.pop(field, None)
+
+
+def _normalize_link_enums(update_data: dict) -> None:
+    """枚举字段取 `.value` 落库（仅当有值）。"""
+    for field in ("link_type", "auth_type"):
+        if update_data.get(field):
+            update_data[field] = update_data[field].value
+
+
+def _apply_link_update(link, update_data: dict) -> None:
+    """逐字段 setattr（跳过受保护字段与模型不存在的字段），并刷新更新时间。"""
+    for key, value in update_data.items():
+        if key not in _PROTECTED_LINK_FIELDS and hasattr(link, key):
+            setattr(link, key, value)
+    link.update_time = utcnow()
+
+
 @router.put("/{link_id}", response_model=RequirementLinkResponse)
 async def update_requirement_link(
     link_id: int,
@@ -244,25 +278,9 @@ async def update_requirement_link(
         link = await _get_owned_link(db, link_id, current_user.id)
 
         update_data = link_data.model_dump(exclude_unset=True)
-        auth_fields = ["username", "password", "token", "api_key", "api_key_header", "cookie"]
-        if any(k in update_data for k in auth_fields):
-            auth_config = dict(link.auth_config) if link.auth_config else {}
-            for field in auth_fields:
-                if update_data.get(field) is not None:
-                    auth_config[field] = update_data.pop(field)
-            update_data["auth_config"] = auth_config
-        for field in auth_fields:
-            update_data.pop(field, None)
-        if "link_type" in update_data and update_data["link_type"]:
-            update_data["link_type"] = update_data["link_type"].value
-        if "auth_type" in update_data and update_data["auth_type"]:
-            update_data["auth_type"] = update_data["auth_type"].value
-
-        protected_fields = {"id", "project_id", "created_by", "create_time"}
-        for key, value in update_data.items():
-            if key not in protected_fields and hasattr(link, key):
-                setattr(link, key, value)
-        link.update_time = utcnow()
+        _fold_auth_fields(link, update_data)
+        _normalize_link_enums(update_data)
+        _apply_link_update(link, update_data)
         await asyncio.to_thread(db.commit)
         await asyncio.to_thread(db.refresh, link)
         return _build_link_response(link)
