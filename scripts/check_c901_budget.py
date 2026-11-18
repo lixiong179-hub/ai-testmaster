@@ -36,8 +36,9 @@ ROOT = Path(__file__).resolve().parent.parent
 APP = "app"
 
 # 总量预算：只减不增。每次结项（单处或整批）下调到实测总量，并在台账 §3.3 同步登记。
-# 150（2026-11-18 立项基线）→ 149（B1 拆 _parse_case_response）→ 147（formatter 两处）→ 146（build_ui_spec_description）
-TOTAL_BUDGET = 146
+# 150（2026-11-18 立项基线）→ 149（B1 拆 _parse_case_response）→ 147（formatter 两处）
+# → 146（build_ui_spec_description）→ 145（_repair_truncated_json）
+TOTAL_BUDGET = 145
 
 # 豁免数量上限（策略页 §4：仅「本质状态机」可豁免）。
 MAX_EXEMPTIONS = 5
