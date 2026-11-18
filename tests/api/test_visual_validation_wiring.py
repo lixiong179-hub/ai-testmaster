@@ -228,7 +228,10 @@ class TestExecutionCoreWiring:
         user = MagicMock(id=7)
 
         with (
-            patch(f"{_EP}._get_hidden_fields", new=MagicMock(return_value=[])),
+            patch(
+                f"{_EP}._get_hidden_fields_async",
+                new=AsyncMock(return_value=[]),
+            ),
             patch(f"{_EP}._spawn_failure_analysis_agent"),
             patch(
                 f"{_EP}.is_visual_validation_enabled_sync",
@@ -269,7 +272,10 @@ class TestExecutionCoreWiring:
         user = MagicMock(id=7)
 
         with (
-            patch(f"{_EP}._get_hidden_fields", new=MagicMock(return_value=[])),
+            patch(
+                f"{_EP}._get_hidden_fields_async",
+                new=AsyncMock(return_value=[]),
+            ),
             patch(f"{_EP}._spawn_failure_analysis_agent"),
             patch(f"{_EP}.spawn_visual_validation_agent") as spawn,
         ):

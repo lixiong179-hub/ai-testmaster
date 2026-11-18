@@ -164,14 +164,23 @@ def start_task_recovery() -> None:
 
 
 def shutdown_task_recovery() -> None:
-    """停止周期巡检（幂等）。"""
+    """停止周期巡检（幂等，跨事件循环安全）。
+
+    `_monitor_task` 是进程级全局：测试或脚本反复启停时，任务可能属于**另一个
+    已关闭的事件循环**，此时 `cancel()` 会在关闭的 loop 上 call_soon 抛
+    `RuntimeError: Event loop is closed`。该场景下只需解除引用（任务随 loop
+    关闭已无生命周期可言），不应让关闭流程失败。
+    """
     global _monitor_task
 
     if _monitor_task is None:
         return
     if not _monitor_task.done():
-        _monitor_task.cancel()
-        logger.info("孤儿任务巡检已停止")
+        try:
+            _monitor_task.cancel()
+            logger.info("孤儿任务巡检已停止")
+        except RuntimeError:
+            logger.debug("所属事件循环已关闭，跳过 cancel（仅解除引用）")
     _monitor_task = None
 
 

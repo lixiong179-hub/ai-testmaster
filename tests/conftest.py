@@ -7,9 +7,8 @@ import asyncio
 from contextlib import ExitStack
 import pytest
 import pytest_asyncio
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.util.concurrency import greenlet_spawn
 from httpx import AsyncClient, ASGITransport
 
@@ -87,6 +86,11 @@ class _SyncBackedAsyncSession:
         return self._sync.query(*args, **kwargs)
 
     @property
+    def bind(self):
+        # 供 _get_dialect_name 等按方言分派的代码使用（委托 sync 会话的 bind）
+        return self._sync.bind
+
+    @property
     def is_active(self):
         return self._sync.is_active
 
@@ -96,7 +100,6 @@ class _SyncBackedAsyncSession:
 
 from app.core.config import settings
 from app.db.database import Base, get_db, async_get_db
-from app.db.database._engine import _to_async_url
 from app.db.smart_sync import DatabaseSyncTool
 from app.utils.jwt_utils import create_access_token, get_password_hash
 from app.models.user import User, Role, user_role
@@ -376,7 +379,7 @@ def testAdminUser(db):
     db.flush()
 
     # 确保 admin 角色存在并分配给该用户
-    from app.models.user import Role, user_role
+    from app.models.user import Role
 
     admin_role = db.query(Role).filter(Role.name == "admin").first()
     if not admin_role:
@@ -464,43 +467,18 @@ def test_iteration(db, testProject):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_db(testEngine):
-    """异步测试会话 — 事务隔离策略与 sync db fixture 对齐。
+async def async_db(db):
+    """异步测试会话 — 同步事务的异步外观壳（R2-1 阶段四）。
 
-    1. 外层事务包裹整个测试，结束 rollback 不落库
-    2. session.commit 改写为 flush，使 endpoint 内的 commit 不破坏隔离
-    3. savepoint 自动重启，兼容显式 begin_nested
+    端点层已全面切 `get_db`（同步 Session），双轨 async engine 会带来两个问题：
+    1. 端点用同步会话看不到 async 事务内未提交的数据（404/数据为空）；
+    2. 把 greenlet 连接交给 `asyncio.to_thread` 会触发
+       `greenlet_spawn has not been called` 或参数绑定错乱。
+
+    因此统一用 `_SyncBackedAsyncSession` 包同一同步事务：async fixture 写入与
+    同步端点读取共享同一 Session，事务隔离仍由 `db` fixture 的 savepoint 保证。
     """
-    async_engine = create_async_engine(
-        _to_async_url(_TEST_DB_URL),
-        pool_size=5,
-        max_overflow=5,
-        pool_pre_ping=True,
-    )
-
-    async with async_engine.connect() as conn:
-        await conn.begin()
-        async with AsyncSession(bind=conn, expire_on_commit=False) as session:
-            session.commit = session.flush
-
-            _savepoint = {"ref": None}
-
-            @event.listens_for(session.sync_session, "after_transaction_end")
-            def restart_savepoint(sess, trans):
-                if trans.nested and not trans._parent.nested:
-                    _savepoint["ref"] = sess.begin_nested()
-
-            _savepoint["ref"] = session.sync_session.begin_nested()
-
-            yield session
-
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", message="transaction already deassociated"
-                )
-                await session.rollback()
-
-    await async_engine.dispose()
+    return _SyncBackedAsyncSession(db)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -575,7 +553,11 @@ async def async_test_project(async_db, async_test_user):
 
 @pytest_asyncio.fixture(scope="function")
 async def async_client(async_db):
-    """异步 HTTP 客户端 — 仅 override async_get_db（未认证场景）。"""
+    """异步 HTTP 客户端 — override get_db + async_get_db（未认证场景）。
+
+    R2-1 阶段四后端点统一用同步 `get_db`：这里把 `get_db` 也指向 async_db 的
+    底层同步会话，保证迁移后的端点仍能看见本测试事务内的数据。
+    """
     from app.main import app
     from unittest.mock import patch
     from sqlalchemy.orm import Session as SyncSession
@@ -583,7 +565,11 @@ async def async_client(async_db):
     async def override_async_get_db():
         yield async_db
 
+    async def override_get_db():
+        yield async_db._sync
+
     app.dependency_overrides[async_get_db] = override_async_get_db
+    app.dependency_overrides[get_db] = override_get_db
 
     _shared_async_session_ref = {"session": None}
 
@@ -626,11 +612,12 @@ async def async_client(async_db):
         ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
+    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest_asyncio.fixture(scope="function")
 async def async_auth_client(async_db, async_test_user):
-    """异步 HTTP 客户端 — override async_get_db + get_current_user（普通用户）。"""
+    """异步 HTTP 客户端 — override get_db + async_get_db + get_current_user（普通用户）。"""
     from app.main import app
     from app.api.v1.endpoints.auth_deps import get_current_user
     from unittest.mock import patch
@@ -638,11 +625,15 @@ async def async_auth_client(async_db, async_test_user):
 
     async def override_async_get_db():
         yield async_db
+
+    async def override_get_db():
+        yield async_db._sync
 
     async def override_get_current_user():
         return async_test_user
 
     app.dependency_overrides[async_get_db] = override_async_get_db
+    app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
 
     _shared_async_session_ref = {"session": None}
@@ -685,12 +676,13 @@ async def async_auth_client(async_db, async_test_user):
         ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
+    app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest_asyncio.fixture(scope="function")
 async def async_admin_client(async_db, async_admin_user):
-    """异步 HTTP 客户端 — override async_get_db + get_current_user（admin 用户）。"""
+    """异步 HTTP 客户端 — override get_db + async_get_db + get_current_user（admin 用户）。"""
     from app.main import app
     from app.api.v1.endpoints.auth_deps import get_current_user
     from unittest.mock import patch
@@ -699,10 +691,14 @@ async def async_admin_client(async_db, async_admin_user):
     async def override_async_get_db():
         yield async_db
 
+    async def override_get_db():
+        yield async_db._sync
+
     async def override_get_current_user():
         return async_admin_user
 
     app.dependency_overrides[async_get_db] = override_async_get_db
+    app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
 
     _shared_async_session_ref = {"session": None}
@@ -745,6 +741,7 @@ async def async_admin_client(async_db, async_admin_user):
         ) as client:
             yield client
     app.dependency_overrides.pop(async_get_db, None)
+    app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_current_user, None)
 
 

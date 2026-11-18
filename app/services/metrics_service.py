@@ -30,97 +30,25 @@ Pipeline 监控指标服务模块
 """
 from datetime import datetime
 from typing import Any
-from loguru import logger
 
 from sqlalchemy import func, and_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.pipeline_metric import PipelineMetric, VALID_METRIC_NAMES, FMEA_METRICS
+from app.models.pipeline_metric import PipelineMetric, FMEA_METRICS
+from app.services.metrics_recorder import record_metric, record_metrics
 
 
-def record_metric(
-    metric_name: str,
-    *,
-    value: float = 1.0,
-    project_id: int | None = None,
-    iteration_id: int | None = None,
-    run_id: int | None = None,
-    step_name: str | None = None,
-    detail: dict[str, Any] | None = None,
-) -> PipelineMetric | None:
-    """记录单条监控指标（使用独立 Session 提交，不随主事务回滚丢失）。
-
-    Args:
-        metric_name: 指标名（必须为 VALID_METRIC_NAMES 中的值）。
-        value: 指标值（默认 1.0，用于计数）。
-        project_id: 项目 ID。
-        iteration_id: 迭代 ID。
-        run_id: PipelineRun ID。
-        step_name: Step 名称。
-        detail: 附加详情。
-
-    Returns:
-        创建后的 PipelineMetric 实例，失败返回 None。
-
-    Raises:
-        ValueError: metric_name 不在合法枚举中。
-    """
-    if metric_name not in VALID_METRIC_NAMES:
-        raise ValueError(
-            f"Invalid metric name: '{metric_name}'. "
-            f"Valid names: {sorted(VALID_METRIC_NAMES)}"
-        )
-
-    record = PipelineMetric(
-        metric_name=metric_name,
-        value=value,
-        project_id=project_id,
-        iteration_id=iteration_id,
-        run_id=run_id,
-        step_name=step_name,
-        detail=detail,
-    )
-    try:
-        from app.db.database import get_db_context
-        with get_db_context() as db:
-            db.add(record)
-            db.flush()
-            db.expunge(record)
-        return record
-    except Exception as e:
-        logger.debug(f"指标记录失败: {e}")
-        return None
-
-
-def record_metrics(
-    metrics: list[dict[str, Any]],
-) -> list[PipelineMetric]:
-    """批量记录监控指标（使用独立 Session 提交）。
-
-    Args:
-        metrics: 指标字典列表，每个字典含 metric_name 及可选字段。
-
-    Returns:
-        创建后的 PipelineMetric 实例列表。
-    """
-    results = []
-    for m in metrics:
-        name = m.get("metric_name", "")
-        if name not in VALID_METRIC_NAMES:
-            continue
-        result = record_metric(
-            name,
-            value=m.get("value", 1.0),
-            project_id=m.get("project_id"),
-            iteration_id=m.get("iteration_id"),
-            run_id=m.get("run_id"),
-            step_name=m.get("step_name"),
-            detail=m.get("detail"),
-        )
-        if result is not None:
-            results.append(result)
-    return results
+__all__ = [
+    "record_metric",
+    "record_metrics",
+    "query_metrics",
+    "query_metrics_sync",
+    "get_metric_timeseries",
+    "get_metric_timeseries_sync",
+    "get_dashboard_summary",
+    "get_dashboard_summary_sync",
+]
 
 
 def _build_query_metrics_stmt(

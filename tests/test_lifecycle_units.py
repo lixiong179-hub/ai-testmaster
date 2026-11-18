@@ -112,6 +112,10 @@ class TestLifecycleOrchestration:
         assert calls == ["directories", "db", "admin", "scheduler", "lag_monitor"]
 
     def test_shutdown_stops_scheduler(self):
-        with patch.object(lifecycle, "shutdown_scheduler") as mock_shutdown:
+        # 一并 patch 后台巡检：本用例只验证编排顺序，真实调用会把其它测试遗留的
+        # recovery loop 任务 cancel 在已关闭事件循环上（RuntimeError: Event loop is closed）
+        with patch.object(lifecycle, "shutdown_task_recovery") as mock_recovery, \
+                patch.object(lifecycle, "shutdown_scheduler") as mock_shutdown:
             lifecycle.shutdown()
         mock_shutdown.assert_called_once()
+        mock_recovery.assert_called_once()
