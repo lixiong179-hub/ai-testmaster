@@ -43,4 +43,6 @@ max-complexity = 10
 # `ruff format app tests scripts` 已将 1210 文件重排完毕，现 `ruff format --check` 全绿
 # （app/tests/scripts 共 1370 文件 already formatted）。历史上因 R2-1 在途大 diff 而排除，
 # 该前置已解除。⚠️ `alembic/versions` 未格式化（冻结的迁移历史，CI 另有迁移校验），勿随手 format。
-# 是否把 `ruff format --check app` 升为 ci.yml 必阻断门禁，待决策后单独改动。
+# 已升为 ci.yml 必阻断步骤：`backend-test` 的 `Ruff format check`（`ruff format --check app`，
+# 紧随 `Ruff lint`）。ruff 在该 job 的 Install 步骤钉 `==0.15.17`——fmt 风格随版本演进，
+# 浮动版本会让全量 PR 无故变红；升级 ruff 时须先本地全量 format 并单独提交。

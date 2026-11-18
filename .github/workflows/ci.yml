@@ -9,7 +9,7 @@ on:
 jobs:
   # ── 门禁分层（2026-09-24 R5-3 建立；2026-11-12 B-09 收口）──
   # 【必阻断】本文件全部 4 个 job（失败即阻断合入）：
-  #   backend-test        —— ruff 门禁 + alembic 迁移校验 + 子集 pytest + 覆盖率 ≥80%
+  #   backend-test        —— ruff lint/format 门禁 + alembic 迁移校验 + 子集 pytest + 覆盖率 ≥80%
   #   backend-full        —— 全量测试 4 分片（matrix，check 名为 "backend-full (shard N/4)"）
   #   compose-config      —— 部署编排静态校验
   #   frontend-build      —— ESLint + vue-tsc + build + vitest
@@ -49,9 +49,15 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-asyncio pytest-split ruff mypy
+          # ruff 钉版本：`ruff format --check` 的产出随 fmt 风格演进变化，浮动版本会让全量 PR 无故变红
+          pip install pytest pytest-cov pytest-asyncio pytest-split ruff==0.15.17 mypy
       - name: Ruff lint
         run: ruff check app
+      - name: Ruff format check
+        # B-15（2026-11-18）：app 已全量 format 归零，此处做棘轮防回潮。
+        # 只查 app（与 `ruff check app` 同口径）；tests/scripts 虽已格式化，暂不入门禁以免误伤历史 PR。
+        # alembic/versions 有意不格式化（冻结迁移历史），故不能用全仓 `ruff format --check .`
+        run: ruff format --check app
       - name: AsyncSession convergence gate
         # R2-1 已结项（2026-11-17）：async_get_db 使用面 0，仅余 app/db/database/ 定义与再导出；
         # 白名单只减不增，任何端点/服务新增 async_get_db 即失败（预算见 scripts/check_async_session_convergence.py）
