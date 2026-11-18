@@ -16,6 +16,8 @@
 """
 
 import hashlib
+import uuid
+
 import pytest
 
 from app.models.iteration import Iteration
@@ -181,11 +183,14 @@ class TestCancelPermission:
 
     def test_admin_can_cancel_any_run(self, client, db, admin_setup):
         """admin 拥有 pipeline:cancel:all，可取消任意运行（包括他人发起的）。"""
+        # 必须落到真实用户：`pipeline_runs.triggered_by` 有外键，写死 9999 只在
+        # 库里恰好残留该 id 的 user 时才不报错（O-24 测试依赖库残留）。
+        other_user = _make_user(db, f"cancel_other_{uuid.uuid4().hex[:8]}", f"{uuid.uuid4().hex[:8]}@example.com")
         run = _make_run(
             db,
             admin_setup["iteration"].id,
             "running",
-            triggered_by=9999,
+            triggered_by=other_user.id,
         )
         resp = client.post(
             f"/api/v1/pipeline/{run.id}/cancel",
