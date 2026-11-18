@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.core.config import settings
+from app.services.db_async_compat import commit_async, refresh_async
 from app.services.visual_ai._sdk_helpers import (
     build_diff_record,
     build_dom_diff_report,
@@ -157,8 +158,8 @@ class VisualCheckMixin:
             diff_status=diff_status,
         )
         self._db.add(diff_record)
-        await self._db.commit()
-        await self._db.refresh(diff_record)
+        await commit_async(self._db)
+        await refresh_async(self._db, diff_record)
 
         # 保存 Diff 图片（如有）
         if result.diff_image:

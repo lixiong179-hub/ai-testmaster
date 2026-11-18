@@ -40,6 +40,7 @@ from app.models.iteration import Iteration
 from app.models.project import Project
 from app.models.test_task import TestTask
 from app.models.user import User
+from app.services.db_async_compat import execute_async
 
 __all__ = [
     "verify_project_access",
@@ -69,19 +70,21 @@ def verify_project_access(
 
 
 async def verify_project_access_async(
-    db: AsyncSession, project_id: int, current_user: User
+    db: Session | AsyncSession, project_id: int, current_user: User
 ) -> None:
     """async 版项目归属校验：当前用户须为 project_id 的所有者，否则 403。
 
     适用于项目 ID 来自 request body / query 的场景（非路径参数，
     无法用依赖注入），端点内 `await verify_project_access_async(...)` 调用。
+    经 `db_async_compat` 执行查询，同步 Session 与遗留 AsyncSession 均可驱动。
     """
     project = (
-        await db.execute(
+        await execute_async(
+            db,
             select(Project).where(
                 Project.id == project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
     ).scalar_one_or_none()
     if project is None:
@@ -116,26 +119,29 @@ def verify_iteration_access(
 
 
 async def verify_iteration_access_async(
-    db: AsyncSession, iteration_id: int, current_user: User
+    db: Session | AsyncSession, iteration_id: int, current_user: User
 ) -> Iteration:
     """async 版迭代归属校验：语义与 sync 版完全一致。
 
     归口前 `pipeline_deps` 与 `pipeline_artifacts_helpers` 各存一份逐字拷贝，
-    本函数为唯一实现。
+    本函数为唯一实现。经 `db_async_compat` 执行查询，两种会话均可驱动。
     """
     iteration = (
-        await db.execute(select(Iteration).where(Iteration.id == iteration_id))
+        await execute_async(
+            db, select(Iteration).where(Iteration.id == iteration_id)
+        )
     ).scalar_one_or_none()
     if iteration is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="迭代不存在"
         )
     project = (
-        await db.execute(
+        await execute_async(
+            db,
             select(Project).where(
                 Project.id == iteration.project_id,
                 Project.user_id == current_user.id,
-            )
+            ),
         )
     ).scalar_one_or_none()
     if project is None:

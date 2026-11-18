@@ -10,7 +10,8 @@ ValidateTestCaseSyntaxTool 已迁移至 app.services.agent.agents._test_case_too
 与 CreateTestCaseTool 共置以匹配 TestGenerationAgent 场景。
 
 每个工具 <80 行，parameters_schema 严格描述参数，execute 返回 ToolResult。
-数据库查询通过 context.db（AsyncSession）执行，结果序列化为 dict 注入 LLM。
+数据库查询通过 context.db（Session / AsyncSession，经 db_async_compat 执行）
+完成，结果序列化为 dict 注入 LLM。
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from app.models.project import Project
 from app.models.self_healing_audit import SelfHealingAudit
 from app.models.test_case import TestCase
 from app.services.agent.tools.base_tool import Tool, ToolContext, ToolResult
+from app.services.db_async_compat import execute_async
 
 
 class GetTestCaseTool(Tool):
@@ -42,7 +44,7 @@ class GetTestCaseTool(Tool):
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
         test_case_id = params["test_case_id"]
-        result = await context.db.execute(
+        result = await execute_async(context.db,
             select(TestCase.id, TestCase.title, TestCase.case_type, TestCase.priority)
             .where(
                 TestCase.id == test_case_id,
@@ -74,7 +76,7 @@ class QueryProjectTool(Tool):
             return ToolResult(success=False, error="数据库会话不可用")
         if context.project_id is None:
             return ToolResult(success=False, error="项目 ID 不可用")
-        result = await context.db.execute(
+        result = await execute_async(context.db,
             select(Project.id, Project.name, Project.description).where(Project.id == context.project_id)
         )
         row = result.first()
@@ -104,7 +106,7 @@ class QueryAuditTool(Tool):
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
         limit = min(int(params.get("limit", 10)), 50)
-        result = await context.db.execute(
+        result = await execute_async(context.db,
             select(
                 SelfHealingAudit.id,
                 SelfHealingAudit.test_case_id,
@@ -149,7 +151,7 @@ class QueryLocatorHistoryTool(Tool):
     async def execute(self, params: dict[str, Any], context: ToolContext) -> ToolResult:
         if context.db is None:
             return ToolResult(success=False, error="数据库会话不可用")
-        result = await context.db.execute(
+        result = await execute_async(context.db,
             select(
                 ElementLocator.id,
                 ElementLocator.css_selector,

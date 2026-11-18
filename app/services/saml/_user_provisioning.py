@@ -21,9 +21,11 @@ from typing import Any
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.user import User
+from app.services.db_async_compat import commit_async, execute_async, refresh_async
 from app.utils.jwt_utils import get_password_hash
 
 
@@ -39,12 +41,13 @@ class SAMLUserProvisioner:
 
     async def find_by_saml(
         self,
-        db: AsyncSession,
+        db: Session | AsyncSession,
         issuer: str,
         nameid: str,
     ) -> User | None:
         """通过 (issuer, nameid) 查找本地用户。"""
-        result = await db.execute(
+        result = await execute_async(
+            db,
             select(User).where(
                 User.saml_issuer == issuer,
                 User.saml_nameid == nameid,
@@ -54,16 +57,16 @@ class SAMLUserProvisioner:
 
     async def find_by_email(
         self,
-        db: AsyncSession,
+        db: Session | AsyncSession,
         email: str,
     ) -> User | None:
         """通过 email 查找本地用户（用于自动绑定已存在的本地账号）。"""
-        result = await db.execute(select(User).where(User.email == email))
+        result = await execute_async(db, select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
     async def provision(
         self,
-        db: AsyncSession,
+        db: Session | AsyncSession,
         provider: str,
         issuer: str,
         nameid: str,
@@ -108,8 +111,8 @@ class SAMLUserProvisioner:
                 local_user.saml_provider = provider
                 local_user.external_id = nameid
                 local_user.external_system = f"saml:{provider}"
-                await db.commit()
-                await db.refresh(local_user)
+                await commit_async(db)
+                await refresh_async(db, local_user)
                 logger.info(
                     f"SAML 用户已绑定现有本地账号: email={email} user_id={local_user.id}"
                 )
@@ -130,8 +133,8 @@ class SAMLUserProvisioner:
             external_system=f"saml:{provider}",
         )
         db.add(new_user)
-        await db.commit()
-        await db.refresh(new_user)
+        await commit_async(db)
+        await refresh_async(db, new_user)
         logger.info(f"SAML 用户自动配置: provider={provider} user_id={new_user.id}")
         return new_user
 

@@ -3,7 +3,7 @@
 设计目的：
     VisualAISDK 封装 BaselineService、ComparisonEngine、DOM 序列化与 Token
     估算器，提供面向业务场景的高层 API。调用方无需直接操作 StorageBackend、
-    AsyncSession 或 ComparisonEngine，通过 SDK 即可完成完整的视觉回归流程。
+    数据库会话或 ComparisonEngine，通过 SDK 即可完成完整的视觉回归流程。
 
 核心能力：
     - create_baseline   : 上传截图创建基线
@@ -17,7 +17,7 @@
 
 设计原则：
     - 门面模式：SDK 作为子系统入口，隐藏内部组件交互
-    - 依赖注入：AsyncSession、StorageBackend、AIClient 由调用方注入
+    - 依赖注入：数据库会话（Session/AsyncSession）、StorageBackend、AIClient 由调用方注入
     - 成本可控：run_visual_check 内置 Token 预检，超限自动降级跳过 LLM
     - 流程拆分：Diff 持久化/DOM 报告等流程化逻辑抽到 _sdk_helpers，主类聚焦编排；
       一站式校验流程抽到 _sdk_check_mixin，控制单文件行数
@@ -32,6 +32,12 @@ from app.core.config import settings
 from app.models.baseline_approval import BaselineApproval
 from app.models.visual_baseline import VisualBaseline
 from app.models.visual_diff import VisualDiff
+from app.services.db_async_compat import (
+    commit_async,
+    execute_async,
+    get_async,
+    refresh_async,
+)
 from app.services.storage.base import StorageBackend
 from app.services.visual_ai._sdk_check_mixin import VisualCheckMixin, VisualCheckResult
 from app.services.visual_ai.baseline_service import BaselineService
@@ -68,7 +74,7 @@ class VisualAISDK(VisualCheckMixin):
         """初始化 SDK。
 
         Args:
-            db: 异步数据库会话
+            db: 数据库会话（同步 Session 或遗留 AsyncSession，经兼容层统一执行）
             storage: 存储后端实例
             ai_client: AI 客户端（为 None 时跳过 LLM 分析）
             redis_client: Redis 客户端（为 None 时 Token 预算走内存降级）
@@ -206,7 +212,7 @@ class VisualAISDK(VisualCheckMixin):
         Returns:
             BaselineApproval: 审批记录
         """
-        diff = await self._db.get(VisualDiff, diff_id)
+        diff = await get_async(self._db, VisualDiff, diff_id)
         if diff is None or diff.project_id != project_id:
             raise ValueError(f"Diff 不存在: id={diff_id}")
 
@@ -227,8 +233,8 @@ class VisualAISDK(VisualCheckMixin):
         elif action == "update_baseline":
             diff.status = "approved"
 
-        await self._db.commit()
-        await self._db.refresh(approval)
+        await commit_async(self._db)
+        await refresh_async(self._db, approval)
         return approval
 
     async def list_diffs(
@@ -243,7 +249,7 @@ class VisualAISDK(VisualCheckMixin):
         if status:
             stmt = stmt.where(VisualDiff.status == status)
         stmt = stmt.order_by(VisualDiff.created_at.desc()).offset(offset).limit(limit)
-        result = await self._db.execute(stmt)
+        result = await execute_async(self._db, stmt)
         return list(result.scalars().all())
 
 

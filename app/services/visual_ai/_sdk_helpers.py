@@ -20,9 +20,11 @@ import hashlib
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.visual_baseline import VisualBaseline
 from app.models.visual_diff import VisualDiff
+from app.services.db_async_compat import commit_async
 from app.services.storage.base import StorageBackend
 from app.services.visual_ai.comparison_engine import ComparisonResult
 from app.services.visual_ai.dom_serializer import (
@@ -107,7 +109,7 @@ def build_diff_record(
 
 async def persist_diff_image(
     storage: StorageBackend,
-    db: AsyncSession,
+    db: Session | AsyncSession,
     diff_record: VisualDiff,
     diff_image: bytes,
     *,
@@ -123,7 +125,7 @@ async def persist_diff_image(
 
     Args:
         storage: 存储后端实例
-        db: 异步数据库会话
+        db: 数据库会话（Session 或 AsyncSession，经兼容层提交）
         diff_record: 已持久化的 Diff 记录（需回填 diff_image_key）
         diff_image: 差异图字节流
         project_id: 项目 ID（用于存储 key 隔离）
@@ -139,7 +141,7 @@ async def persist_diff_image(
     try:
         await storage.save(diff_key, diff_image, content_type="image/png")
         diff_record.diff_image_key = diff_key
-        await db.commit()
+        await commit_async(db)
     except Exception as exc:
         logger.warning(f"[VisualAI SDK] Diff 图片保存失败: {exc}")
 

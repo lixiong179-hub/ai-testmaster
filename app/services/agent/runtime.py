@@ -36,6 +36,7 @@ from app.services.agent.registry import get_global_registry
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
 
 
 class AgentRuntime:
@@ -46,7 +47,7 @@ class AgentRuntime:
 
     def __init__(
         self,
-        db: AsyncSession | None = None,
+        db: Session | AsyncSession | None = None,
         *,
         llm_provider: Any | None = None,
         token_guard: Any | None = None,

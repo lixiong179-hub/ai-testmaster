@@ -24,21 +24,27 @@ def _get_hidden_fields(db: Session, project_id: int) -> list:
     return config.hidden_fields or []
 
 
-async def _get_hidden_fields_async(db: AsyncSession, project_id: int) -> list:
+async def _get_hidden_fields_async(
+    db: Session | AsyncSession, project_id: int
+) -> list:
     """异步版可见字段查询，替代 sync `_get_hidden_fields` 的 run_sync 桥接。
 
-    直接 async 查询 Project，并复用 `VisibilityConfigService` 的内存态全局配置，
-    避免测试嵌套事务中 MissingGreenlet（R1-1 失败分析端点依赖本函数）。
+    经 `db_async_compat` 执行查询，同步 Session 与遗留 AsyncSession 均可驱动；
+    并复用 `VisibilityConfigService` 的内存态全局配置，避免测试嵌套事务中
+    MissingGreenlet（R1-1 失败分析端点依赖本函数）。
     """
     from loguru import logger
 
+    from app.services.db_async_compat import execute_async
     from app.services.visibility_config.merger import VisibilityConfigMerger
     from app.services.visibility_config.models import VisibilityConfig
 
     vis_service = VisibilityConfigService()
     global_config = vis_service.get_global_config()
 
-    result = await db.execute(select(Project).where(Project.id == project_id))
+    result = await execute_async(
+        db, select(Project).where(Project.id == project_id)
+    )
     project = result.scalars().first()
     if not project:
         return global_config.hidden_fields or []
@@ -76,14 +82,17 @@ def verify_project_permission(db: Session, project_id: int, user_id: int) -> Pro
 
 
 async def verify_project_permission_async(
-    db: AsyncSession, project_id: int, user_id: int
+    db: Session | AsyncSession, project_id: int, user_id: int
 ) -> Project:
     """异步版项目权限校验，语义与 sync 版完全一致。"""
-    result = await db.execute(
+    from app.services.db_async_compat import execute_async
+
+    result = await execute_async(
+        db,
         select(Project).where(
             Project.id == project_id,
             Project.user_id == user_id,
-        )
+        ),
     )
     project = result.scalars().first()
     if not project:

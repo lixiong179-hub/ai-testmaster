@@ -17,6 +17,7 @@ from collections.abc import Awaitable, Callable
 from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.project import Project
 from app.models.self_healing_audit import SelfHealingAudit
@@ -32,9 +33,10 @@ from app.services.agent.audit_service import AgentAuditService
 from app.services.agent.runtime import AgentRuntime
 from app.services.agent.session_service import SessionService
 from app.services.agent.tools import ToolRegistry
+from app.services.db_async_compat import execute_async
 
 ToolHandler = Callable[
-    [AsyncSession, User, dict[str, Any]],
+    [Session | AsyncSession, User, dict[str, Any]],
     Awaitable[dict[str, Any]],
 ]
 
@@ -81,7 +83,7 @@ class MCPServer:
 
     async def call_tool(
         self, name: str, arguments: dict[str, Any],
-        db: AsyncSession, user: User,
+        db: Session | AsyncSession, user: User,
     ) -> dict[str, Any]:
         """调用指定 MCP 工具。
 
@@ -103,7 +105,7 @@ class MCPServer:
 
 
 async def _ensure_project_access(
-    db: AsyncSession, project_id: int, user: User,
+    db: Session | AsyncSession, project_id: int, user: User,
 ) -> None:
     """校验用户对指定项目的访问权限，超级管理员绕过。
 
@@ -118,7 +120,7 @@ async def _ensure_project_access(
 
 
 async def _generate_test_case_handler(
-    db: AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """generate_test_case - 创建 TestGenerationAgent 会话并执行。
 
@@ -160,11 +162,11 @@ async def _generate_test_case_handler(
 
 
 async def _query_test_case_handler(
-    db: AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """query_test_case - 按 ID 查询测试用例。"""
     test_case_id: int = arguments["test_case_id"]
-    result = await db.execute(
+    result = await execute_async(db,
         select(TestCase).where(
             TestCase.id == test_case_id, TestCase.is_deleted.is_(False)))
     tc = result.scalar_one_or_none()
@@ -183,7 +185,7 @@ async def _query_test_case_handler(
 
 
 async def _run_test_case_handler(
-    db: AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """run_test_case - 当前降级返回 REST API 提示。
 
@@ -199,17 +201,17 @@ async def _run_test_case_handler(
 
 
 async def _query_execution_result_handler(
-    db: AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """query_execution_result - 按 task_id 查询测试结果列表。"""
     task_id: int = arguments["task_id"]
-    task_result = await db.execute(
+    task_result = await execute_async(db,
         select(TestTask).where(TestTask.id == task_id))
     task = task_result.scalar_one_or_none()
     if task is None:
         return {"result": []}
     await _ensure_project_access(db, task.project_id, user)
-    result = await db.execute(
+    result = await execute_async(db,
         select(TestResult).where(TestResult.task_id == task_id))
     rows = result.scalars().all()
     return {"result": [{
@@ -221,7 +223,7 @@ async def _query_execution_result_handler(
 
 
 async def _query_self_healing_audit_handler(
-    db: AsyncSession, user: User, arguments: dict[str, Any],
+    db: Session | AsyncSession, user: User, arguments: dict[str, Any],
 ) -> dict[str, Any]:
     """query_self_healing_audit - 分页查询自愈审计记录。
 
@@ -245,9 +247,9 @@ async def _query_self_healing_audit_handler(
         stmt = stmt.where(SelfHealingAudit.test_case_id.in_(accessible_case_ids))
         count_stmt = count_stmt.where(
             SelfHealingAudit.test_case_id.in_(accessible_case_ids))
-    result = await db.execute(stmt)
+    result = await execute_async(db, stmt)
     audits = result.scalars().all()
-    count_result = await db.execute(count_stmt)
+    count_result = await execute_async(db, count_stmt)
     total = int(count_result.scalar() or 0)
     return {"audits": [a.to_dict() for a in audits], "total": total}
 

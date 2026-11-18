@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.orm import Session
 
 
 @dataclass
@@ -29,7 +30,7 @@ class ToolContext:
     由 AgentRuntime 在每轮迭代中构造并注入到 Tool.execute。
 
     Attributes:
-        db: 异步数据库会话，服务端工具用于查询/写入。
+        db: 数据库会话（Session / AsyncSession），服务端工具用于查询/写入。
         session_id: 当前 Agent 会话 ID，用于审计与日志关联。
         agent_type: 当前 Agent 类型标识。
         user_id: 触发会话的用户 ID，用于权限校验。
@@ -38,7 +39,7 @@ class ToolContext:
             None 表示无客户端工具调用场景。
     """
 
-    db: AsyncSession | None = None
+    db: Session | AsyncSession | None = None
     session_id: int | None = None
     agent_type: str = ""
     user_id: int | None = None

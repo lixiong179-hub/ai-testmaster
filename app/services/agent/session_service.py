@@ -1,7 +1,8 @@
 """Agent 会话服务模块。
 
 封装 AgentSession 与 AgentMessage 的写入/查询接口，所有方法接收外部
-AsyncSession，由调用方管理事务边界。
+会话（同步 `Session` 或遗留 `AsyncSession`，经 `db_async_compat` 统一执行），
+由调用方管理事务边界。
 
 设计要点：
     - 创建后 flush + refresh 让数据库默认值与生成字段生效，避免 MissingGreenlet
@@ -15,21 +16,23 @@ from __future__ import annotations
 from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.agent_message import AgentMessage
 from app.models.agent_session import AgentSession
 from app.services.agent.exceptions import AgentError
+from app.services.db_async_compat import execute_async, flush_async, refresh_async
 from app.utils.db_time import utcnow
 
 
 class SessionService:
     """Agent 会话与消息持久化服务。
 
-    方法均接收 AsyncSession，无内部状态，便于在多个事务上下文复用。
+    方法均接收会话（Session / AsyncSession），无内部状态，便于在多个事务上下文复用。
     """
 
     async def create_session(
-        self, db: AsyncSession, *, agent_type: str,
+        self, db: Session | AsyncSession, *, agent_type: str,
         project_id: int, created_by: int | None = None,
     ) -> AgentSession:
         """创建 Agent 会话，初始 status=running、token_cost=0。
@@ -47,8 +50,8 @@ class SessionService:
             created_by=created_by,
         )
         db.add(session)
-        await db.flush()
-        await db.refresh(session)
+        await flush_async(db)
+        await refresh_async(db, session)
         logger.info(
             f"Agent 会话创建: id={session.id} agent_type={agent_type} "
             f"project_id={project_id} created_by={created_by}"
@@ -56,7 +59,7 @@ class SessionService:
         return session
 
     async def append_message(
-        self, db: AsyncSession, *, session_id: int, role: str,
+        self, db: Session | AsyncSession, *, session_id: int, role: str,
         content: dict, artifact_refs: list | None = None,
         tool_call_id: str | None = None, tool_name: str | None = None,
         token_cost: int = 0,
@@ -76,12 +79,12 @@ class SessionService:
             tool_name=tool_name, token_cost=token_cost,
         )
         db.add(message)
-        await db.flush()
-        await db.refresh(message)
+        await flush_async(db)
+        await refresh_async(db, message)
         return message
 
     async def get_history(
-        self, db: AsyncSession, session_id: int, limit: int = 50,
+        self, db: Session | AsyncSession, session_id: int, limit: int = 50,
     ) -> list[AgentMessage]:
         """按时间顺序获取会话消息流（最旧 → 最新），返回最多 limit 条。"""
         stmt = (
@@ -90,11 +93,11 @@ class SessionService:
             .order_by(AgentMessage.created_at.asc(), AgentMessage.id.asc())
             .limit(limit)
         )
-        result = await db.execute(stmt)
+        result = await execute_async(db, stmt)
         return list(result.scalars().all())
 
     async def complete_session(
-        self, db: AsyncSession, *, session_id: int, status: str,
+        self, db: Session | AsyncSession, *, session_id: int, status: str,
         token_cost: int | None = None, iteration_count: int | None = None,
         loop_detected: bool | None = None,
     ) -> AgentSession:
@@ -119,13 +122,13 @@ class SessionService:
             .where(AgentSession.id == session_id)
             .values(**values)
         )
-        result = await db.execute(stmt)
+        result = await execute_async(db, stmt)
         if result.rowcount == 0:
             raise AgentError(
                 f"会话不存在或状态更新失败: session_id={session_id}",
                 session_id=session_id,
             )
-        await db.flush()
+        await flush_async(db)
         # 重新加载最新数据，避免依赖 returning 在 MySQL 方言上的差异
         refreshed = await self.get_session(db, session_id)
         if refreshed is None:
@@ -139,7 +142,7 @@ class SessionService:
         return refreshed
 
     async def cancel_session(
-        self, db: AsyncSession, session_id: int,
+        self, db: Session | AsyncSession, session_id: int,
     ) -> AgentSession:
         """取消会话（status=cancelled）。"""
         return await self.complete_session(
@@ -147,15 +150,15 @@ class SessionService:
         )
 
     async def get_session(
-        self, db: AsyncSession, session_id: int,
+        self, db: Session | AsyncSession, session_id: int,
     ) -> AgentSession | None:
         """按 ID 查询会话，不存在返回 None。"""
         stmt = select(AgentSession).where(AgentSession.id == session_id)
-        result = await db.execute(stmt)
+        result = await execute_async(db, stmt)
         return result.scalar_one_or_none()
 
     async def list_sessions(
-        self, db: AsyncSession, *, project_id: int | None = None,
+        self, db: Session | AsyncSession, *, project_id: int | None = None,
         agent_type: str | None = None, status: str | None = None,
         offset: int = 0, limit: int = 20,
     ) -> tuple[list[AgentSession], int]:
@@ -189,9 +192,9 @@ class SessionService:
             base_stmt.order_by(AgentSession.id.desc()).offset(offset).limit(limit)
         )
 
-        result = await db.execute(base_stmt)
+        result = await execute_async(db, base_stmt)
         sessions = list(result.scalars().all())
-        count_result = await db.execute(count_stmt)
+        count_result = await execute_async(db, count_stmt)
         total = int(count_result.scalar() or 0)
         return sessions, total
 

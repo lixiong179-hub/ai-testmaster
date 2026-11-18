@@ -20,11 +20,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse, Response
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exception._base import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.schemas.common import ApiResponse
 from app.services.saml_service import (
     SAMLConfigError,
@@ -132,7 +132,7 @@ async def saml_acs(
     provider: str | None = Query(
         None, description="IdP 标识；若未在 RelayState 中存储，需调用方显式传入"
     ),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
 ) -> dict:
     """处理 SAML ACS 回调。"""
     service = _saml_service_or_503()

@@ -12,21 +12,27 @@ A/B测试指标端点模块
     - GET  /experiments/{experiment_id}/summary  — 获取实验汇总
     - GET  /experiments                          — 列出所有实验
 """
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.project import Project
 from app.models.user import User
 from app.services.ab_test_service import ABTestService
 from app.schemas.common import ApiResponse
+
+async def _execute(db: Session, stmt):
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
+    return await asyncio.to_thread(db.execute, stmt)
+
 
 router = APIRouter(tags=["A/B测试"])
 
@@ -43,11 +49,11 @@ class MetricCreateRequest(BaseModel):
 async def _verify_project_ownership(
     project_id: int,
     current_user: User,
-    db: AsyncSession,
+    db: Session,
 ) -> Project:
     """校验项目归属权：项目必须存在且属于当前用户"""
     project = (
-        await db.execute(select(Project).where(Project.id == project_id))
+        await _execute(db, select(Project).where(Project.id == project_id))
     ).scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在")
@@ -56,10 +62,10 @@ async def _verify_project_ownership(
     return project
 
 
-async def _get_user_project_ids(db: AsyncSession, user_id: int) -> list[int]:
+async def _get_user_project_ids(db: Session, user_id: int) -> list[int]:
     """获取用户拥有的所有项目ID"""
     rows = (
-        await db.execute(select(Project.id).where(Project.user_id == user_id))
+        await _execute(db, select(Project.id).where(Project.user_id == user_id))
     ).all()
     return [row[0] for row in rows if row[0] is not None]
 
@@ -68,14 +74,15 @@ async def _get_user_project_ids(db: AsyncSession, user_id: int) -> list[int]:
 async def record_metric(
     experiment_id: str,
     body: MetricCreateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     if body.project_id is not None:
         await _verify_project_ownership(body.project_id, current_user, db)
     try:
         service = ABTestService(db)
-        row = await service.record_metric_async(
+        row = await asyncio.to_thread(
+            service.record_metric,
             experiment_id=experiment_id,
             variant=body.variant,
             metric_name=body.metric_name,
@@ -84,7 +91,7 @@ async def record_metric(
             test_point_id=body.test_point_id,
             detail=body.detail,
         )
-        await db.commit()
+        await asyncio.to_thread(db.commit)
         return create_response(
             data={
                 "id": row.id,
@@ -112,14 +119,14 @@ async def record_metric(
 @router.get("/experiments/{experiment_id}/summary", response_model=ApiResponse)
 async def get_experiment_summary(
     experiment_id: str,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
         user_project_ids = await _get_user_project_ids(db, current_user.id)
         service = ABTestService(db)
-        summary = await service.get_experiment_summary_async(
-            experiment_id, project_ids=user_project_ids,
+        summary = await asyncio.to_thread(
+            service.get_experiment_summary, experiment_id, project_ids=user_project_ids
         )
         return create_response(data=summary, msg="获取实验汇总成功")
     except Exception as exc:
@@ -134,14 +141,14 @@ async def get_experiment_summary(
 async def list_experiments(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     try:
         user_project_ids = await _get_user_project_ids(db, current_user.id)
         service = ABTestService(db)
-        experiments: list[dict[str, Any]] = await service.list_experiments_async(
-            project_ids=user_project_ids,
+        experiments: list[dict[str, Any]] = await asyncio.to_thread(
+            service.list_experiments, project_ids=user_project_ids
         )
         total = len(experiments)
         skip = (page - 1) * page_size

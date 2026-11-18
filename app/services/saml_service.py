@@ -16,9 +16,11 @@ from typing import Any
 
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exception._base import BaseAPIException
+from app.services.db_async_compat import commit_async, refresh_async
 from app.services.saml import (
     build_authn_request_redirect,
     build_logout_request_redirect,
@@ -207,7 +209,7 @@ class SAMLService:
 
     async def handle_acs(
         self,
-        db: AsyncSession,
+        db: Session | AsyncSession,
         provider: str,
         saml_response: str,
         relay_state: str,
@@ -253,8 +255,8 @@ class SAMLService:
         user.saml_session_index = session_index
         user.last_login_time = utcnow()
         user.login_count = (user.login_count or 0) + 1
-        await db.commit()
-        await db.refresh(user)
+        await commit_async(db)
+        await refresh_async(db, user)
 
         # 4. 签发本平台 token + 创建会话
         token_data = {"sub": str(user.id), "username": user.username}

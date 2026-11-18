@@ -15,18 +15,24 @@
     - get_baseline_history : 获取页面+视口的基线版本历史
 
 设计原则：
-    - 依赖注入：AsyncSession 与 StorageBackend 由调用方注入
+    - 依赖注入：Session（或遗留 AsyncSession）与 StorageBackend 由调用方注入
     - 版本管理：更新基线时旧版本 status→superseded，新版本 status=active
     - 存储隔离：StorageBackend key 按 project_id 分前缀
 """
 from __future__ import annotations
 
-
 from loguru import logger
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.visual_baseline import VisualBaseline, MATCH_LEVEL_VALUES
+from app.services.db_async_compat import (
+    commit_async,
+    delete_async,
+    execute_async,
+    refresh_async,
+)
 from app.services.storage.base import StorageBackend
 
 
@@ -41,11 +47,13 @@ class BaselineService:
         )
     """
 
-    def __init__(self, db: AsyncSession, storage: StorageBackend) -> None:
+    def __init__(
+        self, db: Session | AsyncSession, storage: StorageBackend
+    ) -> None:
         """初始化基线服务。
 
         Args:
-            db: 异步数据库会话
+            db: 数据库会话（同步 Session 或遗留 AsyncSession，经兼容层统一执行）
             storage: 存储后端实例（LocalStorage 或 S3Storage）
         """
         self._db = db
@@ -121,8 +129,8 @@ class BaselineService:
             created_by=created_by,
         )
         self._db.add(baseline)
-        await self._db.commit()
-        await self._db.refresh(baseline)
+        await commit_async(self._db)
+        await refresh_async(self._db, baseline)
 
         logger.info(
             f"[VisualAI] 基线创建: project={project_id}, name={name}, "
@@ -160,13 +168,13 @@ class BaselineService:
             .order_by(VisualBaseline.version.desc())
             .limit(1)
         )
-        result = await self._db.execute(stmt)
+        result = await execute_async(self._db, stmt)
         return result.scalars().first()
 
     async def get_baseline_by_id(self, baseline_id: int) -> VisualBaseline | None:
         """按主键查询基线。"""
         stmt = select(VisualBaseline).where(VisualBaseline.id == baseline_id)
-        result = await self._db.execute(stmt)
+        result = await execute_async(self._db, stmt)
         return result.scalars().first()
 
     async def list_baselines(
@@ -184,7 +192,7 @@ class BaselineService:
         if test_case_id is not None:
             stmt = stmt.where(VisualBaseline.test_case_id == test_case_id)
         stmt = stmt.order_by(VisualBaseline.updated_at.desc()).offset(offset).limit(limit)
-        result = await self._db.execute(stmt)
+        result = await execute_async(self._db, stmt)
         return list(result.scalars().all())
 
     async def update_baseline(
@@ -213,7 +221,8 @@ class BaselineService:
             raise ValueError(f"基线不存在: id={baseline_id}")
 
         # 归档旧基线
-        await self._db.execute(
+        await execute_async(
+            self._db,
             update(VisualBaseline)
             .where(VisualBaseline.id == baseline_id)
             .values(status="superseded")
@@ -261,8 +270,8 @@ class BaselineService:
             logger.warning(f"[VisualAI] 存储文件删除失败: baseline_id={baseline_id}, error={exc}")
 
         # 删除 DB 记录
-        await self._db.delete(baseline)
-        await self._db.commit()
+        await delete_async(self._db, baseline)
+        await commit_async(self._db)
 
         logger.info(f"[VisualAI] 基线删除: id={baseline_id}")
         return True
@@ -285,7 +294,7 @@ class BaselineService:
             )
             .order_by(VisualBaseline.version.desc())
         )
-        result = await self._db.execute(stmt)
+        result = await execute_async(self._db, stmt)
         return list(result.scalars().all())
 
     async def load_baseline_image(self, baseline_id: int) -> bytes:
@@ -322,7 +331,7 @@ class BaselineService:
                 VisualBaseline.viewport_height == viewport_height,
             )
         )
-        result = await self._db.execute(stmt)
+        result = await execute_async(self._db, stmt)
         max_ver = result.scalar()
         return max_ver or 0
 

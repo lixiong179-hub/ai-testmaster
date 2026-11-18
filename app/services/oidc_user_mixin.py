@@ -9,9 +9,11 @@ from typing import Any
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.user import User
+from app.services.db_async_compat import commit_async, execute_async, refresh_async
 from app.services.oidc_exceptions import (
     OIDCConfigError,
     OIDCTokenError,
@@ -34,7 +36,7 @@ class OIDCUserMixin:
 
     async def find_user_by_oidc(
         self,
-        db: AsyncSession,
+        db: Session | AsyncSession,
         issuer: str,
         sub: str,
     ) -> User | None:
@@ -48,17 +50,18 @@ class OIDCUserMixin:
         Returns:
             Optional[User]: 已绑定的本地用户；未找到返回 None
         """
-        result = await db.execute(
+        result = await execute_async(
+            db,
             select(User).where(
                 User.oidc_issuer == issuer,
                 User.oidc_sub == sub,
-            )
+            ),
         )
         return result.scalar_one_or_none()
 
     async def find_user_by_email(
         self,
-        db: AsyncSession,
+        db: Session | AsyncSession,
         email: str,
     ) -> User | None:
         """通过 email 查找本地用户（用于自动绑定已存在的本地账号）。
@@ -70,14 +73,12 @@ class OIDCUserMixin:
         Returns:
             Optional[User]: 已存在的本地用户；未找到返回 None
         """
-        result = await db.execute(
-            select(User).where(User.email == email)
-        )
+        result = await execute_async(db, select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
     async def provision_user(
         self,
-        db: AsyncSession,
+        db: Session | AsyncSession,
         provider: str,
         issuer: str,
         claims: dict[str, Any],
@@ -132,8 +133,8 @@ class OIDCUserMixin:
                 local_user.oidc_provider = provider
                 local_user.external_id = sub
                 local_user.external_system = f"oidc:{provider}"
-                await db.commit()
-                await db.refresh(local_user)
+                await commit_async(db)
+                await refresh_async(db, local_user)
                 logger.info(
                     f"OIDC 用户已绑定现有本地账号: provider={provider} email={email} user_id={local_user.id}"
                 )
@@ -156,8 +157,8 @@ class OIDCUserMixin:
             external_system=f"oidc:{provider}",
         )
         db.add(new_user)
-        await db.commit()
-        await db.refresh(new_user)
+        await commit_async(db)
+        await refresh_async(db, new_user)
         logger.info(
             f"OIDC 用户自动配置: provider={provider} sub={sub[:8]}... "
             f"user_id={new_user.id} username={new_user.username}"
@@ -185,7 +186,7 @@ class OIDCUserMixin:
 
     async def handle_callback(
         self,
-        db: AsyncSession,
+        db: Session | AsyncSession,
         provider: str,
         code: str,
         state: str,
@@ -227,8 +228,8 @@ class OIDCUserMixin:
         # 4. 更新登录信息
         user.last_login_time = utcnow()
         user.login_count = (user.login_count or 0) + 1
-        await db.commit()
-        await db.refresh(user)
+        await commit_async(db)
+        await refresh_async(db, user)
 
         # 5. 签发本平台 token
         token_data = {"sub": str(user.id), "username": user.username}

@@ -12,10 +12,12 @@ from __future__ import annotations
 from loguru import logger
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.agent_audit import AgentAudit
 from app.services.agent._rollback_handlers import get_rollback_handler
 from app.services.agent.exceptions import AgentError
+from app.services.db_async_compat import execute_async, flush_async, refresh_async
 from app.utils.db_time import utcnow
 
 
@@ -29,7 +31,7 @@ class AgentAuditService:
     """Agent 审计与回滚服务。"""
 
     async def record_action(
-        self, db: AsyncSession, *, session_id: int, iteration: int,
+        self, db: Session | AsyncSession, *, session_id: int, iteration: int,
         action_type: str, action_detail: dict,
         decision_confidence: float | None = None,
     ) -> AgentAudit:
@@ -53,8 +55,8 @@ class AgentAuditService:
             human_approved=HUMAN_APPROVAL_PENDING,
         )
         db.add(audit)
-        await db.flush()
-        await db.refresh(audit)
+        await flush_async(db)
+        await refresh_async(db, audit)
         logger.info(
             f"Agent 审计写入: id={audit.id} session={session_id} "
             f"iter={iteration} action={action_type} confidence={decision_confidence}"
@@ -62,7 +64,7 @@ class AgentAuditService:
         return audit
 
     async def get_session_audit(
-        self, db: AsyncSession, session_id: int,
+        self, db: Session | AsyncSession, session_id: int,
     ) -> list[AgentAudit]:
         """查询会话完整审计链，按 id 升序返回。"""
         stmt = (
@@ -70,11 +72,11 @@ class AgentAuditService:
             .where(AgentAudit.session_id == session_id)
             .order_by(AgentAudit.id.asc())
         )
-        result = await db.execute(stmt)
+        result = await execute_async(db, stmt)
         return list(result.scalars().all())
 
     async def list_pending_approvals(
-        self, db: AsyncSession, *, offset: int = 0, limit: int = 20,
+        self, db: Session | AsyncSession, *, offset: int = 0, limit: int = 20,
     ) -> tuple[list[AgentAudit], int]:
         """分页查询待审批动作（human_approved=0），按创建时间升序。"""
         cond = AgentAudit.human_approved == HUMAN_APPROVAL_PENDING
@@ -86,14 +88,14 @@ class AgentAuditService:
             .limit(limit)
         )
         count_stmt = select(func.count(AgentAudit.id)).where(cond)
-        result = await db.execute(stmt)
+        result = await execute_async(db, stmt)
         records = list(result.scalars().all())
-        count_result = await db.execute(count_stmt)
+        count_result = await execute_async(db, count_stmt)
         total = int(count_result.scalar() or 0)
         return records, total
 
     async def approve_action(
-        self, db: AsyncSession, *, audit_id: int, approved_by: int,
+        self, db: Session | AsyncSession, *, audit_id: int, approved_by: int,
         approved: bool = True,
     ) -> AgentAudit:
         """标记审计记录的审批结果（更新三字段：human_approved/approved_by/approved_at）。
@@ -111,10 +113,10 @@ class AgentAuditService:
                 approved_at=utcnow(),
             )
         )
-        result = await db.execute(stmt)
+        result = await execute_async(db, stmt)
         if result.rowcount == 0:
             raise AgentError(f"审计记录不存在: audit_id={audit_id}")
-        await db.flush()
+        await flush_async(db)
         refreshed = await self._get_audit(db, audit_id)
         if refreshed is None:
             raise AgentError(f"审计记录不存在: audit_id={audit_id}")
@@ -124,7 +126,7 @@ class AgentAuditService:
         return refreshed
 
     async def rollback_action(
-        self, db: AsyncSession, *, audit_id: int, rolled_by: int,
+        self, db: Session | AsyncSession, *, audit_id: int, rolled_by: int,
         reason: str = "",
     ) -> AgentAudit:
         """回滚已记录的 Agent 动作。
@@ -161,8 +163,8 @@ class AgentAuditService:
             approved_at=utcnow(),
         )
         db.add(rollback_audit)
-        await db.flush()
-        await db.refresh(rollback_audit)
+        await flush_async(db)
+        await refresh_async(db, rollback_audit)
         logger.info(
             f"Agent 审计回滚: origin={audit_id} new={rollback_audit.id} "
             f"action={rollback_audit.action_type} by={rolled_by}"
@@ -170,11 +172,11 @@ class AgentAuditService:
         return rollback_audit
 
     async def _get_audit(
-        self, db: AsyncSession, audit_id: int,
+        self, db: Session | AsyncSession, audit_id: int,
     ) -> AgentAudit | None:
         """按 ID 查询审计记录，不存在返回 None。"""
         stmt = select(AgentAudit).where(AgentAudit.id == audit_id)
-        result = await db.execute(stmt)
+        result = await execute_async(db, stmt)
         return result.scalar_one_or_none()
 
 

@@ -23,6 +23,7 @@ from app.models.pipeline import PipelineRun, PipelineStep
 from app.models.pipeline_metric import PipelineMetric
 from app.models.user import User
 from app.schemas.common import ApiResponse
+from app.services.db_async_compat import execute_async
 from app.services.metrics_service import _date_trunc_day
 from app.services.pipeline_service.dashboard_utils import (
     build_run_subquery,
@@ -115,10 +116,10 @@ async def get_dashboard_overview(
             fmea_stmt = fmea_stmt.where(PipelineMetric.id.in_(metric_subq))
 
         # 4 次 SQL 往返（原 8 次）
-        run_row = (await asyncio.to_thread(db.execute, run_stmt)).one()
-        ai_row = (await asyncio.to_thread(db.execute, ai_stmt)).one()
-        step_row = (await asyncio.to_thread(db.execute, step_stmt)).one()
-        fmea_active_val = (await asyncio.to_thread(db.execute, fmea_stmt)).scalar() or 0
+        run_row = (await execute_async(db, run_stmt)).one()
+        ai_row = (await execute_async(db, ai_stmt)).one()
+        step_row = (await execute_async(db, step_stmt)).one()
+        fmea_active_val = (await execute_async(db, fmea_stmt)).scalar() or 0
 
         total_runs_val = run_row.total_runs or 0
         completed_runs_val = run_row.completed_runs or 0
@@ -167,7 +168,7 @@ async def get_token_usage(
         if project_id is not None:
             run_subq = build_run_subquery(db, project_id)
             stmt = stmt.where(AICallLog.run_id.in_(run_subq))
-        rows_result = await asyncio.to_thread(db.execute, stmt)
+        rows_result = await execute_async(db, stmt)
         rows = rows_result.all()
         result = [
             {
@@ -216,7 +217,7 @@ async def get_run_duration(
             stmt = stmt.join(Iteration, PipelineRun.iteration_id == Iteration.id).where(
                 Iteration.project_id == project_id
             )
-        rows_result = await asyncio.to_thread(db.execute, stmt)
+        rows_result = await execute_async(db, stmt)
         rows = rows_result.all()
         result = [
             {
@@ -261,7 +262,7 @@ async def get_step_latency(
         if project_id is not None:
             run_subq = build_run_subquery(db, project_id)
             stmt = stmt.where(PipelineStep.run_id.in_(run_subq))
-        rows_result = await asyncio.to_thread(db.execute, stmt)
+        rows_result = await execute_async(db, stmt)
         rows = rows_result.all()
         result = [
             {
@@ -301,7 +302,7 @@ async def get_cache_hit_rate(
         if project_id is not None:
             run_subq = build_run_subquery(db, project_id)
             stmt = stmt.where(PipelineStep.run_id.in_(run_subq))
-        rows_result = await asyncio.to_thread(db.execute, stmt)
+        rows_result = await execute_async(db, stmt)
         rows = rows_result.all()
         result = [
             {

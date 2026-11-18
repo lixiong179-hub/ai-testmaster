@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.api.v1.endpoints.test_case_ai import (
@@ -30,13 +30,14 @@ from app.api.v1.endpoints.test_case_ai import (
     _build_linear_prompt_data,
     _format_case_response,
 )
-from app.db.database import PrimarySessionLocal, async_get_db
+from app.db.database import PrimarySessionLocal, get_db
 from app.models.project import Project
 from app.models.user import User
 from app.services.case_quality.quality_feedback_loop import (
     build_quality_feedback_text,
     run_quality_feedback_loop,
 )
+from app.services.db_async_compat import execute_async
 from app.utils.ai_client import generate_test_case, generate_test_case_enhanced
 
 router = APIRouter()
@@ -94,7 +95,7 @@ async def _run_quality_feedback_for_cases(
 @router.post("/ai-enhanced-generate/stream")
 async def ai_enhanced_generate_stream(
     request: AIGenerateEnhancedRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """AI增强模式生成测试用例（SSE流式）。
@@ -105,10 +106,11 @@ async def ai_enhanced_generate_stream(
     project_id = request.project_id
     description = request.description
 
-    project_result = await db.execute(
+    project_result = await execute_async(
+        db,
         select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
-        )
+        ),
     )
     project = project_result.scalars().first()
     if not project:
@@ -250,7 +252,7 @@ async def ai_enhanced_generate_stream(
 @router.post("/batch-generate/stream")
 async def batch_generate_test_cases_stream(
     request: BatchGenerateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """流式批量生成测试用例。
@@ -258,10 +260,11 @@ async def batch_generate_test_cases_stream(
     以SSE方式流式返回AI批量生成的测试用例，
     每生成一条用例即推送一条事件，前端可实时展示生成进度。
     """
-    project_result = await db.execute(
+    project_result = await execute_async(
+        db,
         select(Project).where(
             Project.id == request.project_id, Project.user_id == current_user.id
-        )
+        ),
     )
     project = project_result.scalars().first()
     if not project:

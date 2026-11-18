@@ -19,12 +19,18 @@
     - 项目详情包含关联文件列表，Web环境密码脱敏返回
     - 删除为物理删除，会永久移除项目数据
 """
-import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.db.database import get_db
+from app.services.db_async_compat import (
+    commit_async,
+    delete_async,
+    execute_async,
+    refresh_async,
+    rollback_async,
+)
 from app.schemas.common import ApiResponse
 from app.schemas.project import (
     ProjectCreate,
@@ -38,8 +44,12 @@ from loguru import logger
 import json
 
 async def _execute(db: Session, stmt):
-    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。"""
-    return await asyncio.to_thread(db.execute, stmt)
+    """同步 Session 的查询在线程池执行，避免阻塞事件循环（R2-1）。
+
+    统一走 `db_async_compat.execute_async`：同步 Session 转线程池，
+    遗留 AsyncSession（测试壳/后台上下文）直接 await。
+    """
+    return await execute_async(db, stmt)
 
 
 router = APIRouter()
@@ -94,8 +104,8 @@ async def create_project(
         if project.device_config:
             new_project.device_config = json.dumps(project.device_config.model_dump(exclude_none=True))
         db.add(new_project)
-        await asyncio.to_thread(db.commit)
-        await asyncio.to_thread(db.refresh, new_project)
+        await commit_async(db)
+        await refresh_async(db, new_project)
         return create_response(
             data={
                 "project_id": new_project.id,
@@ -109,7 +119,7 @@ async def create_project(
     except HTTPException:
         raise
     except Exception as e:
-        await asyncio.to_thread(db.rollback)
+        await rollback_async(db)
         logger.error(f"创建项目失败: {e}")
         raise HTTPException(status_code=500, detail="创建项目失败")
 
@@ -255,7 +265,7 @@ async def _delete_project_core_assets_async(db: Session, project_id: int) -> Non
         select(TestTask).where(TestTask.project_id == project_id)
     )
     for task in tasks_result.scalars().all():
-        await asyncio.to_thread(db.delete, task)
+        await delete_async(db, task)
 
     case_ids_result = await _execute(db,
         select(TestCase.id).where(TestCase.project_id == project_id)
@@ -272,7 +282,7 @@ async def _delete_project_core_assets_async(db: Session, project_id: int) -> Non
         select(TestCase).where(TestCase.project_id == project_id)
     )
     for test_case in test_cases_result.scalars().all():
-        await asyncio.to_thread(db.delete, test_case)
+        await delete_async(db, test_case)
 
 
 @router.delete("/{project_id}", response_model=ApiResponse)
@@ -296,13 +306,13 @@ async def delete_project(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="自测项目不可删除")
 
         await _delete_project_core_assets_async(db, project_id)
-        await asyncio.to_thread(db.delete, project)
-        await asyncio.to_thread(db.commit)
+        await delete_async(db, project)
+        await commit_async(db)
         return create_response(data={}, msg="删除成功")
     except HTTPException:
         raise
     except Exception as e:
-        await asyncio.to_thread(db.rollback)
+        await rollback_async(db)
         logger.error(f"删除项目失败: {e}")
         raise HTTPException(status_code=500, detail="删除项目失败")
 
@@ -333,8 +343,8 @@ async def update_self_test_schedule(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效的cron表达式")
 
     project.self_test_schedule = body.schedule
-    await asyncio.to_thread(db.commit)
-    await asyncio.to_thread(db.refresh, project)
+    await commit_async(db)
+    await refresh_async(db, project)
 
     return create_response(
         data={"project_id": project.id, "self_test_schedule": project.self_test_schedule},

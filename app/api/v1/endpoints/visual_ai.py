@@ -24,12 +24,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.config import settings
 from app.core.exception._base import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.baseline_approval import BaselineApproval, APPROVAL_ACTION_VALUES
 from app.models.project import Project
 from app.models.user import User
@@ -47,6 +47,12 @@ from app.schemas.visual_ai import (
     DiffListResponse,
     DiffResponse,
 )
+from app.services.db_async_compat import (
+    commit_async,
+    execute_async,
+    get_async,
+    refresh_async,
+)
 from app.services.storage import get_storage
 from app.services.visual_ai.baseline_service import BaselineService
 from app.services.visual_ai.comparison_engine import ComparisonEngine
@@ -55,13 +61,14 @@ router = APIRouter(tags=["Visual AI 视觉回归"])
 
 
 async def _verify_project_owner(
-    db: AsyncSession, project_id: int, user_id: int
+    db: Session, project_id: int, user_id: int
 ) -> None:
     """校验项目归属当前用户，不存在或无权限抛 403。"""
-    result = await db.execute(
+    result = await execute_async(
+        db,
         select(Project).where(
             Project.id == project_id, Project.user_id == user_id
-        )
+        ),
     )
     if result.scalar_one_or_none() is None:
         raise HTTPException(
@@ -100,7 +107,7 @@ def _check_visual_ai_enabled() -> None:
 async def create_baseline(
     project_id: int,
     body: BaselineCreateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """上传截图创建视觉基线。"""
@@ -140,7 +147,7 @@ async def list_baselines(
     test_case_id: int | None = Query(None, description="按用例过滤"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """按项目列出视觉基线，支持状态与用例过滤。"""
@@ -168,7 +175,7 @@ async def list_baselines(
 async def get_baseline(
     project_id: int,
     baseline_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """按 ID 查询视觉基线详情。"""
@@ -191,7 +198,7 @@ async def update_baseline(
     project_id: int,
     baseline_id: int,
     body: BaselineUpdateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """更新基线截图，旧版本归档，创建新版本。"""
@@ -223,7 +230,7 @@ async def update_baseline(
 async def delete_baseline(
     project_id: int,
     baseline_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """删除基线及其存储文件。"""
@@ -250,7 +257,7 @@ async def delete_baseline(
 async def compare_screenshot(
     project_id: int,
     body: CompareRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """对比当前截图与活跃基线，生成 Diff 记录。"""
@@ -316,8 +323,8 @@ async def compare_screenshot(
         llm_token_cost=result.total_token_cost,
     )
     db.add(diff_record)
-    await db.commit()
-    await db.refresh(diff_record)
+    await commit_async(db)
+    await refresh_async(db, diff_record)
 
     response_data = DiffResponse(
         diff_id=diff_record.id,
@@ -347,7 +354,7 @@ async def list_diffs(
     status_filter: str | None = Query(None, alias="status", description="审批状态过滤"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """按项目列出视觉差异记录。"""
@@ -360,7 +367,7 @@ async def list_diffs(
             raise HTTPException(status_code=400, detail=f"非法 status: {status_filter}")
         stmt = stmt.where(VisualDiff.status == status_filter)
     stmt = stmt.order_by(VisualDiff.created_at.desc()).offset(offset).limit(limit)
-    result = await db.execute(stmt)
+    result = await execute_async(db, stmt)
     diffs = result.scalars().all()
 
     items = []
@@ -390,7 +397,7 @@ async def approve_diff(
     project_id: int,
     diff_id: int,
     body: ApprovalRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """审批视觉差异记录（approve/reject/update_baseline）。"""
@@ -400,7 +407,7 @@ async def approve_diff(
     if body.action not in APPROVAL_ACTION_VALUES:
         raise HTTPException(status_code=400, detail=f"非法 action: {body.action}")
 
-    diff = await db.get(VisualDiff, diff_id)
+    diff = await get_async(db, VisualDiff, diff_id)
     if diff is None or diff.project_id != project_id:
         raise HTTPException(status_code=404, detail="Diff 不存在")
 
@@ -423,7 +430,7 @@ async def approve_diff(
         diff.status = "approved"
         # 触发基线更新流程（标记，实际更新需调用 PUT /baselines/{id}）
 
-    await db.commit()
-    await db.refresh(approval)
+    await commit_async(db)
+    await refresh_async(db, approval)
 
     return create_response(data=ApprovalResponse.model_validate(approval.to_dict()).model_dump(), msg="审批成功")

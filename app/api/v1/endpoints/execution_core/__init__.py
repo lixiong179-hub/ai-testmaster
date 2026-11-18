@@ -30,9 +30,9 @@ from app.services.execution_core.failure_analysis import (
     _perform_failure_analysis_with_steps,
     _spawn_failure_analysis_agent,
 )
+from app.services.db_async_compat import execute_async
 from app.services.execution_core.helpers import (
     _filter_by_visibility,
-    _get_hidden_fields,
     _get_hidden_fields_async,
     get_task_or_404,
     verify_project_permission,
@@ -408,10 +408,10 @@ async def analyze_failure(
     3. 可见字段过滤复用 `_get_hidden_fields_async`
     """
     try:
-        # 1. async 查询 TestResult
+        # 1. 查询 TestResult
         result = (
-            await asyncio.to_thread(
-                db.execute, select(TestResult).where(TestResult.id == result_id)
+            await execute_async(
+                db, select(TestResult).where(TestResult.id == result_id)
             )
         ).scalar_one_or_none()
         if not result:
@@ -420,10 +420,10 @@ async def analyze_failure(
         if result.exec_status != ExecStatus.FAILED:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="只有执行失败的结果才能进行失败分析")
 
-        # 2. async 查询 TestCase
+        # 2. 查询 TestCase
         test_case = (
-            await asyncio.to_thread(
-                db.execute,
+            await execute_async(
+                db,
                 select(TestCase).where(
                     TestCase.id == result.case_id,
                     TestCase.is_deleted.is_(False),
@@ -433,11 +433,11 @@ async def analyze_failure(
         if not test_case:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="关联的测试用例不存在")
 
-        # 3. async 查询 TestStep (原 _perform_failure_analysis 内部 sync 查询)
+        # 3. 查询 TestStep (原 _perform_failure_analysis 内部 sync 查询)
         steps = list(
             (
-                await asyncio.to_thread(
-                    db.execute,
+                await execute_async(
+                    db,
                     select(TestStep)
                     .where(TestStep.test_case_id == test_case.id)
                     .order_by(TestStep.step_number),
@@ -448,10 +448,8 @@ async def analyze_failure(
         # 4. 纯计算失败原因分析
         analysis = _perform_failure_analysis_with_steps(result, test_case, steps)
 
-        # 5. sync 查询项目可见模式配置（VisibilityConfigService 为 sync 实现，包 to_thread）
-        hidden_fields = await asyncio.to_thread(
-            _get_hidden_fields, db, test_case.project_id
-        )
+        # 5. 查询项目可见模式配置（visibility 合并逻辑为 sync 实现，经兼容层执行）
+        hidden_fields = await _get_hidden_fields_async(db, test_case.project_id)
 
         analysis = _filter_by_visibility(analysis, hidden_fields)
 

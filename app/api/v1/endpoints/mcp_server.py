@@ -15,16 +15,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
 from loguru import logger
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
 from app.api.v1.endpoints.auth_deps import get_current_user
 from app.core.exception import create_response
 from app.core.permissions import MCP_SCOPE_WRITE, PermissionCode
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.schemas.common import ApiResponse
 from app.services.agent.mcp_server import get_mcp_server
+from app.services.db_async_compat import commit_async
 
 router = APIRouter(prefix="/mcp", tags=["mcp-server"])
 
@@ -88,7 +89,7 @@ async def list_mcp_tools(
 )
 async def call_mcp_tool_sse(
     request: MCPCallRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> EventSourceResponse:
     """SSE 流式调用 MCP 工具。
@@ -128,7 +129,7 @@ async def call_mcp_tool_sse(
             # 持久化 handler 内的写操作（如 AgentSession / TestTask），
             # 失败仅记录日志，不影响已生成的结果回传客户端
             try:
-                await db.commit()
+                await commit_async(db)
             except Exception as e:
                 logger.warning(f"MCP SSE commit 失败: {e}")
             yield _sse("result", result)

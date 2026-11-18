@@ -18,11 +18,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exception._base import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.schemas.common import ApiResponse
 from app.services.oidc_service import (
     OIDCConfigError,
@@ -119,7 +119,7 @@ async def oidc_callback(
     provider: str | None = Query(
         None, description="IdP 标识；若 IdP 未在 state 中回传 provider，需调用方显式传入"
     ),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
 ) -> dict:
     """处理 OIDC 回调。"""
     # IdP 返回错误（用户拒绝授权等）

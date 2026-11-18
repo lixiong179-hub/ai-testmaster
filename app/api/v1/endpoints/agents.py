@@ -12,8 +12,9 @@
     - POST /agents/audits/{audit_id}/rollback            回滚审计动作
 
 设计说明:
-    - SessionService / AgentAuditService 接收 AsyncSession 且仅 flush 不 commit，
-      端点在变更操作后显式 await db.commit() 落库。
+    - SessionService / AgentAuditService 接收 Session（或遗留 AsyncSession），
+      经 `db_async_compat` 统一执行且仅 flush 不 commit，
+      端点在变更操作后显式 `await commit_async(db)` 落库。
     - 创建会话仅落库 running 记录，不调用 AgentRuntime.run，避免阻塞 HTTP 请求；
       真正的 Runtime 调用由后台任务或后续专门端点触发。
     - 异常映射: AgentError→400, NotImplementedError→501, HTTPException 透传, 其他→500。
@@ -25,14 +26,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import status as http_status
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.auth import get_current_user
 from app.services.execution_core.helpers import (
     verify_project_permission_async,
 )
 from app.core.exception import create_response
-from app.db.database import async_get_db
+from app.db.database import get_db
 from app.models.agent_audit import AgentAudit
 from app.models.agent_session import AgentSession
 from app.models.user import User
@@ -56,6 +57,7 @@ from app.services.agent.audit_service import AgentAuditService
 from app.services.agent.exceptions import AgentError
 from app.services.agent.metrics import get_metrics
 from app.services.agent.session_service import SessionService
+from app.services.db_async_compat import commit_async, execute_async
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -115,7 +117,7 @@ def _parse_initial_artifacts(raw: list[dict]) -> list[Artifact]:
     return artifacts
 
 
-def _build_runtime(db: AsyncSession):
+def _build_runtime(db: Session):
     """构造 AgentRuntime —— 测试替换点（mock Runtime 时 patch 本函数）。
 
     延迟导入：AgentRuntime 会连带加载 _tool_executor 等重依赖，
@@ -146,7 +148,7 @@ def _raise_for_agent(e: Exception, action: str) -> NoReturn:
 
 
 async def _check_session_ownership(
-    db: AsyncSession, session_id: int, current_user: User,
+    db: Session, session_id: int, current_user: User,
 ) -> AgentSession | None:
     """校验当前用户是否为指定会话的所有者，超级管理员绕过。
 
@@ -165,7 +167,7 @@ async def _check_session_ownership(
 
 
 async def _check_audit_session_ownership(
-    db: AsyncSession, audit_id: int, current_user: User,
+    db: Session, audit_id: int, current_user: User,
 ) -> None:
     """按 audit_id 查询审计记录，校验其关联会话的归属。
 
@@ -174,7 +176,7 @@ async def _check_audit_session_ownership(
     审计存在即意味着会话存在，无需单独处理会话缺失。
     """
     audit = (
-        await db.execute(select(AgentAudit).where(AgentAudit.id == audit_id))
+        await execute_async(db, select(AgentAudit).where(AgentAudit.id == audit_id))
     ).scalar_one_or_none()
     if audit is None:
         return
@@ -192,7 +194,7 @@ async def _check_audit_session_ownership(
 )
 async def create_session(
     req: SessionCreateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """创建 Agent 会话。
@@ -208,7 +210,7 @@ async def create_session(
             project_id=req.project_id,
             created_by=current_user.id,
         )
-        await db.commit()
+        await commit_async(db)
         data = SessionResponse.model_validate(session)
         return create_response(data=data.model_dump(), msg="会话创建成功")
     except Exception as e:
@@ -227,7 +229,7 @@ async def list_sessions(
     status: str | None = Query(None, description="会话状态过滤"),
     offset: int = Query(0, ge=0, description="偏移量"),
     limit: int = Query(20, ge=1, le=100, description="每页数量"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """分页查询会话列表。非法 agent_type/status 由 service 校验返回 400。"""
@@ -255,7 +257,7 @@ async def list_sessions(
 )
 async def get_session(
     session_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """按 ID 查询会话，不存在返回 404，非本人会话返回 403。"""
@@ -281,7 +283,7 @@ async def get_session(
 async def list_messages(
     session_id: int,
     limit: int = Query(50, ge=1, le=500, description="返回消息条数上限"),
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """按时间升序返回会话消息流。非本人会话返回 403。"""
@@ -302,14 +304,14 @@ async def list_messages(
 )
 async def cancel_session(
     session_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """取消会话（status=cancelled）。非本人会话返回 403。"""
     try:
         await _check_session_ownership(db, session_id, current_user)
         session = await _session_service.cancel_session(db, session_id)
-        await db.commit()
+        await commit_async(db)
         data = SessionResponse.model_validate(session)
         return create_response(data=data.model_dump(), msg="会话已取消")
     except Exception as e:
@@ -327,7 +329,7 @@ async def cancel_session(
 )
 async def list_session_audits(
     session_id: int,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """查询指定会话的审计记录；会话不存在时返回空列表（与 messages 端点契约一致）。"""
@@ -352,7 +354,7 @@ async def list_session_audits(
 )
 async def run_session(
     req: SessionCreateRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """创建并驱动 Agent 会话运行。
@@ -368,7 +370,7 @@ async def run_session(
             initial_artifacts=_parse_initial_artifacts(req.initial_artifacts),
             created_by=current_user.id,
         )
-        await db.commit()
+        await commit_async(db)
         return create_response(
             data=SessionResponse.model_validate(session).model_dump(),
             msg="Agent 会话执行完成",
@@ -386,7 +388,7 @@ async def run_session(
 async def approve_audit(
     audit_id: int,
     req: ApprovalRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """HITL 审批：approved=True 批准，False 拒绝。审计记录不存在返回 400，非本人会话返回 403。"""
@@ -398,7 +400,7 @@ async def approve_audit(
             approved_by=current_user.id,
             approved=req.approved,
         )
-        await db.commit()
+        await commit_async(db)
         _metrics.record_approval("approve" if req.approved else "reject")
         data = AuditResponse.model_validate(audit)
         return create_response(data=data.model_dump(), msg="审批成功")
@@ -418,7 +420,7 @@ async def approve_audit(
 async def rollback_audit(
     audit_id: int,
     req: RollbackRequest,
-    db: AsyncSession = Depends(async_get_db),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """回滚审计动作。original_action_type 由回滚审计 action_type 去前缀推导。非本人会话返回 403。"""
@@ -430,7 +432,7 @@ async def rollback_audit(
             rolled_by=current_user.id,
             reason=req.reason,
         )
-        await db.commit()
+        await commit_async(db)
         original_action_type = new_audit.action_type.removeprefix("rollback_")
         data = RollbackResponse(
             audit_id=audit_id,

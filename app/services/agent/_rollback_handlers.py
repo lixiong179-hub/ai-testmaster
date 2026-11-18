@@ -22,16 +22,18 @@ from collections.abc import Awaitable, Callable
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from app.models.agent_audit import AgentAudit
 from app.models.element_locator import ElementLocator
 from app.models.test_case import TestCase
+from app.services.db_async_compat import execute_async
 from app.utils.db_time import utcnow
 
 
 # RollbackHandler 协议：异步可调用，接收 (db, original_audit) 返回补偿详情 dict
 RollbackHandler = Callable[
-    [AsyncSession, AgentAudit], Awaitable[dict[str, object]]
+    [Session | AsyncSession, AgentAudit], Awaitable[dict[str, object]]
 ]
 
 
@@ -49,7 +51,7 @@ def get_rollback_handler(action_type: str) -> RollbackHandler | None:
 
 
 async def _handle_create_test_case(
-    db: AsyncSession, original_audit: AgentAudit,
+    db: Session | AsyncSession, original_audit: AgentAudit,
 ) -> dict[str, object]:
     """回滚 create_test_case：软删除对应测试用例。
 
@@ -64,11 +66,12 @@ async def _handle_create_test_case(
         }
 
     # 先 select 校验用例存在且未删除，避免无谓 UPDATE
-    result = await db.execute(
+    result = await execute_async(
+        db,
         select(TestCase.id).where(
             TestCase.id == test_case_id,
             TestCase.is_deleted.is_(False),
-        )
+        ),
     )
     if result.first() is None:
         return {
@@ -76,10 +79,11 @@ async def _handle_create_test_case(
             "reason": f"用例不存在或已删除: id={test_case_id}",
         }
 
-    await db.execute(
+    await execute_async(
+        db,
         update(TestCase)
         .where(TestCase.id == test_case_id)
-        .values(is_deleted=True, deleted_at=utcnow())
+        .values(is_deleted=True, deleted_at=utcnow()),
     )
     return {
         "deleted_test_case_id": test_case_id,
@@ -88,7 +92,7 @@ async def _handle_create_test_case(
 
 
 async def _handle_update_locator(
-    db: AsyncSession, original_audit: AgentAudit,
+    db: Session | AsyncSession, original_audit: AgentAudit,
 ) -> dict[str, object]:
     """回滚 update_locator：将 ElementLocator.css_selector 恢复为 old_selector。
 
@@ -103,10 +107,11 @@ async def _handle_update_locator(
             "reason": "action_detail 缺少 locator_id 或 old_selector",
         }
 
-    result = await db.execute(
+    result = await execute_async(
+        db,
         update(ElementLocator)
         .where(ElementLocator.id == locator_id)
-        .values(css_selector=old_selector, updated_at=utcnow())
+        .values(css_selector=old_selector, updated_at=utcnow()),
     )
     if result.rowcount == 0:
         return {
