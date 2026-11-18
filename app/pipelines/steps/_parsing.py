@@ -5,64 +5,85 @@ from typing import Any
 from loguru import logger
 
 
-def _parse_case_response(content: str) -> list[dict[str, Any]] | None:
-    from app.utils.ai_client_parser import fix_common_json_issues, clean_json_string
+#: `json.loads` 失败哨兵——用于区分「解析失败」与「合法 JSON 的 null」。
+_JSON_PARSE_FAILED = object()
 
-    content = content.strip()
-    if content.startswith("```"):
-        lines = content.split("\n")
-        content = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
 
+def _strip_code_fence(text: str) -> str:
+    """去掉首尾空白与 ``` 代码围栏（含围栏无结尾的容错）。"""
+    text = text.strip()
+    if not text.startswith("```"):
+        return text
+    lines = text.split("\n")
+    return "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+
+
+def _loads_or_sentinel(text: str) -> Any:
+    """解析 JSON；失败返回 `_JSON_PARSE_FAILED`（不抛异常，便于链式回退）。"""
     try:
-        result = json.loads(content)
-        if isinstance(result, list):
-            return result
-        if isinstance(result, dict):
-            cases = result.get("cases") or result.get("test_cases") or []
-            if isinstance(cases, list):
-                return cases
-            if result.get("title") or result.get("steps"):
-                return [result]
+        return json.loads(text)
     except json.JSONDecodeError:
-        pass
+        return _JSON_PARSE_FAILED
 
-    fixed = fix_common_json_issues(content)
-    if fixed:
-        try:
-            result = json.loads(fixed)
-            if isinstance(result, list):
-                return result
-            if isinstance(result, dict):
-                cases = result.get("cases") or result.get("test_cases") or []
-                if isinstance(cases, list):
-                    return cases
-                if result.get("title") or result.get("steps"):
-                    return [result]
-        except json.JSONDecodeError:
-            pass
 
-    cleaned = clean_json_string(content)
-    if cleaned:
-        try:
-            result = json.loads(cleaned)
-            if isinstance(result, list):
-                return result
-            if isinstance(result, dict) and (result.get("title") or result.get("steps")):
-                return [result]
-        except json.JSONDecodeError:
-            pass
+def _normalize_cases(payload: Any, *, allow_cases_key: bool) -> list[dict[str, Any]] | None:
+    """把已解析的 JSON 归一化为用例列表；无法归一化返回 None。
 
-    json_match = re.search(r"\[[\s\S]*\]", content)
-    if json_match:
-        array_content = json_match.group()
-        fixed_array = clean_json_string(array_content)
-        if fixed_array:
-            try:
-                return json.loads(fixed_array)
-            except json.JSONDecodeError:
-                pass
-
+    `allow_cases_key=True` 走「`cases` / `test_cases` 包装」路径（首轮与修复后解析用）；
+    `False` 用于 `clean_json_string` 路径，该路径历史上只认顶层 list 或含 title/steps 的 dict。
+    """
+    if isinstance(payload, list):
+        return payload
+    if not isinstance(payload, dict):
+        return None
+    if allow_cases_key:
+        cases = payload.get("cases") or payload.get("test_cases") or []
+        if isinstance(cases, list):
+            return cases
+    if payload.get("title") or payload.get("steps"):
+        return [payload]
     return None
+
+
+def _parse_from_array_fragment(text: str) -> Any | None:
+    """末级兜底：正则截取首个 `[...]` 片段，清洗后解析（不校验顶层类型，与历史行为一致）。"""
+    from app.utils.ai_client_parser import clean_json_string
+
+    json_match = re.search(r"\[[\s\S]*\]", text)
+    if not json_match:
+        return None
+    fixed_array = clean_json_string(json_match.group())
+    if not fixed_array:
+        return None
+    payload = _loads_or_sentinel(fixed_array)
+    return None if payload is _JSON_PARSE_FAILED else payload
+
+
+def _parse_case_response(content: str) -> list[dict[str, Any]] | None:
+    """AI 响应 → 用例列表，按「原文 / 修复后 / 清洗后 / 正则截取」四级回退。"""
+    from app.utils.ai_client_parser import clean_json_string, fix_common_json_issues
+
+    text = _strip_code_fence(content)
+
+    for candidate in (text, fix_common_json_issues(text)):
+        if not candidate:
+            continue
+        payload = _loads_or_sentinel(candidate)
+        if payload is _JSON_PARSE_FAILED:
+            continue
+        cases = _normalize_cases(payload, allow_cases_key=True)
+        if cases is not None:
+            return cases
+
+    cleaned = clean_json_string(text)
+    if cleaned:
+        payload = _loads_or_sentinel(cleaned)
+        if payload is not _JSON_PARSE_FAILED:
+            cases = _normalize_cases(payload, allow_cases_key=False)
+            if cases is not None:
+                return cases
+
+    return _parse_from_array_fragment(text)
 
 
 def _validate_test_data(case: dict[str, Any]) -> None:
