@@ -58,6 +58,10 @@ jobs:
         # 只查 app（与 `ruff check app` 同口径）；tests/scripts 虽已格式化，暂不入门禁以免误伤历史 PR。
         # alembic/versions 有意不格式化（冻结迁移历史），故不能用全仓 `ruff format --check .`
         run: ruff format --check app
+      - name: C901 complexity gate
+        # G-8（2026-11-18 立项）：C901 长期全局豁免，立项实测 150 处 / 129 文件。
+        # 棘轮：总量只减不增 + 豁免 ≤5 且须实存（见脚本 WHITELIST，审批标准 = 策略页 §4）
+        run: python scripts/check_c901_budget.py
       - name: AsyncSession convergence gate
         # R2-1 已结项（2026-11-17）：async_get_db 使用面 0，仅余 app/db/database/ 定义与再导出；
         # 白名单只减不增，任何端点/服务新增 async_get_db 即失败（预算见 scripts/check_async_session_convergence.py）
