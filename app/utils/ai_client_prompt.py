@@ -146,6 +146,92 @@ def sanitize_input(text: str, max_length: int = 50000) -> str:
     return text.strip()
 
 
+def _format_regions(regions: Any, screen_name: str | None) -> list[str]:
+    """页面区域：dict（name→desc）与 list（含 name/description 的对象）两种形态。"""
+    if not regions:
+        return []
+    parts = [f"\n{'页面区域' if screen_name else '【页面区域结构】'}："]
+    for item in regions.items() if isinstance(regions, dict) else regions:
+        if isinstance(item, tuple):
+            region_name, region_desc = item
+        else:
+            region_name = item.get("name", "")
+            region_desc = item.get("description", "")
+        if region_desc:
+            parts.append(f"  - {region_name}: {region_desc}")
+    return parts
+
+
+def _format_elements(elements: list[dict[str, Any]], screen_name: str | None) -> list[str]:
+    """页面元素：详细模式带位置，简洁模式省略位置；各模式有各自截断上限。"""
+    if not elements:
+        return []
+    max_elements = 30 if screen_name else 20
+    parts = [f"\n{'页面元素' if screen_name else '【页面元素】'}（共{len(elements)}个）："]
+    for elem in elements[:max_elements]:
+        elem_type = elem.get("type", "未知")
+        label = elem.get("label", "") or elem.get("semantic", "") or elem.get("name", "")
+        position = elem.get("position", "")
+        state = elem.get("state", "normal")
+        interactive = elem.get("interactive", False)
+        desc = elem.get("description", "")
+        if screen_name:
+            parts.append(f"  - [{elem_type}] {label} | 状态:{state} | 可交互:{interactive} | {desc}")
+        else:
+            parts.append(f"  - [{elem_type}] {label} | 位置:{position} | 状态:{state} | 可交互:{interactive} | {desc}")
+    return parts
+
+
+def _format_navigation(navigation: dict[str, Any], screen_name: str | None) -> list[str]:
+    if not navigation:
+        return []
+    parts = [f"\n{'导航结构' if screen_name else '【导航结构】'}："]
+    for nav_key, nav_val in navigation.items():
+        if nav_val:
+            parts.append(f"  - {nav_key}: {nav_val}")
+    return parts
+
+
+def _format_layout_constraints(layout_checks: list[dict[str, Any]], screen_name: str | None) -> list[str]:
+    if not layout_checks:
+        return []
+    parts = [f"\n{'布局约束' if screen_name else '【布局约束】'}（共{len(layout_checks)}项）："]
+    for check in layout_checks[:10]:
+        check_type = check.get("type", "")
+        desc = check.get("description", "")
+        priority = check.get("priority", "")
+        if screen_name:
+            parts.append(f"  - [{check_type}] {desc} (优先级:{priority})")
+        else:
+            parts.append(f"  - [{check_type}][{priority}] {desc}")
+    return parts
+
+
+def _format_adaptation_checks(ui_checks: list[dict[str, Any]]) -> list[str]:
+    """UI 适配检查点：无简洁模式分支，两种模式同格式。"""
+    if not ui_checks:
+        return []
+    parts = [f"\n【UI适配检查点】（共{len(ui_checks)}项）："]
+    for check in ui_checks[:10]:
+        check_type = check.get("check_type", "")
+        desc = check.get("description", "")
+        severity = check.get("severity", "")
+        parts.append(f"  - [{check_type}][{severity}] {desc}")
+    return parts
+
+
+def _format_flows(flows: dict[str, Any], screen_name: str | None) -> list[str]:
+    if not flows:
+        return []
+    next_screens = flows.get("expected_next_screens", [])
+    if not next_screens:
+        return []
+    label = "预期跳转页面" if screen_name else "【预期跳转页面】"
+    if isinstance(next_screens, list):
+        return [f"\n{label}：{', '.join(str(s) for s in next_screens)}"]
+    return [f"\n{label}：{next_screens!s}"]
+
+
 def build_ui_spec_description(ui_spec: dict[str, Any], screen_name: str | None = None) -> str:
     """将单个UI规格对象格式化为可读文本描述
 
@@ -163,76 +249,19 @@ def build_ui_spec_description(ui_spec: dict[str, Any], screen_name: str | None =
     """
     if not ui_spec:
         return "无UI原型图解析结果"
-    parts = []
+    parts: list[str] = []
     if screen_name:
         parts.append(f"=== 页面：{screen_name} ===")
     if ui_spec.get("screen_name") and not screen_name:
         parts.append(f"【屏幕名称】{ui_spec['screen_name']}")
     if ui_spec.get("purpose"):
         parts.append(f"{'页面功能' if screen_name else '【页面功能】'}：{ui_spec['purpose']}")
-    regions = ui_spec.get("regions", {})
-    if regions:
-        region_items = regions.items() if isinstance(regions, dict) else regions
-        parts.append(f"\n{'页面区域' if screen_name else '【页面区域结构】'}：")
-        for item in region_items:
-            if isinstance(item, tuple):
-                region_name, region_desc = item
-            else:
-                region_name = item.get("name", "")
-                region_desc = item.get("description", "")
-            if region_desc:
-                parts.append(f"  - {region_name}: {region_desc}")
-    elements = ui_spec.get("elements", [])
-    if elements:
-        max_elements = 30 if screen_name else 20
-        parts.append(f"\n{'页面元素' if screen_name else '【页面元素】'}（共{len(elements)}个）：")
-        for elem in elements[:max_elements]:
-            elem_type = elem.get("type", "未知")
-            label = elem.get("label", "") or elem.get("semantic", "") or elem.get("name", "")
-            position = elem.get("position", "")
-            state = elem.get("state", "normal")
-            interactive = elem.get("interactive", False)
-            desc = elem.get("description", "")
-            if screen_name:
-                parts.append(f"  - [{elem_type}] {label} | 状态:{state} | 可交互:{interactive} | {desc}")
-            else:
-                parts.append(
-                    f"  - [{elem_type}] {label} | 位置:{position} | 状态:{state} | 可交互:{interactive} | {desc}"
-                )
-    navigation = ui_spec.get("navigation", {})
-    if navigation:
-        parts.append(f"\n{'导航结构' if screen_name else '【导航结构】'}：")
-        for nav_key, nav_val in navigation.items():
-            if nav_val:
-                parts.append(f"  - {nav_key}: {nav_val}")
-    layout_checks = ui_spec.get("layout_constraints", [])
-    if layout_checks:
-        parts.append(f"\n{'布局约束' if screen_name else '【布局约束】'}（共{len(layout_checks)}项）：")
-        for check in layout_checks[:10]:
-            check_type = check.get("type", "")
-            desc = check.get("description", "")
-            priority = check.get("priority", "")
-            if screen_name:
-                parts.append(f"  - [{check_type}] {desc} (优先级:{priority})")
-            else:
-                parts.append(f"  - [{check_type}][{priority}] {desc}")
-    ui_checks = ui_spec.get("ui_adaptation_checks", [])
-    if ui_checks:
-        parts.append(f"\n【UI适配检查点】（共{len(ui_checks)}项）：")
-        for check in ui_checks[:10]:
-            check_type = check.get("check_type", "")
-            desc = check.get("description", "")
-            severity = check.get("severity", "")
-            parts.append(f"  - [{check_type}][{severity}] {desc}")
-    flows = ui_spec.get("flows", {})
-    if flows:
-        next_screens = flows.get("expected_next_screens", [])
-        if next_screens:
-            if isinstance(next_screens, list):
-                screen_names = [str(s) if isinstance(s, dict) else str(s) for s in next_screens]
-                parts.append(f"\n{'预期跳转页面' if screen_name else '【预期跳转页面】'}：{', '.join(screen_names)}")
-            else:
-                parts.append(f"\n{'预期跳转页面' if screen_name else '【预期跳转页面】'}：{str(next_screens)}")
+    parts.extend(_format_regions(ui_spec.get("regions", {}), screen_name))
+    parts.extend(_format_elements(ui_spec.get("elements", []), screen_name))
+    parts.extend(_format_navigation(ui_spec.get("navigation", {}), screen_name))
+    parts.extend(_format_layout_constraints(ui_spec.get("layout_constraints", []), screen_name))
+    parts.extend(_format_adaptation_checks(ui_spec.get("ui_adaptation_checks", [])))
+    parts.extend(_format_flows(ui_spec.get("flows", {}), screen_name))
     return "\n".join(parts) if parts else "无有效UI原型图解析结果"
 
 
