@@ -13,6 +13,7 @@ AI 生成成本基线采集脚本
 依赖关系：
     - app.db.database : SecondarySessionLocal
 """
+
 import argparse
 import json
 import logging
@@ -32,7 +33,8 @@ logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "docs", "baseline",
+    "docs",
+    "baseline",
 )
 
 
@@ -42,14 +44,18 @@ def _collect_ai_call_log(db: Session, min_sample_size: int) -> Dict[str, Any]:
         return {"total_calls": 0, "source": "ai_call_log"}
 
     limit = max(total, min_sample_size)
-    logs = db.execute(
-        text(
-            "SELECT id, model, prompt_tokens, completion_tokens, "
-            "cost_usd, latency_ms, status, step_name, created_at "
-            "FROM ai_call_log ORDER BY created_at DESC LIMIT :limit"
-        ),
-        {"limit": limit},
-    ).mappings().all()
+    logs = (
+        db.execute(
+            text(
+                "SELECT id, model, prompt_tokens, completion_tokens, "
+                "cost_usd, latency_ms, status, step_name, created_at "
+                "FROM ai_call_log ORDER BY created_at DESC LIMIT :limit"
+            ),
+            {"limit": limit},
+        )
+        .mappings()
+        .all()
+    )
 
     success_logs = [l for l in logs if l["status"] == "success"]
     failed_logs = [l for l in logs if l["status"] != "success"]
@@ -123,14 +129,18 @@ def _collect_api_cost_log(db: Session, min_sample_size: int) -> Dict[str, Any]:
         return {"total_calls": 0, "source": "api_cost_log"}
 
     limit = max(total, min_sample_size)
-    logs = db.execute(
-        text(
-            "SELECT id, model, input_tokens, output_tokens, "
-            "cost, status, api_type, call_time "
-            "FROM api_cost_log ORDER BY call_time DESC LIMIT :limit"
-        ),
-        {"limit": limit},
-    ).mappings().all()
+    logs = (
+        db.execute(
+            text(
+                "SELECT id, model, input_tokens, output_tokens, "
+                "cost, status, api_type, call_time "
+                "FROM api_cost_log ORDER BY call_time DESC LIMIT :limit"
+            ),
+            {"limit": limit},
+        )
+        .mappings()
+        .all()
+    )
 
     success_logs = [l for l in logs if l["status"] == "success"]
     failed_logs = [l for l in logs if l["status"] != "success"]
@@ -220,9 +230,7 @@ def _generate_report(data: Dict[str, Any], output_path: str) -> None:
             lines.append("| 模型 | 调用次数 | 平均延迟（ms） | 总成本（USD） |")
             lines.append("|------|----------|----------------|---------------|")
             for model, stats in sorted(primary["by_model"].items()):
-                lines.append(
-                    f"| {model} | {stats['calls']} | {stats['avg_latency_ms']} | {stats['total_cost_usd']} |"
-                )
+                lines.append(f"| {model} | {stats['calls']} | {stats['avg_latency_ms']} | {stats['total_cost_usd']} |")
             lines.append("")
 
         if primary.get("by_step"):

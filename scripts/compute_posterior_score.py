@@ -8,6 +8,7 @@
     --min-executions 最低执行次数要求，不传则取配置值 POSTERIOR_MIN_EXECUTIONS
     --dry-run        仅计算不写入数据库
 """
+
 import argparse
 import sys
 from pathlib import Path

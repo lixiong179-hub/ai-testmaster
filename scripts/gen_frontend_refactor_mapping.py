@@ -8,6 +8,7 @@
 
 用法：python scripts/gen_frontend_refactor_mapping.py [--out PATH]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,8 +42,16 @@ LAYER_BY_SEGMENT = {
     "styles": "样式层",
 }
 INFRA_LAYERS = {
-    "应用入口层", "API 层", "Store 层", "工具层", "类型层", "路由层",
-    "布局层", "常量层", "指令层", "样式层",
+    "应用入口层",
+    "API 层",
+    "Store 层",
+    "工具层",
+    "类型层",
+    "路由层",
+    "布局层",
+    "常量层",
+    "指令层",
+    "样式层",
 }
 
 # 领域：按路径关键字判定，顺序敏感（先具体后宽泛）
@@ -50,7 +59,10 @@ DOMAIN_RULES = [
     ("app", r"^src/(app\.vue|main\.ts)$|^src/views/test/"),
     ("admin", r"(^|/)admin(/|$)|ai-cost|aicost"),
     ("analysis", r"(^|/)analysis(/|$)|analysispage"),
-    ("execution", r"(execution|test-task|test_task|quick-test|quicktest|task-detail|taskdetail|batch|replay|playback|visual|mobile|(^|/)task(/|$))"),
+    (
+        "execution",
+        r"(execution|test-task|test_task|quick-test|quicktest|task-detail|taskdetail|batch|replay|playback|visual|mobile|(^|/)task(/|$))",
+    ),
     ("report", r"(report|defect|bug)"),
     ("review", r"(review|quality|posterior|visibility)"),
     ("pipeline", r"(pipeline|iteration|smart-generat|smartgenerate)"),
@@ -393,9 +405,7 @@ def render(rows: list[dict[str, object]], unclassified: list[str]) -> str:
     lines.append("")
     lines.append("## 2. 逐文件映射")
     lines.append("")
-    lines.append(
-        "| # | 现有路径 | 层 | 领域 | 关联路由 | 生产引用 | spec | 批次 | 建议动作 |"
-    )
+    lines.append("| # | 现有路径 | 层 | 领域 | 关联路由 | 生产引用 | spec | 批次 | 建议动作 |")
     lines.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
     for idx, row in enumerate(rows, start=1):
         routes = " / ".join(f"`{p}`" for p in row["routes"]) if row["routes"] else "—"

@@ -16,7 +16,8 @@ PoC: 验证 flow_sort_data 对测试用例生成质量的影响
 import json
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.core.config import settings
 from app.api.v1.endpoints.test_case_ai_schemas import AIGenerateEnhancedRequest
@@ -49,9 +50,9 @@ def build_test_context():
                     "elements": [
                         {"type": "search_bar", "label": "搜索框"},
                         {"type": "product_card", "label": "商品卡片", "count": 10},
-                        {"type": "tab", "label": "分类标签"}
+                        {"type": "tab", "label": "分类标签"},
                     ]
-                }
+                },
             },
             {
                 "screen_id": 2,
@@ -62,9 +63,9 @@ def build_test_context():
                         {"type": "text", "label": "商品名称"},
                         {"type": "text", "label": "价格"},
                         {"type": "button", "label": "加入购物车"},
-                        {"type": "button", "label": "立即购买"}
+                        {"type": "button", "label": "立即购买"},
                     ]
-                }
+                },
             },
             {
                 "screen_id": 3,
@@ -75,9 +76,9 @@ def build_test_context():
                         {"type": "text", "label": "商品名称"},
                         {"type": "stepper", "label": "数量调整"},
                         {"type": "text", "label": "小计金额"},
-                        {"type": "button", "label": "去结算"}
+                        {"type": "button", "label": "去结算"},
                     ]
-                }
+                },
             },
             {
                 "screen_id": 4,
@@ -88,9 +89,9 @@ def build_test_context():
                         {"type": "radio", "label": "支付方式"},
                         {"type": "coupon_selector", "label": "优惠券选择"},
                         {"type": "text", "label": "订单金额"},
-                        {"type": "button", "label": "提交订单"}
+                        {"type": "button", "label": "提交订单"},
                     ]
-                }
+                },
             },
             {
                 "screen_id": 5,
@@ -99,9 +100,9 @@ def build_test_context():
                     "elements": [
                         {"type": "text", "label": "支付金额"},
                         {"type": "button", "label": "确认支付"},
-                        {"type": "link", "label": "更换支付方式"}
+                        {"type": "link", "label": "更换支付方式"},
                     ]
-                }
+                },
             },
             {
                 "screen_id": 6,
@@ -111,15 +112,30 @@ def build_test_context():
                         {"type": "status_badge", "label": "订单状态"},
                         {"type": "text", "label": "订单号"},
                         {"type": "text", "label": "支付金额"},
-                        {"type": "button", "label": "查看物流"}
+                        {"type": "button", "label": "查看物流"},
                     ]
-                }
+                },
             },
         ],
         "test_points": [
-            {"module": "下单流程", "function": "商品购买", "point": "用户可以完成从商品浏览到支付成功的完整购买流程", "priority": 1},
-            {"module": "下单流程", "function": "支付异常", "point": "支付失败时用户可以重试或更换支付方式", "priority": 2},
-            {"module": "下单流程", "function": "优惠券使用", "point": "用户可以在订单确认页使用优惠券并正确计算金额", "priority": 2},
+            {
+                "module": "下单流程",
+                "function": "商品购买",
+                "point": "用户可以完成从商品浏览到支付成功的完整购买流程",
+                "priority": 1,
+            },
+            {
+                "module": "下单流程",
+                "function": "支付异常",
+                "point": "支付失败时用户可以重试或更换支付方式",
+                "priority": 2,
+            },
+            {
+                "module": "下单流程",
+                "function": "优惠券使用",
+                "point": "用户可以在订单确认页使用优惠券并正确计算金额",
+                "priority": 2,
+            },
         ],
         "ui_descriptions": ["商品列表页", "商品详情页", "购物车页面", "订单确认页", "支付页面", "订单详情页"],
     }
@@ -128,6 +144,7 @@ def build_test_context():
 def build_flow_sort_data_main_only():
     """仅主流程排序（无分支）"""
     from app.schemas.test_case._flow import FlowSortDataSchema, FlowNodeSchema, FlowEdgeSchema
+
     return FlowSortDataSchema(
         nodes=[
             FlowNodeSchema(screen_id=1, screen_order=1, flow_type="main", main_order=1, screen_name="商品列表页"),
@@ -144,6 +161,7 @@ def build_flow_sort_data_main_only():
 def build_flow_sort_data_with_branches():
     """主流程 + 分支流程"""
     from app.schemas.test_case._flow import FlowSortDataSchema, FlowNodeSchema, FlowEdgeSchema
+
     return FlowSortDataSchema(
         nodes=[
             FlowNodeSchema(screen_id=1, screen_order=1, flow_type="main", main_order=1, screen_name="商品列表页"),
@@ -159,9 +177,19 @@ def build_flow_sort_data_with_branches():
             FlowEdgeSchema(source="3", target="4", edge_type="normal", label="去结算"),
             FlowEdgeSchema(source="4", target="5", edge_type="normal", label="提交订单"),
             FlowEdgeSchema(source="5", target="6", edge_type="normal", label="支付成功"),
-            FlowEdgeSchema(source="5", target="5", edge_type="exception", label="支付失败重试", condition="支付失败，提示重试或更换支付方式"),
-            FlowEdgeSchema(source="4", target="4", edge_type="branch", label="使用优惠券", condition="选择优惠券后金额自动重新计算"),
-            FlowEdgeSchema(source="4", target="4", edge_type="exception", label="库存不足", condition="商品库存不足，提示用户"),
+            FlowEdgeSchema(
+                source="5",
+                target="5",
+                edge_type="exception",
+                label="支付失败重试",
+                condition="支付失败，提示重试或更换支付方式",
+            ),
+            FlowEdgeSchema(
+                source="4", target="4", edge_type="branch", label="使用优惠券", condition="选择优惠券后金额自动重新计算"
+            ),
+            FlowEdgeSchema(
+                source="4", target="4", edge_type="exception", label="库存不足", condition="商品库存不足，提示用户"
+            ),
         ],
     )
 
@@ -191,11 +219,16 @@ def evaluate_quality(cases: list, label: str) -> dict:
             branch_coverage += 1
 
         # 检查跨页面关联
-        page_refs = sum(1 for kw in ["商品列表", "商品详情", "购物车", "订单确认", "支付页面", "订单详情"] if kw in case_text)
+        page_refs = sum(
+            1 for kw in ["商品列表", "商品详情", "购物车", "订单确认", "支付页面", "订单详情"] if kw in case_text
+        )
         cross_page_refs += page_refs
 
         # 检查主流程顺序
-        step_texts = [s.get("description", "") if isinstance(s, dict) else str(s) for s in (steps if isinstance(steps, list) else [])]
+        step_texts = [
+            s.get("description", "") if isinstance(s, dict) else str(s)
+            for s in (steps if isinstance(steps, list) else [])
+        ]
         main_flow_keywords = ["商品列表", "商品详情", "购物车", "订单确认", "支付"]
         found_indices = []
         for kw in main_flow_keywords:
@@ -237,6 +270,7 @@ def main():
     if not prompt_a:
         # linear 模式没有 graph_prompt，构建一个简化 prompt 用于对比
         from app.utils.ai_client_enhanced._enhanced import generate_test_case_enhanced
+
         prompt_a = "linear mode - prompt built by PromptBuilder.for_test_case"
     print(f"  Prompt 长度: {len(str(prompt_a))} 字符")
 

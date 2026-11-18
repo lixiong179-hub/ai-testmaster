@@ -14,6 +14,7 @@ Prompt 键列表:
 使用方式:
     python -m scripts.seed_prompt_templates
 """
+
 import sys
 from pathlib import Path
 
@@ -47,12 +48,10 @@ _DEFAULT_PROMPTS: dict[str, str] = {
         "智能合并，去重并补充新测试点，保留已有测试点的用例关联关系。"
     ),
     "XMIND_UI_COMPLETION": (
-        "你是AI测试用例补全专家。请根据XMind测试点和UI规格，补全缺失的"
-        "测试用例，特别关注UI适配、交互边界和异常流程。"
+        "你是AI测试用例补全专家。请根据XMind测试点和UI规格，补全缺失的测试用例，特别关注UI适配、交互边界和异常流程。"
     ),
     "EXCEL_UI_ADAPTATION": (
-        "你是AI UI适配测试专家。请根据Excel用例和目标设备UI规格，"
-        "适配生成目标设备的测试用例，调整元素定位器和交互步骤。"
+        "你是AI UI适配测试专家。请根据Excel用例和目标设备UI规格，适配生成目标设备的测试用例，调整元素定位器和交互步骤。"
     ),
 }
 

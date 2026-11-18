@@ -2,6 +2,7 @@
 T9 迭代中心 + T10 系统管理 详细级复测脚本
 策略：双重保护 - API拦截 + token保护 + location.href拦截
 """
+
 import asyncio
 import base64
 import json
@@ -13,23 +14,27 @@ from playwright.async_api import async_playwright, Page, Route
 BASE_URL = "http://localhost:3001"
 PERM_SIG = "16"
 
+
 def make_fake_jwt() -> str:
-    header = base64.urlsafe_b64encode(
-        json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
-    ).decode().rstrip("=")
-    payload = base64.urlsafe_b64encode(
-        json.dumps({"sub": 1, "exp": 9999999999, "username": "admin"}).encode()
-    ).decode().rstrip("=")
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).decode().rstrip("=")
+    payload = (
+        base64.urlsafe_b64encode(json.dumps({"sub": 1, "exp": 9999999999, "username": "admin"}).encode())
+        .decode()
+        .rstrip("=")
+    )
     return f"{header}.{payload}.fakesig"
+
 
 FAKE_TOKEN = make_fake_jwt()
 USER_INFO_JSON = json.dumps({"permissions": ["*"], "__perm_sig__": PERM_SIG})
+
 
 def api_response(data=None, total=None):
     resp = {"code": 0, "msg": "success", "message": "success", "data": data}
     if total is not None:
         resp["total"] = total
     return json.dumps(resp)
+
 
 results: list[dict] = []
 
@@ -42,6 +47,7 @@ def record(check_id: str, operation: str, expected: str, actual: str, status: st
 
 async def setup_api_interception(context, page: Page):
     """精确拦截 /api/v1/ 请求"""
+
     async def handle_api(route: Route):
         url = route.request.url
         method = route.request.method
@@ -53,14 +59,35 @@ async def setup_api_interception(context, page: Page):
 
         if method == "POST":
             if "/precheck" in url:
-                await route.fulfill(status=200, content_type="application/json",
-                    body=api_response({
-                        "project_id": 1,
-                        "can_run": True, "blocking_reasons": [], "warnings": [],
-                        "ui": {"selected_screen_count": 5, "parsed_screen_count": 5, "unparsed_screen_count": 0, "parse_failed_count": 0, "usable_screen_ids": [1,2,3,4,5]},
-                        "history_cases": {"total": 10, "included": 8, "active": 5, "draft": 2, "pending_review": 1, "archived": 1, "deleted": 1},
-                        "test_points": {"total": 5, "selected": 0}
-                    }))
+                await route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body=api_response(
+                        {
+                            "project_id": 1,
+                            "can_run": True,
+                            "blocking_reasons": [],
+                            "warnings": [],
+                            "ui": {
+                                "selected_screen_count": 5,
+                                "parsed_screen_count": 5,
+                                "unparsed_screen_count": 0,
+                                "parse_failed_count": 0,
+                                "usable_screen_ids": [1, 2, 3, 4, 5],
+                            },
+                            "history_cases": {
+                                "total": 10,
+                                "included": 8,
+                                "active": 5,
+                                "draft": 2,
+                                "pending_review": 1,
+                                "archived": 1,
+                                "deleted": 1,
+                            },
+                            "test_points": {"total": 5, "selected": 0},
+                        }
+                    ),
+                )
             else:
                 await route.fulfill(status=200, content_type="application/json", body=api_response({}))
             return
@@ -72,63 +99,206 @@ async def setup_api_interception(context, page: Page):
             return
 
         # GET 请求
-        if "/user/" in url and "/role" not in url and "/permission" not in url and "/login-log" not in url and "/change-password" not in url and "/me" not in url:
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response([{"id": 1, "username": "admin", "email": "admin@test.com",
-                     "phone": "13800000000", "status": True,
-                     "last_login_time": "2025-01-01 10:00:00", "created_at": "2025-01-01"}], total=1))
+        if (
+            "/user/" in url
+            and "/role" not in url
+            and "/permission" not in url
+            and "/login-log" not in url
+            and "/change-password" not in url
+            and "/me" not in url
+        ):
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    [
+                        {
+                            "id": 1,
+                            "username": "admin",
+                            "email": "admin@test.com",
+                            "phone": "13800000000",
+                            "status": True,
+                            "last_login_time": "2025-01-01 10:00:00",
+                            "created_at": "2025-01-01",
+                        }
+                    ],
+                    total=1,
+                ),
+            )
         elif "/user/role" in url:
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response([{"id": 1, "name": "超级管理员", "desc": "拥有所有权限",
-                     "permissions": ["*"], "created_at": "2025-01-01"}], total=1))
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    [
+                        {
+                            "id": 1,
+                            "name": "超级管理员",
+                            "desc": "拥有所有权限",
+                            "permissions": ["*"],
+                            "created_at": "2025-01-01",
+                        }
+                    ],
+                    total=1,
+                ),
+            )
         elif "/user/permission" in url:
             await route.fulfill(status=200, content_type="application/json", body=api_response([]))
         elif "/user/login-log" in url:
             await route.fulfill(status=200, content_type="application/json", body=api_response([], total=0))
         elif "/user/me" in url:
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response({"id": 1, "username": "admin", "email": "admin@test.com",
-                    "phone": "13800000000", "status": True, "roles": [{"id": 1, "name": "超级管理员"}]}))
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    {
+                        "id": 1,
+                        "username": "admin",
+                        "email": "admin@test.com",
+                        "phone": "13800000000",
+                        "status": True,
+                        "roles": [{"id": 1, "name": "超级管理员"}],
+                    }
+                ),
+            )
         elif "/audit-log" in url:
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response([{"id": 1, "action": "create", "actor_id": 1,
-                     "target_kind": "project", "target_id": 1, "detail": "创建项目",
-                     "run_id": None, "iteration_id": None, "created_at": "2025-01-01 10:00:00"}], total=1))
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    [
+                        {
+                            "id": 1,
+                            "action": "create",
+                            "actor_id": 1,
+                            "target_kind": "project",
+                            "target_id": 1,
+                            "detail": "创建项目",
+                            "run_id": None,
+                            "iteration_id": None,
+                            "created_at": "2025-01-01 10:00:00",
+                        }
+                    ],
+                    total=1,
+                ),
+            )
         elif "/project" in url:
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response([{"id": 1, "name": "测试项目", "description": "测试项目描述",
-                     "status": "active", "created_at": "2025-01-01"}]))
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    [
+                        {
+                            "id": 1,
+                            "name": "测试项目",
+                            "description": "测试项目描述",
+                            "status": "active",
+                            "created_at": "2025-01-01",
+                        }
+                    ]
+                ),
+            )
         elif "/pipeline" in url and "/dashboard" in url:
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response({"overview": {"total_runs": 10, "success_rate": 0.85, "avg_duration": 120, "total_tokens": 50000},
-                    "daily_tokens": [], "daily_duration": [], "step_latency": [], "cache_hit_rate": [], "fmea_metrics": []}))
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    {
+                        "overview": {
+                            "total_runs": 10,
+                            "success_rate": 0.85,
+                            "avg_duration": 120,
+                            "total_tokens": 50000,
+                        },
+                        "daily_tokens": [],
+                        "daily_duration": [],
+                        "step_latency": [],
+                        "cache_hit_rate": [],
+                        "fmea_metrics": [],
+                    }
+                ),
+            )
         elif "/pipeline" in url and "/summary" in url:
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response({"total_steps": 1, "completed_steps": 1, "failed_steps": 0,
-                    "total_duration": 120, "total_tokens": 5000}))
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    {
+                        "total_steps": 1,
+                        "completed_steps": 1,
+                        "failed_steps": 0,
+                        "total_duration": 120,
+                        "total_tokens": 5000,
+                    }
+                ),
+            )
         elif "/pipeline" in url and re.search(r"/pipeline/\d+", url):
             # 单个 Pipeline Run 详情: /api/v1/pipeline/{runId}
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response({"id": 99999, "iteration_id": 1, "input_hash": "abc123",
-                    "pipeline_version": "v4", "status": "completed",
-                    "started_at": "2025-01-01 10:00:00", "finished_at": "2025-01-01 10:05:00",
-                    "error": None, "pause_payload": None,
-                    "steps": [{"name": "步骤1", "status": "completed", "started_at": "2025-01-01 10:00:00", "finished_at": "2025-01-01 10:02:00", "error": None}],
-                    "artifacts": []}))
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    {
+                        "id": 99999,
+                        "iteration_id": 1,
+                        "input_hash": "abc123",
+                        "pipeline_version": "v4",
+                        "status": "completed",
+                        "started_at": "2025-01-01 10:00:00",
+                        "finished_at": "2025-01-01 10:05:00",
+                        "error": None,
+                        "pause_payload": None,
+                        "steps": [
+                            {
+                                "name": "步骤1",
+                                "status": "completed",
+                                "started_at": "2025-01-01 10:00:00",
+                                "finished_at": "2025-01-01 10:02:00",
+                                "error": None,
+                            }
+                        ],
+                        "artifacts": [],
+                    }
+                ),
+            )
         elif "/pipeline" in url:
             await route.fulfill(status=200, content_type="application/json", body=api_response([]))
         elif "/test-capability" in url:
             await route.fulfill(status=200, content_type="application/json", body=api_response([], total=0))
         elif "/iteration" in url:
             # 迭代列表 - 返回至少一条迭代数据
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response([{"id": 1, "name": "迭代1", "version": "v1.0",
-                    "description": "测试迭代", "project_id": 1,
-                    "status": "active", "created_at": "2025-01-01"}]))
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    [
+                        {
+                            "id": 1,
+                            "name": "迭代1",
+                            "version": "v1.0",
+                            "description": "测试迭代",
+                            "project_id": 1,
+                            "status": "active",
+                            "created_at": "2025-01-01",
+                        }
+                    ]
+                ),
+            )
         elif "/auth/me" in url or "/current" in url:
-            await route.fulfill(status=200, content_type="application/json",
-                body=api_response({"id": 1, "username": "admin", "email": "admin@test.com",
-                    "phone": "13800000000", "status": True, "roles": [{"id": 1, "name": "超级管理员"}]}))
+            await route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=api_response(
+                    {
+                        "id": 1,
+                        "username": "admin",
+                        "email": "admin@test.com",
+                        "phone": "13800000000",
+                        "status": True,
+                        "roles": [{"id": 1, "name": "超级管理员"}],
+                    }
+                ),
+            )
         else:
             await route.fulfill(status=200, content_type="application/json", body=api_response(None))
 
@@ -192,18 +362,32 @@ async def test_t9(page: Page):
     nav_ok = await navigate_to(page, "/home/pipeline-dashboard")
     title_text = await page.title()
     contains_pipeline = "Pipeline" in title_text or "仪表盘" in title_text
-    record("T9-1", "导航到 /home/pipeline-dashboard", "页面标题含'Pipeline仪表盘'",
-           f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
-           "✅" if contains_pipeline and nav_ok else "❌")
+    record(
+        "T9-1",
+        "导航到 /home/pipeline-dashboard",
+        "页面标题含'Pipeline仪表盘'",
+        f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
+        "✅" if contains_pipeline and nav_ok else "❌",
+    )
 
     bc = await get_breadcrumb(page)
     expected = "工作台" in bc and "迭代中心" in bc and "Pipeline仪表盘" in bc
-    record("T9-2", "检查Pipeline仪表盘面包屑", "面包屑显示'工作台 / 迭代中心 / Pipeline仪表盘'",
-           f"面包屑: {bc}", "✅" if expected else "⚠️")
+    record(
+        "T9-2",
+        "检查Pipeline仪表盘面包屑",
+        "面包屑显示'工作台 / 迭代中心 / Pipeline仪表盘'",
+        f"面包屑: {bc}",
+        "✅" if expected else "⚠️",
+    )
 
     active, expanded = await check_menu_active(page, "Pipeline仪表盘", "迭代中心")
-    record("T9-3", "检查左侧菜单Pipeline仪表盘高亮", "Pipeline仪表盘高亮（属于迭代中心子菜单）",
-           f"高亮: {active}, 迭代中心展开: {expanded}", "✅" if active and expanded else "⚠️")
+    record(
+        "T9-3",
+        "检查左侧菜单Pipeline仪表盘高亮",
+        "Pipeline仪表盘高亮（属于迭代中心子菜单）",
+        f"高亮: {active}, 迭代中心展开: {expanded}",
+        "✅" if active and expanded else "⚠️",
+    )
 
     try:
         ps = page.locator(".dashboard-filters .el-select").first
@@ -214,9 +398,13 @@ async def test_t9(page: Page):
         charts_n = await charts.count()
         fmea = page.locator(".pipeline-dashboard .el-table")
         fmea_v = await fmea.is_visible() if await fmea.count() > 0 else False
-        record("T9-4", "检查Pipeline仪表盘内容", "项目选择、Pipeline列表、状态展示",
-               f"项目选择: {ps_v}, 概览卡片: {cards_n}个, 图表: {charts_n}个, FMEA: {fmea_v}",
-               "✅" if ps_v and cards_n > 0 else "⚠️")
+        record(
+            "T9-4",
+            "检查Pipeline仪表盘内容",
+            "项目选择、Pipeline列表、状态展示",
+            f"项目选择: {ps_v}, 概览卡片: {cards_n}个, 图表: {charts_n}个, FMEA: {fmea_v}",
+            "✅" if ps_v and cards_n > 0 else "⚠️",
+        )
     except Exception as e:
         record("T9-4", "检查Pipeline仪表盘内容", "项目选择、Pipeline列表、状态展示", f"异常: {e}", "❌")
 
@@ -225,18 +413,32 @@ async def test_t9(page: Page):
     contains_regression = "回归生成" in title_text
     page_h2 = page.locator(".regression-generate-container h2")
     page_heading = await page_h2.inner_text() if await page_h2.count() > 0 else ""
-    record("T9-5", "导航到 /home/iteration/regression-generate", "页面标题含'回归生成'",
-           f"标题: {title_text}, 页面标题: {page_heading}" + ("" if nav_ok else " [导航失败]"),
-           "✅" if contains_regression and nav_ok else ("⚠️" if nav_ok and "变更分析" in page_heading else "❌"))
+    record(
+        "T9-5",
+        "导航到 /home/iteration/regression-generate",
+        "页面标题含'回归生成'",
+        f"标题: {title_text}, 页面标题: {page_heading}" + ("" if nav_ok else " [导航失败]"),
+        "✅" if contains_regression and nav_ok else ("⚠️" if nav_ok and "变更分析" in page_heading else "❌"),
+    )
 
     bc = await get_breadcrumb(page)
     expected = "工作台" in bc and "迭代中心" in bc and "回归生成" in bc
-    record("T9-6", "检查回归生成面包屑", "面包屑显示'工作台 / 迭代中心 / 回归生成'",
-           f"面包屑: {bc}", "✅" if expected else "⚠️")
+    record(
+        "T9-6",
+        "检查回归生成面包屑",
+        "面包屑显示'工作台 / 迭代中心 / 回归生成'",
+        f"面包屑: {bc}",
+        "✅" if expected else "⚠️",
+    )
 
     active, expanded = await check_menu_active(page, "回归生成", "迭代中心")
-    record("T9-7", "检查左侧菜单回归生成高亮", "回归生成高亮",
-           f"高亮: {active}, 迭代中心展开: {expanded}", "✅" if active and expanded else "⚠️")
+    record(
+        "T9-7",
+        "检查左侧菜单回归生成高亮",
+        "回归生成高亮",
+        f"高亮: {active}, 迭代中心展开: {expanded}",
+        "✅" if active and expanded else "⚠️",
+    )
 
     try:
         cards = page.locator(".regression-generate-container .el-card")
@@ -247,9 +449,13 @@ async def test_t9(page: Page):
         sb_v = await sb.is_visible() if await sb.count() > 0 else False
         it = page.locator(".iteration-select-row .el-select").first
         it_v = await it.is_visible() if await it.count() > 0 else False
-        record("T9-8", "检查回归生成页面内容", "项目选择、配置表单、生成按钮",
-               f"卡片: {cards_n}, 配置表单: {cf_v}, 生成按钮: {sb_v}, 迭代选择: {it_v}",
-               "✅" if cards_n > 0 and (cf_v or sb_v) else "⚠️")
+        record(
+            "T9-8",
+            "检查回归生成页面内容",
+            "项目选择、配置表单、生成按钮",
+            f"卡片: {cards_n}, 配置表单: {cf_v}, 生成按钮: {sb_v}, 迭代选择: {it_v}",
+            "✅" if cards_n > 0 and (cf_v or sb_v) else "⚠️",
+        )
     except Exception as e:
         record("T9-8", "检查回归生成页面内容", "项目选择、配置表单、生成按钮", f"异常: {e}", "❌")
 
@@ -260,9 +466,13 @@ async def test_t9(page: Page):
     card_v = await card.is_visible() if await card.count() > 0 else False
     empty = page.locator(".el-empty")
     empty_v = await empty.is_visible() if await empty.count() > 0 else False
-    record("T9-9", "导航到 /home/iteration/pipeline/99999", "验证Pipeline进度页面渲染",
-           f"页面容器: {pp_v}, 卡片: {card_v}, 空状态: {empty_v}" + ("" if nav_ok else " [导航失败]"),
-           "✅" if (pp_v or card_v) and nav_ok else "❌")
+    record(
+        "T9-9",
+        "导航到 /home/iteration/pipeline/99999",
+        "验证Pipeline进度页面渲染",
+        f"页面容器: {pp_v}, 卡片: {card_v}, 空状态: {empty_v}" + ("" if nav_ok else " [导航失败]"),
+        "✅" if (pp_v or card_v) and nav_ok else "❌",
+    )
 
     try:
         pt = page.locator("text=Pipeline 运行进度")
@@ -273,9 +483,13 @@ async def test_t9(page: Page):
         st_v = await st.is_visible() if await st.count() > 0 else False
         bb = page.locator(".pipeline-progress button:has-text('返回')")
         bb_v = await bb.is_visible() if await bb.count() > 0 else False
-        record("T9-10", "检查Pipeline进度页面内容", "步骤流程图、状态展示",
-               f"进度标题: {pt_v}, 运行信息: {ri_v}, 步骤表格: {st_v}, 返回按钮: {bb_v}",
-               "✅" if pt_v and (ri_v or st_v) else "⚠️")
+        record(
+            "T9-10",
+            "检查Pipeline进度页面内容",
+            "步骤流程图、状态展示",
+            f"进度标题: {pt_v}, 运行信息: {ri_v}, 步骤表格: {st_v}, 返回按钮: {bb_v}",
+            "✅" if pt_v and (ri_v or st_v) else "⚠️",
+        )
     except Exception as e:
         record("T9-10", "检查Pipeline进度页面内容", "步骤流程图、状态展示", f"异常: {e}", "❌")
 
@@ -288,18 +502,32 @@ async def test_t10(page: Page):
     nav_ok = await navigate_to(page, "/home/system/user")
     title_text = await page.title()
     contains_user = "用户管理" in title_text
-    record("T10-1", "导航到 /home/system/user", "页面标题含'用户管理'",
-           f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
-           "✅" if contains_user and nav_ok else "❌")
+    record(
+        "T10-1",
+        "导航到 /home/system/user",
+        "页面标题含'用户管理'",
+        f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
+        "✅" if contains_user and nav_ok else "❌",
+    )
 
     bc = await get_breadcrumb(page)
     expected = "工作台" in bc and "系统管理" in bc and "用户管理" in bc
-    record("T10-2", "检查用户管理面包屑", "面包屑显示'工作台 / 系统管理 / 用户管理'",
-           f"面包屑: {bc}", "✅" if expected else "⚠️")
+    record(
+        "T10-2",
+        "检查用户管理面包屑",
+        "面包屑显示'工作台 / 系统管理 / 用户管理'",
+        f"面包屑: {bc}",
+        "✅" if expected else "⚠️",
+    )
 
     active, expanded = await check_menu_active(page, "用户管理", "系统管理")
-    record("T10-3", "检查左侧菜单用户管理高亮", "用户管理高亮（属于系统管理子菜单）",
-           f"高亮: {active}, 系统管理展开: {expanded}", "✅" if active and expanded else "⚠️")
+    record(
+        "T10-3",
+        "检查左侧菜单用户管理高亮",
+        "用户管理高亮（属于系统管理子菜单）",
+        f"高亮: {active}, 系统管理展开: {expanded}",
+        "✅" if active and expanded else "⚠️",
+    )
 
     try:
         table = page.locator(".user-management .el-table")
@@ -312,8 +540,13 @@ async def test_t10(page: Page):
         has_un = "用户名" in hstr
         has_st = "状态" in hstr
         has_op = "操作" in hstr
-        record("T10-4", "检查用户列表表格", "列：用户名、角色、状态、操作等",
-               f"表头: {hstr}", "✅" if tv and has_un and has_st and has_op else "⚠️")
+        record(
+            "T10-4",
+            "检查用户列表表格",
+            "列：用户名、角色、状态、操作等",
+            f"表头: {hstr}",
+            "✅" if tv and has_un and has_st and has_op else "⚠️",
+        )
     except Exception as e:
         record("T10-4", "检查用户列表表格", "列：用户名、角色、状态、操作等", f"异常: {e}", "❌")
 
@@ -335,9 +568,13 @@ async def test_t10(page: Page):
                 if await close_btn.count() > 0:
                     await close_btn.click()
                     await asyncio.sleep(0.3)
-        record("T10-5", "点击'新增用户'按钮", "按钮存在且可点击，弹窗打开",
-               f"可见: {abv}, 可点击: {abe}, 弹窗: {dialog_opened}, 标题: {dialog_title}",
-               "✅" if abv and dialog_opened else "⚠️")
+        record(
+            "T10-5",
+            "点击'新增用户'按钮",
+            "按钮存在且可点击，弹窗打开",
+            f"可见: {abv}, 可点击: {abe}, 弹窗: {dialog_opened}, 标题: {dialog_title}",
+            "✅" if abv and dialog_opened else "⚠️",
+        )
     except Exception as e:
         record("T10-5", "点击'新增用户'按钮", "按钮存在且可点击，弹窗打开", f"异常: {e}", "❌")
 
@@ -351,17 +588,26 @@ async def test_t10(page: Page):
         has_edit = "编辑" in astr
         has_disable = "禁用" in astr or "启用" in astr
         has_role = "分配角色" in astr
-        record("T10-6", "检查用户行操作按钮", "编辑、删除/禁用、重置密码/分配角色",
-               f"操作: {astr}", "✅" if has_edit and (has_disable or has_role) else "⚠️")
+        record(
+            "T10-6",
+            "检查用户行操作按钮",
+            "编辑、删除/禁用、重置密码/分配角色",
+            f"操作: {astr}",
+            "✅" if has_edit and (has_disable or has_role) else "⚠️",
+        )
     except Exception as e:
         record("T10-6", "检查用户行操作按钮", "编辑、删除/禁用、重置密码/分配角色", f"异常: {e}", "❌")
 
     nav_ok = await navigate_to(page, "/home/system/role")
     title_text = await page.title()
     contains_role = "角色管理" in title_text
-    record("T10-7", "导航到 /home/system/role", "页面标题含'角色管理'",
-           f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
-           "✅" if contains_role and nav_ok else "❌")
+    record(
+        "T10-7",
+        "导航到 /home/system/role",
+        "页面标题含'角色管理'",
+        f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
+        "✅" if contains_role and nav_ok else "❌",
+    )
 
     try:
         table = page.locator(".role-management .el-table")
@@ -371,17 +617,26 @@ async def test_t10(page: Page):
         for i in range(await headers.count()):
             htexts.append((await headers.nth(i).inner_text()).strip())
         has_rn = any("角色名称" in h for h in htexts)
-        record("T10-8", "检查角色列表加载", "角色列表加载",
-               f"表格: {tv}, 表头: {', '.join(htexts)}", "✅" if tv and has_rn else "⚠️")
+        record(
+            "T10-8",
+            "检查角色列表加载",
+            "角色列表加载",
+            f"表格: {tv}, 表头: {', '.join(htexts)}",
+            "✅" if tv and has_rn else "⚠️",
+        )
     except Exception as e:
         record("T10-8", "检查角色列表加载", "角色列表加载", f"异常: {e}", "❌")
 
     nav_ok = await navigate_to(page, "/home/system/audit-log")
     title_text = await page.title()
     contains_audit = "审计日志" in title_text
-    record("T10-9", "导航到 /home/system/audit-log", "页面标题含'审计日志'",
-           f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
-           "✅" if contains_audit and nav_ok else "❌")
+    record(
+        "T10-9",
+        "导航到 /home/system/audit-log",
+        "页面标题含'审计日志'",
+        f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
+        "✅" if contains_audit and nav_ok else "❌",
+    )
 
     try:
         table = page.locator(".audit-log-page .el-table")
@@ -391,17 +646,26 @@ async def test_t10(page: Page):
         for i in range(await headers.count()):
             htexts.append((await headers.nth(i).inner_text()).strip())
         has_at = any("操作类型" in h for h in htexts)
-        record("T10-10", "检查审计日志列表加载", "审计日志列表加载",
-               f"表格: {tv}, 表头: {', '.join(htexts)}", "✅" if tv and has_at else "⚠️")
+        record(
+            "T10-10",
+            "检查审计日志列表加载",
+            "审计日志列表加载",
+            f"表格: {tv}, 表头: {', '.join(htexts)}",
+            "✅" if tv and has_at else "⚠️",
+        )
     except Exception as e:
         record("T10-10", "检查审计日志列表加载", "审计日志列表加载", f"异常: {e}", "❌")
 
     nav_ok = await navigate_to(page, "/home/system/test-capability")
     title_text = await page.title()
     contains_cap = "测试能力" in title_text
-    record("T10-11", "导航到 /home/system/test-capability", "页面标题含'测试能力'",
-           f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
-           "✅" if contains_cap and nav_ok else "❌")
+    record(
+        "T10-11",
+        "导航到 /home/system/test-capability",
+        "页面标题含'测试能力'",
+        f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
+        "✅" if contains_cap and nav_ok else "❌",
+    )
 
     try:
         pg = page.locator(".test-capability-management")
@@ -412,18 +676,26 @@ async def test_t10(page: Page):
         abv = await ab.is_visible() if await ab.count() > 0 else False
         tb = page.locator(".test-capability-management .el-table")
         tbv = await tb.is_visible() if await tb.count() > 0 else False
-        record("T10-12", "检查测试能力页面加载", "测试能力页面加载",
-               f"页面: {pv}, 项目选择: {psv}, 新增按钮: {abv}, 表格: {tbv}",
-               "✅" if pv and (psv or tbv) else "⚠️")
+        record(
+            "T10-12",
+            "检查测试能力页面加载",
+            "测试能力页面加载",
+            f"页面: {pv}, 项目选择: {psv}, 新增按钮: {abv}, 表格: {tbv}",
+            "✅" if pv and (psv or tbv) else "⚠️",
+        )
     except Exception as e:
         record("T10-12", "检查测试能力页面加载", "测试能力页面加载", f"异常: {e}", "❌")
 
     nav_ok = await navigate_to(page, "/home/system/profile")
     title_text = await page.title()
     contains_profile = "个人中心" in title_text
-    record("T10-13", "导航到 /home/system/profile", "页面标题含'个人中心'",
-           f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
-           "✅" if contains_profile and nav_ok else "❌")
+    record(
+        "T10-13",
+        "导航到 /home/system/profile",
+        "页面标题含'个人中心'",
+        f"标题: {title_text}" + ("" if nav_ok else " [导航失败]"),
+        "✅" if contains_profile and nav_ok else "❌",
+    )
 
     try:
         pg = page.locator(".profile")
@@ -434,9 +706,13 @@ async def test_t10(page: Page):
             ttexts.append((await tabs.nth(i).inner_text()).strip())
         ui = page.locator(".profile .el-form-item:has-text('用户名') .el-input")
         uiv = await ui.is_visible() if await ui.count() > 0 else False
-        record("T10-14", "检查个人中心页面加载", "个人中心页面加载",
-               f"页面: {pv}, 标签页: {', '.join(ttexts)}, 用户名: {uiv}",
-               "✅" if pv and len(ttexts) > 0 else "⚠️")
+        record(
+            "T10-14",
+            "检查个人中心页面加载",
+            "个人中心页面加载",
+            f"页面: {pv}, 标签页: {', '.join(ttexts)}, 用户名: {uiv}",
+            "✅" if pv and len(ttexts) > 0 else "⚠️",
+        )
     except Exception as e:
         record("T10-14", "检查个人中心页面加载", "个人中心页面加载", f"异常: {e}", "❌")
 

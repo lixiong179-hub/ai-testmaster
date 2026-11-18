@@ -15,6 +15,7 @@
 部署：`docker compose up -d --scale executor=3`（见 docker-compose.yml 的 `executor` 服务）。
 退出码：0 = 正常退出（含队列为空且 `--once`）；1 = 执行异常且未恢复。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -72,9 +73,7 @@ def _claim() -> int | None:
 
     db = PrimarySessionLocal()
     try:
-        return ExecutionDispatcher(db).claim_next(
-            scan_limit=settings.EXECUTOR_SCAN_LIMIT
-        )
+        return ExecutionDispatcher(db).claim_next(scan_limit=settings.EXECUTOR_SCAN_LIMIT)
     finally:
         db.close()
 
@@ -131,9 +130,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
-        return run(
-            once=args.once, max_tasks=args.max_tasks, dry_run=args.dry_run
-        )
+        return run(once=args.once, max_tasks=args.max_tasks, dry_run=args.dry_run)
     except KeyboardInterrupt:
         logger.info("executor 收到中断信号，退出")
         return 0

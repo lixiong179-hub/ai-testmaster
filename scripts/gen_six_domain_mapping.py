@@ -5,6 +5,7 @@
 
 用法：venv/Scripts/python.exe scripts/gen_six_domain_mapping.py [--out PATH]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -83,7 +84,11 @@ DIR_RULES = {
 FILE_RULES = [
     ("F01", r"^(agent|agents|mcp_server|mcp_)", "agent"),
     ("F02", r"(test_point)", "test_point"),
-    ("F03", r"^(test_task|batch_locator|execution|execution_|_execution|quick_test|visual_ai|self_healing|ui_screens_batch)", "execution"),
+    (
+        "F03",
+        r"^(test_task|batch_locator|execution|execution_|_execution|quick_test|visual_ai|self_healing|ui_screens_batch)",
+        "execution",
+    ),
     ("F04", r"(locator|recognizer|replay|mobile_ai|self_test)", "execution"),
     ("F05", r"(decision_application|cost_statistics|timeout|execution_control|execution_mode)", "execution"),
     ("F06", r"^(review|_review|case_quality|_case_quality|quality_rule|visibility)", "review"),
@@ -97,7 +102,11 @@ FILE_RULES = [
     ("F14", r"(prompt|ai_invocation|ai_analysis)", "common"),
     ("F15", r"^(auth|user|_user|role|permission|project|_project|file)", "common"),
     ("F16", r"^(oidc|saml|mfa|captcha|kms|session|config|feature_flag|audit)", "common"),
-    ("F17", r"^(test_capability|metrics|lineage|push|scheduler|ops|flow_validation|selector_registry|posterior|task_service)", "common"),
+    (
+        "F17",
+        r"^(test_capability|metrics|lineage|push|scheduler|ops|flow_validation|selector_registry|posterior|task_service)",
+        "common",
+    ),
     ("F18", r"^(websocket|health|static|admin|access_deps)", "common"),
     ("F19", r"^link_fetcher", "case"),
     ("F20", r"^test_execution_engine", "execution"),
@@ -167,9 +176,11 @@ def ref_count(module: str, self_path: Path, items) -> int:
         return 0
     pkg, _, leaf = module.rpartition(".")
     full = re.compile(re.escape(module) + r"(?![0-9A-Za-z_])")
-    grouped = re.compile(
-        r"from\s+" + re.escape(pkg) + r"\s+import\s+[^\n]*?\b" + re.escape(leaf) + r"\b"
-    ) if pkg and leaf else None
+    grouped = (
+        re.compile(r"from\s+" + re.escape(pkg) + r"\s+import\s+[^\n]*?\b" + re.escape(leaf) + r"\b")
+        if pkg and leaf
+        else None
+    )
     total = 0
     for path, text in items:
         if path == self_path:
@@ -202,14 +213,16 @@ def build() -> tuple[str, list[str]]:
             continue
         domain, basis = hit
         refs = ref_count(module_name(path), path, items)
-        rows.append({
-            "from": path.relative_to(ROOT).as_posix(),
-            "to": target_path(path, domain),
-            "domain": domain,
-            "basis": basis,
-            "refs": refs,
-            "shim": "是" if refs > 0 else "否",
-        })
+        rows.append(
+            {
+                "from": path.relative_to(ROOT).as_posix(),
+                "to": target_path(path, domain),
+                "domain": domain,
+                "basis": basis,
+                "refs": refs,
+                "shim": "是" if refs > 0 else "否",
+            }
+        )
 
     counts = {d: sum(1 for r in rows if r["domain"] == d) for d in DOMAINS}
     shim_yes = sum(1 for r in rows if r["shim"] == "是")
@@ -221,8 +234,12 @@ def build() -> tuple[str, list[str]]:
     out.append("- **生成时间**：2026-11-10")
     out.append("- **扫描范围**：`app/services/**/*.py` + `app/api/v1/endpoints/**/*.py`")
     out.append(f"- **覆盖**：**{len(rows)} / {total}** 个文件；**未归类 {len(unclassified)}**")
-    out.append("- **生成方式**：`venv/Scripts/python.exe scripts/gen_six_domain_mapping.py`（可复现；存在未归类则以退出码 1 结束）")
-    out.append("- **shim 判定**：模块全限定名在 `app/`+`tests/` 中被引用（排除自身）→ 保留 re-export shim；否则直接物理移动")
+    out.append(
+        "- **生成方式**：`venv/Scripts/python.exe scripts/gen_six_domain_mapping.py`（可复现；存在未归类则以退出码 1 结束）"
+    )
+    out.append(
+        "- **shim 判定**：模块全限定名在 `app/`+`tests/` 中被引用（排除自身）→ 保留 re-export shim；否则直接物理移动"
+    )
     out.append("")
     out.append("## 一、域分布")
     out.append("")
@@ -252,8 +269,10 @@ def build() -> tuple[str, list[str]]:
     out.append("")
     out.append("### 2.3 阶段二迁移顺序（按域，每域一个 commit）")
     out.append("")
-    out.append("① Agent 域 → ② 用例域 → ③ 测试点域 → ④ 执行域 → ⑤ 评审域 → ⑥ 流水线域；"
-               "`common` 域最后一次性移动（被其他域依赖，先动会造成大范围 shim）。")
+    out.append(
+        "① Agent 域 → ② 用例域 → ③ 测试点域 → ④ 执行域 → ⑤ 评审域 → ⑥ 流水线域；"
+        "`common` 域最后一次性移动（被其他域依赖，先动会造成大范围 shim）。"
+    )
     out.append("")
     out.append("## 三、`app/services/` 映射（逐文件）")
     out.append("")
@@ -264,7 +283,9 @@ def build() -> tuple[str, list[str]]:
         if not row["from"].startswith("app/services/"):
             continue
         idx += 1
-        out.append(f"| {idx} | `{row['from']}` | `{row['to']}` | `{row['domain']}` | {row['basis']} | {row['refs']} | {row['shim']} |")
+        out.append(
+            f"| {idx} | `{row['from']}` | `{row['to']}` | `{row['domain']}` | {row['basis']} | {row['refs']} | {row['shim']} |"
+        )
     out.append("")
     out.append("## 四、`app/api/v1/endpoints/` 映射（逐文件）")
     out.append("")
@@ -275,21 +296,29 @@ def build() -> tuple[str, list[str]]:
         if not row["from"].startswith("app/api/v1/endpoints/"):
             continue
         idx += 1
-        out.append(f"| {idx} | `{row['from']}` | `{row['to']}` | `{row['domain']}` | {row['basis']} | {row['refs']} | {row['shim']} |")
+        out.append(
+            f"| {idx} | `{row['from']}` | `{row['to']}` | `{row['domain']}` | {row['basis']} | {row['refs']} | {row['shim']} |"
+        )
     out.append("")
     out.append("## 五、边界判定说明（评审重点）")
     out.append("")
     out.append("| 对象 | 归属 | 理由 |")
     out.append("| --- | --- | --- |")
-    out.append("| `services/self_healing`、`services/decision_application_service` | execution | 自愈发生在执行期，决策应用对象是执行结果 |")
+    out.append(
+        "| `services/self_healing`、`services/decision_application_service` | execution | 自愈发生在执行期，决策应用对象是执行结果 |"
+    )
     out.append("| `services/cost_statistics` | execution | 统计对象是视觉 AI 调用成本（执行期产生） |")
     out.append("| `services/self_test` | pipeline | 全链路 9 步自测，属流水线编排能力 |")
     out.append("| `services/url_driven` | case | 站点探索 → 自动建项 → 用例生成，主产出是用例 |")
     out.append("| `services/lifecycle_service` | case | 状态机服务对象为用例/任务生命周期 |")
     out.append("| `services/prompt_builder` | common | 同时服务用例生成 / 测试数据 / UI 解析，跨域共享 |")
-    out.append("| `services/saml`、`services/role_service`、`services/user_service`、`services/storage` | common | 认证与基础设施，不属于任何业务域 |")
+    out.append(
+        "| `services/saml`、`services/role_service`、`services/user_service`、`services/storage` | common | 认证与基础设施，不属于任何业务域 |"
+    )
     out.append("| `services/visibility_config`、`endpoints/visibility` | review | 可见范围用于评审可见性控制 |")
-    out.append("| `endpoints/iteration`、`endpoints/pipeline_dashboard` | pipeline | 迭代与流水线看板同属交付流程运营 |")
+    out.append(
+        "| `endpoints/iteration`、`endpoints/pipeline_dashboard` | pipeline | 迭代与流水线看板同属交付流程运营 |"
+    )
     out.append("| `endpoints/bug` | review | 缺陷由评审/质检环节产生并闭环 |")
     out.append("")
     out.append("## 六、阶段一验收")

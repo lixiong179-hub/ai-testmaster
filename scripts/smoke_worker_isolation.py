@@ -15,6 +15,7 @@
 
 退出码：0 = Web 死亡后任务仍被推进完成；1 = 任务停在 PENDING / 入队失败；2 = 环境不满足。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -165,7 +166,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--boot-timeout", type=float, default=120.0)
     parser.add_argument("--wait", type=float, default=60.0, help="Web 退出后等待执行完成秒数")
     parser.add_argument(
-        "--logs", default=str(Path(os.getenv("TEMP", ".")) / "k4_smoke"),
+        "--logs",
+        default=str(Path(os.getenv("TEMP", ".")) / "k4_smoke"),
         help="子进程日志目录",
     )
     args = parser.parse_args(argv)
@@ -191,9 +193,16 @@ def main(argv: list[str] | None = None) -> int:
     try:
         web = _spawn(
             [
-                sys.executable, "-m", "uvicorn", "app.main:app",
-                "--host", "127.0.0.1", "--port", str(args.port),
-                "--log-level", "warning",
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(args.port),
+                "--log-level",
+                "warning",
             ],
             _env(EXECUTOR_MODE="worker"),
             log_dir / "web.log",
@@ -223,9 +232,7 @@ def main(argv: list[str] | None = None) -> int:
             "Referer": "http://localhost:5173/",
         }
         with httpx.Client(timeout=30.0) as client:
-            resp = client.post(
-                f"{base_url}/api/v1/test-task/{task_id}/run", headers=headers
-            )
+            resp = client.post(f"{base_url}/api/v1/test-task/{task_id}/run", headers=headers)
         print(f"POST /run -> {resp.status_code} {resp.text[:200]}")
         if resp.status_code != 200:
             print("[FAIL] 入队请求失败")

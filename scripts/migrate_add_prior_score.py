@@ -25,10 +25,12 @@ def _run_migration(db_url: str, label: str):
             if _column_exists(engine, "test_cases", "prior_quality_score"):
                 print(f"[{label}] prior_quality_score 列已存在，跳过")
                 return
-            conn.execute(text(
-                "ALTER TABLE test_cases ADD COLUMN prior_quality_score FLOAT NULL "
-                "COMMENT 'prior quality score 0-100 computed by QualityGate'"
-            ))
+            conn.execute(
+                text(
+                    "ALTER TABLE test_cases ADD COLUMN prior_quality_score FLOAT NULL "
+                    "COMMENT 'prior quality score 0-100 computed by QualityGate'"
+                )
+            )
             conn.commit()
             print(f"[{label}] prior_quality_score 列已添加")
     finally:

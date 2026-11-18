@@ -6,6 +6,7 @@
 3. Prompt质量：流程描述更精确，AI能生成更高质量测试用例
 4. 测试用例质量评估：对Prompt中的关键信息进行量化评分
 """
+
 import json
 import sys
 import os
@@ -24,10 +25,14 @@ from app.schemas.test_case import FlowNodeSchema, FlowEdgeSchema, FlowMetaSchema
 PROJECT_ID = 10027
 
 db = PrimarySessionLocal()
-screens = db.query(UIPrototypeScreen).filter(
-    UIPrototypeScreen.project_id == PROJECT_ID,
-    UIPrototypeScreen.parse_status == "completed",
-).all()
+screens = (
+    db.query(UIPrototypeScreen)
+    .filter(
+        UIPrototypeScreen.project_id == PROJECT_ID,
+        UIPrototypeScreen.parse_status == "completed",
+    )
+    .all()
+)
 
 print("=" * 100)
 print("平板7.0 端到端数据链路 + Prompt质量验证")
@@ -46,8 +51,10 @@ for s in main_screens:
     has_desc = sum(1 for e in elements if e.get("description"))
     has_semantic = sum(1 for e in elements if e.get("semantic") or e.get("semantic_hint"))
     has_interactive = sum(1 for e in elements if e.get("interactive") is not None)
-    print(f"  [{s.id}] {s.screen_name}: {len(elements)}个元素, "
-          f"state={has_state}, desc={has_desc}, semantic={has_semantic}, interactive={has_interactive}")
+    print(
+        f"  [{s.id}] {s.screen_name}: {len(elements)}个元素, "
+        f"state={has_state}, desc={has_desc}, semantic={has_semantic}, interactive={has_interactive}"
+    )
 
 # 构建nodes
 nodes_raw = []
@@ -84,17 +91,19 @@ for i, s in enumerate(main_screens):
             "expected_result": "显示检查页面，可标记正确/错误",
             "note": "自己检查模式允许手动标记",
         }
-    nodes_raw.append({
-        "screen_id": s.id,
-        "screen_order": i + 1,
-        "flow_type": "main",
-        "main_order": i + 1,
-        "screen_name": s.screen_name,
-        "ui_spec_elements": ui_spec_elements,
-        "summary": s.summary or "",
-        "flow_meta": flow_meta,
-        "image_url": f"/api/v1/uiPrototype/screen/{s.id}/image",
-    })
+    nodes_raw.append(
+        {
+            "screen_id": s.id,
+            "screen_order": i + 1,
+            "flow_type": "main",
+            "main_order": i + 1,
+            "screen_name": s.screen_name,
+            "ui_spec_elements": ui_spec_elements,
+            "summary": s.summary or "",
+            "flow_meta": flow_meta,
+            "image_url": f"/api/v1/uiPrototype/screen/{s.id}/image",
+        }
+    )
 
 # 构建edges（模拟前端流程编辑器连线）
 edges_raw = [
@@ -131,31 +140,35 @@ edges_raw = [
 ]
 
 if len(main_screens) >= 6:
-    edges_raw.append({
-        "source": str(main_screens[4].id),
-        "target": str(main_screens[5].id),
-        "edge_type": "normal",
-        "condition": "",
-        "label": f"{main_screens[4].screen_name}→{main_screens[5].screen_name}",
-        "trigger_action": "点击提交检查结果",
-        "pre_action": "需标记完所有汉字的正确/错误状态",
-        "note": "提交后显示听写结果",
-    })
+    edges_raw.append(
+        {
+            "source": str(main_screens[4].id),
+            "target": str(main_screens[5].id),
+            "edge_type": "normal",
+            "condition": "",
+            "label": f"{main_screens[4].screen_name}→{main_screens[5].screen_name}",
+            "trigger_action": "点击提交检查结果",
+            "pre_action": "需标记完所有汉字的正确/错误状态",
+            "note": "提交后显示听写结果",
+        }
+    )
 
 if len(main_screens) >= 7:
-    edges_raw.append({
-        "source": str(main_screens[5].id),
-        "target": str(main_screens[6].id),
-        "edge_type": "exception",
-        "condition": "正确率100%触发话术旁路",
-        "label": f"{main_screens[5].screen_name}→{main_screens[6].screen_name}",
-        "trigger_action": "系统自动触发",
-        "pre_action": "所有汉字标记为正确",
-        "note": "全对时跳过再听一遍，直接进入话术旁路",
-    })
+    edges_raw.append(
+        {
+            "source": str(main_screens[5].id),
+            "target": str(main_screens[6].id),
+            "edge_type": "exception",
+            "condition": "正确率100%触发话术旁路",
+            "label": f"{main_screens[5].screen_name}→{main_screens[6].screen_name}",
+            "trigger_action": "系统自动触发",
+            "pre_action": "所有汉字标记为正确",
+            "note": "全对时跳过再听一遍，直接进入话术旁路",
+        }
+    )
 
 # ── 2. Schema解析验证 ──
-print(f"\n{'='*100}")
+print(f"\n{'=' * 100}")
 print(f"=== 2. Schema解析验证 ===")
 
 schema_nodes = [FlowNodeSchema(**n) for n in nodes_raw]
@@ -181,18 +194,22 @@ print(f"  pre_action保留: {edges_with_pre_action}条连线")
 print(f"  note保留: {edges_with_note}条连线")
 
 # ── 3. 构建完整Prompt（修复后）──
-print(f"\n{'='*100}")
+print(f"\n{'=' * 100}")
 print(f"=== 3. 构建完整Prompt（修复后版本）===")
 
 test_point_json = json.dumps(
-    [{"id": 81, "module": "字词听写", "function": "字词听写", "point": "屏幕听写选择汉字后自己检查标记错词验证错词学习", "priority": "P1"}],
+    [
+        {
+            "id": 81,
+            "module": "字词听写",
+            "function": "字词听写",
+            "point": "屏幕听写选择汉字后自己检查标记错词验证错词学习",
+            "priority": "P1",
+        }
+    ],
     ensure_ascii=False,
 )
-ui_specs_text = "\n\n".join(
-    format_ui_spec_for_prompt(s.screen_name, s.ui_spec)
-    for s in main_screens[:5]
-    if s.ui_spec
-)
+ui_specs_text = "\n\n".join(format_ui_spec_for_prompt(s.screen_name, s.ui_spec) for s in main_screens[:5] if s.ui_spec)
 
 builder = PromptBuilder()
 result = builder.for_test_case(
@@ -209,7 +226,7 @@ prompt = result["prompt"]
 print(f"  Prompt总长度: {len(prompt)} 字符")
 
 # ── 4. Prompt质量评分（量化分析）──
-print(f"\n{'='*100}")
+print(f"\n{'=' * 100}")
 print(f"=== 4. Prompt质量评分（量化分析）===")
 
 # 4.1 流程结构段质量
@@ -229,8 +246,11 @@ avg_element_chars = total_element_chars / max(len(element_lines), 1)
 # 修复前格式: "button:登录" (约12字符/元素)
 # 修复后格式: "[button:登录|状态:disabled|不可交互|圆角按钮全宽]" (约40字符/元素)
 old_avg_per_element = 12
-new_avg_per_element = avg_element_chars / max(len(element_lines), 1) * len(element_lines) / max(
-    sum(l.count("[") for l in element_lines) or len(element_lines), 1
+new_avg_per_element = (
+    avg_element_chars
+    / max(len(element_lines), 1)
+    * len(element_lines)
+    / max(sum(l.count("[") for l in element_lines) or len(element_lines), 1)
 )
 
 print(f"\n  --- 4.1 流程结构质量 ---")
@@ -260,7 +280,7 @@ for name, found in info_checks.items():
     print(f"  {'✅' if found else '❌'} {name}")
     if found:
         info_score += 1
-print(f"  覆盖率: {info_score}/{len(info_checks)} ({info_score/len(info_checks)*100:.0f}%)")
+print(f"  覆盖率: {info_score}/{len(info_checks)} ({info_score / len(info_checks) * 100:.0f}%)")
 
 # 4.3 生成约束质量
 constraint_checks = {
@@ -277,7 +297,9 @@ for name, found in constraint_checks.items():
     print(f"  {'✅' if found else '❌'} {name}")
     if found:
         constraint_score += 1
-print(f"  约束覆盖率: {constraint_score}/{len(constraint_checks)} ({constraint_score/len(constraint_checks)*100:.0f}%)")
+print(
+    f"  约束覆盖率: {constraint_score}/{len(constraint_checks)} ({constraint_score / len(constraint_checks) * 100:.0f}%)"
+)
 
 # 4.4 UI规格信息质量
 ui_spec_start = prompt.find("## UI原型图解析结果")
@@ -301,10 +323,10 @@ for name, found in ui_spec_checks.items():
     print(f"  {'✅' if found else '❌'} {name}")
     if found:
         ui_spec_score += 1
-print(f"  UI规格覆盖率: {ui_spec_score}/{len(ui_spec_checks)} ({ui_spec_score/len(ui_spec_checks)*100:.0f}%)")
+print(f"  UI规格覆盖率: {ui_spec_score}/{len(ui_spec_checks)} ({ui_spec_score / len(ui_spec_checks) * 100:.0f}%)")
 
 # ── 5. 修复前后对比评分 ──
-print(f"\n{'='*100}")
+print(f"\n{'=' * 100}")
 print(f"=== 5. 修复前后Prompt质量对比评分 ===")
 
 # 评分维度和权重
@@ -313,31 +335,31 @@ scoring = {
         "weight": 25,
         "before": 3,
         "after": min(25, int(25 * info_score / len(info_checks))),
-        "reason": "flow_meta/image_url/edge字段修复前全部丢失，修复后全部保留"
+        "reason": "flow_meta/image_url/edge字段修复前全部丢失，修复后全部保留",
     },
     "元素信息丰富度": {
         "weight": 20,
         "before": 5,
         "after": min(20, int(20 * min(avg_element_chars / 50, 1))),
-        "reason": "修复前仅type:label(约12字符)，修复后含state/interactive/description(约40+字符)"
+        "reason": "修复前仅type:label(约12字符)，修复后含state/interactive/description(约40+字符)",
     },
     "流程描述精确度": {
         "weight": 20,
         "before": 6,
         "after": min(20, int(20 * (info_score + constraint_score) / (len(info_checks) + len(constraint_checks)))),
-        "reason": "修复前缺少连线补充信息和节点摘要，修复后完整呈现"
+        "reason": "修复前缺少连线补充信息和节点摘要，修复后完整呈现",
     },
     "生成约束有效性": {
         "weight": 20,
         "before": 12,
         "after": min(20, int(20 * constraint_score / len(constraint_checks))),
-        "reason": "三段式/原子性/确定性约束已优化"
+        "reason": "三段式/原子性/确定性约束已优化",
     },
     "UI规格可用性": {
         "weight": 15,
         "before": 8,
         "after": min(15, int(15 * ui_spec_score / len(ui_spec_checks))),
-        "reason": "UI规格格式化保留purpose/elements/navigation/flows"
+        "reason": "UI规格格式化保留purpose/elements/navigation/flows",
     },
 }
 
@@ -346,7 +368,7 @@ total_after = 0
 total_weight = 0
 
 print(f"\n  {'评分维度':<25} {'权重':<6} {'修复前':<8} {'修复后':<8} {'提升':<8} {'原因'}")
-print(f"  {'-'*25} {'-'*6} {'-'*8} {'-'*8} {'-'*8} {'-'*30}")
+print(f"  {'-' * 25} {'-' * 6} {'-' * 8} {'-' * 8} {'-' * 8} {'-' * 30}")
 
 for name, data in scoring.items():
     w = data["weight"]
@@ -359,19 +381,19 @@ for name, data in scoring.items():
     print(f"  {name:<25} {w:<6} {b:<8} {a:<8} +{delta:<7} {data['reason']}")
 
 print(f"\n  {'总分':<25} {total_weight:<6} {total_before:<8} {total_after:<8} +{total_after - total_before}")
-print(f"  修复前得分率: {total_before}/{total_weight} ({total_before/total_weight*100:.0f}%)")
-print(f"  修复后得分率: {total_after}/{total_weight} ({total_after/total_weight*100:.0f}%)")
-print(f"  提升幅度: +{total_after - total_before}分 (+{(total_after - total_before)/total_weight*100:.0f}%)")
+print(f"  修复前得分率: {total_before}/{total_weight} ({total_before / total_weight * 100:.0f}%)")
+print(f"  修复后得分率: {total_after}/{total_weight} ({total_after / total_weight * 100:.0f}%)")
+print(f"  提升幅度: +{total_after - total_before}分 (+{(total_after - total_before) / total_weight * 100:.0f}%)")
 
 # ── 6. 输出Prompt关键段落示例 ──
-print(f"\n{'='*100}")
+print(f"\n{'=' * 100}")
 print(f"=== 6. Prompt流程结构段落示例（前15行）===")
 if flow_section:
     for line in flow_section.split("\n")[:15]:
         print(f"  {line}")
 
 # ── 7. 对AI生成用例质量的影响分析 ──
-print(f"\n{'='*100}")
+print(f"\n{'=' * 100}")
 print(f"=== 7. 对AI生成测试用例质量的影响分析 ===")
 
 print("""
@@ -400,7 +422,7 @@ print("""
 """)
 
 # ── 8. 预期测试用例质量提升 ──
-print(f"{'='*100}")
+print(f"{'=' * 100}")
 print(f"=== 8. 预期测试用例质量提升 ===")
 
 quality_aspects = [
@@ -413,10 +435,10 @@ quality_aspects = [
 ]
 
 print(f"\n  {'质量维度':<15} {'提升原因':<30} {'数据支撑'}")
-print(f"  {'-'*15} {'-'*30} {'-'*40}")
+print(f"  {'-' * 15} {'-' * 30} {'-' * 40}")
 for aspect, reason, support in quality_aspects:
     print(f"  {aspect:<15} {reason:<30} {support}")
 
 db.close()
-print(f"\n{'='*100}")
+print(f"\n{'=' * 100}")
 print("验证完成")

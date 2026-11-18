@@ -10,6 +10,7 @@
 依赖关系：
     - app.services.posterior_quality_service : 后验质量分采集服务
 """
+
 import argparse
 import logging
 import sys

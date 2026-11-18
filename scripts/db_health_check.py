@@ -51,6 +51,7 @@ from app.core.config import settings
 @dataclass
 class HealthCheckResult:
     """健康检查结果数据类"""
+
     status: str  # healthy/warning/critical
     timestamp: str
     checks: Dict[str, Any]
@@ -80,22 +81,12 @@ class DatabaseHealthChecker:
             self.inspector = inspect(self.engine)
             return True
         except Exception as e:
-            self.results['connection'] = {
-                'status': 'critical',
-                'message': f'连接失败: {e}',
-                'latency_ms': None
-            }
+            self.results["connection"] = {"status": "critical", "message": f"连接失败: {e}", "latency_ms": None}
             return False
 
     def check_connection(self) -> Dict[str, Any]:
         """检查1：数据库连接测试"""
-        result = {
-            'status': 'unknown',
-            'message': '',
-            'latency_ms': None,
-            'database': None,
-            'version': None
-        }
+        result = {"status": "unknown", "message": "", "latency_ms": None, "database": None, "version": None}
 
         try:
             start_time = time.time()
@@ -109,22 +100,20 @@ class DatabaseHealthChecker:
 
                 latency = (time.time() - start_time) * 1000
 
-                result.update({
-                    'status': 'healthy',
-                    'message': '连接正常',
-                    'latency_ms': round(latency, 2),
-                    'database': database,
-                    'version': version_info
-                })
+                result.update(
+                    {
+                        "status": "healthy",
+                        "message": "连接正常",
+                        "latency_ms": round(latency, 2),
+                        "database": database,
+                        "version": version_info,
+                    }
+                )
 
         except Exception as e:
-            result.update({
-                'status': 'critical',
-                'message': f'连接异常: {e}',
-                'latency_ms': None
-            })
+            result.update({"status": "critical", "message": f"连接异常: {e}", "latency_ms": None})
 
-        self.results['connection'] = result
+        self.results["connection"] = result
         return result
 
     def check_table_structure(self) -> Dict[str, Any]:
@@ -132,13 +121,7 @@ class DatabaseHealthChecker:
         from app.db.database import Base
         from app.db.smart_sync import DatabaseSyncTool
 
-        result = {
-            'status': 'healthy',
-            'total_tables': 0,
-            'synced_tables': 0,
-            'out_of_sync_tables': [],
-            'details': []
-        }
+        result = {"status": "healthy", "total_tables": 0, "synced_tables": 0, "out_of_sync_tables": [], "details": []}
 
         try:
             sync_tool = DatabaseSyncTool(self.engine)
@@ -147,37 +130,32 @@ class DatabaseHealthChecker:
                 missing_cols, existing_cols = sync_tool.find_missing_columns(table_name, Base)
 
                 table_info = {
-                    'table': table_name,
-                    'model_columns': len(sync_tool.get_model_columns(table_name, Base)),
-                    'db_columns': len(existing_cols),
-                    'missing_columns': [col['name'] for col in missing_cols],
-                    'status': 'synced' if not missing_cols else 'out_of_sync'
+                    "table": table_name,
+                    "model_columns": len(sync_tool.get_model_columns(table_name, Base)),
+                    "db_columns": len(existing_cols),
+                    "missing_columns": [col["name"] for col in missing_cols],
+                    "status": "synced" if not missing_cols else "out_of_sync",
                 }
 
-                result['details'].append(table_info)
-                result['total_tables'] += 1
+                result["details"].append(table_info)
+                result["total_tables"] += 1
 
                 if missing_cols:
-                    result['status'] = 'warning'
-                    result['out_of_sync_tables'].append(table_name)
+                    result["status"] = "warning"
+                    result["out_of_sync_tables"].append(table_name)
                 else:
-                    result['synced_tables'] += 1
+                    result["synced_tables"] += 1
 
         except Exception as e:
-            result['status'] = 'critical'
-            result['message'] = f'表结构检查失败: {e}'
+            result["status"] = "critical"
+            result["message"] = f"表结构检查失败: {e}"
 
-        self.results['table_structure'] = result
+        self.results["table_structure"] = result
         return result
 
     def check_foreign_keys(self) -> Dict[str, Any]:
         """检查3：外键完整性"""
-        result = {
-            'status': 'healthy',
-            'total_foreign_keys': 0,
-            'broken_foreign_keys': [],
-            'details': []
-        }
+        result = {"status": "healthy", "total_foreign_keys": 0, "broken_foreign_keys": [], "details": []}
 
         try:
             tables = self.inspector.get_table_names()
@@ -187,42 +165,34 @@ class DatabaseHealthChecker:
                     fks = self.inspector.get_foreign_keys(table)
                     for fk in fks:
                         fk_info = {
-                            'table': table,
-                            'constrained_columns': fk.get('constrained_columns', []),
-                            'referred_table': fk.get('referred_table', ''),
-                            'referred_columns': fk.get('referred_columns', []),
-                            'name': fk.get('name', '')
+                            "table": table,
+                            "constrained_columns": fk.get("constrained_columns", []),
+                            "referred_table": fk.get("referred_table", ""),
+                            "referred_columns": fk.get("referred_columns", []),
+                            "name": fk.get("name", ""),
                         }
-                        result['details'].append(fk_info)
-                        result['total_foreign_keys'] += 1
+                        result["details"].append(fk_info)
+                        result["total_foreign_keys"] += 1
 
-                        if fk_info['constrained_columns'] and fk_info['referred_table']:
+                        if fk_info["constrained_columns"] and fk_info["referred_table"]:
                             pass
 
                 except Exception as e:
-                    result['broken_foreign_keys'].append({
-                        'table': table,
-                        'error': str(e)
-                    })
+                    result["broken_foreign_keys"].append({"table": table, "error": str(e)})
 
-            if result['broken_foreign_keys']:
-                result['status'] = 'warning'
+            if result["broken_foreign_keys"]:
+                result["status"] = "warning"
 
         except Exception as e:
-            result['status'] = 'critical'
-            result['message'] = f'外键检查失败: {e}'
+            result["status"] = "critical"
+            result["message"] = f"外键检查失败: {e}"
 
-        self.results['foreign_keys'] = result
+        self.results["foreign_keys"] = result
         return result
 
     def check_indexes(self) -> Dict[str, Any]:
         """检查4：索引状态"""
-        result = {
-            'status': 'healthy',
-            'total_indexes': 0,
-            'tables_without_pk': [],
-            'details': {}
-        }
+        result = {"status": "healthy", "total_indexes": 0, "tables_without_pk": [], "details": {}}
 
         try:
             tables = self.inspector.get_table_names()
@@ -232,26 +202,26 @@ class DatabaseHealthChecker:
                     indexes = self.inspector.get_indexes(table)
                     pk = self.inspector.get_pk_constraint(table)
 
-                    result['details'][table] = {
-                        'index_count': len(indexes),
-                        'has_primary_key': pk is not None and pk.get('constrained_columns') is not None
+                    result["details"][table] = {
+                        "index_count": len(indexes),
+                        "has_primary_key": pk is not None and pk.get("constrained_columns") is not None,
                     }
-                    result['total_indexes'] += len(indexes)
+                    result["total_indexes"] += len(indexes)
 
-                    if not pk or not pk.get('constrained_columns'):
-                        result['tables_without_pk'].append(table)
+                    if not pk or not pk.get("constrained_columns"):
+                        result["tables_without_pk"].append(table)
 
                 except Exception as e:
-                    result['details'][table] = {'error': str(e)}
+                    result["details"][table] = {"error": str(e)}
 
-            if result['tables_without_pk']:
-                result['status'] = 'warning'
+            if result["tables_without_pk"]:
+                result["status"] = "warning"
 
         except Exception as e:
-            result['status'] = 'critical'
-            result['message'] = f'索引检查失败: {e}'
+            result["status"] = "critical"
+            result["message"] = f"索引检查失败: {e}"
 
-        self.results['indexes'] = result
+        self.results["indexes"] = result
         return result
 
     def run_all_checks(self) -> HealthCheckResult:
@@ -260,11 +230,11 @@ class DatabaseHealthChecker:
 
         if not self.connect():
             return HealthCheckResult(
-                status='critical',
+                status="critical",
                 timestamp=timestamp,
                 checks=self.results,
-                summary='数据库连接失败',
-                details=['无法连接到数据库']
+                summary="数据库连接失败",
+                details=["无法连接到数据库"],
             )
 
         print("📊 正在执行健康检查...\n")
@@ -289,42 +259,38 @@ class DatabaseHealthChecker:
         summary = self._generate_summary()
 
         details = []
-        if struct_result.get('out_of_sync_tables'):
+        if struct_result.get("out_of_sync_tables"):
             details.append(f"⚠️  {len(struct_result['out_of_sync_tables'])} 个表结构不同步")
-        if fk_result.get('broken_foreign_keys'):
+        if fk_result.get("broken_foreign_keys"):
             details.append(f"⚠️  {len(fk_result['broken_foreign_keys'])} 个外键异常")
-        if idx_result.get('tables_without_pk'):
+        if idx_result.get("tables_without_pk"):
             details.append(f"⚠️  {len(idx_result['tables_without_pk'])} 个表缺少主键")
 
         return HealthCheckResult(
-            status=overall_status,
-            timestamp=timestamp,
-            checks=self.results,
-            summary=summary,
-            details=details
+            status=overall_status, timestamp=timestamp, checks=self.results, summary=summary, details=details
         )
 
     def _calculate_overall_status(self) -> str:
         """计算总体健康状态"""
-        statuses = [r.get('status', 'unknown') for r in self.results.values()]
+        statuses = [r.get("status", "unknown") for r in self.results.values()]
 
-        if 'critical' in statuses:
-            return 'critical'
-        elif 'warning' in statuses:
-            return 'warning'
+        if "critical" in statuses:
+            return "critical"
+        elif "warning" in statuses:
+            return "warning"
         else:
-            return 'healthy'
+            return "healthy"
 
     def _generate_summary(self) -> str:
         """生成摘要信息"""
-        conn = self.results.get('connection', {})
-        struct = self.results.get('table_structure', {})
+        conn = self.results.get("connection", {})
+        struct = self.results.get("table_structure", {})
 
         parts = [
             f"数据库: {conn.get('database', 'N/A')}",
             f"延迟: {conn.get('latency_ms', 'N/A')}ms",
             f"表数量: {struct.get('total_tables', 0)}",
-            f"同步状态: {struct.get('synced_tables', 0)}/{struct.get('total_tables', 0)}"
+            f"同步状态: {struct.get('synced_tables', 0)}/{struct.get('total_tables', 0)}",
         ]
 
         return " | ".join(parts)
@@ -332,18 +298,18 @@ class DatabaseHealthChecker:
     @staticmethod
     def _print_check_result(name: str, result: Dict):
         """打印检查结果"""
-        status = result.get('status', 'unknown')
-        icon = {'healthy': '✅', 'warning': '⚠️ ', 'critical': '❌'}.get(status, '❓')
+        status = result.get("status", "unknown")
+        icon = {"healthy": "✅", "warning": "⚠️ ", "critical": "❌"}.get(status, "❓")
 
         print(f"{icon} {name}: {status.upper()}")
 
-        if result.get('latency_ms'):
+        if result.get("latency_ms"):
             print(f"   延迟: {result['latency_ms']}ms")
 
-        if result.get('out_of_sync_tables'):
+        if result.get("out_of_sync_tables"):
             print(f"   不同步的表: {result['out_of_sync_tables']}")
 
-        if result.get('total_indexes') is not None:
+        if result.get("total_indexes") is not None:
             print(f"   索引总数: {result['total_indexes']}")
 
     def to_json(self, result: HealthCheckResult) -> str:
@@ -356,9 +322,9 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="数据库健康检查工具")
-    parser.add_argument('--json', type=str, default=None, help="输出JSON报告到文件")
-    parser.add_argument('--quiet', action='store_true', help="静默模式（仅显示错误）")
-    parser.add_argument('--check', type=str, default=None, help="仅执行指定检查项 (connection/structure/indexes)")
+    parser.add_argument("--json", type=str, default=None, help="输出JSON报告到文件")
+    parser.add_argument("--quiet", action="store_true", help="静默模式（仅显示错误）")
+    parser.add_argument("--check", type=str, default=None, help="仅执行指定检查项 (connection/structure/indexes)")
 
     args = parser.parse_args()
 
@@ -370,16 +336,16 @@ def main():
     checker = DatabaseHealthChecker()
 
     try:
-        if args.check == 'connection':
+        if args.check == "connection":
             checker.connect()
             result = checker.check_connection()
             checker._print_check_result("连接", result)
             health_result = HealthCheckResult(
-                status=result['status'],
+                status=result["status"],
                 timestamp=datetime.now().isoformat(),
-                checks={'connection': result},
+                checks={"connection": result},
                 summary=f"连接状态: {result['status']}",
-                details=[]
+                details=[],
             )
         else:
             health_result = checker.run_all_checks()
@@ -396,13 +362,13 @@ def main():
                 print(f"  • {detail}")
 
         if args.json:
-            with open(args.json, 'w', encoding='utf-8') as f:
+            with open(args.json, "w", encoding="utf-8") as f:
                 f.write(checker.to_json(health_result))
             print(f"\n📄 JSON报告已保存到: {args.json}")
 
-        if health_result.status == 'critical':
+        if health_result.status == "critical":
             sys.exit(2)
-        elif health_result.status == 'warning':
+        elif health_result.status == "warning":
             sys.exit(1)
         else:
             sys.exit(0)
@@ -413,6 +379,7 @@ def main():
     except Exception as e:
         print(f"\n❌ 检查失败: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

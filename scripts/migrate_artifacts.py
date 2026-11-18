@@ -11,6 +11,7 @@ Pipeline 版本升级时，将 artifact 的 schema_version 和 payload 从旧版
     --to-version     目标 schema 版本
     --dry-run        仅预览不写入数据库
 """
+
 import argparse
 import sys
 from pathlib import Path

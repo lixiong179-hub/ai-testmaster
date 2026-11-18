@@ -20,6 +20,7 @@
   豁免其 downgrade()=pass 的惯例。
 - 不修改业务数据库：要求使用 TEST_DATABASE_URL 或通过 --database-url 显式指定。
 """
+
 from __future__ import annotations
 
 import argparse

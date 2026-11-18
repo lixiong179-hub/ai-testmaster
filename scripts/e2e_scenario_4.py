@@ -16,6 +16,7 @@ M2-T13 场景 4 端到端测试脚本
     4. 输出每步执行状态和耗时
     5. 打印最终 summary
 """
+
 import argparse
 import sys
 import time
@@ -51,6 +52,7 @@ def _create_ai_client(model_name=None):
 
 def validate_project(db, project_id):
     from app.models.project import Project
+
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise SystemExit(f"项目 ID={project_id} 不存在")
@@ -59,6 +61,7 @@ def validate_project(db, project_id):
 
 def validate_iteration(db, iteration_id, project_id):
     from app.models.iteration import Iteration
+
     iteration = db.query(Iteration).filter(Iteration.id == iteration_id).first()
     if not iteration:
         raise SystemExit(f"Iteration ID={iteration_id} 不存在")
@@ -71,10 +74,15 @@ def validate_iteration(db, iteration_id, project_id):
 
 def check_history_cases(db, project_id):
     from app.models.test_case import TestCase
-    count = db.query(TestCase).filter(
-        TestCase.project_id == project_id,
-        TestCase.lifecycle_status.in_(["active", "draft", "pending_review"]),
-    ).count()
+
+    count = (
+        db.query(TestCase)
+        .filter(
+            TestCase.project_id == project_id,
+            TestCase.lifecycle_status.in_(["active", "draft", "pending_review"]),
+        )
+        .count()
+    )
     return count
 
 
@@ -97,6 +105,7 @@ def main():
             iteration = validate_iteration(db, args.iteration_id, project_id)
         else:
             from app.models.iteration import Iteration
+
             iteration = (
                 db.query(Iteration)
                 .filter(
@@ -164,7 +173,10 @@ def main():
         for step in sorted(run.steps, key=lambda s: s.id):
             logger.info(
                 "  - {}: status={}, retries={}, degraded={}",
-                step.step_name, step.status, step.retried_count, step.degraded,
+                step.step_name,
+                step.status,
+                step.retried_count,
+                step.degraded,
             )
 
         artifact_kinds = sorted(set(a.kind for a in run.artifacts))

@@ -7,6 +7,7 @@
 使用方式：
     python -m scripts.fix_orphan_capability_ids
 """
+
 import sys
 from sqlalchemy import text
 from scripts.cli_utils import build_session
@@ -21,9 +22,7 @@ def scan_orphan_test_points(session) -> dict:
     Returns:
         统计报告字典，包含总数、可修复数、不可修复数等。
     """
-    orphan_count = session.execute(text(
-        "SELECT COUNT(*) FROM test_points WHERE capability_id IS NULL"
-    )).scalar()
+    orphan_count = session.execute(text("SELECT COUNT(*) FROM test_points WHERE capability_id IS NULL")).scalar()
 
     if orphan_count == 0:
         print("[INFO] 未发现 capability_id 为 NULL 的孤儿记录，数据完好。")
@@ -33,8 +32,9 @@ def scan_orphan_test_points(session) -> dict:
 
     # 尝试通过 project_id + module 推断可能的 capability
     # 由于硬删除后 capability 记录已不存在，大部分 NULL 实际无法修复
-    potential_repairs = session.execute(text(
-        """
+    potential_repairs = session.execute(
+        text(
+            """
         SELECT tp.id AS test_point_id, tp.project_id, tp.module,
                tc.id AS matched_capability_id, tc.key AS matched_key
         FROM test_points tp
@@ -44,7 +44,8 @@ def scan_orphan_test_points(session) -> dict:
             AND tc.status != 'archived'
         WHERE tp.capability_id IS NULL
         """
-    )).fetchall()
+        )
+    ).fetchall()
 
     repairable = [row for row in potential_repairs if row.matched_capability_id is not None]
     unrepairable_count = orphan_count - len(repairable)
@@ -97,10 +98,7 @@ def apply_repairs(session, report: dict) -> int:
     for item in repair_details:
         try:
             session.execute(
-                text(
-                    "UPDATE test_points SET capability_id = :cap_id "
-                    "WHERE id = :tp_id AND capability_id IS NULL"
-                ),
+                text("UPDATE test_points SET capability_id = :cap_id WHERE id = :tp_id AND capability_id IS NULL"),
                 {"cap_id": item["matched_capability_id"], "tp_id": item["test_point_id"]},
             )
             fixed += 1

@@ -13,6 +13,7 @@
 说明：脚本只创建 1 条 `PENDING` 任务（`case_ids=[]`，不触发浏览器执行），
 结束后删除临时项目与任务，不污染业务数据。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -116,9 +117,7 @@ def _status(task_id: int) -> Optional[int]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="K4 多进程并发领取举证")
     parser.add_argument("--workers", type=int, default=3, help="并发副本数（默认 3）")
-    parser.add_argument(
-        "--start-delay", type=float, default=1.5, help="统一开跑前的等待秒数"
-    )
+    parser.add_argument("--start-delay", type=float, default=1.5, help="统一开跑前的等待秒数")
     args = parser.parse_args(argv)
 
     try:
@@ -143,10 +142,7 @@ def main(argv: list[str] | None = None) -> int:
         print("| --- | --- | --- |")
         for pid, claimed in results:
             print(f"| {pid} | {'YES' if claimed else '-'} | {claimed or '-'} |")
-        print(
-            f"\nwinner={len(winners)} workers={args.workers} "
-            f"final_status={final_status}"
-        )
+        print(f"\nwinner={len(winners)} workers={args.workers} final_status={final_status}")
     finally:
         # 无论打印是否成功（如 Windows GBK 控制台编码异常）都要清理临时数据
         _cleanup(project_id, task_id)

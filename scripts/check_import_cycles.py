@@ -11,6 +11,7 @@
 用法：
     venv/Scripts/python.exe scripts/check_import_cycles.py
 """
+
 from __future__ import annotations
 
 import ast
@@ -148,8 +149,10 @@ def main() -> int:
     runtime_cycles = find_cycles(runtime)
     full_cycles = find_cycles(full)
 
-    print(f"模块数: {len(runtime)}，模块级导入边: {sum(len(v) for v in runtime.values())}，"
-          f"含延迟导入边: {sum(len(v) for v in full.values())}")
+    print(
+        f"模块数: {len(runtime)}，模块级导入边: {sum(len(v) for v in runtime.values())}，"
+        f"含延迟导入边: {sum(len(v) for v in full.values())}"
+    )
     print(f"运行时环（模块级导入构成，门禁）: {len(runtime_cycles)}")
     print(f"含延迟导入的静态环（参考，非门禁）: {len(full_cycles)}")
 

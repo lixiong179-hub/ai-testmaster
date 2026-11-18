@@ -33,17 +33,11 @@ def has_index(inspector, table_name: str, index_name: str) -> bool:
 
 
 def has_unique(inspector, table_name: str, constraint_name: str) -> bool:
-    return any(
-        constraint["name"] == constraint_name
-        for constraint in inspector.get_unique_constraints(table_name)
-    )
+    return any(constraint["name"] == constraint_name for constraint in inspector.get_unique_constraints(table_name))
 
 
 def has_foreign_key(inspector, table_name: str, constraint_name: str) -> bool:
-    return any(
-        foreign_key["name"] == constraint_name
-        for foreign_key in inspector.get_foreign_keys(table_name)
-    )
+    return any(foreign_key["name"] == constraint_name for foreign_key in inspector.get_foreign_keys(table_name))
 
 
 def ensure_required_columns(inspector) -> None:
@@ -63,9 +57,7 @@ def ensure_required_columns(inspector) -> None:
         actual_columns = {column["name"] for column in inspector.get_columns(table_name)}
         missing_columns = expected_columns - actual_columns
         if missing_columns:
-            raise RuntimeError(
-                f"表 {table_name} 缺少字段: {', '.join(sorted(missing_columns))}"
-            )
+            raise RuntimeError(f"表 {table_name} 缺少字段: {', '.join(sorted(missing_columns))}")
     if not inspector.has_table("test_case_precondition_steps"):
         raise RuntimeError("缺少表 test_case_precondition_steps")
 
@@ -84,9 +76,7 @@ def ensure_unique_precondition_for_step_ids(connection) -> None:
         )
     ).fetchall()
     if duplicate_rows:
-        raise RuntimeError(
-            f"element_locators.step_id 存在重复值，无法安全补唯一约束: {duplicate_rows}"
-        )
+        raise RuntimeError(f"element_locators.step_id 存在重复值，无法安全补唯一约束: {duplicate_rows}")
 
 
 def collect_repair_steps(connection, inspector) -> list[RepairStep]:
@@ -99,10 +89,7 @@ def collect_repair_steps(connection, inspector) -> list[RepairStep]:
         steps.append(
             RepairStep(
                 description="为 element_locators.step_id 补唯一约束",
-                sql=(
-                    "ALTER TABLE element_locators "
-                    "ADD CONSTRAINT uq_element_locators_step_id UNIQUE (step_id)"
-                ),
+                sql=("ALTER TABLE element_locators ADD CONSTRAINT uq_element_locators_step_id UNIQUE (step_id)"),
             )
         )
 
@@ -111,8 +98,7 @@ def collect_repair_steps(connection, inspector) -> list[RepairStep]:
             RepairStep(
                 description="为 element_locators.precondition_step_id 补索引",
                 sql=(
-                    "CREATE INDEX ix_element_locators_precondition_step_id "
-                    "ON element_locators (precondition_step_id)"
+                    "CREATE INDEX ix_element_locators_precondition_step_id ON element_locators (precondition_step_id)"
                 ),
             )
         )
@@ -139,10 +125,7 @@ def collect_repair_steps(connection, inspector) -> list[RepairStep]:
         steps.append(
             RepairStep(
                 description="为 test_cases.test_point_id 补索引",
-                sql=(
-                    "CREATE INDEX ix_test_cases_test_point_id "
-                    "ON test_cases (test_point_id)"
-                ),
+                sql=("CREATE INDEX ix_test_cases_test_point_id ON test_cases (test_point_id)"),
             )
         )
 

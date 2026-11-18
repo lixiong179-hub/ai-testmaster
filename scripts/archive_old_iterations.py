@@ -10,6 +10,7 @@
     --dry-run           仅预览不写入数据库
     --retention-days    归档保留天数（默认 180，即 6 个月）
 """
+
 import argparse
 import sys
 from pathlib import Path

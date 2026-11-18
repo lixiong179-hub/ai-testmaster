@@ -6,6 +6,7 @@
     python scripts/backfill_testpoint_capability.py --dry-run   # 预览模式，不写入数据库
     python scripts/backfill_testpoint_capability.py             # 执行回填
 """
+
 import argparse
 import sys
 import os
@@ -38,10 +39,14 @@ def backfill(dry_run: bool = False) -> None:
 
         for project in projects:
             # 2. 检查该项目是否已有 default capability（幂等）
-            existing = db.query(TestCapability).filter(
-                TestCapability.project_id == project.id,
-                TestCapability.key == DEFAULT_CAPABILITY_KEY,
-            ).first()
+            existing = (
+                db.query(TestCapability)
+                .filter(
+                    TestCapability.project_id == project.id,
+                    TestCapability.key == DEFAULT_CAPABILITY_KEY,
+                )
+                .first()
+            )
 
             if existing:
                 default_cap = existing
@@ -63,10 +68,14 @@ def backfill(dry_run: bool = False) -> None:
                     print(f"  项目 {project.id} ({project.name}): 创建 default capability (id={default_cap.id})")
 
             # 3. 查找该项目下 capability_id 为 NULL 的 test_point
-            orphan_points = db.query(TestPoint).filter(
-                TestPoint.project_id == project.id,
-                TestPoint.capability_id.is_(None),
-            ).all()
+            orphan_points = (
+                db.query(TestPoint)
+                .filter(
+                    TestPoint.project_id == project.id,
+                    TestPoint.capability_id.is_(None),
+                )
+                .all()
+            )
 
             if not orphan_points:
                 print(f"  项目 {project.id}: 无孤立测试点，跳过")
@@ -79,7 +88,7 @@ def backfill(dry_run: bool = False) -> None:
             else:
                 # 分批更新，避免大事务
                 for i in range(0, len(orphan_points), BATCH_SIZE):
-                    batch = orphan_points[i:i + BATCH_SIZE]
+                    batch = orphan_points[i : i + BATCH_SIZE]
                     for tp in batch:
                         tp.capability_id = default_cap.id
                     db.flush()

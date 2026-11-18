@@ -23,6 +23,7 @@ quality_rule_configs / prompt_templates / pipeline_config / enums 等系统配�
     - dry-run: 各表行数清单
     - execute: 删除前行数 → 删除后行数
 """
+
 import argparse
 import sys
 from pathlib import Path
@@ -61,10 +62,7 @@ def _print_stats(stats: Dict[str, int], header: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description=(
-            "清理全部业务数据（核弹级）。默认 dry-run。\n"
-            "传 --execute 才执行 DELETE，传 --yes 跳过确认提示。"
-        ),
+        description=("清理全部业务数据（核弹级）。默认 dry-run。\n传 --execute 才执行 DELETE，传 --yes 跳过确认提示。"),
     )
     parser.add_argument(
         "--execute",
@@ -90,10 +88,7 @@ def main() -> None:
             _print_table("保留的表（不删）")
             for t in _TABLES_PRESERVED:
                 print(f"  ✓ {t}")
-            print(
-                "\n[下一步] 若确认无误，执行:\n"
-                "  python scripts/cleanup_all_business_data.py --execute"
-            )
+            print("\n[下一步] 若确认无误，执行:\n  python scripts/cleanup_all_business_data.py --execute")
             return
 
         # Execute 模式
@@ -119,9 +114,7 @@ def main() -> None:
         # 验证
         _print_table("验证（删除后行数应为 0）")
         for name in sorted(_TABLES_TO_CLEAR):
-            result = db.execute(
-                __import__("sqlalchemy").text(f"SELECT COUNT(*) FROM {name}")
-            )
+            result = db.execute(__import__("sqlalchemy").text(f"SELECT COUNT(*) FROM {name}"))
             remaining = result.scalar() or 0
             status = "✓" if remaining == 0 else "✗"
             print(f"  {status} {name:<36}  {remaining:>8d} 行")

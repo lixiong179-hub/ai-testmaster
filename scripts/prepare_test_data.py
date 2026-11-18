@@ -9,6 +9,7 @@
 环境变量：
     TEST_DATABASE_URL 测试数据库连接（可选，默认从 settings 推断）
 """
+
 import argparse
 import json
 import os
@@ -57,9 +58,7 @@ def _clear_project(session: Session, project_id: int):
     session.execute(text("SET FOREIGN_KEY_CHECKS=0"))
     try:
         session.query(IterationInput).filter(
-            IterationInput.iteration_id.in_(
-                session.query(Iteration.id).filter(Iteration.project_id == project_id)
-            )
+            IterationInput.iteration_id.in_(session.query(Iteration.id).filter(Iteration.project_id == project_id))
         ).delete(synchronize_session=False)
         session.query(Iteration).filter(Iteration.project_id == project_id).delete(synchronize_session=False)
         session.query(TestCase).filter(TestCase.project_id == project_id).delete(synchronize_session=False)
@@ -134,8 +133,10 @@ def _import_alpha(session: Session, user_id: int):
         session.add(db_case)
 
     session.commit()
-    print(f"[Alpha] 项目 id={project.id}，测试点 {len(test_points)} 条，"
-          f"UI屏幕 {len(ui_data)} 个，预期用例 {len(expected_cases)} 条")
+    print(
+        f"[Alpha] 项目 id={project.id}，测试点 {len(test_points)} 条，"
+        f"UI屏幕 {len(ui_data)} 个，预期用例 {len(expected_cases)} 条"
+    )
 
 
 def _import_beta(session: Session, user_id: int):
@@ -178,8 +179,10 @@ def _import_beta(session: Session, user_id: int):
         disable_lifecycle_transition()
 
     session.commit()
-    print(f"[Beta] 项目 id={project.id}，历史用例 {len(historical_cases)} 条"
-          f"（含 4 模块：用户注册/登录/密码找回/个人信息管理）")
+    print(
+        f"[Beta] 项目 id={project.id}，历史用例 {len(historical_cases)} 条"
+        f"（含 4 模块：用户注册/登录/密码找回/个人信息管理）"
+    )
 
 
 def _import_gamma(session: Session, user_id: int):

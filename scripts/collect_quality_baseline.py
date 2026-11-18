@@ -13,6 +13,7 @@
 依赖关系：
     - app.db.database : SecondarySessionLocal
 """
+
 import argparse
 import difflib
 import json
@@ -34,7 +35,8 @@ logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "docs", "baseline",
+    "docs",
+    "baseline",
 )
 SIMILARITY_THRESHOLD = 0.85
 
@@ -46,15 +48,19 @@ def _get_col(record: Any, key: str, sentinel: Any = None) -> Any:
 
 
 def _collect_project(db: Session, pid: int, pname: str) -> Dict[str, Any]:
-    cases = db.execute(
-        text(
-            "SELECT id, module, title, steps_json, review_status, "
-            "create_time, update_time "
-            "FROM test_cases "
-            "WHERE project_id = :pid AND is_deleted = 0"
-        ),
-        {"pid": pid},
-    ).mappings().all()
+    cases = (
+        db.execute(
+            text(
+                "SELECT id, module, title, steps_json, review_status, "
+                "create_time, update_time "
+                "FROM test_cases "
+                "WHERE project_id = :pid AND is_deleted = 0"
+            ),
+            {"pid": pid},
+        )
+        .mappings()
+        .all()
+    )
 
     total_cases = len(cases)
     if total_cases == 0:
@@ -69,16 +75,20 @@ def _collect_project(db: Session, pid: int, pname: str) -> Dict[str, Any]:
     approved = sum(1 for c in cases if _get_col(c, "review_status") == "approved")
     review_pass_rate = (approved / reviewed * 100) if reviewed > 0 else None
 
-    exec_row = db.execute(
-        text(
-            "SELECT COUNT(*) AS total, "
-            "SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed "
-            "FROM test_case_executions e "
-            "JOIN test_cases tc ON e.test_case_id = tc.id "
-            "WHERE tc.project_id = :pid AND tc.is_deleted = 0"
-        ),
-        {"pid": pid},
-    ).mappings().one()
+    exec_row = (
+        db.execute(
+            text(
+                "SELECT COUNT(*) AS total, "
+                "SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed "
+                "FROM test_case_executions e "
+                "JOIN test_cases tc ON e.test_case_id = tc.id "
+                "WHERE tc.project_id = :pid AND tc.is_deleted = 0"
+            ),
+            {"pid": pid},
+        )
+        .mappings()
+        .one()
+    )
     total_execs = exec_row["total"] or 0
     passed_execs = exec_row["passed"] or 0
     execution_pass_rate = (passed_execs / total_execs * 100) if total_execs > 0 else None
@@ -100,7 +110,8 @@ def _collect_project(db: Session, pid: int, pname: str) -> Dict[str, Any]:
     avg_steps = round(total_steps / cases_with_steps, 2) if cases_with_steps > 0 else 0.0
 
     modified = sum(
-        1 for c in cases
+        1
+        for c in cases
         if _get_col(c, "update_time") is not None
         and _get_col(c, "create_time") is not None
         and _get_col(c, "update_time") > _get_col(c, "create_time")
@@ -115,10 +126,7 @@ def _collect_project(db: Session, pid: int, pname: str) -> Dict[str, Any]:
     for c in cases:
         module_groups[_get_col(c, "module") or "未分类"] += 1
 
-    modules = [
-        {"module": m, "count": cnt}
-        for m, cnt in sorted(module_groups.items(), key=lambda x: -x[1])
-    ]
+    modules = [{"module": m, "count": cnt} for m, cnt in sorted(module_groups.items(), key=lambda x: -x[1])]
 
     return {
         "project_id": pid,
@@ -142,10 +150,14 @@ def _collect_project(db: Session, pid: int, pname: str) -> Dict[str, Any]:
 
 def _fetch_code_review_count(db, pid: int) -> int:
     try:
-        row = db.execute(
-            text("SELECT COUNT(*) AS cnt FROM code_reviews WHERE project_id = :pid"),
-            {"pid": pid},
-        ).mappings().one()
+        row = (
+            db.execute(
+                text("SELECT COUNT(*) AS cnt FROM code_reviews WHERE project_id = :pid"),
+                {"pid": pid},
+            )
+            .mappings()
+            .one()
+        )
         return row["cnt"]
     except Exception:
         logger.warning("查询 code_reviews 表失败，返回 0（可能表不存在）")
@@ -153,21 +165,20 @@ def _fetch_code_review_count(db, pid: int) -> int:
 
 
 def _compute_similarity(cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    titles = [
-        (_get_col(c, "id"), _get_col(c, "title") or "")
-        for c in cases
-    ]
+    titles = [(_get_col(c, "id"), _get_col(c, "title") or "") for c in cases]
     pairs = []
     n = len(titles)
     for i in range(n):
         for j in range(i + 1, n):
             ratio = difflib.SequenceMatcher(None, titles[i][1], titles[j][1]).ratio()
             if ratio >= SIMILARITY_THRESHOLD:
-                pairs.append({
-                    "case_a": titles[i][0],
-                    "case_b": titles[j][0],
-                    "similarity": round(ratio, 4),
-                })
+                pairs.append(
+                    {
+                        "case_a": titles[i][0],
+                        "case_b": titles[j][0],
+                        "similarity": round(ratio, 4),
+                    }
+                )
     return pairs
 
 
@@ -199,8 +210,8 @@ def _generate_report(all_stats: List[Dict[str, Any]], output_path: str) -> None:
     sim_ratio = (total_similar / total_all * 100) if total_all > 0 else 0.0
 
     weighted_steps = (
-        sum(s["avg_steps_per_case"] * s["total_cases"] for s in all_stats) / total_all
-    ) if total_all > 0 else 0.0
+        (sum(s["avg_steps_per_case"] * s["total_cases"] for s in all_stats) / total_all) if total_all > 0 else 0.0
+    )
 
     lines.append(f"| 项目数 | {len(all_stats)} |")
     lines.append(f"| 用例总数 | {total_all} |")
@@ -228,9 +239,9 @@ def _generate_report(all_stats: List[Dict[str, Any]], output_path: str) -> None:
         lines.append("| 指标 | 值 |")
         lines.append("|------|----|")
         lines.append(f"| 用例总数 | {s['total_cases']} |")
-        rpr = f"{s['review_pass_rate_pct']:.1f}%" if s['review_pass_rate_pct'] is not None else "N/A"
+        rpr = f"{s['review_pass_rate_pct']:.1f}%" if s["review_pass_rate_pct"] is not None else "N/A"
         lines.append(f"| 人工评审通过率 | {rpr}（已评审{s['reviewed_cases']}/{s['total_cases']}） |")
-        epr = f"{s['execution_pass_rate_pct']:.1f}%" if s['execution_pass_rate_pct'] is not None else "N/A"
+        epr = f"{s['execution_pass_rate_pct']:.1f}%" if s["execution_pass_rate_pct"] is not None else "N/A"
         lines.append(f"| 执行通过率 | {epr}（已执行{s['total_executions']}次） |")
         lines.append(f"| 平均步骤数 | {s['avg_steps_per_case']} |")
         lines.append(f"| 用例修改率 | {s['modification_rate_pct']:.1f}% |")
@@ -251,7 +262,9 @@ def _generate_report(all_stats: List[Dict[str, Any]], output_path: str) -> None:
     lines.append("| 指标 | 计算方式 | 数据来源 |")
     lines.append("|------|----------|----------|")
     lines.append("| 用例总数 | `COUNT(*) WHERE project_id = ? AND is_deleted = 0` | test_cases |")
-    lines.append("| 人工评审通过率 | `approved / (approved + rejected + needs_optimization) * 100` | test_cases.review_status |")
+    lines.append(
+        "| 人工评审通过率 | `approved / (approved + rejected + needs_optimization) * 100` | test_cases.review_status |"
+    )
     lines.append("| 执行通过率 | `passed / total * 100` | test_case_executions.status |")
     lines.append("| 平均步骤数 | `AVG(LEN(steps_json))` | test_cases.steps_json |")
     lines.append("| 用例修改率 | `(update_time > create_time) / total * 100` | test_cases |")
@@ -275,18 +288,18 @@ def collect_quality_baseline(
 
     with SessionLocal() as db:
         if all_projects:
-            project_rows = db.execute(
-                text("SELECT id, name FROM projects WHERE status = 1")
-            ).mappings().all()
+            project_rows = db.execute(text("SELECT id, name FROM projects WHERE status = 1")).mappings().all()
         elif project_id is not None:
-            project_rows = db.execute(
-                text("SELECT id, name FROM projects WHERE id = :pid AND status = 1"),
-                {"pid": project_id},
-            ).mappings().all()
+            project_rows = (
+                db.execute(
+                    text("SELECT id, name FROM projects WHERE id = :pid AND status = 1"),
+                    {"pid": project_id},
+                )
+                .mappings()
+                .all()
+            )
         else:
-            project_rows = db.execute(
-                text("SELECT id, name FROM projects WHERE status = 1 LIMIT 1")
-            ).mappings().all()
+            project_rows = db.execute(text("SELECT id, name FROM projects WHERE status = 1 LIMIT 1")).mappings().all()
 
         if not project_rows:
             logger.error("未找到活跃项目，请先创建项目")

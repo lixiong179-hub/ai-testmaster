@@ -16,6 +16,7 @@
     venv/Scripts/python.exe scripts/audit_feature_usage.py
     venv/Scripts/python.exe scripts/audit_feature_usage.py --out <path>
 """
+
 from __future__ import annotations
 
 import argparse
@@ -121,8 +122,7 @@ def _mounted_prefix_map() -> dict[str, str]:
         if node.func.attr != "include_router" or not node.args:
             continue
         arg = node.args[0]
-        if not (isinstance(arg, ast.Attribute) and arg.attr == "router"
-                and isinstance(arg.value, ast.Name)):
+        if not (isinstance(arg, ast.Attribute) and arg.attr == "router" and isinstance(arg.value, ast.Name)):
             continue
         alias = arg.value.id
         module = aliases.get(alias, alias)
@@ -140,12 +140,7 @@ _GENERIC_SEGMENTS = {"api", "v1", "v2"}
 def _prefix_segment(prefix: str) -> str | None:
     """取前缀中最后一个非参数段（`/api/v1/test-capability` → `test-capability`）。"""
     for segment in reversed(prefix.strip("/").split("/")):
-        if (
-            segment
-            and not segment.startswith("{")
-            and not segment.startswith(":")
-            and segment not in _GENERIC_SEGMENTS
-        ):
+        if segment and not segment.startswith("{") and not segment.startswith(":") and segment not in _GENERIC_SEGMENTS:
             return segment
     return None
 
@@ -203,7 +198,11 @@ def _paths_from_tree(tree: ast.AST) -> list[str]:
                     continue
                 if not isinstance(decorator.func.value, ast.Name) or decorator.func.value.id != "router":
                     continue
-                if decorator.args and isinstance(decorator.args[0], ast.Constant) and isinstance(decorator.args[0].value, str):
+                if (
+                    decorator.args
+                    and isinstance(decorator.args[0], ast.Constant)
+                    and isinstance(decorator.args[0].value, str)
+                ):
                     paths.append(decorator.args[0].value)
             continue
         # ② 命令式风格：router.add_api_route("<path>", ...)
@@ -294,13 +293,15 @@ def build_report() -> str:
     for module, path in service_modules:
         app_refs = _count_refs(module, path, app_corpus)
         test_refs = _count_refs(module, path, test_corpus)
-        rows.append({
-            "module": module,
-            "path": path.relative_to(ROOT).as_posix(),
-            "app_refs": app_refs,
-            "test_refs": test_refs,
-            "total": app_refs + test_refs,
-        })
+        rows.append(
+            {
+                "module": module,
+                "path": path.relative_to(ROOT).as_posix(),
+                "app_refs": app_refs,
+                "test_refs": test_refs,
+                "total": app_refs + test_refs,
+            }
+        )
     rows.sort(key=lambda r: (-r["total"], r["module"]))
 
     routers = _mounted_routers()
@@ -319,14 +320,16 @@ def build_report() -> str:
                     break
         segments = sorted(segments)
         hits = {seg: frontend.count(seg) for seg in segments}
-        endpoint_rows.append({
-            "module": module,
-            "route_count": len(paths),
-            "segments": segments,
-            "hits": hits,
-            "total_hits": sum(hits.values()),
-            "mount_prefix": mount_prefixes.get(module, ""),
-        })
+        endpoint_rows.append(
+            {
+                "module": module,
+                "route_count": len(paths),
+                "segments": segments,
+                "hits": hits,
+                "total_hits": sum(hits.values()),
+                "mount_prefix": mount_prefixes.get(module, ""),
+            }
+        )
     endpoint_rows.sort(key=lambda r: (r["total_hits"], r["module"]))
 
     zero_rows = [r for r in rows if r["app_refs"] == 0]
@@ -336,22 +339,32 @@ def build_report() -> str:
     lines: list[str] = []
     lines.append("# 功能使用率审计报告（R4-3）")
     lines.append("")
-    lines.append(f"- **扫描对象**：`app/services/**/*.py` **{len(rows)}** 个模块；"
-                 f"`app/main.py` 已挂载 router **{len(routers)}** 个；`src/api/**/*.ts` 前端 API 文件")
-    lines.append(f"- **模块零生产引用**：{len(zero_rows)} 个（其中完全零引用 "
-                 f"{sum(1 for r in zero_rows if r['test_refs'] == 0)} 个）")
-    lines.append(f"- **无前端调用者的 router**：{len(zero_endpoints)} / {len(routers)}"
-                 f"（另有 {len(unparsed)} 个 router 未解析出路由，需人工复核）")
+    lines.append(
+        f"- **扫描对象**：`app/services/**/*.py` **{len(rows)}** 个模块；"
+        f"`app/main.py` 已挂载 router **{len(routers)}** 个；`src/api/**/*.ts` 前端 API 文件"
+    )
+    lines.append(
+        f"- **模块零生产引用**：{len(zero_rows)} 个（其中完全零引用 "
+        f"{sum(1 for r in zero_rows if r['test_refs'] == 0)} 个）"
+    )
+    lines.append(
+        f"- **无前端调用者的 router**：{len(zero_endpoints)} / {len(routers)}"
+        f"（另有 {len(unparsed)} 个 router 未解析出路由，需人工复核）"
+    )
     lines.append("- **生成方式**：`venv/Scripts/python.exe scripts/audit_feature_usage.py`（可复现）")
     lines.append("")
     lines.append("## 扫描方法")
     lines.append("")
-    lines.append("1. **后端模块引用数**：以模块全限定名（如 `app.services.foo.bar`）在 `app/` + `tests/` 的 `.py` 源码中"
-                 "统计命中次数（`from <模块> import` 与 `<模块>.` 两种形态都计入），排除定义文件自身。")
-    lines.append("2. **端点 → 前端调用**：从 `app/main.py` 的 `include_router` 解析已挂载 router，用 AST 提取"
-                "`@router.<verb>(\"...\")` 与 `router.add_api_route(\"...\")` 两种写法的路径，"
-                "取首个非参数段作为资源名（路径全为参数时回退到 `APIRouter(prefix=...)` / `include_router(prefix=...)`），"
-                "在 `src/api/**/*.ts` 中统计命中数；命中 0 即「该 router 无前端调用者」。")
+    lines.append(
+        "1. **后端模块引用数**：以模块全限定名（如 `app.services.foo.bar`）在 `app/` + `tests/` 的 `.py` 源码中"
+        "统计命中次数（`from <模块> import` 与 `<模块>.` 两种形态都计入），排除定义文件自身。"
+    )
+    lines.append(
+        "2. **端点 → 前端调用**：从 `app/main.py` 的 `include_router` 解析已挂载 router，用 AST 提取"
+        '`@router.<verb>("...")` 与 `router.add_api_route("...")` 两种写法的路径，'
+        "取首个非参数段作为资源名（路径全为参数时回退到 `APIRouter(prefix=...)` / `include_router(prefix=...)`），"
+        "在 `src/api/**/*.ts` 中统计命中数；命中 0 即「该 router 无前端调用者」。"
+    )
     lines.append("3. **覆盖口径**：表 ① 覆盖 `app/services/` 下 **全部** `.py` 模块，不做抽样。")
     lines.append("")
     lines.append("## 表 ① 服务模块引用数")
@@ -371,8 +384,10 @@ def build_report() -> str:
     lines.append("| --- | --- | --- | --- | --- | --- |")
     for idx, row in enumerate(endpoint_rows, 1):
         segments = ", ".join(row["segments"][:6]) or "-"
-        lines.append(f"| {idx} | `{row['module']}` | {row['route_count']} | "
-                     f"`{row['mount_prefix'] or '-'}` | {segments} | {row['total_hits']} |")
+        lines.append(
+            f"| {idx} | `{row['module']}` | {row['route_count']} | "
+            f"`{row['mount_prefix'] or '-'}` | {segments} | {row['total_hits']} |"
+        )
     lines.append("")
     lines.append("## 表 ③ 零引用清单与处置建议")
     lines.append("")
@@ -382,8 +397,10 @@ def build_report() -> str:
         lines.append("| # | 模块 | app | tests | 处置建议 |")
         lines.append("| --- | --- | --- | --- | --- |")
         for idx, row in enumerate(zero_rows, 1):
-            lines.append(f"| {idx} | `{row['module']}` | 0 | {row['test_refs']} | "
-                         f"**{_suggest(row['module'], row['app_refs'], row['test_refs'])}** |")
+            lines.append(
+                f"| {idx} | `{row['module']}` | 0 | {row['test_refs']} | "
+                f"**{_suggest(row['module'], row['app_refs'], row['test_refs'])}** |"
+            )
     else:
         lines.append("无：所有服务模块均被生产代码引用。")
     lines.append("")
@@ -393,8 +410,10 @@ def build_report() -> str:
         lines.append("| # | router 模块 | 路由数 | 前端命中 | 处置建议 |")
         lines.append("| --- | --- | --- | --- | --- |")
         for idx, row in enumerate(zero_endpoints, 1):
-            lines.append(f"| {idx} | `{row['module']}` | {row['route_count']} | 0 | **冻结**（无前端调用，"
-                         "保留接口供外部/脚本调用前需先确认） |")
+            lines.append(
+                f"| {idx} | `{row['module']}` | {row['route_count']} | 0 | **冻结**（无前端调用，"
+                "保留接口供外部/脚本调用前需先确认） |"
+            )
     else:
         lines.append("无：所有 router 均有前端调用者。")
     lines.append("")
@@ -404,8 +423,10 @@ def build_report() -> str:
         lines.append("| # | router 模块 | 说明 |")
         lines.append("| --- | --- | --- |")
         for idx, row in enumerate(unparsed, 1):
-            lines.append(f"| {idx} | `{row['module']}` | AST 未发现 `@router.<verb>` 装饰器，"
-                         "可能通过 `add_api_route` 或聚合 router 动态挂载，**不计入零调用结论** |")
+            lines.append(
+                f"| {idx} | `{row['module']}` | AST 未发现 `@router.<verb>` 装饰器，"
+                "可能通过 `add_api_route` 或聚合 router 动态挂载，**不计入零调用结论** |"
+            )
     else:
         lines.append("无：所有 router 均解析出至少一条路由。")
     lines.append("")
@@ -413,31 +434,48 @@ def build_report() -> str:
     lines.append("")
     deletable = [r["module"] for r in zero_rows if r["test_refs"] == 0]
     frozen = [r["module"] for r in zero_rows if r["test_refs"] > 0]
-    lines.append(f"1. `app/services/` **{len(rows)}** 个模块中，**{len(zero_rows)}** 个无生产代码引用，"
-                 f"其中 **{len(deletable)}** 个连测试也不引用（真死代码）、**{len(frozen)}** 个仅被测试引用（疑似已废弃或待接线）。")
-    lines.append(f"2. 已挂载 **{len(routers)}** 个 router 中，**{len(zero_endpoints)}** 个在 `src/api/**/*.ts` 中无任何调用命中；"
-                 f"**{len(unparsed)}** 个未能解析路由，需人工复核后并入统计。")
+    lines.append(
+        f"1. `app/services/` **{len(rows)}** 个模块中，**{len(zero_rows)}** 个无生产代码引用，"
+        f"其中 **{len(deletable)}** 个连测试也不引用（真死代码）、**{len(frozen)}** 个仅被测试引用（疑似已废弃或待接线）。"
+    )
+    lines.append(
+        f"2. 已挂载 **{len(routers)}** 个 router 中，**{len(zero_endpoints)}** 个在 `src/api/**/*.ts` 中无任何调用命中；"
+        f"**{len(unparsed)}** 个未能解析路由，需人工复核后并入统计。"
+    )
     lines.append("3. 与既有登记互相印证：")
     if any(r["module"].endswith("audit_chain_service") for r in zero_rows):
-        lines.append("   - `app.services.audit_chain_service` 生产引用数为 0 → 印证 **G-1 / O-16**「审计哈希链缺生产调用点」；")
-    security_routers = [r["module"].rsplit(".", 1)[-1] for r in zero_endpoints
-                        if r["module"].rsplit(".", 1)[-1] in ("mfa_endpoints", "oidc_endpoints", "saml_endpoints")]
+        lines.append(
+            "   - `app.services.audit_chain_service` 生产引用数为 0 → 印证 **G-1 / O-16**「审计哈希链缺生产调用点」；"
+        )
+    security_routers = [
+        r["module"].rsplit(".", 1)[-1]
+        for r in zero_endpoints
+        if r["module"].rsplit(".", 1)[-1] in ("mfa_endpoints", "oidc_endpoints", "saml_endpoints")
+    ]
     if security_routers:
-        lines.append(f"   - `{'`、`'.join(security_routers)}` 无前端调用 → 三类安全能力（MFA/OIDC/SAML）"
-                     "缺前端入口，属「建了不用」典型；")
+        lines.append(
+            f"   - `{'`、`'.join(security_routers)}` 无前端调用 → 三类安全能力（MFA/OIDC/SAML）"
+            "缺前端入口，属「建了不用」典型；"
+        )
     if frozen:
-        lines.append(f"   - 仅被测试引用的 {len(frozen)} 个模块（如 `{'`、`'.join(frozen[:3])}`）"
-                     "在修复测试时容易被误认为「已接线」，实际生产路径未调用。")
+        lines.append(
+            f"   - 仅被测试引用的 {len(frozen)} 个模块（如 `{'`、`'.join(frozen[:3])}`）"
+            "在修复测试时容易被误认为「已接线」，实际生产路径未调用。"
+        )
     lines.append("")
     lines.append("### 新增任务项（写入清单 §13）")
     lines.append("")
-    lines.append(f"- **R4-5 清扫零引用服务模块（S）**：对 ③-1 中「删除」类（{len(deletable)} 个，"
-                 f"如 `{'`、`'.join(deletable[:3]) or '无'}`）执行删除或接线；判据：`app/services/` 生产零引用模块数 = 0，"
-                 "且全量 `pytest tests -q` 相对基线（23 failed）无新增失败。")
-    lines.append(f"- **R4-6 端点冻结/接线决策（M）**：对 ③-2 的 {len(zero_endpoints)} 个无前端调用 router 逐个标注"
-                 "「冻结 / 删除 / 接线」"
-                 + (f"，优先处理 `{'`、`'.join(security_routers)}`（安全能力缺前端入口）" if security_routers else "")
-                 + "；判据：每个 router 均有决策记录，冻结项在代码注释标注。")
+    lines.append(
+        f"- **R4-5 清扫零引用服务模块（S）**：对 ③-1 中「删除」类（{len(deletable)} 个，"
+        f"如 `{'`、`'.join(deletable[:3]) or '无'}`）执行删除或接线；判据：`app/services/` 生产零引用模块数 = 0，"
+        "且全量 `pytest tests -q` 相对基线（23 failed）无新增失败。"
+    )
+    lines.append(
+        f"- **R4-6 端点冻结/接线决策（M）**：对 ③-2 的 {len(zero_endpoints)} 个无前端调用 router 逐个标注"
+        "「冻结 / 删除 / 接线」"
+        + (f"，优先处理 `{'`、`'.join(security_routers)}`（安全能力缺前端入口）" if security_routers else "")
+        + "；判据：每个 router 均有决策记录，冻结项在代码注释标注。"
+    )
     lines.append("")
     return "\n".join(lines)
 

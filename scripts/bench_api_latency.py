@@ -18,6 +18,7 @@
 
 退出码：0 = 全部请求成功（或允许错误）；1 = 存在失败请求且未加 `--allow-errors`。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -55,9 +56,7 @@ def _percentile(sorted_values: list[float], percentile: float) -> float:
     return sorted_values[lower] + (sorted_values[upper] - sorted_values[lower]) * weight
 
 
-async def _request_once(
-    client: httpx.AsyncClient, url: str
-) -> tuple[float, int | None]:
+async def _request_once(client: httpx.AsyncClient, url: str) -> tuple[float, int | None]:
     """发起单次请求，返回 (毫秒, 状态码)；异常时状态码为 None。"""
     started = time.perf_counter()
     try:
@@ -109,11 +108,7 @@ def _summarize(label: str, samples: Iterable[tuple[float, int | None]]) -> dict[
 
 def _format_row(summary: dict[str, Any], args: argparse.Namespace) -> str:
     """格式化为 markdown 表格行。"""
-    noise = (
-        f"{args.noise_path}×{args.noise_concurrency}"
-        if args.noise_path
-        else "—"
-    )
+    noise = f"{args.noise_path}×{args.noise_concurrency}" if args.noise_path else "—"
     return (
         f"| {summary['label']} | {summary['collected_at']} | {args.path} | "
         f"{summary['samples']} | {args.concurrency} | {noise} | "
@@ -149,9 +144,7 @@ async def _run(args: argparse.Namespace) -> dict[str, Any]:
 
     async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
         if args.warmup > 0:
-            await _load(
-                client, target_url, requests=args.warmup, concurrency=args.concurrency
-            )
+            await _load(client, target_url, requests=args.warmup, concurrency=args.concurrency)
 
         noise_task: asyncio.Task | None = None
         if args.noise_path:

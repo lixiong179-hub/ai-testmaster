@@ -1,14 +1,23 @@
 import os
+
 os.environ.setdefault("ENVIRONMENT", "test")
 from sqlalchemy import create_engine, text
 from app.core.config import settings
 
-TEST_DB_URL = settings.DATABASE_URL.replace("/ai_testmaster", "/ai_testmaster_test") if "/ai_testmaster" in settings.DATABASE_URL else settings.DATABASE_URL
+TEST_DB_URL = (
+    settings.DATABASE_URL.replace("/ai_testmaster", "/ai_testmaster_test")
+    if "/ai_testmaster" in settings.DATABASE_URL
+    else settings.DATABASE_URL
+)
 engine = create_engine(TEST_DB_URL)
 with engine.connect() as conn:
     result = conn.execute(text("SHOW COLUMNS FROM generation_batches LIKE 'history_asset_ids_json'"))
     if result.fetchone() is None:
-        conn.execute(text("ALTER TABLE generation_batches ADD COLUMN history_asset_ids_json JSON NOT NULL COMMENT '本次选择的历史资产ID列表'"))
+        conn.execute(
+            text(
+                "ALTER TABLE generation_batches ADD COLUMN history_asset_ids_json JSON NOT NULL COMMENT '本次选择的历史资产ID列表'"
+            )
+        )
         conn.commit()
         print("Added history_asset_ids_json column")
     else:
@@ -16,7 +25,8 @@ with engine.connect() as conn:
 
     result = conn.execute(text("SHOW TABLES LIKE 'history_assets'"))
     if result.fetchone() is None:
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE history_assets (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 project_id INT NOT NULL,
@@ -40,7 +50,8 @@ with engine.connect() as conn:
                 INDEX ix_history_assets_project_id (project_id),
                 INDEX ix_history_assets_user_id (user_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        """))
+        """)
+        )
         conn.commit()
         print("Created history_assets table")
     else:

@@ -18,6 +18,7 @@
     python scripts/check_async_session_convergence.py            # 门禁模式
     python scripts/check_async_session_convergence.py --report   # 仅打印分布
 """
+
 from __future__ import annotations
 
 import argparse

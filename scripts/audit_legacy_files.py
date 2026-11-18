@@ -26,6 +26,7 @@
 - 已知局限：引用密度基于标识符分词，属近似指标；连字符文件名/字符串懒加载的修正
   由 `--route-check` 逻辑（前端路由枚举）补充，见 `_route_referenced`。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,9 +43,19 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file_
 
 # 扫描语料时的排除目录（构建产物、依赖、工具数据、恢复产物）
 SKIP_DIRS = {
-    "venv", "node_modules", ".git", "dist", "__pycache__", ".pytest_cache", ".mypy_cache",
-    ".codebuddy", ".workbuddy", "_recovered_all_tmp", "_recovered_wip_tmp",
-    "_recovered_pyc", "_before_restore_bak",
+    "venv",
+    "node_modules",
+    ".git",
+    "dist",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".codebuddy",
+    ".workbuddy",
+    "_recovered_all_tmp",
+    "_recovered_wip_tmp",
+    "_recovered_pyc",
+    "_before_restore_bak",
 }
 
 SOURCE_EXTS = (".py", ".ts", ".vue", ".js", ".md", ".yml", ".yaml", ".json", ".scss", ".css", ".html")
@@ -55,9 +66,7 @@ WORD_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 #   "无来源                            Dockerfile"
 #   "仅 .pyc           2026-07-31 18:06  tests/api/test_bug_api.py"
 # 因此日期与时间均为可选前缀，路径取最后一个非空片段。
-PATH_RE = re.compile(
-    r"^(已恢复|仅 \.pyc|无来源)\s+(?:\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?\s+)?(\S+)$"
-)
+PATH_RE = re.compile(r"^(已恢复|仅 \.pyc|无来源)\s+(?:\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?\s+)?(\S+)$")
 
 # 重构任务归属规则：(路径正则, 任务代号, 说明) —— 顺序敏感，先匹配先命中
 REFACTOR_RULES: Sequence[Tuple[str, str, str]] = (
@@ -178,7 +187,7 @@ AUDIT_FINDINGS: Sequence[str] = (
     "`tests/` 根目录与 `tests/ai/`、`tests/utils/` 的待处置文件不在门禁内（CI 注释已登记为既有欠账）。"
     "前端 `npx vitest run`（ci.yml:94）覆盖全部前端 spec。",
     "**pytest 收集规则**：`pytest.ini` 无 `collect_ignore_glob`、无 deselect；"
-    "冻结区的 `collect_ignore_glob = [\"tasks/_frozen/*\"]` 位于 `tests/conftest.py:19`（§11 O-1，不得回退）。",
+    '冻结区的 `collect_ignore_glob = ["tasks/_frozen/*"]` 位于 `tests/conftest.py:19`（§11 O-1，不得回退）。',
     "**新旧双实现并存**：前端 flow 相关存在 `useFlowSort.ts`/`useFlowCore.ts`（现有活跃实现）与 "
     "`flowSort/*`、`FlowSortEditor` 集群（经核实整体不可达）并存；"
     "后端 crud 目录存在 `project.py`（单体）与 `project_query.py`/`project_mutate.py`（拆分产物）并存。"
@@ -195,7 +204,10 @@ def _run_git(args: Sequence[str]) -> str:
     """执行只读 git 命令；关闭 quotepath 以免中文路径被转义。"""
     proc = subprocess.run(
         ["git", "-C", REPO_ROOT, "-c", "core.quotepath=false", *args],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     return proc.stdout if proc.returncode == 0 else ""
 
@@ -217,7 +229,9 @@ def parse_report(report_path: str) -> Dict[str, str]:
             if path.isdigit():
                 continue  # 防御：跳过 "无来源: 265" 这类统计行（正常格式已被正则排除）
             levels[path.replace(os.sep, "/")] = {
-                "仅 .pyc": "pyc", "已恢复": "snapshot", "无来源": "none",
+                "仅 .pyc": "pyc",
+                "已恢复": "snapshot",
+                "无来源": "none",
             }[status]
     return levels
 
@@ -366,16 +380,18 @@ def analyze(report_path: str, restored_commit: str) -> List[Dict[str, str]]:
         else:
             has_test = "不适用"
 
-        rows.append({
-            "file": path,
-            "category": category,
-            "evidence": {"pyc": ".pyc 字节码", "snapshot": "会话快照", "none": "无"}[level],
-            "density": density,
-            "test": has_test,
-            "task": task,
-            "disposition": disposition(level, task, category),
-            "_corpus": str(corpus_count),
-        })
+        rows.append(
+            {
+                "file": path,
+                "category": category,
+                "evidence": {"pyc": ".pyc 字节码", "snapshot": "会话快照", "none": "无"}[level],
+                "density": density,
+                "test": has_test,
+                "task": task,
+                "disposition": disposition(level, task, category),
+                "_corpus": str(corpus_count),
+            }
+        )
     return rows
 
 
@@ -548,6 +564,7 @@ def render_vitest_spec_section() -> str:
     ]
     return "\n".join(lines)
 
+
 # 前端分批重构的批次判定说明
 BATCH_NOTES: Sequence[Tuple[str, str]] = (
     ("批次 0", "孤儿/连锁失效文件：先确认功能是否已由新实现覆盖，再决定接线、归档或删除（禁止直接删）"),
@@ -616,11 +633,15 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
 
     add("# AI-TestMaster 遗留文件处置清单")
     add("")
-    add(f"> **文档版本** v1.0 ｜ 生成日期 {today} ｜ 编制：遗留文件审计脚本 "
-        f"`scripts/audit_legacy_files.py` ｜ 数据来源：`{os.path.basename(report_path)}` + git 只读比对")
+    add(
+        f"> **文档版本** v1.0 ｜ 生成日期 {today} ｜ 编制：遗留文件审计脚本 "
+        f"`scripts/audit_legacy_files.py` ｜ 数据来源：`{os.path.basename(report_path)}` + git 只读比对"
+    )
     add(">")
-    add("> **口径说明**：事故（2026-09-24）丢失的是**未提交增量**；本清单中的文件本身均已入库、可运行，"
-        "因此每行结论同时回答两个问题：**增量是否值得重建**、**文件是否可直接重构**。")
+    add(
+        "> **口径说明**：事故（2026-09-24）丢失的是**未提交增量**；本清单中的文件本身均已入库、可运行，"
+        "因此每行结论同时回答两个问题：**增量是否值得重建**、**文件是否可直接重构**。"
+    )
     add(">")
     add(f"> **统计口径**：事故还原文件扣除已恢复提交（`{restored_commit}`）后，**仍待处置 {total} 个**。")
     add("")
@@ -658,38 +679,58 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
     add("")
     add("| 类别 | 数量 | 结论 |")
     add("| --- | --- | --- |")
-    add(f"| 前端 | {category.get('前端', 0)} | 必须保留（运行中的界面层）；增量无证据，"
-        "重建价值低于按需求重写；重构前需补 `__tests__` 护栏 |")
-    add(f"| 测试 | {category.get('测试', 0)} | 保留文件；其中带 `.pyc` 证据者可低成本精确还原，"
-        "测试增量本身又是后续重构的护栏 |")
-    add(f"| 后端-端点 | {category.get('后端-端点', 0)} | 保留；处于 R2-3 重构范围，"
-        "建议在重构中一次性落地而非先恢复后推翻 |")
+    add(
+        f"| 前端 | {category.get('前端', 0)} | 必须保留（运行中的界面层）；增量无证据，"
+        "重建价值低于按需求重写；重构前需补 `__tests__` 护栏 |"
+    )
+    add(
+        f"| 测试 | {category.get('测试', 0)} | 保留文件；其中带 `.pyc` 证据者可低成本精确还原，"
+        "测试增量本身又是后续重构的护栏 |"
+    )
+    add(
+        f"| 后端-端点 | {category.get('后端-端点', 0)} | 保留；处于 R2-3 重构范围，"
+        "建议在重构中一次性落地而非先恢复后推翻 |"
+    )
     add(f"| 后端-服务 | {category.get('后端-服务', 0)} | 保留；自愈类 mixin 与 R3-1 立项重合 |")
-    add(f"| 后端-数据 | {category.get('后端-数据', 0)} | 保留；拆分后的 `*_query/*_mutate` 已就位，"
-        "旧单体文件增量已被取代 |")
+    add(
+        f"| 后端-数据 | {category.get('后端-数据', 0)} | 保留；拆分后的 `*_query/*_mutate` 已就位，"
+        "旧单体文件增量已被取代 |"
+    )
     add(f"| 后端-工具AI | {category.get('后端-工具AI', 0)} | 保留；AI 客户端族相互耦合，需先定接口契约 |")
     add(f"| 后端-其他 | {category.get('后端-其他', 0)} | 保留；低引用但属主链路配置 |")
-    add(f"| 工程配置/文档 | {category.get('工程配置/文档', 0)} | 保留；启动脚本可依 README 重写，"
-        "启动类脚本与 CI 清单须一并核对 |")
+    add(
+        f"| 工程配置/文档 | {category.get('工程配置/文档', 0)} | 保留；启动脚本可依 README 重写，"
+        "启动类脚本与 CI 清单须一并核对 |"
+    )
     add("")
-    add("**零引用候选复核结论**：文本分词扫描的候选经符号级核实后大量证伪——"
+    add(
+        "**零引用候选复核结论**：文本分词扫描的候选经符号级核实后大量证伪——"
         "`src/views/**` 下的视图实际由 `src/router/routes.ts` 懒加载引用（连字符文件名导致分词误判，"
         "已由脚本 `route_referenced()` 纠正）；剩余为 `*.spec.ts`、`components.d.ts`、`docker-compose.yml`、"
         "`security-scan.yml` 等**工具消费型文件**。经二次核实仍成立的可疑文件见 §6.1，"
-        "**本轮不执行任何删除**，仅登记为「归档观察」并给出复核前置条件。")
+        "**本轮不执行任何删除**，仅登记为「归档观察」并给出复核前置条件。"
+    )
     add("")
 
     add("## 3. 是否可直接重构的判断")
     add("")
     add("| 文件群 | 可行性 | 依赖风险 | 测试覆盖 | 替代方案 | 前置条件 |")
     add("| --- | --- | --- | --- | --- | --- |")
-    add("| 端点层 | 高 | 中（`app/main.py` 路由注册 + 前端 API 层引用） | `tests/api` 基线可作护栏 | "
-        "按 R2-3 下沉 service，router 保留薄层 | Q1 范式决策落地 |")
+    add(
+        "| 端点层 | 高 | 中（`app/main.py` 路由注册 + 前端 API 层引用） | `tests/api` 基线可作护栏 | "
+        "按 R2-3 下沉 service，router 保留薄层 | Q1 范式决策落地 |"
+    )
     add("| 数据层 | 中高 | 低（拆分产物已就位） | `tests/api` + `tests/db` | 直接完成拆分收尾，废弃旧单体 | 无 |")
-    add("| 服务层 | 中 | 中（自愈 mixin 被执行引擎主链路依赖） | `tests/services` | 并入 R3-1/R5 立项实现 | R3-1 决策（Q8） |")
-    add("| 工具/AI 层 | 中低 | 高（`ai_client*` 相互耦合） | `tests/utils` 部分覆盖 | 先出接口契约再重构 | O-14 相关欠账收敛 |")
-    add("| 前端 | 中 | 低（视图层相对独立）但引用面广 | 单测覆盖不足，vitest 基线 555 passed | "
-        "建「视图→路由→API→store」映射表后分批重构 | 映射表 + 补 spec |")
+    add(
+        "| 服务层 | 中 | 中（自愈 mixin 被执行引擎主链路依赖） | `tests/services` | 并入 R3-1/R5 立项实现 | R3-1 决策（Q8） |"
+    )
+    add(
+        "| 工具/AI 层 | 中低 | 高（`ai_client*` 相互耦合） | `tests/utils` 部分覆盖 | 先出接口契约再重构 | O-14 相关欠账收敛 |"
+    )
+    add(
+        "| 前端 | 中 | 低（视图层相对独立）但引用面广 | 单测覆盖不足，vitest 基线 555 passed | "
+        "建「视图→路由→API→store」映射表后分批重构 | 映射表 + 补 spec |"
+    )
     add("| 测试 | 高 | 无 | 自身即护栏 | 依 `.pyc` 证据逐条核对后重写 | 无 |")
     add("| 工程配置 | 高 | 低 | 无 | 依 README 与现有启动脚本重写 | 无 |")
     add("")
@@ -699,10 +740,16 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
     add("| 优先级 | 动作 | 范围 | 风险控制 |")
     add("| --- | --- | --- | --- |")
     p0 = sum(v for k, v in disposition_stats.items() if k.startswith("P0"))
-    add(f"| P0 | 重建增量 | {p0} 个（有 `.pyc` 证据 / 会话快照） | 每批跑 `tests/api` + `tests/services`，比对 §12 基线 |")
-    add("| P1 | 完成 O-14 未完成功能 | audit chain / self-healing 集成 / dependency resolution / legacy 套件 | "
-        "独立立项 + 测试入库后再合并 |")
-    add("| P2 | 按重构方案重写（不恢复增量） | 端点层 + 数据层 + 服务层 | 先落 Q1/Q2/Q8 决策；R4-1 分阶段并保留 shim 一迭代 |")
+    add(
+        f"| P0 | 重建增量 | {p0} 个（有 `.pyc` 证据 / 会话快照） | 每批跑 `tests/api` + `tests/services`，比对 §12 基线 |"
+    )
+    add(
+        "| P1 | 完成 O-14 未完成功能 | audit chain / self-healing 集成 / dependency resolution / legacy 套件 | "
+        "独立立项 + 测试入库后再合并 |"
+    )
+    add(
+        "| P2 | 按重构方案重写（不恢复增量） | 端点层 + 数据层 + 服务层 | 先落 Q1/Q2/Q8 决策；R4-1 分阶段并保留 shim 一迭代 |"
+    )
     add(f"| P3 | 前端分批重构 | {category.get('前端', 0)} 个 | 先建映射表、补 `__tests__`，vitest 555 passed 为闸门 |")
     add(f"| P4 | 工程配置补齐 | {category.get('工程配置/文档', 0)} 个 | 低风险，随 P0 一起 |")
     add("| 归档/删除 | 本轮无删除项 | — | 如需删除须先做运行时依赖分析（路由全量枚举 / `depcheck`） |")
@@ -716,34 +763,43 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
     add("")
     add("### 4.2 执行顺序与风险控制要点")
     add("")
-    add(f"1. **P0 先行（已完成核对，见 §5）**：`.pyc` 证据报告已入库为 `{PYC_LEDGER_REL}`，"
+    add(
+        f"1. **P0 先行（已完成核对，见 §5）**：`.pyc` 证据报告已入库为 `{PYC_LEDGER_REL}`，"
         "逐条核对结论：已被后续提交取代者不重建；结构一致者不重建；"
-        "仅 `tests/services/conftest.py` 的 CSRF `Origin` 头增量已重建并提交。")
-    add("2. **P1 登记立项**：将 O-14 四项未完成功能写入 `docs/架构优化执行计划清单.md` §11，"
-        "补推荐默认值与最晚决策时点。")
+        "仅 `tests/services/conftest.py` 的 CSRF `Origin` 头增量已重建并提交。"
+    )
+    add(
+        "2. **P1 登记立项**：将 O-14 四项未完成功能写入 `docs/架构优化执行计划清单.md` §11，"
+        "补推荐默认值与最晚决策时点。"
+    )
     add("3. **P2 重构优先于恢复**：端点/数据/服务层的增量一律不恢复，在 R2-3 / R3-1 / R4-1 中一次性落地。")
     add("4. **P3 前端建表**：先产出映射表并补齐单测，再按批次重构视图。")
-    add("5. **闸门**：每批改动后比对 `docs/架构优化执行计划清单.md` §12 基线"
+    add(
+        "5. **闸门**：每批改动后比对 `docs/架构优化执行计划清单.md` §12 基线"
         "（后端全量 73 failed / 10191 passed；`tests/api` 7 failed / 1015 passed；前端 555 passed），"
-        "新增失败必须先归因再继续。")
-    add("6. **纪律**：产出物一律先入库（§11 O-6）；禁止 `reset --hard` / `checkout -f` / `clean -fdx`；"
-        "历史改写仅在独立克隆中进行并先断言工作目录。")
+        "新增失败必须先归因再继续。"
+    )
+    add(
+        "6. **纪律**：产出物一律先入库（§11 O-6）；禁止 `reset --hard` / `checkout -f` / `clean -fdx`；"
+        "历史改写仅在独立克隆中进行并先断言工作目录。"
+    )
     add("")
 
     add("## 5. P0 台账：`.pyc` 字节码证据逐条核对")
     add("")
     ledger = build_pyc_ledger(os.path.join(REPO_ROOT, PYC_LEDGER_REL))
     if not ledger:
-        add(f"> 证据报告未入库（请先生成 `{PYC_LEDGER_REL}`）；台账见对话记录与 "
-            "`d:\\recovery_pyc\\_diff_report.txt`。")
+        add(f"> 证据报告未入库（请先生成 `{PYC_LEDGER_REL}`）；台账见对话记录与 `d:\\recovery_pyc\\_diff_report.txt`。")
     else:
         resolved = sum(1 for r in ledger if r[4].startswith("已"))
         rebuilt = sum(1 for r in ledger if "已重建" in r[4])
         skip = sum(1 for r in ledger if r[4].startswith("不重建"))
         manual = sum(1 for r in ledger if r[4].startswith("需人工比对"))
-        add(f"> 证据来源：`{PYC_LEDGER_REL}`（旧版 `.pyc` 与当前源码的字节码级差异）。"
+        add(
+            f"> 证据来源：`{PYC_LEDGER_REL}`（旧版 `.pyc` 与当前源码的字节码级差异）。"
             f"共 {len(ledger)} 条，其中**已解决/已重建 {resolved} 条**（含重建增量 {rebuilt} 条）、"
-            f"**判定不重建 {skip} 条**、**需人工比对 {manual} 条**。")
+            f"**判定不重建 {skip} 条**、**需人工比对 {manual} 条**。"
+        )
         add("")
         add("| 文件 | 旧版编译于 | 差异函数数 | 旧版独有函数 | 处置结论 |")
         add("| --- | --- | --- | --- | --- |")
@@ -752,9 +808,11 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
         add("")
         add("### 5.1 本次实际重建的增量")
         add("")
-        add("`tests/services/conftest.py` —— 旧版 `.pyc` 反汇编显示两个 HTTP fixture 的 `AsyncClient` "
+        add(
+            "`tests/services/conftest.py` —— 旧版 `.pyc` 反汇编显示两个 HTTP fixture 的 `AsyncClient` "
             "调用包含第三个关键字参数 `headers`（`KW_NAMES -> ('transport', 'base_url', 'headers')`，"
-            "配套 `BUILD_MAP` 常量 `'Origin'` / `'http://localhost:5173'`）：")
+            "配套 `BUILD_MAP` 常量 `'Origin'` / `'http://localhost:5173'`）："
+        )
         add("")
         add("```python")
         add("    # 设置 Origin 头模拟真实浏览器，使 CSRF 中间件 Origin/Referer 校验通过")
@@ -765,27 +823,37 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
         add("    ) as client:")
         add("```")
         add("")
-        add("重建依据：`app/core/security_middleware.py` 的 `CSRFMiddleware` 对非安全方法"
+        add(
+            "重建依据：`app/core/security_middleware.py` 的 `CSRFMiddleware` 对非安全方法"
             "（POST/PUT/DELETE）在缺少 CSRF token 时回退校验 `Origin`/`Referer`，"
             "无匹配 Origin 将返回 403；已恢复的 `tests/api/conftest.py` 采用同一写法，"
-            "本次按相同模式补齐 `tests/services/conftest.py`。")
+            "本次按相同模式补齐 `tests/services/conftest.py`。"
+        )
         add("")
         add("### 5.2 判定不重建的理由")
         add("")
-        add("1. **已被后续提交/重构取代**：旧版含当前已不存在的函数（如 `_verify_task_access*` 已被 "
-            "R0-3「归属校验归一」的 `require_task_access` 取代），恢复旧增量等于回退已验证的重构。")
-        add("2. **结构一致、仅字面量差异**：差异函数数为 0 的端点/CRUD 文件，"
-            "其 `.pyc` 与当前源码大小仅差数个字节，属提示语/常量微调，无业务影响且无法可靠还原。")
-        add("3. **测试文件的较大差异归入 P1**：`tests/api/test_core_config.py`（41 个差异函数）、"
+        add(
+            "1. **已被后续提交/重构取代**：旧版含当前已不存在的函数（如 `_verify_task_access*` 已被 "
+            "R0-3「归属校验归一」的 `require_task_access` 取代），恢复旧增量等于回退已验证的重构。"
+        )
+        add(
+            "2. **结构一致、仅字面量差异**：差异函数数为 0 的端点/CRUD 文件，"
+            "其 `.pyc` 与当前源码大小仅差数个字节，属提示语/常量微调，无业务影响且无法可靠还原。"
+        )
+        add(
+            "3. **测试文件的较大差异归入 P1**：`tests/api/test_core_config.py`（41 个差异函数）、"
             "`test_auth.py`（29 个）等对应 §11 O-14 登记的四项未完成功能与 legacy 套件对齐，"
-            "应随功能实现或测试基线维护统一处理，而非按字节码逐字还原。")
+            "应随功能实现或测试基线维护统一处理，而非按字节码逐字还原。"
+        )
         add("")
 
     add("## 6. 引用面核实附录（2026-09-28）")
     add("")
-    add("> 核实方式：符号级检索（路由懒加载字符串、`import.meta.glob`、`defineAsyncComponent`、"
+    add(
+        "> 核实方式：符号级检索（路由懒加载字符串、`import.meta.glob`、`defineAsyncComponent`、"
         "`vite.config.ts` manualChunks、模板标签含 kebab-case、vitest/cypress 配置、"
-        "`importlib` / `__import__` 动态导入）。用于修正纯分词统计的误判。")
+        "`importlib` / `__import__` 动态导入）。用于修正纯分词统计的误判。"
+    )
     add("")
     add("### 6.1 二次核实后仍无引用的文件（归档观察，本轮不删除）")
     add("")
@@ -810,9 +878,11 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
     for path, why in BACKEND_ORPHANS:
         add(f"| `{path}` | {why} |")
     add("")
-    add("**复核前置条件（满足后方可进入删除评审）**：① 确认对应功能已由新实现完全覆盖；"
+    add(
+        "**复核前置条件（满足后方可进入删除评审）**：① 确认对应功能已由新实现完全覆盖；"
         "② 同步修改或删除引用它们的测试；③ 运行全量后端测试与前端 vitest 比对 §12 基线；"
-        "④ 单独提交并可回滚（禁止与重构混提）。")
+        "④ 单独提交并可回滚（禁止与重构混提）。"
+    )
     add("")
     add("### 6.2 重构契约锚点（fan-in 高，改动前须先定接口）")
     add("")
@@ -833,18 +903,22 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
     add("")
     add("### 6.4 前端单测覆盖（相邻 `__tests__`）")
     add("")
-    add("待处置前端文件中带同名相邻单测者：`src/composables/useFlowEditor.ts`、"
+    add(
+        "待处置前端文件中带同名相邻单测者：`src/composables/useFlowEditor.ts`、"
         "`src/store/smartGeneration.ts`、`src/store/generate/generateHelpers.ts`、"
         "`src/views/quick-test/__tests__/useQuickTestFlow.spec.ts`（spec 本身待处置）；"
         "另有 `AIParseLoading`、`smart-generate`、`TaskDetail`、`ReportDetail`、`useReviewInbox*`、"
         "`project/detail`、`request`、`websocket` 等 spec 间接覆盖待处置文件。"
-        "**结论：前端重构前需先补齐 `__tests__` 护栏。**")
+        "**结论：前端重构前需先补齐 `__tests__` 护栏。**"
+    )
     add("")
     add(render_vitest_spec_section())
     add("---")
     add("")
-    add(f"*本文档由 `scripts/audit_legacy_files.py` 生成（语料扫描 {rows[0]['_corpus'] if rows else '0'} 个源文件）。"
-        "修订请先改脚本再重新生成，避免结论只存在于对话中。*")
+    add(
+        f"*本文档由 `scripts/audit_legacy_files.py` 生成（语料扫描 {rows[0]['_corpus'] if rows else '0'} 个源文件）。"
+        "修订请先改脚本再重新生成，避免结论只存在于对话中。*"
+    )
     add("")
     return "\n".join(lines)
 
@@ -852,10 +926,12 @@ def render_doc(rows: Sequence[Dict[str, str]], report_path: str, restored_commit
 def main(argv: Optional[Sequence[str]] = None) -> int:
     _configure_stdout()
     parser = argparse.ArgumentParser(description="遗留文件处置审计（只读）")
-    parser.add_argument("--report", default=os.path.join(REPO_ROOT, "_recovery_gap_report.txt"),
-                        help="事故还原清单路径（默认 _recovery_gap_report.txt）")
-    parser.add_argument("--restored-commit", default="337f07e",
-                        help="已恢复并提交的提交号，用于扣除已处置项")
+    parser.add_argument(
+        "--report",
+        default=os.path.join(REPO_ROOT, "_recovery_gap_report.txt"),
+        help="事故还原清单路径（默认 _recovery_gap_report.txt）",
+    )
+    parser.add_argument("--restored-commit", default="337f07e", help="已恢复并提交的提交号，用于扣除已处置项")
     parser.add_argument("--table", action="store_true", help="打印逐文件 Markdown 表格")
     parser.add_argument("--doc", metavar="PATH", help="生成完整处置文档到指定路径")
     parser.add_argument("--frontend-map", metavar="PATH", help="生成前端视图映射表到指定路径")

@@ -15,6 +15,7 @@
     - app.ai.mock_client : MockAIClient（dry-run 模式）
     - app.services.config_service : BATCH_SIZE_SUMMARY_BACKFILL
 """
+
 import argparse
 import json
 import logging
@@ -38,10 +39,8 @@ def _build_prompt(test_case) -> str:
         f"测试步骤: {test_case.steps_json or '无'}",
         f"预期结果: {test_case.expected_result or '无'}",
     ]
-    return (
-        "请为以下测试用例生成一段简洁的中文摘要（不超过200字），"
-        "概括用例的测试目的和关键验证点：\n\n"
-        + "\n".join(parts)
+    return "请为以下测试用例生成一段简洁的中文摘要（不超过200字），概括用例的测试目的和关键验证点：\n\n" + "\n".join(
+        parts
     )
 
 
