@@ -6,6 +6,7 @@
 AsyncSession（如后台任务的独立会话、测试桥接壳）驱动，这里统一提供：
 
 - `execute_async(db, stmt)`：`execute` 为协程时直接 await，否则转线程池；
+- `get_async(db, model, ident)`：按主键查询，语义同上；
 - `flush_async(db)` / `commit_async(db)` / `rollback_async(db)`：同上；
 - `refresh_async(db, obj)` / `delete_async(db, obj)`：同上；
 - `run_sync_async(db, fn, *args)`：优先用会话自带的 `run_sync`，否则转线程池。
@@ -31,6 +32,14 @@ async def execute_async(db: Any, stmt: Any) -> Any:
     if _is_async_callable(fn):
         return await fn(stmt)
     return await asyncio.to_thread(fn, stmt)
+
+
+async def get_async(db: Any, model: Any, ident: Any) -> Any:
+    """按主键查询单个实例。"""
+    fn = db.get
+    if _is_async_callable(fn):
+        return await fn(model, ident)
+    return await asyncio.to_thread(fn, model, ident)
 
 
 async def flush_async(db: Any) -> None:
@@ -88,6 +97,7 @@ async def run_sync_async(db: Any, fn: Callable[..., T], *args: Any, **kwargs: An
 
 __all__ = [
     "execute_async",
+    "get_async",
     "flush_async",
     "commit_async",
     "rollback_async",

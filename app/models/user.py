@@ -107,6 +107,16 @@ class User(TenantAwareMixin, Base):
     failed_login_attempts = Column(Integer, nullable=False, default=0, comment="失败登录次数")  # 连续失败计数，用于锁定策略
     locked_until = Column(DateTime, nullable=True, comment="账户锁定截止时间")    # 超过失败阈值后锁定至该时间
 
+    # SSO 字段：与迁移 20260730_add_oidc_fields / 20260730_add_saml_fields 对齐
+    # （2026-11-17 修复：模型漏字段导致 OIDC/SAML 用户映射 AttributeError）
+    oidc_sub = Column(String(255), nullable=True, index=True, comment="OIDC subject（IdP 返回的 sub）")
+    oidc_issuer = Column(String(255), nullable=True, index=True, comment="OIDC issuer（IdP 签发方 URL）")
+    oidc_provider = Column(String(50), nullable=True, index=True, comment="OIDC provider 标识")
+    saml_nameid = Column(String(255), nullable=True, index=True, comment="SAML NameID（IdP 返回的主体标识）")
+    saml_issuer = Column(String(255), nullable=True, index=True, comment="SAML issuer（IdP EntityID）")
+    saml_provider = Column(String(50), nullable=True, index=True, comment="SAML provider 标识")
+    saml_session_index = Column(String(255), nullable=True, index=True, comment="SAML SessionIndex（用于 SLO）")
+
     # 关联关系
     tenant = relationship("Tenant", back_populates="users", foreign_keys=[tenant_id])  # 所属租户
     roles = relationship("Role", secondary=user_role, back_populates="users")    # 用户拥有的角色列表（多对多）
