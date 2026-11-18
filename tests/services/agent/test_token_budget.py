@@ -9,6 +9,7 @@ Redis 测试使用 fakeredis（项目规则允许），避免依赖真实 Redis 
     - app/services/agent/token_budget.py（AgentTokenBudgetGuard）
     - app/services/common/token_budget.py（BaseTokenBudgetGuard）
 """
+
 from datetime import datetime
 from unittest.mock import MagicMock
 
@@ -49,14 +50,18 @@ class TestCheckSingleCall:
     def test_over_limit_returns_true(self, fake_redis):
         """超限 → True。"""
         guard = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="test_generation", project_id=1,
+            redis_client=fake_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         assert guard.check_single_call(settings.AI_AGENT_TOKEN_LIMIT + 1) is True
 
     def test_within_limit_returns_false(self, fake_redis):
         """未超限 → False。"""
         guard = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="test_generation", project_id=1,
+            redis_client=fake_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         assert guard.check_single_call(settings.AI_AGENT_TOKEN_LIMIT) is False
 
@@ -67,7 +72,9 @@ class TestIsDailyBudgetExhausted:
     def test_not_exhausted(self, fake_redis):
         """未达预算 → False。"""
         guard = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="test_generation", project_id=1,
+            redis_client=fake_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         guard.consume(1000)
         assert guard.is_daily_budget_exhausted() is False
@@ -75,7 +82,9 @@ class TestIsDailyBudgetExhausted:
     def test_exhausted(self, fake_redis):
         """达预算 → True。"""
         guard = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="test_generation", project_id=1,
+            redis_client=fake_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         guard.consume(settings.AI_AGENT_DAILY_TOKEN_BUDGET)
         assert guard.is_daily_budget_exhausted() is True
@@ -87,7 +96,9 @@ class TestConsume:
     def test_consume_accumulates_to_redis(self, fake_redis):
         """累计到 Redis。"""
         guard = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="test_generation", project_id=1,
+            redis_client=fake_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         guard.consume(500)
         guard.consume(300)
@@ -100,7 +111,9 @@ class TestConsume:
         mock_redis = MagicMock()
         mock_redis.pipeline.side_effect = Exception("Redis connection lost")
         guard = AgentTokenBudgetGuard(
-            redis_client=mock_redis, agent_type="test_generation", project_id=1,
+            redis_client=mock_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         guard.consume(500)
         assert guard._memory_counter == 500
@@ -110,7 +123,9 @@ class TestConsume:
         mock_redis = MagicMock()
         mock_redis.get.side_effect = Exception("Redis read failed")
         guard = AgentTokenBudgetGuard(
-            redis_client=mock_redis, agent_type="test_generation", project_id=1,
+            redis_client=mock_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         guard._memory_counter = 1000
         assert guard._get_consumed() == 1000
@@ -122,7 +137,9 @@ class TestRedisKeyNamespace:
     def test_namespace_isolation_between_agent_and_self_heal(self, fake_redis):
         """agent:token:{type}:{pid}: vs self_heal:token: 隔离。"""
         agent_guard = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="test_generation", project_id=1,
+            redis_client=fake_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         self_heal_guard = _SelfHealGuardStub(redis_client=fake_redis)
         agent_guard.consume(1000)
@@ -133,7 +150,9 @@ class TestRedisKeyNamespace:
     def test_redis_key_includes_date_yyyymmdd(self, fake_redis):
         """Redis key 按日期拼接（YYYYMMDD）。"""
         guard = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="test_generation", project_id=1,
+            redis_client=fake_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         guard.consume(100)
         day = datetime.now().strftime("%Y%m%d")
@@ -144,7 +163,9 @@ class TestRedisKeyNamespace:
     def test_ttl_set_correctly_25h(self, fake_redis):
         """TTL 设置正确（25h）。"""
         guard = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="test_generation", project_id=1,
+            redis_client=fake_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         guard.consume(100)
         day = datetime.now().strftime("%Y%m%d")
@@ -155,10 +176,14 @@ class TestRedisKeyNamespace:
     def test_namespace_isolated_by_agent_type_and_project_id(self, fake_redis):
         """按 agent_type+project_id 隔离 namespace。"""
         guard_a = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="test_generation", project_id=1,
+            redis_client=fake_redis,
+            agent_type="test_generation",
+            project_id=1,
         )
         guard_b = AgentTokenBudgetGuard(
-            redis_client=fake_redis, agent_type="failure_analysis", project_id=2,
+            redis_client=fake_redis,
+            agent_type="failure_analysis",
+            project_id=2,
         )
         guard_a.consume(1000)
         guard_b.consume(2000)

@@ -7,6 +7,7 @@
 - 登录成功但登录后快照采集失败仅保留登录页（140,206-208）
 - BFS 已访问 URL continue 去重（185）
 """
+
 import sys
 import types
 from typing import Any
@@ -41,9 +42,7 @@ class TestCaptureGuards:
 class TestCacheErrorPaths:
     """缓存读写异常降级（241-242,256-257）+ 空 SiteMap 不写缓存（BUG 3 源头修复）。"""
 
-    async def test_get_cached_sitemap_swallows_json_error(
-        self, explorer, fake_redis, monkeypatch
-    ) -> None:
+    async def test_get_cached_sitemap_swallows_json_error(self, explorer, fake_redis, monkeypatch) -> None:
         monkeypatch.setattr(explorer, "_get_redis_client", lambda: fake_redis)
         fake_redis.store[cache_key_for(ENTRY)] = "not-json"
         assert explorer._get_cached_sitemap(cache_key_for(ENTRY)) is None
@@ -61,8 +60,12 @@ class TestCacheErrorPaths:
         # 用非空 pages 才会进入 set 调用路径；空 pages 直接跳过无法覆盖异常分支
         page = build_page_snapshot("https://example.com", navigation=[])
         site_map = SiteMap(
-            entry_url=ENTRY, pages=[page], max_depth_reached=0,
-            explored_count=1, skipped_count=0, cache_key="k",
+            entry_url=ENTRY,
+            pages=[page],
+            max_depth_reached=0,
+            explored_count=1,
+            skipped_count=0,
+            cache_key="k",
         )
         explorer._set_cached_sitemap("k", site_map)  # 不抛即通过
 
@@ -70,8 +73,12 @@ class TestCacheErrorPaths:
         """空 SiteMap 不写缓存，避免前次失败污染后续 launch（BUG 3 源头修复）。"""
         monkeypatch.setattr(explorer, "_get_redis_client", lambda: fake_redis)
         empty_site_map = SiteMap(
-            entry_url=ENTRY, pages=[], max_depth_reached=0,
-            explored_count=0, skipped_count=1, cache_key="k",
+            entry_url=ENTRY,
+            pages=[],
+            max_depth_reached=0,
+            explored_count=0,
+            skipped_count=1,
+            cache_key="k",
         )
         explorer._set_cached_sitemap("k", empty_site_map)
         assert fake_redis.set_calls == []
@@ -122,12 +129,16 @@ class TestExplorePostLoginSnapshotFail:
         entry = "https://app.example.com/login"
         pages_data = {
             entry: PageData(
-                url=entry, title="登录",
-                nav_raw=[{"text": "d", "href": "/d"}], login_state=True,
+                url=entry,
+                title="登录",
+                nav_raw=[{"text": "d", "href": "/d"}],
+                login_state=True,
             ),
         }
         visible = {
-            'input[type="password"]', 'input[name*="user" i]', 'button[type="submit"]',
+            'input[type="password"]',
+            'input[name*="user" i]',
+            'button[type="submit"]',
         }
         page = FakePage(pages_data, visible_selectors=visible, login_succeeds=True)
         patch_browser["page"] = page
@@ -143,9 +154,7 @@ class TestExplorePostLoginSnapshotFail:
 
         monkeypatch.setattr(explorer, "_capture_page_snapshot", flaky_snapshot)
 
-        site_map = await explorer.explore(
-            entry, credentials={"username": "u", "password": "p"}
-        )
+        site_map = await explorer.explore(entry, credentials={"username": "u", "password": "p"})
         assert site_map.explored_count == 1
         assert site_map.pages[0].is_login_page is True
 
@@ -153,9 +162,7 @@ class TestExplorePostLoginSnapshotFail:
 class TestBfsSkipsVisitedUrl:
     """BFS 已访问 URL continue 去重分支（185）。"""
 
-    async def test_bfs_skips_duplicate_url(
-        self, explorer, patch_browser, fake_redis, monkeypatch
-    ) -> None:
+    async def test_bfs_skips_duplicate_url(self, explorer, patch_browser, fake_redis, monkeypatch) -> None:
         _use_redis(explorer, fake_redis, monkeypatch)
         a, b, c = (
             "https://example.com/a",
@@ -163,8 +170,12 @@ class TestBfsSkipsVisitedUrl:
             "https://example.com/c",
         )
         pages_data = {
-            ENTRY: PageData(url=ENTRY, title="首页", nav_raw=[
-                {"text": "A", "href": "/a"}, {"text": "B", "href": "/b"}], login_state=False),
+            ENTRY: PageData(
+                url=ENTRY,
+                title="首页",
+                nav_raw=[{"text": "A", "href": "/a"}, {"text": "B", "href": "/b"}],
+                login_state=False,
+            ),
             a: PageData(url=a, title="A", nav_raw=[{"text": "C", "href": "/c"}], login_state=False),
             b: PageData(url=b, title="B", nav_raw=[{"text": "C", "href": "/c"}], login_state=False),
             c: PageData(url=c, title="C", nav_raw=[], login_state=False),

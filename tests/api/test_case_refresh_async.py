@@ -16,15 +16,11 @@ class TestCaseRefreshAsync:
     """case_refresh.py 端点 async 测试。"""
 
     async def test_list_without_auth(self, async_client):
-        resp = await async_client.get(
-            "/api/v1/case-refresh/projects/1/refresh-suggestions"
-        )
+        resp = await async_client.get("/api/v1/case-refresh/projects/1/refresh-suggestions")
         assert resp.status_code in (401, 403, 404)
 
     async def test_stats_without_auth(self, async_client):
-        resp = await async_client.get(
-            "/api/v1/case-refresh/projects/1/refresh-suggestions/stats"
-        )
+        resp = await async_client.get("/api/v1/case-refresh/projects/1/refresh-suggestions/stats")
         assert resp.status_code in (401, 403, 404)
 
     async def test_review_without_auth(self, async_client):
@@ -35,39 +31,27 @@ class TestCaseRefreshAsync:
         assert resp.status_code in (401, 403, 404)
 
     async def test_scan_stale_without_auth(self, async_client):
-        resp = await async_client.post(
-            "/api/v1/case-refresh/projects/1/scan-stale-cases"
-        )
+        resp = await async_client.post("/api/v1/case-refresh/projects/1/scan-stale-cases")
         assert resp.status_code in (401, 403, 404)
 
     async def test_auto_refresh_without_auth(self, async_client):
-        resp = await async_client.post(
-            "/api/v1/case-refresh/projects/1/auto-refresh"
-        )
+        resp = await async_client.post("/api/v1/case-refresh/projects/1/auto-refresh")
         assert resp.status_code in (401, 403, 404)
 
     async def test_list_unauthorized_project(self, async_auth_client):
-        resp = await async_auth_client.get(
-            "/api/v1/case-refresh/projects/99999/refresh-suggestions"
-        )
+        resp = await async_auth_client.get("/api/v1/case-refresh/projects/99999/refresh-suggestions")
         assert resp.status_code in (403, 404, 500)
 
     async def test_stats_unauthorized_project(self, async_auth_client):
-        resp = await async_auth_client.get(
-            "/api/v1/case-refresh/projects/99999/refresh-suggestions/stats"
-        )
+        resp = await async_auth_client.get("/api/v1/case-refresh/projects/99999/refresh-suggestions/stats")
         assert resp.status_code in (403, 404, 500)
 
     async def test_scan_stale_unauthorized_project(self, async_auth_client):
-        resp = await async_auth_client.post(
-            "/api/v1/case-refresh/projects/99999/scan-stale-cases"
-        )
+        resp = await async_auth_client.post("/api/v1/case-refresh/projects/99999/scan-stale-cases")
         assert resp.status_code in (403, 404, 500)
 
     async def test_auto_refresh_unauthorized_project(self, async_auth_client):
-        resp = await async_auth_client.post(
-            "/api/v1/case-refresh/projects/99999/auto-refresh"
-        )
+        resp = await async_auth_client.post("/api/v1/case-refresh/projects/99999/auto-refresh")
         assert resp.status_code in (403, 404, 500)
 
     async def test_review_nonexistent_suggestion(self, async_auth_client):
@@ -78,9 +62,7 @@ class TestCaseRefreshAsync:
         assert resp.status_code == 404
 
     async def test_list_empty(self, async_auth_client, async_test_project):
-        resp = await async_auth_client.get(
-            f"/api/v1/case-refresh/projects/{async_test_project.id}/refresh-suggestions"
-        )
+        resp = await async_auth_client.get(f"/api/v1/case-refresh/projects/{async_test_project.id}/refresh-suggestions")
         assert resp.status_code == 200, resp.text
         data = resp.json()["data"]
         assert "items" in data or "list" in data or isinstance(data, list) or data == {} or "total" in data
@@ -92,9 +74,7 @@ class TestCaseRefreshAsync:
         assert resp.status_code == 200, resp.text
 
     async def test_scan_stale_empty(self, async_auth_client, async_test_project):
-        resp = await async_auth_client.post(
-            f"/api/v1/case-refresh/projects/{async_test_project.id}/scan-stale-cases"
-        )
+        resp = await async_auth_client.post(f"/api/v1/case-refresh/projects/{async_test_project.id}/scan-stale-cases")
         assert resp.status_code == 200, resp.text
         data = resp.json()["data"]
         assert data["count"] == 0
@@ -102,9 +82,7 @@ class TestCaseRefreshAsync:
 
     async def test_auto_refresh_empty(self, async_auth_client, async_test_project):
         """无过期用例时返回 total_scanned=0，不触发后台任务。"""
-        resp = await async_auth_client.post(
-            f"/api/v1/case-refresh/projects/{async_test_project.id}/auto-refresh"
-        )
+        resp = await async_auth_client.post(f"/api/v1/case-refresh/projects/{async_test_project.id}/auto-refresh")
         assert resp.status_code == 200, resp.text
         data = resp.json()["data"]
         assert data["total_scanned"] == 0

@@ -1,4 +1,5 @@
 """Capability 生命周期服务单元测试 - 覆盖状态流转规则、审计日志、异常场景"""
+
 import pytest
 from app.models.enums import CapabilityStatus
 from app.services.test_capability_service import (
@@ -62,7 +63,10 @@ class TestTransitionCapability:
 
     def test_deprecated_to_archived(self, db, testProject) -> None:
         cap = create_capability(
-            db, project_id=testProject.id, key="lc_da", title="废弃后归档",
+            db,
+            project_id=testProject.id,
+            key="lc_da",
+            title="废弃后归档",
             status=CapabilityStatus.DEPRECATED.value,
         )
         result = transition_capability(db, cap.id, CapabilityStatus.ARCHIVED.value)
@@ -70,7 +74,10 @@ class TestTransitionCapability:
 
     def test_archived_to_active_raises(self, db, testProject) -> None:
         cap = create_capability(
-            db, project_id=testProject.id, key="lc_atoa", title="归档不可逆",
+            db,
+            project_id=testProject.id,
+            key="lc_atoa",
+            title="归档不可逆",
             status=CapabilityStatus.ARCHIVED.value,
         )
         with pytest.raises(IllegalCapabilityTransition) as exc_info:
@@ -80,7 +87,10 @@ class TestTransitionCapability:
 
     def test_archived_to_deprecated_raises(self, db, testProject) -> None:
         cap = create_capability(
-            db, project_id=testProject.id, key="lc_atod", title="归档不可逆2",
+            db,
+            project_id=testProject.id,
+            key="lc_atod",
+            title="归档不可逆2",
             status=CapabilityStatus.ARCHIVED.value,
         )
         with pytest.raises(IllegalCapabilityTransition):
@@ -93,14 +103,20 @@ class TestTransitionCapability:
     def test_with_actor_id(self, db, testProject, testUser) -> None:
         cap = create_capability(db, project_id=testProject.id, key="lc_actor", title="带操作人")
         result = transition_capability(
-            db, cap.id, CapabilityStatus.DEPRECATED.value, actor_id=testUser.id,
+            db,
+            cap.id,
+            CapabilityStatus.DEPRECATED.value,
+            actor_id=testUser.id,
         )
         assert result.status == CapabilityStatus.DEPRECATED.value
 
     def test_with_reason(self, db, testProject) -> None:
         cap = create_capability(db, project_id=testProject.id, key="lc_reason", title="带原因")
         result = transition_capability(
-            db, cap.id, CapabilityStatus.DEPRECATED.value, reason="业务下线",
+            db,
+            cap.id,
+            CapabilityStatus.DEPRECATED.value,
+            reason="业务下线",
         )
         assert result.status == CapabilityStatus.DEPRECATED.value
 

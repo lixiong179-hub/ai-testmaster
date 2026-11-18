@@ -15,6 +15,7 @@ fire-and-forget 的后台逻辑可被同步断言。
     - 编排执行：_spawn 内部构造 AgentOrchestrator 并执行 failure_analysis 管线
     - 异常隔离：编排抛异常时 _spawn 仅告警，不向外抛出
 """
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -94,9 +95,7 @@ class TestAnalyzeFailureTriggersAgent:
 
         with patch(f"{_ANALYSIS}._get_hidden_fields_async", new=AsyncMock(return_value=[])):
             with patch(f"{_ANALYSIS}._spawn_failure_analysis_agent") as spawn:
-                resp = await analyze_failure(
-                    result_id=999, db=db, current_user=user
-                )
+                resp = await analyze_failure(result_id=999, db=db, current_user=user)
 
         # 1) 端点仍返回既有 200 响应（Agent 结果不混入响应体）
         assert resp["code"] == 200
@@ -190,8 +189,10 @@ class TestSpawnFailureAnalysisAgent:
             with patch(_ORCHESTRATOR, return_value=orchestrator):
                 with patch("asyncio.create_task", new=_capture):
                     _spawn_failure_analysis_agent(
-                        project_id=100, created_by=7,
-                        last_error="boom", screenshot_url=None,
+                        project_id=100,
+                        created_by=7,
+                        last_error="boom",
+                        screenshot_url=None,
                     )
 
                     # 关键断言：await 后台协程不抛异常 —— 异常已被隔离为 warning

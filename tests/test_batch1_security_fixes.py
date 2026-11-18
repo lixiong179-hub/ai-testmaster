@@ -8,6 +8,7 @@
     - 使用真实数据库（禁止 Mock）
     - 覆盖正常值、边界值、异常值
 """
+
 import os
 from datetime import datetime
 import pytest
@@ -82,6 +83,7 @@ class TestProjectFileIterationGuard:
     def test_same_project_iteration_allowed(self, db, test_project, test_iteration):
         """同项目迭代赋值应成功。"""
         from app.crud import file as file_crud
+
         file_obj = file_crud.create_project_file(
             db=db,
             project_id=test_project.id,
@@ -150,6 +152,7 @@ class TestProjectFileIterationGuard:
     def test_clear_iteration_id_allowed(self, db, test_project, test_iteration):
         """清除 iteration_id（设为 None）应成功。"""
         from app.crud import file as file_crud
+
         file_obj = file_crud.create_project_file(
             db=db,
             project_id=test_project.id,

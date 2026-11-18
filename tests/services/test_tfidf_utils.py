@@ -163,7 +163,8 @@ class TestComputeDynamicThreshold:
 class TestBatchComputeSimilarity:
     def test_basic(self):
         sim = batchComputeSimilarity(
-            ["用户登录系统"], ["用户登录页面", "数据导出功能"],
+            ["用户登录系统"],
+            ["用户登录页面", "数据导出功能"],
         )
         assert sim.shape == (1, 2)
         assert sim[0, 0] >= sim[0, 1]

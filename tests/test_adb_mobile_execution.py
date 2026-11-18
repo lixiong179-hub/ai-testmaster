@@ -3,6 +3,7 @@
 适配新 ExecutionMode API（仅 AI_VISION/API/UNKNOWN），
 覆盖 AdbController、UIAutomatorHelper、MobileAIExecutor 的纯逻辑分支。
 """
+
 import os
 import re
 import inspect
@@ -10,19 +11,30 @@ import pytest
 from dataclasses import asdict
 
 from app.utils.adb_controller import (
-    AdbController, AdbError, DeviceNotConnectedError, AdbCommandTimeoutError, DeviceInfo,
+    AdbController,
+    AdbError,
+    DeviceNotConnectedError,
+    AdbCommandTimeoutError,
+    DeviceInfo,
 )
 from app.utils.uiautomator_helper import (
-    UIAutomatorHelper, UIElement, UIAutomatorError, ElementNotFoundError,
+    UIAutomatorHelper,
+    UIElement,
+    UIAutomatorError,
+    ElementNotFoundError,
 )
 from app.services.mobile_ai_executor import (
-    MobileAIExecutor, MobileActionType, MobileAIError,
-    MobileDeviceError, MobileRecognitionError, MobileActionResult,
+    MobileAIExecutor,
+    MobileActionType,
+    MobileAIError,
+    MobileDeviceError,
+    MobileRecognitionError,
+    MobileActionResult,
 )
 
 
-SAMPLE_UI_XML = '''<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
-<hierarchy rotation="0"><node text="" resource-id="" class="android.widget.FrameLayout" package="com.example" content-desc="" clickable="false" enabled="true" bounds="[0,0][1080,1920]"><node text="登录" resource-id="com.example:id/login_btn" class="android.widget.Button" package="com.example" content-desc="登录按钮" clickable="true" enabled="true" bounds="[340,1200][740,1320]"/></node></hierarchy>'''
+SAMPLE_UI_XML = """<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<hierarchy rotation="0"><node text="" resource-id="" class="android.widget.FrameLayout" package="com.example" content-desc="" clickable="false" enabled="true" bounds="[0,0][1080,1920]"><node text="登录" resource-id="com.example:id/login_btn" class="android.widget.Button" package="com.example" content-desc="登录按钮" clickable="true" enabled="true" bounds="[340,1200][740,1320]"/></node></hierarchy>"""
 
 
 def _make_helper() -> UIAutomatorHelper:
@@ -34,7 +46,6 @@ def _make_executor() -> MobileAIExecutor:
 
 
 class TestAdbController:
-
     def test_init_default(self):
         ctrl = AdbController()
         assert ctrl.udid is None
@@ -56,7 +67,6 @@ class TestAdbController:
 
 
 class TestDeviceInfo:
-
     def test_device_info_creation(self):
         info = DeviceInfo(udid="abc123", state="device")
         assert info.udid == "abc123" and info.state == "device"
@@ -68,23 +78,30 @@ class TestDeviceInfo:
 
     def test_device_info_is_dataclass(self):
         assert set(asdict(DeviceInfo(udid="x", state="y")).keys()) == {
-            "udid", "state", "model", "android_version", "screen_size",
+            "udid",
+            "state",
+            "model",
+            "android_version",
+            "screen_size",
         }
 
 
 class TestErrorHierarchies:
     """验证 ADB/UIAutomator/MobileAI 错误类继承关系。"""
 
-    @pytest.mark.parametrize("parent,child", [
-        (Exception, AdbError),
-        (AdbError, DeviceNotConnectedError),
-        (AdbError, AdbCommandTimeoutError),
-        (Exception, UIAutomatorError),
-        (UIAutomatorError, ElementNotFoundError),
-        (Exception, MobileAIError),
-        (MobileAIError, MobileDeviceError),
-        (MobileAIError, MobileRecognitionError),
-    ])
+    @pytest.mark.parametrize(
+        "parent,child",
+        [
+            (Exception, AdbError),
+            (AdbError, DeviceNotConnectedError),
+            (AdbError, AdbCommandTimeoutError),
+            (Exception, UIAutomatorError),
+            (UIAutomatorError, ElementNotFoundError),
+            (Exception, MobileAIError),
+            (MobileAIError, MobileDeviceError),
+            (MobileAIError, MobileRecognitionError),
+        ],
+    )
     def test_subclass(self, parent, child):
         assert issubclass(child, parent)
 
@@ -95,7 +112,6 @@ class TestErrorHierarchies:
 
 
 class TestUIElement:
-
     def test_ui_element_default(self):
         el = UIElement()
         assert el.resource_id is None and el.text is None and el.bounds is None
@@ -103,8 +119,10 @@ class TestUIElement:
 
     def test_ui_element_with_bounds(self):
         el = UIElement(
-            resource_id="com.example:id/btn", text="Click",
-            bounds={"left": 100, "top": 200, "right": 300, "bottom": 280}, clickable=True,
+            resource_id="com.example:id/btn",
+            text="Click",
+            bounds={"left": 100, "top": 200, "right": 300, "bottom": 280},
+            clickable=True,
         )
         assert el.resource_id == "com.example:id/btn" and el.clickable is True
 
@@ -126,11 +144,13 @@ class TestUIElement:
 
 
 class TestUIAutomatorHelperParseBounds:
-
-    @pytest.mark.parametrize("bounds_str,expected", [
-        ("[100,200][300,400]", {"left": 100, "top": 200, "right": 300, "bottom": 400}),
-        ("[0,0][1080,1920]", {"left": 0, "top": 0, "right": 1080, "bottom": 1920}),
-    ])
+    @pytest.mark.parametrize(
+        "bounds_str,expected",
+        [
+            ("[100,200][300,400]", {"left": 100, "top": 200, "right": 300, "bottom": 400}),
+            ("[0,0][1080,1920]", {"left": 0, "top": 0, "right": 1080, "bottom": 1920}),
+        ],
+    )
     def test_parse_bounds_valid(self, bounds_str, expected):
         assert _make_helper()._parse_bounds(bounds_str) == expected
 
@@ -140,7 +160,6 @@ class TestUIAutomatorHelperParseBounds:
 
 
 class TestUIAutomatorHelperParseXml:
-
     def test_parse_xml_sample(self):
         assert len(_make_helper()._parse_xml(SAMPLE_UI_XML)) == 3
 
@@ -157,12 +176,16 @@ class TestUIAutomatorHelperParseXml:
 
 
 class TestMobileActionType:
-
-    @pytest.mark.parametrize("member,expected", [
-        (MobileActionType.CLICK, "click"), (MobileActionType.INPUT, "input"),
-        (MobileActionType.GO_BACK, "go_back"), (MobileActionType.SWIPE, "swipe"),
-        (MobileActionType.LAUNCH_APP, "launch_app"),
-    ])
+    @pytest.mark.parametrize(
+        "member,expected",
+        [
+            (MobileActionType.CLICK, "click"),
+            (MobileActionType.INPUT, "input"),
+            (MobileActionType.GO_BACK, "go_back"),
+            (MobileActionType.SWIPE, "swipe"),
+            (MobileActionType.LAUNCH_APP, "launch_app"),
+        ],
+    )
     def test_member_value(self, member, expected):
         assert member.value == expected
 
@@ -174,27 +197,29 @@ class TestMobileActionType:
 
 
 class TestParseAction:
-
     def setup_method(self):
         self.executor = _make_executor()
 
-    @pytest.mark.parametrize("description,expected", [
-        ("点击返回按钮", MobileActionType.GO_BACK),
-        ("回到主页", MobileActionType.GO_HOME),
-        ("向上滑动", MobileActionType.SCROLL_UP),
-        ("scroll down", MobileActionType.SCROLL_DOWN),
-        ("向左滑动", MobileActionType.SCROLL_LEFT),
-        ("scroll right", MobileActionType.SCROLL_RIGHT),
-        ("输入用户名", MobileActionType.INPUT),
-        ("swipe left to right", MobileActionType.SWIPE),
-        ("按回车键", MobileActionType.PRESS_KEY),
-        ("启动应用", MobileActionType.LAUNCH_APP),
-        ("wait for element", MobileActionType.WAIT),
-        ("验证结果", MobileActionType.VERIFY),
-        ("something random", MobileActionType.CLICK),
-        ("INPUT TEXT", MobileActionType.INPUT),
-        ("  返回  ", MobileActionType.GO_BACK),
-    ])
+    @pytest.mark.parametrize(
+        "description,expected",
+        [
+            ("点击返回按钮", MobileActionType.GO_BACK),
+            ("回到主页", MobileActionType.GO_HOME),
+            ("向上滑动", MobileActionType.SCROLL_UP),
+            ("scroll down", MobileActionType.SCROLL_DOWN),
+            ("向左滑动", MobileActionType.SCROLL_LEFT),
+            ("scroll right", MobileActionType.SCROLL_RIGHT),
+            ("输入用户名", MobileActionType.INPUT),
+            ("swipe left to right", MobileActionType.SWIPE),
+            ("按回车键", MobileActionType.PRESS_KEY),
+            ("启动应用", MobileActionType.LAUNCH_APP),
+            ("wait for element", MobileActionType.WAIT),
+            ("验证结果", MobileActionType.VERIFY),
+            ("something random", MobileActionType.CLICK),
+            ("INPUT TEXT", MobileActionType.INPUT),
+            ("  返回  ", MobileActionType.GO_BACK),
+        ],
+    )
     def test_parse_action(self, description, expected):
         assert self.executor.parse_action(description) == expected
 
@@ -204,51 +229,56 @@ class TestParseAction:
 
 
 class TestExtractInputText:
-
     def setup_method(self):
         self.executor = _make_executor()
 
-    @pytest.mark.parametrize("description,expected", [
-        ('输入"hello"到输入框', "hello"),
-        ("输入'world'", "world"),
-        ('填写"test"', "test"),
-        ("点击按钮", None),
-    ])
+    @pytest.mark.parametrize(
+        "description,expected",
+        [
+            ('输入"hello"到输入框', "hello"),
+            ("输入'world'", "world"),
+            ('填写"test"', "test"),
+            ("点击按钮", None),
+        ],
+    )
     def test_extract_input_text(self, description, expected):
         assert self.executor._extract_input_text(description) == expected
 
 
 class TestExtractInputTarget:
-
     def setup_method(self):
         self.executor = _make_executor()
 
-    @pytest.mark.parametrize("description,expected", [
-        ("在用户名中输入hello", "用户名"),
-        ("在密码框里输入123", "密码框"),
-        ("在搜索栏上输入test", "搜索栏"),
-        ("输入hello", None),
-    ])
+    @pytest.mark.parametrize(
+        "description,expected",
+        [
+            ("在用户名中输入hello", "用户名"),
+            ("在密码框里输入123", "密码框"),
+            ("在搜索栏上输入test", "搜索栏"),
+            ("输入hello", None),
+        ],
+    )
     def test_extract_input_target(self, description, expected):
         assert self.executor._extract_input_target(description) == expected
 
 
 class TestExtractPackageActivity:
-
     def setup_method(self):
         self.executor = _make_executor()
 
-    @pytest.mark.parametrize("description,expected", [
-        ("启动 com.example/.MainActivity", ("com.example", ".MainActivity")),
-        ("com.test/MainActivity", ("com.test", "MainActivity")),
-        ("启动应用", None),
-    ])
+    @pytest.mark.parametrize(
+        "description,expected",
+        [
+            ("启动 com.example/.MainActivity", ("com.example", ".MainActivity")),
+            ("com.test/MainActivity", ("com.test", "MainActivity")),
+            ("启动应用", None),
+        ],
+    )
     def test_extract_package_activity(self, description, expected):
         assert self.executor._extract_package_activity(description) == expected
 
 
 class TestMobileActionResult:
-
     def test_action_result_creation(self):
         result = MobileActionResult(success=True, action_type=MobileActionType.CLICK, description="点击登录")
         assert result.success is True and result.action_type == MobileActionType.CLICK
@@ -256,15 +286,20 @@ class TestMobileActionResult:
 
     def test_action_result_with_coordinates(self):
         result = MobileActionResult(
-            success=True, action_type=MobileActionType.CLICK, description="点击",
-            coordinates={"x": 540, "y": 1260}, ai_confidence=0.95,
+            success=True,
+            action_type=MobileActionType.CLICK,
+            description="点击",
+            coordinates={"x": 540, "y": 1260},
+            ai_confidence=0.95,
         )
         assert result.coordinates == {"x": 540, "y": 1260} and result.ai_confidence == 0.95
 
     def test_action_result_failure(self):
         result = MobileActionResult(
-            success=False, action_type=MobileActionType.INPUT,
-            description="输入失败", error_message="无法定位输入框",
+            success=False,
+            action_type=MobileActionType.INPUT,
+            description="输入失败",
+            error_message="无法定位输入框",
         )
         assert result.success is False and result.error_message == "无法定位输入框"
 
@@ -275,16 +310,20 @@ class TestAppiumRemoval:
     def test_mobile_controller_file_not_exists(self):
         path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
-            "app", "utils", "mobile_controller.py",
+            "app",
+            "utils",
+            "mobile_controller.py",
         )
         assert not os.path.exists(path)
 
     def test_precondition_service_no_mobile_controller_import(self):
         import app.services.precondition_service as precondition_module
+
         assert "MobileController" not in inspect.getsource(precondition_module)
 
     def test_precondition_service_no_mobile_controller_attribute(self):
         from app.services.precondition_service import PreconditionService
+
         svc = PreconditionService()
         assert not hasattr(svc, "mobile_controller") or svc.mobile_controller is None
 
@@ -312,9 +351,16 @@ class TestPackageNameValidation:
     def test_validate_valid_package_name(self):
         AdbController._validate_package_name("com.example.app")
 
-    @pytest.mark.parametrize("invalid", [
-        "example", "com.123app", "", "com.example;rm -rf", "com.my-app",
-    ])
+    @pytest.mark.parametrize(
+        "invalid",
+        [
+            "example",
+            "com.123app",
+            "",
+            "com.example;rm -rf",
+            "com.my-app",
+        ],
+    )
     def test_validate_invalid_package_name(self, invalid):
         with pytest.raises(AdbError, match="Invalid package name"):
             AdbController._validate_package_name(invalid)
@@ -325,11 +371,11 @@ class TestActivityNameValidation:
 
     @pytest.mark.parametrize("valid", [".MainActivity", "com.example.app.MainActivity"])
     def test_valid_activity_name(self, valid):
-        assert re.match(r'^\.?[a-zA-Z][a-zA-Z0-9._]*$', valid)
+        assert re.match(r"^\.?[a-zA-Z][a-zA-Z0-9._]*$", valid)
 
     @pytest.mark.parametrize("invalid", [".Activity;rm", "1Activity", ".Activity|cat"])
     def test_invalid_activity_name(self, invalid):
-        assert not re.match(r'^\.?[a-zA-Z][a-zA-Z0-9._]*$', invalid)
+        assert not re.match(r"^\.?[a-zA-Z][a-zA-Z0-9._]*$", invalid)
 
 
 class TestXMLSanitization:

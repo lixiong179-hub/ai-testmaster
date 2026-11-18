@@ -24,6 +24,7 @@
     4. _ai_self_heal_action 用 AsyncMock 返回 HealResult 控制 AI 自愈结果
     5. monkeypatch AI_SELF_HEALING_ENABLED=True 与 RETRY_WAIT_SECONDS=0
 """
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
@@ -147,11 +148,7 @@ def seed_data(db, testUser):
 
 def _count_audits(db, case_id: int) -> int:
     """统计指定用例的审计记录数。"""
-    return (
-        db.query(SelfHealingAudit)
-        .filter(SelfHealingAudit.test_case_id == case_id)
-        .count()
-    )
+    return db.query(SelfHealingAudit).filter(SelfHealingAudit.test_case_id == case_id).count()
 
 
 def _get_latest_audit(db, case_id: int) -> SelfHealingAudit | None:
@@ -173,9 +170,7 @@ class TestFailureClassificationAndRouting:
     """失败分类 → 策略路由 → 审计写入 端到端测试。"""
 
     @pytest.mark.asyncio
-    async def test_load_delay_retry_strategy(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_load_delay_retry_strategy(self, db, seed_data, monkeypatch):
         """load_delay 场景: 定位超时 → retry 等待 → 重试成功 → 不触发 AI 自愈。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
         monkeypatch.setattr(settings, "AI_SELF_HEALING_RETRY_WAIT_SECONDS", 0)
@@ -188,10 +183,12 @@ class TestFailureClassificationAndRouting:
         engine = _make_engine(db, browser=browser)
 
         # 第一次抛超时异常（触发自愈），第二次成功（retry）
-        engine._execute_action_directly = AsyncMock(side_effect=[
-            Exception("timeout waiting for element"),
-            None,
-        ])
+        engine._execute_action_directly = AsyncMock(
+            side_effect=[
+                Exception("timeout waiting for element"),
+                None,
+            ]
+        )
         # AI 自愈不应被调用
         engine._ai_self_heal_action = AsyncMock(return_value=None)
 
@@ -222,9 +219,7 @@ class TestFailureClassificationAndRouting:
             assert latest_audit.strategy != "retry" or latest_audit.id < locator.id
 
     @pytest.mark.asyncio
-    async def test_env_noise_skip_strategy(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_env_noise_skip_strategy(self, db, seed_data, monkeypatch):
         """env_noise 场景: 网络错误 → skip → 不触发 AI 自愈 → 审计写入。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
 
@@ -236,9 +231,7 @@ class TestFailureClassificationAndRouting:
         engine = _make_engine(db, browser=browser)
 
         # 错误消息包含 "network"（env_noise 关键词）和 "not found"（定位关键词）
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("network error: element not found")
-        )
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("network error: element not found"))
         engine._ai_self_heal_action = AsyncMock(return_value=None)
 
         attempts_before = _get_counter_value(SELF_HEAL_ATTEMPTS)
@@ -265,9 +258,7 @@ class TestFailureClassificationAndRouting:
         assert audit.failure_type == "env_noise"
 
     @pytest.mark.asyncio
-    async def test_element_gone_ai_heal_strategy(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_element_gone_ai_heal_strategy(self, db, seed_data, monkeypatch):
         """element_gone 场景: 元素不存在 → ai_heal → 审计写入 → 定位器回写。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
 
@@ -278,15 +269,15 @@ class TestFailureClassificationAndRouting:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("element not found")
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("element not found"))
+        engine._ai_self_heal_action = AsyncMock(
+            return_value=HealResult(
+                selector=".new-login-btn",
+                confidence=0.9,
+                token_cost=100,
+                strategy="mcp",
+            )
         )
-        engine._ai_self_heal_action = AsyncMock(return_value=HealResult(
-            selector=".new-login-btn",
-            confidence=0.9,
-            token_cost=100,
-            strategy="mcp",
-        ))
 
         await engine._execute_with_self_healing(
             step=step,
@@ -297,9 +288,7 @@ class TestFailureClassificationAndRouting:
 
         # 验证定位器已回写
         db.expire_all()
-        updated_locator = db.query(ElementLocator).filter(
-            ElementLocator.id == locator.id
-        ).first()
+        updated_locator = db.query(ElementLocator).filter(ElementLocator.id == locator.id).first()
         assert updated_locator.css_selector == ".new-login-btn"
         assert updated_locator.source == "ai_self_healing"
 
@@ -313,9 +302,7 @@ class TestFailureClassificationAndRouting:
         assert audit.old_selector == ".old-login-btn"
 
     @pytest.mark.asyncio
-    async def test_dom_changed_ai_heal_strategy(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_dom_changed_ai_heal_strategy(self, db, seed_data, monkeypatch):
         """dom_changed 场景: DOM 变更 → ai_heal → 审计写入。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
 
@@ -328,15 +315,15 @@ class TestFailureClassificationAndRouting:
 
         # "selector" 匹配定位关键词，但不匹配 env_noise/element_gone/load_delay
         # → 默认分类 dom_changed
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("selector validation failed")
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("selector validation failed"))
+        engine._ai_self_heal_action = AsyncMock(
+            return_value=HealResult(
+                selector=".healed-btn",
+                confidence=0.85,
+                token_cost=150,
+                strategy="vision",
+            )
         )
-        engine._ai_self_heal_action = AsyncMock(return_value=HealResult(
-            selector=".healed-btn",
-            confidence=0.85,
-            token_cost=150,
-            strategy="vision",
-        ))
 
         await engine._execute_with_self_healing(
             step=step,
@@ -363,9 +350,7 @@ class TestConfidenceHandling:
     """置信度阈值处理: 低于 0.7 不回写定位器，仅写审计。"""
 
     @pytest.mark.asyncio
-    async def test_low_confidence_no_writeback(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_low_confidence_no_writeback(self, db, seed_data, monkeypatch):
         """置信度 0.5 < 0.7 → 不回写 element_locators → 审计 low_confidence=True。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
         # 确保置信度阈值为 0.7
@@ -378,15 +363,15 @@ class TestConfidenceHandling:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("element not found")
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("element not found"))
+        engine._ai_self_heal_action = AsyncMock(
+            return_value=HealResult(
+                selector=".low-conf-btn",
+                confidence=0.5,  # 低于阈值
+                token_cost=80,
+                strategy="mcp",
+            )
         )
-        engine._ai_self_heal_action = AsyncMock(return_value=HealResult(
-            selector=".low-conf-btn",
-            confidence=0.5,  # 低于阈值
-            token_cost=80,
-            strategy="mcp",
-        ))
 
         await engine._execute_with_self_healing(
             step=step,
@@ -397,9 +382,7 @@ class TestConfidenceHandling:
 
         # 验证定位器未回写（css_selector 保持旧值）
         db.expire_all()
-        updated_locator = db.query(ElementLocator).filter(
-            ElementLocator.id == locator.id
-        ).first()
+        updated_locator = db.query(ElementLocator).filter(ElementLocator.id == locator.id).first()
         assert updated_locator.css_selector == ".old-login-btn"
 
         # 验证审计 low_confidence=True
@@ -409,9 +392,7 @@ class TestConfidenceHandling:
         assert audit.confidence == 0.5
 
     @pytest.mark.asyncio
-    async def test_high_confidence_writeback(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_high_confidence_writeback(self, db, seed_data, monkeypatch):
         """置信度 0.9 ≥ 0.7 → 回写 element_locators → 审计 low_confidence=False。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
         monkeypatch.setattr(settings, "AI_SELF_HEALING_CONFIDENCE_THRESHOLD", 0.7)
@@ -423,15 +404,15 @@ class TestConfidenceHandling:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("element not found")
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("element not found"))
+        engine._ai_self_heal_action = AsyncMock(
+            return_value=HealResult(
+                selector=".high-conf-btn",
+                confidence=0.9,  # 高于阈值
+                token_cost=120,
+                strategy="mcp",
+            )
         )
-        engine._ai_self_heal_action = AsyncMock(return_value=HealResult(
-            selector=".high-conf-btn",
-            confidence=0.9,  # 高于阈值
-            token_cost=120,
-            strategy="mcp",
-        ))
 
         await engine._execute_with_self_healing(
             step=step,
@@ -442,9 +423,7 @@ class TestConfidenceHandling:
 
         # 验证定位器已回写
         db.expire_all()
-        updated_locator = db.query(ElementLocator).filter(
-            ElementLocator.id == locator.id
-        ).first()
+        updated_locator = db.query(ElementLocator).filter(ElementLocator.id == locator.id).first()
         assert updated_locator.css_selector == ".high-conf-btn"
 
         # 验证审计 low_confidence=False
@@ -463,9 +442,7 @@ class TestTokenBudget:
     """Token 治理: 单次超限 / 日预算耗尽 → 跳过 AI 自愈。"""
 
     @pytest.mark.asyncio
-    async def test_single_call_limit_skips_ai_heal(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_single_call_limit_skips_ai_heal(self, db, seed_data, monkeypatch):
         """单次 Token 预估超限 → 熔断 AI 自愈 → 不调用 _local_ai_self_heal。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
 
@@ -476,9 +453,7 @@ class TestTokenBudget:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("element not found")
-        )
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("element not found"))
 
         # 设置 mock _token_guard：单次超限
         engine._token_guard = MagicMock()
@@ -502,15 +477,11 @@ class TestTokenBudget:
 
         # 验证定位器未回写
         db.expire_all()
-        updated_locator = db.query(ElementLocator).filter(
-            ElementLocator.id == locator.id
-        ).first()
+        updated_locator = db.query(ElementLocator).filter(ElementLocator.id == locator.id).first()
         assert updated_locator.css_selector == ".old-login-btn"
 
     @pytest.mark.asyncio
-    async def test_daily_budget_exhausted_skips_ai_heal(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_daily_budget_exhausted_skips_ai_heal(self, db, seed_data, monkeypatch):
         """日预算耗尽 → 熔断 AI 自愈 → 不调用 _local_ai_self_heal。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
 
@@ -521,9 +492,7 @@ class TestTokenBudget:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("element not found")
-        )
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("element not found"))
 
         # 设置 mock _token_guard：日预算耗尽
         engine._token_guard = MagicMock()
@@ -546,9 +515,7 @@ class TestTokenBudget:
 
         # 验证定位器未回写
         db.expire_all()
-        updated_locator = db.query(ElementLocator).filter(
-            ElementLocator.id == locator.id
-        ).first()
+        updated_locator = db.query(ElementLocator).filter(ElementLocator.id == locator.id).first()
         assert updated_locator.css_selector == ".old-login-btn"
 
         # 验证审计写入（失败路径 strategy="ai_heal"）
@@ -567,9 +534,7 @@ class TestGraySwitch:
     """灰度开关: 项目配置 enabled=False / 全局关 → 不触发自愈。"""
 
     @pytest.mark.asyncio
-    async def test_project_config_disabled_skips_healing(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_project_config_disabled_skips_healing(self, db, seed_data, monkeypatch):
         """项目配置 enabled=False → 不触发自愈 → 直接抛原始异常。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
 
@@ -591,9 +556,7 @@ class TestGraySwitch:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("element not found")
-        )
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("element not found"))
         engine._ai_self_heal_action = AsyncMock(return_value=None)
 
         audits_before = _count_audits(db, case.id)
@@ -613,9 +576,7 @@ class TestGraySwitch:
         assert _get_counter_value(SELF_HEAL_ATTEMPTS) == attempts_before
 
     @pytest.mark.asyncio
-    async def test_global_switch_disabled_skips_healing(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_global_switch_disabled_skips_healing(self, db, seed_data, monkeypatch):
         """全局开关关 → 不触发自愈 → 直接抛原始异常。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", False)
 
@@ -626,9 +587,7 @@ class TestGraySwitch:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("element not found")
-        )
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("element not found"))
         engine._ai_self_heal_action = AsyncMock(return_value=None)
 
         audits_before = _count_audits(db, case.id)
@@ -657,9 +616,7 @@ class TestMetricsRecording:
     """自愈后 Prometheus 指标递增验证。"""
 
     @pytest.mark.asyncio
-    async def test_metrics_increment_after_ai_heal_success(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_metrics_increment_after_ai_heal_success(self, db, seed_data, monkeypatch):
         """ai_heal 成功 → SELF_HEAL_ATTEMPTS / SELF_HEAL_SUCCESS 递增。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
 
@@ -669,15 +626,15 @@ class TestMetricsRecording:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("element not found")
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("element not found"))
+        engine._ai_self_heal_action = AsyncMock(
+            return_value=HealResult(
+                selector=".metrics-btn",
+                confidence=0.9,
+                token_cost=100,
+                strategy="mcp",
+            )
         )
-        engine._ai_self_heal_action = AsyncMock(return_value=HealResult(
-            selector=".metrics-btn",
-            confidence=0.9,
-            token_cost=100,
-            strategy="mcp",
-        ))
 
         attempts_before = _get_counter_value(SELF_HEAL_ATTEMPTS)
         success_before = _get_counter_value(SELF_HEAL_SUCCESS)
@@ -693,9 +650,7 @@ class TestMetricsRecording:
         assert _get_counter_value(SELF_HEAL_SUCCESS) > success_before
 
     @pytest.mark.asyncio
-    async def test_metrics_increment_after_skip_failure(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_metrics_increment_after_skip_failure(self, db, seed_data, monkeypatch):
         """env_noise skip → SELF_HEAL_ATTEMPTS / SELF_HEAL_FAILURE 递增。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
 
@@ -705,9 +660,7 @@ class TestMetricsRecording:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("network error: element not found")
-        )
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("network error: element not found"))
 
         attempts_before = _get_counter_value(SELF_HEAL_ATTEMPTS)
         failure_before = _get_counter_value(SELF_HEAL_FAILURE)
@@ -724,9 +677,7 @@ class TestMetricsRecording:
         assert _get_counter_value(SELF_HEAL_FAILURE) > failure_before
 
     @pytest.mark.asyncio
-    async def test_failure_type_metric_labeled_correctly(
-        self, db, seed_data, monkeypatch
-    ):
+    async def test_failure_type_metric_labeled_correctly(self, db, seed_data, monkeypatch):
         """env_noise 失败 → SELF_HEAL_FAILURE_TYPE labels(type=env_noise) 递增。"""
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", True)
 
@@ -736,13 +687,9 @@ class TestMetricsRecording:
         browser = _make_mock_browser(dom_snapshot="")
         engine = _make_engine(db, browser=browser)
 
-        engine._execute_action_directly = AsyncMock(
-            side_effect=Exception("network error: element not found")
-        )
+        engine._execute_action_directly = AsyncMock(side_effect=Exception("network error: element not found"))
 
-        env_noise_before = _get_counter_value(
-            SELF_HEAL_FAILURE_TYPE.labels(type="env_noise")
-        )
+        env_noise_before = _get_counter_value(SELF_HEAL_FAILURE_TYPE.labels(type="env_noise"))
 
         with pytest.raises(Exception):
             await engine._execute_with_self_healing(
@@ -752,7 +699,5 @@ class TestMetricsRecording:
                 action_info={"text": "点击登录按钮"},
             )
 
-        env_noise_after = _get_counter_value(
-            SELF_HEAL_FAILURE_TYPE.labels(type="env_noise")
-        )
+        env_noise_after = _get_counter_value(SELF_HEAL_FAILURE_TYPE.labels(type="env_noise"))
         assert env_noise_after > env_noise_before

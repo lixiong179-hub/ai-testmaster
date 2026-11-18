@@ -10,6 +10,7 @@ iteration_id 哨兵值修复测试
 - 使用真实测试库，不使用 Mock
 - 每个测试用例执行后自动清理测试数据（conftest 事务回滚）
 """
+
 import pytest
 from sqlalchemy.orm import Session
 
@@ -36,9 +37,7 @@ def _create_iteration(db: Session, project_id: int) -> Iteration:
 class TestIterationIdCrudQuery:
     """测试 CRUD 层 iteration_id 查询逻辑"""
 
-    def _create_file(
-        self, db: Session, project_id: int, iteration_id: int | None
-    ) -> ProjectFile:
+    def _create_file(self, db: Session, project_id: int, iteration_id: int | None) -> ProjectFile:
         """辅助方法：创建文件记录"""
         return file_crud.create_project_file(
             db=db,
@@ -49,9 +48,7 @@ class TestIterationIdCrudQuery:
             iteration_id=iteration_id,
         )
 
-    def test_get_files_with_zero_iteration_id_returns_null_files(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_get_files_with_zero_iteration_id_returns_null_files(self, db: Session, testProject: Project) -> None:
         """测试查询 iteration_id=0 应返回 IS NULL 的文件"""
         # 创建两个文件：一个未关联迭代，一个关联迭代
         iteration = _create_iteration(db, testProject.id)
@@ -59,30 +56,22 @@ class TestIterationIdCrudQuery:
         self._create_file(db, testProject.id, iteration_id=iteration.id)
 
         # 传入 iteration_id=0 应查询 IS NULL 的文件
-        files = file_crud.get_project_files(
-            db, testProject.id, iteration_id=0
-        )
+        files = file_crud.get_project_files(db, testProject.id, iteration_id=0)
         assert len(files) == 1
         assert files[0].iteration_id is None
 
-    def test_get_files_with_negative_iteration_id_returns_null_files(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_get_files_with_negative_iteration_id_returns_null_files(self, db: Session, testProject: Project) -> None:
         """测试传入负数 iteration_id 应视为未关联迭代（兼容旧调用）"""
         iteration = _create_iteration(db, testProject.id)
         self._create_file(db, testProject.id, iteration_id=None)
         self._create_file(db, testProject.id, iteration_id=iteration.id)
 
         # 传入 iteration_id=-1 应查询 IS NULL 的文件（兼容旧调用）
-        files = file_crud.get_project_files(
-            db, testProject.id, iteration_id=-1
-        )
+        files = file_crud.get_project_files(db, testProject.id, iteration_id=-1)
         assert len(files) == 1
         assert files[0].iteration_id is None
 
-    def test_get_files_without_iteration_filter_returns_all(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_get_files_without_iteration_filter_returns_all(self, db: Session, testProject: Project) -> None:
         """测试不传 iteration_id 时返回所有文件"""
         iteration = _create_iteration(db, testProject.id)
         self._create_file(db, testProject.id, iteration_id=None)
@@ -92,24 +81,18 @@ class TestIterationIdCrudQuery:
         files = file_crud.get_project_files(db, testProject.id)
         assert len(files) == 2
 
-    def test_get_files_with_valid_iteration_id(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_get_files_with_valid_iteration_id(self, db: Session, testProject: Project) -> None:
         """测试按有效迭代ID查询文件"""
         iteration = _create_iteration(db, testProject.id)
         self._create_file(db, testProject.id, iteration_id=None)
         self._create_file(db, testProject.id, iteration_id=iteration.id)
 
         # 按迭代ID查询
-        files = file_crud.get_project_files(
-            db, testProject.id, iteration_id=iteration.id
-        )
+        files = file_crud.get_project_files(db, testProject.id, iteration_id=iteration.id)
         assert len(files) == 1
         assert files[0].iteration_id == iteration.id
 
-    def test_create_file_with_null_iteration_id(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_create_file_with_null_iteration_id(self, db: Session, testProject: Project) -> None:
         """测试创建文件时 iteration_id=None 应正确存储为 NULL"""
         file = self._create_file(db, testProject.id, iteration_id=None)
         assert file.iteration_id is None
@@ -118,9 +101,7 @@ class TestIterationIdCrudQuery:
         db.refresh(file)
         assert file.iteration_id is None
 
-    def test_create_file_with_zero_iteration_id_fails_fk_constraint(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_create_file_with_zero_iteration_id_fails_fk_constraint(self, db: Session, testProject: Project) -> None:
         """测试 CRUD 层直接传入 iteration_id=0 会因外键约束失败
 
         这验证了 API 层必须在写入前将 <=0 转为 None，
@@ -133,9 +114,7 @@ class TestIterationIdCrudQuery:
 class TestIterationIdProtoProjectQuery:
     """测试 UI 原型项目 CRUD 层 iteration_id 查询逻辑"""
 
-    def _create_proto_project(
-        self, db: Session, project_id: int, iteration_id: int | None
-    ) -> UIPrototypeProject:
+    def _create_proto_project(self, db: Session, project_id: int, iteration_id: int | None) -> UIPrototypeProject:
         """辅助方法：创建UI原型项目记录"""
         return proto_project_crud.create_ui_prototype_project(
             db=db,
@@ -144,9 +123,7 @@ class TestIterationIdProtoProjectQuery:
             iteration_id=iteration_id,
         )
 
-    def test_get_proto_projects_with_zero_iteration_id(
-        self, db: Session, testProject: Project, testUser
-    ) -> None:
+    def test_get_proto_projects_with_zero_iteration_id(self, db: Session, testProject: Project, testUser) -> None:
         """测试传入 iteration_id=0 应查询 IS NULL 的原型项目"""
         self._create_proto_project(db, testProject.id, iteration_id=None)
 
@@ -156,9 +133,7 @@ class TestIterationIdProtoProjectQuery:
         assert len(projects) == 1
         assert projects[0].iteration_id is None
 
-    def test_get_proto_projects_with_negative_iteration_id(
-        self, db: Session, testProject: Project, testUser
-    ) -> None:
+    def test_get_proto_projects_with_negative_iteration_id(self, db: Session, testProject: Project, testUser) -> None:
         """测试传入负数 iteration_id 应视为未关联迭代（兼容旧调用）"""
         self._create_proto_project(db, testProject.id, iteration_id=None)
 
@@ -168,31 +143,26 @@ class TestIterationIdProtoProjectQuery:
         assert len(projects) == 1
         assert projects[0].iteration_id is None
 
-    def test_get_proto_projects_count_with_zero_iteration_id(
-        self, db: Session, testProject: Project, testUser
-    ) -> None:
+    def test_get_proto_projects_count_with_zero_iteration_id(self, db: Session, testProject: Project, testUser) -> None:
         """测试 count 查询也支持 iteration_id<=0 视为未关联迭代"""
         iteration = _create_iteration(db, testProject.id)
         self._create_proto_project(db, testProject.id, iteration_id=None)
         self._create_proto_project(db, testProject.id, iteration_id=iteration.id)
 
-        count = proto_project_crud.get_ui_prototype_projects_count(
-            db, testProject.id, testUser.id, iteration_id=0
-        )
+        count = proto_project_crud.get_ui_prototype_projects_count(db, testProject.id, testUser.id, iteration_id=0)
         assert count == 1
 
 
 class TestIterationIdMigration:
     """测试迁移脚本的数据转换逻辑"""
 
-    def test_migration_converts_negative_to_null(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_migration_converts_negative_to_null(self, db: Session, testProject: Project) -> None:
         """测试迁移将 iteration_id=-1 转为 NULL"""
         # 模拟旧数据：使用原生 SQL 插入 iteration_id=-1 的记录
         # 绕过 ORM 的 before_flush 事件保护（_guard_project_file_iteration_consistency）
         # 旧数据是数据库直接导入的，不经过 ORM，因此原生 SQL 是更真实的模拟
         from sqlalchemy import text
+
         db.execute(text("SET FOREIGN_KEY_CHECKS=0"))
         result = db.execute(
             text(
@@ -229,10 +199,7 @@ class TestIterationIdMigration:
 
         # 执行迁移逻辑
         db.execute(
-            text(
-                "UPDATE project_files SET iteration_id = NULL "
-                "WHERE iteration_id IS NOT NULL AND iteration_id <= 0"
-            )
+            text("UPDATE project_files SET iteration_id = NULL WHERE iteration_id IS NOT NULL AND iteration_id <= 0")
         )
         db.flush()
 
@@ -243,9 +210,7 @@ class TestIterationIdMigration:
         ).fetchone()
         assert row[0] is None
 
-    def test_migration_preserves_valid_iteration_id(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_migration_preserves_valid_iteration_id(self, db: Session, testProject: Project) -> None:
         """测试迁移不修改有效的 iteration_id"""
         iteration = _create_iteration(db, testProject.id)
         file = ProjectFile(
@@ -263,11 +228,9 @@ class TestIterationIdMigration:
 
         # 执行迁移逻辑
         from sqlalchemy import text
+
         db.execute(
-            text(
-                "UPDATE project_files SET iteration_id = NULL "
-                "WHERE iteration_id IS NOT NULL AND iteration_id <= 0"
-            )
+            text("UPDATE project_files SET iteration_id = NULL WHERE iteration_id IS NOT NULL AND iteration_id <= 0")
         )
         db.flush()
 
@@ -275,13 +238,12 @@ class TestIterationIdMigration:
         db.refresh(file)
         assert file.iteration_id == iteration.id
 
-    def test_migration_converts_zero_to_null(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_migration_converts_zero_to_null(self, db: Session, testProject: Project) -> None:
         """测试迁移将 iteration_id=0 转为 NULL"""
         # 模拟旧数据：使用原生 SQL 插入 iteration_id=0 的记录
         # 绕过 ORM 的 before_flush 事件保护（_guard_project_file_iteration_consistency）
         from sqlalchemy import text
+
         db.execute(text("SET FOREIGN_KEY_CHECKS=0"))
         result = db.execute(
             text(
@@ -311,10 +273,7 @@ class TestIterationIdMigration:
 
         # 执行迁移逻辑
         db.execute(
-            text(
-                "UPDATE project_files SET iteration_id = NULL "
-                "WHERE iteration_id IS NOT NULL AND iteration_id <= 0"
-            )
+            text("UPDATE project_files SET iteration_id = NULL WHERE iteration_id IS NOT NULL AND iteration_id <= 0")
         )
         db.flush()
 
@@ -325,11 +284,10 @@ class TestIterationIdMigration:
         ).fetchone()
         assert row[0] is None
 
-    def test_migration_proto_project_negative_to_null(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_migration_proto_project_negative_to_null(self, db: Session, testProject: Project) -> None:
         """测试迁移将 ui_prototype_projects 的 iteration_id=-1 转为 NULL"""
         from sqlalchemy import text
+
         db.execute(text("SET FOREIGN_KEY_CHECKS=0"))
         proto = UIPrototypeProject(
             project_id=testProject.id,
@@ -356,9 +314,7 @@ class TestIterationIdMigration:
         db.refresh(proto)
         assert proto.iteration_id is None
 
-    def test_migration_already_null_stays_null(
-        self, db: Session, testProject: Project
-    ) -> None:
+    def test_migration_already_null_stays_null(self, db: Session, testProject: Project) -> None:
         """测试迁移不修改已经是 NULL 的记录"""
         file = ProjectFile(
             project_id=testProject.id,
@@ -375,11 +331,9 @@ class TestIterationIdMigration:
 
         # 执行迁移逻辑
         from sqlalchemy import text
+
         db.execute(
-            text(
-                "UPDATE project_files SET iteration_id = NULL "
-                "WHERE iteration_id IS NOT NULL AND iteration_id <= 0"
-            )
+            text("UPDATE project_files SET iteration_id = NULL WHERE iteration_id IS NOT NULL AND iteration_id <= 0")
         )
         db.flush()
 

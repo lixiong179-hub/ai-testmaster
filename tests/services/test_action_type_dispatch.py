@@ -8,11 +8,15 @@
 
 要求: 不使用Mock，覆盖率>=95%
 """
+
 import pytest
 from types import SimpleNamespace
 
 from app.services.test_execution_engine.models import (
-    ActionType, StepExecutionError, StepExecutionResult, ExecutionStatus,
+    ActionType,
+    StepExecutionError,
+    StepExecutionResult,
+    ExecutionStatus,
 )
 from app.services.test_execution_engine.step_executor_mixin import StepExecutorMixin
 from app.services.test_execution_engine.action_executor_basic_mixin import (
@@ -76,6 +80,7 @@ def _make_step(
 def _make_async_return(value):
     async def _return(*args, **kwargs):
         return value
+
     return _return
 
 
@@ -160,72 +165,56 @@ class TestDispatchStepAction:
         step = _make_step(target_element="myframe")
         action_info = {"type": ActionType.SWITCH_FRAME, "text": "切换iframe"}
         with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-            await self.engine._dispatch_step_action(
-                step, ActionType.SWITCH_FRAME, action_info, {}, None, None, False
-            )
+            await self.engine._dispatch_step_action(step, ActionType.SWITCH_FRAME, action_info, {}, None, None, False)
 
     @pytest.mark.asyncio
     async def test_switch_window_dispatch(self):
         step = _make_step(target_element="新窗口")
         action_info = {"type": ActionType.SWITCH_WINDOW, "text": "切换窗口"}
         with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-            await self.engine._dispatch_step_action(
-                step, ActionType.SWITCH_WINDOW, action_info, {}, None, None, False
-            )
+            await self.engine._dispatch_step_action(step, ActionType.SWITCH_WINDOW, action_info, {}, None, None, False)
 
     @pytest.mark.asyncio
     async def test_upload_dispatch(self):
         step = _make_step(target_element="input[type=file]", input_value="/tmp/test.txt")
         action_info = {"type": ActionType.UPLOAD, "text": "上传文件"}
         with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-            await self.engine._dispatch_step_action(
-                step, ActionType.UPLOAD, action_info, {}, None, None, False
-            )
+            await self.engine._dispatch_step_action(step, ActionType.UPLOAD, action_info, {}, None, None, False)
 
     @pytest.mark.asyncio
     async def test_execute_script_dispatch(self):
         step = _make_step(input_value="document.title")
         action_info = {"type": ActionType.EXECUTE_SCRIPT, "text": "执行脚本"}
         with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-            await self.engine._dispatch_step_action(
-                step, ActionType.EXECUTE_SCRIPT, action_info, {}, None, None, False
-            )
+            await self.engine._dispatch_step_action(step, ActionType.EXECUTE_SCRIPT, action_info, {}, None, None, False)
 
     @pytest.mark.asyncio
     async def test_screenshot_dispatch(self):
         step = _make_step()
         action_info = {"type": ActionType.SCREENSHOT, "text": "截图"}
         with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-            await self.engine._dispatch_step_action(
-                step, ActionType.SCREENSHOT, action_info, {}, None, None, False
-            )
+            await self.engine._dispatch_step_action(step, ActionType.SCREENSHOT, action_info, {}, None, None, False)
 
     @pytest.mark.asyncio
     async def test_fallback_dispatch_with_warning(self):
         step = _make_step()
         action_info = {"type": ActionType.DOUBLE_CLICK, "text": "双击"}
         with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-            await self.engine._dispatch_step_action(
-                step, ActionType.DOUBLE_CLICK, action_info, {}, None, None, False
-            )
+            await self.engine._dispatch_step_action(step, ActionType.DOUBLE_CLICK, action_info, {}, None, None, False)
 
     @pytest.mark.asyncio
     async def test_existing_dispatch_unchanged_navigate(self):
         step = _make_step()
         action_info = {"type": ActionType.NAVIGATE, "text": "导航到 https://example.com"}
         with pytest.raises(StepExecutionError, match="浏览器未初始化"):
-            await self.engine._dispatch_step_action(
-                step, ActionType.NAVIGATE, action_info, {}, None, None, False
-            )
+            await self.engine._dispatch_step_action(step, ActionType.NAVIGATE, action_info, {}, None, None, False)
 
     @pytest.mark.asyncio
     async def test_existing_dispatch_unchanged_verify(self):
         step = _make_step()
         action_info = {"type": ActionType.VERIFY, "text": "验证文本"}
         with pytest.raises((StepExecutionError, Exception)):
-            await self.engine._dispatch_step_action(
-                step, ActionType.VERIFY, action_info, {}, None, None, False
-            )
+            await self.engine._dispatch_step_action(step, ActionType.VERIFY, action_info, {}, None, None, False)
 
 
 class TestExecuteSwitchFrame:

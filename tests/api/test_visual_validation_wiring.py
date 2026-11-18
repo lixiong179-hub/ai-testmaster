@@ -9,6 +9,7 @@
 `asyncio.create_task` 替换为「收集协程」的同步钩子，使 fire-and-forget
 的后台逻辑可被显式 await 后断言。
 """
+
 import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -220,11 +221,13 @@ class TestExecutionCoreWiring:
 
     async def test_enabled_triggers_visual_validation(self, monkeypatch):
         monkeypatch.setattr(settings, "AI_VISUAL_VALIDATION_ENABLED", True)
-        db = _make_sync_db([
-            _query_result(_failed_result()),
-            _query_result(_test_case()),
-            _query_result(None, []),
-        ])
+        db = _make_sync_db(
+            [
+                _query_result(_failed_result()),
+                _query_result(_test_case()),
+                _query_result(None, []),
+            ]
+        )
         user = MagicMock(id=7)
 
         with (
@@ -248,9 +251,7 @@ class TestExecutionCoreWiring:
         assert kwargs["created_by"] == 7
         assert kwargs["last_error"] == "element not found"
 
-    async def test_disabled_does_not_trigger_visual_validation(
-        self, monkeypatch, db, testUser
-    ):
+    async def test_disabled_does_not_trigger_visual_validation(self, monkeypatch, db, testUser):
         monkeypatch.setattr(settings, "AI_VISUAL_VALIDATION_ENABLED", False)
         monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", False)
         suffix = uuid.uuid4().hex[:8]
@@ -264,11 +265,13 @@ class TestExecutionCoreWiring:
         db.add(project)
         db.flush()
 
-        mock_db = _make_sync_db([
-            _query_result(_failed_result()),
-            _query_result(_test_case(project_id=project.id)),
-            _query_result(None, []),
-        ])
+        mock_db = _make_sync_db(
+            [
+                _query_result(_failed_result()),
+                _query_result(_test_case(project_id=project.id)),
+                _query_result(None, []),
+            ]
+        )
         user = MagicMock(id=7)
 
         with (
@@ -322,11 +325,7 @@ class TestSpawnCreatesSession:
             await captured[0]
 
         assert _count_visual_sessions(db, project.id) == 1
-        session = (
-            db.query(AgentSession)
-            .filter(AgentSession.project_id == project.id)
-            .first()
-        )
+        session = db.query(AgentSession).filter(AgentSession.project_id == project.id).first()
         assert session.agent_type == "visual_validation"
         assert session.created_by == testUser.id
 

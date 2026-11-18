@@ -43,6 +43,7 @@ class TestProjectApiCreate:
 class TestProjectApiList:
     def test_get_projects_list(self, db, client, authHeaders, testUser):
         from app.models.project import Project
+
         for i in range(3):
             p = Project(
                 name=f"api_list_{i}_{uuid.uuid4().hex[:8]}",
@@ -60,6 +61,7 @@ class TestProjectApiList:
 
     def test_get_projects_pagination(self, db, client, authHeaders, testUser):
         from app.models.project import Project
+
         for i in range(5):
             p = Project(
                 name=f"api_page_{i}_{uuid.uuid4().hex[:8]}",

@@ -9,6 +9,7 @@
 
 要求: 使用真实MySQL数据库，不使用Mock
 """
+
 import pytest
 import json
 import os
@@ -21,10 +22,7 @@ from app.models.project import Project
 from app.models.requirement_link import RequirementLink
 
 
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "mysql+pymysql://root:test1234@localhost:3306/ai_testmaster"
-)
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "mysql+pymysql://root:test1234@localhost:3306/ai_testmaster")
 _TEST_PREFIX = "enc_test_"
 
 
@@ -46,11 +44,7 @@ def db_session():
 
 @pytest.fixture
 def test_project(db_session) -> Project:
-    project = Project(
-        name=f"{_TEST_PREFIX}密码加密测试",
-        description="测试密码加密",
-        user_id=1
-    )
+    project = Project(name=f"{_TEST_PREFIX}密码加密测试", description="测试密码加密", user_id=1)
     db_session.add(project)
     db_session.flush()
     return project
@@ -111,11 +105,7 @@ class TestRequirementLinkAuthConfigEncryption:
 
     @pytest.fixture
     def test_project_for_link(self, db_session) -> Project:
-        project = Project(
-            name=f"{_TEST_PREFIX}链接测试",
-            description="测试链接",
-            user_id=1
-        )
+        project = Project(name=f"{_TEST_PREFIX}链接测试", description="测试链接", user_id=1)
         db_session.add(project)
         db_session.flush()
         return project
@@ -129,7 +119,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/api",
             auth_type="basic",
             auth_config={"username": "admin", "password": "secret123"},
-            created_by=1
+            created_by=1,
         )
         db_session.add(link)
         db_session.commit()
@@ -146,7 +136,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/api",
             auth_type="bearer",
             auth_config={"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"},
-            created_by=1
+            created_by=1,
         )
         db_session.add(link)
         db_session.commit()
@@ -162,7 +152,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/proto",
             auth_type="api_key",
             auth_config={"api_key": "sk-abc123xyz789"},
-            created_by=1
+            created_by=1,
         )
         db_session.add(link)
         db_session.commit()
@@ -177,12 +167,8 @@ class TestRequirementLinkAuthConfigEncryption:
             link_type="requirement",
             link_url="https://example.com/api",
             auth_type="cookie",
-            auth_config={
-                "name": "session_id",
-                "value": "abc123def456",
-                "domain": ".example.com"
-            },
-            created_by=1
+            auth_config={"name": "session_id", "value": "abc123def456", "domain": ".example.com"},
+            created_by=1,
         )
         db_session.add(link)
         db_session.commit()
@@ -200,7 +186,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/public",
             auth_type="none",
             auth_config={},
-            created_by=1
+            created_by=1,
         )
         db_session.add(link)
         db_session.commit()
@@ -216,7 +202,7 @@ class TestRequirementLinkAuthConfigEncryption:
             link_url="https://example.com/proto",
             auth_type="none",
             auth_config=None,
-            created_by=1
+            created_by=1,
         )
         db_session.add(link)
         db_session.commit()
@@ -238,10 +224,10 @@ class TestRequirementLinkAuthConfigEncryption:
                 "endpoints": {
                     "auth": "https://auth.example.com/oauth/authorize",
                     "token": "https://auth.example.com/oauth/token",
-                    "refresh": "https://auth.example.com/oauth/refresh"
-                }
+                    "refresh": "https://auth.example.com/oauth/refresh",
+                },
             },
-            created_by=1
+            created_by=1,
         )
         db_session.add(link)
         db_session.commit()

@@ -9,6 +9,7 @@
     - POST /review/{id}/undo-finalize 超时403
     - POST /review/{id}/undo-finalize 未finalize 400
 """
+
 import pytest
 from datetime import timedelta
 
@@ -21,10 +22,12 @@ from app.utils.jwt_utils import create_access_token
 
 @pytest.fixture
 def auth_headers(testUser):
-    token = create_access_token({
-        "sub": str(testUser.id),
-        "username": testUser.username,
-    })
+    token = create_access_token(
+        {
+            "sub": str(testUser.id),
+            "username": testUser.username,
+        }
+    )
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -43,7 +46,9 @@ def review_iteration(db, testProject):
 @pytest.fixture
 def undo_review(db, review_iteration):
     return review_service.create_review(
-        db=db, iteration_id=review_iteration.id, kind="forward",
+        db=db,
+        iteration_id=review_iteration.id,
+        kind="forward",
     )
 
 
@@ -67,22 +72,27 @@ def undo_case(db, testProject):
 
 
 class TestUndoDecisionApi:
-    def test_undo_decision_succeeds(
-        self, client, db, undo_review, undo_case, testUser, auth_headers
-    ):
+    def test_undo_decision_succeeds(self, client, db, undo_review, undo_case, testUser, auth_headers):
         review_service.start_review(db=db, review_id=undo_review.id)
 
         decision = review_service.add_decision(
-            db=db, review_id=undo_review.id,
-            target_kind="case", target_id=undo_case.id,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=undo_review.id,
+            target_kind="case",
+            target_id=undo_case.id,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="keep", human_user_id=testUser.id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="keep",
+            human_user_id=testUser.id,
         )
         review_service.finalize_review(
-            db=db, review_id=undo_review.id, finalized_by=testUser.id,
+            db=db,
+            review_id=undo_review.id,
+            finalized_by=testUser.id,
         )
         db.commit()
 
@@ -94,15 +104,16 @@ class TestUndoDecisionApi:
         data = response.json()
         assert data["data"]["human_verdict"] is None
 
-    def test_undo_decision_not_finalized(
-        self, client, db, undo_review, undo_case, testUser, auth_headers
-    ):
+    def test_undo_decision_not_finalized(self, client, db, undo_review, undo_case, testUser, auth_headers):
         review_service.start_review(db=db, review_id=undo_review.id)
 
         decision = review_service.add_decision(
-            db=db, review_id=undo_review.id,
-            target_kind="case", target_id=undo_case.id,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=undo_review.id,
+            target_kind="case",
+            target_id=undo_case.id,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         db.commit()
 
@@ -112,18 +123,21 @@ class TestUndoDecisionApi:
         )
         assert response.status_code == 400
 
-    def test_undo_decision_window_expired(
-        self, client, db, undo_review, undo_case, testUser, auth_headers
-    ):
+    def test_undo_decision_window_expired(self, client, db, undo_review, undo_case, testUser, auth_headers):
         review_service.start_review(db=db, review_id=undo_review.id)
 
         decision = review_service.add_decision(
-            db=db, review_id=undo_review.id,
-            target_kind="case", target_id=undo_case.id,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=undo_review.id,
+            target_kind="case",
+            target_id=undo_case.id,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review = review_service.finalize_review(
-            db=db, review_id=undo_review.id, finalized_by=testUser.id,
+            db=db,
+            review_id=undo_review.id,
+            finalized_by=testUser.id,
         )
         review.finalized_at = utcnow() - timedelta(minutes=61)
         db.commit()
@@ -191,7 +205,9 @@ class TestUndoFinalizeApi:
     @pytest.fixture
     def admin_review(self, db, admin_iteration):
         return review_service.create_review(
-            db=db, iteration_id=admin_iteration.id, kind="forward",
+            db=db,
+            iteration_id=admin_iteration.id,
+            kind="forward",
         )
 
     @pytest.fixture
@@ -214,28 +230,35 @@ class TestUndoFinalizeApi:
 
     @pytest.fixture
     def admin_auth_headers(self, admin_user):
-        token = create_access_token({
-            "sub": str(admin_user.id),
-            "username": admin_user.username,
-        })
+        token = create_access_token(
+            {
+                "sub": str(admin_user.id),
+                "username": admin_user.username,
+            }
+        )
         return {"Authorization": f"Bearer {token}"}
 
-    def test_undo_finalize_succeeds(
-        self, client, db, admin_review, admin_case, admin_user, admin_auth_headers
-    ):
+    def test_undo_finalize_succeeds(self, client, db, admin_review, admin_case, admin_user, admin_auth_headers):
         review_service.start_review(db=db, review_id=admin_review.id)
 
         decision = review_service.add_decision(
-            db=db, review_id=admin_review.id,
-            target_kind="case", target_id=admin_case.id,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=admin_review.id,
+            target_kind="case",
+            target_id=admin_case.id,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="keep", human_user_id=admin_user.id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="keep",
+            human_user_id=admin_user.id,
         )
         review_service.finalize_review(
-            db=db, review_id=admin_review.id, finalized_by=admin_user.id,
+            db=db,
+            review_id=admin_review.id,
+            finalized_by=admin_user.id,
         )
         db.commit()
 
@@ -247,22 +270,27 @@ class TestUndoFinalizeApi:
         data = response.json()
         assert data["data"]["status"] == "in_progress"
 
-    def test_undo_finalize_non_admin_rejected(
-        self, client, db, undo_review, undo_case, testUser, auth_headers
-    ):
+    def test_undo_finalize_non_admin_rejected(self, client, db, undo_review, undo_case, testUser, auth_headers):
         review_service.start_review(db=db, review_id=undo_review.id)
 
         decision = review_service.add_decision(
-            db=db, review_id=undo_review.id,
-            target_kind="case", target_id=undo_case.id,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=undo_review.id,
+            target_kind="case",
+            target_id=undo_case.id,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="keep", human_user_id=testUser.id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="keep",
+            human_user_id=testUser.id,
         )
         review_service.finalize_review(
-            db=db, review_id=undo_review.id, finalized_by=testUser.id,
+            db=db,
+            review_id=undo_review.id,
+            finalized_by=testUser.id,
         )
         db.commit()
 
@@ -272,13 +300,13 @@ class TestUndoFinalizeApi:
         )
         assert response.status_code == 403
 
-    def test_undo_finalize_window_expired(
-        self, client, db, admin_review, admin_user, admin_auth_headers
-    ):
+    def test_undo_finalize_window_expired(self, client, db, admin_review, admin_user, admin_auth_headers):
         review_service.start_review(db=db, review_id=admin_review.id)
 
         review = review_service.finalize_review(
-            db=db, review_id=admin_review.id, finalized_by=admin_user.id,
+            db=db,
+            review_id=admin_review.id,
+            finalized_by=admin_user.id,
         )
         review.finalized_at = utcnow() - timedelta(minutes=61)
         db.commit()
@@ -289,9 +317,7 @@ class TestUndoFinalizeApi:
         )
         assert response.status_code == 403
 
-    def test_undo_finalize_not_finalized(
-        self, client, db, admin_review, admin_auth_headers
-    ):
+    def test_undo_finalize_not_finalized(self, client, db, admin_review, admin_auth_headers):
         review_service.start_review(db=db, review_id=admin_review.id)
         db.commit()
 

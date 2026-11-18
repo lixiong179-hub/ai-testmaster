@@ -48,8 +48,12 @@ class TestTestCapabilityUpdate:
 class TestTestCapabilityResponse:
     def test_create(self):
         from datetime import datetime
+
         resp = TestCapabilityResponse(
-            id=1, project_id=1, key="CAP", title="能力",
+            id=1,
+            project_id=1,
+            key="CAP",
+            title="能力",
             created_at=datetime.now(),
         )
         assert resp.id == 1

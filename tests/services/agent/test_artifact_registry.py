@@ -12,6 +12,7 @@
 
 测试原则：纯内存操作，无需数据库。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -58,11 +59,14 @@ def test_register_then_list_contains_type() -> None:
 
 def test_validate_returns_artifact_instance(registry_with_all_artifacts: ArtifactRegistry) -> None:
     """用例2: validate 合法数据 → 返回 TestCaseArtifact 实例。"""
-    artifact = registry_with_all_artifacts.validate("test_case", {
-        "title": "登录测试",
-        "steps": [{"action": "click", "target": "#login"}],
-        "preconditions": ["用户已注册"],
-    })
+    artifact = registry_with_all_artifacts.validate(
+        "test_case",
+        {
+            "title": "登录测试",
+            "steps": [{"action": "click", "target": "#login"}],
+            "preconditions": ["用户已注册"],
+        },
+    )
     assert isinstance(artifact, TestCaseArtifact)
     assert artifact.title == "登录测试"
     assert len(artifact.steps) == 1
@@ -146,11 +150,14 @@ def test_artifact_class_var_fields(artifact_class: type, expected_type: str, exp
 def test_artifact_extra_forbid_rejects_unknown_field(registry_with_all_artifacts: ArtifactRegistry) -> None:
     """用例8: Pydantic extra='forbid' 传入未定义字段抛 ValidationError。"""
     with pytest.raises(ValidationError):
-        registry_with_all_artifacts.validate("test_case", {
-            "title": "t",
-            "steps": [],
-            "unknown_field": "should_be_rejected",
-        })
+        registry_with_all_artifacts.validate(
+            "test_case",
+            {
+                "title": "t",
+                "steps": [],
+                "unknown_field": "should_be_rejected",
+            },
+        )
 
 
 # ── 附加边界用例：空注册表 build_artifacts_index_prompt 返回空串 ──
@@ -179,17 +186,20 @@ def test_register_duplicate_raises_value_error() -> None:
 
 def test_failure_history_with_nested_records(registry_with_all_artifacts: ArtifactRegistry) -> None:
     """边界用例: FailureHistoryArtifact 含嵌套 FailureRecord 列表。"""
-    artifact = registry_with_all_artifacts.validate("failure_history", {
-        "recent_failures": [
-            {
-                "failure_type": "element_gone",
-                "selector": "#btn",
-                "healed_selector": "#btn-new",
-                "confidence": 0.92,
-                "strategy": "mcp",
-            },
-        ],
-    })
+    artifact = registry_with_all_artifacts.validate(
+        "failure_history",
+        {
+            "recent_failures": [
+                {
+                    "failure_type": "element_gone",
+                    "selector": "#btn",
+                    "healed_selector": "#btn-new",
+                    "confidence": 0.92,
+                    "strategy": "mcp",
+                },
+            ],
+        },
+    )
     assert isinstance(artifact, FailureHistoryArtifact)
     assert len(artifact.recent_failures) == 1
     record = artifact.recent_failures[0]

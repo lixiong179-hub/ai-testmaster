@@ -24,6 +24,7 @@
 - 通过 TEST_DATABASE_URL 决定测试库；未配置时动态用例自动跳过，
   静态用例仍可运行（不依赖数据库）。
 """
+
 from __future__ import annotations
 
 import os
@@ -96,10 +97,7 @@ def test_migrations_have_single_head() -> None:
     child_targets: set[str] = _iter_down_revision_targets(migrations)
     heads: list[str] = sorted(all_revisions - child_targets)
 
-    assert len(heads) == 1, (
-        f"期望恰好 1 个 head，实际 {len(heads)}: {heads}。"
-        "存在多 head 时需新增 merge 迁移合并。"
-    )
+    assert len(heads) == 1, f"期望恰好 1 个 head，实际 {len(heads)}: {heads}。存在多 head 时需新增 merge 迁移合并。"
 
 
 # -----------------------------------------------------------------------
@@ -147,9 +145,7 @@ def test_latest_migration_round_trip(alembic_config) -> None:
     # 重新升级到 head
     command.upgrade(alembic_config, "head")
     head_rev_after = _current_revision(alembic_config)
-    assert head_rev_after == head_rev_before, (
-        f"往返后版本号应恢复: 期望 {head_rev_before}, 实际 {head_rev_after}"
-    )
+    assert head_rev_after == head_rev_before, f"往返后版本号应恢复: 期望 {head_rev_before}, 实际 {head_rev_after}"
 
 
 @pytest.mark.slow
@@ -168,7 +164,4 @@ def test_full_round_trip(alembic_config) -> None:
 
     command.upgrade(alembic_config, "head")
     head_rev_after = _current_revision(alembic_config)
-    assert head_rev_after == head_rev, (
-        f"全链路往返后版本号应恢复: 期望 {head_rev}, 实际 {head_rev_after}"
-    )
-
+    assert head_rev_after == head_rev, f"全链路往返后版本号应恢复: 期望 {head_rev}, 实际 {head_rev_after}"

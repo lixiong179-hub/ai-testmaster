@@ -52,7 +52,11 @@ class TestCreateTestPoint:
 class TestGetTestPointById:
     def test_get_existing(self, db, testProject):
         tp = create_test_point(
-            db=db, project_id=testProject.id, module="M", point="P", priority=2,
+            db=db,
+            project_id=testProject.id,
+            module="M",
+            point="P",
+            priority=2,
         )
         result = get_test_point_by_id(db, tp.id, testProject.id)
         assert result is not None
@@ -64,7 +68,11 @@ class TestGetTestPointById:
 
     def test_get_wrong_project(self, db, testProject):
         tp = create_test_point(
-            db=db, project_id=testProject.id, module="M", point="P", priority=2,
+            db=db,
+            project_id=testProject.id,
+            module="M",
+            point="P",
+            priority=2,
         )
         result = get_test_point_by_id(db, tp.id, 99999)
         assert result is None
@@ -74,24 +82,33 @@ class TestGetTestPointsByProject:
     def test_get_all(self, db, testProject):
         for i in range(3):
             create_test_point(
-                db=db, project_id=testProject.id,
-                module=f"M{i}", point=f"P{i}", priority=2,
+                db=db,
+                project_id=testProject.id,
+                module=f"M{i}",
+                point=f"P{i}",
+                priority=2,
             )
         results = get_test_points_by_project(db, testProject.id)
         assert len(results) >= 3
 
     def test_filter_by_module(self, db, testProject):
         create_test_point(
-            db=db, project_id=testProject.id,
-            module="唯一模块", point="P1", priority=2,
+            db=db,
+            project_id=testProject.id,
+            module="唯一模块",
+            point="P1",
+            priority=2,
         )
         results = get_test_points_by_project(db, testProject.id, module="唯一模块")
         assert all(tp.module == "唯一模块" for tp in results)
 
     def test_filter_by_priority(self, db, testProject):
         create_test_point(
-            db=db, project_id=testProject.id,
-            module="M", point="P优先", priority=1,
+            db=db,
+            project_id=testProject.id,
+            module="M",
+            point="P优先",
+            priority=1,
         )
         results = get_test_points_by_project(db, testProject.id, priority=1)
         assert all(tp.priority == 1 for tp in results)
@@ -99,8 +116,11 @@ class TestGetTestPointsByProject:
     def test_pagination(self, db, testProject):
         for i in range(5):
             create_test_point(
-                db=db, project_id=testProject.id,
-                module=f"PageM{i}", point=f"PageP{i}", priority=2,
+                db=db,
+                project_id=testProject.id,
+                module=f"PageM{i}",
+                point=f"PageP{i}",
+                priority=2,
             )
         results = get_test_points_by_project(db, testProject.id, skip=0, limit=2)
         assert len(results) <= 2
@@ -109,10 +129,16 @@ class TestGetTestPointsByProject:
 class TestGetTestPointsByProjectAndUser:
     def test_get_by_user(self, db, testProject):
         create_test_point(
-            db=db, project_id=testProject.id, module="UM", point="UP", priority=2,
+            db=db,
+            project_id=testProject.id,
+            module="UM",
+            point="UP",
+            priority=2,
         )
         results = get_test_points_by_project_and_user(
-            db, testProject.id, testProject.user_id,
+            db,
+            testProject.id,
+            testProject.user_id,
         )
         assert len(results) >= 1
 
@@ -124,7 +150,11 @@ class TestGetTestPointsByProjectAndUser:
 class TestGetTestPointsCount:
     def test_count(self, db, testProject):
         create_test_point(
-            db=db, project_id=testProject.id, module="CM", point="CP", priority=2,
+            db=db,
+            project_id=testProject.id,
+            module="CM",
+            point="CP",
+            priority=2,
         )
         count = get_test_points_count(db, testProject.id, testProject.user_id)
         assert count >= 1
@@ -133,7 +163,11 @@ class TestGetTestPointsCount:
 class TestUpdateTestPoint:
     def test_update_module(self, db, testProject):
         tp = create_test_point(
-            db=db, project_id=testProject.id, module="Old", point="P", priority=2,
+            db=db,
+            project_id=testProject.id,
+            module="Old",
+            point="P",
+            priority=2,
         )
         old_version = tp.version
         updated = update_test_point(db, tp.id, testProject.id, module="New")
@@ -149,7 +183,11 @@ class TestUpdateTestPoint:
 class TestDeleteTestPoint:
     def test_delete_existing(self, db, testProject):
         tp = create_test_point(
-            db=db, project_id=testProject.id, module="DM", point="DP", priority=2,
+            db=db,
+            project_id=testProject.id,
+            module="DM",
+            point="DP",
+            priority=2,
         )
         result = delete_test_point(db, tp.id, testProject.id)
         assert result is True
@@ -167,8 +205,10 @@ class TestBatchCreateTestPoints:
             {"module": "BM2", "point": "BP2", "priority": 2},
         ]
         results = batch_create_test_points(
-            db=db, project_id=testProject.id,
-            test_points_data=data, created_by="batch_user",
+            db=db,
+            project_id=testProject.id,
+            test_points_data=data,
+            created_by="batch_user",
         )
         assert len(results) == 2
         assert results[0].module == "BM1"
@@ -176,7 +216,9 @@ class TestBatchCreateTestPoints:
 
     def test_batch_create_empty(self, db, testProject):
         results = batch_create_test_points(
-            db=db, project_id=testProject.id,
-            test_points_data=[], created_by="batch_user",
+            db=db,
+            project_id=testProject.id,
+            test_points_data=[],
+            created_by="batch_user",
         )
         assert len(results) == 0

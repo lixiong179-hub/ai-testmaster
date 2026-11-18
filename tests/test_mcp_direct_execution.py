@@ -14,6 +14,7 @@ MCP Direct Execution 混合方案单元测试
 - 数据库必须使用 MySQL
 - 测试用例必须有价值
 """
+
 import inspect
 import pytest
 from typing import Optional, Dict, Any, List
@@ -31,6 +32,7 @@ from app.utils.unified_vision_model import UnifiedVisionModel
 # ============================================================
 # 辅助类：真实对象，用于替代 Mock
 # ============================================================
+
 
 class FakePage:
     """模拟 Playwright Page 对象，提供 execute_javascript 方法"""
@@ -121,19 +123,22 @@ class FakeMCPClientAvailable:
 class FakeMCPLLM:
     """真实的 MCP LLM 替代对象"""
 
-    async def understand_operation(self, accessibility_tree: str, operation_description: str, action_type: Optional[str] = None):
+    async def understand_operation(
+        self, accessibility_tree: str, operation_description: str, action_type: Optional[str] = None
+    ):
         return {
             "locator_type": "ref",
             "locator_value": "test-ref-001",
             "confidence": 0.85,
             "element_description": "登录按钮",
-            "reasoning": "通过 Accessibility Tree ref 定位"
+            "reasoning": "通过 Accessibility Tree ref 定位",
         }
 
 
 # ============================================================
 # 1. VisionRecognizer bug 修复测试
 # ============================================================
+
 
 class TestVisionRecognizerBrowserParam:
     """测试 VisionRecognizer.recognize() 接收 browser 参数时能正确处理"""
@@ -148,10 +153,7 @@ class TestVisionRecognizerBrowserParam:
         预期结果：不抛出异常，能正确提取 page 用于后续操作
         """
         fake_page = FakePage(js_result={"tag": "button", "id": "login-btn"})
-        fake_browser = FakeBrowserWithPage(
-            page=fake_page,
-            screenshot_data=b"fake_screenshot_data"
-        )
+        fake_browser = FakeBrowserWithPage(page=fake_page, screenshot_data=b"fake_screenshot_data")
         vision_model = FakeVisionModel(
             response='{"x": 100, "y": 200, "width": 80, "height": 40, "element_type": "button", "confidence": 0.92}'
         )
@@ -173,8 +175,7 @@ class TestVisionRecognizerBrowserParam:
         预期结果：不抛出异常，browser 自身被当作 page 使用
         """
         fake_browser = FakeBrowserWithoutPage(
-            js_result={"tag": "input", "id": "username"},
-            screenshot_data=b"fake_screenshot_data"
+            js_result={"tag": "input", "id": "username"}, screenshot_data=b"fake_screenshot_data"
         )
         vision_model = FakeVisionModel(
             response='{"x": 50, "y": 100, "width": 200, "height": 30, "element_type": "input", "confidence": 0.88}'
@@ -198,17 +199,14 @@ class TestVisionRecognizerBrowserParam:
         预期结果：提取的 page 是 browser._page，而非 browser 本身
         """
         inner_page = FakePage(js_result={"tag": "a", "id": "link-home"})
-        fake_browser = FakeBrowserWithPage(
-            page=inner_page,
-            screenshot_data=b"fake_screenshot_data"
-        )
+        fake_browser = FakeBrowserWithPage(page=inner_page, screenshot_data=b"fake_screenshot_data")
 
         # 验证 hasattr 行为
-        assert hasattr(fake_browser, '_page') is True
+        assert hasattr(fake_browser, "_page") is True
         assert fake_browser._page is inner_page
 
         # 验证提取逻辑
-        extracted_page = fake_browser._page if hasattr(fake_browser, '_page') else fake_browser
+        extracted_page = fake_browser._page if hasattr(fake_browser, "_page") else fake_browser
         assert extracted_page is inner_page
         assert extracted_page is not fake_browser
 
@@ -222,16 +220,13 @@ class TestVisionRecognizerBrowserParam:
         测试步骤：验证 recognize 方法中 page 提取逻辑
         预期结果：提取的 page 是 browser 本身
         """
-        fake_browser = FakeBrowserWithoutPage(
-            js_result={"tag": "div"},
-            screenshot_data=b"fake_screenshot_data"
-        )
+        fake_browser = FakeBrowserWithoutPage(js_result={"tag": "div"}, screenshot_data=b"fake_screenshot_data")
 
         # 验证 hasattr 行为
-        assert hasattr(fake_browser, '_page') is False
+        assert hasattr(fake_browser, "_page") is False
 
         # 验证提取逻辑
-        extracted_page = fake_browser._page if hasattr(fake_browser, '_page') else fake_browser
+        extracted_page = fake_browser._page if hasattr(fake_browser, "_page") else fake_browser
         assert extracted_page is fake_browser
 
     @pytest.mark.asyncio
@@ -284,6 +279,7 @@ class TestVisionRecognizerBrowserParam:
 # 2. MCPRecognizer.execute_action() 测试
 # ============================================================
 
+
 class TestMCPRecognizerExecuteAction:
     """测试 MCPRecognizer.execute_action() 方法"""
 
@@ -319,11 +315,7 @@ class TestMCPRecognizerExecuteAction:
         mcp_client = FakeMCPClientUnavailable()
         recognizer = MCPRecognizer(mcp_client=mcp_client)
 
-        result = RecognitionResult(
-            locator_type="ref",
-            locator_value="test-ref",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="ref", locator_value="test-ref", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="click")
 
         assert executed is False
@@ -340,11 +332,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="ref",
-            locator_value="ref-abc-123",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="ref", locator_value="ref-abc-123", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="click")
 
         assert executed is True
@@ -364,11 +352,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="#login-btn",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="css", locator_value="#login-btn", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="click")
 
         assert executed is True
@@ -388,11 +372,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="ref",
-            locator_value="ref-input-001",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="ref", locator_value="ref-input-001", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="type", input_value=None)
 
         assert executed is False
@@ -409,11 +389,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="ref",
-            locator_value="ref-input-001",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="ref", locator_value="ref-input-001", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="type", input_value="testuser")
 
         assert executed is True
@@ -432,11 +408,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="#search-input",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="css", locator_value="#search-input", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="input", input_value="hello")
 
         assert executed is True
@@ -455,11 +427,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="ref",
-            locator_value="ref-select-001",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="ref", locator_value="ref-select-001", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="select", input_value=None)
 
         assert executed is False
@@ -476,11 +444,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="ref",
-            locator_value="ref-select-001",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="ref", locator_value="ref-select-001", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="select", input_value="option1, option2")
 
         assert executed is True
@@ -499,11 +463,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value=".menu-item",
-            confidence= 0.9
-        )
+        result = RecognitionResult(locator_type="css", locator_value=".menu-item", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="hover")
 
         assert executed is True
@@ -521,11 +481,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="",
-            confidence=0.5
-        )
+        result = RecognitionResult(locator_type="css", locator_value="", confidence=0.5)
         executed = await recognizer.execute_action(result, action_type="wait", input_value="2.5")
 
         assert executed is True
@@ -545,11 +501,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="",
-            confidence=0.5
-        )
+        result = RecognitionResult(locator_type="css", locator_value="", confidence=0.5)
         executed = await recognizer.execute_action(result, action_type="wait", input_value="加载完成")
 
         assert executed is True
@@ -569,11 +521,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value=".container",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="css", locator_value=".container", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="scroll")
 
         assert executed is False
@@ -590,11 +538,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="css", locator_value="", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="click")
 
         assert executed is False
@@ -611,11 +555,7 @@ class TestMCPRecognizerExecuteAction:
         fake_mcp = FakeMCPClientAvailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="",
-            confidence=0.5
-        )
+        result = RecognitionResult(locator_type="css", locator_value="", confidence=0.5)
         executed = await recognizer.execute_action(result, action_type="wait", input_value="3")
 
         assert executed is True
@@ -624,6 +564,7 @@ class TestMCPRecognizerExecuteAction:
 # ============================================================
 # 3. ElementLocatorService 执行策略路由测试
 # ============================================================
+
 
 class TestElementLocatorServiceStrategy:
     """测试 ElementLocatorService 的执行策略路由"""
@@ -652,7 +593,7 @@ class TestElementLocatorServiceStrategy:
         service.recognizer = recognizer
 
         # 确保 MCP_DIRECT_EXECUTION_ENABLED 为 False
-        original_value = getattr(settings, 'MCP_DIRECT_EXECUTION_ENABLED', False)
+        original_value = getattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", False)
         try:
             settings.MCP_DIRECT_EXECUTION_ENABLED = False
             result = service._should_direct_execute("click")
@@ -680,7 +621,7 @@ class TestElementLocatorServiceStrategy:
         service.confidence_threshold = 0.8
         service.recognizer = recognizer
 
-        original_value = getattr(settings, 'MCP_DIRECT_EXECUTION_ENABLED', False)
+        original_value = getattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", False)
         try:
             settings.MCP_DIRECT_EXECUTION_ENABLED = True
             result = service._should_direct_execute("click")
@@ -708,8 +649,8 @@ class TestElementLocatorServiceStrategy:
         service.confidence_threshold = 0.8
         service.recognizer = recognizer
 
-        original_enabled = getattr(settings, 'MCP_DIRECT_EXECUTION_ENABLED', False)
-        original_types = getattr(settings, 'MCP_EXECUTION_OPERATION_TYPES', 'click,type,hover,select')
+        original_enabled = getattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", False)
+        original_types = getattr(settings, "MCP_EXECUTION_OPERATION_TYPES", "click,type,hover,select")
         try:
             settings.MCP_DIRECT_EXECUTION_ENABLED = True
             settings.MCP_EXECUTION_OPERATION_TYPES = "click,type,hover,select"
@@ -739,8 +680,8 @@ class TestElementLocatorServiceStrategy:
         service.confidence_threshold = 0.8
         service.recognizer = recognizer
 
-        original_enabled = getattr(settings, 'MCP_DIRECT_EXECUTION_ENABLED', False)
-        original_types = getattr(settings, 'MCP_EXECUTION_OPERATION_TYPES', 'click,type,hover,select')
+        original_enabled = getattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", False)
+        original_types = getattr(settings, "MCP_EXECUTION_OPERATION_TYPES", "click,type,hover,select")
         try:
             settings.MCP_DIRECT_EXECUTION_ENABLED = True
             settings.MCP_EXECUTION_OPERATION_TYPES = "click,type,hover,select"
@@ -772,8 +713,8 @@ class TestElementLocatorServiceStrategy:
         service.confidence_threshold = 0.8
         service.recognizer = recognizer
 
-        original_enabled = getattr(settings, 'MCP_DIRECT_EXECUTION_ENABLED', False)
-        original_types = getattr(settings, 'MCP_EXECUTION_OPERATION_TYPES', 'click,type,hover,select')
+        original_enabled = getattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", False)
+        original_types = getattr(settings, "MCP_EXECUTION_OPERATION_TYPES", "click,type,hover,select")
         try:
             settings.MCP_DIRECT_EXECUTION_ENABLED = True
             settings.MCP_EXECUTION_OPERATION_TYPES = "click,input"
@@ -805,11 +746,7 @@ class TestElementLocatorServiceStrategy:
         service.confidence_threshold = 0.8
         service.recognizer = recognizer
 
-        result = RecognitionResult(
-            locator_type="vision",
-            locator_value="100,200",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="vision", locator_value="100,200", confidence=0.9)
         executed = await service.direct_execute_action(result, action_type="click")
         assert executed is False
 
@@ -817,6 +754,7 @@ class TestElementLocatorServiceStrategy:
 # ============================================================
 # 4. 降级逻辑测试
 # ============================================================
+
 
 class TestDegradationLogic:
     """测试 MCP 直执失败时的降级逻辑"""
@@ -854,11 +792,7 @@ class TestDegradationLogic:
         fake_mcp = FakeMCPClientUnavailable()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="ref",
-            locator_value="test-ref",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="ref", locator_value="test-ref", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="click")
 
         assert executed is False
@@ -884,11 +818,7 @@ class TestDegradationLogic:
         fake_mcp = FakeMCPClientException()
         recognizer = MCPRecognizer(mcp_client=fake_mcp)
 
-        result = RecognitionResult(
-            locator_type="ref",
-            locator_value="test-ref",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="ref", locator_value="test-ref", confidence=0.9)
         executed = await recognizer.execute_action(result, action_type="click")
 
         assert executed is False
@@ -912,7 +842,7 @@ class TestDegradationLogic:
         service.confidence_threshold = 0.8
         service.recognizer = recognizer
 
-        original_enabled = getattr(settings, 'MCP_DIRECT_EXECUTION_ENABLED', False)
+        original_enabled = getattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", False)
         try:
             settings.MCP_DIRECT_EXECUTION_ENABLED = False
 
@@ -941,7 +871,7 @@ class TestDegradationLogic:
         service.confidence_threshold = 0.8
         service.recognizer = recognizer
 
-        original_enabled = getattr(settings, 'MCP_DIRECT_EXECUTION_ENABLED', False)
+        original_enabled = getattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", False)
         try:
             settings.MCP_DIRECT_EXECUTION_ENABLED = True
             result = service._should_direct_execute("click")
@@ -953,6 +883,7 @@ class TestDegradationLogic:
 # ============================================================
 # 5. 配置项测试
 # ============================================================
+
 
 class TestMCPDirectExecutionConfig:
     """测试 MCP 直执相关配置项"""
@@ -966,8 +897,7 @@ class TestMCPDirectExecutionConfig:
         预期结果：MCP_DIRECT_EXECUTION_ENABLED 字段存在
         """
         field_names = Settings.model_fields.keys()
-        assert "MCP_DIRECT_EXECUTION_ENABLED" in field_names, \
-            "Settings 中缺少 MCP_DIRECT_EXECUTION_ENABLED 配置项"
+        assert "MCP_DIRECT_EXECUTION_ENABLED" in field_names, "Settings 中缺少 MCP_DIRECT_EXECUTION_ENABLED 配置项"
 
     def test_mcp_direct_execution_enabled_default_is_false(self):
         """
@@ -979,8 +909,9 @@ class TestMCPDirectExecutionConfig:
         """
         field_info = Settings.model_fields.get("MCP_DIRECT_EXECUTION_ENABLED")
         assert field_info is not None, "MCP_DIRECT_EXECUTION_ENABLED 字段不存在"
-        assert field_info.default is False, \
+        assert field_info.default is False, (
             f"MCP_DIRECT_EXECUTION_ENABLED 默认值应为 False，实际为 {field_info.default}"
+        )
 
     def test_mcp_execution_operation_types_exists_in_settings(self):
         """
@@ -991,8 +922,7 @@ class TestMCPDirectExecutionConfig:
         预期结果：MCP_EXECUTION_OPERATION_TYPES 字段存在
         """
         field_names = Settings.model_fields.keys()
-        assert "MCP_EXECUTION_OPERATION_TYPES" in field_names, \
-            "Settings 中缺少 MCP_EXECUTION_OPERATION_TYPES 配置项"
+        assert "MCP_EXECUTION_OPERATION_TYPES" in field_names, "Settings 中缺少 MCP_EXECUTION_OPERATION_TYPES 配置项"
 
     def test_mcp_execution_operation_types_default_value(self):
         """
@@ -1022,10 +952,10 @@ class TestMCPDirectExecutionConfig:
         测试步骤：访问 settings.MCP_DIRECT_EXECUTION_ENABLED
         预期结果：属性存在且为布尔类型
         """
-        assert hasattr(settings, 'MCP_DIRECT_EXECUTION_ENABLED'), \
-            "settings 实例缺少 MCP_DIRECT_EXECUTION_ENABLED 属性"
-        assert isinstance(settings.MCP_DIRECT_EXECUTION_ENABLED, bool), \
+        assert hasattr(settings, "MCP_DIRECT_EXECUTION_ENABLED"), "settings 实例缺少 MCP_DIRECT_EXECUTION_ENABLED 属性"
+        assert isinstance(settings.MCP_DIRECT_EXECUTION_ENABLED, bool), (
             f"MCP_DIRECT_EXECUTION_ENABLED 应为 bool 类型，实际为 {type(settings.MCP_DIRECT_EXECUTION_ENABLED)}"
+        )
 
     def test_settings_instance_has_mcp_execution_operation_types(self):
         """
@@ -1035,10 +965,12 @@ class TestMCPDirectExecutionConfig:
         测试步骤：访问 settings.MCP_EXECUTION_OPERATION_TYPES
         预期结果：属性存在且为字符串类型
         """
-        assert hasattr(settings, 'MCP_EXECUTION_OPERATION_TYPES'), \
+        assert hasattr(settings, "MCP_EXECUTION_OPERATION_TYPES"), (
             "settings 实例缺少 MCP_EXECUTION_OPERATION_TYPES 属性"
-        assert isinstance(settings.MCP_EXECUTION_OPERATION_TYPES, str), \
+        )
+        assert isinstance(settings.MCP_EXECUTION_OPERATION_TYPES, str), (
             f"MCP_EXECUTION_OPERATION_TYPES 应为 str 类型，实际为 {type(settings.MCP_EXECUTION_OPERATION_TYPES)}"
+        )
 
     def test_mcp_execution_operation_types_parseable(self):
         """
@@ -1060,6 +992,7 @@ class TestMCPDirectExecutionConfig:
 # 6. VisionRecognizer 辅助方法测试
 # ============================================================
 
+
 class TestVisionRecognizerHelpers:
     """测试 VisionRecognizer 的辅助方法"""
 
@@ -1071,12 +1004,7 @@ class TestVisionRecognizerHelpers:
         测试步骤：调用 _normalize_coordinate()
         预期结果：列表值被转换为第一个元素
         """
-        element_info = {
-            "x": [100, 200],
-            "y": [300],
-            "width": [50, 60, 70],
-            "height": [40]
-        }
+        element_info = {"x": [100, 200], "y": [300], "width": [50, 60, 70], "height": [40]}
         result = VisionRecognizer._normalize_coordinate(element_info)
 
         assert result["x"] == 100
@@ -1092,12 +1020,7 @@ class TestVisionRecognizerHelpers:
         测试步骤：调用 _normalize_coordinate()
         预期结果：None 值被替换为 0
         """
-        element_info = {
-            "x": None,
-            "y": None,
-            "width": None,
-            "height": None
-        }
+        element_info = {"x": None, "y": None, "width": None, "height": None}
         result = VisionRecognizer._normalize_coordinate(element_info)
 
         assert result["x"] == 0
@@ -1113,12 +1036,7 @@ class TestVisionRecognizerHelpers:
         测试步骤：调用 _normalize_coordinate()
         预期结果：空列表被替换为 0
         """
-        element_info = {
-            "x": [],
-            "y": [],
-            "width": [],
-            "height": []
-        }
+        element_info = {"x": [], "y": [], "width": [], "height": []}
         result = VisionRecognizer._normalize_coordinate(element_info)
 
         assert result["x"] == 0
@@ -1134,12 +1052,7 @@ class TestVisionRecognizerHelpers:
         测试步骤：调用 _normalize_coordinate()
         预期结果：值保持不变
         """
-        element_info = {
-            "x": 100,
-            "y": 200,
-            "width": 300,
-            "height": 400
-        }
+        element_info = {"x": 100, "y": 200, "width": 300, "height": 400}
         result = VisionRecognizer._normalize_coordinate(element_info)
 
         assert result["x"] == 100
@@ -1257,6 +1170,7 @@ class TestVisionRecognizerHelpers:
 # 7. RecognitionResult 数据类测试
 # ============================================================
 
+
 class TestRecognitionResult:
     """测试 RecognitionResult 数据类的行为"""
 
@@ -1268,11 +1182,7 @@ class TestRecognitionResult:
         测试步骤：创建 RecognitionResult 并检查 is_valid
         预期结果：is_valid 为 True
         """
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="#login-btn",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="css", locator_value="#login-btn", confidence=0.9)
         assert result.is_valid is True
 
     def test_is_valid_with_empty_locator_type(self):
@@ -1283,11 +1193,7 @@ class TestRecognitionResult:
         测试步骤：创建 RecognitionResult 并检查 is_valid
         预期结果：is_valid 为 False
         """
-        result = RecognitionResult(
-            locator_type="",
-            locator_value="#login-btn",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="", locator_value="#login-btn", confidence=0.9)
         assert result.is_valid is False
 
     def test_is_valid_with_empty_locator_value(self):
@@ -1298,11 +1204,7 @@ class TestRecognitionResult:
         测试步骤：创建 RecognitionResult 并检查 is_valid
         预期结果：is_valid 为 False
         """
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="",
-            confidence=0.9
-        )
+        result = RecognitionResult(locator_type="css", locator_value="", confidence=0.9)
         assert result.is_valid is False
 
     def test_is_valid_with_zero_confidence(self):
@@ -1313,11 +1215,7 @@ class TestRecognitionResult:
         测试步骤：创建 RecognitionResult 并检查 is_valid
         预期结果：is_valid 为 False
         """
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="#login-btn",
-            confidence=0
-        )
+        result = RecognitionResult(locator_type="css", locator_value="#login-btn", confidence=0)
         assert result.is_valid is False
 
     def test_is_valid_with_negative_confidence(self):
@@ -1328,17 +1226,14 @@ class TestRecognitionResult:
         测试步骤：创建 RecognitionResult 并检查 is_valid
         预期结果：is_valid 为 False
         """
-        result = RecognitionResult(
-            locator_type="css",
-            locator_value="#login-btn",
-            confidence=-0.5
-        )
+        result = RecognitionResult(locator_type="css", locator_value="#login-btn", confidence=-0.5)
         assert result.is_valid is False
 
 
 # ============================================================
 # 8. ElementLocatorService 坐标规范化与选择器生成测试
 # ============================================================
+
 
 class TestElementLocatorServiceHelpers:
     """测试 ElementLocatorService 的辅助方法"""
@@ -1351,12 +1246,7 @@ class TestElementLocatorServiceHelpers:
         测试步骤：调用 _normalize_coordinate()
         预期结果：列表值被转换为第一个元素
         """
-        element_info = {
-            "x": [10, 20],
-            "y": [30],
-            "width": [100, 200],
-            "height": [50]
-        }
+        element_info = {"x": [10, 20], "y": [30], "width": [100, 200], "height": [50]}
         result = ElementLocatorService._normalize_coordinate(element_info)
 
         assert result["x"] == 10
@@ -1372,12 +1262,7 @@ class TestElementLocatorServiceHelpers:
         测试步骤：调用 _normalize_coordinate(inplace=True)
         预期结果：原地修改 element_info
         """
-        element_info = {
-            "x": None,
-            "y": [100],
-            "width": 200,
-            "height": 50
-        }
+        element_info = {"x": None, "y": [100], "width": 200, "height": 50}
         result = ElementLocatorService._normalize_coordinate(element_info, inplace=True)
 
         assert result is element_info
@@ -1392,12 +1277,7 @@ class TestElementLocatorServiceHelpers:
         测试步骤：调用 _normalize_coordinate(inplace=False)
         预期结果：返回新字典，原字典不变
         """
-        element_info = {
-            "x": None,
-            "y": 100,
-            "width": 200,
-            "height": 50
-        }
+        element_info = {"x": None, "y": 100, "width": 200, "height": 50}
         result = ElementLocatorService._normalize_coordinate(element_info, inplace=False)
 
         assert result is not element_info
@@ -1513,7 +1393,7 @@ class TestElementLocatorServiceHelpers:
         element_attrs = {"tag": "input", "id": "email"}
         result = service._generate_xpath(element_attrs)
 
-        assert result == "//input[@id=\"email\"]"
+        assert result == '//input[@id="email"]'
 
     def test_generate_xpath_with_name(self):
         """
@@ -1527,7 +1407,7 @@ class TestElementLocatorServiceHelpers:
         element_attrs = {"tag": "input", "name": "password"}
         result = service._generate_xpath(element_attrs)
 
-        assert result == "//input[@name=\"password\"]"
+        assert result == '//input[@name="password"]'
 
     def test_generate_xpath_with_text(self):
         """
@@ -1562,6 +1442,7 @@ class TestElementLocatorServiceHelpers:
 # ============================================================
 # 9. MCPRecognizer name 属性和 is_available 测试
 # ============================================================
+
 
 class TestMCPRecognizerProperties:
     """测试 MCPRecognizer 的基本属性"""
@@ -1612,6 +1493,7 @@ class TestMCPRecognizerProperties:
 # 10. VisionRecognizer name 属性和 is_available 测试
 # ============================================================
 
+
 class TestVisionRecognizerProperties:
     """测试 VisionRecognizer 的基本属性"""
 
@@ -1661,6 +1543,7 @@ class TestVisionRecognizerProperties:
 # 11. ElementLocatorService 创建逻辑测试
 # ============================================================
 
+
 class TestElementLocatorServiceCreation:
     """测试 ElementLocatorService 的创建逻辑"""
 
@@ -1672,7 +1555,7 @@ class TestElementLocatorServiceCreation:
         测试步骤：创建 ElementLocatorService 实例
         预期结果：recognizer 是 VisionRecognizer 类型
         """
-        original_mcp = getattr(settings, 'PLAYWRIGHT_MCP_ENABLED', False)
+        original_mcp = getattr(settings, "PLAYWRIGHT_MCP_ENABLED", False)
         try:
             settings.PLAYWRIGHT_MCP_ENABLED = False
 
@@ -1695,7 +1578,7 @@ class TestElementLocatorServiceCreation:
         测试步骤：创建 ElementLocatorService 实例
         预期结果：recognizer 是 MCPRecognizer 类型
         """
-        original_mcp = getattr(settings, 'PLAYWRIGHT_MCP_ENABLED', False)
+        original_mcp = getattr(settings, "PLAYWRIGHT_MCP_ENABLED", False)
         try:
             settings.PLAYWRIGHT_MCP_ENABLED = True
 
@@ -1719,10 +1602,7 @@ class TestElementLocatorServiceCreation:
         预期结果：创建的服务使用 MCPRecognizer
         """
         service = ElementLocatorService.create_locator_service(
-            db=None,
-            browser=FakeBrowserWithoutPage(),
-            vision_model=FakeVisionModel(),
-            use_mcp=True
+            db=None, browser=FakeBrowserWithoutPage(), vision_model=FakeVisionModel(), use_mcp=True
         )
         assert isinstance(service.recognizer, MCPRecognizer)
 
@@ -1735,10 +1615,7 @@ class TestElementLocatorServiceCreation:
         预期结果：创建的服务使用 VisionRecognizer
         """
         service = ElementLocatorService.create_locator_service(
-            db=None,
-            browser=FakeBrowserWithoutPage(),
-            vision_model=FakeVisionModel(),
-            use_mcp=False
+            db=None, browser=FakeBrowserWithoutPage(), vision_model=FakeVisionModel(), use_mcp=False
         )
         assert isinstance(service.recognizer, VisionRecognizer)
 
@@ -1746,6 +1623,7 @@ class TestElementLocatorServiceCreation:
 # ============================================================
 # 12. 数据库相关测试（使用真实 MySQL）
 # ============================================================
+
 
 class TestElementLocatorDatabase:
     """测试 ElementLocator 数据库操作（使用真实 MySQL）"""
@@ -1765,7 +1643,7 @@ class TestElementLocatorDatabase:
             element_description="测试按钮",
             element_type="button",
             css_selector="#test-btn",
-            source="ai"
+            source="ai",
         )
         db.add(locator)
         db.commit()
@@ -1809,7 +1687,7 @@ class TestElementLocatorDatabase:
             css_selector="#rate-test",
             success_count=8,
             fail_count=2,
-            source="ai"
+            source="ai",
         )
         db.add(locator)
         db.commit()
@@ -1836,7 +1714,7 @@ class TestElementLocatorDatabase:
             css_selector="#zero-rate-test",
             success_count=0,
             fail_count=0,
-            source="ai"
+            source="ai",
         )
         db.add(locator)
         db.commit()
@@ -1864,7 +1742,7 @@ class TestElementLocatorDatabase:
             element_id="priority-test",
             element_name="submit",
             ai_coordinate={"x": 100, "y": 200, "width": 50, "height": 30},
-            source="ai"
+            source="ai",
         )
         db.add(locator)
         db.commit()
@@ -1911,7 +1789,7 @@ class TestElementLocatorDatabase:
             precondition_step_id=None,
             element_description="原子操作测试",
             css_selector="#atomic-test",
-            source="ai"
+            source="ai",
         )
         db.add(locator)
         db.commit()
@@ -1942,7 +1820,7 @@ class TestElementLocatorDatabase:
             precondition_step_id=None,
             element_description="原子失败测试",
             css_selector="#atomic-fail-test",
-            source="ai"
+            source="ai",
         )
         db.add(locator)
         db.commit()
@@ -1973,7 +1851,7 @@ class TestElementLocatorDatabase:
             precondition_step_id=None,
             element_description="版本冲突测试",
             css_selector="#version-conflict-test",
-            source="ai"
+            source="ai",
         )
         db.add(locator)
         db.commit()
@@ -2006,7 +1884,7 @@ class TestElementLocatorDatabase:
             element_description="最佳定位测试",
             css_selector="#best-test",
             xpath="//div[@id='best-test']",
-            source="ai"
+            source="ai",
         )
         db.add(locator)
         db.commit()
@@ -2033,7 +1911,7 @@ class TestElementLocatorDatabase:
             precondition_step_id=None,
             element_description="字典转换测试",
             css_selector="#dict-test",
-            source="ai"
+            source="ai",
         )
         db.add(locator)
         db.commit()

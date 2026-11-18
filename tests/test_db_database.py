@@ -220,7 +220,13 @@ class TestModuleLevelObjects:
 # declarative_base(cls=ModelBase, constructor=ModelBase.__init__) 注入。
 # 以下测试锁定 ModelBase 的四项构造期契约，防止未来重构破坏隐式约定。
 
-from sqlalchemy import Column as _MbColumn, Integer as _MbInteger, String as _MbString, Boolean as _MbBoolean, DateTime as _MbDateTime
+from sqlalchemy import (
+    Column as _MbColumn,
+    Integer as _MbInteger,
+    String as _MbString,
+    Boolean as _MbBoolean,
+    DateTime as _MbDateTime,
+)
 from app.utils.db_time import utcnow as _mb_utcnow
 
 
@@ -229,6 +235,7 @@ class _ModelBaseDemo(Base):
 
     独立表名，不与业务表冲突；仅在测试中实例化，不持久化。
     """
+
     __tablename__ = "_test_modelbase_demo"
     __test__ = False
 

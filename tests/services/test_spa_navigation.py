@@ -12,11 +12,13 @@
 
 要求: 不使用Mock，覆盖率>=95%
 """
+
 import pytest
 from types import SimpleNamespace
 
 from app.services.test_execution_engine.models import (
-    ActionType, StepExecutionError,
+    ActionType,
+    StepExecutionError,
 )
 from app.services.test_execution_engine.action_executor_basic_mixin import (
     ActionExecutorBasicMixin,
@@ -24,7 +26,6 @@ from app.services.test_execution_engine.action_executor_basic_mixin import (
 
 
 class _StubEngine(ActionExecutorBasicMixin):
-
     def __init__(self, browser=None, precondition_service=None):
         self.browser = browser
         self.precondition_service = precondition_service
@@ -33,6 +34,7 @@ class _StubEngine(ActionExecutorBasicMixin):
 def _make_async_return(value):
     async def _return(*args, **kwargs):
         return value
+
     return _return
 
 
@@ -283,10 +285,12 @@ class TestExecuteNavigateCssSelector:
         )
         browser = SimpleNamespace(_page=page, active_page=page, navigate=_noop)
         engine = _StubEngine(browser=browser)
-        await engine._execute_navigate({
-            "text": "点击菜单导航",
-            "target_element": "#nav-home",
-        })
+        await engine._execute_navigate(
+            {
+                "text": "点击菜单导航",
+                "target_element": "#nav-home",
+            }
+        )
         assert clicked["selector"] == "#nav-home"
         assert clicked["load_state"] == "networkidle"
 
@@ -306,10 +310,12 @@ class TestExecuteNavigateCssSelector:
         )
         browser = SimpleNamespace(_page=page, active_page=page, navigate=_noop)
         engine = _StubEngine(browser=browser)
-        await engine._execute_navigate({
-            "text": "菜单导航",
-            "target_element": ".menu-item-project",
-        })
+        await engine._execute_navigate(
+            {
+                "text": "菜单导航",
+                "target_element": ".menu-item-project",
+            }
+        )
         assert clicked["selector"] == ".menu-item-project"
 
     @pytest.mark.asyncio
@@ -328,10 +334,12 @@ class TestExecuteNavigateCssSelector:
         )
         browser = SimpleNamespace(_page=page, active_page=page, navigate=_noop)
         engine = _StubEngine(browser=browser)
-        await engine._execute_navigate({
-            "text": "菜单导航",
-            "target_element": "[data-route='/home']",
-        })
+        await engine._execute_navigate(
+            {
+                "text": "菜单导航",
+                "target_element": "[data-route='/home']",
+            }
+        )
         assert clicked["selector"] == "[data-route='/home']"
 
     @pytest.mark.asyncio
@@ -339,10 +347,12 @@ class TestExecuteNavigateCssSelector:
         browser = SimpleNamespace(_page=None, active_page=None, navigate=_noop)
         engine = _StubEngine(browser=browser)
         with pytest.raises(StepExecutionError, match="浏览器页面未初始化"):
-            await engine._execute_navigate({
-                "text": "菜单导航",
-                "target_element": "#nav-home",
-            })
+            await engine._execute_navigate(
+                {
+                    "text": "菜单导航",
+                    "target_element": "#nav-home",
+                }
+            )
 
     @pytest.mark.asyncio
     async def test_css_selector_click_failure(self):
@@ -359,20 +369,24 @@ class TestExecuteNavigateCssSelector:
         browser = SimpleNamespace(_page=page, active_page=page, navigate=_noop)
         engine = _StubEngine(browser=browser)
         with pytest.raises(StepExecutionError, match="点击导航菜单项失败"):
-            await engine._execute_navigate({
-                "text": "菜单导航",
-                "target_element": "#nonexistent",
-            })
+            await engine._execute_navigate(
+                {
+                    "text": "菜单导航",
+                    "target_element": "#nonexistent",
+                }
+            )
 
     @pytest.mark.asyncio
     async def test_non_css_selector_target_element_ignored(self):
         browser = SimpleNamespace(navigate=_noop)
         engine = _StubEngine(browser=browser)
         with pytest.raises(StepExecutionError, match="无法从动作中提取URL或路径"):
-            await engine._execute_navigate({
-                "text": "随便导航",
-                "target_element": "首页",
-            })
+            await engine._execute_navigate(
+                {
+                    "text": "随便导航",
+                    "target_element": "首页",
+                }
+            )
 
 
 class TestExecuteNavigateNoTarget:
@@ -475,9 +489,11 @@ class TestNavigatePriority:
         testObjInfo = SimpleNamespace(url="https://other.com")
         precondition = SimpleNamespace(test_object_info=testObjInfo)
         engine = _StubEngine(browser=browser, precondition_service=precondition)
-        await engine._execute_navigate({
-            "text": "导航到 https://target.com/page /home/fallback",
-        })
+        await engine._execute_navigate(
+            {
+                "text": "导航到 https://target.com/page /home/fallback",
+            }
+        )
         assert navigated["url"] == "https://target.com/page"
 
     @pytest.mark.asyncio
@@ -491,8 +507,10 @@ class TestNavigatePriority:
         testObjInfo = SimpleNamespace(url="https://example.com")
         precondition = SimpleNamespace(test_object_info=testObjInfo)
         engine = _StubEngine(browser=browser, precondition_service=precondition)
-        await engine._execute_navigate({
-            "text": "导航到 /home/project",
-            "target_element": "#nav-home",
-        })
+        await engine._execute_navigate(
+            {
+                "text": "导航到 /home/project",
+                "target_element": "#nav-home",
+            }
+        )
         assert navigated["url"] == "https://example.com/home/project"

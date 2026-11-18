@@ -11,6 +11,7 @@ M1-T09 Pipeline Runner 测试模块
     - 产物持久化
     - validate_output 失败
 """
+
 import pytest
 from typing import ClassVar, List, Optional
 
@@ -175,6 +176,7 @@ class BudgetExhaustedStep:
 @pytest.fixture
 def pipeline_run(db, testProject):
     from app.models.iteration import Iteration
+
     iteration = Iteration(
         project_id=testProject.id,
         name="test_iteration",
@@ -205,6 +207,7 @@ def make_ctx(db, pipeline_run):
             iteration_id=pipeline_run.iteration_id,
             user_id=1,
         )
+
     return _make
 
 

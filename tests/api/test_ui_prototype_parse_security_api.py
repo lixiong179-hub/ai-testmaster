@@ -19,6 +19,7 @@ T3 安全测试：UI原型批量解析端点 parse_ui_screens 越权防护
 依赖 async_db（AsyncSession）：端点内部使用 db.run_sync(_validate)，
 必须传入 AsyncSession 才能正确执行同步校验逻辑。
 """
+
 import asyncio
 import uuid
 import pytest
@@ -101,9 +102,7 @@ async def attackerSetup(async_db):
 async def _callParse(async_db: AsyncSession, currentUser: User, screenIds):
     """调用 parse_ui_screens 端点协程，捕获 HTTPException。"""
     request = UIScreenParseRequest(screen_ids=screenIds)
-    return await parse_ui_screens(
-        parse_request=request, db=async_db.sync_session, current_user=currentUser
-    )
+    return await parse_ui_screens(parse_request=request, db=async_db.sync_session, current_user=currentUser)
 
 
 # ---------- T3 安全用例 ----------
@@ -113,9 +112,7 @@ class TestParseUiScreensAuthorization:
     """T3 越权防护核心用例（SubTask 3.3）。"""
 
     @pytest.mark.asyncio
-    async def test_forbidden_when_using_only_other_users_screen(
-        self, async_db, ownerSetup, attackerSetup
-    ):
+    async def test_forbidden_when_using_only_other_users_screen(self, async_db, ownerSetup, attackerSetup):
         """场景 1：仅传他人 screen_id -> 403"""
         with pytest.raises(HTTPException) as exc:
             await _callParse(
@@ -127,9 +124,7 @@ class TestParseUiScreensAuthorization:
         assert "无权限" in exc.value.detail
 
     @pytest.mark.asyncio
-    async def test_rejected_when_mixing_own_and_other_users_screens(
-        self, async_db, ownerSetup, attackerSetup
-    ):
+    async def test_rejected_when_mixing_own_and_other_users_screens(self, async_db, ownerSetup, attackerSetup):
         """场景 2：混合自己 + 他人 screen_id -> 拒绝（必须全量校验）。
 
         实际返回 400（跨项目）而非 403，这是有意的安全增强：
@@ -179,9 +174,7 @@ class TestParseUiScreensAuthorization:
     async def test_authorized_path_passes_permission_check(self, async_db, ownerSetup):
         """场景 5：合法路径（仅自己的 screen_id）-> 权限校验通过，pipeline 被调用"""
         fakeResult = {"success": 1, "failed": 0, "results": []}
-        with patch(
-            "app.api.v1.endpoints.ui_prototype.parse_endpoints.UISpecParsePipeline"
-        ) as MockPipeline:
+        with patch("app.api.v1.endpoints.ui_prototype.parse_endpoints.UISpecParsePipeline") as MockPipeline:
             instance = MockPipeline.return_value
             instance.batch_parse_screens = AsyncMock(return_value=fakeResult)
 
@@ -200,23 +193,17 @@ class TestParseUiScreensAuthorization:
             assert isinstance(response, dict)
             assert response.get("code") == 200
             assert response.get("data", {}).get("task_id") == f"parse_{ownerSetup['project'].id}"
-            instance.batch_parse_screens.assert_awaited_once_with(
-                [ownerSetup["screen"].id]
-            )
+            instance.batch_parse_screens.assert_awaited_once_with([ownerSetup["screen"].id])
             # pipeline 初始化时传入的项目 ID 必须是 owner 的项目
             MockPipeline.assert_called_once()
             callArgs = MockPipeline.call_args.args
             assert callArgs[1] == ownerSetup["project"].id
 
     @pytest.mark.asyncio
-    async def test_forbidden_when_all_ids_belong_to_other_users(
-        self, async_db, ownerSetup, attackerSetup
-    ):
+    async def test_forbidden_when_all_ids_belong_to_other_users(self, async_db, ownerSetup, attackerSetup):
         """场景 6：传多个全部属他人的 screen_id -> 403"""
         # 给攻击者再加一个 screen
-        otherScreen2 = await _createScreen(
-            async_db, attackerSetup["project"].id, name="attacker_screen_2"
-        )
+        otherScreen2 = await _createScreen(async_db, attackerSetup["project"].id, name="attacker_screen_2")
         with pytest.raises(HTTPException) as exc:
             await _callParse(
                 async_db=async_db,
@@ -229,9 +216,7 @@ class TestParseUiScreensAuthorization:
         assert exc.value.status_code == status.HTTP_403_FORBIDDEN
 
     @pytest.mark.asyncio
-    async def test_not_found_takes_precedence_over_forbidden(
-        self, async_db, ownerSetup, attackerSetup
-    ):
+    async def test_not_found_takes_precedence_over_forbidden(self, async_db, ownerSetup, attackerSetup):
         """场景 7：同时包含不存在 ID 和他人 ID 时，404 优先于 403。
 
         验证错误误报顺序与端点逻辑一致。此顺序避免通过询问"未知 ID 是否返回 403"探测他人资源存在性。
@@ -248,9 +233,7 @@ class TestParseUiScreensAuthorization:
         assert exc.value.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.asyncio
-    async def test_bad_request_when_screen_ids_span_multiple_projects(
-        self, async_db, ownerSetup
-    ):
+    async def test_bad_request_when_screen_ids_span_multiple_projects(self, async_db, ownerSetup):
         """场景 8：owner 跨自己的两个项目传入 screen_id -> 400。
 
         防止 pipeline 上下文混乱（screens[0].project_id 隐患）。

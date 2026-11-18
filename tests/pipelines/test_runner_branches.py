@@ -12,6 +12,7 @@
 
 使用自定义 StubStep 替代真实 Step，精确控制每个分支。
 """
+
 import json
 import pytest
 from typing import Any, ClassVar, Dict, List, Optional
@@ -345,6 +346,7 @@ class TestPersistArtifact:
 
         artifact_id = step_record.output_artifact_ids[0]
         from app.models.pipeline import Artifact
+
         artifact = db.get(Artifact, artifact_id)
         assert artifact is not None
         assert artifact.kind == "normal_output"

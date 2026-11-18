@@ -21,6 +21,7 @@ fixture 清单:
        asyncio.to_thread + PrimarySessionLocal() 创建的独立 sync session
        能可见 async_db 事务内的测试数据（阶段4 service 层 async 化必需）
 """
+
 import os
 import sys
 import warnings
@@ -169,6 +170,7 @@ def _build_primary_session_patches(shared_ref, async_db):
 
     return patch_mgrs
 
+
 os.environ.setdefault("ENVIRONMENT", "test")
 
 from app.core.config import settings
@@ -264,9 +266,7 @@ async def async_test_user(async_db):
     async_db.add(user)
     await async_db.flush()
     # 重新查询以 selectinload 预加载 roles（空列表，但避免懒加载）
-    result = await async_db.execute(
-        select(User).options(selectinload(User.roles)).where(User.id == user.id)
-    )
+    result = await async_db.execute(select(User).options(selectinload(User.roles)).where(User.id == user.id))
     return result.scalar_one()
 
 
@@ -291,23 +291,17 @@ async def async_admin_user(async_db):
     async_db.add(user)
     await async_db.flush()
 
-    admin_role = (
-        await async_db.execute(select(Role).where(Role.name == "admin"))
-    ).scalar_one_or_none()
+    admin_role = (await async_db.execute(select(Role).where(Role.name == "admin"))).scalar_one_or_none()
     if not admin_role:
         admin_role = Role(name="admin", desc="管理员角色", permissions=["*"])
         async_db.add(admin_role)
         await async_db.flush()
     # 通过 user_role 直接插入，避免触发 user.roles 的懒加载
-    await async_db.execute(
-        user_role.insert().values(user_id=user.id, role_id=admin_role.id)
-    )
+    await async_db.execute(user_role.insert().values(user_id=user.id, role_id=admin_role.id))
     await async_db.flush()
 
     # 重新查询用户，selectinload 预加载 roles
-    result = await async_db.execute(
-        select(User).options(selectinload(User.roles)).where(User.id == user.id)
-    )
+    result = await async_db.execute(select(User).options(selectinload(User.roles)).where(User.id == user.id))
     return result.scalar_one()
 
 

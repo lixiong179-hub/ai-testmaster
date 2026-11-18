@@ -159,7 +159,9 @@ class TestFlowSchemas:
 class TestPreconditionStepSchemas:
     def test_create(self):
         step = PreconditionStepCreate(
-            step_number=1, action="打开页面", expected_result="页面加载完成",
+            step_number=1,
+            action="打开页面",
+            expected_result="页面加载完成",
         )
         assert step.step_number == 1
 

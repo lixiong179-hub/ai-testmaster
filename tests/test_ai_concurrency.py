@@ -7,6 +7,7 @@
 4. reset_ai_generation_semaphore 重置功能
 5. 异常退出时信号量正确释放（上下文管理器 finally）
 """
+
 import asyncio
 import threading
 
@@ -98,13 +99,9 @@ async def test_cross_request_total_concurrency_limit() -> None:
                 current_concurrent -= 1
 
     await asyncio.gather(*[_worker() for _ in range(task_count)])
-    assert max_concurrent <= limit, (
-        f"并发数 {max_concurrent} 超过限制 {limit}"
-    )
+    assert max_concurrent <= limit, f"并发数 {max_concurrent} 超过限制 {limit}"
     # 至少应该达到 limit（否则信号量未生效）
-    assert max_concurrent == limit, (
-        f"未达到预期并发 {limit}，实际 {max_concurrent}（信号量可能未生效）"
-    )
+    assert max_concurrent == limit, f"未达到预期并发 {limit}，实际 {max_concurrent}（信号量可能未生效）"
 
 
 @pytest.mark.asyncio

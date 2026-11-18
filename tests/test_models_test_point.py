@@ -6,18 +6,14 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="tp_test_user",
-        email="tp_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="tp_test_user", email="tp_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(TestPoint).filter(TestPoint.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(TestPoint).filter(
+        TestPoint.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+    ).delete(synchronize_session=False)
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -34,12 +30,7 @@ def test_project(db, test_user):
 
 class TestTestPointModel:
     def test_create_test_point(self, db, test_project):
-        tp = TestPoint(
-            project_id=test_project.id,
-            module="登录模块",
-            point="验证用户登录功能",
-            priority=1
-        )
+        tp = TestPoint(project_id=test_project.id, module="登录模块", point="验证用户登录功能", priority=1)
         db.add(tp)
         db.commit()
         db.refresh(tp)
@@ -53,12 +44,7 @@ class TestTestPointModel:
         db.commit()
 
     def test_test_point_default_values(self, db, test_project):
-        tp = TestPoint(
-            project_id=test_project.id,
-            module="模块",
-            point="测试点",
-            priority=2
-        )
+        tp = TestPoint(project_id=test_project.id, module="模块", point="测试点", priority=2)
         db.add(tp)
         db.commit()
         db.refresh(tp)
@@ -73,12 +59,7 @@ class TestTestPointModel:
 
     def test_test_point_priority_values(self, db, test_project):
         for priority in [1, 2, 3]:
-            tp = TestPoint(
-                project_id=test_project.id,
-                module="模块",
-                point=f"优先级{priority}",
-                priority=priority
-            )
+            tp = TestPoint(project_id=test_project.id, module="模块", point=f"优先级{priority}", priority=priority)
             db.add(tp)
             db.commit()
             db.refresh(tp)
@@ -88,11 +69,7 @@ class TestTestPointModel:
 
     def test_test_point_with_ai_prompt(self, db, test_project):
         tp = TestPoint(
-            project_id=test_project.id,
-            module="模块",
-            point="AI测试点",
-            priority=1,
-            ai_prompt="请分析登录功能的测试点"
+            project_id=test_project.id, module="模块", point="AI测试点", priority=1, ai_prompt="请分析登录功能的测试点"
         )
         db.add(tp)
         db.commit()
@@ -102,9 +79,9 @@ class TestTestPointModel:
         db.commit()
 
     def test_test_point_relationships(self):
-        assert hasattr(TestPoint, 'project')
-        assert hasattr(TestPoint, 'requirement')
-        assert hasattr(TestPoint, 'capability')
+        assert hasattr(TestPoint, "project")
+        assert hasattr(TestPoint, "requirement")
+        assert hasattr(TestPoint, "capability")
 
     def test_test_point_status_values(self, db, test_project):
         for status_val in ["draft", "active", "deprecated", "archived"]:

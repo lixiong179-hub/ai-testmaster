@@ -3,6 +3,7 @@
 test_test_case_crud_api.py 已覆盖 batch-delete/batch-restore（端测双迁）。
 本文件覆盖 batch-create 端点的权限拦截、正常创建、未授权项目场景。
 """
+
 from datetime import datetime
 
 
@@ -32,9 +33,7 @@ class TestCaseCrudBatchCreateAsync:
         )
         assert resp.status_code in (400, 422)
 
-    async def test_batch_create_unauthorized_project(
-        self, async_auth_client
-    ):
+    async def test_batch_create_unauthorized_project(self, async_auth_client):
         """未授权项目应在 endpoint 内返回 200 + fail_count 错误响应。"""
         resp = await async_auth_client.post(
             "/api/v1/test-case/batch-create",
@@ -53,9 +52,7 @@ class TestCaseCrudBatchCreateAsync:
         assert data["success_count"] == 0
         assert data["fail_count"] == 1
 
-    async def test_batch_create_success(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_batch_create_success(self, async_auth_client, async_test_project):
         case_no = f"CASE-ASYNC-BATCH-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
         resp = await async_auth_client.post(
             "/api/v1/test-case/batch-create",

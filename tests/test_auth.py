@@ -6,6 +6,7 @@
 - 认证端点（登录Form/JSON、注册、获取当前用户、验证码）
 - 安全边界（禁用账户、重复注册、密码不一致、过期令牌）
 """
+
 import pytest
 from datetime import timedelta
 
@@ -33,7 +34,6 @@ def _getCaptcha(client) -> tuple[str, str]:
 
 
 class TestJWTUtils:
-
     def test_password_hash_and_verify(self):
         password = "SecureP@ss123"
         hashed = get_password_hash(password)
@@ -86,7 +86,6 @@ class TestJWTUtils:
 
 
 class TestLoginEndpoint:
-
     def test_login_success_form(self, client, testUser):
         captcha_id, captcha_code = _getCaptcha(client)
         response = client.post(
@@ -199,7 +198,6 @@ class TestLoginEndpoint:
 
 
 class TestRegisterEndpoint:
-
     async def test_register_success(self, async_client):
         response = await async_client.post(
             "/api/v1/auth/register",
@@ -282,7 +280,6 @@ class TestRegisterEndpoint:
 
 
 class TestMeEndpoint:
-
     def test_get_current_user_success(self, client, testUser):
         # 先通过完整 captcha 流程登录获取 access_token
         captcha_id, captcha_code = _getCaptcha(client)
@@ -331,7 +328,6 @@ class TestMeEndpoint:
 
 
 class TestCaptchaEndpoint:
-
     async def test_get_captcha(self, async_client):
         response = await async_client.get("/api/v1/auth/captcha")
         assert response.status_code == 200
@@ -349,7 +345,6 @@ class TestCaptchaEndpoint:
 
 
 class TestHealthEndpoint:
-
     def test_health_check(self, client):
         response = client.get("/health")
         assert response.status_code == 200

@@ -13,6 +13,7 @@
     - load_testid_map 在 JSON 不存在时回退到默认映射
     - load_testid_map 在 JSON 格式错误时回退到默认映射
 """
+
 import json
 import os
 import tempfile
@@ -467,14 +468,14 @@ def test_load_testid_map_reads_from_json():
             },
         ],
     }
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tmp:
         json.dump(fake_data, tmp, ensure_ascii=False)
         tmp_path = tmp.name
     try:
-        with patch.object(Path, "exists", return_value=True), \
-             patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)):
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)),
+        ):
             result = load_testid_map()
         assert '[data-testid="login-username"]' in result
         assert '[data-testid="login-password"]' in result
@@ -486,14 +487,14 @@ def test_load_testid_map_reads_from_json():
 
 
 def test_load_testid_map_fallback_on_invalid_json():
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tmp:
         tmp.write("{invalid json content")
         tmp_path = tmp.name
     try:
-        with patch.object(Path, "exists", return_value=True), \
-             patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)):
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)),
+        ):
             result = load_testid_map()
         assert result == SELF_TEST_LOCATOR_MAP_FALLBACK
     finally:
@@ -502,14 +503,14 @@ def test_load_testid_map_fallback_on_invalid_json():
 
 def test_load_testid_map_fallback_on_empty_testids():
     fake_data = {"generated_at": "2026-05-19T12:00:00", "testids": []}
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tmp:
         json.dump(fake_data, tmp, ensure_ascii=False)
         tmp_path = tmp.name
     try:
-        with patch.object(Path, "exists", return_value=True), \
-             patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)):
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)),
+        ):
             result = load_testid_map()
         assert "## 平台元素定位器映射" in result
         assert "以下元素已配置 data-testid" in result
@@ -529,14 +530,14 @@ def test_load_testid_map_entry_without_context():
             },
         ],
     }
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tmp:
         json.dump(fake_data, tmp, ensure_ascii=False)
         tmp_path = tmp.name
     try:
-        with patch.object(Path, "exists", return_value=True), \
-             patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)):
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)),
+        ):
             result = load_testid_map()
         assert '- [data-testid="some-btn"]' in result
     finally:
@@ -555,16 +556,16 @@ def test_load_testid_map_entry_with_context():
             },
         ],
     }
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as tmp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tmp:
         json.dump(fake_data, tmp, ensure_ascii=False)
         tmp_path = tmp.name
     try:
-        with patch.object(Path, "exists", return_value=True), \
-             patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)):
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch("app.services.prompt_builder.self_test_prompt.TESTID_MAP_PATH", Path(tmp_path)),
+        ):
             result = load_testid_map()
-        assert "- 登录按钮: [data-testid=\"login-submit\"]" in result
+        assert '- 登录按钮: [data-testid="login-submit"]' in result
     finally:
         os.unlink(tmp_path)
 

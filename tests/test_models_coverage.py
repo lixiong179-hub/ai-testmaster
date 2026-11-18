@@ -2,6 +2,7 @@
 数据模型覆盖率测试
 提升 models 模块的测试覆盖率
 """
+
 import sys
 import os
 import unittest
@@ -25,12 +26,7 @@ class TestProjectModel(unittest.TestCase):
 
     def test_project_creation(self):
         """测试创建项目"""
-        project = Project(
-            name="测试项目",
-            description="这是一个测试项目",
-            status=1,
-            user_id=1
-        )
+        project = Project(name="测试项目", description="这是一个测试项目", status=1, user_id=1)
         self.assertEqual(project.name, "测试项目")
         self.assertEqual(project.description, "这是一个测试项目")
         self.assertEqual(project.status, 1)
@@ -38,12 +34,7 @@ class TestProjectModel(unittest.TestCase):
     def test_project_to_dict(self):
         """测试项目属性访问"""
         project = Project(
-            id=1,
-            name="测试项目",
-            description="描述",
-            status=1,
-            user_id=1,
-            create_time=datetime(2024, 1, 1)
+            id=1, name="测试项目", description="描述", status=1, user_id=1, create_time=datetime(2024, 1, 1)
         )
         self.assertEqual(project.id, 1)
         self.assertEqual(project.name, "测试项目")
@@ -64,7 +55,7 @@ class TestTestCaseModel(unittest.TestCase):
             expected_result="登录成功",
             priority=1,
             case_type="UI",
-            project_id=1
+            project_id=1,
         )
         self.assertEqual(test_case.case_no, "TC001")
         self.assertEqual(test_case.title, "登录测试")
@@ -82,7 +73,7 @@ class TestTestCaseModel(unittest.TestCase):
             steps_json=[],
             expected_result="",
             precondition="",
-            project_id=1
+            project_id=1,
         )
         self.assertEqual(test_case.id, 1)
         self.assertEqual(test_case.case_no, "TC001")
@@ -94,12 +85,7 @@ class TestTestStepModel(unittest.TestCase):
 
     def test_test_step_creation(self):
         """测试创建测试步骤"""
-        step = TestStep(
-            step_number=1,
-            action="输入用户名",
-            expected_result="输入框显示用户名",
-            test_case_id=1
-        )
+        step = TestStep(step_number=1, action="输入用户名", expected_result="输入框显示用户名", test_case_id=1)
         self.assertEqual(step.step_number, 1)
         self.assertEqual(step.action, "输入用户名")
 
@@ -111,7 +97,7 @@ class TestTestStepModel(unittest.TestCase):
             expected_result="跳转到首页",
             has_locator=1,
             locator_status="located",
-            test_case_id=1
+            test_case_id=1,
         )
         self.assertEqual(step.has_locator, 1)
         self.assertEqual(step.locator_status, "located")
@@ -122,24 +108,13 @@ class TestTestPointModel(unittest.TestCase):
 
     def test_test_point_creation(self):
         """测试创建测试点"""
-        test_point = TestPoint(
-            module="登录模块",
-            point="验证用户登录功能",
-            priority=1,
-            project_id=1
-        )
+        test_point = TestPoint(module="登录模块", point="验证用户登录功能", priority=1, project_id=1)
         self.assertEqual(test_point.point, "验证用户登录功能")
         self.assertEqual(test_point.priority, 1)
 
     def test_test_point_to_dict(self):
         """测试测试点属性访问"""
-        test_point = TestPoint(
-            id=1,
-            module="登录模块",
-            point="测试点描述",
-            priority=1,
-            project_id=1
-        )
+        test_point = TestPoint(id=1, module="登录模块", point="测试点描述", priority=1, project_id=1)
         self.assertEqual(test_point.id, 1)
         self.assertEqual(test_point.point, "测试点描述")
 
@@ -149,25 +124,12 @@ class TestTestResultModel(unittest.TestCase):
 
     def test_test_result_creation(self):
         """测试创建测试结果"""
-        result = TestResult(
-            task_id=1,
-            project_id=1,
-            case_id=1,
-            case_no="TC001",
-            exec_status=1
-        )
+        result = TestResult(task_id=1, project_id=1, case_id=1, case_no="TC001", exec_status=1)
         self.assertEqual(result.exec_status, 1)
 
     def test_test_result_failed(self):
         """测试失败的测试结果"""
-        result = TestResult(
-            task_id=1,
-            project_id=1,
-            case_id=1,
-            case_no="TC002",
-            exec_status=2,
-            error_msg="元素未找到"
-        )
+        result = TestResult(task_id=1, project_id=1, case_id=1, case_no="TC002", exec_status=2, error_msg="元素未找到")
         self.assertEqual(result.exec_status, 2)
         self.assertEqual(result.error_msg, "元素未找到")
 
@@ -177,13 +139,7 @@ class TestTestTaskModel(unittest.TestCase):
 
     def test_test_task_creation(self):
         """测试创建测试任务"""
-        task = TestTask(
-            task_name="回归测试",
-            project_id=1,
-            executor_id=1,
-            case_ids=[1, 2, 3],
-            status=0
-        )
+        task = TestTask(task_name="回归测试", project_id=1, executor_id=1, case_ids=[1, 2, 3], status=0)
         self.assertEqual(task.task_name, "回归测试")
         self.assertEqual(task.status, 0)
 
@@ -193,25 +149,14 @@ class TestUserModel(unittest.TestCase):
 
     def test_user_creation(self):
         """测试创建用户"""
-        user = User(
-            username="testuser",
-            email="test@example.com",
-            password_hash="hashed_password",
-            is_active=True
-        )
+        user = User(username="testuser", email="test@example.com", password_hash="hashed_password", is_active=True)
         self.assertEqual(user.username, "testuser")
         self.assertEqual(user.email, "test@example.com")
         self.assertTrue(user.is_active)
 
     def test_user_to_dict(self):
         """测试用户属性访问"""
-        user = User(
-            id=1,
-            username="testuser",
-            email="test@example.com",
-            password_hash="hash",
-            is_active=True
-        )
+        user = User(id=1, username="testuser", email="test@example.com", password_hash="hash", is_active=True)
         self.assertEqual(user.id, 1)
         self.assertEqual(user.username, "testuser")
         self.assertEqual(user.email, "test@example.com")
@@ -222,14 +167,10 @@ class TestReportModel(unittest.TestCase):
 
     def test_report_creation(self):
         """测试创建报告"""
-        report = TestReport(
-            name="测试报告",
-            project_id=1,
-            status="completed"
-        )
+        report = TestReport(name="测试报告", project_id=1, status="completed")
         self.assertEqual(report.name, "测试报告")
         self.assertEqual(report.status, "completed")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main(verbosity=2)

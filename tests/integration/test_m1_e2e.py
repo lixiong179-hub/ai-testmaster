@@ -11,6 +11,7 @@
 
 使用真实 MySQL 数据库 + MockAIClient，不使用 FastAPI TestClient。
 """
+
 import json
 import pytest
 
@@ -200,9 +201,13 @@ class TestScenario1E2E:
         iteration = s1_iteration["iteration"]
         run, ctx = _run_pipeline(db, iteration, mock_ai_s1, 1)
 
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == iteration.project_id,
-        ).all()
+        cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == iteration.project_id,
+            )
+            .all()
+        )
         assert len(cases) >= 2
         for case in cases:
             assert case.lifecycle_status in ("draft", "active", "pending_review")
@@ -259,9 +264,13 @@ class TestScenario2E2E:
         iteration = s2_iteration["iteration"]
         run, ctx = _run_pipeline(db, iteration, mock_ai_s2, 2)
 
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == iteration.project_id,
-        ).all()
+        cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == iteration.project_id,
+            )
+            .all()
+        )
         assert len(cases) >= 1
         for case in cases:
             assert case.lifecycle_status in ("draft", "pending_review")
@@ -286,9 +295,13 @@ class TestScenario2E2E:
         iteration = s2_iteration["iteration"]
         run, ctx = _run_pipeline(db, iteration, mock_ai_s2, 2)
 
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == iteration.project_id,
-        ).all()
+        cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == iteration.project_id,
+            )
+            .all()
+        )
         assert len(cases) >= 1
         for case in cases:
             assert case.case_type == "API"
@@ -316,12 +329,16 @@ class TestM1CrossScenario:
         db.flush()
 
         inp1 = IterationInput(
-            iteration_id=iter1.id, kind="testpoint",
-            payload={"test_point_ids": [tp1.id]}, content_hash="cross_s1_hash",
+            iteration_id=iter1.id,
+            kind="testpoint",
+            payload={"test_point_ids": [tp1.id]},
+            content_hash="cross_s1_hash",
         )
         inp2 = IterationInput(
-            iteration_id=iter2.id, kind="testpoint",
-            payload={"test_point_ids": [tp2.id]}, content_hash="cross_s2_hash",
+            iteration_id=iter2.id,
+            kind="testpoint",
+            payload={"test_point_ids": [tp2.id]},
+            content_hash="cross_s2_hash",
         )
         db.add_all([inp1, inp2])
         db.flush()
@@ -332,9 +349,13 @@ class TestM1CrossScenario:
         assert run1.status == "completed"
         assert run2.status == "completed"
 
-        all_cases = db.query(TestCase).filter(
-            TestCase.project_id == testProject.id,
-        ).all()
+        all_cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == testProject.id,
+            )
+            .all()
+        )
         assert len(all_cases) >= 2
 
     def test_scenario_registry_complete(self):

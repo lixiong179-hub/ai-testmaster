@@ -12,6 +12,7 @@ APScheduler 定时任务调度服务测试模块
     - cancel_timed_out_pipelines 异常场景使用 monkeypatch 注入（边界测试）
     - 每个测试前后调用 shutdown_scheduler() 确保无残留调度器
 """
+
 from typing import Any, Iterator
 
 import pytest
@@ -37,6 +38,7 @@ def ensureSchedulerStopped() -> Iterator[None]:
     需手动重置避免残留调度器引用泄漏到后续测试。
     """
     import app.services.scheduler_service as svc
+
     shutdown_scheduler()
     if svc._scheduler is not None and not svc._scheduler.running:
         svc._scheduler = None
@@ -132,6 +134,7 @@ class TestShutdownScheduler:
         不调用 shutdown、不置 None（实现语义：仅运行中才关闭）。
         """
         import app.services.scheduler_service as svc
+
         stoppedScheduler = BackgroundScheduler()
         assert stoppedScheduler.running is False
         svc._scheduler = stoppedScheduler
@@ -168,9 +171,7 @@ class TestRunPipelineTimeoutCheck:
     monkeypatch 注入（边界测试，符合规范）。
     """
 
-    def test_normal_execution_no_exception(
-        self, monkeypatch, testEngine
-    ) -> None:
+    def test_normal_execution_no_exception(self, monkeypatch, testEngine) -> None:
         """正常执行不应抛异常，使用真实测试库 session。
 
         空库下 cancel_timed_out_pipelines 查询返回空，直接 return 0，
@@ -191,9 +192,7 @@ class TestRunPipelineTimeoutCheck:
         assert sessions[0].rollbackCalls == 0
         assert sessions[0].closeCalls == 1
 
-    def test_exception_does_not_raise_and_calls_rollback_close(
-        self, monkeypatch, testEngine
-    ) -> None:
+    def test_exception_does_not_raise_and_calls_rollback_close(self, monkeypatch, testEngine) -> None:
         """cancel_timed_out_pipelines 抛异常时不向上传播，rollback 与 close 被调用。"""
         realLocal = sessionmaker(bind=testEngine)
         sessions: list[_TrackingSession] = []
@@ -220,9 +219,7 @@ class TestRunPipelineTimeoutCheck:
         assert sessions[0].rollbackCalls == 1
         assert sessions[0].closeCalls == 1
 
-    def test_rollback_failure_does_not_raise(
-        self, monkeypatch, testEngine
-    ) -> None:
+    def test_rollback_failure_does_not_raise(self, monkeypatch, testEngine) -> None:
         """rollback 自身抛异常时不应向上传播（内层 except pass 兜底），close 仍被调用。"""
         realLocal = sessionmaker(bind=testEngine)
         sessions: list[_TrackingSession] = []

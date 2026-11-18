@@ -9,6 +9,7 @@ M3-T06 场景 5 流水线端到端测试（旧项目无新 PRD）
     - 双向扫描 + Reconciliation 合并矩阵（与场景 4 共享）
     - should_run / cache_key / validate_output / fallback
 """
+
 import json
 import pytest
 
@@ -34,6 +35,7 @@ from app.services import pipeline_service
 
 def _make_artifact(kind: str, payload: dict):
     from app.models.pipeline import Artifact
+
     return Artifact(
         run_id=0,
         kind=kind,
@@ -44,75 +46,88 @@ def _make_artifact(kind: str, payload: dict):
 
 
 def _make_old_project_infer_response() -> str:
-    return json.dumps({
-        "inferred_capabilities": [
-            {
-                "name": "用户管理",
-                "key": "user_management",
-                "description": "用户登录、注册、信息管理的业务能力",
-                "confidence": 0.88,
-                "supporting_evidence": "历史用例涵盖登录和注册流程",
-            },
-        ],
-        "uncertain_questions": [],
-        "overall_confidence": 0.88,
-        "analysis_summary": "从 3 条历史用例推断出 1 个业务能力：用户管理",
-    })
+    return json.dumps(
+        {
+            "inferred_capabilities": [
+                {
+                    "name": "用户管理",
+                    "key": "user_management",
+                    "description": "用户登录、注册、信息管理的业务能力",
+                    "confidence": 0.88,
+                    "supporting_evidence": "历史用例涵盖登录和注册流程",
+                },
+            ],
+            "uncertain_questions": [],
+            "overall_confidence": 0.88,
+            "analysis_summary": "从 3 条历史用例推断出 1 个业务能力：用户管理",
+        }
+    )
 
 
 def _build_forward_mock(fingerprints: list) -> str:
-    return json.dumps({
-        "verdicts": [
-            {
-                "matched_case_id": fp["case_id"],
-                "verdict": "NEEDS_MODIFY",
-                "confidence": 0.8,
-                "hint": "需微调",
-                "locator_status": None,
-            }
-            for fp in fingerprints
-        ] if fingerprints else []
-    })
+    return json.dumps(
+        {
+            "verdicts": [
+                {
+                    "matched_case_id": fp["case_id"],
+                    "verdict": "NEEDS_MODIFY",
+                    "confidence": 0.8,
+                    "hint": "需微调",
+                    "locator_status": None,
+                }
+                for fp in fingerprints
+            ]
+            if fingerprints
+            else []
+        }
+    )
 
 
 def _build_backward_mock(fingerprints: list) -> str:
-    return json.dumps({
-        "verdicts": [
-            {
-                "case_id": fp["case_id"],
-                "verdict": "VALID",
-                "confidence": 0.9,
-                "hint": "仍然有效",
-            }
-            for fp in fingerprints
-        ] if fingerprints else []
-    })
+    return json.dumps(
+        {
+            "verdicts": [
+                {
+                    "case_id": fp["case_id"],
+                    "verdict": "VALID",
+                    "confidence": 0.9,
+                    "hint": "仍然有效",
+                }
+                for fp in fingerprints
+            ]
+            if fingerprints
+            else []
+        }
+    )
 
 
 def _build_candidate_mock() -> str:
-    return json.dumps({
-        "candidates": [
-            {"description": "登录功能回归", "module": "用户管理",
-             "precondition": "", "expected_result": ""},
-        ]
-    })
+    return json.dumps(
+        {
+            "candidates": [
+                {"description": "登录功能回归", "module": "用户管理", "precondition": "", "expected_result": ""},
+            ]
+        }
+    )
 
 
 def _build_case_gen_mock() -> str:
-    return json.dumps([
-        {
-            "title": "登录功能回归验证",
-            "module": "用户管理",
-            "precondition": "用户已注册",
-            "steps": [
-                {"action": "输入正确的用户名和密码", "expected": "登录成功"},
-                {"action": "点击登录按钮", "expected": "跳转到首页"},
-            ],
-            "expected_result": "成功登录并跳转首页",
-            "priority": 1,
-            "case_type": "functional",
-        }
-    ])
+    return json.dumps(
+        [
+            {
+                "title": "登录功能回归验证",
+                "module": "用户管理",
+                "precondition": "用户已注册",
+                "steps": [
+                    {"action": "输入正确的用户名和密码", "expected": "登录成功"},
+                    {"action": "点击登录按钮", "expected": "跳转到首页"},
+                ],
+                "expected_result": "成功登录并跳转首页",
+                "priority": 1,
+                "case_type": "functional",
+            }
+        ]
+    )
 
 
 @pytest.fixture
@@ -230,6 +245,7 @@ def _setup_e2e_mocks(mock_ai, ctx):
 class TestScenario5Registry:
     def test_get_scenario_5(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(5)
         assert scenario is not None
         assert scenario["name"] == "scenario_5_old_project_no_prd"
@@ -237,11 +253,13 @@ class TestScenario5Registry:
 
     def test_scenario_5_has_11_steps(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(5)
         assert len(scenario["steps"]) == 12
 
     def test_scenario_5_step_order(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(5)
         step_names = [s.name for s in scenario["steps"]]
         expected = [
@@ -262,12 +280,14 @@ class TestScenario5Registry:
 
     def test_scenario_5_includes_reverse_infer(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(5)
         step_names = [s.name for s in scenario["steps"]]
         assert "reverse_infer" in step_names
 
     def test_scenario_5_includes_bidirectional_scan(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(5)
         step_names = [s.name for s in scenario["steps"]]
         assert "backward_scan" in step_names
@@ -276,6 +296,7 @@ class TestScenario5Registry:
 
     def test_scenario_5_differs_from_4(self):
         from app.pipelines.scenarios import get_scenario
+
         s5 = get_scenario(5)
         s4 = get_scenario(4)
         assert s5["name"] != s4["name"]
@@ -283,6 +304,7 @@ class TestScenario5Registry:
 
     def test_nonexistent_scenario(self):
         from app.pipelines.scenarios import get_scenario
+
         assert get_scenario(999) is None
 
 
@@ -368,19 +390,25 @@ class TestReverseInferOldProject:
 
     def test_should_run_new_project_without_ui(self, make_ctx):
         ctx = make_ctx()
-        ctx.set_artifact("raw_signals", _make_artifact("raw_signals", {
-            "iteration_id": ctx.iteration_id,
-            "project_id": 1,
-            "has_ui": False,
-            "is_old_project": False,
-            "prd_content": "",
-            "ui_descriptions": [],
-            "ui_specs": [],
-            "test_points": [],
-            "file_ids_used": [],
-            "has_prd": False,
-            "has_testpoints": False,
-        }))
+        ctx.set_artifact(
+            "raw_signals",
+            _make_artifact(
+                "raw_signals",
+                {
+                    "iteration_id": ctx.iteration_id,
+                    "project_id": 1,
+                    "has_ui": False,
+                    "is_old_project": False,
+                    "prd_content": "",
+                    "ui_descriptions": [],
+                    "ui_specs": [],
+                    "test_points": [],
+                    "file_ids_used": [],
+                    "has_prd": False,
+                    "has_testpoints": False,
+                },
+            ),
+        )
 
         step = ReverseInfer()
         assert step.should_run(ctx) is False
@@ -677,6 +705,7 @@ class TestScenario5E2E:
         _setup_e2e_mocks(mock_ai, ctx)
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(5)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
@@ -689,6 +718,7 @@ class TestScenario5E2E:
         _setup_e2e_mocks(mock_ai, ctx)
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(5)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
@@ -701,6 +731,7 @@ class TestScenario5E2E:
         _setup_e2e_mocks(mock_ai, ctx)
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(5)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
@@ -718,6 +749,7 @@ class TestScenario5E2E:
         _setup_e2e_mocks(mock_ai, ctx)
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(5)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)

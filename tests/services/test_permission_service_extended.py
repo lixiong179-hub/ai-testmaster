@@ -17,9 +17,7 @@ class TestPermissionService:
         assert perm.code == "test:perm"
 
     def test_create_permission_from_dict(self, db):
-        perm = PermissionService.create_permission(
-            db, {"name": "字典权限", "code": "dict:perm", "type": "menu"}
-        )
+        perm = PermissionService.create_permission(db, {"name": "字典权限", "code": "dict:perm", "type": "menu"})
         assert perm.code == "dict:perm"
 
     def test_create_duplicate_code_raises(self, db):
@@ -42,17 +40,13 @@ class TestPermissionService:
     def test_update_permission(self, db):
         perm_in = PermissionCreate(name="更新前", code="upd:perm", type="menu")
         created = PermissionService.create_permission(db, perm_in)
-        updated = PermissionService.update_permission(
-            db, created.id, PermissionUpdate(name="更新后")
-        )
+        updated = PermissionService.update_permission(db, created.id, PermissionUpdate(name="更新后"))
         assert updated.name == "更新后"
 
     def test_update_permission_from_dict(self, db):
         perm_in = PermissionCreate(name="字典更新前", code="upddict:perm", type="menu")
         created = PermissionService.create_permission(db, perm_in)
-        updated = PermissionService.update_permission(
-            db, created.id, {"name": "字典更新后"}
-        )
+        updated = PermissionService.update_permission(db, created.id, {"name": "字典更新后"})
         assert updated.name == "字典更新后"
 
     def test_update_nonexistent_raises(self, db):

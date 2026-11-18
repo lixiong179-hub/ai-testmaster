@@ -5,6 +5,7 @@
 导致其他测试出现级联"Table doesn't exist"错误。
 部分使用真实浏览器的测试需要Playwright环境。
 """
+
 import pytest
 
 from app.utils.db_time import utcnow
@@ -51,10 +52,7 @@ def eng_test_case(db, eng_project):
         module="登录模块",
         title="测试登录功能",
         precondition="系统正常运行",
-        steps_json=[
-            {"step": 1, "action": "打开页面", "param": ""},
-            {"step": 2, "action": "点击按钮", "param": ""}
-        ],
+        steps_json=[{"step": 1, "action": "打开页面", "param": ""}, {"step": 2, "action": "点击按钮", "param": ""}],
         expected_result="登录成功",
         priority=1,
         case_type="UI",
@@ -82,6 +80,7 @@ def eng_test_steps(db, eng_test_case):
 
 
 # ==================== 枚举类测试 ====================
+
 
 def test_execution_status_values():
     """测试执行状态枚举值"""
@@ -111,15 +110,11 @@ async def test_action_type_values():
 
 # ==================== 结果类测试 ====================
 
+
 @pytest.mark.asyncio
 async def test_step_execution_result_creation():
     """测试步骤执行结果创建"""
-    result = StepExecutionResult(
-        step_number=1,
-        action="点击按钮",
-        status=ExecutionStatus.PASSED,
-        start_time=utcnow()
-    )
+    result = StepExecutionResult(step_number=1, action="点击按钮", status=ExecutionStatus.PASSED, start_time=utcnow())
 
     assert result.step_number == 1
     assert result.action == "点击按钮"
@@ -142,7 +137,7 @@ async def test_step_execution_result_with_error():
         start_time=utcnow(),
         end_time=utcnow(),
         duration_ms=1000,
-        error_message="元素未找到"
+        error_message="元素未找到",
     )
 
     result_dict = result.to_dict()
@@ -154,11 +149,7 @@ async def test_step_execution_result_with_error():
 @pytest.mark.asyncio
 async def test_test_execution_result_creation():
     """测试测试执行结果创建"""
-    result = TestExecutionResult(
-        case_id=100,
-        status=ExecutionStatus.PASSED,
-        start_time=utcnow()
-    )
+    result = TestExecutionResult(case_id=100, status=ExecutionStatus.PASSED, start_time=utcnow())
 
     assert result.case_id == 100
     assert result.status == ExecutionStatus.PASSED
@@ -172,11 +163,12 @@ async def test_test_execution_result_creation():
 
 # ==================== 异常类测试 ====================
 
+
 def test_execution_error():
     """测试执行错误异常"""
     error = ExecutionError("测试错误")
     assert str(error) == "测试错误"
-    
+
     # 测试异常链
     try:
         try:
@@ -204,6 +196,7 @@ def test_verification_error():
 
 # ==================== 引擎初始化测试 ====================
 
+
 @pytest.mark.asyncio
 async def test_execution_engine_initialization(db):
     """测试执行引擎初始化"""
@@ -225,6 +218,7 @@ async def test_execution_engine_without_browser(db):
 
 
 # ==================== 动作解析测试 ====================
+
 
 @pytest.mark.asyncio
 async def test_parse_navigate_action(db):
@@ -287,6 +281,7 @@ async def test_parse_refresh_action(db):
 
 # ==================== URL提取测试 ====================
 
+
 @pytest.mark.asyncio
 async def test_extract_url_from_text(db):
     """测试从文本中提取URL"""
@@ -312,6 +307,7 @@ async def test_extract_url_not_found(db):
 
 
 # ==================== 输入文本提取测试 ====================
+
 
 @pytest.mark.asyncio
 async def test_extract_input_text_with_quotes(db):
@@ -339,6 +335,7 @@ async def test_extract_input_text_direct(db):
 
 # ==================== 等待时间提取测试 ====================
 
+
 @pytest.mark.asyncio
 async def test_extract_wait_time_seconds(db):
     """测试提取秒数"""
@@ -359,10 +356,12 @@ async def test_extract_wait_time_default(db):
 
 # ==================== 执行历史查询测试 ====================
 
+
 @pytest.mark.asyncio
 async def test_get_execution_history(db, eng_test_case, testUser):
     from app.models.test_result import TestResult
     from app.models.test_task import TestTask
+
     task = TestTask(
         task_name="history_test",
         project_id=eng_test_case.project_id,
@@ -393,6 +392,7 @@ async def test_get_execution_history(db, eng_test_case, testUser):
 async def test_get_execution_history_with_limit(db, eng_test_case, testUser):
     from app.models.test_result import TestResult
     from app.models.test_task import TestTask
+
     task = TestTask(
         task_name="history_limit_test",
         project_id=eng_test_case.project_id,
@@ -426,6 +426,7 @@ async def test_get_execution_history_with_limit(db, eng_test_case, testUser):
 
 
 # ==================== 错误处理测试 ====================
+
 
 @pytest.mark.asyncio
 async def test_execute_navigate_without_browser(db):
@@ -488,6 +489,7 @@ async def test_execute_refresh_without_browser(db):
 
 
 # ==================== 装饰器测试 ====================
+
 
 @pytest.mark.asyncio
 async def test_handle_execution_errors_decorator():

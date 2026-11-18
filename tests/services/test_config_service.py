@@ -13,6 +13,7 @@ M1-T15 Config Service 测试模块
     - _cast_value 非法值
     - clear_cache
 """
+
 import pytest
 
 from app.models.pipeline_config import PipelineConfig
@@ -85,21 +86,22 @@ class TestSetConfig:
 
     def test_set_config_writes_audit_log(self, db, testUser):
         from app.services.audit_service import query_logs
+
         set_config(db, "REVIEW_LOCK_TTL_HOURS", 48, actor_id=testUser.id)
         logs = query_logs(db, action="config_change")
-        assert any(
-            l.detail and l.detail.get("key") == "REVIEW_LOCK_TTL_HOURS"
-            for l in logs
-        )
+        assert any(l.detail and l.detail.get("key") == "REVIEW_LOCK_TTL_HOURS" for l in logs)
 
     def test_set_config_audit_contains_old_value(self, db, testUser):
         from app.services.audit_service import query_logs
+
         set_config(db, "PIPELINE_PAUSE_TIMEOUT_DAYS", 7, actor_id=testUser.id)
         set_config(db, "PIPELINE_PAUSE_TIMEOUT_DAYS", 14, actor_id=testUser.id)
         logs = query_logs(db, action="config_change")
         change_logs = [
-            l for l in logs
-            if l.detail and l.detail.get("key") == "PIPELINE_PAUSE_TIMEOUT_DAYS"
+            l
+            for l in logs
+            if l.detail
+            and l.detail.get("key") == "PIPELINE_PAUSE_TIMEOUT_DAYS"
             and l.detail.get("old_value") is not None
         ]
         assert len(change_logs) >= 1

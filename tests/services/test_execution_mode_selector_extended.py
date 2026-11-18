@@ -110,15 +110,11 @@ class TestGetExecutionConfig:
         assert config.headless is False
 
     def test_task_headless_overrides_global(self):
-        config = ExecutionModeSelector.get_execution_config(
-            "ui_automation", global_headless=False, task_headless=True
-        )
+        config = ExecutionModeSelector.get_execution_config("ui_automation", global_headless=False, task_headless=True)
         assert config.headless is True
 
     def test_case_headless_overrides_task(self):
-        config = ExecutionModeSelector.get_execution_config(
-            "ui_automation", task_headless=True, case_headless=False
-        )
+        config = ExecutionModeSelector.get_execution_config("ui_automation", task_headless=True, case_headless=False)
         assert config.headless is False
 
     def test_record_video_override(self):

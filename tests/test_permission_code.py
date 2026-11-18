@@ -8,6 +8,7 @@
 
 事务隔离：db / async_db fixture 外层事务包裹，结束 rollback 自动清理。
 """
+
 import uuid
 
 import pytest
@@ -74,7 +75,8 @@ class TestPermissionCode:
     def test_all_codes_follow_naming_convention(self):
         """所有权限码遵循 <资源>:<操作> 命名规范。"""
         codes = [
-            attr for attr in dir(PermissionCode)
+            attr
+            for attr in dir(PermissionCode)
             if not attr.startswith("_") and isinstance(getattr(PermissionCode, attr), str)
         ]
         for code_attr in codes:
@@ -146,7 +148,9 @@ class TestProjectMemberModel:
     def test_to_dict_returns_all_fields(self, db, testUser, testProject):
         """to_dict 返回所有字段。"""
         member = ProjectMember(
-            project_id=testProject.id, user_id=testUser.id, role="admin",
+            project_id=testProject.id,
+            user_id=testUser.id,
+            role="admin",
         )
         db.add(member)
         db.flush()
@@ -161,7 +165,9 @@ class TestProjectMemberModel:
     def test_repr_returns_string(self, db, testUser, testProject):
         """__repr__ 返回字符串表示。"""
         member = ProjectMember(
-            project_id=testProject.id, user_id=testUser.id, role="member",
+            project_id=testProject.id,
+            user_id=testUser.id,
+            role="member",
         )
         db.add(member)
         db.flush()
@@ -210,7 +216,9 @@ class TestVerifyProjectPermissionBackwardCompat:
         db.add(other_user)
         db.flush()
         member = ProjectMember(
-            project_id=testProject.id, user_id=other_user.id, role="member",
+            project_id=testProject.id,
+            user_id=other_user.id,
+            role="member",
         )
         db.add(member)
         db.flush()
@@ -228,7 +236,9 @@ class TestVerifyProjectPermissionBackwardCompat:
         db.add(other_user)
         db.flush()
         member = ProjectMember(
-            project_id=testProject.id, user_id=other_user.id, role="viewer",
+            project_id=testProject.id,
+            user_id=other_user.id,
+            role="viewer",
         )
         db.add(member)
         db.flush()
@@ -246,12 +256,12 @@ class TestVerifyProjectPermissionBackwardCompat:
 class TestVerifyProjectPermissionAsync:
     """verify_project_permission_async 异步版本测试。"""
 
-    async def test_legacy_owner_passes(
-        self, async_db, async_test_user, async_test_project
-    ):
+    async def test_legacy_owner_passes(self, async_db, async_test_user, async_test_project):
         """旧有属主校验通过（async）。"""
         project = await verify_project_permission_async(
-            async_db, async_test_project.id, async_test_user.id,
+            async_db,
+            async_test_project.id,
+            async_test_user.id,
         )
         assert project.id == async_test_project.id
 
@@ -268,13 +278,13 @@ class TestVerifyProjectPermissionAsync:
         await async_db.flush()
         with pytest.raises(HTTPException) as exc_info:
             await verify_project_permission_async(
-                async_db, async_test_project.id, other_user.id,
+                async_db,
+                async_test_project.id,
+                other_user.id,
             )
         assert exc_info.value.status_code == 403
 
-    async def test_project_member_passes(
-        self, async_db, async_test_project
-    ):
+    async def test_project_member_passes(self, async_db, async_test_project):
         """ProjectMember 成员通过校验（async）。"""
         suffix = uuid.uuid4().hex[:8]
         other_user = User(
@@ -286,11 +296,15 @@ class TestVerifyProjectPermissionAsync:
         async_db.add(other_user)
         await async_db.flush()
         member = ProjectMember(
-            project_id=async_test_project.id, user_id=other_user.id, role="member",
+            project_id=async_test_project.id,
+            user_id=other_user.id,
+            role="member",
         )
         async_db.add(member)
         await async_db.flush()
         project = await verify_project_permission_async(
-            async_db, async_test_project.id, other_user.id,
+            async_db,
+            async_test_project.id,
+            other_user.id,
         )
         assert project.id == async_test_project.id

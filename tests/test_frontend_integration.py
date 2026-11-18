@@ -40,12 +40,10 @@ backend_available = _check_service_available(f"{API_BASE}/auth/login")
 frontend_available = _check_service_available(BASE_URL)
 
 skip_if_no_backend = pytest.mark.skipif(
-    not backend_available,
-    reason=f"后端服务不可用 ({API_URL})，请先启动 FastAPI 服务"
+    not backend_available, reason=f"后端服务不可用 ({API_URL})，请先启动 FastAPI 服务"
 )
 skip_if_no_frontend = pytest.mark.skipif(
-    not frontend_available,
-    reason=f"前端服务不可用 ({BASE_URL})，请先启动前端开发服务器"
+    not frontend_available, reason=f"前端服务不可用 ({BASE_URL})，请先启动前端开发服务器"
 )
 
 # B-07：本套件同时依赖运行中的前端(3000)与后端(8000)，属手工/联调类。
@@ -203,7 +201,7 @@ class TestFrontendAPIParameters:
         resp = requests.get(
             f"{API_BASE}/project/list",
             params={"page": 1, "page_size": 10},
-            headers={"Authorization": f"Bearer {api_token}"}
+            headers={"Authorization": f"Bearer {api_token}"},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -216,10 +214,7 @@ class TestFrontendAPIParameters:
         print(f"[PASS] project list returns correct structure ({inner['total']} items)")
 
     def test_fe17_project_detail_contains_expected_fields(self, api_token):
-        resp = requests.get(
-            f"{API_BASE}/project/{HONGEN_PROJECT_ID}",
-            headers={"Authorization": f"Bearer {api_token}"}
-        )
+        resp = requests.get(f"{API_BASE}/project/{HONGEN_PROJECT_ID}", headers={"Authorization": f"Bearer {api_token}"})
         assert resp.status_code in [200, 403]
         if resp.status_code == 403:
             pytest.skip(f"TEST_PROJECT_ID={HONGEN_PROJECT_ID} is not owned by current user")
@@ -230,10 +225,7 @@ class TestFrontendAPIParameters:
         print(f"[PASS] project detail has all expected fields: {required_fields}")
 
     def test_fe18_auth_me_returns_user_info(self, api_token):
-        resp = requests.get(
-            f"{API_BASE}/auth/me",
-            headers={"Authorization": f"Bearer {api_token}"}
-        )
+        resp = requests.get(f"{API_BASE}/auth/me", headers={"Authorization": f"Bearer {api_token}"})
         assert resp.status_code == 200
         user = resp.json()["data"]
         assert user["username"] == ADMIN_USERNAME
@@ -242,18 +234,12 @@ class TestFrontendAPIParameters:
         print(f"[PASS] /auth/me returns correct user info: id={user['id']}, name={user['username']}")
 
     def test_fe19_api_accessible_from_frontend_origin(self):
-        resp = requests.get(
-            f"{BASE_URL}/health",
-            headers={"Origin": "http://localhost:3000"}
-        )
+        resp = requests.get(f"{BASE_URL}/health", headers={"Origin": "http://localhost:3000"})
         assert resp.status_code in [200, 404]
         print("[PASS] API/health accessible (frontend-backend connectivity OK)")
 
     def test_fe20_content_type_is_json(self, api_token):
-        resp = requests.get(
-            f"{API_BASE}/project/list",
-            headers={"Authorization": f"Bearer {api_token}"}
-        )
+        resp = requests.get(f"{API_BASE}/project/list", headers={"Authorization": f"Bearer {api_token}"})
         ct = resp.headers.get("content-type", "")
         assert "json" in ct.lower()
         print(f"[PASS] API responses use JSON content-type: {ct}")
@@ -261,11 +247,8 @@ class TestFrontendAPIParameters:
     def test_fe21_ai_generate_calls_real_deepseek(self, api_token):
         resp = requests.post(
             f"{API_BASE}/testCase/ai-generate",
-            json={
-                "project_id": HONGEN_PROJECT_ID,
-                "description": "Test login functionality"
-            },
-            headers={"Authorization": f"Bearer {api_token}"}
+            json={"project_id": HONGEN_PROJECT_ID, "description": "Test login functionality"},
+            headers={"Authorization": f"Bearer {api_token}"},
         )
         if resp.status_code == 200:
             result = resp.json()["data"]
@@ -293,7 +276,7 @@ class TestFrontendAPIParameters:
                     f"{API_BASE}/file/upload",
                     files=files,
                     data={"project_id": HONGEN_PROJECT_ID},
-                    headers={"Authorization": f"Bearer {api_token}"}
+                    headers={"Authorization": f"Bearer {api_token}"},
                 )
             assert resp.status_code in [200, 400, 403, 422]
             print(f"[PASS] file upload accepts multipart (status={resp.status_code})")
@@ -307,20 +290,14 @@ class TestFrontendSecurity:
     """Security-related frontend tests"""
 
     def test_fe23_no_sensitive_data_in_response(self, api_token):
-        resp = requests.get(
-            f"{API_BASE}/auth/me",
-            headers={"Authorization": f"Bearer {api_token}"}
-        )
+        resp = requests.get(f"{API_BASE}/auth/me", headers={"Authorization": f"Bearer {api_token}"})
         data = resp.json()["data"]
         assert "password_hash" not in data
         assert "password" not in data
         print("[PASS] no sensitive password data in user info response")
 
     def test_fe24_expired_or_invalid_token_rejected(self):
-        resp = requests.get(
-            f"{API_BASE}/project/list",
-            headers={"Authorization": "Bearer expired.invalid.token.here"}
-        )
+        resp = requests.get(f"{API_BASE}/project/list", headers={"Authorization": "Bearer expired.invalid.token.here"})
         assert resp.status_code in [401, 403]
         print("[PASS] invalid/expired token rejected")
 

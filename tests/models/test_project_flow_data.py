@@ -10,6 +10,7 @@ ProjectFlowData 模型单元测试
 
 使用 conftest.py 提供的 db（事务回滚隔离）、testUser 夹具。
 """
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 
@@ -89,9 +90,7 @@ class TestProjectFlowDataModel:
         assert record.update_time is not None
 
         # 验证可重新查询
-        fetched = db.query(ProjectFlowData).filter(
-            ProjectFlowData.id == record.id
-        ).first()
+        fetched = db.query(ProjectFlowData).filter(ProjectFlowData.id == record.id).first()
         assert fetched is not None
         assert fetched.project_id == flow_project.id
 

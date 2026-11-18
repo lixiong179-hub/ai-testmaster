@@ -9,6 +9,7 @@
 
 同时覆盖 build_quality_feedback_text 的严重问题排序与修复示例匹配。
 """
+
 from typing import Any, Dict, List, Optional, Tuple
 from unittest.mock import AsyncMock
 
@@ -71,7 +72,9 @@ class TestRunQualityFeedbackLoop:
         bad_case = _make_valid_case(title="")
         regen_fn = AsyncMock(return_value=_make_valid_case(title=""))
         final_case, status, _ = await run_quality_feedback_loop(
-            bad_case, regen_fn, max_rounds=3,
+            bad_case,
+            regen_fn,
+            max_rounds=3,
         )
         # max_rounds=3：首轮校验 + range(1,3)=2 轮重生成
         assert regen_fn.call_count == 2
@@ -83,7 +86,9 @@ class TestRunQualityFeedbackLoop:
         bad_case = _make_valid_case(title="")
         regen_fn = AsyncMock(return_value=_make_valid_case(title=""))
         final_case, status, issues = await run_quality_feedback_loop(
-            bad_case, regen_fn, max_rounds=2,
+            bad_case,
+            regen_fn,
+            max_rounds=2,
         )
         assert status == "rejected"
         assert final_case is not None
@@ -114,7 +119,10 @@ class TestRunQualityFeedbackLoop:
             rounds.append((round_idx, rst_status))
 
         await run_quality_feedback_loop(
-            bad_case, regen_fn, on_round=on_round, max_rounds=3,
+            bad_case,
+            regen_fn,
+            on_round=on_round,
+            max_rounds=3,
         )
         # round 0 首轮 rejected → round 1 regen 仍 rejected → round 2 regen passed
         assert len(rounds) == 3
@@ -129,7 +137,9 @@ class TestRunQualityFeedbackLoop:
         good_case = _make_valid_case()
         regen_fn = AsyncMock(side_effect=[None, good_case])
         final_case, status, _ = await run_quality_feedback_loop(
-            bad_case, regen_fn, max_rounds=3,
+            bad_case,
+            regen_fn,
+            max_rounds=3,
         )
         assert regen_fn.call_count == 2
         assert status == "passed"
@@ -141,7 +151,9 @@ class TestRunQualityFeedbackLoop:
         bad_case = _make_valid_case(title="")
         regen_fn = AsyncMock()
         final_case, status, _ = await run_quality_feedback_loop(
-            bad_case, regen_fn, max_rounds=1,
+            bad_case,
+            regen_fn,
+            max_rounds=1,
         )
         assert status == "rejected"
         regen_fn.assert_not_called()
@@ -199,7 +211,9 @@ class TestBuildQualityFeedbackText:
     def test_rejected_all_severe(self) -> None:
         """rejected 状态所有问题视为严重。"""
         text = build_quality_feedback_text(
-            ["标题为空", "步骤过多"], _make_valid_case(), "rejected",
+            ["标题为空", "步骤过多"],
+            _make_valid_case(),
+            "rejected",
         )
         assert "请优先修复以下严重问题" in text
         assert "标题为空" in text
@@ -208,7 +222,9 @@ class TestBuildQualityFeedbackText:
     def test_pending_review_severe_keywords_sorted_first(self) -> None:
         """pending_review 含'为空''不足''非法'的视为严重，排在前面。"""
         text = build_quality_feedback_text(
-            ["步骤过多", "标题为空"], _make_valid_case(), "pending_review",
+            ["步骤过多", "标题为空"],
+            _make_valid_case(),
+            "pending_review",
         )
         # "标题为空"含"为空"是严重，"步骤过多"不含是普通，严重排前
         empty_pos = text.index("标题为空")
@@ -218,7 +234,9 @@ class TestBuildQualityFeedbackText:
     def test_fix_example_matched(self) -> None:
         """问题匹配修复示例时附带修复示例。"""
         text = build_quality_feedback_text(
-            ["标题为空"], _make_valid_case(), "rejected",
+            ["标题为空"],
+            _make_valid_case(),
+            "rejected",
         )
         assert "修复示例" in text
         assert "示例标题" in text
@@ -226,7 +244,9 @@ class TestBuildQualityFeedbackText:
     def test_no_fix_example_for_unknown_issue(self) -> None:
         """无匹配修复示例时该问题行不含修复示例。"""
         text = build_quality_feedback_text(
-            ["未知问题类型"], _make_valid_case(), "rejected",
+            ["未知问题类型"],
+            _make_valid_case(),
+            "rejected",
         )
         unknown_line = [ln for ln in text.split("\n") if "未知问题类型" in ln][0]
         assert "修复示例" not in unknown_line

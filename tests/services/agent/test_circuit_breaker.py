@@ -10,6 +10,7 @@
 
 被测：app/services/agent/circuit_breaker.py
 """
+
 from unittest.mock import MagicMock, patch
 
 import fakeredis

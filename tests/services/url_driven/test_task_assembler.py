@@ -7,6 +7,7 @@ TestResult 批量生成、执行引擎异步启动、启动失败不阻断、DB 
 清理：依赖 db fixture 事务级回滚自动清理。执行引擎用 FakeExecutor 替身，
 asyncio.create_task 后台任务用 await asyncio.sleep(0.05) 排空。
 """
+
 import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -33,9 +34,7 @@ class FakeExecutor:
         self._raise = raise_exc
         self.calls: List[Dict[str, Any]] = []
 
-    async def execute_test_task(
-        self, task_id: int, execution_mode: str = "smart", **kwargs: Any
-    ) -> Dict[str, Any]:
+    async def execute_test_task(self, task_id: int, execution_mode: str = "smart", **kwargs: Any) -> Dict[str, Any]:
         self.calls.append({"task_id": task_id, "execution_mode": execution_mode})
         if self._raise is not None:
             raise self._raise
@@ -44,9 +43,7 @@ class FakeExecutor:
 
 def make_project(db, testUser, name: str = "assembler_proj") -> Project:
     """构造并持久化 Project，依赖 db 事务回滚自动清理。"""
-    proj = Project(
-        name=name, user_id=testUser.id, project_type="web", source="url_quick_test"
-    )
+    proj = Project(name=name, user_id=testUser.id, project_type="web", source="url_quick_test")
     db.add(proj)
     db.flush()
     return proj
@@ -55,9 +52,15 @@ def make_project(db, testUser, name: str = "assembler_proj") -> Project:
 def make_case(db, project: Project, case_no: str, title: str = "用例") -> TestCase:
     """构造并持久化 TestCase，字段对齐 model 必填约束。"""
     case = TestCase(
-        case_no=case_no, project_id=project.id, module="默认", title=title,
-        precondition="无", steps_json=[], expected_result="成功",
-        priority=2, case_type="UI",
+        case_no=case_no,
+        project_id=project.id,
+        module="默认",
+        title=title,
+        precondition="无",
+        steps_json=[],
+        expected_result="成功",
+        priority=2,
+        case_type="UI",
     )
     db.add(case)
     db.flush()
@@ -80,7 +83,7 @@ class TestDeriveTaskName:
         name = TaskAssembler.derive_task_name(proj)
         prefix = "demo_site_快速测试_"
         assert name.startswith(prefix)
-        ts = name[len(prefix):]
+        ts = name[len(prefix) :]
         assert len(ts) == 14
         # 验证时间戳可解析为合法日期，杜绝格式错误
         datetime.strptime(ts, _TASK_NAME_TS_FORMAT)
@@ -207,9 +210,7 @@ class TestAssembleUpdate:
         skeleton = asm.create_skeleton_task(proj.id, testUser.id, db)
         assert skeleton.case_ids == []
         assert skeleton.total_count == 0
-        task = await asm.assemble(
-            proj.id, [case1.id], testUser.id, db, task_id=skeleton.id
-        )
+        task = await asm.assemble(proj.id, [case1.id], testUser.id, db, task_id=skeleton.id)
         await asyncio.sleep(0.05)  # 排空后台执行任务
         assert task.id == skeleton.id
         assert task.case_ids == [case1.id]
@@ -346,6 +347,7 @@ class TestDefaultExecutorFactory:
         asm = TaskAssembler()
         executor = asm._executor_factory(db)
         from app.services.test_execution_engine_v2 import TestExecutionEngineV2
+
         assert isinstance(executor, TestExecutionEngineV2)
         assert executor.db is db
 
@@ -401,7 +403,9 @@ class TestPushFinalStatus:
         assert len(push.calls) == 1
         assert push.calls[0]["channel"] == f"quick_test:{task.id}"
         assert push.calls[0]["data"] == {
-            "stage": "completed", "status": "done", "progress": 100,
+            "stage": "completed",
+            "status": "done",
+            "progress": 100,
             "detail": {"task_id": task.id},
         }
 
@@ -430,7 +434,9 @@ class TestPushFinalStatus:
         assert len(push.calls) == 1
         assert push.calls[0]["channel"] == f"quick_test:{task.id}"
         assert push.calls[0]["data"] == {
-            "stage": "stopped", "status": "done", "progress": 100,
+            "stage": "stopped",
+            "status": "done",
+            "progress": 100,
             "detail": {"message": "任务已停止", "task_id": task.id},
         }
 

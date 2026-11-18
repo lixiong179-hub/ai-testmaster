@@ -8,6 +8,7 @@
     - ValidationResult 合并规则
     - grade_to_status / status_to_grade 映射
 """
+
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -29,6 +30,7 @@ from app.services.quality.quality_gate_service import QualityGateService
 # ──────────────────────────────────────────────
 # 1. BaseValidator & ValidationResult 测试
 # ──────────────────────────────────────────────
+
 
 class TestValidationIssue:
     """ValidationIssue 数据结构测试。"""
@@ -101,6 +103,7 @@ class TestSeverity:
 # ──────────────────────────────────────────────
 # 2. CaseValidator 测试
 # ──────────────────────────────────────────────
+
 
 class TestCaseValidator:
     """用例基本格式校验器测试。"""
@@ -212,6 +215,7 @@ class TestCaseValidator:
 # 3. UpdateSuggestionValidator 测试
 # ──────────────────────────────────────────────
 
+
 class TestUpdateSuggestionValidator:
     """更新建议校验器测试。"""
 
@@ -278,6 +282,7 @@ class TestUpdateSuggestionValidator:
 # ──────────────────────────────────────────────
 # 4. ImportResultValidator 测试
 # ──────────────────────────────────────────────
+
 
 class TestImportResultValidator:
     """导入用例格式完整性校验器测试。"""
@@ -350,6 +355,7 @@ class TestImportResultValidator:
 # 5. MaterialConflictValidator 测试
 # ──────────────────────────────────────────────
 
+
 class TestMaterialConflictValidator:
     """资料冲突校验器测试。"""
 
@@ -400,6 +406,7 @@ class TestMaterialConflictValidator:
 # ──────────────────────────────────────────────
 # 6. UIReferenceValidator 测试
 # ──────────────────────────────────────────────
+
 
 class TestUIReferenceValidator:
     """UI元素引用命中率校验器测试。"""
@@ -482,6 +489,7 @@ class TestUIReferenceValidator:
 # 7. DuplicationValidator 测试
 # ──────────────────────────────────────────────
 
+
 class TestDuplicationValidator:
     """用例重复校验器测试。"""
 
@@ -523,6 +531,7 @@ class TestDuplicationValidator:
 # ──────────────────────────────────────────────
 # 8. QualityGateService 编排测试
 # ──────────────────────────────────────────────
+
 
 class TestQualityGateService:
     """QualityGateService 编排测试。"""
@@ -592,9 +601,7 @@ class TestQualityGateService:
 
     def test_validator_exception_handled(self) -> None:
         service = QualityGateService()
-        with patch.object(
-            service.validators[0], "validate", side_effect=Exception("boom")
-        ):
+        with patch.object(service.validators[0], "validate", side_effect=Exception("boom")):
             case_data = {
                 "title": "验证用户登录功能正常工作",
                 "steps": [
@@ -657,6 +664,7 @@ class TestQualityGateService:
 # 9. 统一4档状态输出测试
 # ──────────────────────────────────────────────
 
+
 class TestUnifiedStatusOutput:
     """验证所有校验器输出统一4档状态。"""
 
@@ -695,11 +703,13 @@ class TestUnifiedStatusOutput:
 # 10. quality_validator.py 统一4档状态测试
 # ──────────────────────────────────────────────
 
+
 class TestQualityValidatorStatus:
     """验证 quality_validator.py 的 validate_single_case_status 输出。"""
 
     def test_valid_case_returns_passed(self) -> None:
         from app.services.test_case_generation.quality_validator import validate_single_case_status
+
         case = {
             "title": "验证用户登录功能正常工作",
             "precondition": "账号已登录，网络环境正常，测试数据已准备",
@@ -716,6 +726,7 @@ class TestQualityValidatorStatus:
 
     def test_empty_title_returns_rejected(self) -> None:
         from app.services.test_case_generation.quality_validator import validate_single_case_status
+
         case = {
             "title": "",
             "precondition": "账号已登录",
@@ -732,6 +743,7 @@ class TestQualityValidatorStatus:
 
     def test_vague_title_returns_pending_review(self) -> None:
         from app.services.test_case_generation.quality_validator import validate_single_case_status
+
         case = {
             "title": "功能验证测试用例标题加长版",
             "precondition": "账号已登录，网络环境正常",
@@ -751,25 +763,31 @@ class TestQualityValidatorStatus:
 # 11. quality_gate.py 4档状态映射测试
 # ──────────────────────────────────────────────
 
+
 class TestGradeToQualityStatus:
     """验证 _grade_to_quality_status 映射。"""
 
     def test_a_to_passed(self) -> None:
         from app.pipelines.steps.quality_gate import _grade_to_quality_status
+
         assert _grade_to_quality_status("A") == "passed"
 
     def test_b_to_warning(self) -> None:
         from app.pipelines.steps.quality_gate import _grade_to_quality_status
+
         assert _grade_to_quality_status("B") == "warning"
 
     def test_c_to_pending_review(self) -> None:
         from app.pipelines.steps.quality_gate import _grade_to_quality_status
+
         assert _grade_to_quality_status("C") == "pending_review"
 
     def test_d_to_rejected(self) -> None:
         from app.pipelines.steps.quality_gate import _grade_to_quality_status
+
         assert _grade_to_quality_status("D") == "rejected"
 
     def test_unknown_defaults_to_pending_review(self) -> None:
         from app.pipelines.steps.quality_gate import _grade_to_quality_status
+
         assert _grade_to_quality_status("X") == "pending_review"

@@ -14,6 +14,7 @@ Playwright 1.58 兼容性：
   将 PageData.a11y dict 树经 dict_to_aria_yaml 序列化为 YAML 字符串返回，
   与生产端 _parse_aria_yaml 解析路径闭环。
 """
+
 from dataclasses import dataclass, field
 from hashlib import sha256
 from typing import Any, Dict, List, Optional, Set
@@ -34,6 +35,7 @@ class PageData:
     a11y 字段为 dict 树格式（与原 page.accessibility.snapshot 一致），
     FakeLocator.aria_snapshot() 会序列化为 YAML 字符串供生产端 _parse_aria_yaml 解析。
     """
+
     url: str
     title: str
     a11y: Dict[str, Any] = field(default_factory=dict)
@@ -118,11 +120,7 @@ class FakeLocator:
         self._page.click_log.append(self._selector)
         # 提交按钮点击后切换登录态（登录成功路径）；失败场景由 login_succeeds 控制
         cur = self._page._current
-        if (
-            self._selector in _SUBMIT_SELECTORS
-            and cur is not None
-            and self._page.login_succeeds
-        ):
+        if self._selector in _SUBMIT_SELECTORS and cur is not None and self._page.login_succeeds:
             cur.login_state = False
 
     async def aria_snapshot(self) -> str:
@@ -243,9 +241,7 @@ class FakeRedis:
         return True
 
 
-def make_a11y_node(
-    role: str, name: str = "", children: Optional[List[Dict[str, Any]]] = None
-) -> Dict[str, Any]:
+def make_a11y_node(role: str, name: str = "", children: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """构造无障碍树节点，供 _extract_interactive_elements 测试。"""
     return {"role": role, "name": name, "children": children or []}
 
@@ -323,10 +319,12 @@ def ensureProjectsSourceColumn(testEngine) -> None:
     existing_indexes = {idx["name"] for idx in inspector.get_indexes("projects")}
     with testEngine.connect() as conn:
         if "source" not in existing_columns:
-            conn.execute(text(
-                "ALTER TABLE projects ADD COLUMN source VARCHAR(64) NOT NULL "
-                "DEFAULT 'manual' COMMENT '来源:manual/url_quick_test'"
-            ))
+            conn.execute(
+                text(
+                    "ALTER TABLE projects ADD COLUMN source VARCHAR(64) NOT NULL "
+                    "DEFAULT 'manual' COMMENT '来源:manual/url_quick_test'"
+                )
+            )
         if "ix_projects_source" not in existing_indexes:
             conn.execute(text("CREATE INDEX ix_projects_source ON projects (source)"))
         conn.commit()
@@ -355,14 +353,14 @@ def ensureTestCaseGroundingSourceColumn(testEngine) -> None:
     existing_indexes = {idx["name"] for idx in inspector.get_indexes("test_cases")}
     with testEngine.connect() as conn:
         if "grounding_source" not in existing_columns:
-            conn.execute(text(
-                "ALTER TABLE test_cases ADD COLUMN grounding_source VARCHAR(32) "
-                "NULL COMMENT '元素锚定来源: dom_snapshot/manual'"
-            ))
+            conn.execute(
+                text(
+                    "ALTER TABLE test_cases ADD COLUMN grounding_source VARCHAR(32) "
+                    "NULL COMMENT '元素锚定来源: dom_snapshot/manual'"
+                )
+            )
         if "ix_test_cases_grounding_source" not in existing_indexes:
-            conn.execute(text(
-                "CREATE INDEX ix_test_cases_grounding_source ON test_cases (grounding_source)"
-            ))
+            conn.execute(text("CREATE INDEX ix_test_cases_grounding_source ON test_cases (grounding_source)"))
         conn.commit()
     yield
 

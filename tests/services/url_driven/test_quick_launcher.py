@@ -5,6 +5,7 @@
   建项/探索/生成/推送的替身，可控抛异常；真实 TaskAssembler + FakeExecutor 装配任务。
 验证编排顺序、4 阶段推送、各步降级策略、响应字段与通道格式。
 """
+
 import asyncio
 from typing import Any, Dict, List, Optional
 
@@ -32,7 +33,9 @@ class FakeProjectBuilder:
         if self._raise is not None:
             raise self._raise
         proj = Project(
-            name="quick_test_proj", user_id=user_id, project_type="web",
+            name="quick_test_proj",
+            user_id=user_id,
+            project_type="web",
             source="url_quick_test",
         )
         session.add(proj)
@@ -53,8 +56,12 @@ class FakeSiteExplorer:
         if self._raise is not None:
             raise self._raise
         return self._site_map or SiteMap(
-            entry_url=url, pages=[], max_depth_reached=0,
-            explored_count=0, skipped_count=0, cache_key="",
+            entry_url=url,
+            pages=[],
+            max_depth_reached=0,
+            explored_count=0,
+            skipped_count=0,
+            cache_key="",
         )
 
 
@@ -114,9 +121,15 @@ class FailingAssembler:
 def make_case(db, project: Project, case_no: str) -> TestCase:
     """构造并持久化 TestCase，供 FakeCaseGenerator 返回。"""
     case = TestCase(
-        case_no=case_no, project_id=project.id, module="默认", title=f"用例{case_no}",
-        precondition="无", steps_json=[], expected_result="成功",
-        priority=2, case_type="UI",
+        case_no=case_no,
+        project_id=project.id,
+        module="默认",
+        title=f"用例{case_no}",
+        precondition="无",
+        steps_json=[],
+        expected_result="成功",
+        priority=2,
+        case_type="UI",
     )
     db.add(case)
     db.flush()
@@ -124,8 +137,16 @@ def make_case(db, project: Project, case_no: str) -> TestCase:
 
 
 def build_launcher(
-    db, testUser, *, project_raise=None, explorer_raise=None, explorer_map=None,
-    generator_raise=None, generator_cases=None, push_raise=None, assembler_fail=False,
+    db,
+    testUser,
+    *,
+    project_raise=None,
+    explorer_raise=None,
+    explorer_map=None,
+    generator_raise=None,
+    generator_cases=None,
+    push_raise=None,
+    assembler_fail=False,
 ):
     """组装 QuickLauncher，注入各 Fake 依赖，返回 (launcher, fakes_dict)。
 
@@ -149,9 +170,12 @@ def build_launcher(
         pipeline_session_factory=lambda: db,
     )
     fakes = {
-        "project_builder": project_builder, "explorer": explorer,
-        "case_generator": case_generator, "push_service": push_service,
-        "executor": executor, "assembler": assembler,
+        "project_builder": project_builder,
+        "explorer": explorer,
+        "case_generator": case_generator,
+        "push_service": push_service,
+        "executor": executor,
+        "assembler": assembler,
     }
     return launcher, fakes
 
@@ -176,24 +200,34 @@ class TestLaunchSuccess:
         class _Gen:
             def generate(self, site_map, project_id, description, user_id, session):
                 case = TestCase(
-                    case_no="TC-Q-1", project_id=project_id, module="默认", title="用例",
-                    precondition="无", steps_json=[], expected_result="成功",
-                    priority=2, case_type="UI",
+                    case_no="TC-Q-1",
+                    project_id=project_id,
+                    module="默认",
+                    title="用例",
+                    precondition="无",
+                    steps_json=[],
+                    expected_result="成功",
+                    priority=2,
+                    case_type="UI",
                 )
                 session.add(case)
                 session.flush()
                 return [case]
 
         launcher, fakes = build_launcher(
-            db, testUser, explorer_map=SiteMap(
-                entry_url="https://shop.example.com", pages=[], max_depth_reached=0,
-                explored_count=0, skipped_count=0, cache_key="",
+            db,
+            testUser,
+            explorer_map=SiteMap(
+                entry_url="https://shop.example.com",
+                pages=[],
+                max_depth_reached=0,
+                explored_count=0,
+                skipped_count=0,
+                cache_key="",
             ),
         )
         launcher._case_generator_factory = lambda: _Gen()
-        resp = await launcher.launch(
-            "https://shop.example.com", "重点测登录", None, testUser.id, db
-        )
+        resp = await launcher.launch("https://shop.example.com", "重点测登录", None, testUser.id, db)
         assert isinstance(resp, QuickTestLaunchResponse)
         assert resp.task_id > 0
         assert resp.project_id > 0
@@ -205,9 +239,7 @@ class TestLaunchSuccess:
     @pytest.mark.asyncio
     async def test_estimated_duration_zero_when_no_cases(self, db, testUser):
         launcher, _ = build_launcher(db, testUser, generator_cases=[])
-        resp = await launcher.launch(
-            "https://shop.example.com", None, None, testUser.id, db
-        )
+        resp = await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         assert resp.estimated_duration_sec == 0
         await _drain_pipeline_tasks()
 
@@ -229,9 +261,7 @@ class TestLaunchSuccess:
             await original_pipeline(*args, **kwargs)
 
         monkeypatch.setattr(launcher, "_run_pipeline_async", paused_pipeline)
-        resp = await launcher.launch(
-            "https://shop.example.com", None, None, testUser.id, db
-        )
+        resp = await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         # launch 已返回，但 _run_pipeline_async 仍在等 proceed
         assert resp.task_id > 0
         assert resp.estimated_duration_sec == 0
@@ -266,9 +296,7 @@ class TestLaunchSuccess:
     @pytest.mark.asyncio
     async def test_4_stages_pushed_in_order(self, db, testUser):
         launcher, fakes = build_launcher(db, testUser, generator_cases=[])
-        resp = await launcher.launch(
-            "https://shop.example.com", None, None, testUser.id, db
-        )
+        resp = await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         await _drain_pipeline_tasks()
         push = fakes["push_service"]
         # 提取阶段去重相邻（每阶段 running+done 两次推送）
@@ -284,9 +312,7 @@ class TestLaunchSuccess:
     @pytest.mark.asyncio
     async def test_completed_message_contains_task_and_project(self, db, testUser):
         launcher, fakes = build_launcher(db, testUser, generator_cases=[])
-        resp = await launcher.launch(
-            "https://shop.example.com", None, None, testUser.id, db
-        )
+        resp = await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         await _drain_pipeline_tasks()
         push = fakes["push_service"]
         completed = [c for c in push.calls if c["data"]["stage"] == "completed"]
@@ -304,12 +330,12 @@ class TestExploreFailure:
     @pytest.mark.asyncio
     async def test_explore_failure_degrades_to_empty(self, db, testUser):
         launcher, fakes = build_launcher(
-            db, testUser, explorer_raise=RuntimeError("browser timeout"),
+            db,
+            testUser,
+            explorer_raise=RuntimeError("browser timeout"),
             generator_cases=[],
         )
-        resp = await launcher.launch(
-            "https://shop.example.com", None, None, testUser.id, db
-        )
+        resp = await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         assert resp.task_id > 0
         assert resp.estimated_duration_sec == 0
         await _drain_pipeline_tasks()
@@ -317,7 +343,9 @@ class TestExploreFailure:
     @pytest.mark.asyncio
     async def test_explore_failure_pushes_failed_status(self, db, testUser):
         launcher, fakes = build_launcher(
-            db, testUser, explorer_raise=RuntimeError("browser timeout"),
+            db,
+            testUser,
+            explorer_raise=RuntimeError("browser timeout"),
             generator_cases=[],
         )
         await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
@@ -334,11 +362,11 @@ class TestCaseGenerationFailure:
     @pytest.mark.asyncio
     async def test_generation_failure_degrades_to_empty(self, db, testUser):
         launcher, fakes = build_launcher(
-            db, testUser, generator_raise=RuntimeError("ai timeout"),
+            db,
+            testUser,
+            generator_raise=RuntimeError("ai timeout"),
         )
-        resp = await launcher.launch(
-            "https://shop.example.com", None, None, testUser.id, db
-        )
+        resp = await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         assert resp.task_id > 0
         assert resp.estimated_duration_sec == 0
         await _drain_pipeline_tasks()
@@ -346,7 +374,9 @@ class TestCaseGenerationFailure:
     @pytest.mark.asyncio
     async def test_generation_failure_pushes_failed_status(self, db, testUser):
         launcher, fakes = build_launcher(
-            db, testUser, generator_raise=RuntimeError("ai timeout"),
+            db,
+            testUser,
+            generator_raise=RuntimeError("ai timeout"),
         )
         await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         await _drain_pipeline_tasks()
@@ -362,9 +392,7 @@ class TestAssembleFailure:
     @pytest.mark.asyncio
     async def test_assemble_failure_still_returns_task_id(self, db, testUser):
         launcher, fakes = build_launcher(db, testUser, assembler_fail=True)
-        resp = await launcher.launch(
-            "https://shop.example.com", None, None, testUser.id, db
-        )
+        resp = await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         assert resp.task_id > 0
         await _drain_pipeline_tasks()
 
@@ -385,7 +413,9 @@ class TestBuildFailure:
     @pytest.mark.asyncio
     async def test_build_failure_raises(self, db, testUser):
         launcher, fakes = build_launcher(
-            db, testUser, project_raise=RuntimeError("build failed"),
+            db,
+            testUser,
+            project_raise=RuntimeError("build failed"),
         )
         with pytest.raises(RuntimeError, match="build failed"):
             await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
@@ -399,7 +429,10 @@ class TestPushFailure:
     @pytest.mark.asyncio
     async def test_push_failure_doesnt_block(self, db, testUser):
         launcher, fakes = build_launcher(
-            db, testUser, push_raise=ConnectionError("ws refused"), generator_cases=[],
+            db,
+            testUser,
+            push_raise=ConnectionError("ws refused"),
+            generator_cases=[],
         )
         resp = await launcher.launch("https://shop.example.com", None, None, testUser.id, db)
         assert resp.task_id > 0

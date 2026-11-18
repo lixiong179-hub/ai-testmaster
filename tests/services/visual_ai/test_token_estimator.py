@@ -9,6 +9,7 @@
     - estimate_comparison: 禁用 LLM 返回 0 / 启用返回非零
     - VisualTokenBudgetGuard: check_single_call / is_daily_budget_exhausted
 """
+
 from __future__ import annotations
 
 import pytest

@@ -172,7 +172,14 @@ class TestBuildUiSpecDescription:
     def test_elements(self):
         spec = {
             "elements": [
-                {"type": "button", "label": "提交", "position": "center", "state": "normal", "interactive": True, "description": "提交按钮"},
+                {
+                    "type": "button",
+                    "label": "提交",
+                    "position": "center",
+                    "state": "normal",
+                    "interactive": True,
+                    "description": "提交按钮",
+                },
             ],
         }
         result = build_ui_spec_description(spec)
@@ -182,7 +189,13 @@ class TestBuildUiSpecDescription:
     def test_elements_concise_mode(self):
         spec = {
             "elements": [
-                {"type": "input", "label": "用户名", "state": "normal", "interactive": True, "description": "用户名输入框"},
+                {
+                    "type": "input",
+                    "label": "用户名",
+                    "state": "normal",
+                    "interactive": True,
+                    "description": "用户名输入框",
+                },
             ],
         }
         result = build_ui_spec_description(spec, screen_name="登录页")
@@ -190,7 +203,17 @@ class TestBuildUiSpecDescription:
         assert "可交互" in result
 
     def test_elements_truncated_at_max(self):
-        elements = [{"type": "text", "label": f"元素{i}", "position": "", "state": "normal", "interactive": False, "description": ""} for i in range(25)]
+        elements = [
+            {
+                "type": "text",
+                "label": f"元素{i}",
+                "position": "",
+                "state": "normal",
+                "interactive": False,
+                "description": "",
+            }
+            for i in range(25)
+        ]
         result = build_ui_spec_description({"elements": elements})
         assert "共25个" in result
 
@@ -251,14 +274,32 @@ class TestBuildUiSpecDescription:
 
     def test_element_label_fallback_to_semantic(self):
         spec = {
-            "elements": [{"type": "text", "semantic": "标题", "position": "", "state": "normal", "interactive": False, "description": ""}],
+            "elements": [
+                {
+                    "type": "text",
+                    "semantic": "标题",
+                    "position": "",
+                    "state": "normal",
+                    "interactive": False,
+                    "description": "",
+                }
+            ],
         }
         result = build_ui_spec_description(spec)
         assert "标题" in result
 
     def test_element_label_fallback_to_name(self):
         spec = {
-            "elements": [{"type": "text", "name": "字段名", "position": "", "state": "normal", "interactive": False, "description": ""}],
+            "elements": [
+                {
+                    "type": "text",
+                    "name": "字段名",
+                    "position": "",
+                    "state": "normal",
+                    "interactive": False,
+                    "description": "",
+                }
+            ],
         }
         result = build_ui_spec_description(spec)
         assert "字段名" in result

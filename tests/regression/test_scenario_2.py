@@ -3,6 +3,7 @@
     - 场景注册表可查询
     - 依赖链完整（4 个 Step，无 TestPointAlignment）    - Pipeline 端到端运行完成    - 生成用例 locator_status 为 pending（无 UI 无法定位）    - 用例持久化到数据库
 使用 Alpha 标注集（去掉 UI 输入），MockAIClient 模拟 AI 响应。"""
+
 import json
 import pytest
 
@@ -95,18 +96,14 @@ class TestScenario2Regression:
         run_scenario(db, s2_iteration.id, 2, mock_ai_s2, testUser.id)
         db.flush()
 
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == s2_iteration.project_id
-        ).all()
+        cases = db.query(TestCase).filter(TestCase.project_id == s2_iteration.project_id).all()
         assert len(cases) >= 1
 
     def test_case_type_is_api(self, db, s2_iteration, mock_ai_s2, testUser):
         run_scenario(db, s2_iteration.id, 2, mock_ai_s2, testUser.id)
         db.flush()
 
-        case = db.query(TestCase).filter(
-            TestCase.project_id == s2_iteration.project_id
-        ).first()
+        case = db.query(TestCase).filter(TestCase.project_id == s2_iteration.project_id).first()
         assert case is not None
         assert case.case_type == "API"
 

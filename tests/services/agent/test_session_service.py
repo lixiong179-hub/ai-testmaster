@@ -6,6 +6,7 @@ cancel_session / get_session / list_sessions 全部方法与校验分支，
 
 被测：app/services/agent/session_service.py（SessionService）
 """
+
 import pytest
 
 from app.models.project import Project
@@ -24,7 +25,8 @@ class TestCreateSession:
     async def test_create_session_success(self, service, async_db, async_test_project):
         """正常创建 → 返回 AgentSession，status=running。"""
         session = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         assert session.id is not None
@@ -38,7 +40,8 @@ class TestCreateSession:
         """非法 agent_type → AgentError。"""
         with pytest.raises(AgentError, match="非法 agent_type"):
             await service.create_session(
-                async_db, agent_type="invalid_type",
+                async_db,
+                agent_type="invalid_type",
                 project_id=async_test_project.id,
             )
 
@@ -49,12 +52,16 @@ class TestAppendMessage:
     async def test_append_message_success(self, service, async_db, async_test_project):
         """正常追加 → 返回 AgentMessage。"""
         session = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         msg = await service.append_message(
-            async_db, session_id=session.id, role="user",
-            content={"text": "hello"}, token_cost=100,
+            async_db,
+            session_id=session.id,
+            role="user",
+            content={"text": "hello"},
+            token_cost=100,
         )
         assert msg.id is not None
         assert msg.session_id == session.id
@@ -65,12 +72,15 @@ class TestAppendMessage:
     async def test_append_message_invalid_role(self, service, async_db, async_test_project):
         """非法 role → AgentError。"""
         session = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         with pytest.raises(AgentError, match="非法消息角色"):
             await service.append_message(
-                async_db, session_id=session.id, role="invalid",
+                async_db,
+                session_id=session.id,
+                role="invalid",
                 content={"text": "x"},
             )
 
@@ -81,12 +91,15 @@ class TestGetHistory:
     async def test_get_history_ordered_asc(self, service, async_db, async_test_project):
         """返回按 created_at 升序的消息列表。"""
         session = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         for i in range(3):
             await service.append_message(
-                async_db, session_id=session.id, role="user",
+                async_db,
+                session_id=session.id,
+                role="user",
                 content={"text": f"msg-{i}"},
             )
         history = await service.get_history(async_db, session.id)
@@ -96,12 +109,15 @@ class TestGetHistory:
     async def test_get_history_limit(self, service, async_db, async_test_project):
         """limit 参数生效。"""
         session = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         for i in range(5):
             await service.append_message(
-                async_db, session_id=session.id, role="user",
+                async_db,
+                session_id=session.id,
+                role="user",
                 content={"text": f"msg-{i}"},
             )
         history = await service.get_history(async_db, session.id, limit=2)
@@ -116,12 +132,16 @@ class TestCompleteSession:
     async def test_complete_session_success(self, service, async_db, async_test_project):
         """正常完成 → status=completed + completed_at 设置。"""
         session = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         completed = await service.complete_session(
-            async_db, session_id=session.id, status="completed",
-            token_cost=500, iteration_count=3,
+            async_db,
+            session_id=session.id,
+            status="completed",
+            token_cost=500,
+            iteration_count=3,
         )
         assert completed.status == "completed"
         assert completed.completed_at is not None
@@ -131,12 +151,15 @@ class TestCompleteSession:
     async def test_complete_session_invalid_status(self, service, async_db, async_test_project):
         """状态非法 → AgentError。"""
         session = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         with pytest.raises(AgentError, match="非法会话状态"):
             await service.complete_session(
-                async_db, session_id=session.id, status="invalid",
+                async_db,
+                session_id=session.id,
+                status="invalid",
             )
 
 
@@ -146,7 +169,8 @@ class TestCancelSession:
     async def test_cancel_session(self, service, async_db, async_test_project):
         """取消 → status=cancelled。"""
         session = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         cancelled = await service.cancel_session(async_db, session.id)
@@ -165,7 +189,8 @@ class TestGetSession:
     async def test_get_session_found(self, service, async_db, async_test_project):
         """存在 → 返回 AgentSession。"""
         session = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         fetched = await service.get_session(async_db, session.id)
@@ -177,26 +202,30 @@ class TestGetSession:
 class TestListSessions:
     """list_sessions 分页与过滤。"""
 
-    async def test_list_sessions_filter_by_project(
-        self, service, async_db, async_test_user, async_test_project
-    ):
+    async def test_list_sessions_filter_by_project(self, service, async_db, async_test_user, async_test_project):
         """按 project_id 过滤。"""
         other_project = Project(
-            name="other_project", user_id=async_test_user.id,
-            description="other", status=1, project_type="web",
+            name="other_project",
+            user_id=async_test_user.id,
+            description="other",
+            status=1,
+            project_type="web",
         )
         async_db.add(other_project)
         await async_db.flush()
         await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=other_project.id,
         )
         sessions, total = await service.list_sessions(
-            async_db, project_id=async_test_project.id,
+            async_db,
+            project_id=async_test_project.id,
         )
         assert total == 1
         assert len(sessions) == 1
@@ -205,15 +234,18 @@ class TestListSessions:
     async def test_list_sessions_filter_by_agent_type(self, service, async_db, async_test_project):
         """按 agent_type 过滤。"""
         await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         await service.create_session(
-            async_db, agent_type="failure_analysis",
+            async_db,
+            agent_type="failure_analysis",
             project_id=async_test_project.id,
         )
         sessions, total = await service.list_sessions(
-            async_db, agent_type="failure_analysis",
+            async_db,
+            agent_type="failure_analysis",
         )
         assert total == 1
         assert all(s.agent_type == "failure_analysis" for s in sessions)
@@ -221,12 +253,14 @@ class TestListSessions:
     async def test_list_sessions_filter_by_status(self, service, async_db, async_test_project):
         """按 status 过滤。"""
         s1 = await service.create_session(
-            async_db, agent_type="test_generation",
+            async_db,
+            agent_type="test_generation",
             project_id=async_test_project.id,
         )
         await service.complete_session(async_db, session_id=s1.id, status="completed")
         await service.create_session(
-            async_db, agent_type="failure_analysis",
+            async_db,
+            agent_type="failure_analysis",
             project_id=async_test_project.id,
         )
         sessions, total = await service.list_sessions(async_db, status="completed")
@@ -237,7 +271,8 @@ class TestListSessions:
         """分页 offset/limit + total 正确。"""
         for _ in range(5):
             await service.create_session(
-                async_db, agent_type="test_generation",
+                async_db,
+                agent_type="test_generation",
                 project_id=async_test_project.id,
             )
         page1, total = await service.list_sessions(async_db, offset=0, limit=2)
@@ -252,7 +287,8 @@ class TestListSessions:
         """无过滤返回全部。"""
         for _ in range(3):
             await service.create_session(
-                async_db, agent_type="test_generation",
+                async_db,
+                agent_type="test_generation",
                 project_id=async_test_project.id,
             )
         sessions, total = await service.list_sessions(async_db)

@@ -4,6 +4,7 @@
     - get_token_usage 每日 Token 消耗    - get_run_duration 平均运行时长
     - get_step_latency — Step 耗时分布
     - get_cache_hit_rate 缓存命中率"""
+
 import pytest
 from datetime import timedelta
 
@@ -109,6 +110,7 @@ def _make_call_log(db, run_id: int) -> AICallLog:
 class TestDashboardOverview:
     async def test_overview_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
+
         result = await get_dashboard_overview(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert data["total_runs"] == 0
@@ -123,6 +125,7 @@ class TestDashboardOverview:
         _make_call_log(db, run.id)
 
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
+
         result = await get_dashboard_overview(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert data["total_runs"] >= 1
@@ -135,6 +138,7 @@ class TestDashboardOverview:
         _make_call_log(db, run.id)
 
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
+
         result = await get_dashboard_overview(db=db, project_id=project.id, days=7, current_user=_get_user(db))
         data = result["data"]
         assert data["total_runs"] >= 1
@@ -143,6 +147,7 @@ class TestDashboardOverview:
 class TestTokenUsage:
     async def test_token_usage_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_token_usage
+
         result = await get_token_usage(db=db, project_id=None, days=7, current_user=_get_user(db))
         assert result["data"] == {}
 
@@ -153,6 +158,7 @@ class TestTokenUsage:
         _make_call_log(db, run.id)
 
         from app.api.v1.endpoints.pipeline_dashboard import get_token_usage
+
         result = await get_token_usage(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert len(data) >= 1
@@ -162,6 +168,7 @@ class TestTokenUsage:
 class TestRunDuration:
     async def test_run_duration_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_run_duration
+
         result = await get_run_duration(db=db, project_id=None, days=7, current_user=_get_user(db))
         assert result["data"] == {}
 
@@ -171,6 +178,7 @@ class TestRunDuration:
         _make_run(db, iteration.id, "completed")
 
         from app.api.v1.endpoints.pipeline_dashboard import get_run_duration
+
         result = await get_run_duration(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert len(data) >= 1
@@ -179,6 +187,7 @@ class TestRunDuration:
 class TestStepLatency:
     async def test_step_latency_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_step_latency
+
         result = await get_step_latency(db=db, project_id=None, days=7, current_user=_get_user(db))
         assert result["data"] == {}
 
@@ -189,6 +198,7 @@ class TestStepLatency:
         _make_step(db, run.id, "backward_scan", "done")
 
         from app.api.v1.endpoints.pipeline_dashboard import get_step_latency
+
         result = await get_step_latency(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert len(data) >= 1
@@ -198,6 +208,7 @@ class TestStepLatency:
 class TestCacheHitRate:
     async def test_cache_hit_rate_empty(self, db):
         from app.api.v1.endpoints.pipeline_dashboard import get_cache_hit_rate
+
         result = await get_cache_hit_rate(db=db, project_id=None, days=7, current_user=_get_user(db))
         assert result["data"] == {}
 
@@ -209,6 +220,7 @@ class TestCacheHitRate:
         _make_step(db, run.id, "forward_scan", "skipped")
 
         from app.api.v1.endpoints.pipeline_dashboard import get_cache_hit_rate
+
         result = await get_cache_hit_rate(db=db, project_id=None, days=7, current_user=_get_user(db))
         data = result["data"]
         assert len(data) >= 1

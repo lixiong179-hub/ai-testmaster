@@ -76,10 +76,7 @@ class TestWebSocketReal:
 
             # 模拟后端发送广播消息
             async def send_broadcast():
-                await manager.broadcast(execution_id, {
-                    "type": "test",
-                    "message": "广播测试"
-                })
+                await manager.broadcast(execution_id, {"type": "test", "message": "广播测试"})
 
             asyncio.run(send_broadcast())
 
@@ -104,7 +101,7 @@ class TestWebSocketReal:
                     step_number=1,
                     action="点击登录按钮",
                     status="passed",
-                    message="按钮点击成功"
+                    message="按钮点击成功",
                 )
 
             asyncio.run(send_log())
@@ -128,10 +125,7 @@ class TestWebSocketReal:
             # 模拟发送进度
             async def send_progress():
                 await manager.send_progress(
-                    execution_id=execution_id,
-                    current_step=2,
-                    total_steps=5,
-                    estimated_remaining_seconds=30
+                    execution_id=execution_id, current_step=2, total_steps=5, estimated_remaining_seconds=30
                 )
 
             asyncio.run(send_progress())
@@ -154,11 +148,7 @@ class TestWebSocketReal:
 
             # 模拟发送状态
             async def send_status():
-                await manager.send_status(
-                    execution_id=execution_id,
-                    status="running",
-                    message="正在执行步骤3"
-                )
+                await manager.send_status(execution_id=execution_id, status="running", message="正在执行步骤3")
 
             asyncio.run(send_status())
 
@@ -183,10 +173,7 @@ class TestWebSocketReal:
 
                     # 发送广播
                     async def send_broadcast():
-                        await manager.broadcast(execution_id, {
-                            "type": "multi_test",
-                            "message": "多客户端测试"
-                        })
+                        await manager.broadcast(execution_id, {"type": "multi_test", "message": "多客户端测试"})
 
                     asyncio.run(send_broadcast())
 
@@ -213,10 +200,7 @@ class TestWebSocketReal:
 
                 # 向execution_id_1发送消息
                 async def send_to_first():
-                    await manager.broadcast(execution_id_1, {
-                        "type": "isolated_test",
-                        "message": "隔离测试"
-                    })
+                    await manager.broadcast(execution_id_1, {"type": "isolated_test", "message": "隔离测试"})
 
                 asyncio.run(send_to_first())
 

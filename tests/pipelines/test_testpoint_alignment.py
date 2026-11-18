@@ -2,6 +2,7 @@
 TestPointAlignment Step 专项测试
 
 覆盖 TestPointAlignment 类所有方法 + 所有纯函数的分支路径。目标：line≥95%, branch≥95%。"""
+
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 
@@ -218,11 +219,7 @@ class TestExtractInferredCapabilities:
 
     def test_change_summary_not_dict_skips_fallback(self) -> None:
         """分支 13->20: change_summary 非 dict 时跳过 fallback，直接返回空列表。"""
-        inferred = {
-            "parsed": {
-                "change_summary": "not_a_dict"
-            }
-        }
+        inferred = {"parsed": {"change_summary": "not_a_dict"}}
         result = _extract_inferred_capabilities(inferred)
         assert result == []
 
@@ -680,11 +677,13 @@ class TestCacheKey:
         assert step.cache_key(ctx) == ""
 
     def test_deterministic(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "test_points": [{"id": 1, "point": "登录"}, {"id": 2, "point": "注册"}],
-            "ui_specs": [{"screen_id": 1}],
-            "has_ui": True,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "test_points": [{"id": 1, "point": "登录"}, {"id": 2, "point": "注册"}],
+                "ui_specs": [{"screen_id": 1}],
+                "has_ui": True,
+            }
+        )
         step = TestPointAlignment()
         key1 = step.cache_key(ctx)
         key2 = step.cache_key(ctx)
@@ -771,11 +770,13 @@ class TestValidateOutput:
 
 class TestFallback:
     def test_returns_degraded(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "test_points": [{"id": 1, "module": "用户", "point": "登录", "function": ""}],
-            "ui_specs": [],
-            "has_ui": False,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "test_points": [{"id": 1, "module": "用户", "point": "登录", "function": ""}],
+                "ui_specs": [],
+                "has_ui": False,
+            }
+        )
         step = TestPointAlignment()
         result = step.fallback(ctx, RuntimeError("test error"))
         assert result.degraded is True
@@ -811,14 +812,16 @@ class TestExecute:
         assert result.error is not None
 
     def test_basic_alignment_with_testpoints(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "project_id": 1,
-            "test_points": [
-                {"id": 1, "module": "用户管理", "point": "登录功能", "function": "", "priority": 1},
-            ],
-            "ui_specs": [],
-            "has_ui": False,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "project_id": 1,
+                "test_points": [
+                    {"id": 1, "module": "用户管理", "point": "登录功能", "function": "", "priority": 1},
+                ],
+                "ui_specs": [],
+                "has_ui": False,
+            }
+        )
         step = TestPointAlignment()
         result = step.execute(ctx)
         assert result.success is True
@@ -831,16 +834,18 @@ class TestExecute:
         assert payload["sources"]["inferred"] is False
 
     def test_ui_matching(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "project_id": 1,
-            "test_points": [
-                {"id": 1, "module": "用户管理", "point": "", "function": "", "priority": 1},
-            ],
-            "ui_specs": [
-                {"screen_id": 1, "screen_name": "用户管理页面", "ui_spec": {}},
-            ],
-            "has_ui": True,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "project_id": 1,
+                "test_points": [
+                    {"id": 1, "module": "用户管理", "point": "", "function": "", "priority": 1},
+                ],
+                "ui_specs": [
+                    {"screen_id": 1, "screen_name": "用户管理页面", "ui_spec": {}},
+                ],
+                "has_ui": True,
+            }
+        )
         step = TestPointAlignment()
         result = step.execute(ctx)
         payload = result.artifact_payload
@@ -899,16 +904,18 @@ class TestExecute:
         assert aligned[0]["scenario_match"]["scenario_id"] == 1
 
     def test_no_match_produces_conflict(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "project_id": 1,
-            "test_points": [
-                {"id": 1, "module": "不存在", "point": "不存在", "function": "", "priority": 1},
-            ],
-            "ui_specs": [
-                {"screen_id": 1, "screen_name": "用户管理", "ui_spec": {}},
-            ],
-            "has_ui": True,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "project_id": 1,
+                "test_points": [
+                    {"id": 1, "module": "不存在", "point": "不存在", "function": "", "priority": 1},
+                ],
+                "ui_specs": [
+                    {"screen_id": 1, "screen_name": "用户管理", "ui_spec": {}},
+                ],
+                "has_ui": True,
+            }
+        )
         step = TestPointAlignment()
         result = step.execute(ctx)
         payload = result.artifact_payload
@@ -917,17 +924,19 @@ class TestExecute:
         assert payload["conflicts"][0]["alignment_status"] == "no_ui_match"
 
     def test_pause_triggered_on_low_confidence(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "project_id": 1,
-            "test_points": [
-                {"id": 1, "module": "登录功能", "point": "", "function": "", "priority": 1},
-                {"id": 2, "module": "不存在模块", "point": "", "function": "", "priority": 1},
-            ],
-            "ui_specs": [
-                {"screen_id": 1, "screen_name": "登录功能页面", "ui_spec": {}},
-            ],
-            "has_ui": True,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "project_id": 1,
+                "test_points": [
+                    {"id": 1, "module": "登录功能", "point": "", "function": "", "priority": 1},
+                    {"id": 2, "module": "不存在模块", "point": "", "function": "", "priority": 1},
+                ],
+                "ui_specs": [
+                    {"screen_id": 1, "screen_name": "登录功能页面", "ui_spec": {}},
+                ],
+                "has_ui": True,
+            }
+        )
         step = TestPointAlignment()
         result = step.execute(ctx)
         assert result.pause_for_confirmation is True
@@ -996,35 +1005,41 @@ class TestExecute:
         assert tp2["capability_match"]["capability_key"] == "logout"
 
     def test_active_sources_tracking(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "project_id": 1,
-            "test_points": [{"id": 1, "module": "", "point": "", "function": "", "priority": 1}],
-            "ui_specs": [],
-            "has_ui": False,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "project_id": 1,
+                "test_points": [{"id": 1, "module": "", "point": "", "function": "", "priority": 1}],
+                "ui_specs": [],
+                "has_ui": False,
+            }
+        )
         step = TestPointAlignment()
         result = step.execute(ctx)
         payload = result.artifact_payload
         assert payload["active_sources"] == []
 
     def test_coverage_none_without_inferred_caps(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "project_id": 1,
-            "test_points": [{"id": 1, "module": "test", "point": "", "function": "", "priority": 1}],
-            "ui_specs": [],
-            "has_ui": False,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "project_id": 1,
+                "test_points": [{"id": 1, "module": "test", "point": "", "function": "", "priority": 1}],
+                "ui_specs": [],
+                "has_ui": False,
+            }
+        )
         step = TestPointAlignment()
         result = step.execute(ctx)
         assert result.artifact_payload["coverage"] is None
 
     def test_artifact_provenance(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "project_id": 1,
-            "test_points": [{"id": 1, "module": "t", "point": "", "function": "", "priority": 1}],
-            "ui_specs": [],
-            "has_ui": False,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "project_id": 1,
+                "test_points": [{"id": 1, "module": "t", "point": "", "function": "", "priority": 1}],
+                "ui_specs": [],
+                "has_ui": False,
+            }
+        )
         step = TestPointAlignment()
         result = step.execute(ctx)
         assert result.artifact_provenance is not None
@@ -1068,12 +1083,14 @@ class TestExecute:
         assert payload["active_sources"] == ["ui", "inferred", "scenario"]
 
     def test_edge_case_empty_everything(self) -> None:
-        ctx = _make_ctx(raw_signals={
-            "project_id": 1,
-            "test_points": [],
-            "ui_specs": [],
-            "has_ui": False,
-        })
+        ctx = _make_ctx(
+            raw_signals={
+                "project_id": 1,
+                "test_points": [],
+                "ui_specs": [],
+                "has_ui": False,
+            }
+        )
         step = TestPointAlignment()
         result = step.execute(ctx)
         assert result.success is True

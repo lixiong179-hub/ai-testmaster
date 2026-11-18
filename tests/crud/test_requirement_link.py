@@ -27,9 +27,7 @@ def rl_user(db):
     yield user
     try:
         db.query(RequirementLink).filter(
-            RequirementLink.project_id.in_(
-                db.query(Project.id).filter(Project.user_id == user.id)
-            )
+            RequirementLink.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
         ).delete(synchronize_session=False)
         db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
         db.delete(user)
@@ -58,7 +56,6 @@ def _make_link(db, project_id, **kwargs):
 
 
 class TestCreateRequirementLink:
-
     def test_create_basic(self, db, rl_project):
         link = _make_link(db, rl_project.id)
         assert link.id is not None
@@ -68,7 +65,8 @@ class TestCreateRequirementLink:
 
     def test_create_with_auth(self, db, rl_project):
         link = _make_link(
-            db, rl_project.id,
+            db,
+            rl_project.id,
             auth_type="basic",
             auth_config={"username": "admin", "password": "123"},
             link_name="带认证链接",
@@ -77,7 +75,8 @@ class TestCreateRequirementLink:
 
     def test_create_with_all_fields(self, db, rl_project, rl_user):
         link = _make_link(
-            db, rl_project.id,
+            db,
+            rl_project.id,
             created_by=rl_user.id,
             description="描述",
             cache_expire_minutes=120,
@@ -87,7 +86,6 @@ class TestCreateRequirementLink:
 
 
 class TestGetRequirementLinkById:
-
     def test_found(self, db, rl_project):
         link = _make_link(db, rl_project.id)
         result = get_requirement_link_by_id(db, link.id)
@@ -107,7 +105,6 @@ class TestGetRequirementLinkById:
 
 
 class TestGetRequirementLinksByProject:
-
     def test_basic_query(self, db, rl_project, rl_user):
         _make_link(db, rl_project.id, link_name="L1", link_url="https://a.com/1")
         _make_link(db, rl_project.id, link_name="L2", link_url="https://a.com/2")
@@ -136,7 +133,6 @@ class TestGetRequirementLinksByProject:
 
 
 class TestGetRequirementLinksCount:
-
     def test_count(self, db, rl_project, rl_user):
         _make_link(db, rl_project.id, link_url="https://a.com/c1")
         _make_link(db, rl_project.id, link_type="ui_mockup", link_url="https://a.com/c2")
@@ -151,7 +147,6 @@ class TestGetRequirementLinksCount:
 
 
 class TestGetRequirementLinksByTypes:
-
     def test_filter_by_types(self, db, rl_project, rl_user):
         _make_link(db, rl_project.id, link_type="requirement", link_url="https://a.com/t1")
         _make_link(db, rl_project.id, link_type="api_doc", link_url="https://a.com/t2")
@@ -168,7 +163,6 @@ class TestGetRequirementLinksByTypes:
 
 
 class TestUpdateRequirementLink:
-
     def test_update_fields(self, db, rl_project):
         link = _make_link(db, rl_project.id)
         result = update_requirement_link(db, link.id, link_name="新名称", description="新描述")
@@ -188,7 +182,6 @@ class TestUpdateRequirementLink:
 
 
 class TestDeleteRequirementLink:
-
     def test_delete_success(self, db, rl_project):
         link = _make_link(db, rl_project.id)
         result = delete_requirement_link(db, link.id)
@@ -201,7 +194,6 @@ class TestDeleteRequirementLink:
 
 
 class TestUpdateLinkCache:
-
     def test_update_success(self, db, rl_project):
         link = _make_link(db, rl_project.id)
         result = update_link_cache(db, link.id, "cached content", "success")
@@ -220,7 +212,6 @@ class TestUpdateLinkCache:
 
 
 class TestGetActiveLinksByProject:
-
     def test_returns_active_only(self, db, rl_project, rl_user):
         _make_link(db, rl_project.id, link_name="active", link_url="https://a.com/al")
         link2 = _make_link(db, rl_project.id, link_name="inactive", link_url="https://a.com/il")
@@ -231,7 +222,6 @@ class TestGetActiveLinksByProject:
 
 
 class TestToggleLinkActive:
-
     def test_toggle_off(self, db, rl_project, rl_user):
         link = _make_link(db, rl_project.id)
         assert link.is_active is True
@@ -251,7 +241,6 @@ class TestToggleLinkActive:
 
 
 class TestCheckLinkExists:
-
     def test_exists(self, db, rl_project):
         _make_link(db, rl_project.id, link_url="https://example.com/unique_a")
         assert check_link_exists(db, rl_project.id, "https://example.com/unique_a") is True

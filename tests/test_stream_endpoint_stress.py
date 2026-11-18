@@ -4,6 +4,7 @@
 API 重构后已不兼容（db: AsyncSession、质量反馈闭环、PrimarySessionLocal 等）。
 本文件保留端点契约与 SSE 格式的基础行为测试，移除不可恢复的复杂并发场景测试。
 """
+
 import json
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -41,10 +42,8 @@ class TestStreamEndpointRegistration:
         from app.api.v1.endpoints.test_case_ai_stream import router
 
         paths = [r.path for r in router.routes]
-        assert "/ai-enhanced-generate/stream" in paths, \
-            "缺少 /ai-enhanced-generate/stream 端点"
-        assert "/batch-generate/stream" in paths, \
-            "缺少 /batch-generate/stream 端点"
+        assert "/ai-enhanced-generate/stream" in paths, "缺少 /ai-enhanced-generate/stream 端点"
+        assert "/batch-generate/stream" in paths, "缺少 /batch-generate/stream 端点"
 
 
 class TestStreamEndpointFormat:
@@ -63,19 +62,25 @@ class TestStreamEndpointFormat:
 
         # 跳过质量反馈闭环：mock generate_test_case_enhanced 返回有效用例
         # 且 validate_single_case_status 直接返回 passed
-        with patch(
-            "app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced",
-            return_value={"title": "测试用例标题", "steps": []},
-        ), patch(
-            "app.api.v1.endpoints.test_case_ai_stream._run_quality_feedback_for_cases",
-            new_callable=AsyncMock,
-            return_value=([{"title": "测试用例标题", "steps": []}], []),
-        ), patch(
-            "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced",
+                return_value={"title": "测试用例标题", "steps": []},
+            ),
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream._run_quality_feedback_for_cases",
+                new_callable=AsyncMock,
+                return_value=([{"title": "测试用例标题", "steps": []}], []),
+            ),
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
+                return_value=MagicMock(),
+            ),
         ):
             response = await ai_enhanced_generate_stream(
-                request=request, db=db, current_user=current_user,
+                request=request,
+                db=db,
+                current_user=current_user,
             )
 
         assert isinstance(response, StreamingResponse)
@@ -95,7 +100,9 @@ class TestStreamEndpointFormat:
 
         with pytest.raises(HTTPException) as exc_info:
             await ai_enhanced_generate_stream(
-                request=request, db=db, current_user=current_user,
+                request=request,
+                db=db,
+                current_user=current_user,
             )
 
         assert exc_info.value.status_code == 404
@@ -117,7 +124,9 @@ class TestStreamEndpointFormat:
 
         with pytest.raises(HTTPException) as exc_info:
             await ai_enhanced_generate_stream(
-                request=request, db=db, current_user=current_user,
+                request=request,
+                db=db,
+                current_user=current_user,
             )
 
         assert exc_info.value.status_code == 400
@@ -139,19 +148,25 @@ class TestStreamEventSequence:
         db = _make_async_db_with_project(project=mock_project)
         current_user = MagicMock(id=1)
 
-        with patch(
-            "app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced",
-            return_value={"title": "测试用例标题", "steps": []},
-        ), patch(
-            "app.api.v1.endpoints.test_case_ai_stream._run_quality_feedback_for_cases",
-            new_callable=AsyncMock,
-            return_value=([{"title": "测试用例标题", "steps": []}], []),
-        ), patch(
-            "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced",
+                return_value={"title": "测试用例标题", "steps": []},
+            ),
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream._run_quality_feedback_for_cases",
+                new_callable=AsyncMock,
+                return_value=([{"title": "测试用例标题", "steps": []}], []),
+            ),
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
+                return_value=MagicMock(),
+            ),
         ):
             response = await ai_enhanced_generate_stream(
-                request=request, db=db, current_user=current_user,
+                request=request,
+                db=db,
+                current_user=current_user,
             )
 
             body = b""
@@ -170,8 +185,10 @@ class TestStreamEventSequence:
         flow_data = FlowSortDataSchema(
             nodes=[
                 FlowNodeSchema(
-                    screen_id=1, screen_order=1,
-                    flow_type="main", screen_name="登录页",
+                    screen_id=1,
+                    screen_order=1,
+                    flow_type="main",
+                    screen_name="登录页",
                 ),
             ],
             edges=[],
@@ -186,19 +203,25 @@ class TestStreamEventSequence:
         db = _make_async_db_with_project(project=mock_project)
         current_user = MagicMock(id=1)
 
-        with patch(
-            "app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced",
-            return_value={"title": "测试用例标题", "steps": []},
-        ), patch(
-            "app.api.v1.endpoints.test_case_ai_stream._run_quality_feedback_for_cases",
-            new_callable=AsyncMock,
-            return_value=([{"title": "测试用例标题", "steps": []}], []),
-        ), patch(
-            "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced",
+                return_value={"title": "测试用例标题", "steps": []},
+            ),
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream._run_quality_feedback_for_cases",
+                new_callable=AsyncMock,
+                return_value=([{"title": "测试用例标题", "steps": []}], []),
+            ),
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
+                return_value=MagicMock(),
+            ),
         ):
             response = await ai_enhanced_generate_stream(
-                request=request, db=db, current_user=current_user,
+                request=request,
+                db=db,
+                current_user=current_user,
             )
 
             body = b""
@@ -223,15 +246,20 @@ class TestStreamEventSequence:
         db = _make_async_db_with_project(project=mock_project)
         current_user = MagicMock(id=1)
 
-        with patch(
-            "app.api.v1.endpoints.test_case_ai_stream.generate_test_case",
-            return_value={"title": "基础模式用例", "steps": []},
-        ), patch(
-            "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.generate_test_case",
+                return_value={"title": "基础模式用例", "steps": []},
+            ),
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
+                return_value=MagicMock(),
+            ),
         ):
             response = await ai_enhanced_generate_stream(
-                request=request, db=db, current_user=current_user,
+                request=request,
+                db=db,
+                current_user=current_user,
             )
 
             body = b""
@@ -255,15 +283,20 @@ class TestStreamEventSequence:
         db = _make_async_db_with_project(project=mock_project)
         current_user = MagicMock(id=1)
 
-        with patch(
-            "app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced",
-            side_effect=Exception("AI服务异常"),
-        ), patch(
-            "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
-            return_value=MagicMock(),
+        with (
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.generate_test_case_enhanced",
+                side_effect=Exception("AI服务异常"),
+            ),
+            patch(
+                "app.api.v1.endpoints.test_case_ai_stream.PrimarySessionLocal",
+                return_value=MagicMock(),
+            ),
         ):
             response = await ai_enhanced_generate_stream(
-                request=request, db=db, current_user=current_user,
+                request=request,
+                db=db,
+                current_user=current_user,
             )
 
             body = b""

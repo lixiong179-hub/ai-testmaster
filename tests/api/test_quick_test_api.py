@@ -12,6 +12,7 @@
 async fixture），mock QuickLauncher（monkeypatch 端点模块符号）避免真实
 浏览器探索与 AI 调用。限流器每个用例前后 reset，避免跨用例计数污染。
 """
+
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -61,13 +62,16 @@ def _patchLauncher(monkeypatch, launchFn):
 
 def _successResponse():
     return QuickTestLaunchResponse(
-        task_id=1, project_id=2, estimated_duration_sec=60,
+        task_id=1,
+        project_id=2,
+        estimated_duration_sec=60,
         websocket_channel="quick_test:1",
     )
 
 
-async def _makeTask(async_db, *, executor_id, project_id, status=TaskStatus.RUNNING,
-                    progress=50, case_ids=None, start_time=None):
+async def _makeTask(
+    async_db, *, executor_id, project_id, status=TaskStatus.RUNNING, progress=50, case_ids=None, start_time=None
+):
     """在测试库创建 TestTask 并 flush 取 id。"""
     ids = [1, 2] if case_ids is None else case_ids
     task = TestTask(
@@ -88,16 +92,21 @@ async def _makeTask(async_db, *, executor_id, project_id, status=TaskStatus.RUNN
 class TestLaunch:
     async def test_launch_success(self, async_auth_client, monkeypatch):
         _patchLauncher(monkeypatch, lambda *a: _successResponse())
-        resp = await async_auth_client.post(LAUNCH_URL, json={
-            "url": "https://demo.playwright.dev/todomvc",
-            "description": "重点测登录",
-            "credentials": {"username": "u", "password": "p"},
-        })
+        resp = await async_auth_client.post(
+            LAUNCH_URL,
+            json={
+                "url": "https://demo.playwright.dev/todomvc",
+                "description": "重点测登录",
+                "credentials": {"username": "u", "password": "p"},
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data == {
-            "task_id": 1, "project_id": 2,
-            "estimated_duration_sec": 60, "websocket_channel": "quick_test:1",
+            "task_id": 1,
+            "project_id": 2,
+            "estimated_duration_sec": 60,
+            "websocket_channel": "quick_test:1",
         }
 
     async def test_launch_unauthorized(self, async_client):
@@ -120,6 +129,7 @@ class TestLaunch:
         # 保留 status_code=422 并用统一响应体包装（msg 字段承载 detail）。
         def _raiseValueError(*a):
             raise ValueError("invalid url scheme")
+
         _patchLauncher(monkeypatch, _raiseValueError)
         resp = await async_auth_client.post(LAUNCH_URL, json={"url": "https://example.com"})
         assert resp.status_code == 422
@@ -128,6 +138,7 @@ class TestLaunch:
     async def test_launch_service_error_returns_503(self, async_auth_client, monkeypatch):
         def _raiseRuntime(*a):
             raise RuntimeError("browser crashed")
+
         _patchLauncher(monkeypatch, _raiseRuntime)
         resp = await async_auth_client.post(LAUNCH_URL, json={"url": "https://example.com"})
         assert resp.status_code == 503
@@ -136,6 +147,7 @@ class TestLaunch:
         # 编排层抛 HTTPException 时应原样透传，不被通用 503 分支吞掉
         def _raiseHttp(*a):
             raise HTTPException(status_code=400, detail="bad request")
+
         _patchLauncher(monkeypatch, _raiseHttp)
         resp = await async_auth_client.post(LAUNCH_URL, json={"url": "https://example.com"})
         assert resp.status_code == 400
@@ -152,8 +164,14 @@ class TestLaunch:
 
 class TestStatus:
     async def test_status_success_running(self, async_auth_client, async_db, async_test_user, async_test_project):
-        task = await _makeTask(async_db, executor_id=async_test_user.id, project_id=async_test_project.id,
-                              status=TaskStatus.RUNNING, progress=50, case_ids=[1, 2, 3])
+        task = await _makeTask(
+            async_db,
+            executor_id=async_test_user.id,
+            project_id=async_test_project.id,
+            status=TaskStatus.RUNNING,
+            progress=50,
+            case_ids=[1, 2, 3],
+        )
         resp = await async_auth_client.get(STATUS_URL.format(task_id=task.id))
         assert resp.status_code == 200
         data = resp.json()
@@ -175,8 +193,10 @@ class TestStatus:
 
     async def test_status_other_user_task_returns_404(self, async_auth_client, async_db, async_test_project):
         other = User(
-            username="qt_other", email="qt_other@test.com",
-            password_hash=get_password_hash("x"), is_active=True,
+            username="qt_other",
+            email="qt_other@test.com",
+            password_hash=get_password_hash("x"),
+            is_active=True,
         )
         async_db.add(other)
         await async_db.flush()
@@ -185,8 +205,14 @@ class TestStatus:
         assert resp.status_code == 404
 
     async def test_status_pending_empty_cases(self, async_auth_client, async_db, async_test_user, async_test_project):
-        task = await _makeTask(async_db, executor_id=async_test_user.id, project_id=async_test_project.id,
-                               status=TaskStatus.PENDING, progress=0, case_ids=[])
+        task = await _makeTask(
+            async_db,
+            executor_id=async_test_user.id,
+            project_id=async_test_project.id,
+            status=TaskStatus.PENDING,
+            progress=0,
+            case_ids=[],
+        )
         resp = await async_auth_client.get(STATUS_URL.format(task_id=task.id))
         assert resp.status_code == 200
         data = resp.json()
@@ -194,11 +220,19 @@ class TestStatus:
         assert data["current_stage"] == "pending"
         assert data["status"] == "等待执行"
 
-    async def test_status_completed_with_start_time(self, async_auth_client, async_db, async_test_user, async_test_project):
+    async def test_status_completed_with_start_time(
+        self, async_auth_client, async_db, async_test_user, async_test_project
+    ):
         started = datetime(2026, 6, 27, 10, 30, 0)
-        task = await _makeTask(async_db, executor_id=async_test_user.id, project_id=async_test_project.id,
-                               status=TaskStatus.COMPLETED, progress=100, case_ids=[1],
-                               start_time=started)
+        task = await _makeTask(
+            async_db,
+            executor_id=async_test_user.id,
+            project_id=async_test_project.id,
+            status=TaskStatus.COMPLETED,
+            progress=100,
+            case_ids=[1],
+            start_time=started,
+        )
         resp = await async_auth_client.get(STATUS_URL.format(task_id=task.id))
         assert resp.status_code == 200
         data = resp.json()
@@ -208,16 +242,19 @@ class TestStatus:
 
 
 class TestDeriveStage:
-    @pytest.mark.parametrize("status,progress,expected", [
-        (TaskStatus.PENDING, 0, "pending"),
-        (TaskStatus.RUNNING, 20, "site_exploring"),
-        (TaskStatus.RUNNING, 45, "case_generating"),
-        (TaskStatus.RUNNING, 75, "task_assembling"),
-        (TaskStatus.RUNNING, 95, "executing"),
-        (TaskStatus.COMPLETED, 100, "completed"),
-        (TaskStatus.FAILED, 30, "failed"),
-        (TaskStatus.STOPPED, 50, "stopped"),
-    ])
+    @pytest.mark.parametrize(
+        "status,progress,expected",
+        [
+            (TaskStatus.PENDING, 0, "pending"),
+            (TaskStatus.RUNNING, 20, "site_exploring"),
+            (TaskStatus.RUNNING, 45, "case_generating"),
+            (TaskStatus.RUNNING, 75, "task_assembling"),
+            (TaskStatus.RUNNING, 95, "executing"),
+            (TaskStatus.COMPLETED, 100, "completed"),
+            (TaskStatus.FAILED, 30, "failed"),
+            (TaskStatus.STOPPED, 50, "stopped"),
+        ],
+    )
     def test_derive_stage(self, status, progress, expected):
         task = SimpleNamespace(status=status, progress=progress)
         assert _derive_stage(task) == expected
@@ -230,16 +267,14 @@ class TestDeriveStage:
 
 class TestBuildStatusResponse:
     def test_case_ids_none_returns_zero(self):
-        task = SimpleNamespace(id=5, status=TaskStatus.PENDING, progress=0,
-                               case_ids=None, start_time=None)
+        task = SimpleNamespace(id=5, status=TaskStatus.PENDING, progress=0, case_ids=None, start_time=None)
         resp = _build_status_response(task)
         assert resp.case_count == 0
         assert resp.started_at is None
         assert resp.websocket_channel == "quick_test:5"
 
     def test_unknown_status_label(self):
-        task = SimpleNamespace(id=5, status=99, progress=0,
-                               case_ids=[1], start_time=None)
+        task = SimpleNamespace(id=5, status=99, progress=0, case_ids=[1], start_time=None)
         resp = _build_status_response(task)
         assert resp.status == "未知"
 
@@ -274,6 +309,7 @@ class TestPerUserRateLimiter:
 
     def test_cleanup_removes_expired(self):
         import time as _time
+
         limiter = self._make_memory_limiter(max_requests=2, time_window=1)
         limiter.acquire(200)
         # 将唯一记录改为过期，触发清理后应放行

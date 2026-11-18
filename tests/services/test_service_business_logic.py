@@ -15,7 +15,7 @@ class TestCaseQualityModels:
             test_case_ids=[1, 2, 3],
             include_complexity=True,
             include_redundancy=True,
-            include_coverage=True
+            include_coverage=True,
         )
         assert req.project_id == 1
         assert req.test_case_ids == [1, 2, 3]
@@ -31,7 +31,7 @@ class TestCaseQualityModels:
             redundancy_score=80.0,
             coverage_score=90.0,
             overall_score=81.8,
-            suggestions=["优化复杂用例", "减少重复步骤"]
+            suggestions=["优化复杂用例", "减少重复步骤"],
         )
         assert report.project_id == 1
         assert report.total_cases == 100
@@ -45,10 +45,7 @@ class TestCaseQualityModels:
 class TestCostStatisticsModels:
     def test_cost_statistics_request_creation(self):
         req = CostStatisticsRequest(
-            project_id=1,
-            start_date=datetime(2024, 1, 1),
-            end_date=datetime(2024, 12, 31),
-            group_by="day"
+            project_id=1, start_date=datetime(2024, 1, 1), end_date=datetime(2024, 12, 31), group_by="day"
         )
         assert req.project_id == 1
         assert req.group_by == "day"
@@ -59,7 +56,7 @@ class TestCostStatisticsModels:
             total_cost=125.50,
             total_tokens=50000,
             avg_cost_per_request=0.025,
-            daily_costs=[{"date": "2024-01-01", "cost": 5.0}]
+            daily_costs=[{"date": "2024-01-01", "cost": 5.0}],
         )
         assert report.project_id == 1
         assert report.total_cost == 125.50
@@ -70,12 +67,7 @@ class TestCostStatisticsModels:
 
 class TestVisibilityConfigModels:
     def test_resource_visibility_request_creation(self):
-        req = ResourceVisibilityRequest(
-            resource_type="test_case",
-            resource_id=10,
-            user_id=100,
-            user_roles=["admin"]
-        )
+        req = ResourceVisibilityRequest(resource_type="test_case", resource_id=10, user_id=100, user_roles=["admin"])
         assert req.resource_type == "test_case"
         assert req.resource_id == 10
         assert req.user_id == 100
@@ -106,22 +98,13 @@ class TestExecutionReplayModels:
 
 class TestTestExecutionEngineModels:
     def test_execution_config_creation(self):
-        config = ExecutionConfig(
-            timeout=30,
-            retry_count=3,
-            screenshot_on_failure=True
-        )
+        config = ExecutionConfig(timeout=30, retry_count=3, screenshot_on_failure=True)
         assert config.timeout == 30
         assert config.retry_count == 3
         assert config.screenshot_on_failure is True
 
     def test_execution_result_creation(self):
-        result = ExecutionResult(
-            status="passed",
-            duration=120.5,
-            steps_passed=10,
-            steps_failed=2
-        )
+        result = ExecutionResult(status="passed", duration=120.5, steps_passed=10, steps_failed=2)
         assert result.status == "passed"
         assert result.duration == 120.5
         assert result.steps_passed == 10
@@ -135,6 +118,7 @@ class TestConstants:
 
     def test_http_status_constants(self):
         from app.core.constants import HTTPStatus
+
         assert HTTPStatus.OK == 200
         assert HTTPStatus.CREATED == 201
         assert HTTPStatus.BAD_REQUEST == 400
@@ -146,11 +130,13 @@ class TestConstants:
 class TestUtilsFunctions:
     def test_file_utils_functions(self):
         from app.utils.file_utils import ensure_dir, clean_old_files
+
         assert callable(ensure_dir)
         assert callable(clean_old_files)
 
     def test_crypto_functions(self):
         from app.utils.crypto import encrypt_password, verify_password
+
         assert callable(encrypt_password)
         assert callable(verify_password)
 
@@ -158,54 +144,67 @@ class TestUtilsFunctions:
 class TestServiceBackwardCompatibility:
     def test_case_generation_service_import(self):
         from app.services.test_case_generation import TestCaseGenerationService
+
         assert TestCaseGenerationService is not None
 
     def test_precondition_service_import(self):
         from app.services.precondition import PreconditionExecutorService
+
         assert PreconditionExecutorService is not None
 
     def test_task_service_import(self):
         from app.services.task_service import TestTaskService
+
         assert TestTaskService is not None
 
     def test_ui_spec_parser_import(self):
         from app.services.ui_spec_parser import UISpecParserService
+
         assert UISpecParserService is not None
 
     def test_link_fetcher_import(self):
         from app.services.link_fetcher import LinkFetcherService
+
         assert LinkFetcherService is not None
 
     def test_test_data_import(self):
         from app.services.test_data import TestDataGenerator
+
         assert TestDataGenerator is not None
 
     def test_video_service_import(self):
         from app.services.video import VideoRecordService
+
         assert VideoRecordService is not None
 
     def test_cost_statistics_import(self):
         from app.services.cost_statistics import CostStatisticsService
+
         assert CostStatisticsService is not None
 
     def test_mobile_ai_executor_import(self):
         from app.services.mobile_ai_executor import MobileAIExecutor
+
         assert MobileAIExecutor is not None
 
     def test_case_quality_import(self):
         from app.services.case_quality import CaseQualityAnalyzer
+
         assert CaseQualityAnalyzer is not None
 
     def test_visibility_config_import(self):
         from app.services.visibility_config import VisibilityConfigService
+
         assert VisibilityConfigService is not None
 
     def test_element_locator_import(self):
         from app.services.element_locator import ElementLocatorService
+
         assert ElementLocatorService is not None
 
     def test_execution_replay_import(self):
         from app.services.execution_replay import ExecutionReplayService
+
         assert ExecutionReplayService is not None
 
 
@@ -216,18 +215,24 @@ class TestNoStrLeakageInServiceReturns:
         from app.services.case_quality.analyzer_mixin import CaseQualityAnalyzerMixin
         from app.services.cost_statistics.query_mixin import CostStatisticsQueryMixin
         from app.services.visibility_config.core_mixin import VisibilityConfigCoreMixin
-        
+
         for cls in [CaseQualityAnalyzerMixin, CostStatisticsQueryMixin, VisibilityConfigCoreMixin]:
             for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-                if not name.startswith('_'):
+                if not name.startswith("_"):
                     source = inspect.getsource(method)
-                    assert 'str(e)' not in source or 'str(e)' in source and 'desensitiz' in source.lower() or 'f"执行失败"' in source, f"Method {name} in {cls.__name__} may leak exception info"
+                    assert (
+                        "str(e)" not in source
+                        or "str(e)" in source
+                        and "desensitiz" in source.lower()
+                        or 'f"执行失败"' in source
+                    ), f"Method {name} in {cls.__name__} may leak exception info"
 
 
 class TestFileLineLimits:
     def test_all_service_files_under_400_lines(self):
         """验证所有Service文件不超过400行（350硬限制+50粘性放宽窗口）"""
         from pathlib import Path
+
         services_dir = Path(__file__).parent.parent.parent / "app" / "services"
         over_limit = []
         for py_file in services_dir.rglob("*.py"):
@@ -242,9 +247,9 @@ class TestTypeAnnotations:
         """验证服务方法有返回类型注解"""
         import inspect
         from app.services.task_service.core_mixin import TestTaskCoreMixin
-        
+
         for name, method in inspect.getmembers(TestTaskCoreMixin, predicate=inspect.isfunction):
-            if not name.startswith('_'):
+            if not name.startswith("_"):
                 sig = inspect.signature(method)
                 assert sig.return_annotation != inspect.Parameter.empty, f"Method {name} missing return type"
 
@@ -252,9 +257,9 @@ class TestTypeAnnotations:
         """验证执行回放方法有返回类型注解"""
         import inspect
         from app.services.execution_replay.legacy_service import ExecutionReplayService
-        
+
         service = ExecutionReplayService()
         for name, method in inspect.getmembers(service, predicate=inspect.ismethod):
-            if not name.startswith('_'):
+            if not name.startswith("_"):
                 sig = inspect.signature(method)
                 assert sig.return_annotation != inspect.Parameter.empty, f"Method {name} missing return type"

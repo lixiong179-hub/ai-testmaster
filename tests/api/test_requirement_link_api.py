@@ -4,6 +4,7 @@
 以及 _build_auth_config_response 纯函数单元测试。
 使用 tests/api/conftest.py 的 async fixture。
 """
+
 import pytest
 from app.api.v1.endpoints.requirement_link_crud import _build_auth_config_response
 

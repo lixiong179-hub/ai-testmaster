@@ -9,6 +9,7 @@ M1-T08 OpenAI Client 真实 API 集成测试
 
 注意：此测试会产生实际 API 调用费用，默认不纳入 CI。
 """
+
 import json
 import os
 
@@ -32,6 +33,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 def openai_client():
     from dotenv import load_dotenv
+
     load_dotenv()  # 从 .env 加载 DEEPSEEK_API_KEY（仅在 fixture 实际执行时）
     return OpenAIClient()
 

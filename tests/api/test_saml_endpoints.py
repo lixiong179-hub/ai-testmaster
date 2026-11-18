@@ -14,6 +14,7 @@
     - /acs / /slo 通过 mock SAMLService 方法验证端点契约与异常处理
     - 不依赖真实 IdP，全部通过 mock service 验证端点契约
 """
+
 from __future__ import annotations
 
 import json
@@ -23,9 +24,7 @@ import pytest
 from httpx import AsyncClient
 
 # R4-4：python3-saml（onelogin）未安装时整文件 skip，而非 fail —— 属环境依赖缺失，非代码缺陷
-pytest.importorskip(
-    "onelogin.saml2", reason="环境未安装 python3-saml(onelogin)，非代码缺陷"
-)
+pytest.importorskip("onelogin.saml2", reason="环境未安装 python3-saml(onelogin)，非代码缺陷")
 
 from app.core.config import settings
 from app.services.saml._settings_builder import (
@@ -75,6 +74,7 @@ def saml_enabled(monkeypatch):
     monkeypatch.setattr(settings, "SAML_SP_PRIVATE_KEY", "")
     # 清空 RelayState 内存存储，避免跨测试污染
     from app.services.saml._relay_state import _memory_relay_store
+
     _memory_relay_store.clear()
     yield
     _memory_relay_store.clear()
@@ -87,36 +87,28 @@ class TestSAMLDisabled:
     """SAML_SSO_ENABLED=False 时所有端点返回 503。"""
 
     @pytest.mark.asyncio
-    async def test_providers_returns_503_when_disabled(
-        self, async_client: AsyncClient, monkeypatch
-    ) -> None:
+    async def test_providers_returns_503_when_disabled(self, async_client: AsyncClient, monkeypatch) -> None:
         """禁用时 /providers 返回 503。"""
         monkeypatch.setattr(settings, "SAML_SSO_ENABLED", False)
         resp = await async_client.get("/api/v1/auth/saml/providers")
         assert resp.status_code == 503
 
     @pytest.mark.asyncio
-    async def test_metadata_returns_503_when_disabled(
-        self, async_client: AsyncClient, monkeypatch
-    ) -> None:
+    async def test_metadata_returns_503_when_disabled(self, async_client: AsyncClient, monkeypatch) -> None:
         """禁用时 /metadata 返回 503。"""
         monkeypatch.setattr(settings, "SAML_SSO_ENABLED", False)
         resp = await async_client.get("/api/v1/auth/saml/metadata")
         assert resp.status_code == 503
 
     @pytest.mark.asyncio
-    async def test_login_returns_503_when_disabled(
-        self, async_client: AsyncClient, monkeypatch
-    ) -> None:
+    async def test_login_returns_503_when_disabled(self, async_client: AsyncClient, monkeypatch) -> None:
         """禁用时 /login 返回 503。"""
         monkeypatch.setattr(settings, "SAML_SSO_ENABLED", False)
         resp = await async_client.get("/api/v1/auth/saml/login")
         assert resp.status_code == 503
 
     @pytest.mark.asyncio
-    async def test_acs_returns_503_when_disabled(
-        self, async_client: AsyncClient, monkeypatch
-    ) -> None:
+    async def test_acs_returns_503_when_disabled(self, async_client: AsyncClient, monkeypatch) -> None:
         """禁用时 /acs 返回 503。"""
         monkeypatch.setattr(settings, "SAML_SSO_ENABLED", False)
         resp = await async_client.post(
@@ -126,9 +118,7 @@ class TestSAMLDisabled:
         assert resp.status_code == 503
 
     @pytest.mark.asyncio
-    async def test_slo_returns_503_when_disabled(
-        self, async_client: AsyncClient, monkeypatch
-    ) -> None:
+    async def test_slo_returns_503_when_disabled(self, async_client: AsyncClient, monkeypatch) -> None:
         """禁用时 /slo 返回 503。"""
         monkeypatch.setattr(settings, "SAML_SSO_ENABLED", False)
         resp = await async_client.get("/api/v1/auth/saml/slo")
@@ -142,9 +132,7 @@ class TestListProvidersEndpoint:
     """GET /auth/saml/providers 端点测试。"""
 
     @pytest.mark.asyncio
-    async def test_list_providers_success(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_list_providers_success(self, async_client: AsyncClient, saml_enabled) -> None:
         """启用时返回 IdP 列表。"""
         resp = await async_client.get("/api/v1/auth/saml/providers")
         assert resp.status_code == 200
@@ -166,9 +154,7 @@ class TestMetadataEndpoint:
     """GET /auth/saml/metadata 端点测试。"""
 
     @pytest.mark.asyncio
-    async def test_get_metadata_returns_xml(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_get_metadata_returns_xml(self, async_client: AsyncClient, saml_enabled) -> None:
         """返回 SP 元数据 XML（application/xml）。"""
         resp = await async_client.get("/api/v1/auth/saml/metadata")
         assert resp.status_code == 200
@@ -180,24 +166,16 @@ class TestMetadataEndpoint:
         assert _TEST_SP_ACS_URL in xml
 
     @pytest.mark.asyncio
-    async def test_get_metadata_with_provider(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_get_metadata_with_provider(self, async_client: AsyncClient, saml_enabled) -> None:
         """指定 provider 返回对应 SP 元数据 XML。"""
-        resp = await async_client.get(
-            "/api/v1/auth/saml/metadata", params={"provider": "okta"}
-        )
+        resp = await async_client.get("/api/v1/auth/saml/metadata", params={"provider": "okta"})
         assert resp.status_code == 200
         assert "EntityDescriptor" in resp.text
 
     @pytest.mark.asyncio
-    async def test_get_metadata_unknown_provider_returns_404(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_get_metadata_unknown_provider_returns_404(self, async_client: AsyncClient, saml_enabled) -> None:
         """未知 provider 返回 404。"""
-        resp = await async_client.get(
-            "/api/v1/auth/saml/metadata", params={"provider": "unknown"}
-        )
+        resp = await async_client.get("/api/v1/auth/saml/metadata", params={"provider": "unknown"})
         assert resp.status_code == 404
 
 
@@ -208,9 +186,7 @@ class TestLoginEndpoint:
     """GET /auth/saml/login 端点测试。"""
 
     @pytest.mark.asyncio
-    async def test_login_redirects_to_idp(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_login_redirects_to_idp(self, async_client: AsyncClient, saml_enabled) -> None:
         """login 端点 302 重定向到 IdP SSO URL。"""
         resp = await async_client.get("/api/v1/auth/saml/login")
         assert resp.status_code == 302
@@ -221,38 +197,24 @@ class TestLoginEndpoint:
         assert "RelayState=" in location
 
     @pytest.mark.asyncio
-    async def test_login_with_custom_provider(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_login_with_custom_provider(self, async_client: AsyncClient, saml_enabled) -> None:
         """指定 provider=azure 时重定向到 Azure AD SSO URL。"""
-        resp = await async_client.get(
-            "/api/v1/auth/saml/login", params={"provider": "azure"}
-        )
+        resp = await async_client.get("/api/v1/auth/saml/login", params={"provider": "azure"})
         assert resp.status_code == 302
         location = resp.headers.get("location", "")
-        assert location.startswith(
-            "https://login.microsoftonline.com/tenant-id/saml2"
-        )
+        assert location.startswith("https://login.microsoftonline.com/tenant-id/saml2")
         assert "SAMLRequest=" in location
 
     @pytest.mark.asyncio
-    async def test_login_with_unknown_provider_returns_400(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_login_with_unknown_provider_returns_400(self, async_client: AsyncClient, saml_enabled) -> None:
         """未知 provider 返回 400。"""
-        resp = await async_client.get(
-            "/api/v1/auth/saml/login", params={"provider": "unknown"}
-        )
+        resp = await async_client.get("/api/v1/auth/saml/login", params={"provider": "unknown"})
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_login_with_redirect_to(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_login_with_redirect_to(self, async_client: AsyncClient, saml_enabled) -> None:
         """redirect_to 参数不影响 302 跳转（存入 RelayState 上下文）。"""
-        resp = await async_client.get(
-            "/api/v1/auth/saml/login", params={"redirect_to": "/dashboard"}
-        )
+        resp = await async_client.get("/api/v1/auth/saml/login", params={"redirect_to": "/dashboard"})
         assert resp.status_code == 302
         assert "SAMLRequest=" in resp.headers.get("location", "")
 
@@ -264,9 +226,7 @@ class TestACSEndpoint:
     """POST /auth/saml/acs 端点测试。"""
 
     @pytest.mark.asyncio
-    async def test_acs_success(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_acs_success(self, async_client: AsyncClient, saml_enabled) -> None:
         """ACS 回调成功（mock handle_acs 返回 token + 用户信息）。"""
         mock_result = {
             "access_token": "mock-access-token",
@@ -303,9 +263,7 @@ class TestACSEndpoint:
         assert data["user"]["saml_provider"] == "okta"
 
     @pytest.mark.asyncio
-    async def test_acs_relay_state_error_returns_400(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_acs_relay_state_error_returns_400(self, async_client: AsyncClient, saml_enabled) -> None:
         """RelayState 校验失败返回 400。"""
         from app.services.saml_service import SAMLRelayStateError
 
@@ -325,9 +283,7 @@ class TestACSEndpoint:
         assert "RelayState" in resp.json()["msg"]
 
     @pytest.mark.asyncio
-    async def test_acs_response_error_returns_401(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_acs_response_error_returns_401(self, async_client: AsyncClient, saml_enabled) -> None:
         """SAMLResponse 校验失败返回 401。"""
         from app.services.saml_service import SAMLResponseError
 
@@ -347,9 +303,7 @@ class TestACSEndpoint:
         assert "SAMLResponse" in resp.json()["msg"]
 
     @pytest.mark.asyncio
-    async def test_acs_user_not_bound_returns_403(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_acs_user_not_bound_returns_403(self, async_client: AsyncClient, saml_enabled) -> None:
         """用户未绑定且禁止自动注册返回 403。"""
         from app.services.saml_service import SAMLUserNotBoundError
 
@@ -369,9 +323,7 @@ class TestACSEndpoint:
         assert "未绑定" in resp.json()["msg"]
 
     @pytest.mark.asyncio
-    async def test_acs_config_error_returns_400(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_acs_config_error_returns_400(self, async_client: AsyncClient, saml_enabled) -> None:
         """配置错误返回 400。"""
         from app.services.saml_service import SAMLConfigError
 
@@ -390,9 +342,7 @@ class TestACSEndpoint:
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_acs_service_error_returns_500(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_acs_service_error_returns_500(self, async_client: AsyncClient, saml_enabled) -> None:
         """其他 SAMLServiceError 返回 500。"""
         from app.services.saml_service import SAMLServiceError
 
@@ -418,9 +368,7 @@ class TestSLOEndpoint:
     """GET /auth/saml/slo 端点测试。"""
 
     @pytest.mark.asyncio
-    async def test_slo_success(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_slo_success(self, async_client: AsyncClient, saml_enabled) -> None:
         """SLO 回调成功。"""
         with patch(
             "app.services.saml_service.SAMLService.handle_slo",
@@ -434,9 +382,7 @@ class TestSLOEndpoint:
         assert "SLO" in body["msg"]
 
     @pytest.mark.asyncio
-    async def test_slo_failure_returns_200_with_error_code(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_slo_failure_returns_200_with_error_code(self, async_client: AsyncClient, saml_enabled) -> None:
         """SLO 校验失败返回 200 但业务码 400（IdP 返回无效 LogoutResponse）。"""
         with patch(
             "app.services.saml_service.SAMLService.handle_slo",
@@ -451,9 +397,7 @@ class TestSLOEndpoint:
         assert "校验失败" in body["msg"]
 
     @pytest.mark.asyncio
-    async def test_slo_config_error_returns_400(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_slo_config_error_returns_400(self, async_client: AsyncClient, saml_enabled) -> None:
         """配置错误返回 400。"""
         from app.services.saml_service import SAMLConfigError
 
@@ -465,9 +409,7 @@ class TestSLOEndpoint:
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_slo_service_error_returns_500(
-        self, async_client: AsyncClient, saml_enabled
-    ) -> None:
+    async def test_slo_service_error_returns_500(self, async_client: AsyncClient, saml_enabled) -> None:
         """其他 SAMLServiceError 返回 500。"""
         from app.services.saml_service import SAMLServiceError
 

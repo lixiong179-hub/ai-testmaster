@@ -1,10 +1,16 @@
 """JWT工具单元测试 - jwt_utils"""
+
 import pytest
 from datetime import timedelta
 from app.utils.jwt_utils import (
-    create_access_token, create_refresh_token, decode_token,
-    verify_access_token, verify_refresh_token, refresh_access_token,
-    verify_password, get_password_hash,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    verify_access_token,
+    verify_refresh_token,
+    refresh_access_token,
+    verify_password,
+    get_password_hash,
 )
 from app.core.exception import AuthenticationError
 from datetime import datetime

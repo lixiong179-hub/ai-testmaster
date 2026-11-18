@@ -6,18 +6,14 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="bug_test_user",
-        email="bug_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="bug_test_user", email="bug_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(Bug).filter(Bug.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(Bug).filter(Bug.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -41,7 +37,7 @@ class TestBugModel:
             description="点击登录按钮无响应",
             severity=1,
             priority=1,
-            reporter_id=test_user.id
+            reporter_id=test_user.id,
         )
         db.add(bug)
         db.commit()
@@ -66,7 +62,7 @@ class TestBugModel:
             description="描述",
             severity=2,
             priority=2,
-            reporter_id=test_user.id
+            reporter_id=test_user.id,
         )
         db.add(bug)
         db.commit()
@@ -82,11 +78,27 @@ class TestBugModel:
         db.commit()
 
     def test_bug_unique_bug_no(self, db, test_project, test_user):
-        bug1 = Bug(bug_no="BUG-UNIQUE-001", project_id=test_project.id, title="唯一1", description="描述", severity=1, priority=1, reporter_id=test_user.id)
+        bug1 = Bug(
+            bug_no="BUG-UNIQUE-001",
+            project_id=test_project.id,
+            title="唯一1",
+            description="描述",
+            severity=1,
+            priority=1,
+            reporter_id=test_user.id,
+        )
         db.add(bug1)
         db.commit()
         nested = db.begin_nested()
-        bug2 = Bug(bug_no="BUG-UNIQUE-001", project_id=test_project.id, title="唯一2", description="描述", severity=1, priority=1, reporter_id=test_user.id)
+        bug2 = Bug(
+            bug_no="BUG-UNIQUE-001",
+            project_id=test_project.id,
+            title="唯一2",
+            description="描述",
+            severity=1,
+            priority=1,
+            reporter_id=test_user.id,
+        )
         db.add(bug2)
         with pytest.raises(Exception):
             db.commit()
@@ -101,7 +113,7 @@ class TestBugModel:
                 description="描述",
                 severity=sev,
                 priority=1,
-                reporter_id=test_user.id
+                reporter_id=test_user.id,
             )
             db.add(bug)
             db.commit()
@@ -111,11 +123,7 @@ class TestBugModel:
             db.commit()
 
     def test_bug_with_assignee(self, db, test_project, test_user):
-        assignee = User(
-            username="bug_assignee",
-            email="bug_assignee@example.com",
-            password_hash="hash"
-        )
+        assignee = User(username="bug_assignee", email="bug_assignee@example.com", password_hash="hash")
         db.add(assignee)
         db.commit()
         db.refresh(assignee)
@@ -127,7 +135,7 @@ class TestBugModel:
             severity=1,
             priority=1,
             reporter_id=test_user.id,
-            assignee_id=assignee.id
+            assignee_id=assignee.id,
         )
         db.add(bug)
         db.commit()
@@ -149,7 +157,7 @@ class TestBugModel:
             reproduction_steps="1.打开页面 2.点击按钮",
             expected_behavior="按钮响应",
             actual_behavior="按钮无响应",
-            attachments='["screenshot.png"]'
+            attachments='["screenshot.png"]',
         )
         db.add(bug)
         db.commit()
@@ -169,7 +177,7 @@ class TestBugModel:
             description="描述",
             severity=1,
             priority=1,
-            reporter_id=test_user.id
+            reporter_id=test_user.id,
         )
         db.add(bug)
         db.commit()
@@ -181,6 +189,6 @@ class TestBugModel:
         db.commit()
 
     def test_bug_relationships(self):
-        assert hasattr(Bug, 'project')
-        assert hasattr(Bug, 'reporter')
-        assert hasattr(Bug, 'assignee')
+        assert hasattr(Bug, "project")
+        assert hasattr(Bug, "reporter")
+        assert hasattr(Bug, "assignee")

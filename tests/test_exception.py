@@ -1,4 +1,5 @@
 """异常模块单元测试 - exception classes, response helpers, and handlers"""
+
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 from fastapi import Request
@@ -9,14 +10,25 @@ from starlette.exceptions import HTTPException
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
 
 from app.core.exception import (
-    BaseAPIException, DatabaseException, FileException,
-    PermissionException, ParameterException, APIException,
-    NotFoundException, UnauthorizedException, AuthenticationError,
-    DuplicateException, create_response, create_error_response,
+    BaseAPIException,
+    DatabaseException,
+    FileException,
+    PermissionException,
+    ParameterException,
+    APIException,
+    NotFoundException,
+    UnauthorizedException,
+    AuthenticationError,
+    DuplicateException,
+    create_response,
+    create_error_response,
     RESPONSE_CODE,
-    base_exception_handler, http_exception_handler,
-    database_exception_handler, validation_exception_handler,
-    request_validation_exception_handler, general_exception_handler,
+    base_exception_handler,
+    http_exception_handler,
+    database_exception_handler,
+    validation_exception_handler,
+    request_validation_exception_handler,
+    general_exception_handler,
     register_exception_handlers,
 )
 

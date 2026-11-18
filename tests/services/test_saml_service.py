@@ -11,6 +11,7 @@
     - 元数据: 单个 IdP / 列表 / 默认 IdP
     - 请求上下文: 最小占位 / 从 Request 构建
 """
+
 from __future__ import annotations
 
 import json
@@ -20,9 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # R4-4：python3-saml（onelogin）未安装时整文件 skip，而非 fail —— 属环境依赖缺失，非代码缺陷
-pytest.importorskip(
-    "onelogin.saml2", reason="环境未安装 python3-saml(onelogin)，非代码缺陷"
-)
+pytest.importorskip("onelogin.saml2", reason="环境未安装 python3-saml(onelogin)，非代码缺陷")
 
 from app.core.config import settings
 from app.services.saml._relay_state import RelayStateStore, _memory_relay_store
@@ -185,9 +184,7 @@ class TestProviderConfig:
         """resolve_provider 透传非 None 值。"""
         assert saml_service.resolve_provider("azure") == "azure"
 
-    def test_resolve_provider_none_uses_default(
-        self, saml_service: SAMLService
-    ) -> None:
+    def test_resolve_provider_none_uses_default(self, saml_service: SAMLService) -> None:
         """resolve_provider(None) 返回默认 IdP。"""
         assert saml_service.resolve_provider(None) == "okta"
 
@@ -233,9 +230,7 @@ class TestRelayStateStore:
     def test_consume_expired(self, relay_store: RelayStateStore, monkeypatch) -> None:
         """过期的 RelayState 返回 None。"""
         # 强制使用内存存储（避免 Redis 路径导致内存条目不存在）
-        monkeypatch.setattr(
-            "app.services.saml._relay_state._get_redis_client", lambda: None
-        )
+        monkeypatch.setattr("app.services.saml._relay_state._get_redis_client", lambda: None)
         relay_store.save("relay-expired", "okta")
         # 篡改过期时间为过去
         _memory_relay_store["relay-expired"]["expires_at"] = time.time() - 1
@@ -327,9 +322,7 @@ class TestUserProvisioning:
     """SAML 用户配置（provisioning）测试。"""
 
     @pytest.mark.asyncio
-    async def test_find_by_saml_returns_user(
-        self, provisioner: SAMLUserProvisioner, sync_backed_async_db
-    ) -> None:
+    async def test_find_by_saml_returns_user(self, provisioner: SAMLUserProvisioner, sync_backed_async_db) -> None:
         """按 (issuer, nameid) 查找已绑定用户。"""
         from app.models.user import User
         from app.utils.jwt_utils import get_password_hash
@@ -345,20 +338,14 @@ class TestUserProvisioning:
         sync_backed_async_db.add(user)
         await sync_backed_async_db.flush()
 
-        found = await provisioner.find_by_saml(
-            sync_backed_async_db, "https://idp.test.local", "nameid-123"
-        )
+        found = await provisioner.find_by_saml(sync_backed_async_db, "https://idp.test.local", "nameid-123")
         assert found is not None
         assert found.id == user.id
 
     @pytest.mark.asyncio
-    async def test_find_by_saml_not_found(
-        self, provisioner: SAMLUserProvisioner, sync_backed_async_db
-    ) -> None:
+    async def test_find_by_saml_not_found(self, provisioner: SAMLUserProvisioner, sync_backed_async_db) -> None:
         """未绑定的用户返回 None。"""
-        found = await provisioner.find_by_saml(
-            sync_backed_async_db, "https://idp.test.local", "nonexistent"
-        )
+        found = await provisioner.find_by_saml(sync_backed_async_db, "https://idp.test.local", "nonexistent")
         assert found is None
 
     @pytest.mark.asyncio
@@ -447,9 +434,7 @@ class TestExtractEmail:
 
     def test_extract_email_oasis_format(self, provisioner: SAMLUserProvisioner) -> None:
         """OASIS 标准属性名。"""
-        attrs = {
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": "user@test.com"
-        }
+        attrs = {"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": "user@test.com"}
         assert provisioner._extract_email(attrs, "") == "user@test.com"
 
     def test_extract_email_nameid_fallback(self, provisioner: SAMLUserProvisioner) -> None:
@@ -460,9 +445,7 @@ class TestExtractEmail:
         """无邮箱属性且 NameID 非邮箱时返回空字符串。"""
         assert provisioner._extract_email({}, "opaque-nameid") == ""
 
-    def test_extract_email_invalid_email_ignored(
-        self, provisioner: SAMLUserProvisioner
-    ) -> None:
+    def test_extract_email_invalid_email_ignored(self, provisioner: SAMLUserProvisioner) -> None:
         """无 @ 的 email 值被忽略。"""
         attrs = {"email": "not-an-email"}
         assert provisioner._extract_email(attrs, "") == ""
@@ -492,9 +475,7 @@ class TestGenerateUsername:
         name = provisioner._generate_username("okta", {}, "user@idp.test")
         assert "user" in name
 
-    def test_generate_cleans_special_chars(
-        self, provisioner: SAMLUserProvisioner
-    ) -> None:
+    def test_generate_cleans_special_chars(self, provisioner: SAMLUserProvisioner) -> None:
         """非法字符被替换为下划线。"""
         attrs = {"username": "user@domain.com!"}
         name = provisioner._generate_username("okta", attrs, "nameid")
@@ -528,9 +509,7 @@ class TestProviderMetadata:
         assert metadata["entity_id"] == "http://www.okta.com/exk1234567890"
         assert metadata["sso_url"].startswith("https://")
 
-    def test_get_metadata_single_not_found(
-        self, saml_service: SAMLService
-    ) -> None:
+    def test_get_metadata_single_not_found(self, saml_service: SAMLService) -> None:
         """未配置的 IdP 抛出 SAMLConfigError。"""
         with pytest.raises(SAMLConfigError):
             saml_service.get_provider_metadata("nonexistent")
@@ -589,9 +568,7 @@ class TestRequestDataBuilder:
         request.url.path = "/acs"
         request.query_params = {}
 
-        data = SAMLService.build_request_data_from_request(
-            request, saml_response="base64-encoded-response"
-        )
+        data = SAMLService.build_request_data_from_request(request, saml_response="base64-encoded-response")
         assert data["post_data"]["SAMLResponse"] == "base64-encoded-response"
 
 
@@ -605,21 +582,15 @@ class TestSPMetadataGeneration:
         """generate_sp_metadata 返回有效 XML 字符串。"""
         # SAMLService 在模块顶层导入 generate_sp_metadata_xml，
         # 需 patch app.services.saml_service 命名空间内的引用
-        with patch(
-            "app.services.saml_service.generate_sp_metadata_xml"
-        ) as mock_gen:
+        with patch("app.services.saml_service.generate_sp_metadata_xml") as mock_gen:
             mock_gen.return_value = "<EntityDescriptor>test</EntityDescriptor>"
             xml = saml_service.generate_sp_metadata("okta")
             assert "<EntityDescriptor>" in xml
             mock_gen.assert_called_once()
 
-    def test_generate_sp_metadata_default_provider(
-        self, saml_service: SAMLService
-    ) -> None:
+    def test_generate_sp_metadata_default_provider(self, saml_service: SAMLService) -> None:
         """generate_sp_metadata 不传 provider 使用默认 IdP。"""
-        with patch(
-            "app.services.saml_service.generate_sp_metadata_xml"
-        ) as mock_gen:
+        with patch("app.services.saml_service.generate_sp_metadata_xml") as mock_gen:
             mock_gen.return_value = "<EntityDescriptor/>"
             saml_service.generate_sp_metadata(None)
             mock_gen.assert_called_once()

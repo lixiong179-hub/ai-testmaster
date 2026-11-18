@@ -7,30 +7,32 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="loc_test_user",
-        email="loc_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="loc_test_user", email="loc_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(ElementLocator).filter(ElementLocator.step_id.in_(
-        db.query(TestStep.id).filter(TestStep.test_case_id.in_(
-            db.query(TestCase.id).filter(TestCase.project_id.in_(
-                db.query(Project.id).filter(Project.user_id == user.id)
-            ))
-        ))
-    )).delete(synchronize_session=False)
-    db.query(TestStep).filter(TestStep.test_case_id.in_(
-        db.query(TestCase.id).filter(TestCase.project_id.in_(
-            db.query(Project.id).filter(Project.user_id == user.id)
-        ))
-    )).delete(synchronize_session=False)
-    db.query(TestCase).filter(TestCase.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(ElementLocator).filter(
+        ElementLocator.step_id.in_(
+            db.query(TestStep.id).filter(
+                TestStep.test_case_id.in_(
+                    db.query(TestCase.id).filter(
+                        TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+                    )
+                )
+            )
+        )
+    ).delete(synchronize_session=False)
+    db.query(TestStep).filter(
+        TestStep.test_case_id.in_(
+            db.query(TestCase.id).filter(
+                TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+            )
+        )
+    ).delete(synchronize_session=False)
+    db.query(TestCase).filter(TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -56,7 +58,7 @@ def test_case(db, test_project):
         steps_json=[],
         expected_result="预期",
         priority=1,
-        case_type="UI"
+        case_type="UI",
     )
     db.add(tc)
     db.commit()
@@ -66,12 +68,7 @@ def test_case(db, test_project):
 
 @pytest.fixture
 def test_step(db, test_case):
-    step = TestStep(
-        test_case_id=test_case.id,
-        step_number=1,
-        action="点击按钮",
-        expected_result="按钮被点击"
-    )
+    step = TestStep(test_case_id=test_case.id, step_number=1, action="点击按钮", expected_result="按钮被点击")
     db.add(step)
     db.commit()
     db.refresh(step)
@@ -81,10 +78,7 @@ def test_step(db, test_case):
 class TestElementLocatorModel:
     def test_create_locator(self, db, test_step):
         locator = ElementLocator(
-            step_id=test_step.id,
-            element_description="登录按钮",
-            element_type="button",
-            css_selector="#login-btn"
+            step_id=test_step.id, element_description="登录按钮", element_type="button", css_selector="#login-btn"
         )
         db.add(locator)
         db.commit()
@@ -133,7 +127,7 @@ class TestElementLocatorModel:
             element_class="btn-primary",
             element_text="提交",
             ai_coordinate={"x": 100, "y": 200, "width": 80, "height": 30},
-            ai_confidence=0.95
+            ai_confidence=0.95,
         )
         db.add(locator)
         db.commit()
@@ -153,7 +147,7 @@ class TestElementLocatorModel:
             xpath="//button",
             element_id="btn",
             element_name="submit",
-            ai_coordinate={"x": 1, "y": 2, "width": 3, "height": 4}
+            ai_coordinate={"x": 1, "y": 2, "width": 3, "height": 4},
         )
         db.add(locator)
         db.commit()
@@ -163,10 +157,7 @@ class TestElementLocatorModel:
         db.commit()
 
     def test_priority_order_partial(self, db, test_step):
-        locator = ElementLocator(
-            step_id=test_step.id,
-            xpath="//button"
-        )
+        locator = ElementLocator(step_id=test_step.id, xpath="//button")
         db.add(locator)
         db.commit()
         db.refresh(locator)
@@ -193,7 +184,7 @@ class TestElementLocatorModel:
             element_class="cls",
             element_text="文本",
             ai_coordinate={"x": 1, "y": 2, "width": 3, "height": 4},
-            ai_confidence=0.9
+            ai_confidence=0.9,
         )
         db.add(locator)
         db.commit()
@@ -254,11 +245,7 @@ class TestElementLocatorModel:
         db.commit()
 
     def test_get_best_locator_css(self, db, test_step):
-        locator = ElementLocator(
-            step_id=test_step.id,
-            css_selector="#btn",
-            xpath="//button"
-        )
+        locator = ElementLocator(step_id=test_step.id, css_selector="#btn", xpath="//button")
         db.add(locator)
         db.commit()
         db.refresh(locator)
@@ -268,10 +255,7 @@ class TestElementLocatorModel:
         db.commit()
 
     def test_get_best_locator_xpath(self, db, test_step):
-        locator = ElementLocator(
-            step_id=test_step.id,
-            xpath="//button"
-        )
+        locator = ElementLocator(step_id=test_step.id, xpath="//button")
         db.add(locator)
         db.commit()
         db.refresh(locator)
@@ -281,10 +265,7 @@ class TestElementLocatorModel:
         db.commit()
 
     def test_get_best_locator_id(self, db, test_step):
-        locator = ElementLocator(
-            step_id=test_step.id,
-            element_id="btn"
-        )
+        locator = ElementLocator(step_id=test_step.id, element_id="btn")
         db.add(locator)
         db.commit()
         db.refresh(locator)
@@ -294,10 +275,7 @@ class TestElementLocatorModel:
         db.commit()
 
     def test_get_best_locator_name(self, db, test_step):
-        locator = ElementLocator(
-            step_id=test_step.id,
-            element_name="submit"
-        )
+        locator = ElementLocator(step_id=test_step.id, element_name="submit")
         db.add(locator)
         db.commit()
         db.refresh(locator)
@@ -307,10 +285,7 @@ class TestElementLocatorModel:
         db.commit()
 
     def test_get_best_locator_ai(self, db, test_step):
-        locator = ElementLocator(
-            step_id=test_step.id,
-            ai_coordinate={"x": 100, "y": 200, "width": 80, "height": 30}
-        )
+        locator = ElementLocator(step_id=test_step.id, ai_coordinate={"x": 100, "y": 200, "width": 80, "height": 30})
         db.add(locator)
         db.commit()
         db.refresh(locator)
@@ -369,18 +344,11 @@ class TestElementLocatorModel:
         db.commit()
 
     def test_precondition_step_locator(self, db, test_case):
-        pre_step = TestCasePreconditionStep(
-            test_case_id=test_case.id,
-            step_number=1,
-            action="打开页面"
-        )
+        pre_step = TestCasePreconditionStep(test_case_id=test_case.id, step_number=1, action="打开页面")
         db.add(pre_step)
         db.commit()
         db.refresh(pre_step)
-        locator = ElementLocator(
-            precondition_step_id=pre_step.id,
-            css_selector=".page"
-        )
+        locator = ElementLocator(precondition_step_id=pre_step.id, css_selector=".page")
         db.add(locator)
         db.commit()
         db.refresh(locator)

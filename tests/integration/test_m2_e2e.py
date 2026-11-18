@@ -9,6 +9,7 @@
 
 使用真实 MySQL 数据库 + MockAIClient，不使用 FastAPI TestClient。
 """
+
 import json
 import pytest
 
@@ -24,23 +25,29 @@ from app.services import pipeline_service, review_service
 
 def _make_artifact(kind: str, payload: dict):
     from app.models.pipeline import Artifact
+
     return Artifact(run_id=0, kind=kind, schema_version="1.0", payload=payload, content_hash="test")
 
 
 @pytest.fixture
 def mock_ai_s4():
     client = MockAIClient()
-    client.set_response("case_generation", json.dumps([
-        {
-            "title": "登录功能回归验证",
-            "module": "用户管理",
-            "precondition": "用户已注册",
-            "steps": [{"action": "输入正确的用户名和密码", "expected": "登录成功"}],
-            "expected_result": "成功登录并跳转首页",
-            "priority": 1,
-            "case_type": "functional",
-        }
-    ]))
+    client.set_response(
+        "case_generation",
+        json.dumps(
+            [
+                {
+                    "title": "登录功能回归验证",
+                    "module": "用户管理",
+                    "precondition": "用户已注册",
+                    "steps": [{"action": "输入正确的用户名和密码", "expected": "登录成功"}],
+                    "expected_result": "成功登录并跳转首页",
+                    "priority": 1,
+                    "case_type": "functional",
+                }
+            ]
+        ),
+    )
     return client
 
 
@@ -76,8 +83,10 @@ def s4_iteration(db, testProject):
     db.flush()
 
     inp = IterationInput(
-        iteration_id=iteration.id, kind="testpoint",
-        payload={"test_point_ids": [tp.id]}, content_hash="m2_e2e_s4_tp_hash",
+        iteration_id=iteration.id,
+        kind="testpoint",
+        payload={"test_point_ids": [tp.id]},
+        content_hash="m2_e2e_s4_tp_hash",
     )
     db.add(inp)
     db.flush()
@@ -99,21 +108,46 @@ def _setup_scenario_4_mocks(ctx, mock_ai):
     ctx.set_artifact("history_fingerprints", _make_artifact("history_fingerprints", f_result.artifact_payload))
 
     fps = f_result.artifact_payload.get("fingerprints", [])
-    mock_ai.set_response("backward_scan", json.dumps({
-        "verdicts": [{"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"} for fp in fps]
-    }))
-    mock_ai.set_response("scenario_candidate_extractor", json.dumps({
-        "candidates": [{"description": "登录功能回归", "module": "用户管理", "precondition": "", "expected_result": ""}]
-    }))
-    mock_ai.set_response("forward_scan", json.dumps({
-        "label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": 0.85, "reason": "新功能",
-    }))
+    mock_ai.set_response(
+        "backward_scan",
+        json.dumps(
+            {
+                "verdicts": [
+                    {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"} for fp in fps
+                ]
+            }
+        ),
+    )
+    mock_ai.set_response(
+        "scenario_candidate_extractor",
+        json.dumps(
+            {
+                "candidates": [
+                    {"description": "登录功能回归", "module": "用户管理", "precondition": "", "expected_result": ""}
+                ]
+            }
+        ),
+    )
+    mock_ai.set_response(
+        "forward_scan",
+        json.dumps(
+            {
+                "label": "NEW",
+                "matched_case_id": None,
+                "matched_title": "",
+                "confidence": 0.85,
+                "reason": "新功能",
+            }
+        ),
+    )
 
 
 def _run_s4_pipeline(db, iteration, mock_ai):
     run = pipeline_service.create_run(
-        db=db, iteration_id=iteration.id,
-        input_hash="m2_e2e_s4_hash", pipeline_version="4.0",
+        db=db,
+        iteration_id=iteration.id,
+        input_hash="m2_e2e_s4_hash",
+        pipeline_version="4.0",
     )
     db.flush()
 
@@ -171,19 +205,30 @@ class TestReviewInboxFlow:
         assert review.status == "in_progress"
 
         d = review_service.add_decision(
-            db=db, review_id=review.id, target_kind="case", target_id=1,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=review.id,
+            target_kind="case",
+            target_id=1,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         assert d.ai_confidence >= 60
 
         d2 = review_service.add_decision(
-            db=db, review_id=review.id, target_kind="case", target_id=2,
-            ai_verdict="modify", ai_confidence=60,
+            db=db,
+            review_id=review.id,
+            target_kind="case",
+            target_id=2,
+            ai_verdict="modify",
+            ai_confidence=60,
         )
         assert d2.ai_confidence < 70
 
         result = review_service.set_human_verdict(
-            db=db, decision_id=d.id, human_verdict="keep", human_user_id=testUser.id,
+            db=db,
+            decision_id=d.id,
+            human_verdict="keep",
+            human_user_id=testUser.id,
         )
         assert result.human_verdict == "keep"
 
@@ -202,11 +247,18 @@ class TestReviewInboxFlow:
         review_service.start_review(db=db, review_id=review.id)
 
         d = review_service.add_decision(
-            db=db, review_id=review.id, target_kind="case", target_id=1,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=review.id,
+            target_kind="case",
+            target_id=1,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=d.id, human_verdict="keep", human_user_id=testUser.id,
+            db=db,
+            decision_id=d.id,
+            human_verdict="keep",
+            human_user_id=testUser.id,
         )
         review_service.finalize_review(db=db, review_id=review.id, finalized_by=testUser.id)
 
@@ -219,11 +271,18 @@ class TestReviewInboxFlow:
         review_service.start_review(db=db, review_id=review.id)
 
         d = review_service.add_decision(
-            db=db, review_id=review.id, target_kind="case", target_id=1,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=review.id,
+            target_kind="case",
+            target_id=1,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=d.id, human_verdict="keep", human_user_id=testUser.id,
+            db=db,
+            decision_id=d.id,
+            human_verdict="keep",
+            human_user_id=testUser.id,
         )
         review_service.finalize_review(db=db, review_id=review.id, finalized_by=testUser.id)
 
@@ -236,11 +295,18 @@ class TestReviewInboxFlow:
         review_service.start_review(db=db, review_id=review.id)
 
         d = review_service.add_decision(
-            db=db, review_id=review.id, target_kind="case", target_id=1,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=review.id,
+            target_kind="case",
+            target_id=1,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=d.id, human_verdict="keep", human_user_id=testUser.id,
+            db=db,
+            decision_id=d.id,
+            human_verdict="keep",
+            human_user_id=testUser.id,
         )
 
         result = review_service.rollback_decision(db=db, decision_id=d.id, user_id=testUser.id)

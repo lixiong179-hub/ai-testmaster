@@ -100,14 +100,8 @@ def test_duplicate_title_disables_title_snapshot_restore() -> None:
 
 
 def test_generation_test_category_keeps_execution_type_only() -> None:
-    assert (
-        GenerationService._normalize_case_type("manual", "positive,ui_automation")
-        == "manual"
-    )
-    assert (
-        GenerationService._normalize_case_type(None, "positive,ui_automation")
-        == "ui_automation"
-    )
+    assert GenerationService._normalize_case_type("manual", "positive,ui_automation") == "manual"
+    assert GenerationService._normalize_case_type(None, "positive,ui_automation") == "ui_automation"
     assert GenerationService._normalize_case_type("positive") == "manual"
 
 
@@ -189,15 +183,17 @@ def test_generation_quality_gate_accepts_ui_elements_in_context() -> None:
     case = _valid_generated_case("账号已登录，设备网络正常，已配置可用教材和单词数据")
     case["steps"][0]["target_element"] = "AI单词听写入口"
     case["steps"][1]["target_element"] = "开始按钮"
-    ui_specs = [{
-        "screen_name": "AI听写首页",
-        "ui_spec": {
-            "elements": [
-                {"type": "button", "label": "AI单词听写入口"},
-                {"type": "button", "text": "开始"},
-            ]
-        },
-    }]
+    ui_specs = [
+        {
+            "screen_name": "AI听写首页",
+            "ui_spec": {
+                "elements": [
+                    {"type": "button", "label": "AI单词听写入口"},
+                    {"type": "button", "text": "开始"},
+                ]
+            },
+        }
+    ]
 
     issues, status = GenerationService._quality_gate_issues(case, 100.0, ui_specs=ui_specs)
 
@@ -208,10 +204,12 @@ def test_generation_quality_gate_accepts_ui_elements_in_context() -> None:
 def test_generation_quality_gate_rejects_ui_element_missing_from_context() -> None:
     case = _valid_generated_case("账号已登录，设备网络正常，已配置可用教材和单词数据")
     case["steps"][0]["target_element"] = "不存在按钮"
-    ui_specs = [{
-        "screen_name": "AI听写首页",
-        "ui_spec": {"elements": [{"type": "button", "label": "AI单词听写入口"}]},
-    }]
+    ui_specs = [
+        {
+            "screen_name": "AI听写首页",
+            "ui_spec": {"elements": [{"type": "button", "label": "AI单词听写入口"}]},
+        }
+    ]
 
     issues, status = GenerationService._quality_gate_issues(case, 100.0, ui_specs=ui_specs)
 

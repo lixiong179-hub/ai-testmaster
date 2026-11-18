@@ -8,6 +8,7 @@
     - 自测执行后数据清理
     - WebSocket通知
 """
+
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -73,9 +74,7 @@ class TestSelfTestSchedulerAddRemoveJob:
         self.scheduler.add_job(1, "0 2 * * *")
         self.scheduler.add_job(1, "0 3 * * *")
         job_id = SelfTestScheduler._make_job_id(1)
-        jobs = [
-            j for j in self.scheduler._scheduler.get_jobs() if j.id == job_id
-        ]
+        jobs = [j for j in self.scheduler._scheduler.get_jobs() if j.id == job_id]
         assert len(jobs) == 1
 
     def test_remove_job_success(self) -> None:
@@ -106,9 +105,7 @@ class TestSelfTestSchedulerRefreshJobs:
     def teardown_method(self) -> None:
         self.scheduler.stop()
 
-    async def test_refresh_adds_scheduled_projects(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_refresh_adds_scheduled_projects(self, async_db, async_test_user) -> None:
         project = Project(
             name="scheduled_self_test",
             user_id=async_test_user.id,
@@ -125,9 +122,7 @@ class TestSelfTestSchedulerRefreshJobs:
         job = self.scheduler._scheduler.get_job(job_id)
         assert job is not None
 
-    async def test_refresh_skips_projects_without_schedule(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_refresh_skips_projects_without_schedule(self, async_db, async_test_user) -> None:
         project = Project(
             name="no_schedule_self_test",
             user_id=async_test_user.id,
@@ -144,9 +139,7 @@ class TestSelfTestSchedulerRefreshJobs:
         job = self.scheduler._scheduler.get_job(job_id)
         assert job is None
 
-    async def test_refresh_skips_non_self_test_projects(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_refresh_skips_non_self_test_projects(self, async_db, async_test_user) -> None:
         project = Project(
             name="normal_project_with_schedule",
             user_id=async_test_user.id,
@@ -174,9 +167,7 @@ class TestSelfTestSchedulerRefreshJobs:
 class TestSelfTestScheduleAPI:
     """自测定时计划API端点测试"""
 
-    async def test_non_self_test_project_cannot_schedule(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_non_self_test_project_cannot_schedule(self, async_db, async_test_user) -> None:
         from fastapi import HTTPException
 
         from app.api.v1.endpoints.project_core import update_self_test_schedule
@@ -203,9 +194,7 @@ class TestSelfTestScheduleAPI:
         assert exc_info.value.status_code == 400
         assert "仅自测项目" in exc_info.value.detail
 
-    async def test_invalid_cron_expression_rejected(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_invalid_cron_expression_rejected(self, async_db, async_test_user) -> None:
         from fastapi import HTTPException
 
         from app.api.v1.endpoints.project_core import update_self_test_schedule
@@ -232,9 +221,7 @@ class TestSelfTestScheduleAPI:
         assert exc_info.value.status_code == 400
         assert "无效的cron表达式" in exc_info.value.detail
 
-    async def test_null_schedule_cancels_timer(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_null_schedule_cancels_timer(self, async_db, async_test_user) -> None:
         from app.api.v1.endpoints.project_core import update_self_test_schedule
         from app.api.v1.endpoints.project_core import SelfTestScheduleRequest
 
@@ -295,9 +282,7 @@ class TestSelfTestDataCleanup:
         await async_db.flush()
         return test_case
 
-    async def test_cleanup_removes_task_but_preserves_results(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_cleanup_removes_task_but_preserves_results(self, async_db, async_test_user) -> None:
         project = Project(
             name="cleanup_test_project",
             user_id=async_test_user.id,
@@ -334,26 +319,16 @@ class TestSelfTestDataCleanup:
         scheduler = SelfTestScheduler()
         await scheduler._cleanup_self_test_data(async_db, task.id)
 
-        taskResult = (
-            await async_db.execute(
-                select(TestTask).where(TestTask.id == task.id)
-            )
-        ).scalars().first()
+        taskResult = (await async_db.execute(select(TestTask).where(TestTask.id == task.id))).scalars().first()
         assert taskResult is None
-        resultResult = (
-            await async_db.execute(
-                select(TestResult).where(TestResult.id == result.id)
-            )
-        ).scalars().first()
+        resultResult = (await async_db.execute(select(TestResult).where(TestResult.id == result.id))).scalars().first()
         assert resultResult is not None
 
     async def test_cleanup_nonexistent_task_no_error(self, async_db) -> None:
         scheduler = SelfTestScheduler()
         await scheduler._cleanup_self_test_data(async_db, 999999)
 
-    async def test_cleanup_preserves_self_test_bugs(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_cleanup_preserves_self_test_bugs(self, async_db, async_test_user) -> None:
         from app.models.bug import Bug
 
         project = Project(
@@ -409,36 +384,22 @@ class TestSelfTestDataCleanup:
         scheduler = SelfTestScheduler()
         await scheduler._cleanup_self_test_data(async_db, task.id)
 
-        preserved_bug = (
-            await async_db.execute(
-                select(Bug).where(Bug.id == bug.id)
-            )
-        ).scalars().first()
+        preserved_bug = (await async_db.execute(select(Bug).where(Bug.id == bug.id))).scalars().first()
         assert preserved_bug is not None
         assert preserved_bug.source == "self_test"
         assert preserved_bug.test_result_id is None
         assert "错误信息" in preserved_bug.reproduction_steps
         assert "执行日志" in preserved_bug.reproduction_steps
-        resultResult = (
-            await async_db.execute(
-                select(TestResult).where(TestResult.id == result.id)
-            )
-        ).scalars().first()
+        resultResult = (await async_db.execute(select(TestResult).where(TestResult.id == result.id))).scalars().first()
         assert resultResult is not None
-        taskResult = (
-            await async_db.execute(
-                select(TestTask).where(TestTask.id == task.id)
-            )
-        ).scalars().first()
+        taskResult = (await async_db.execute(select(TestTask).where(TestTask.id == task.id))).scalars().first()
         assert taskResult is None
 
 
 class TestSelfTestWebSocketNotification:
     """WebSocket通知测试"""
 
-    async def test_notify_new_failures_broadcasts_message(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_notify_new_failures_broadcasts_message(self, async_db, async_test_user) -> None:
         project = Project(
             name="ws_notify_project",
             user_id=async_test_user.id,
@@ -465,12 +426,8 @@ class TestSelfTestWebSocketNotification:
 
         scheduler = SelfTestScheduler()
 
-        with patch.object(
-            ws_manager, "broadcast", new_callable=AsyncMock
-        ) as mock_broadcast:
-            await scheduler._notify_new_failures(
-                async_db, project, 1, {test_case.id}
-            )
+        with patch.object(ws_manager, "broadcast", new_callable=AsyncMock) as mock_broadcast:
+            await scheduler._notify_new_failures(async_db, project, 1, {test_case.id})
             mock_broadcast.assert_called_once()
             call_args = mock_broadcast.call_args
             message = call_args[0][1]
@@ -481,9 +438,7 @@ class TestSelfTestWebSocketNotification:
             assert len(message["new_failed_cases"]) == 1
             assert message["new_failed_cases"][0]["case_id"] == test_case.id
 
-    async def test_notify_failure_broadcast_error_handled(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_notify_failure_broadcast_error_handled(self, async_db, async_test_user) -> None:
         project = Project(
             name="ws_error_project",
             user_id=async_test_user.id,
@@ -496,9 +451,7 @@ class TestSelfTestWebSocketNotification:
 
         scheduler = SelfTestScheduler()
 
-        with patch.object(
-            ws_manager, "broadcast", new_callable=AsyncMock, side_effect=Exception("WS error")
-        ):
+        with patch.object(ws_manager, "broadcast", new_callable=AsyncMock, side_effect=Exception("WS error")):
             await scheduler._notify_new_failures(async_db, project, 1, set())
 
 
@@ -540,18 +493,14 @@ class TestSelfTestSchedulerConcurrencyControl:
         scheduler = SelfTestScheduler()
         scheduler._running_projects.add(42)
 
-        with patch.object(
-            scheduler, "_execute_self_test", new_callable=AsyncMock
-        ):
+        with patch.object(scheduler, "_execute_self_test", new_callable=AsyncMock):
             scheduler._on_schedule_triggered(42)
             assert 42 in scheduler._running_projects
 
     def test_project_removed_from_running_after_execution(self) -> None:
         scheduler = SelfTestScheduler()
 
-        with patch.object(
-            scheduler, "_execute_self_test", new_callable=AsyncMock
-        ):
+        with patch.object(scheduler, "_execute_self_test", new_callable=AsyncMock):
             scheduler._on_schedule_triggered(42)
 
         assert 42 not in scheduler._running_projects
@@ -559,9 +508,7 @@ class TestSelfTestSchedulerConcurrencyControl:
     def test_project_removed_from_running_on_exception(self) -> None:
         scheduler = SelfTestScheduler()
 
-        with patch.object(
-            scheduler, "_execute_self_test", new_callable=AsyncMock, side_effect=Exception("boom")
-        ):
+        with patch.object(scheduler, "_execute_self_test", new_callable=AsyncMock, side_effect=Exception("boom")):
             scheduler._on_schedule_triggered(42)
 
         assert 42 not in scheduler._running_projects
@@ -570,9 +517,7 @@ class TestSelfTestSchedulerConcurrencyControl:
         scheduler = SelfTestScheduler()
         scheduler._running_projects.add(1)
 
-        with patch.object(
-            scheduler, "_execute_self_test", new_callable=AsyncMock
-        ):
+        with patch.object(scheduler, "_execute_self_test", new_callable=AsyncMock):
             scheduler._on_schedule_triggered(2)
 
         assert 1 in scheduler._running_projects

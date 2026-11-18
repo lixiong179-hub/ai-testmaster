@@ -14,6 +14,7 @@
     - TestPipelineRunApi / TestScenario4Precheck 使用 async_db（async endpoint 调用）
       端点内部使用 db.run_sync / await db.execute，必须传入 AsyncSession。
 """
+
 import pytest
 from types import SimpleNamespace
 
@@ -214,7 +215,9 @@ def runnable_iteration(db, testProject):
 @pytest.fixture
 def pipeline_api_mock_ai():
     client = MockAIClient()
-    client.set_response("case_generation", """
+    client.set_response(
+        "case_generation",
+        """
     [
       {
         "title": "登录功能验证",
@@ -226,7 +229,8 @@ def pipeline_api_mock_ai():
         "case_type": "functional"
       }
     ]
-    """)
+    """,
+    )
     return client
 
 
@@ -256,9 +260,7 @@ class TestPipelineRunApi:
 
 
 class TestScenario4Precheck:
-    async def test_precheck_no_project_access(
-        self, db, testUser, testProject
-    ):
+    async def test_precheck_no_project_access(self, db, testUser, testProject):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
         from fastapi import HTTPException
         import pytest as pytest_mod
@@ -270,9 +272,7 @@ class TestScenario4Precheck:
                 current_user=SimpleNamespace(id=testUser.id),
             )
 
-    async def test_precheck_empty_project(
-        self, db, testUser, testProject
-    ):
+    async def test_precheck_empty_project(self, db, testUser, testProject):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
 
         response = await precheck_scenario_4(
@@ -288,35 +288,61 @@ class TestScenario4Precheck:
         assert data["can_run"] is False
         assert len(data["blocking_reasons"]) > 0
 
-    async def test_precheck_with_history_cases(
-        self, db, testUser, testProject
-    ):
+    async def test_precheck_with_history_cases(self, db, testUser, testProject):
         from app.models.test_case import TestCase
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
 
         tc1 = TestCase(
-            project_id=testProject.id, title="用例1", lifecycle_status="active",
-            is_deleted=False, case_no="TC-001", module="登录",
-            precondition="前置条件", expected_result="预期结果", priority=1,
-            case_type="API", steps_json=[],
+            project_id=testProject.id,
+            title="用例1",
+            lifecycle_status="active",
+            is_deleted=False,
+            case_no="TC-001",
+            module="登录",
+            precondition="前置条件",
+            expected_result="预期结果",
+            priority=1,
+            case_type="API",
+            steps_json=[],
         )
         tc2 = TestCase(
-            project_id=testProject.id, title="用例2", lifecycle_status="draft",
-            is_deleted=False, case_no="TC-002", module="登录",
-            precondition="前置条件", expected_result="预期结果", priority=1,
-            case_type="API", steps_json=[],
+            project_id=testProject.id,
+            title="用例2",
+            lifecycle_status="draft",
+            is_deleted=False,
+            case_no="TC-002",
+            module="登录",
+            precondition="前置条件",
+            expected_result="预期结果",
+            priority=1,
+            case_type="API",
+            steps_json=[],
         )
         tc3 = TestCase(
-            project_id=testProject.id, title="用例3", lifecycle_status="archived",
-            is_deleted=False, case_no="TC-003", module="登录",
-            precondition="前置条件", expected_result="预期结果", priority=1,
-            case_type="API", steps_json=[],
+            project_id=testProject.id,
+            title="用例3",
+            lifecycle_status="archived",
+            is_deleted=False,
+            case_no="TC-003",
+            module="登录",
+            precondition="前置条件",
+            expected_result="预期结果",
+            priority=1,
+            case_type="API",
+            steps_json=[],
         )
         tc4 = TestCase(
-            project_id=testProject.id, title="用例4", lifecycle_status="active",
-            is_deleted=True, case_no="TC-004", module="登录",
-            precondition="前置条件", expected_result="预期结果", priority=1,
-            case_type="API", steps_json=[],
+            project_id=testProject.id,
+            title="用例4",
+            lifecycle_status="active",
+            is_deleted=True,
+            case_no="TC-004",
+            module="登录",
+            precondition="前置条件",
+            expected_result="预期结果",
+            priority=1,
+            case_type="API",
+            steps_json=[],
         )
         db.add_all([tc1, tc2, tc3, tc4])
         db.flush()
@@ -333,18 +359,20 @@ class TestScenario4Precheck:
         assert data["history_cases"]["draft"] == 1
         assert data["history_cases"]["archived"] == 1
 
-    async def test_precheck_with_test_points(
-        self, db, testUser, testProject
-    ):
+    async def test_precheck_with_test_points(self, db, testUser, testProject):
         from app.models.test_point import TestPoint
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
 
         tp1 = TestPoint(
-            project_id=testProject.id, module="登录", point="登录功能",
+            project_id=testProject.id,
+            module="登录",
+            point="登录功能",
             priority=1,
         )
         tp2 = TestPoint(
-            project_id=testProject.id, module="注册", point="注册功能",
+            project_id=testProject.id,
+            module="注册",
+            point="注册功能",
             priority=1,
         )
         db.add_all([tp1, tp2])
@@ -362,9 +390,7 @@ class TestScenario4Precheck:
         assert data["test_points"]["total"] == 2
         assert data["test_points"]["selected"] == 2
 
-    async def test_precheck_test_points_wrong_project(
-        self, db, testUser, testProject
-    ):
+    async def test_precheck_test_points_wrong_project(self, db, testUser, testProject):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
         from fastapi import HTTPException
         import pytest as pytest_mod
@@ -379,9 +405,7 @@ class TestScenario4Precheck:
                 current_user=SimpleNamespace(id=testUser.id),
             )
 
-    async def test_precheck_with_ui_screens(
-        self, db, testUser, testProject
-    ):
+    async def test_precheck_with_ui_screens(self, db, testUser, testProject):
         from app.models.ui_prototype import UIPrototypeProject, UIPrototypeScreen
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
 
@@ -396,22 +420,28 @@ class TestScenario4Precheck:
             prototype_project_id=proto_project.id,
             project_id=testProject.id,
             prototype_name="首页原型",
-            screen_name="首页", parse_status="completed",
-            ui_spec={"elements": []}, screen_order=1,
+            screen_name="首页",
+            parse_status="completed",
+            ui_spec={"elements": []},
+            screen_order=1,
         )
         s2 = UIPrototypeScreen(
             prototype_project_id=proto_project.id,
             project_id=testProject.id,
             prototype_name="设置页原型",
-            screen_name="设置页", parse_status="pending",
-            ui_spec=None, screen_order=2,
+            screen_name="设置页",
+            parse_status="pending",
+            ui_spec=None,
+            screen_order=2,
         )
         s3 = UIPrototypeScreen(
             prototype_project_id=proto_project.id,
             project_id=testProject.id,
             prototype_name="关于页原型",
-            screen_name="关于页", parse_status="failed",
-            ui_spec=None, screen_order=3,
+            screen_name="关于页",
+            parse_status="failed",
+            ui_spec=None,
+            screen_order=3,
         )
         db.add_all([s1, s2, s3])
         db.flush()
@@ -432,9 +462,7 @@ class TestScenario4Precheck:
         assert data["ui"]["usable_screen_ids"] == [s1.id]
         assert data["warnings"]
 
-    async def test_precheck_without_ui_project_id(
-        self, db, testUser, testProject
-    ):
+    async def test_precheck_without_ui_project_id(self, db, testUser, testProject):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
 
         response = await precheck_scenario_4(
@@ -445,9 +473,7 @@ class TestScenario4Precheck:
         data = response["data"]
         assert data["ui"]["selected_screen_count"] == 0
 
-    async def test_precheck_cannot_access_ui_project(
-        self, db, testUser, testProject
-    ):
+    async def test_precheck_cannot_access_ui_project(self, db, testUser, testProject):
         from app.api.v1.endpoints.pipeline import precheck_scenario_4, Scenario4PrecheckRequest
         from fastapi import HTTPException
         import pytest as pytest_mod

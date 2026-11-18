@@ -189,6 +189,7 @@ class TestBaseExceptionHandler:
         assert response.status_code == 400
         body = response.body.decode() if isinstance(response.body, bytes) else str(response.body)
         import json
+
         data = json.loads(body)
         assert data["code"] == 400
         assert data["msg"] == "api error"

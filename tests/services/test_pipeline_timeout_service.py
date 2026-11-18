@@ -11,6 +11,7 @@ Pipeline 暂停超时自动取消服务测试模块
     - 配置值异常时使用默认值
     - 单条取消失败不影响其他记录
 """
+
 from datetime import timedelta
 import hashlib
 
@@ -47,13 +48,14 @@ def testIteration(db, testProject):
 
 
 def _create_pipeline_run(
-    db: Session, iteration_id: int, status: str,
-    paused_at=None, input_hash: str = "test_hash_timeout",
+    db: Session,
+    iteration_id: int,
+    status: str,
+    paused_at=None,
+    input_hash: str = "test_hash_timeout",
 ) -> PipelineRun:
     """辅助函数：创建 PipelineRun 记录。"""
-    uniqueHash = hashlib.sha256(
-        f"{input_hash}{id(paused_at)}".encode()
-    ).hexdigest()[:16]
+    uniqueHash = hashlib.sha256(f"{input_hash}{id(paused_at)}".encode()).hexdigest()[:16]
     run = PipelineRun(
         iteration_id=iteration_id,
         input_hash=uniqueHash,
@@ -73,7 +75,8 @@ class TestCancelTimedOutPipelines:
         """暂停超过 7 天的运行应被自动取消。"""
         eightDaysAgo = utcnow() - timedelta(days=8)
         run = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=eightDaysAgo,
             input_hash="timeout_8days",
@@ -90,7 +93,8 @@ class TestCancelTimedOutPipelines:
         """暂停不足 7 天的运行不应被取消。"""
         oneDayAgo = utcnow() - timedelta(days=1)
         run = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=oneDayAgo,
             input_hash="timeout_1day",
@@ -106,7 +110,8 @@ class TestCancelTimedOutPipelines:
         """恰好 7 天减 1 秒的暂停不应被取消（严格小于才触发）。"""
         almostSevenDays = utcnow() - timedelta(days=7, seconds=-1)
         run = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=almostSevenDays,
             input_hash="timeout_7days_exact",
@@ -122,7 +127,8 @@ class TestCancelTimedOutPipelines:
         """超过 7 天 1 秒的暂停应被取消。"""
         justOver = utcnow() - timedelta(days=7, seconds=1)
         run = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=justOver,
             input_hash="timeout_7days_plus1s",
@@ -139,7 +145,8 @@ class TestCancelTimedOutPipelines:
         set_config(db, "PIPELINE_PAUSE_TIMEOUT_DAYS", 3)
         fourDaysAgo = utcnow() - timedelta(days=4)
         run = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=fourDaysAgo,
             input_hash="timeout_config_3days",
@@ -155,7 +162,8 @@ class TestCancelTimedOutPipelines:
         """取消超时运行时应写入审计日志。"""
         eightDaysAgo = utcnow() - timedelta(days=8)
         run = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=eightDaysAgo,
             input_hash="timeout_audit",
@@ -175,7 +183,8 @@ class TestCancelTimedOutPipelines:
     def test_skip_paused_at_none(self, db, testIteration):
         """paused_at 为 None 的 waiting_for_user 记录应被跳过。"""
         run = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=None,
             input_hash="timeout_no_paused_at",
@@ -191,7 +200,8 @@ class TestCancelTimedOutPipelines:
         """非 waiting_for_user 状态的记录不应被取消。"""
         eightDaysAgo = utcnow() - timedelta(days=8)
         run = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.RUNNING.value,
             paused_at=eightDaysAgo,
             input_hash="timeout_running_status",
@@ -206,6 +216,7 @@ class TestCancelTimedOutPipelines:
     def test_config_invalid_value_uses_default(self, db, testIteration):
         """配置值异常时应使用默认值 7。"""
         from app.models.pipeline_config import PipelineConfig
+
         row = PipelineConfig(
             key="PIPELINE_PAUSE_TIMEOUT_DAYS",
             value="-1",
@@ -217,7 +228,8 @@ class TestCancelTimedOutPipelines:
 
         eightDaysAgo = utcnow() - timedelta(days=8)
         run = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=eightDaysAgo,
             input_hash="timeout_invalid_config",
@@ -234,13 +246,15 @@ class TestCancelTimedOutPipelines:
         eightDaysAgo = utcnow() - timedelta(days=8)
         tenDaysAgo = utcnow() - timedelta(days=10)
         run1 = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=eightDaysAgo,
             input_hash="timeout_multi_1",
         )
         run2 = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=tenDaysAgo,
             input_hash="timeout_multi_2",
@@ -262,15 +276,18 @@ class TestCancelTimedOutPipelines:
     def test_single_cancel_failure_continues(self, db, testIteration):
         """单条取消失败时不应影响其他记录的取消。"""
         from unittest.mock import patch
+
         eightDaysAgo = utcnow() - timedelta(days=8)
         run1 = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=eightDaysAgo,
             input_hash="timeout_fail_1",
         )
         run2 = _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=eightDaysAgo,
             input_hash="timeout_fail_2",
@@ -298,9 +315,11 @@ class TestCancelTimedOutPipelines:
     def test_cancel_failure_returns_zero(self, db, testIteration):
         """取消过程中 flush/commit 失败时，异常被捕获，返回 0。"""
         from unittest.mock import patch
+
         eightDaysAgo = utcnow() - timedelta(days=8)
         _create_pipeline_run(
-            db, testIteration.id,
+            db,
+            testIteration.id,
             PipelineRunStatus.WAITING_FOR_USER.value,
             paused_at=eightDaysAgo,
             input_hash="timeout_flush_fail",

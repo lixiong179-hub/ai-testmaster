@@ -19,6 +19,7 @@ sync session，在线程池中使用时需要 greenlet 上下文（async connect
 代理依赖 greenlet）。autouse fixture 用 greenlet_spawn 替换 to_thread，在事件
 循环线程的 greenlet 中执行 sync 调用。
 """
+
 import asyncio
 import uuid
 
@@ -189,9 +190,7 @@ class TestSelfHealingAuditList:
         assert body["data"]["page"] == 1
         assert body["data"]["page_size"] == 20
 
-    async def test_list_with_data(
-        self, async_auth_client, async_db, async_test_project
-    ):
+    async def test_list_with_data(self, async_auth_client, async_db, async_test_project):
         """有数据场景：创建审计后列表返回对应记录。"""
         case = await _create_case(async_db, async_test_project)
         audit = await _create_audit(async_db, case)
@@ -203,43 +202,31 @@ class TestSelfHealingAuditList:
         ids = [item["id"] for item in body["data"]["items"]]
         assert audit.id in ids
 
-    async def test_filter_by_project_id(
-        self, async_auth_client, async_db, async_test_project
-    ):
+    async def test_filter_by_project_id(self, async_auth_client, async_db, async_test_project):
         """project_id 过滤：仅返回该项目的审计记录。"""
         case = await _create_case(async_db, async_test_project)
         audit = await _create_audit(async_db, case)
 
-        resp = await async_auth_client.get(
-            f"/api/v1/self-healing/audits?project_id={async_test_project.id}"
-        )
+        resp = await async_auth_client.get(f"/api/v1/self-healing/audits?project_id={async_test_project.id}")
         assert resp.status_code == 200
         body = resp.json()
         assert body["data"]["total"] >= 1
         ids = [item["id"] for item in body["data"]["items"]]
         assert audit.id in ids
 
-    async def test_filter_by_project_id_no_permission(
-        self, async_auth_client, async_db
-    ):
+    async def test_filter_by_project_id_no_permission(self, async_auth_client, async_db):
         """project_id 过滤无权限：他人项目返回 403。"""
         _, other_project = await _create_other_user_project(async_db)
 
-        resp = await async_auth_client.get(
-            f"/api/v1/self-healing/audits?project_id={other_project.id}"
-        )
+        resp = await async_auth_client.get(f"/api/v1/self-healing/audits?project_id={other_project.id}")
         assert resp.status_code == 403
 
-    async def test_filter_by_test_case_id(
-        self, async_auth_client, async_db, async_test_project
-    ):
+    async def test_filter_by_test_case_id(self, async_auth_client, async_db, async_test_project):
         """test_case_id 过滤：仅返回该用例的审计记录。"""
         case = await _create_case(async_db, async_test_project)
         audit = await _create_audit(async_db, case)
 
-        resp = await async_auth_client.get(
-            f"/api/v1/self-healing/audits?test_case_id={case.id}"
-        )
+        resp = await async_auth_client.get(f"/api/v1/self-healing/audits?test_case_id={case.id}")
         assert resp.status_code == 200
         body = resp.json()
         ids = [item["id"] for item in body["data"]["items"]]
@@ -247,17 +234,13 @@ class TestSelfHealingAuditList:
         for item in body["data"]["items"]:
             assert item["test_case_id"] == case.id
 
-    async def test_pagination(
-        self, async_auth_client, async_db, async_test_project
-    ):
+    async def test_pagination(self, async_auth_client, async_db, async_test_project):
         """分页：page_size=2 时首页最多返回 2 条，total 反映总数。"""
         case = await _create_case(async_db, async_test_project)
         for i in range(5):
             await _create_audit(async_db, case, step_index=i)
 
-        resp = await async_auth_client.get(
-            "/api/v1/self-healing/audits?page=1&page_size=2"
-        )
+        resp = await async_auth_client.get("/api/v1/self-healing/audits?page=1&page_size=2")
         assert resp.status_code == 200
         body = resp.json()
         assert len(body["data"]["items"]) <= 2
@@ -265,9 +248,7 @@ class TestSelfHealingAuditList:
         assert body["data"]["page_size"] == 2
         assert body["data"]["total"] >= 5
 
-        resp2 = await async_auth_client.get(
-            "/api/v1/self-healing/audits?page=2&page_size=2"
-        )
+        resp2 = await async_auth_client.get("/api/v1/self-healing/audits?page=2&page_size=2")
         assert resp2.status_code == 200
         body2 = resp2.json()
         assert body2["data"]["page"] == 2
@@ -286,16 +267,12 @@ class TestSelfHealingAuditList:
 class TestSelfHealingAuditDetail:
     """GET /api/v1/self-healing/audits/{audit_id} 审计详情。"""
 
-    async def test_get_existing_audit(
-        self, async_auth_client, async_db, async_test_project
-    ):
+    async def test_get_existing_audit(self, async_auth_client, async_db, async_test_project):
         """存在的审计记录返回详情。"""
         case = await _create_case(async_db, async_test_project)
         audit = await _create_audit(async_db, case)
 
-        resp = await async_auth_client.get(
-            f"/api/v1/self-healing/audits/{audit.id}"
-        )
+        resp = await async_auth_client.get(f"/api/v1/self-healing/audits/{audit.id}")
         assert resp.status_code == 200
         body = resp.json()
         assert body["data"]["id"] == audit.id
@@ -309,9 +286,7 @@ class TestSelfHealingAuditDetail:
         HTTPException 经 http_exception_handler 转为统一错误响应格式
         {"code","msg","message","data","timestamp"}，故断言 msg 字段。
         """
-        resp = await async_auth_client.get(
-            "/api/v1/self-healing/audits/99999999"
-        )
+        resp = await async_auth_client.get("/api/v1/self-healing/audits/99999999")
         assert resp.status_code == 404
         assert "不存在" in resp.json()["msg"]
 
@@ -324,25 +299,20 @@ class TestSelfHealingAuditDetail:
 class TestSelfHealingRollback:
     """POST /api/v1/self-healing/audits/{audit_id}/rollback 回滚自愈变更。"""
 
-    async def test_rollback_success(
-        self, async_auth_client, async_db, async_test_project
-    ):
+    async def test_rollback_success(self, async_auth_client, async_db, async_test_project):
         """回滚成功：恢复旧选择器，写入回滚审计。"""
         case = await _create_case(async_db, async_test_project)
         step = await _create_step(async_db, case)
-        locator = await _create_locator(
-            async_db, step, css_selector=".new-btn", version=1
-        )
+        locator = await _create_locator(async_db, step, css_selector=".new-btn", version=1)
         audit = await _create_audit(
-            async_db, case,
+            async_db,
+            case,
             locator_id=locator.id,
             old_selector=".old-btn",
             new_selector=".new-btn",
         )
 
-        resp = await async_auth_client.post(
-            f"/api/v1/self-healing/audits/{audit.id}/rollback"
-        )
+        resp = await async_auth_client.post(f"/api/v1/self-healing/audits/{audit.id}/rollback")
         assert resp.status_code == 200
         body = resp.json()
         assert body["data"]["audit_id"] == audit.id
@@ -356,18 +326,14 @@ class TestSelfHealingRollback:
         # 中已缓存对象的属性，避免读到陈旧值。不可用 expire_all()，否则
         # 后续访问 locator.id 会触发 sync 懒加载抛 MissingGreenlet。
         result = await async_db.execute(
-            select(ElementLocator)
-            .where(ElementLocator.id == locator.id)
-            .execution_options(populate_existing=True)
+            select(ElementLocator).where(ElementLocator.id == locator.id).execution_options(populate_existing=True)
         )
         updated_locator = result.scalar_one()
         assert updated_locator.css_selector == ".old-btn"
 
         # 验证回滚审计已写入
         result = await async_db.execute(
-            select(SelfHealingAudit).where(
-                SelfHealingAudit.id == body["data"]["new_audit_id"]
-            )
+            select(SelfHealingAudit).where(SelfHealingAudit.id == body["data"]["new_audit_id"])
         )
         rollback_audit = result.scalar_one()
         assert rollback_audit.strategy == "rollback"
@@ -375,20 +341,17 @@ class TestSelfHealingRollback:
 
     async def test_rollback_nonexistent_404(self, async_auth_client):
         """回滚不存在的审计记录返回 404。"""
-        resp = await async_auth_client.post(
-            "/api/v1/self-healing/audits/99999999/rollback"
-        )
+        resp = await async_auth_client.post("/api/v1/self-healing/audits/99999999/rollback")
         assert resp.status_code == 404
         assert "不存在" in resp.json()["msg"]
 
-    async def test_rollback_empty_old_selector_400(
-        self, async_auth_client, async_db, async_test_project
-    ):
+    async def test_rollback_empty_old_selector_400(self, async_auth_client, async_db, async_test_project):
         """old_selector/locator_id 为空时返回 400。"""
         case = await _create_case(async_db, async_test_project)
         # 创建 old_selector=None 且 locator_id=None 的审计
         audit = await _create_audit(
-            async_db, case,
+            async_db,
+            case,
             locator_id=None,
             old_selector=None,
             new_selector=None,
@@ -396,9 +359,7 @@ class TestSelfHealingRollback:
             strategy="skip",
         )
 
-        resp = await async_auth_client.post(
-            f"/api/v1/self-healing/audits/{audit.id}/rollback"
-        )
+        resp = await async_auth_client.post(f"/api/v1/self-healing/audits/{audit.id}/rollback")
         assert resp.status_code == 400
         assert "为空" in resp.json()["msg"]
 
@@ -411,13 +372,9 @@ class TestSelfHealingRollback:
 class TestSelfHealingConfigGet:
     """GET /api/v1/projects/{project_id}/self-healing-config 查询配置。"""
 
-    async def test_get_config_success(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_get_config_success(self, async_auth_client, async_test_project):
         """成功查询配置：返回含 enabled/strategies/token_limit 的默认配置。"""
-        resp = await async_auth_client.get(
-            f"/api/v1/projects/{async_test_project.id}/self-healing-config"
-        )
+        resp = await async_auth_client.get(f"/api/v1/projects/{async_test_project.id}/self-healing-config")
         assert resp.status_code == 200
         body = resp.json()
         assert "enabled" in body["data"]
@@ -426,24 +383,16 @@ class TestSelfHealingConfigGet:
         assert isinstance(body["data"]["strategies"], list)
         assert isinstance(body["data"]["token_limit"], int)
 
-    async def test_get_config_nonexistent_project_403(
-        self, async_auth_client
-    ):
+    async def test_get_config_nonexistent_project_403(self, async_auth_client):
         """项目不存在时 _verify_project_owner 校验失败返回 403。"""
-        resp = await async_auth_client.get(
-            "/api/v1/projects/99999/self-healing-config"
-        )
+        resp = await async_auth_client.get("/api/v1/projects/99999/self-healing-config")
         assert resp.status_code == 403
 
-    async def test_get_config_no_permission_403(
-        self, async_auth_client, async_db
-    ):
+    async def test_get_config_no_permission_403(self, async_auth_client, async_db):
         """无权限访问他人项目返回 403。"""
         _, other_project = await _create_other_user_project(async_db)
 
-        resp = await async_auth_client.get(
-            f"/api/v1/projects/{other_project.id}/self-healing-config"
-        )
+        resp = await async_auth_client.get(f"/api/v1/projects/{other_project.id}/self-healing-config")
         assert resp.status_code == 403
 
 
@@ -455,9 +404,7 @@ class TestSelfHealingConfigGet:
 class TestSelfHealingConfigUpdate:
     """PUT /api/v1/projects/{project_id}/self-healing-config 更新配置。"""
 
-    async def test_update_config_success(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_update_config_success(self, async_auth_client, async_test_project):
         """成功更新全部字段。"""
         resp = await async_auth_client.put(
             f"/api/v1/projects/{async_test_project.id}/self-healing-config",
@@ -472,9 +419,7 @@ class TestSelfHealingConfigUpdate:
         assert body["data"]["token_limit"] == 3000
         assert body["data"]["strategies"] == ["mcp", "vision"]
 
-    async def test_partial_update_keeps_existing(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_partial_update_keeps_existing(self, async_auth_client, async_test_project):
         """部分更新：仅传 token_limit，strategies 保持原值。"""
         # 先全量更新一次
         await async_auth_client.put(
@@ -496,9 +441,7 @@ class TestSelfHealingConfigUpdate:
         # strategies 应保持原值
         assert body["data"]["strategies"] == ["mcp", "vision"]
 
-    async def test_invalid_strategies_400(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_invalid_strategies_400(self, async_auth_client, async_test_project):
         """非法 strategies 值返回 400（service 层校验）。"""
         resp = await async_auth_client.put(
             f"/api/v1/projects/{async_test_project.id}/self-healing-config",
@@ -507,9 +450,7 @@ class TestSelfHealingConfigUpdate:
         assert resp.status_code == 400
         assert "strategies" in resp.json()["msg"] or "非法" in resp.json()["msg"]
 
-    async def test_invalid_token_limit(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_invalid_token_limit(self, async_auth_client, async_test_project):
         """非法 token_limit（超出范围）被拒绝。
 
         Pydantic 层 ge=1/le=10000 会拦截返回 422；
@@ -522,9 +463,7 @@ class TestSelfHealingConfigUpdate:
         )
         assert resp.status_code in (400, 422)
 
-    async def test_invalid_token_limit_exceed_max(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_invalid_token_limit_exceed_max(self, async_auth_client, async_test_project):
         """token_limit 超过上限 10000 被拒绝。"""
         resp = await async_auth_client.put(
             f"/api/v1/projects/{async_test_project.id}/self-healing-config",
@@ -542,9 +481,7 @@ class TestSelfHealingConfigUpdate:
         )
         assert resp.status_code == 403
 
-    async def test_update_strategies_with_stagehand(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_update_strategies_with_stagehand(self, async_auth_client, async_test_project):
         """更新 strategies 包含 stagehand（合法值）成功。"""
         resp = await async_auth_client.put(
             f"/api/v1/projects/{async_test_project.id}/self-healing-config",

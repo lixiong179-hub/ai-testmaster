@@ -8,23 +8,21 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="acl_test_user",
-        email="acl_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="acl_test_user", email="acl_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(ApiCostLog).filter(ApiCostLog.task_id.in_(
-        db.query(TestTask.id).filter(TestTask.project_id.in_(
-            db.query(Project.id).filter(Project.user_id == user.id)
-        ))
-    )).delete(synchronize_session=False)
-    db.query(TestTask).filter(TestTask.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(ApiCostLog).filter(
+        ApiCostLog.task_id.in_(
+            db.query(TestTask.id).filter(
+                TestTask.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+            )
+        )
+    ).delete(synchronize_session=False)
+    db.query(TestTask).filter(TestTask.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -41,12 +39,7 @@ def test_project(db, test_user):
 
 @pytest.fixture
 def test_task(db, test_project, test_user):
-    task = TestTask(
-        task_name="API成本测试任务",
-        project_id=test_project.id,
-        executor_id=test_user.id,
-        case_ids=[]
-    )
+    task = TestTask(task_name="API成本测试任务", project_id=test_project.id, executor_id=test_user.id, case_ids=[])
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -61,7 +54,7 @@ class TestApiCostLogModel:
             api_type="test_generation",
             output_tokens=500,
             cost=Decimal("0.015000"),
-            status="success"
+            status="success",
         )
         db.add(log)
         db.commit()
@@ -75,10 +68,7 @@ class TestApiCostLogModel:
         db.commit()
 
     def test_api_cost_log_default_values(self, db):
-        log = ApiCostLog(
-            model="qwen",
-            api_type="analysis"
-        )
+        log = ApiCostLog(model="qwen", api_type="analysis")
         db.add(log)
         db.commit()
         db.refresh(log)
@@ -92,10 +82,7 @@ class TestApiCostLogModel:
 
     def test_api_cost_log_model_values(self, db):
         for model in ["deepseek-v4-flash", "qwen", "kimi"]:
-            log = ApiCostLog(
-                model=model,
-                api_type="test_generation"
-            )
+            log = ApiCostLog(model=model, api_type="test_generation")
             db.add(log)
             db.commit()
             db.refresh(log)
@@ -105,10 +92,7 @@ class TestApiCostLogModel:
 
     def test_api_cost_log_api_type_values(self, db):
         for api_type in ["test_generation", "analysis", "vision"]:
-            log = ApiCostLog(
-                model="deepseek-v4-flash",
-                api_type=api_type
-            )
+            log = ApiCostLog(model="deepseek-v4-flash", api_type=api_type)
             db.add(log)
             db.commit()
             db.refresh(log)
@@ -118,11 +102,7 @@ class TestApiCostLogModel:
 
     def test_api_cost_log_status_values(self, db):
         for status in ["success", "failed", "timeout"]:
-            log = ApiCostLog(
-                model="deepseek-v4-flash",
-                api_type="test_generation",
-                status=status
-            )
+            log = ApiCostLog(model="deepseek-v4-flash", api_type="test_generation", status=status)
             db.add(log)
             db.commit()
             db.refresh(log)
@@ -132,10 +112,7 @@ class TestApiCostLogModel:
 
     def test_api_cost_log_with_error(self, db):
         log = ApiCostLog(
-            model="deepseek-v4-flash",
-            api_type="test_generation",
-            status="failed",
-            error_message="API调用超时"
+            model="deepseek-v4-flash", api_type="test_generation", status="failed", error_message="API调用超时"
         )
         db.add(log)
         db.commit()
@@ -146,11 +123,7 @@ class TestApiCostLogModel:
         db.commit()
 
     def test_api_cost_log_cost_precision(self, db):
-        log = ApiCostLog(
-            model="deepseek-v4-flash",
-            api_type="test_generation",
-            cost=Decimal("0.000001")
-        )
+        log = ApiCostLog(model="deepseek-v4-flash", api_type="test_generation", cost=Decimal("0.000001"))
         db.add(log)
         db.commit()
         db.refresh(log)
@@ -159,11 +132,7 @@ class TestApiCostLogModel:
         db.commit()
 
     def test_api_cost_log_repr(self, db):
-        log = ApiCostLog(
-            model="deepseek-v4-flash",
-            api_type="test_generation",
-            cost=Decimal("0.010000")
-        )
+        log = ApiCostLog(model="deepseek-v4-flash", api_type="test_generation", cost=Decimal("0.010000"))
         db.add(log)
         db.commit()
         db.refresh(log)

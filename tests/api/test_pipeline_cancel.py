@@ -14,6 +14,7 @@
 
 使用真实 MySQL、HTTP TestClient + JWT。
 """
+
 import hashlib
 import pytest
 
@@ -181,7 +182,9 @@ class TestCancelPermission:
     def test_admin_can_cancel_any_run(self, client, db, admin_setup):
         """admin 拥有 pipeline:cancel:all，可取消任意运行（包括他人发起的）。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "running",
+            db,
+            admin_setup["iteration"].id,
+            "running",
             triggered_by=9999,
         )
         resp = client.post(
@@ -194,7 +197,9 @@ class TestCancelPermission:
     def test_qa_lead_can_cancel_own_run(self, client, db, qa_lead_setup):
         """qa_lead 拥有 pipeline:cancel:own，可取消自己发起的运行。"""
         run = _make_run(
-            db, qa_lead_setup["iteration"].id, "running",
+            db,
+            qa_lead_setup["iteration"].id,
+            "running",
             triggered_by=qa_lead_setup["user"].id,
         )
         resp = client.post(
@@ -205,7 +210,11 @@ class TestCancelPermission:
         assert resp.json()["data"]["status"] == "cancelled"
 
     def test_qa_lead_cannot_cancel_others_run(
-        self, client, db, qa_lead_setup, other_qa_lead_setup,
+        self,
+        client,
+        db,
+        qa_lead_setup,
+        other_qa_lead_setup,
     ):
         """qa_lead 的 cancel:own 不允许取消他人发起的运行。
 
@@ -214,7 +223,9 @@ class TestCancelPermission:
         """
         # 在 qa_lead 的项目下创建 other_qa_lead 发起的运行
         run = _make_run(
-            db, qa_lead_setup["iteration"].id, "running",
+            db,
+            qa_lead_setup["iteration"].id,
+            "running",
             triggered_by=other_qa_lead_setup["user"].id,
         )
         resp = client.post(
@@ -226,7 +237,9 @@ class TestCancelPermission:
     def test_qa_engineer_cannot_cancel(self, client, db, qa_engineer_setup):
         """qa_engineer 无 cancel 权限，不可取消任何运行（即使自己发起的）。"""
         run = _make_run(
-            db, qa_engineer_setup["iteration"].id, "running",
+            db,
+            qa_engineer_setup["iteration"].id,
+            "running",
             triggered_by=qa_engineer_setup["user"].id,
         )
         resp = client.post(
@@ -242,7 +255,9 @@ class TestCancelPermission:
         db.flush()
 
         run = _make_run(
-            db, qa_lead_setup["iteration"].id, "running",
+            db,
+            qa_lead_setup["iteration"].id,
+            "running",
             triggered_by=viewer.id,
         )
         headers = _auth_headers(viewer.id, viewer.username)
@@ -262,7 +277,9 @@ class TestCancelStatusValidation:
     def test_cancel_running_status(self, client, db, admin_setup):
         """running 状态可取消。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "running",
+            db,
+            admin_setup["iteration"].id,
+            "running",
             triggered_by=admin_setup["user"].id,
         )
         resp = client.post(
@@ -275,7 +292,9 @@ class TestCancelStatusValidation:
     def test_cancel_waiting_for_user_status(self, client, db, admin_setup):
         """waiting_for_user 状态可取消。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "waiting_for_user",
+            db,
+            admin_setup["iteration"].id,
+            "waiting_for_user",
             triggered_by=admin_setup["user"].id,
         )
         resp = client.post(
@@ -288,7 +307,9 @@ class TestCancelStatusValidation:
     def test_cancel_pending_status(self, client, db, admin_setup):
         """pending 状态可取消。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "pending",
+            db,
+            admin_setup["iteration"].id,
+            "pending",
             triggered_by=admin_setup["user"].id,
         )
         resp = client.post(
@@ -301,7 +322,9 @@ class TestCancelStatusValidation:
     def test_cancel_completed_returns_409(self, client, db, admin_setup):
         """completed 状态不可取消，返回 409。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "completed",
+            db,
+            admin_setup["iteration"].id,
+            "completed",
             triggered_by=admin_setup["user"].id,
         )
         resp = client.post(
@@ -314,7 +337,9 @@ class TestCancelStatusValidation:
     def test_cancel_already_cancelled_returns_409(self, client, db, admin_setup):
         """cancelled 状态不可重复取消，返回 409。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "cancelled",
+            db,
+            admin_setup["iteration"].id,
+            "cancelled",
             triggered_by=admin_setup["user"].id,
         )
         resp = client.post(
@@ -327,7 +352,9 @@ class TestCancelStatusValidation:
     def test_cancel_failed_returns_409(self, client, db, admin_setup):
         """failed 状态不可取消，返回 409。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "failed",
+            db,
+            admin_setup["iteration"].id,
+            "failed",
             triggered_by=admin_setup["user"].id,
         )
         resp = client.post(
@@ -361,7 +388,9 @@ class TestCancelAuditLog:
     def test_cancel_creates_audit_log(self, client, db, admin_setup):
         """取消操作应写入 pipeline_cancel 审计日志。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "running",
+            db,
+            admin_setup["iteration"].id,
+            "running",
             triggered_by=admin_setup["user"].id,
         )
         resp = client.post(
@@ -415,7 +444,8 @@ class TestRunnerCancelCheck:
             def execute(self, ctx):
                 executed_steps.append("step_a")
                 return StepResult(
-                    success=True, artifact_kind="a",
+                    success=True,
+                    artifact_kind="a",
                     artifact_payload={"a": 1},
                 )
 
@@ -429,12 +459,15 @@ class TestRunnerCancelCheck:
             def execute(self, ctx):
                 executed_steps.append("step_b")
                 return StepResult(
-                    success=True, artifact_kind="b",
+                    success=True,
+                    artifact_kind="b",
                     artifact_payload={"b": 2},
                 )
 
         run = _make_run(
-            db, admin_setup["iteration"].id, "running",
+            db,
+            admin_setup["iteration"].id,
+            "running",
             triggered_by=admin_setup["user"].id,
         )
 
@@ -456,11 +489,7 @@ class TestRunnerCancelCheck:
             def _execute_and_cancel(self_step, ctx_inner):
                 result = original_execute(self_step, ctx_inner)
                 # 模拟 API 端点写入 cancelled 状态
-                fresh_run = (
-                    ctx_inner.db.query(PipelineRun)
-                    .filter(PipelineRun.id == ctx_inner.run.id)
-                    .first()
-                )
+                fresh_run = ctx_inner.db.query(PipelineRun).filter(PipelineRun.id == ctx_inner.run.id).first()
                 if fresh_run:
                     fresh_run.status = "cancelled"
                     ctx_inner.db.flush()
@@ -483,7 +512,9 @@ class TestCancelResponseFormat:
     def test_cancel_response_contains_required_fields(self, client, db, admin_setup):
         """取消成功后响应应包含 run_id、status、finished_at。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "running",
+            db,
+            admin_setup["iteration"].id,
+            "running",
             triggered_by=admin_setup["user"].id,
         )
         resp = client.post(
@@ -504,7 +535,9 @@ class TestCancelResponseFormat:
     def test_cancel_sets_finished_at(self, client, db, admin_setup):
         """取消后 finished_at 应被设置。"""
         run = _make_run(
-            db, admin_setup["iteration"].id, "running",
+            db,
+            admin_setup["iteration"].id,
+            "running",
             triggered_by=admin_setup["user"].id,
         )
         assert run.finished_at is None
@@ -527,31 +560,59 @@ class TestCheckPipelinePermissionForCancel:
 
     def test_admin_has_cancel_all(self, db, admin_setup):
         """admin 角色应拥有 pipeline:cancel:all 权限。"""
-        assert check_pipeline_permission(
-            db, admin_setup["user"].id, "pipeline", "cancel", "all",
-            project_id=admin_setup["project"].id,
-        ) is True
+        assert (
+            check_pipeline_permission(
+                db,
+                admin_setup["user"].id,
+                "pipeline",
+                "cancel",
+                "all",
+                project_id=admin_setup["project"].id,
+            )
+            is True
+        )
 
     def test_qa_lead_has_cancel_own(self, db, qa_lead_setup):
         """qa_lead 角色应拥有 pipeline:cancel:own 权限。"""
-        assert check_pipeline_permission(
-            db, qa_lead_setup["user"].id, "pipeline", "cancel", "own",
-            project_id=qa_lead_setup["project"].id,
-        ) is True
+        assert (
+            check_pipeline_permission(
+                db,
+                qa_lead_setup["user"].id,
+                "pipeline",
+                "cancel",
+                "own",
+                project_id=qa_lead_setup["project"].id,
+            )
+            is True
+        )
 
     def test_qa_lead_no_cancel_all(self, db, qa_lead_setup):
         """qa_lead 角色不应拥有 pipeline:cancel:all 权限。"""
-        assert check_pipeline_permission(
-            db, qa_lead_setup["user"].id, "pipeline", "cancel", "all",
-            project_id=qa_lead_setup["project"].id,
-        ) is False
+        assert (
+            check_pipeline_permission(
+                db,
+                qa_lead_setup["user"].id,
+                "pipeline",
+                "cancel",
+                "all",
+                project_id=qa_lead_setup["project"].id,
+            )
+            is False
+        )
 
     def test_qa_engineer_no_cancel(self, db, qa_engineer_setup):
         """qa_engineer 角色不应拥有任何 cancel 权限。"""
-        assert check_pipeline_permission(
-            db, qa_engineer_setup["user"].id, "pipeline", "cancel", "own",
-            project_id=qa_engineer_setup["project"].id,
-        ) is False
+        assert (
+            check_pipeline_permission(
+                db,
+                qa_engineer_setup["user"].id,
+                "pipeline",
+                "cancel",
+                "own",
+                project_id=qa_engineer_setup["project"].id,
+            )
+            is False
+        )
 
 
 # ── 状态转换测试 ──────────────────────────────────────────────────────
@@ -563,24 +624,29 @@ class TestCancelTransitionValidation:
     def test_running_to_cancelled_is_valid(self):
         """running -> cancelled 应为合法状态转换。"""
         from app.services.pipeline_service._errors import PIPELINE_RUN_TRANSITIONS
+
         assert ("running", "cancelled") in PIPELINE_RUN_TRANSITIONS
 
     def test_waiting_for_user_to_cancelled_is_valid(self):
         """waiting_for_user -> cancelled 应为合法状态转换。"""
         from app.services.pipeline_service._errors import PIPELINE_RUN_TRANSITIONS
+
         assert ("waiting_for_user", "cancelled") in PIPELINE_RUN_TRANSITIONS
 
     def test_pending_to_cancelled_is_valid(self):
         """pending -> cancelled 应为合法状态转换。"""
         from app.services.pipeline_service._errors import PIPELINE_RUN_TRANSITIONS
+
         assert ("pending", "cancelled") in PIPELINE_RUN_TRANSITIONS
 
     def test_completed_to_cancelled_is_invalid(self):
         """completed -> cancelled 应为非法状态转换。"""
         from app.services.pipeline_service._errors import PIPELINE_RUN_TRANSITIONS
+
         assert ("completed", "cancelled") not in PIPELINE_RUN_TRANSITIONS
 
     def test_failed_to_cancelled_is_invalid(self):
         """failed -> cancelled 应为非法状态转换。"""
         from app.services.pipeline_service._errors import PIPELINE_RUN_TRANSITIONS
+
         assert ("failed", "cancelled") not in PIPELINE_RUN_TRANSITIONS

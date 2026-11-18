@@ -81,7 +81,9 @@ class TestSettingsProperties:
         assert "GET" in result
 
     def test_cors_allow_headers_list(self):
-        s = Settings(DATABASE_URL="mysql+pymysql://root:pass@localhost/db", CORS_ALLOW_HEADERS="Content-Type,Authorization")
+        s = Settings(
+            DATABASE_URL="mysql+pymysql://root:pass@localhost/db", CORS_ALLOW_HEADERS="Content-Type,Authorization"
+        )
         result = s.cors_allow_headers_list
         assert "Content-Type" in result
 
@@ -104,8 +106,13 @@ class TestSettingsProperties:
         field_default = Settings.model_fields["CORS_ALLOW_HEADERS"].default
         result = set(parse_list(field_default))
         required_headers = {
-            "Authorization", "Content-Type", "Accept", "Origin",
-            "X-Requested-With", "X-CSRF-Token", "X-Request-ID"
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+            "X-CSRF-Token",
+            "X-Request-ID",
         }
         assert required_headers.issubset(result), f"缺少必需 Header: {required_headers - result}"
 
@@ -270,7 +277,11 @@ class TestEnsureSecretKeys:
 
     def test_cached_key_loading(self, tmp_path):
         cache_file = tmp_path / ".secret_keys"
-        cache_data = {"jwt_secret_key": "cached_jwt_key_value_1234567890123456", "encryption_key": "cached_enc_key", "encryption_salt": "cached_salt"}
+        cache_data = {
+            "jwt_secret_key": "cached_jwt_key_value_1234567890123456",
+            "encryption_key": "cached_enc_key",
+            "encryption_salt": "cached_salt",
+        }
         cache_file.write_text(json.dumps(cache_data))
 
         s = Settings(
@@ -371,7 +382,9 @@ class TestDevSettings:
             # _env_file=None 屏蔽本地 .env 干扰，验证 DevSettings 代码默认值
             s = DevSettings(
                 DATABASE_URL="mysql+pymysql://root:pass@localhost/db",
-                ENVIRONMENT="dev", DEBUG=True, LOG_LEVEL="DEBUG",
+                ENVIRONMENT="dev",
+                DEBUG=True,
+                LOG_LEVEL="DEBUG",
                 _env_file=None,
             )
             assert s.DEBUG is True
@@ -400,7 +413,13 @@ class TestTestSettings:
 class TestProdSettings:
     def test_prod_settings_defaults(self):
         with patch.dict(os.environ, {"ENVIRONMENT": "prod", "LOG_LEVEL": "WARNING", "CORS_ORIGINS": ""}):
-            s = ProdSettings(DATABASE_URL="mysql+pymysql://root:pass@localhost/db", ENVIRONMENT="prod", DEBUG=False, LOG_LEVEL="WARNING", CORS_ORIGINS="")
+            s = ProdSettings(
+                DATABASE_URL="mysql+pymysql://root:pass@localhost/db",
+                ENVIRONMENT="prod",
+                DEBUG=False,
+                LOG_LEVEL="WARNING",
+                CORS_ORIGINS="",
+            )
             assert s.DEBUG is False
             assert s.ENVIRONMENT == "prod"
             assert s.LOG_LEVEL == "WARNING"

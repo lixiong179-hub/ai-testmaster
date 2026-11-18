@@ -5,6 +5,7 @@
     - 依赖链完整（11 个 Step）    - Pipeline 端到端运行完成    - 历史指纹 + 反推产物生成
     - 用例持久化到数据库
 使用 Beta 标注集（去掉新PRD 输入），MockAIClient 模拟 AI 响应。"""
+
 import json
 import pytest
 
@@ -32,21 +33,34 @@ SCENARIO_5_MOCK_CASES = [
     },
 ]
 
-SCENARIO_5_MOCK_INFERENCE = json.dumps({
-    "change_summary": "UI 页面布局变更，登录流程新增验证码",
-    "overall_confidence": 0.9,
-    "capabilities": [
-        {"name": "用户登录", "key": "user_login", "description": "用户通过凭证登录", "confidence": 0.9},
-    ],
-})
+SCENARIO_5_MOCK_INFERENCE = json.dumps(
+    {
+        "change_summary": "UI 页面布局变更，登录流程新增验证码",
+        "overall_confidence": 0.9,
+        "capabilities": [
+            {"name": "用户登录", "key": "user_login", "description": "用户通过凭证登录", "confidence": 0.9},
+        ],
+    }
+)
 
-SCENARIO_5_MOCK_BACKWARD = json.dumps([
-    {"case_no": "HIST-001", "case_id": 1, "verdict": "VALID", "confidence": 0.9, "reason": "功能未变", "hint": "保持现有用例"},
-])
+SCENARIO_5_MOCK_BACKWARD = json.dumps(
+    [
+        {
+            "case_no": "HIST-001",
+            "case_id": 1,
+            "verdict": "VALID",
+            "confidence": 0.9,
+            "reason": "功能未变",
+            "hint": "保持现有用例",
+        },
+    ]
+)
 
-SCENARIO_5_MOCK_FORWARD = json.dumps([
-    {"title": "新增安全验证", "module": "用户登录", "priority": 2},
-])
+SCENARIO_5_MOCK_FORWARD = json.dumps(
+    [
+        {"title": "新增安全验证", "module": "用户登录", "priority": 2},
+    ]
+)
 
 
 @pytest.fixture
@@ -97,16 +111,18 @@ def s5_iteration(db, testProject):
     db.add(historical_case)
     db.flush()
 
-    backward_mock = json.dumps([
-        {
-            "case_no": "HIST-001",
-            "case_id": historical_case.id,
-            "verdict": "VALID",
-            "confidence": 0.9,
-            "reason": "功能未变",
-            "hint": "保持现有用例",
-        },
-    ])
+    backward_mock = json.dumps(
+        [
+            {
+                "case_no": "HIST-001",
+                "case_id": historical_case.id,
+                "verdict": "VALID",
+                "confidence": 0.9,
+                "reason": "功能未变",
+                "hint": "保持现有用例",
+            },
+        ]
+    )
 
     inp = IterationInput(
         iteration_id=iteration.id,
@@ -148,9 +164,7 @@ class TestScenario5Regression:
         run_scenario(db, s5_iteration["iteration"].id, 5, mock_ai_s5, testUser.id)
         db.flush()
 
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == s5_iteration["iteration"].project_id
-        ).all()
+        cases = db.query(TestCase).filter(TestCase.project_id == s5_iteration["iteration"].project_id).all()
         assert len(cases) >= 1
 
     def test_artifacts_created(self, db, s5_iteration, mock_ai_s5, testUser):

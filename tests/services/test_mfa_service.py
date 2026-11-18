@@ -7,6 +7,7 @@
     - MFAService.generate_backup_codes: 数量 / 唯一性 / 哈希与明文不同
     - MFAService.verify_and_consume_backup_code: 正确消费 / 错误码 / 一次性消费
 """
+
 from __future__ import annotations
 
 import pytest
@@ -54,9 +55,7 @@ class TestGetTotpUri:
         """URI 包含 issuer 参数。"""
         service = MFAService()
         secret = service.generate_totp_secret()
-        uri = service.get_totp_uri(
-            secret=secret, account="user@example.com", issuer="TestApp"
-        )
+        uri = service.get_totp_uri(secret=secret, account="user@example.com", issuer="TestApp")
         assert "issuer=TestApp" in uri
 
     def test_uri_contains_secret(self) -> None:

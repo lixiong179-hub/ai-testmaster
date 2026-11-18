@@ -7,6 +7,7 @@
 
 对应Spec: code-standards-compliance-review
 """
+
 import pytest
 import importlib
 
@@ -18,6 +19,7 @@ class TestServiceImports:
         """test_case_generation新包导入验证（legacy case_generation子包已删除）"""
         from app.services.test_case_generation import TestCaseGenerationService
         from app.services.test_case_generation.helpers import ContentSanitizer
+
         assert TestCaseGenerationService is not None
         assert ContentSanitizer is not None
 
@@ -26,6 +28,7 @@ class TestServiceImports:
         from app.services.precondition import PreconditionService
         from app.services.precondition.login_mixin import LoginMixin
         from app.services.precondition.login_strategy_mixin import LoginStrategyMixin
+
         assert PreconditionService is not None
         assert all([LoginMixin, LoginStrategyMixin])
 
@@ -35,6 +38,7 @@ class TestServiceImports:
         from app.services.task_service.core_mixin import TaskCoreMixin
         from app.services.task_service.execution_mixin import TaskExecutionMixin
         from app.services.task_service.push_mixin import TaskPushMixin
+
         assert TaskService is not None
         assert all([TaskCoreMixin, TaskExecutionMixin, TaskPushMixin])
 
@@ -46,6 +50,7 @@ class TestServiceImports:
         from app.services.ui_spec_parser.flow_mixin import UISpecFlowMixin
         from app.services.ui_spec_parser.pipeline_mixin import UISpecParsePipelineMixin
         from app.services.ui_spec_parser.pipeline_upload_mixin import PipelineUploadMixin
+
         assert UISpecParser is not None
         assert UISpecCoreMixin is not None
         assert UISpecOcrMixin is not None
@@ -58,6 +63,7 @@ class TestServiceImports:
         from app.services.link_fetcher.core_mixin import LinkFetcherCoreMixin
         from app.services.link_fetcher.content_mixin import LinkFetcherContentMixin
         from app.services.link_fetcher.ui_mixin import LinkFetcherUIMixin
+
         assert LinkFetcherService is not None
         assert LinkFetcherCoreMixin is not None
         assert LinkFetcherContentMixin is not None
@@ -70,6 +76,7 @@ class TestServiceImports:
         from app.services.test_data.parameterizer_mixin import TestDataParameterizer
         from app.services.test_data.crud_mixin import TestDataCrudMixin
         from app.services.test_data.service_mixin import TestDataServiceMixin
+
         assert TestDataGenerator is not None
         assert TestDataParameterizer is not None
         assert TestDataCrudMixin is not None
@@ -78,12 +85,14 @@ class TestServiceImports:
     def test_video_service_imports(self):
         """video_service子包导入验证"""
         from app.services.video import VideoService
+
         assert VideoService is not None
 
     def test_cost_statistics_imports(self):
         """cost_statistics子包导入验证"""
         from app.services.cost_statistics_service import CostStatisticsService
         from app.services.cost_statistics import CostStatisticsService as CSS2
+
         assert CostStatisticsService is not None
         assert CSS2 is not None
 
@@ -91,6 +100,7 @@ class TestServiceImports:
         """mobile_ai_executor子包导入验证"""
         from app.services.mobile_ai_executor import MobileAIExecutor
         from app.services.mobile_ai_executor.types import MobileActionType, MobileAIError
+
         assert MobileAIExecutor is not None
         assert MobileActionType is not None
         assert MobileAIError is not None
@@ -98,21 +108,25 @@ class TestServiceImports:
     def test_case_quality_analyzer_imports(self):
         """case_quality_analyzer子包导入验证"""
         from app.services.case_quality_analyzer import CaseQualityAnalyzer
+
         assert CaseQualityAnalyzer is not None
 
     def test_visibility_config_imports(self):
         """visibility_config子包导入验证"""
         from app.services.visibility_config_service import VisibilityConfigService
+
         assert VisibilityConfigService is not None
 
     def test_element_locator_imports(self):
         """element_locator_service导入验证"""
         from app.services.element_locator_service import ElementLocatorService
+
         assert ElementLocatorService is not None
 
     def test_execution_replay_imports(self):
         """execution_replay_service导入验证"""
         from app.services.execution_replay.legacy_service import ExecutionReplayService
+
         assert ExecutionReplayService is not None
 
 
@@ -131,15 +145,26 @@ class TestBackwardCompatibility:
         from app.services.mobile_ai_executor import MobileAIExecutor
         from app.services.task_service import TaskService
         from app.services.visibility_config_service import VisibilityConfigService
-        assert all([
-            TestCaseGenerationService, UISpecParser, ElementLocatorService,
-            ExecutionReplayService, CaseQualityAnalyzer, VideoService,
-            CostStatisticsService, MobileAIExecutor, TaskService, VisibilityConfigService
-        ])
+
+        assert all(
+            [
+                TestCaseGenerationService,
+                UISpecParser,
+                ElementLocatorService,
+                ExecutionReplayService,
+                CaseQualityAnalyzer,
+                VideoService,
+                CostStatisticsService,
+                MobileAIExecutor,
+                TaskService,
+                VisibilityConfigService,
+            ]
+        )
 
     def test_test_execution_engine_v2_import(self):
         """TestExecutionEngineV2导入验证"""
         from app.services.test_execution_engine_v2 import TestExecutionEngineV2
+
         assert TestExecutionEngineV2 is not None
 
 
@@ -150,8 +175,9 @@ class TestStrLeakageFix:
         """检查Service层返回值中无str(e)"""
         import re
         from pathlib import Path
+
         services_dir = Path(__file__).parent.parent.parent / "app" / "services"
-        pattern = re.compile(r'return.*str\(\s*e\s*\)')
+        pattern = re.compile(r"return.*str\(\s*e\s*\)")
         violations = []
         for py_file in services_dir.rglob("*.py"):
             for line_no, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
@@ -166,6 +192,7 @@ class TestFileLineLimit:
     def test_all_service_files_under_400_lines(self):
         """所有Service层Python文件行数≤400（350硬限制+50粘性放宽窗口）"""
         from pathlib import Path
+
         services_dir = Path(__file__).parent.parent.parent / "app" / "services"
         over_limit = []
         for py_file in services_dir.rglob("*.py"):
@@ -182,19 +209,20 @@ class TestTypeAnnotations:
         """task_service关键方法有返回类型注解"""
         from app.services.task_service.push_mixin import TaskPushMixin
         import inspect
-        methods = ['push_execution_log', 'push_execution_progress']
+
+        methods = ["push_execution_log", "push_execution_progress"]
         for method_name in methods:
             method = getattr(TaskPushMixin, method_name, None)
             if method:
                 sig = inspect.signature(method)
-                assert sig.return_annotation != inspect.Signature.empty, \
-                    f"{method_name} 缺少返回类型注解"
+                assert sig.return_annotation != inspect.Signature.empty, f"{method_name} 缺少返回类型注解"
 
     def test_execution_replay_service_methods_have_return_types(self):
         """execution_replay_service关键方法有返回类型注解"""
         from app.services.execution_replay.legacy_service import ExecutionReplayService
         import inspect
-        method = getattr(ExecutionReplayService, 'set_default_speed', None)
+
+        method = getattr(ExecutionReplayService, "set_default_speed", None)
         if method:
             sig = inspect.signature(method)
             assert sig.return_annotation != inspect.Signature.empty
@@ -206,6 +234,7 @@ class TestConstantsRefactor:
     def test_login_keywords_constant_exists(self):
         """LOGIN_KEYWORDS常量存在"""
         from app.core.constants import LOGIN_KEYWORDS
+
         assert isinstance(LOGIN_KEYWORDS, list)
         assert "登录" in LOGIN_KEYWORDS
         assert "username" in LOGIN_KEYWORDS
@@ -213,9 +242,11 @@ class TestConstantsRefactor:
     def test_auth_failure_keywords_constant_exists(self):
         """AUTH_FAILURE_KEYWORDS常量存在"""
         from app.core.constants import AUTH_FAILURE_KEYWORDS
+
         assert isinstance(AUTH_FAILURE_KEYWORDS, tuple)
 
     def test_http_utils_build_auth_headers_exists(self):
         """build_auth_headers工具函数存在"""
         from app.utils.http_utils import build_auth_headers
+
         assert callable(build_auth_headers)

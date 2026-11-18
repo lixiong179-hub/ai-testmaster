@@ -3,6 +3,7 @@
 提供标注集数据加载、MockAIClient 配置、迭代/项目 setup 等共享能力。
 所有回归测试使用真实 MySQL + MockAIClient，不调用真实 AI 服务。
 """
+
 import json
 from pathlib import Path
 from typing import List
@@ -69,9 +70,7 @@ def _make_mock_ai(case_response: list) -> MockAIClient:
     return client
 
 
-def _setup_iteration_with_inputs(
-    db, project_id: int, input_kinds: List[str], project_data: dict
-) -> Iteration:
+def _setup_iteration_with_inputs(db, project_id: int, input_kinds: List[str], project_data: dict) -> Iteration:
     """创建迭代并添加输入"""
     iteration = Iteration(
         project_id=project_id,

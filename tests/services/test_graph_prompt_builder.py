@@ -14,6 +14,7 @@
     - _infer_history_case_flow_coverage 流程归属推断
     - _find_uncovered_flow_nodes 未覆盖节点检测
 """
+
 from app.services.prompt_builder.case_prompt import _build_graph_prompt
 from app.services.prompt_builder.helpers import (
     _find_main_step,
@@ -29,9 +30,14 @@ from app.services.prompt_builder.flow_aware_history import (
 )
 
 
-def _make_node(screen_id: int, screen_name: str, flow_type: str = "main",
-               main_order: int | None = None, flow_meta: dict | None = None,
-               ui_spec_elements: list | None = None) -> dict:
+def _make_node(
+    screen_id: int,
+    screen_name: str,
+    flow_type: str = "main",
+    main_order: int | None = None,
+    flow_meta: dict | None = None,
+    ui_spec_elements: list | None = None,
+) -> dict:
     return {
         "screen_id": screen_id,
         "screen_name": screen_name,
@@ -43,8 +49,7 @@ def _make_node(screen_id: int, screen_name: str, flow_type: str = "main",
     }
 
 
-def _make_edge(source: int, target: int, edge_type: str = "normal",
-               condition: str = "", label: str = "") -> dict:
+def _make_edge(source: int, target: int, edge_type: str = "normal", condition: str = "", label: str = "") -> dict:
     return {
         "source": str(source),
         "target": str(target),
@@ -371,8 +376,7 @@ def test_graph_prompt_ignores_invalid_edge_without_crash():
 def test_graph_prompt_includes_flow_meta_hints():
     nodes = [
         _make_node(1, "首页", "main", main_order=1),
-        _make_node(2, "筛选页", "branch",
-                   flow_meta={"pre_action": "已输入关键词", "expected_result": "展示筛选结果"}),
+        _make_node(2, "筛选页", "branch", flow_meta={"pre_action": "已输入关键词", "expected_result": "展示筛选结果"}),
     ]
     edges = [_make_edge(1, 2, "branch", condition="点击筛选")]
     prompt = _build_graph_prompt(nodes, edges)
@@ -494,9 +498,7 @@ def test_infer_coverage_matches_main_node():
     case = {"title": "正向-登录成功", "module": "登录页", "summary": "输入账号密码"}
     main_nodes = [_make_node(1, "登录页", "main", main_order=1)]
     node_map = {1: _make_node(1, "登录页", "main", main_order=1)}
-    result = _infer_history_case_flow_coverage(
-        case, main_nodes, {}, {}, {}, node_map
-    )
+    result = _infer_history_case_flow_coverage(case, main_nodes, {}, {}, {}, node_map)
     assert "步骤1" in result
     assert "登录页" in result
 
@@ -510,9 +512,7 @@ def test_infer_coverage_matches_branch():
         1: _make_node(1, "登录页", "main", main_order=1),
         2: _make_node(2, "忘记密码页", "branch"),
     }
-    result = _infer_history_case_flow_coverage(
-        case, main_nodes, branch_by_source, {}, {}, node_map
-    )
+    result = _infer_history_case_flow_coverage(case, main_nodes, branch_by_source, {}, {}, node_map)
     assert "分支" in result or "忘记密码" in result
 
 
@@ -521,9 +521,7 @@ def test_infer_coverage_no_match():
     case = {"title": "性能-并发测试", "module": "性能", "summary": "并发压测"}
     main_nodes = [_make_node(1, "登录页", "main", main_order=1)]
     node_map = {1: _make_node(1, "登录页", "main", main_order=1)}
-    result = _infer_history_case_flow_coverage(
-        case, main_nodes, {}, {}, {}, node_map
-    )
+    result = _infer_history_case_flow_coverage(case, main_nodes, {}, {}, {}, node_map)
     assert "未匹配" in result
 
 
@@ -536,9 +534,7 @@ def test_infer_coverage_matches_exception():
         1: _make_node(1, "登录页", "main", main_order=1),
         2: _make_node(2, "登录失败提示", "exception"),
     }
-    result = _infer_history_case_flow_coverage(
-        case, main_nodes, {}, exception_by_source, {}, node_map
-    )
+    result = _infer_history_case_flow_coverage(case, main_nodes, {}, exception_by_source, {}, node_map)
     assert "异常" in result or "密码错误" in result
 
 
@@ -551,9 +547,7 @@ def test_infer_coverage_matches_bypass():
         1: _make_node(1, "首页", "main", main_order=1),
         2: _make_node(2, "引导弹窗", "bypass"),
     }
-    result = _infer_history_case_flow_coverage(
-        case, main_nodes, {}, {}, bypass_by_source, node_map
-    )
+    result = _infer_history_case_flow_coverage(case, main_nodes, {}, {}, bypass_by_source, node_map)
     assert "旁路" in result or "引导" in result
 
 
@@ -565,9 +559,7 @@ def test_find_uncovered_detects_missing_main():
     main_nodes = [_make_node(1, "登录页", "main", main_order=1)]
     node_map = {1: _make_node(1, "登录页", "main", main_order=1)}
     history_cases = [{"title": "性能测试", "module": "性能", "summary": "压测"}]
-    result = _find_uncovered_flow_nodes(
-        history_cases, main_nodes, {}, {}, {}, node_map
-    )
+    result = _find_uncovered_flow_nodes(history_cases, main_nodes, {}, {}, {}, node_map)
     assert len(result) > 0
     assert any("登录页" in r for r in result)
 
@@ -581,9 +573,7 @@ def test_find_uncovered_detects_missing_branch():
         2: _make_node(2, "忘记密码页", "branch"),
     }
     history_cases = [{"title": "正向-登录成功", "module": "登录页", "summary": "输入账号密码"}]
-    result = _find_uncovered_flow_nodes(
-        history_cases, main_nodes, branch_by_source, {}, {}, node_map
-    )
+    result = _find_uncovered_flow_nodes(history_cases, main_nodes, branch_by_source, {}, {}, node_map)
     assert any("分支" in r for r in result)
 
 
@@ -592,9 +582,7 @@ def test_find_uncovered_empty_when_all_covered():
     main_nodes = [_make_node(1, "登录页", "main", main_order=1)]
     node_map = {1: _make_node(1, "登录页", "main", main_order=1)}
     history_cases = [{"title": "正向-登录页成功", "module": "登录页", "summary": "登录页测试"}]
-    result = _find_uncovered_flow_nodes(
-        history_cases, main_nodes, {}, {}, {}, node_map
-    )
+    result = _find_uncovered_flow_nodes(history_cases, main_nodes, {}, {}, {}, node_map)
     assert result == []
 
 
@@ -607,9 +595,7 @@ def test_find_uncovered_detects_missing_exception():
         2: _make_node(2, "登录失败提示", "exception"),
     }
     history_cases = [{"title": "正向-登录成功", "module": "登录页", "summary": "输入账号密码"}]
-    result = _find_uncovered_flow_nodes(
-        history_cases, main_nodes, {}, exception_by_source, {}, node_map
-    )
+    result = _find_uncovered_flow_nodes(history_cases, main_nodes, {}, exception_by_source, {}, node_map)
     assert any("异常" in r for r in result)
 
 
@@ -622,9 +608,7 @@ def test_find_uncovered_detects_missing_bypass():
         2: _make_node(2, "引导弹窗", "bypass"),
     }
     history_cases = [{"title": "正向-首页成功", "module": "首页", "summary": "首页测试"}]
-    result = _find_uncovered_flow_nodes(
-        history_cases, main_nodes, {}, {}, bypass_by_source, node_map
-    )
+    result = _find_uncovered_flow_nodes(history_cases, main_nodes, {}, {}, bypass_by_source, node_map)
     assert any("旁路" in r for r in result)
 
 
@@ -635,7 +619,8 @@ def test_graph_prompt_with_test_point_and_requirement():
     """测试点信息和需求文档内容应出现在 Prompt 中"""
     nodes = [_make_node(1, "首页", "main", main_order=1)]
     prompt = _build_graph_prompt(
-        nodes, [],
+        nodes,
+        [],
         test_point_json='{"point": "登录验证"}',
         requirement_content="用户需输入账号密码",
     )
@@ -729,6 +714,7 @@ def test_infer_condition_unknown_edge_type():
 def test_format_node_elements_with_labels():
     """有 label 的元素应被格式化输出，包含 type:label 结构"""
     from app.services.prompt_builder.case_prompt import _format_node_elements
+
     elements = [
         {"type": "input", "label": "用户名"},
         {"type": "button", "label": "登录"},
@@ -741,6 +727,7 @@ def test_format_node_elements_with_labels():
 def test_format_node_elements_with_state_and_interactive():
     """元素应包含 state/interactive/description 信息"""
     from app.services.prompt_builder.case_prompt import _format_node_elements
+
     elements = [
         {"type": "button", "label": "登录", "state": "disabled", "interactive": False},
         {"type": "input", "label": "用户名", "state": "normal", "interactive": True, "description": "请输入用户名"},
@@ -756,6 +743,7 @@ def test_format_node_elements_with_state_and_interactive():
 def test_format_node_elements_with_semantic_fallback():
     """description 缺失时应回退到 semantic 字段"""
     from app.services.prompt_builder.case_prompt import _format_node_elements
+
     elements = [
         {"type": "text", "label": "提示", "semantic": "错误提示文案"},
     ]
@@ -766,6 +754,7 @@ def test_format_node_elements_with_semantic_fallback():
 def test_format_node_elements_filters_no_label():
     """无 label 的元素应被过滤"""
     from app.services.prompt_builder.case_prompt import _format_node_elements
+
     elements = [
         {"type": "input", "label": ""},
         {"type": "button", "label": "登录"},
@@ -778,6 +767,7 @@ def test_format_node_elements_filters_no_label():
 def test_format_node_elements_empty():
     """空元素列表应返回空字符串"""
     from app.services.prompt_builder.case_prompt import _format_node_elements
+
     assert _format_node_elements([]) == ""
     assert _format_node_elements(None) == ""
 
@@ -785,6 +775,7 @@ def test_format_node_elements_empty():
 def test_build_image_ref_with_url():
     """有 image_url 且 include_images=True 时应返回引用"""
     from app.services.prompt_builder.case_prompt import _build_image_ref
+
     node = {"image_url": "https://example.com/img.png"}
     result = _build_image_ref(node, include_images=True)
     assert "图片URL" in result
@@ -793,6 +784,7 @@ def test_build_image_ref_with_url():
 def test_build_image_ref_without_include():
     """include_images=False 时不应返回引用"""
     from app.services.prompt_builder.case_prompt import _build_image_ref
+
     node = {"image_url": "https://example.com/img.png"}
     result = _build_image_ref(node, include_images=False)
     assert result == ""
@@ -801,15 +793,20 @@ def test_build_image_ref_without_include():
 def test_match_flow_nodes_with_invalid_target():
     """边的 target 无效时应跳过而不报错"""
     from app.services.prompt_builder.flow_aware_history import _match_flow_nodes
+
     main_nodes = [_make_node(1, "登录页", "main", main_order=1)]
     edge = {"source": "1", "target": "invalid", "edge_type": "branch", "condition": "忘记密码"}
     branch_by_source = {1: [edge]}
     node_map = {1: _make_node(1, "登录页", "main", main_order=1)}
     result = _match_flow_nodes(
-        "登录页 忘记密码", main_nodes,
-        branch_by_source, {}, {}, node_map,
+        "登录页 忘记密码",
+        main_nodes,
+        branch_by_source,
+        {},
+        {},
+        node_map,
     )
-    assert any(m['node_type'] == 'main' for m in result)
+    assert any(m["node_type"] == "main" for m in result)
 
 
 def test_find_uncovered_with_invalid_target():
@@ -820,6 +817,11 @@ def test_find_uncovered_with_invalid_target():
     node_map = {1: _make_node(1, "登录页", "main", main_order=1)}
     history_cases = []
     result = _find_uncovered_flow_nodes(
-        history_cases, main_nodes, branch_by_source, {}, {}, node_map,
+        history_cases,
+        main_nodes,
+        branch_by_source,
+        {},
+        {},
+        node_map,
     )
     assert any("登录页" in r for r in result)

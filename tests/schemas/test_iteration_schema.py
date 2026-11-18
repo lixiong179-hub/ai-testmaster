@@ -38,10 +38,15 @@ class TestIterationCreate:
 
     def test_all_fields(self):
         from datetime import date
+
         create = IterationCreate(
-            project_id=1, name="迭代2", version="v2.0",
-            description="描述", base_iteration_id=3,
-            start_date=date(2026, 1, 1), end_date=date(2026, 12, 31),
+            project_id=1,
+            name="迭代2",
+            version="v2.0",
+            description="描述",
+            base_iteration_id=3,
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
         )
         assert create.version == "v2.0"
         assert create.base_iteration_id == 3
@@ -78,7 +83,8 @@ class TestIterationInputCreate:
 
     def test_with_payload(self):
         create = IterationInputCreate(
-            kind=IterationInputKind.SUPPLEMENT_FORM, hash="abc",
+            kind=IterationInputKind.SUPPLEMENT_FORM,
+            hash="abc",
             payload={"key": "value"},
         )
         assert create.payload == {"key": "value"}
@@ -95,9 +101,14 @@ class TestIterationInputCreate:
 class TestIterationInputResponse:
     def test_create(self):
         from datetime import datetime
+
         resp = IterationInputResponse(
-            id=1, iteration_id=1, kind="prd",
-            file_id=None, payload=None, content_hash="abc",
+            id=1,
+            iteration_id=1,
+            kind="prd",
+            file_id=None,
+            payload=None,
+            content_hash="abc",
             uploaded_at=datetime.now(),
         )
         assert resp.kind == "prd"
@@ -106,12 +117,21 @@ class TestIterationInputResponse:
 class TestIterationResponse:
     def test_create(self):
         from datetime import datetime
+
         resp = IterationResponse(
-            id=1, project_id=1, name="迭代1",
-            version="v1.0", description=None, status="draft",
-            start_date=None, end_date=None, base_iteration_id=None,
-            created_by=1, finalized_at=None,
-            create_time=datetime.now(), update_time=datetime.now(),
+            id=1,
+            project_id=1,
+            name="迭代1",
+            version="v1.0",
+            description=None,
+            status="draft",
+            start_date=None,
+            end_date=None,
+            base_iteration_id=None,
+            created_by=1,
+            finalized_at=None,
+            create_time=datetime.now(),
+            update_time=datetime.now(),
         )
         assert resp.status == "draft"
         assert resp.inputs is None

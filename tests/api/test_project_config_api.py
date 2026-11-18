@@ -6,18 +6,21 @@ class TestParseWebEnvConfigs:
     def test_none_configs(self):
         class FakeProject:
             web_env_configs = None
+
         result = _parse_web_env_configs(FakeProject())
         assert result is None
 
     def test_empty_configs(self):
         class FakeProject:
             web_env_configs = ""
+
         result = _parse_web_env_configs(FakeProject())
         assert result is None
 
     def test_valid_json(self):
         class FakeProject:
             web_env_configs = '{"test": {"url": "http://test.com", "password": "secret123"}}'
+
         result = _parse_web_env_configs(FakeProject())
         assert result is not None
         assert result["test"]["password"] != "secret123"
@@ -25,12 +28,14 @@ class TestParseWebEnvConfigs:
     def test_invalid_json(self):
         class FakeProject:
             web_env_configs = "not json"
+
         result = _parse_web_env_configs(FakeProject())
         assert result is None
 
     def test_multiple_envs(self):
         class FakeProject:
             web_env_configs = '{"test": {"password": "p1"}, "staging": {"password": "p2"}, "prod": {"password": "p3"}}'
+
         result = _parse_web_env_configs(FakeProject())
         assert result is not None
         assert result["test"]["password"] != "p1"
@@ -40,6 +45,7 @@ class TestParseWebEnvConfigs:
     def test_no_password_field(self):
         class FakeProject:
             web_env_configs = '{"test": {"url": "http://test.com"}}'
+
         result = _parse_web_env_configs(FakeProject())
         assert result is not None
         assert "password" not in result["test"]

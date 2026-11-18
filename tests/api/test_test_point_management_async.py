@@ -9,6 +9,7 @@
     - GET  /requirements/{project_id}           - 获取项目需求选项
     - POST /batch-generate-cases/stream         - 批量生成用例（SSE，仅测权限拦截）
 """
+
 import uuid
 
 from app.crud.test_point import create_test_point
@@ -67,23 +68,22 @@ class TestTestPointManagementAsync:
         assert data["module"] == "async_module"
         assert data["point"] == "async 测试点"
 
-    async def test_get_test_cases_nonexistent_point(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_get_test_cases_nonexistent_point(self, async_auth_client, async_test_project):
         resp = await async_auth_client.get(
             "/api/v1/test-point/99999/test-cases",
             params={"project_id": async_test_project.id},
         )
         assert resp.status_code in (404, 500)
 
-    async def test_get_test_cases_empty(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_get_test_cases_empty(self, async_db, async_auth_client, async_test_project):
         def _create_point(sync_db):
             return create_test_point(
-                db=sync_db, project_id=async_test_project.id,
-                module="empty_module", point="empty point",
-                priority=2, created_by="async_test_user",
+                db=sync_db,
+                project_id=async_test_project.id,
+                module="empty_module",
+                point="empty point",
+                priority=2,
+                created_by="async_test_user",
             )
 
         point = await async_db.run_sync(_create_point)
@@ -99,16 +99,12 @@ class TestTestPointManagementAsync:
         assert data["items"] == []
 
     async def test_get_requirements_empty(self, async_auth_client, async_test_project):
-        resp = await async_auth_client.get(
-            f"/api/v1/test-point/requirements/{async_test_project.id}"
-        )
+        resp = await async_auth_client.get(f"/api/v1/test-point/requirements/{async_test_project.id}")
         assert resp.status_code == 200, resp.text
         data = resp.json()["data"]
         assert data["items"] == []
 
-    async def test_get_requirements_with_data(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_get_requirements_with_data(self, async_db, async_auth_client, async_test_project):
         requirement = Requirement(
             project_id=async_test_project.id,
             req_no=f"REQ-{uuid.uuid4().hex[:8]}",
@@ -120,9 +116,7 @@ class TestTestPointManagementAsync:
         async_db.add(requirement)
         await async_db.flush()
 
-        resp = await async_auth_client.get(
-            f"/api/v1/test-point/requirements/{async_test_project.id}"
-        )
+        resp = await async_auth_client.get(f"/api/v1/test-point/requirements/{async_test_project.id}")
         assert resp.status_code == 200, resp.text
         items = resp.json()["data"]["items"]
         assert any(item["id"] == requirement.id for item in items)

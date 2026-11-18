@@ -156,6 +156,7 @@ class TestGetProject:
     def test_get_project_wrong_user(self, client, db):
         otherUser = createTestUser(db=db, username=f"other_{uuid.uuid4().hex[:8]}")
         from app.utils.jwt_utils import create_access_token
+
         # token sub 必须为 user.id (非 username), 否则 me 端点查询失败返回 401
         otherToken = create_access_token({"sub": str(otherUser.id), "username": otherUser.username})
         otherHeaders = {"Authorization": f"Bearer {otherToken}"}
@@ -232,11 +233,7 @@ class TestUpdateProjectConfig:
     def test_update_project_config_device(self, client, authHeaders, testProject):
         response = client.put(
             f"/api/v1/project/{testProject.id}/config",
-            json={
-                "device_config": {
-                    "default_device": {"device_id": "device-001", "device_name": "Pixel"}
-                }
-            },
+            json={"device_config": {"default_device": {"device_id": "device-001", "device_name": "Pixel"}}},
             headers=authHeaders,
         )
         data = assertResponseSuccess(response)["data"]

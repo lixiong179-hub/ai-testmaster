@@ -1,4 +1,5 @@
 """角色服务单元测试 - RoleService"""
+
 import pytest
 from app.models.user import Role
 from app.schemas.user import RoleCreate, RoleUpdate
@@ -8,9 +9,14 @@ from app.services.role_service.role_service import RoleService
 
 def _create_role(db, name="svc_role", permissions=None):
     """Helper to create role via RoleService."""
-    return RoleService.create_role(db, RoleCreate(
-        name=name, desc="test", permissions=permissions or [],
-    ))
+    return RoleService.create_role(
+        db,
+        RoleCreate(
+            name=name,
+            desc="test",
+            permissions=permissions or [],
+        ),
+    )
 
 
 class TestCreateRole:
@@ -20,9 +26,14 @@ class TestCreateRole:
         assert role.name == "create_role"
 
     def test_create_with_dict(self, db):
-        role = RoleService.create_role(db, {
-            "name": "dict_role", "desc": "dict desc", "permissions": ["read"],
-        })
+        role = RoleService.create_role(
+            db,
+            {
+                "name": "dict_role",
+                "desc": "dict desc",
+                "permissions": ["read"],
+            },
+        )
         assert role.name == "dict_role"
         assert role.permissions == ["read"]
 

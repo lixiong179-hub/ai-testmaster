@@ -18,9 +18,7 @@ def assertResponseError(response: Any, expectedStatus: int = 400) -> dict:
         f"Expected status {expectedStatus}, got {response.status_code}: {response.text}"
     )
     data = response.json()
-    assert "detail" in data or "message" in data, (
-        f"Error response missing detail/message field: {data}"
-    )
+    assert "detail" in data or "message" in data, f"Error response missing detail/message field: {data}"
     return data
 
 
@@ -38,9 +36,7 @@ def assertResponseForbidden(response: Any) -> dict:
 
 def assertFieldValue(data: dict, field: str, expected: Any) -> None:
     actual = data.get(field)
-    assert actual == expected, (
-        f"Field '{field}': expected {expected!r}, got {actual!r}"
-    )
+    assert actual == expected, f"Field '{field}': expected {expected!r}, got {actual!r}"
 
 
 def assertFieldExists(data: dict, field: str) -> None:
@@ -165,9 +161,11 @@ def cleanupTableByIds(db: Session, modelClass: Any, ids: list[int]) -> None:
 
 def cleanupTableByName(db: Session, modelClass: Any, nameField: str, namePrefix: str) -> int:
     try:
-        count = db.query(modelClass).filter(
-            getattr(modelClass, nameField).like(f"{namePrefix}%")
-        ).delete(synchronize_session="fetch")
+        count = (
+            db.query(modelClass)
+            .filter(getattr(modelClass, nameField).like(f"{namePrefix}%"))
+            .delete(synchronize_session="fetch")
+        )
         db.flush()
         return count
     except Exception:

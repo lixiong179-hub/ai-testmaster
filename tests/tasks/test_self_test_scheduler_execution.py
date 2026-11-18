@@ -11,6 +11,7 @@ SelfTestScheduler 执行链路测试模块
 （_execute_self_test 内的 AsyncPrimarySessionLocal 与 run_defect_discovery_self_test），
 验证调度器执行链路的事务隔离、异常捕获、数据清理逻辑。
 """
+
 from unittest.mock import MagicMock
 
 from sqlalchemy import func, select
@@ -32,9 +33,7 @@ class TestExecuteSelfTest:
     避免关闭共享的 async_db 会话影响后续断言与 fixture 清理。
     """
 
-    async def test_project_not_exists_returns_early(
-        self, async_db, monkeypatch
-    ) -> None:
+    async def test_project_not_exists_returns_early(self, async_db, monkeypatch) -> None:
         """项目不存在时应记录错误并提前返回，不抛异常。"""
         from app.db import database as dbModule
 
@@ -47,9 +46,7 @@ class TestExecuteSelfTest:
         await scheduler._execute_self_test(999999)
         assert 999999 not in scheduler._running_projects
 
-    async def test_full_pipeline_mode_executes(
-        self, async_db, async_test_user, monkeypatch
-    ) -> None:
+    async def test_full_pipeline_mode_executes(self, async_db, async_test_user, monkeypatch) -> None:
         """full_pipeline 模式应调用 run_defect_discovery_self_test。"""
         from app.db import database as dbModule
         from app.tasks import self_test_scheduler as schedModule
@@ -81,9 +78,7 @@ class TestExecuteSelfTest:
         await scheduler._execute_self_test(project.id)
         assert called["flag"] is True
 
-    async def test_ui_automation_no_active_cases(
-        self, async_db, async_test_user, monkeypatch
-    ) -> None:
+    async def test_ui_automation_no_active_cases(self, async_db, async_test_user, monkeypatch) -> None:
         """ui_automation 模式下无活跃用例应跳过执行（提前返回）。"""
         from app.db import database as dbModule
 
@@ -106,11 +101,7 @@ class TestExecuteSelfTest:
         scheduler = SelfTestScheduler()
         await scheduler._execute_self_test(project.id)
         count = (
-            await async_db.execute(
-                select(func.count())
-                .select_from(TestTask)
-                .where(TestTask.project_id == project.id)
-            )
+            await async_db.execute(select(func.count()).select_from(TestTask).where(TestTask.project_id == project.id))
         ).scalar()
         assert count == 0
 
@@ -127,9 +118,7 @@ class TestCleanupSelfTestData:
         scheduler = SelfTestScheduler()
         await scheduler._cleanup_self_test_data(async_db, 999999)
 
-    async def test_cleanup_removes_task_and_unlinks_bugs(
-        self, async_db, async_test_user, async_test_project
-    ) -> None:
+    async def test_cleanup_removes_task_and_unlinks_bugs(self, async_db, async_test_user, async_test_project) -> None:
         """任务存在时应删除任务、解绑 Bug 的 test_result_id、更新复现步骤。"""
         task = TestTask(
             task_name="cleanup_test_task",
@@ -185,17 +174,9 @@ class TestCleanupSelfTestData:
         scheduler = SelfTestScheduler()
         await scheduler._cleanup_self_test_data(async_db, task.id)
 
-        taskResult = (
-            await async_db.execute(
-                select(TestTask).where(TestTask.id == task.id)
-            )
-        ).scalars().first()
+        taskResult = (await async_db.execute(select(TestTask).where(TestTask.id == task.id))).scalars().first()
         assert taskResult is None
-        dbBug = (
-            await async_db.execute(
-                select(Bug).where(Bug.id == bug.id)
-            )
-        ).scalars().first()
+        dbBug = (await async_db.execute(select(Bug).where(Bug.id == bug.id))).scalars().first()
         assert dbBug is not None
         assert dbBug.test_result_id is None
         assert "element not found" in (dbBug.reproduction_steps or "")
@@ -208,9 +189,7 @@ class TestNotifyNewFailures:
     但 try/except 捕获异常不传播，验证通知链路安全。
     """
 
-    async def test_notify_with_empty_case_ids(
-        self, async_db, async_test_project
-    ) -> None:
+    async def test_notify_with_empty_case_ids(self, async_db, async_test_project) -> None:
         """空用例列表应正常构造消息并尝试广播（失败被捕获）。"""
         scheduler = SelfTestScheduler()
         await scheduler._notify_new_failures(async_db, async_test_project, 0, [])
@@ -235,9 +214,7 @@ class TestNotifyNewFailures:
         await async_db.flush()
 
         scheduler = SelfTestScheduler()
-        await scheduler._notify_new_failures(
-            async_db, async_test_project, 1, [testCase.id]
-        )
+        await scheduler._notify_new_failures(async_db, async_test_project, 1, [testCase.id])
 
 
 class TestHandleStepFailureSelfTest:
@@ -248,9 +225,7 @@ class TestHandleStepFailureSelfTest:
     P2 缺陷创建 Bug 但不触发通知。
     """
 
-    async def test_p0_defect_creates_bug_and_notifies(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_p0_defect_creates_bug_and_notifies(self, async_db, async_test_user) -> None:
         """P0 缺陷（no_sensitive_data）应创建 severity=1 的 Bug 并尝试通知。"""
         project = Project(
             name="self_test_p0_project",
@@ -274,9 +249,7 @@ class TestHandleStepFailureSelfTest:
         assert bug.source == "self_test"
         assert bug.project_id == project.id
 
-    async def test_p2_defect_creates_bug_no_notify(
-        self, async_db, async_test_user
-    ) -> None:
+    async def test_p2_defect_creates_bug_no_notify(self, async_db, async_test_user) -> None:
         """P2 缺陷（loading_hidden）应创建 severity=3 的 Bug，不触发通知。"""
         project = Project(
             name="self_test_p2_project",
@@ -307,9 +280,7 @@ class TestExecuteSelfTestException:
     验证 except 块捕获异常并记录日志，不传播。
     """
 
-    async def test_exception_in_full_pipeline_caught(
-        self, async_db, async_test_user, monkeypatch
-    ) -> None:
+    async def test_exception_in_full_pipeline_caught(self, async_db, async_test_user, monkeypatch) -> None:
         """full_pipeline 执行抛异常应被 _execute_self_test except 捕获。"""
         from app.db import database as dbModule
         from app.tasks import self_test_scheduler as schedModule
@@ -346,9 +317,7 @@ class TestNotifyNewFailuresException:
     验证 except 块捕获异常不传播。
     """
 
-    async def test_broadcast_exception_caught(
-        self, async_db, async_test_project, monkeypatch
-    ) -> None:
+    async def test_broadcast_exception_caught(self, async_db, async_test_project, monkeypatch) -> None:
         """WebSocket broadcast 抛异常应被 try/except 捕获。"""
         from app.core.websocket import manager as wsModule
 
@@ -372,9 +341,7 @@ class TestExecuteUiAutomationWithCases:
     同时 mock run_async_coro_in_thread 直接 await 协程，避免线程切换开销。
     """
 
-    async def test_executes_with_active_cases_no_failures(
-        self, async_db, async_test_user, monkeypatch
-    ) -> None:
+    async def test_executes_with_active_cases_no_failures(self, async_db, async_test_user, monkeypatch) -> None:
         """有活跃用例时应创建任务、初始化引擎、执行（无失败结果不通知）。"""
         from app.crud import test_task as crudTaskModule
         from app.db import database as dbModule
@@ -419,9 +386,7 @@ class TestExecuteUiAutomationWithCases:
         async def fakeCreateTaskAsync(db, **kw):
             return fakeTask
 
-        monkeypatch.setattr(
-            crudTaskModule, "create_test_task_async", fakeCreateTaskAsync
-        )
+        monkeypatch.setattr(crudTaskModule, "create_test_task_async", fakeCreateTaskAsync)
 
         async def fakeRunAsync(coro):
             return await coro
@@ -451,9 +416,7 @@ class TestExecuteUiAutomationWithCases:
         scheduler = SelfTestScheduler()
         await scheduler._execute_ui_automation(async_db, project)
 
-    async def test_precondition_init_failure_sets_none(
-        self, async_db, async_test_user, monkeypatch
-    ) -> None:
+    async def test_precondition_init_failure_sets_none(self, async_db, async_test_user, monkeypatch) -> None:
         """PreconditionService.initialize 抛异常应被捕获，precondition_service 置 None。"""
         from app.crud import test_task as crudTaskModule
         from app.db import database as dbModule
@@ -497,9 +460,7 @@ class TestExecuteUiAutomationWithCases:
         async def fakeCreateTaskAsync(db, **kw):
             return fakeTask
 
-        monkeypatch.setattr(
-            crudTaskModule, "create_test_task_async", fakeCreateTaskAsync
-        )
+        monkeypatch.setattr(crudTaskModule, "create_test_task_async", fakeCreateTaskAsync)
 
         async def fakeRunAsync(coro):
             return await coro
@@ -525,9 +486,7 @@ class TestExecuteUiAutomationWithCases:
         scheduler = SelfTestScheduler()
         await scheduler._execute_ui_automation(async_db, project)
 
-    async def test_engine_execution_failure_caught(
-        self, async_db, async_test_user, monkeypatch
-    ) -> None:
+    async def test_engine_execution_failure_caught(self, async_db, async_test_user, monkeypatch) -> None:
         """engine.execute_test_task 抛异常应被捕获，不传播。"""
         from app.crud import test_task as crudTaskModule
         from app.db import database as dbModule
@@ -571,9 +530,7 @@ class TestExecuteUiAutomationWithCases:
         async def fakeCreateTaskAsync(db, **kw):
             return fakeTask
 
-        monkeypatch.setattr(
-            crudTaskModule, "create_test_task_async", fakeCreateTaskAsync
-        )
+        monkeypatch.setattr(crudTaskModule, "create_test_task_async", fakeCreateTaskAsync)
 
         async def fakeRunAsync(coro):
             return await coro
@@ -599,9 +556,7 @@ class TestExecuteUiAutomationWithCases:
         scheduler = SelfTestScheduler()
         await scheduler._execute_ui_automation(async_db, project)
 
-    async def test_failed_results_triggers_notify(
-        self, async_db, async_test_user, monkeypatch
-    ) -> None:
+    async def test_failed_results_triggers_notify(self, async_db, async_test_user, monkeypatch) -> None:
         """有失败结果时应调用 _notify_new_failures（WebSocket 失败被捕获）。"""
         from app.crud import test_task as crudTaskModule
         from app.db import database as dbModule
@@ -647,9 +602,7 @@ class TestExecuteUiAutomationWithCases:
         async def fakeCreateTaskAsync(db, **kw):
             return fakeTask
 
-        monkeypatch.setattr(
-            crudTaskModule, "create_test_task_async", fakeCreateTaskAsync
-        )
+        monkeypatch.setattr(crudTaskModule, "create_test_task_async", fakeCreateTaskAsync)
 
         async def fakeRunAsync(coro):
             return await coro

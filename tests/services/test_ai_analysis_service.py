@@ -11,7 +11,6 @@ from app.services.ai_analysis_utils import (
 
 
 class TestReadFileContent:
-
     def test_read_existing_file(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
             f.write("测试文件内容")
@@ -52,7 +51,6 @@ class TestReadFileContent:
 
 
 class TestGenerateAnalysisPrompt:
-
     def test_prompt_contains_content(self):
         content = "用户登录功能需求"
         prompt = generate_analysis_prompt(content)
@@ -80,7 +78,6 @@ class TestGenerateAnalysisPrompt:
 
 
 class TestParseAiResponse:
-
     def test_parse_valid_response(self):
         data = [
             {"module": "用户管理", "function": "登录", "point": "验证登录", "priority": 1},

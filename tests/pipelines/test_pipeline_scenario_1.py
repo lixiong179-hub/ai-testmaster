@@ -10,6 +10,7 @@ M1-T11 场景 1 流水线端到端测试
     - 场景 1 完整 Pipeline 端到端
     - 各 Step 的 should_run / cache_key / validate_output / fallback
 """
+
 import json
 import pytest
 from typing import ClassVar, List
@@ -33,6 +34,7 @@ from app.services import pipeline_service
 def _make_artifact(kind: str, payload: dict):
     """创建轻量级 Artifact 替身对象，兼容 PipelineContext.get_artifact 返回 payload 的约定。"""
     from app.models.pipeline import Artifact
+
     return Artifact(
         run_id=0,
         kind=kind,
@@ -45,20 +47,25 @@ def _make_artifact(kind: str, payload: dict):
 @pytest.fixture
 def mock_ai():
     client = MockAIClient()
-    client.set_response("case_generation", json.dumps([
-        {
-            "title": "登录功能验证",
-            "module": "用户管理",
-            "precondition": "用户已注册",
-            "steps": [
-                {"action": "输入正确的用户名和密码", "expected": "登录成功"},
-                {"action": "点击登录按钮", "expected": "跳转到首页"},
-            ],
-            "expected_result": "成功登录并跳转首页",
-            "priority": 1,
-            "case_type": "functional",
-        }
-    ]))
+    client.set_response(
+        "case_generation",
+        json.dumps(
+            [
+                {
+                    "title": "登录功能验证",
+                    "module": "用户管理",
+                    "precondition": "用户已注册",
+                    "steps": [
+                        {"action": "输入正确的用户名和密码", "expected": "登录成功"},
+                        {"action": "点击登录按钮", "expected": "跳转到首页"},
+                    ],
+                    "expected_result": "成功登录并跳转首页",
+                    "priority": 1,
+                    "case_type": "functional",
+                }
+            ]
+        ),
+    )
     return client
 
 
@@ -393,6 +400,7 @@ class TestScenario1E2E:
         ctx = make_ctx()
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(1)
         assert scenario is not None
 
@@ -409,13 +417,18 @@ class TestScenario1E2E:
         ctx = make_ctx()
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(1)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
 
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == testProject.id,
-        ).all()
+        cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == testProject.id,
+            )
+            .all()
+        )
         assert len(cases) >= 1
 
     def test_pipeline_with_empty_iteration(self, db, testProject, mock_ai):
@@ -444,6 +457,7 @@ class TestScenario1E2E:
         )
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(1)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
@@ -539,6 +553,7 @@ class TestScenario1E2E:
         )
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(1)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
@@ -587,6 +602,7 @@ class TestScenario1E2E:
         )
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(1)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)

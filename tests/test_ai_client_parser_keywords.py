@@ -7,6 +7,7 @@
 
 对应Spec: T18 - action_type中英文/同义词支持扩展
 """
+
 import pytest
 
 from app.utils.ai_client_parser import (
@@ -35,29 +36,32 @@ from app.utils.ai_client_parser import (
 class TestInferActionTypeChinese:
     """infer_action_type 中文关键词匹配"""
 
-    @pytest.mark.parametrize("action,expected", [
-        ("输入用户名", "input"),
-        ("填写密码", "input"),
-        ("录入数据", "input"),
-        ("键入搜索关键词", "input"),
-        ("点击提交按钮", "click"),
-        ("按下确认", "click"),
-        ("单击链接", "click"),
-        ("导航到首页", "navigate"),
-        ("访问登录页", "navigate"),
-        ("打开新页面", "navigate"),
-        ("跳转到详情", "navigate"),
-        ("验证页面标题", "verify"),
-        ("检查元素可见", "verify"),
-        ("确认提交成功", "verify"),
-        ("等待加载完成", "wait"),
-        ("滚动到底部", "scroll"),
-        ("悬停在菜单上", "hover"),
-        ("选择下拉选项", "select"),
-        ("刷新当前页面", "refresh"),
-        ("按键Enter", "keypress"),
-        ("输入验证码", "input"),
-    ])
+    @pytest.mark.parametrize(
+        "action,expected",
+        [
+            ("输入用户名", "input"),
+            ("填写密码", "input"),
+            ("录入数据", "input"),
+            ("键入搜索关键词", "input"),
+            ("点击提交按钮", "click"),
+            ("按下确认", "click"),
+            ("单击链接", "click"),
+            ("导航到首页", "navigate"),
+            ("访问登录页", "navigate"),
+            ("打开新页面", "navigate"),
+            ("跳转到详情", "navigate"),
+            ("验证页面标题", "verify"),
+            ("检查元素可见", "verify"),
+            ("确认提交成功", "verify"),
+            ("等待加载完成", "wait"),
+            ("滚动到底部", "scroll"),
+            ("悬停在菜单上", "hover"),
+            ("选择下拉选项", "select"),
+            ("刷新当前页面", "refresh"),
+            ("按键Enter", "keypress"),
+            ("输入验证码", "input"),
+        ],
+    )
     def test_chinese_keywords(self, action: str, expected: str) -> None:
         assert infer_action_type(action) == expected
 
@@ -65,44 +69,47 @@ class TestInferActionTypeChinese:
 class TestInferActionTypeEnglish:
     """infer_action_type 英文关键词匹配"""
 
-    @pytest.mark.parametrize("action,expected", [
-        ("input username", "input"),
-        ("type password", "input"),
-        ("enter text", "input"),
-        ("fill the form", "input"),
-        ("write content", "input"),
-        ("set value", "input"),
-        ("click submit", "click"),
-        ("press button", "click"),
-        ("tap icon", "click"),
-        ("navigate to home", "navigate"),
-        ("open the page", "navigate"),
-        ("goto settings", "input"),
-        ("go to dashboard", "navigate"),
-        ("visit profile", "navigate"),
-        ("verify the title", "verify"),
-        ("check the element", "verify"),
-        ("assert text visible", "verify"),
-        ("validate form data", "verify"),
-        ("confirm the result", "verify"),
-        ("wait for loading", "wait"),
-        ("sleep 3 seconds", "wait"),
-        ("pause execution", "wait"),
-        ("scroll down", "scroll"),
-        ("swipe left", "scroll"),
-        ("hover over menu", "hover"),
-        ("mouseover tooltip", "hover"),
-        ("select option", "select"),
-        ("choose from list", "select"),
-        ("pick value", "select"),
-        ("refresh page", "refresh"),
-        ("reload the content", "refresh"),
-        ("keypress Enter", "click"),
-        ("keydown Escape", "keypress"),
-        ("press key Tab", "click"),
-        ("captcha verification", "captcha"),
-        ("滑块验证", "verify"),
-    ])
+    @pytest.mark.parametrize(
+        "action,expected",
+        [
+            ("input username", "input"),
+            ("type password", "input"),
+            ("enter text", "input"),
+            ("fill the form", "input"),
+            ("write content", "input"),
+            ("set value", "input"),
+            ("click submit", "click"),
+            ("press button", "click"),
+            ("tap icon", "click"),
+            ("navigate to home", "navigate"),
+            ("open the page", "navigate"),
+            ("goto settings", "input"),
+            ("go to dashboard", "navigate"),
+            ("visit profile", "navigate"),
+            ("verify the title", "verify"),
+            ("check the element", "verify"),
+            ("assert text visible", "verify"),
+            ("validate form data", "verify"),
+            ("confirm the result", "verify"),
+            ("wait for loading", "wait"),
+            ("sleep 3 seconds", "wait"),
+            ("pause execution", "wait"),
+            ("scroll down", "scroll"),
+            ("swipe left", "scroll"),
+            ("hover over menu", "hover"),
+            ("mouseover tooltip", "hover"),
+            ("select option", "select"),
+            ("choose from list", "select"),
+            ("pick value", "select"),
+            ("refresh page", "refresh"),
+            ("reload the content", "refresh"),
+            ("keypress Enter", "click"),
+            ("keydown Escape", "keypress"),
+            ("press key Tab", "click"),
+            ("captcha verification", "captcha"),
+            ("滑块验证", "verify"),
+        ],
+    )
     def test_english_keywords(self, action: str, expected: str) -> None:
         assert infer_action_type(action) == expected
 
@@ -216,11 +223,16 @@ class TestKeywordConstantsCompleteness:
     def test_action_type_keywords_are_tuples(self) -> None:
         """所有ACTION_TYPE_KEYWORDS常量必须是Tuple类型"""
         constants = [
-            ACTION_TYPE_KEYWORDS_INPUT, ACTION_TYPE_KEYWORDS_CLICK,
-            ACTION_TYPE_KEYWORDS_NAVIGATE, ACTION_TYPE_KEYWORDS_VERIFY,
-            ACTION_TYPE_KEYWORDS_WAIT, ACTION_TYPE_KEYWORDS_SCROLL,
-            ACTION_TYPE_KEYWORDS_HOVER, ACTION_TYPE_KEYWORDS_SELECT,
-            ACTION_TYPE_KEYWORDS_REFRESH, ACTION_TYPE_KEYWORDS_KEYPRESS,
+            ACTION_TYPE_KEYWORDS_INPUT,
+            ACTION_TYPE_KEYWORDS_CLICK,
+            ACTION_TYPE_KEYWORDS_NAVIGATE,
+            ACTION_TYPE_KEYWORDS_VERIFY,
+            ACTION_TYPE_KEYWORDS_WAIT,
+            ACTION_TYPE_KEYWORDS_SCROLL,
+            ACTION_TYPE_KEYWORDS_HOVER,
+            ACTION_TYPE_KEYWORDS_SELECT,
+            ACTION_TYPE_KEYWORDS_REFRESH,
+            ACTION_TYPE_KEYWORDS_KEYPRESS,
             ACTION_TYPE_KEYWORDS_CAPTCHA,
         ]
         for const in constants:
@@ -230,15 +242,20 @@ class TestKeywordConstantsCompleteness:
     def test_action_type_keywords_have_chinese_and_english(self) -> None:
         """每个ACTION_TYPE关键词组至少包含中文和英文各一个"""
         keyword_groups = [
-            ACTION_TYPE_KEYWORDS_INPUT, ACTION_TYPE_KEYWORDS_CLICK,
-            ACTION_TYPE_KEYWORDS_NAVIGATE, ACTION_TYPE_KEYWORDS_VERIFY,
-            ACTION_TYPE_KEYWORDS_WAIT, ACTION_TYPE_KEYWORDS_SCROLL,
-            ACTION_TYPE_KEYWORDS_HOVER, ACTION_TYPE_KEYWORDS_SELECT,
-            ACTION_TYPE_KEYWORDS_REFRESH, ACTION_TYPE_KEYWORDS_KEYPRESS,
+            ACTION_TYPE_KEYWORDS_INPUT,
+            ACTION_TYPE_KEYWORDS_CLICK,
+            ACTION_TYPE_KEYWORDS_NAVIGATE,
+            ACTION_TYPE_KEYWORDS_VERIFY,
+            ACTION_TYPE_KEYWORDS_WAIT,
+            ACTION_TYPE_KEYWORDS_SCROLL,
+            ACTION_TYPE_KEYWORDS_HOVER,
+            ACTION_TYPE_KEYWORDS_SELECT,
+            ACTION_TYPE_KEYWORDS_REFRESH,
+            ACTION_TYPE_KEYWORDS_KEYPRESS,
             ACTION_TYPE_KEYWORDS_CAPTCHA,
         ]
         for group in keyword_groups:
-            has_chinese = any(any('\u4e00' <= c <= '\u9fff' for c in kw) for kw in group)
+            has_chinese = any(any("\u4e00" <= c <= "\u9fff" for c in kw) for kw in group)
             has_english = any(kw.isascii() and kw.isalpha() for kw in group)
             assert has_chinese, f"关键词组缺少中文关键词: {group}"
             assert has_english, f"关键词组缺少英文关键词: {group}"
@@ -246,9 +263,12 @@ class TestKeywordConstantsCompleteness:
     def test_test_category_keywords_are_tuples(self) -> None:
         """所有TEST_CATEGORY关键词常量必须是Tuple类型"""
         constants = [
-            TEST_CATEGORY_API_KEYWORDS, TEST_CATEGORY_MANUAL_KEYWORDS,
-            TEST_CATEGORY_PERFORMANCE_KEYWORDS, TEST_CATEGORY_SECURITY_KEYWORDS,
-            TEST_CATEGORY_UI_KEYWORDS, TEST_CATEGORY_CHECK_KEYWORDS,
+            TEST_CATEGORY_API_KEYWORDS,
+            TEST_CATEGORY_MANUAL_KEYWORDS,
+            TEST_CATEGORY_PERFORMANCE_KEYWORDS,
+            TEST_CATEGORY_SECURITY_KEYWORDS,
+            TEST_CATEGORY_UI_KEYWORDS,
+            TEST_CATEGORY_CHECK_KEYWORDS,
         ]
         for const in constants:
             assert isinstance(const, tuple), f"常量应为tuple类型: {const}"
@@ -257,12 +277,15 @@ class TestKeywordConstantsCompleteness:
     def test_test_category_keywords_have_chinese_and_english(self) -> None:
         """每个TEST_CATEGORY关键词组至少包含中文和英文各一个"""
         keyword_groups = [
-            TEST_CATEGORY_API_KEYWORDS, TEST_CATEGORY_MANUAL_KEYWORDS,
-            TEST_CATEGORY_PERFORMANCE_KEYWORDS, TEST_CATEGORY_SECURITY_KEYWORDS,
-            TEST_CATEGORY_UI_KEYWORDS, TEST_CATEGORY_CHECK_KEYWORDS,
+            TEST_CATEGORY_API_KEYWORDS,
+            TEST_CATEGORY_MANUAL_KEYWORDS,
+            TEST_CATEGORY_PERFORMANCE_KEYWORDS,
+            TEST_CATEGORY_SECURITY_KEYWORDS,
+            TEST_CATEGORY_UI_KEYWORDS,
+            TEST_CATEGORY_CHECK_KEYWORDS,
         ]
         for group in keyword_groups:
-            has_chinese = any(any('\u4e00' <= c <= '\u9fff' for c in kw) for kw in group)
+            has_chinese = any(any("\u4e00" <= c <= "\u9fff" for c in kw) for kw in group)
             has_english = any(kw.isascii() and kw.isalpha() for kw in group)
             assert has_chinese, f"关键词组缺少中文关键词: {group}"
             assert has_english, f"关键词组缺少英文关键词: {group}"
@@ -270,15 +293,23 @@ class TestKeywordConstantsCompleteness:
     def test_no_duplicate_keywords_within_group(self) -> None:
         """同一关键词组内不应有重复关键词"""
         keyword_groups = [
-            ACTION_TYPE_KEYWORDS_INPUT, ACTION_TYPE_KEYWORDS_CLICK,
-            ACTION_TYPE_KEYWORDS_NAVIGATE, ACTION_TYPE_KEYWORDS_VERIFY,
-            ACTION_TYPE_KEYWORDS_WAIT, ACTION_TYPE_KEYWORDS_SCROLL,
-            ACTION_TYPE_KEYWORDS_HOVER, ACTION_TYPE_KEYWORDS_SELECT,
-            ACTION_TYPE_KEYWORDS_REFRESH, ACTION_TYPE_KEYWORDS_KEYPRESS,
+            ACTION_TYPE_KEYWORDS_INPUT,
+            ACTION_TYPE_KEYWORDS_CLICK,
+            ACTION_TYPE_KEYWORDS_NAVIGATE,
+            ACTION_TYPE_KEYWORDS_VERIFY,
+            ACTION_TYPE_KEYWORDS_WAIT,
+            ACTION_TYPE_KEYWORDS_SCROLL,
+            ACTION_TYPE_KEYWORDS_HOVER,
+            ACTION_TYPE_KEYWORDS_SELECT,
+            ACTION_TYPE_KEYWORDS_REFRESH,
+            ACTION_TYPE_KEYWORDS_KEYPRESS,
             ACTION_TYPE_KEYWORDS_CAPTCHA,
-            TEST_CATEGORY_API_KEYWORDS, TEST_CATEGORY_MANUAL_KEYWORDS,
-            TEST_CATEGORY_PERFORMANCE_KEYWORDS, TEST_CATEGORY_SECURITY_KEYWORDS,
-            TEST_CATEGORY_UI_KEYWORDS, TEST_CATEGORY_CHECK_KEYWORDS,
+            TEST_CATEGORY_API_KEYWORDS,
+            TEST_CATEGORY_MANUAL_KEYWORDS,
+            TEST_CATEGORY_PERFORMANCE_KEYWORDS,
+            TEST_CATEGORY_SECURITY_KEYWORDS,
+            TEST_CATEGORY_UI_KEYWORDS,
+            TEST_CATEGORY_CHECK_KEYWORDS,
         ]
         for group in keyword_groups:
             assert len(group) == len(set(group)), f"关键词组内存在重复项: {group}"

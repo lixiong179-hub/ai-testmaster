@@ -6,6 +6,7 @@
     - AuditChainService.get_last_hash: 空表 / 有记录
     - AuditChainService.verify_chain_integrity: 完整链 / 断裂链 / 空表 / 分批校验
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -38,11 +39,17 @@ class TestAuditLogComputeHash:
     def test_hash_deterministic(self) -> None:
         """相同输入产生相同 hash。"""
         log1 = AuditLog(
-            action="test", actor_id=1, target_kind="case", target_id=1,
+            action="test",
+            actor_id=1,
+            target_kind="case",
+            target_id=1,
             created_at=datetime(2026, 7, 30, 12, 0, 0),
         )
         log2 = AuditLog(
-            action="test", actor_id=1, target_kind="case", target_id=1,
+            action="test",
+            actor_id=1,
+            target_kind="case",
+            target_id=1,
             created_at=datetime(2026, 7, 30, 12, 0, 0),
         )
         assert log1.compute_hash(_GENESIS_HASH) == log2.compute_hash(_GENESIS_HASH)
@@ -50,7 +57,10 @@ class TestAuditLogComputeHash:
     def test_different_prev_hash_produces_different_hash(self) -> None:
         """不同 prev_hash 产生不同 hash。"""
         log = AuditLog(
-            action="test", actor_id=1, target_kind="case", target_id=1,
+            action="test",
+            actor_id=1,
+            target_kind="case",
+            target_id=1,
             created_at=datetime(2026, 7, 30, 12, 0, 0),
         )
         h1 = log.compute_hash(_GENESIS_HASH)
@@ -60,11 +70,17 @@ class TestAuditLogComputeHash:
     def test_different_action_produces_different_hash(self) -> None:
         """不同 action 产生不同 hash。"""
         log1 = AuditLog(
-            action="action_a", actor_id=1, target_kind="case", target_id=1,
+            action="action_a",
+            actor_id=1,
+            target_kind="case",
+            target_id=1,
             created_at=datetime(2026, 7, 30, 12, 0, 0),
         )
         log2 = AuditLog(
-            action="action_b", actor_id=1, target_kind="case", target_id=1,
+            action="action_b",
+            actor_id=1,
+            target_kind="case",
+            target_id=1,
             created_at=datetime(2026, 7, 30, 12, 0, 0),
         )
         assert log1.compute_hash(_GENESIS_HASH) != log2.compute_hash(_GENESIS_HASH)
@@ -72,8 +88,13 @@ class TestAuditLogComputeHash:
     def test_hash_matches_manual_computation(self) -> None:
         """hash 与手动 SHA256 计算结果一致。"""
         log = AuditLog(
-            action="test", actor_id=1, target_kind="case", target_id=1,
-            detail={"key": "value"}, run_id=None, iteration_id=None,
+            action="test",
+            actor_id=1,
+            target_kind="case",
+            target_id=1,
+            detail={"key": "value"},
+            run_id=None,
+            iteration_id=None,
             created_at=datetime(2026, 7, 30, 12, 0, 0),
         )
         payload = {

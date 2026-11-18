@@ -6,6 +6,7 @@
 
 要求: 不使用Mock，覆盖率>=95%
 """
+
 import json
 import os
 from types import SimpleNamespace
@@ -246,21 +247,31 @@ class TestSelfTestPasswordNotInEnvConfigs:
     """web_env_configs 不存储密码"""
 
     def test_env_configs_no_password_key(self) -> None:
-        with patch.dict(os.environ, {
-            "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
-            "SELF_TEST_USERNAME": "admin",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
+                "SELF_TEST_USERNAME": "admin",
+            },
+            clear=False,
+        ):
             from app.services.self_test_service import _get_self_test_env_configs
+
             configs = _get_self_test_env_configs()
             assert "password" not in configs["test"]
 
     async def test_password_stored_via_test_object_password(self, testUser, sync_backed_async_db) -> None:
-        with patch.dict(os.environ, {
-            "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
-            "SELF_TEST_USERNAME": "admin",
-            "SELF_TEST_PASSWORD": "my_secret_pass",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
+                "SELF_TEST_USERNAME": "admin",
+                "SELF_TEST_PASSWORD": "my_secret_pass",
+            },
+            clear=False,
+        ):
             from app.services.self_test_service import create_self_test_project
+
             project = await create_self_test_project(sync_backed_async_db, testUser.id)
 
         web_configs = json.loads(project.web_env_configs)
@@ -269,12 +280,17 @@ class TestSelfTestPasswordNotInEnvConfigs:
         assert project.test_object_password == "my_secret_pass"
 
     async def test_password_encrypted_in_db_column(self, testUser, sync_backed_async_db) -> None:
-        with patch.dict(os.environ, {
-            "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
-            "SELF_TEST_USERNAME": "admin",
-            "SELF_TEST_PASSWORD": "my_secret_pass",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
+                "SELF_TEST_USERNAME": "admin",
+                "SELF_TEST_PASSWORD": "my_secret_pass",
+            },
+            clear=False,
+        ):
             from app.services.self_test_service import create_self_test_project
+
             project = await create_self_test_project(sync_backed_async_db, testUser.id)
 
         assert project.test_object_password_encrypted is not None
@@ -282,12 +298,17 @@ class TestSelfTestPasswordNotInEnvConfigs:
         assert project.test_object_password_encrypted.startswith("gAAAAA")
 
     async def test_no_password_env_stores_none(self, testUser, sync_backed_async_db) -> None:
-        with patch.dict(os.environ, {
-            "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
-            "SELF_TEST_USERNAME": "admin",
-            "SELF_TEST_PASSWORD": "",
-        }, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "SELF_TEST_FRONTEND_URL": "http://localhost:5173",
+                "SELF_TEST_USERNAME": "admin",
+                "SELF_TEST_PASSWORD": "",
+            },
+            clear=False,
+        ):
             from app.services.self_test_service import create_self_test_project
+
             project = await create_self_test_project(sync_backed_async_db, testUser.id)
 
         assert project.test_object_password is None

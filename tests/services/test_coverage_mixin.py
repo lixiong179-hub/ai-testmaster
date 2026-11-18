@@ -24,7 +24,8 @@ class FakeCase:
 class TestCalcRequirementCoverage:
     def test_no_test_points(self):
         rate, details = CoverageMixin._calc_requirement_coverage(
-            case=None, ctx={},
+            case=None,
+            ctx={},
         )
         assert rate == 0.0
         assert details["available"] is False
@@ -77,7 +78,8 @@ class TestCalcUiElementCoverage:
     def test_no_target_elements(self):
         steps = [FakeStep(target_element=None)]
         rate, details = CoverageMixin._calc_ui_element_coverage(
-            steps, ctx={"project_ui_labels": {"登录"}},
+            steps,
+            ctx={"project_ui_labels": {"登录"}},
         )
         assert rate == 0.0
         assert details["available"] is False
@@ -85,7 +87,8 @@ class TestCalcUiElementCoverage:
     def test_matching_ui_labels(self):
         steps = [FakeStep(target_element="登录按钮")]
         rate, details = CoverageMixin._calc_ui_element_coverage(
-            steps, ctx={"project_ui_labels": {"登录按钮"}},
+            steps,
+            ctx={"project_ui_labels": {"登录按钮"}},
         )
         assert rate == 1.0
         assert details["matched_steps"] == 1
@@ -96,14 +99,16 @@ class TestCalcUiElementCoverage:
             FakeStep(target_element="退出按钮", id=2),
         ]
         rate, details = CoverageMixin._calc_ui_element_coverage(
-            steps, ctx={"project_ui_labels": {"登录按钮"}},
+            steps,
+            ctx={"project_ui_labels": {"登录按钮"}},
         )
         assert rate == 0.5
 
     def test_empty_target_element(self):
         steps = [FakeStep(target_element="")]
         rate, details = CoverageMixin._calc_ui_element_coverage(
-            steps, ctx={"project_ui_labels": {"登录"}},
+            steps,
+            ctx={"project_ui_labels": {"登录"}},
         )
         assert details["steps_with_target"] == 0
 
@@ -135,34 +140,46 @@ class TestIsUiMatch:
 class TestAggregateCoverage:
     def test_all_dimensions(self):
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=1.0, req_available=True,
-            ui_rate=0.5, ui_available=True,
-            loc_rate=0.8, loc_available=True,
+            req_rate=1.0,
+            req_available=True,
+            ui_rate=0.5,
+            ui_available=True,
+            loc_rate=0.8,
+            loc_available=True,
         )
-        expected = (1.0 * _REQUIREMENT_WEIGHT + 0.5 * _UI_ELEMENT_WEIGHT + 0.8 * _LOCATOR_WEIGHT)
+        expected = 1.0 * _REQUIREMENT_WEIGHT + 0.5 * _UI_ELEMENT_WEIGHT + 0.8 * _LOCATOR_WEIGHT
         assert rate == pytest.approx(expected, rel=0.01)
 
     def test_no_dimensions(self):
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=0, req_available=False,
-            ui_rate=0, ui_available=False,
-            loc_rate=0, loc_available=False,
+            req_rate=0,
+            req_available=False,
+            ui_rate=0,
+            ui_available=False,
+            loc_rate=0,
+            loc_available=False,
         )
         assert rate == 0.0
 
     def test_only_locator(self):
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=0, req_available=False,
-            ui_rate=0, ui_available=False,
-            loc_rate=1.0, loc_available=True,
+            req_rate=0,
+            req_available=False,
+            ui_rate=0,
+            ui_available=False,
+            loc_rate=1.0,
+            loc_available=True,
         )
         assert rate == 1.0
 
     def test_req_and_locator(self):
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=1.0, req_available=True,
-            ui_rate=0, ui_available=False,
-            loc_rate=0.5, loc_available=True,
+            req_rate=1.0,
+            req_available=True,
+            ui_rate=0,
+            ui_available=False,
+            loc_rate=0.5,
+            loc_available=True,
         )
         weight_sum = _REQUIREMENT_WEIGHT + _LOCATOR_WEIGHT
         expected = (1.0 * _REQUIREMENT_WEIGHT + 0.5 * _LOCATOR_WEIGHT) / weight_sum
@@ -203,6 +220,7 @@ class TestAnalyzeCoverage:
         mixin = CoverageMixin()
         steps = [FakeStep(id=1), FakeStep(id=2)]
         from app.models.element_locator import ElementLocator
+
         loc1 = ElementLocator(step_id=1, css_selector="btn")
         ctx = {"locators_by_step": {1: [loc1]}}
         score = mixin._analyze_coverage(steps=steps, coverage_context=ctx, case=None)

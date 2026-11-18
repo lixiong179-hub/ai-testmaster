@@ -12,6 +12,7 @@ T1 单元测试：多维覆盖率（requirement × 0.3 + ui_element × 0.3 + loc
 设计：使用 SimpleNamespace mock TestCase/TestStep，通过 coverage_context 注入
 预取数据，避免数据库依赖；目标是为 SubTask 1.8 提供 ≥ 95% 行覆盖率的纯函数测试。
 """
+
 import math
 from types import SimpleNamespace
 from typing import List, Optional
@@ -64,7 +65,6 @@ def _locator(step_id: int) -> SimpleNamespace:
 
 
 class TestRequirementCoverage:
-
     def test_unavailable_when_project_has_no_test_points(self):
         rate, det = CoverageMixin._calc_requirement_coverage(
             case=_case(test_point_id=1), ctx={"project_test_point_priorities": {}}
@@ -140,9 +140,7 @@ class TestRequirementCoverage:
         assert det["test_point_priority"] == 99
 
     def test_case_none_returns_zero(self):
-        rate, det = CoverageMixin._calc_requirement_coverage(
-            case=None, ctx={"project_test_point_priorities": {1: 1}}
-        )
+        rate, det = CoverageMixin._calc_requirement_coverage(case=None, ctx={"project_test_point_priorities": {1: 1}})
         assert rate == 0.0
         assert det["has_test_point_link"] is False
         assert det["case_test_point_id"] is None
@@ -154,7 +152,6 @@ class TestRequirementCoverage:
 
 
 class TestUIElementCoverage:
-
     def test_unavailable_when_project_has_no_labels(self):
         rate, det = CoverageMixin._calc_ui_element_coverage(
             steps=[_step(1, "登录按钮")], ctx={"project_ui_labels": set()}
@@ -249,16 +246,19 @@ class TestUIElementCoverage:
         assert rate == 0.0  # 单字 label 不参与子串匹配
         assert det["matched_steps"] == 0
 
-    @pytest.mark.parametrize("target,label,expected", [
-        ("登录按钮", "登录", True),         # label 含于 target
-        ("登录", "登录按钮", True),         # target 含于 label
-        ("login button", "login", True),    # 英文同理
-        ("备注", "备", False),               # 短 label 不会误命中
-        ("备", "备", True),                  # 短 label 精确相等
-        ("", "登录", False),                # 空 target
-        ("登录", "", False),                # 空 label
-        ("abc", "xyz", False),              # 完全不相关
-    ])
+    @pytest.mark.parametrize(
+        "target,label,expected",
+        [
+            ("登录按钮", "登录", True),  # label 含于 target
+            ("登录", "登录按钮", True),  # target 含于 label
+            ("login button", "login", True),  # 英文同理
+            ("备注", "备", False),  # 短 label 不会误命中
+            ("备", "备", True),  # 短 label 精确相等
+            ("", "登录", False),  # 空 target
+            ("登录", "", False),  # 空 label
+            ("abc", "xyz", False),  # 完全不相关
+        ],
+    )
     def test_is_ui_match_rules(self, target, label, expected):
         assert CoverageMixin._is_ui_match(target, label) is expected
 
@@ -277,7 +277,6 @@ class TestUIElementCoverage:
 
 
 class TestLocatorCoverage:
-
     def test_unavailable_when_no_steps(self):
         analyzer = _StubAnalyzer()
         rate, det = analyzer._calc_locator_coverage(steps=[], ctx={})
@@ -313,9 +312,7 @@ class TestLocatorCoverage:
     def test_no_coverage_with_empty_locators_map(self):
         analyzer = _StubAnalyzer()
         steps = [_step(1), _step(2)]
-        rate, det = analyzer._calc_locator_coverage(
-            steps=steps, ctx={"locators_by_step": {}}
-        )
+        rate, det = analyzer._calc_locator_coverage(steps=steps, ctx={"locators_by_step": {}})
         assert rate == 0.0
         assert det["available"] is True
 
@@ -324,7 +321,8 @@ class TestLocatorCoverage:
         analyzer = _StubAnalyzer()
         # 构造 db.query(...).filter(...).all() 返回两个定位器的链
         analyzer.db.query.return_value.filter.return_value.all.return_value = [
-            _locator(1), _locator(2),
+            _locator(1),
+            _locator(2),
         ]
         steps = [_step(1), _step(2), _step(3)]
         rate, det = analyzer._calc_locator_coverage(steps=steps, ctx={})
@@ -341,76 +339,95 @@ class TestLocatorCoverage:
 
 
 class TestAggregateCoverage:
-
     def test_all_dimensions_full(self):
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=1.0, req_available=True,
-            ui_rate=1.0, ui_available=True,
-            loc_rate=1.0, loc_available=True,
+            req_rate=1.0,
+            req_available=True,
+            ui_rate=1.0,
+            ui_available=True,
+            loc_rate=1.0,
+            loc_available=True,
         )
         assert rate == 1.0
 
     def test_strict_weights_when_all_available(self):
         # v2 权重：0.6*0.3 + 0.8*0.3 + 0.4*0.4 = 0.18 + 0.24 + 0.16 = 0.58
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=0.6, req_available=True,
-            ui_rate=0.8, ui_available=True,
-            loc_rate=0.4, loc_available=True,
+            req_rate=0.6,
+            req_available=True,
+            ui_rate=0.8,
+            ui_available=True,
+            loc_rate=0.4,
+            loc_available=True,
         )
         assert math.isclose(rate, 0.58, abs_tol=1e-9)
 
     def test_degrade_to_locator_only(self):
         # 仅 locator 可用 → rate = loc_rate
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=0.0, req_available=False,
-            ui_rate=0.0, ui_available=False,
-            loc_rate=0.75, loc_available=True,
+            req_rate=0.0,
+            req_available=False,
+            ui_rate=0.0,
+            ui_available=False,
+            loc_rate=0.75,
+            loc_available=True,
         )
         assert math.isclose(rate, 0.75)
 
     def test_renormalize_when_ui_missing(self):
         # 仅 req+loc 可用，权重重正：(1.0*0.5 + 0.5*0.2) / (0.5+0.2) = 0.6/0.7
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=1.0, req_available=True,
-            ui_rate=0.0, ui_available=False,
-            loc_rate=0.5, loc_available=True,
+            req_rate=1.0,
+            req_available=True,
+            ui_rate=0.0,
+            ui_available=False,
+            loc_rate=0.5,
+            loc_available=True,
         )
-        expected = (1.0 * _REQUIREMENT_WEIGHT + 0.5 * _LOCATOR_WEIGHT) / (
-            _REQUIREMENT_WEIGHT + _LOCATOR_WEIGHT
-        )
+        expected = (1.0 * _REQUIREMENT_WEIGHT + 0.5 * _LOCATOR_WEIGHT) / (_REQUIREMENT_WEIGHT + _LOCATOR_WEIGHT)
         assert math.isclose(rate, expected)
 
     def test_renormalize_when_requirement_missing(self):
         # 仅 ui+loc 可用：(0.6*0.3 + 1.0*0.2) / (0.3+0.2) = 0.38/0.5 = 0.76
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=0.0, req_available=False,
-            ui_rate=0.6, ui_available=True,
-            loc_rate=1.0, loc_available=True,
+            req_rate=0.0,
+            req_available=False,
+            ui_rate=0.6,
+            ui_available=True,
+            loc_rate=1.0,
+            loc_available=True,
         )
-        expected = (0.6 * _UI_ELEMENT_WEIGHT + 1.0 * _LOCATOR_WEIGHT) / (
-            _UI_ELEMENT_WEIGHT + _LOCATOR_WEIGHT
-        )
+        expected = (0.6 * _UI_ELEMENT_WEIGHT + 1.0 * _LOCATOR_WEIGHT) / (_UI_ELEMENT_WEIGHT + _LOCATOR_WEIGHT)
         assert math.isclose(rate, expected)
 
     def test_returns_zero_when_nothing_available(self):
         rate = CoverageMixin._aggregate_coverage(
-            req_rate=0.0, req_available=False,
-            ui_rate=0.0, ui_available=False,
-            loc_rate=0.0, loc_available=False,
+            req_rate=0.0,
+            req_available=False,
+            ui_rate=0.0,
+            ui_available=False,
+            loc_rate=0.0,
+            loc_available=False,
         )
         assert rate == 0.0
 
     def test_partial_dimensions_does_not_inflate_score(self):
         # 验证退化语义：仅 locator 满分，不应等同于三维都满分
         full = CoverageMixin._aggregate_coverage(
-            req_rate=1.0, req_available=True,
-            ui_rate=1.0, ui_available=True,
-            loc_rate=1.0, loc_available=True,
+            req_rate=1.0,
+            req_available=True,
+            ui_rate=1.0,
+            ui_available=True,
+            loc_rate=1.0,
+            loc_available=True,
         )
         loc_only = CoverageMixin._aggregate_coverage(
-            req_rate=0.0, req_available=False,
-            ui_rate=0.0, ui_available=False,
-            loc_rate=1.0, loc_available=True,
+            req_rate=0.0,
+            req_available=False,
+            ui_rate=0.0,
+            ui_available=False,
+            loc_rate=1.0,
+            loc_available=True,
         )
         # 都是 1.0（loc_only 是退化为 locator-only 的合理结果）
         assert full == loc_only == 1.0
@@ -422,17 +439,19 @@ class TestAggregateCoverage:
 
 
 class TestCoverageLevel:
-
-    @pytest.mark.parametrize("rate,expected", [
-        (1.0, "high"),
-        (0.9, "high"),
-        (0.89, "moderate"),
-        (0.7, "moderate"),
-        (0.69, "low"),
-        (0.5, "low"),
-        (0.49, "very_low"),
-        (0.0, "very_low"),
-    ])
+    @pytest.mark.parametrize(
+        "rate,expected",
+        [
+            (1.0, "high"),
+            (0.9, "high"),
+            (0.89, "moderate"),
+            (0.7, "moderate"),
+            (0.69, "low"),
+            (0.5, "low"),
+            (0.49, "very_low"),
+            (0.0, "very_low"),
+        ],
+    )
     def test_thresholds(self, rate, expected):
         assert CoverageMixin._coverage_level(rate) == expected
 
@@ -443,7 +462,6 @@ class TestCoverageLevel:
 
 
 class TestExtractUILabelsFromSpec:
-
     def test_empty_spec_returns_empty(self):
         assert AnalyzerMixin._extract_ui_labels_from_spec({}) == set()
         assert AnalyzerMixin._extract_ui_labels_from_spec(None) == set()
@@ -506,7 +524,6 @@ class TestExtractUILabelsFromSpec:
 
 
 class TestProjectRequirementCoverage:
-
     def test_unavailable_when_project_has_no_test_points(self):
         result = AnalyzerMixin._calc_project_requirement_coverage(
             cases=[_case(test_point_id=1)],
@@ -558,7 +575,6 @@ class TestProjectRequirementCoverage:
 
 
 class TestAnalyzeCoverageIntegration:
-
     def test_full_three_dimensions(self):
         analyzer = _StubAnalyzer()
         steps = [_step(1, "登录按钮"), _step(2, "用户名输入框"), _step(3, None)]
@@ -567,9 +583,7 @@ class TestAnalyzeCoverageIntegration:
             "project_ui_labels": {"登录按钮", "用户名输入框"},
             "locators_by_step": {1: [_locator(1)], 2: [_locator(2)], 3: [_locator(3)]},
         }
-        result = analyzer._analyze_coverage(
-            steps=steps, coverage_context=ctx, case=_case(test_point_id=10)
-        )
+        result = analyzer._analyze_coverage(steps=steps, coverage_context=ctx, case=_case(test_point_id=10))
 
         assert isinstance(result, CoverageScore)
         # 三维度都满
@@ -594,12 +608,10 @@ class TestAnalyzeCoverageIntegration:
         steps = [_step(1), _step(2)]
         ctx = {
             "project_test_point_priorities": {},  # 项目无测试点
-            "project_ui_labels": set(),       # 项目无 UI 元素
+            "project_ui_labels": set(),  # 项目无 UI 元素
             "locators_by_step": {1: [_locator(1)]},
         }
-        result = analyzer._analyze_coverage(
-            steps=steps, coverage_context=ctx, case=_case()
-        )
+        result = analyzer._analyze_coverage(steps=steps, coverage_context=ctx, case=_case())
         # requirement / ui 不可用，coverage_rate 退化等于 locator_rate
         assert result.locator_coverage_rate == 0.5
         assert result.coverage_rate == 0.5
@@ -609,9 +621,7 @@ class TestAnalyzeCoverageIntegration:
 
     def test_empty_steps_results_in_zero_coverage(self):
         analyzer = _StubAnalyzer()
-        result = analyzer._analyze_coverage(
-            steps=[], coverage_context={}, case=_case()
-        )
+        result = analyzer._analyze_coverage(steps=[], coverage_context={}, case=_case())
         assert result.coverage_rate == 0.0
         assert result.score == 0.0
         assert result.total_elements == 0
@@ -634,9 +644,7 @@ class TestAnalyzeCoverageIntegration:
             "project_ui_labels": {"登录按钮"},
             "locators_by_step": {1: [_locator(1)]},
         }
-        result = analyzer._analyze_coverage(
-            steps=steps, coverage_context=ctx, case=_case(test_point_id=None)
-        )
+        result = analyzer._analyze_coverage(steps=steps, coverage_context=ctx, case=_case(test_point_id=None))
         # v2 权重：req=0, ui=1, loc=1 → 0*0.3 + 1*0.3 + 1*0.4 = 0.7
         assert result.requirement_coverage_rate == 0.0
         assert result.ui_element_coverage_rate == 1.0
@@ -648,17 +656,15 @@ class TestAnalyzeCoverageIntegration:
         """验证完整三维加权公式 v2：0.3*req + 0.3*ui + 0.4*loc。"""
         analyzer = _StubAnalyzer()
         steps = [
-            _step(1, "登录按钮"),       # ui 命中 + 有 locator
-            _step(2, "未知元素"),       # ui 未命中 + 无 locator
+            _step(1, "登录按钮"),  # ui 命中 + 有 locator
+            _step(2, "未知元素"),  # ui 未命中 + 无 locator
         ]
         ctx = {
             "project_test_point_priorities": {10: 1},
             "project_ui_labels": {"登录按钮"},
             "locators_by_step": {1: [_locator(1)]},
         }
-        result = analyzer._analyze_coverage(
-            steps=steps, coverage_context=ctx, case=_case(test_point_id=10)
-        )
+        result = analyzer._analyze_coverage(steps=steps, coverage_context=ctx, case=_case(test_point_id=10))
         # req=1.0, ui=0.5, loc=0.5
         # v2 综合 = 0.3*1.0 + 0.3*0.5 + 0.4*0.5 = 0.30 + 0.15 + 0.20 = 0.65
         assert math.isclose(result.coverage_rate, 0.65, abs_tol=1e-9)

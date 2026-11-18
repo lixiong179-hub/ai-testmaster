@@ -1,5 +1,6 @@
 """后验质量分 — 数据库集成测试
 覆盖 fetch_posterior_inputs / backfill_posterior_scores — 数据库交互、批量更新、异常路径"""
+
 import pytest
 
 from app.models.test_case import TestCase, TestCaseExecution

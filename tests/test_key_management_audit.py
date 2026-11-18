@@ -4,6 +4,7 @@
 （JWT_SECRET_KEY / ENCRYPTION_KEY / ENCRYPTION_SALT）时，
 正确记录密钥来源审计日志 [KEY_AUDIT]。
 """
+
 import json
 import logging
 from unittest.mock import patch

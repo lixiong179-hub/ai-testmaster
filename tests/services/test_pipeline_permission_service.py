@@ -11,6 +11,7 @@ M1-T14 Pipeline Permission Service 测试模块
     - assign_pipeline_role 审计日志
     - require_permission 装饰器
 """
+
 import pytest
 
 from app.models.pipeline_permission import PipelineRole, PipelinePermission, pipeline_user_role
@@ -108,19 +109,15 @@ class TestAssignRevokeRole:
 
     def test_assign_role_writes_audit(self, db, testUser, testProject):
         from app.services.audit_service import query_logs
+
         assign_pipeline_role(db, testUser.id, "viewer", testProject.id, actor_id=testUser.id)
         logs = query_logs(db, action="permission_change")
-        assert any(
-            l.detail and l.detail.get("role") == "viewer" and l.detail.get("op") == "assign"
-            for l in logs
-        )
+        assert any(l.detail and l.detail.get("role") == "viewer" and l.detail.get("op") == "assign" for l in logs)
 
     def test_revoke_role_writes_audit(self, db, testUser, testProject):
         from app.services.audit_service import query_logs
+
         assign_pipeline_role(db, testUser.id, "viewer", testProject.id)
         revoke_pipeline_role(db, testUser.id, "viewer", testProject.id, actor_id=testUser.id)
         logs = query_logs(db, action="permission_change")
-        assert any(
-            l.detail and l.detail.get("role") == "viewer" and l.detail.get("op") == "revoke"
-            for l in logs
-        )
+        assert any(l.detail and l.detail.get("role") == "viewer" and l.detail.get("op") == "revoke" for l in logs)

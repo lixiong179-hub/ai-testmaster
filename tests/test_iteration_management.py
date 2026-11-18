@@ -17,6 +17,7 @@
 作者: 软件测试工程师
 日期: 2026-04-13
 """
+
 import pytest
 import asyncio
 import os
@@ -26,10 +27,7 @@ from pathlib import Path
 from io import BytesIO
 
 from app.core.config import settings
-from app.models import (
-    User, Project, Iteration, ProjectFile,
-    UIPrototypeProject, UIPrototypeScreen
-)
+from app.models import User, Project, Iteration, ProjectFile, UIPrototypeProject, UIPrototypeScreen
 from app.crud import iteration as iteration_crud
 from app.crud import file as file_crud
 from app.crud import ui_prototype as ui_prototype_crud
@@ -46,7 +44,7 @@ def test_project(db, testUser):
         name=f"迭代测试项目_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         description="用于迭代管理功能测试的项目",
         user_id=testUser.id,
-        project_type="web"
+        project_type="web",
     )
     db.add(project)
     db.commit()
@@ -61,7 +59,7 @@ def test_iteration(db, test_project):
         name=f"Sprint 1_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         version="v1.0",
         status="draft",
-        description="第一个测试迭代"
+        description="第一个测试迭代",
     )
     db.add(iteration)
     db.commit()
@@ -77,18 +75,18 @@ def test_file_content():
     def create_minimal_png(width=100, height=100):
         def chunk(chunk_type, data):
             c = chunk_type + data
-            return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+            return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
 
-        signature = b'\x89PNG\r\n\x1a\n'
-        ihdr_data = struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)
-        ihdr = chunk(b'IHDR', ihdr_data)
-        raw_data = b''
+        signature = b"\x89PNG\r\n\x1a\n"
+        ihdr_data = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+        ihdr = chunk(b"IHDR", ihdr_data)
+        raw_data = b""
         for y in range(height):
-            raw_data += b'\x00'
-            raw_data += b'\x00' * (width * 3)
+            raw_data += b"\x00"
+            raw_data += b"\x00" * (width * 3)
         compressed = zlib.compress(raw_data)
-        idat = chunk(b'IDAT', compressed)
-        iend = chunk(b'IEND', b'')
+        idat = chunk(b"IDAT", compressed)
+        iend = chunk(b"IEND", b"")
 
         return signature + ihdr + idat + iend
 
@@ -96,6 +94,7 @@ def test_file_content():
 
 
 # ==================== 测试1: 迭代CRUD完整流程 ====================
+
 
 class TestIterationCRUD:
     """迭代CRUD操作完整流程测试"""
@@ -108,7 +107,7 @@ class TestIterationCRUD:
             name="Sprint 1",
             version="v1.0",
             status="draft",
-            description="第一个Sprint"
+            description="第一个Sprint",
         )
 
         assert iteration is not None
@@ -127,7 +126,7 @@ class TestIterationCRUD:
                 db=db,
                 project_id=test_project.id,
                 name=test_iteration.name,  # 使用相同名称
-                version="v2.0"
+                version="v2.0",
             )
 
     def test_get_iteration_success(self, db, test_iteration):
@@ -149,19 +148,11 @@ class TestIterationCRUD:
         # 创建多个迭代
         for i in range(3):
             iteration_crud.create_iteration(
-                db=db,
-                project_id=test_project.id,
-                name=f"Sprint {i+1}",
-                version=f"v{i+1}.0"
+                db=db, project_id=test_project.id, name=f"Sprint {i + 1}", version=f"v{i + 1}.0"
             )
 
         # 查询列表
-        iterations = iteration_crud.get_iterations_by_project(
-            db=db,
-            project_id=test_project.id,
-            skip=0,
-            limit=10
-        )
+        iterations = iteration_crud.get_iterations_by_project(db=db, project_id=test_project.id, skip=0, limit=10)
 
         assert len(iterations) >= 3  # 包含fixture创建的迭代
         assert all(it.project_id == test_project.id for it in iterations)
@@ -171,28 +162,15 @@ class TestIterationCRUD:
         # 创建5个迭代
         for i in range(5):
             iteration_crud.create_iteration(
-                db=db,
-                project_id=test_project.id,
-                name=f"Page Sprint {i+1}",
-                version=f"v{i+1}.0"
+                db=db, project_id=test_project.id, name=f"Page Sprint {i + 1}", version=f"v{i + 1}.0"
             )
 
         # 第一页（2条）
-        page1 = iteration_crud.get_iterations_by_project(
-            db=db,
-            project_id=test_project.id,
-            skip=0,
-            limit=2
-        )
+        page1 = iteration_crud.get_iterations_by_project(db=db, project_id=test_project.id, skip=0, limit=2)
         assert len(page1) == 2
 
         # 第二页（2条）
-        page2 = iteration_crud.get_iterations_by_project(
-            db=db,
-            project_id=test_project.id,
-            skip=2,
-            limit=2
-        )
+        page2 = iteration_crud.get_iterations_by_project(db=db, project_id=test_project.id, skip=2, limit=2)
         assert len(page2) == 2
 
         # 验证两页数据不重复
@@ -203,11 +181,7 @@ class TestIterationCRUD:
     def test_update_iteration_success(self, db, test_iteration):
         """测试成功更新迭代信息"""
         updated = iteration_crud.update_iteration(
-            db=db,
-            iteration_id=test_iteration.id,
-            name="Updated Sprint",
-            version="v2.0",
-            description="更新后的描述"
+            db=db, iteration_id=test_iteration.id, name="Updated Sprint", version="v2.0", description="更新后的描述"
         )
 
         assert updated is not None
@@ -219,10 +193,7 @@ class TestIterationCRUD:
         """测试更新为同名迭代应失败"""
         # 先创建另一个迭代
         other_iteration = iteration_crud.create_iteration(
-            db=db,
-            project_id=test_project.id,
-            name="Other Sprint",
-            version="v1.0"
+            db=db, project_id=test_project.id, name="Other Sprint", version="v1.0"
         )
 
         # 尝试将test_iteration改名为"Other Sprint"
@@ -230,46 +201,34 @@ class TestIterationCRUD:
             iteration_crud.update_iteration(
                 db=db,
                 iteration_id=test_iteration.id,
-                name="Other Sprint"  # 与other_iteration重名
+                name="Other Sprint",  # 与other_iteration重名
             )
 
     def test_update_iteration_not_found(self, db):
         """测试更新不存在的迭代"""
-        result = iteration_crud.update_iteration(
-            db=db,
-            iteration_id=99999,
-            name="Non-existent"
-        )
+        result = iteration_crud.update_iteration(db=db, iteration_id=99999, name="Non-existent")
 
         assert result is None
 
     def test_delete_iteration_success(self, db, test_iteration):
         """测试成功删除迭代"""
-        result = iteration_crud.delete_iteration(
-            db=db,
-            iteration_id=test_iteration.id
-        )
+        result = iteration_crud.delete_iteration(db=db, iteration_id=test_iteration.id)
 
         assert result is True
 
         # 验证已被删除
-        deleted = iteration_crud.get_iteration(
-            db=db,
-            iteration_id=test_iteration.id
-        )
+        deleted = iteration_crud.get_iteration(db=db, iteration_id=test_iteration.id)
         assert deleted is None
 
     def test_delete_iteration_not_found(self, db):
         """测试删除不存在的迭代"""
-        result = iteration_crud.delete_iteration(
-            db=db,
-            iteration_id=99999
-        )
+        result = iteration_crud.delete_iteration(db=db, iteration_id=99999)
 
         assert result is False
 
 
 # ==================== 测试2: 迭代ID筛选功能 ====================
+
 
 class TestIterationFiltering:
     """迭代ID筛选功能测试"""
@@ -283,7 +242,7 @@ class TestIterationFiltering:
             file_name="requirement.docx",
             file_type="docx",
             file_url="/uploads/test/req.docx",
-            iteration_id=test_iteration.id
+            iteration_id=test_iteration.id,
         )
 
         # 创建未分类的文件
@@ -293,15 +252,11 @@ class TestIterationFiltering:
             file_name="uncategorized.pdf",
             file_type="pdf",
             file_url="/uploads/test/uncat.pdf",
-            iteration_id=None
+            iteration_id=None,
         )
 
         # 筛选特定迭代的文件
-        files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=test_iteration.id
-        )
+        files = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=test_iteration.id)
 
         assert len(files) == 1
         assert files[0].id == file_in_iteration.id
@@ -316,7 +271,7 @@ class TestIterationFiltering:
             file_name="file1.png",
             file_type="png",
             file_url="/uploads/test/file1.png",
-            iteration_id=None
+            iteration_id=None,
         )
 
         file2 = file_crud.create_project_file(
@@ -325,7 +280,7 @@ class TestIterationFiltering:
             file_name="file2.jpg",
             file_type="jpg",
             file_url="/uploads/test/file2.jpg",
-            iteration_id=None
+            iteration_id=None,
         )
 
         # 创建属于迭代的文件
@@ -335,15 +290,11 @@ class TestIterationFiltering:
             file_name="file3.xlsx",
             file_type="xlsx",
             file_url="/uploads/test/file3.xlsx",
-            iteration_id=test_iteration.id
+            iteration_id=test_iteration.id,
         )
 
         # 筛选未分类文件（iteration_id=-1）
-        uncategorized_files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=-1
-        )
+        uncategorized_files = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=-1)
 
         assert len(uncategorized_files) == 2
         assert all(f.iteration_id is None for f in uncategorized_files)
@@ -357,7 +308,7 @@ class TestIterationFiltering:
             file_name="categorized.png",
             file_type="png",
             file_url="/uploads/test/cat.png",
-            iteration_id=test_iteration.id
+            iteration_id=test_iteration.id,
         )
 
         file_crud.create_project_file(
@@ -366,14 +317,14 @@ class TestIterationFiltering:
             file_name="uncategorized.pdf",
             file_type="pdf",
             file_url="/uploads/test/uncat.pdf",
-            iteration_id=None
+            iteration_id=None,
         )
 
         # 不传iteration_id获取全部文件
         all_files = file_crud.get_project_files(
             db=db,
             project_id=test_project.id,
-            iteration_id=None  # None表示不过滤
+            iteration_id=None,  # None表示不过滤
         )
 
         assert len(all_files) >= 2
@@ -382,28 +333,17 @@ class TestIterationFiltering:
         """测试按迭代ID筛选UI原型项目"""
         # 创建属于该迭代的UI原型项目
         proto_project = ui_prototype_crud.create_ui_prototype_project(
-            db=db,
-            project_id=test_project.id,
-            name="UI原型Sprint1",
-            source="manual",
-            iteration_id=test_iteration.id
+            db=db, project_id=test_project.id, name="UI原型Sprint1", source="manual", iteration_id=test_iteration.id
         )
 
         # 创建未分类的UI原型项目
         proto_uncategorized = ui_prototype_crud.create_ui_prototype_project(
-            db=db,
-            project_id=test_project.id,
-            name="UI原型未分类",
-            source="manual",
-            iteration_id=None
+            db=db, project_id=test_project.id, name="UI原型未分类", source="manual", iteration_id=None
         )
 
         # 筛选特定迭代的UI原型
         filtered_projects = ui_prototype_crud.get_ui_prototype_projects_by_project(
-            db=db,
-            project_id=test_project.id,
-            user_id=test_project.user_id,
-            iteration_id=test_iteration.id
+            db=db, project_id=test_project.id, user_id=test_project.user_id, iteration_id=test_iteration.id
         )
 
         assert len(filtered_projects) == 1
@@ -414,28 +354,17 @@ class TestIterationFiltering:
         """测试筛选未分类的UI原型项目（iteration_id=-1）"""
         # 创建未分类的UI原型项目
         ui_prototype_crud.create_ui_prototype_project(
-            db=db,
-            project_id=test_project.id,
-            name="未分类原型1",
-            source="manual",
-            iteration_id=None
+            db=db, project_id=test_project.id, name="未分类原型1", source="manual", iteration_id=None
         )
 
         # 创建属于迭代的UI原型项目
         ui_prototype_crud.create_ui_prototype_project(
-            db=db,
-            project_id=test_project.id,
-            name="Sprint1原型",
-            source="manual",
-            iteration_id=test_iteration.id
+            db=db, project_id=test_project.id, name="Sprint1原型", source="manual", iteration_id=test_iteration.id
         )
 
         # 筛选未分类的UI原型
         uncategorized = ui_prototype_crud.get_ui_prototype_projects_by_project(
-            db=db,
-            project_id=test_project.id,
-            user_id=test_project.user_id,
-            iteration_id=-1
+            db=db, project_id=test_project.id, user_id=test_project.user_id, iteration_id=-1
         )
 
         assert len(uncategorized) == 1
@@ -444,10 +373,13 @@ class TestIterationFiltering:
 
 # ==================== 测试3: 文件上传与迭代绑定 ====================
 
+
 class TestUploadWithIteration:
     """文件上传与迭代绑定测试"""
 
-    def test_upload_file_with_iteration_id_via_api(self, client, authHeaders, test_project, test_iteration, test_file_content):
+    def test_upload_file_with_iteration_id_via_api(
+        self, client, authHeaders, test_project, test_iteration, test_file_content
+    ):
         """测试通过API在指定迭代下上传文件"""
         response = client.post(
             "/api/v1/file/upload",
@@ -455,10 +387,10 @@ class TestUploadWithIteration:
                 "project_id": test_project.id,
                 "resource_type": "requirement",
                 "description": "测试需求文档",
-                "iteration_id": test_iteration.id
+                "iteration_id": test_iteration.id,
             },
             files={"file": ("requirement.docx", BytesIO(test_file_content), "image/png")},
-            headers=authHeaders
+            headers=authHeaders,
         )
 
         assert response.status_code in [200, 401, 403, 500]
@@ -472,12 +404,9 @@ class TestUploadWithIteration:
         """测试通过API上传文件时不指定迭代"""
         response = client.post(
             "/api/v1/file/upload",
-            data={
-                "project_id": test_project.id,
-                "resource_type": "ui_mockup"
-            },
+            data={"project_id": test_project.id, "resource_type": "ui_mockup"},
             files={"file": ("mockup.png", BytesIO(test_file_content), "image/png")},
-            headers=authHeaders
+            headers=authHeaders,
         )
 
         assert response.status_code in [200, 401, 403, 500]
@@ -499,16 +428,12 @@ class TestUploadWithIteration:
                 file_type="pdf",
                 file_url=f"/uploads/test/doc_{i}.pdf",
                 resource_type="requirement",
-                iteration_id=test_iteration.id
+                iteration_id=test_iteration.id,
             )
             created_files.append(f)
 
         # 按迭代查询
-        queried_files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=test_iteration.id
-        )
+        queried_files = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=test_iteration.id)
 
         assert len(queried_files) == 3
         queried_ids = {f.id for f in queried_files}
@@ -517,6 +442,7 @@ class TestUploadWithIteration:
 
 
 # ==================== 测试4: 迭代级联删除完整性 ====================
+
 
 class TestCascadeDelete:
     """迭代级联删除完整性测试"""
@@ -527,8 +453,9 @@ class TestCascadeDelete:
 
     def teardown_method(self):
         """每个测试方法后的清理"""
-        if hasattr(self, 'temp_dir') and os.path.exists(self.temp_dir):
+        if hasattr(self, "temp_dir") and os.path.exists(self.temp_dir):
             import shutil
+
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_cascade_delete_soft_deletes_project_files(self, db, test_project, test_iteration):
@@ -542,38 +469,29 @@ class TestCascadeDelete:
                 file_name=f"file_{i}.docx",
                 file_type="docx",
                 file_url=f"/uploads/test/f_{i}.docx",
-                iteration_id=test_iteration.id
+                iteration_id=test_iteration.id,
             )
             created_files.append(f)
 
         # 删除迭代
-        result = iteration_crud.delete_iteration(
-            db=db,
-            iteration_id=test_iteration.id
-        )
+        result = iteration_crud.delete_iteration(db=db, iteration_id=test_iteration.id)
         assert result is True
 
         # 验证迭代已删除，文件仍存在（CRUD层不级联，级联由上层API/Service处理）
         for file_obj in created_files:
-            remaining_file = db.query(ProjectFile).filter(
-                ProjectFile.id == file_obj.id
-            ).first()
+            remaining_file = db.query(ProjectFile).filter(ProjectFile.id == file_obj.id).first()
             assert remaining_file is not None
 
     def test_cascade_delete_physically_removes_ui_prototypes(self, db, test_project, test_iteration):
         """测试级联删除时UIPrototypeProject被物理删除"""
         # 创建UI原型项目并关联到迭代
         proto_project = ui_prototype_crud.create_ui_prototype_project(
-            db=db,
-            project_id=test_project.id,
-            name="待删除的原型项目",
-            source="manual",
-            iteration_id=test_iteration.id
+            db=db, project_id=test_project.id, name="待删除的原型项目", source="manual", iteration_id=test_iteration.id
         )
 
         # 创建UI屏幕
         screen_path = os.path.join(self.temp_dir, "screen_to_delete.png")
-        with open(screen_path, 'wb') as f:
+        with open(screen_path, "wb") as f:
             f.write(b"fake image content")
 
         screen = ui_prototype_crud.create_ui_screen(
@@ -583,42 +501,31 @@ class TestCascadeDelete:
             screen_name="测试屏幕",
             original_file_path=screen_path,
             original_file_name="screen_to_delete.png",
-            prototype_project_id=proto_project.id
+            prototype_project_id=proto_project.id,
         )
 
         # 删除迭代
-        result = iteration_crud.delete_iteration(
-            db=db,
-            iteration_id=test_iteration.id
-        )
+        result = iteration_crud.delete_iteration(db=db, iteration_id=test_iteration.id)
         assert result is True
 
         # 验证UI原型项目仍存在（CRUD层不级联）
-        remaining_proto = db.query(UIPrototypeProject).filter(
-            UIPrototypeProject.id == proto_project.id
-        ).first()
+        remaining_proto = db.query(UIPrototypeProject).filter(UIPrototypeProject.id == proto_project.id).first()
         assert remaining_proto is not None
 
         # 验证UI屏幕仍存在
-        remaining_screen = db.query(UIPrototypeScreen).filter(
-            UIPrototypeScreen.id == screen.id
-        ).first()
+        remaining_screen = db.query(UIPrototypeScreen).filter(UIPrototypeScreen.id == screen.id).first()
         assert remaining_screen is not None
 
     def test_cascade_delete_cleans_physical_files(self, db, test_project, test_iteration):
         """测试级联删除时物理文件从磁盘清理"""
         # 创建物理文件
         physical_file_path = os.path.join(self.temp_dir, "physical_file.png")
-        with open(physical_file_path, 'wb') as f:
+        with open(physical_file_path, "wb") as f:
             f.write(b"physical file content that should be deleted")
 
         # 创建UI原型项目和屏幕
         proto_project = ui_prototype_crud.create_ui_prototype_project(
-            db=db,
-            project_id=test_project.id,
-            name="有物理文件的原型",
-            source="manual",
-            iteration_id=test_iteration.id
+            db=db, project_id=test_project.id, name="有物理文件的原型", source="manual", iteration_id=test_iteration.id
         )
 
         screen = ui_prototype_crud.create_ui_screen(
@@ -627,17 +534,14 @@ class TestCascadeDelete:
             prototype_name="带物理文件的原型",
             screen_name="测试屏幕",
             original_file_path=physical_file_path,
-            prototype_project_id=proto_project.id
+            prototype_project_id=proto_project.id,
         )
 
         # 确认物理文件存在
         assert os.path.exists(physical_file_path)
 
         # 删除迭代
-        iteration_crud.delete_iteration(
-            db=db,
-            iteration_id=test_iteration.id
-        )
+        iteration_crud.delete_iteration(db=db, iteration_id=test_iteration.id)
 
         # 验证物理文件仍存在（CRUD层不级联清理物理文件）
         assert os.path.exists(physical_file_path)
@@ -646,10 +550,7 @@ class TestCascadeDelete:
         """测试级联删除不影响其他迭代的资源"""
         # 创建第二个迭代
         other_iteration = iteration_crud.create_iteration(
-            db=db,
-            project_id=test_project.id,
-            name="Other Sprint",
-            version="v2.0"
+            db=db, project_id=test_project.id, name="Other Sprint", version="v2.0"
         )
 
         # 在两个迭代下分别创建文件
@@ -659,7 +560,7 @@ class TestCascadeDelete:
             file_name="deleted_iter_file.pdf",
             file_type="pdf",
             file_url="/uploads/test/deleted.pdf",
-            iteration_id=test_iteration.id
+            iteration_id=test_iteration.id,
         )
 
         file_in_other_iter = file_crud.create_project_file(
@@ -668,24 +569,20 @@ class TestCascadeDelete:
             file_name="other_iter_file.docx",
             file_type="docx",
             file_url="/uploads/test/other.docx",
-            iteration_id=other_iteration.id
+            iteration_id=other_iteration.id,
         )
 
         # 删除第一个迭代
-        iteration_crud.delete_iteration(
-            db=db,
-            iteration_id=test_iteration.id
-        )
+        iteration_crud.delete_iteration(db=db, iteration_id=test_iteration.id)
 
         # 验证其他迭代的文件不受影响
-        other_file_still_exists = db.query(ProjectFile).filter(
-            ProjectFile.id == file_in_other_iter.id
-        ).first()
+        other_file_still_exists = db.query(ProjectFile).filter(ProjectFile.id == file_in_other_iter.id).first()
         assert other_file_still_exists is not None
         assert other_file_still_exists.is_active == True  # 仍然活跃
 
 
 # ==================== 测试5: 文件更新支持iteration_id修改 ====================
+
 
 class TestFileUpdateIteration:
     """文件更新支持iteration_id修改测试"""
@@ -696,10 +593,7 @@ class TestFileUpdateIteration:
         source_iteration = test_iteration
 
         target_iteration = iteration_crud.create_iteration(
-            db=db,
-            project_id=test_project.id,
-            name="Target Sprint",
-            version="v2.0"
+            db=db, project_id=test_project.id, name="Target Sprint", version="v2.0"
         )
 
         file_obj = file_crud.create_project_file(
@@ -708,7 +602,7 @@ class TestFileUpdateIteration:
             file_name="movable_file.pdf",
             file_type="pdf",
             file_url="/uploads/test/movable.pdf",
-            iteration_id=source_iteration.id
+            iteration_id=source_iteration.id,
         )
 
         # 验证初始状态
@@ -723,11 +617,7 @@ class TestFileUpdateIteration:
         assert file_obj.iteration_id == target_iteration.id
 
         # 验证查询结果正确
-        target_files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=target_iteration.id
-        )
+        target_files = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=target_iteration.id)
         assert any(f.id == file_obj.id for f in target_files)
 
     def test_move_file_to_uncategorized(self, db, test_project, test_iteration):
@@ -739,7 +629,7 @@ class TestFileUpdateIteration:
             file_name="to_uncategorize.docx",
             file_type="docx",
             file_url="/uploads/test/to_uncat.docx",
-            iteration_id=test_iteration.id
+            iteration_id=test_iteration.id,
         )
 
         # 移动到未分类（设置为None）
@@ -753,7 +643,7 @@ class TestFileUpdateIteration:
         uncategorized_files = file_crud.get_project_files(
             db=db,
             project_id=test_project.id,
-            iteration_id=-1  # -1表示未分类
+            iteration_id=-1,  # -1表示未分类
         )
         assert any(f.id == file_obj.id for f in uncategorized_files)
 
@@ -761,10 +651,7 @@ class TestFileUpdateIteration:
         """测试通过API更新文件的iteration_id"""
         source_iter = test_iteration
         target_iter = iteration_crud.create_iteration(
-            db=db,
-            project_id=test_project.id,
-            name="Target Iteration",
-            version="v3.0"
+            db=db, project_id=test_project.id, name="Target Iteration", version="v3.0"
         )
 
         file_obj = file_crud.create_project_file(
@@ -773,16 +660,13 @@ class TestFileUpdateIteration:
             file_name="api_update_test.pdf",
             file_type="pdf",
             file_url="/uploads/test/api_update.pdf",
-            iteration_id=source_iter.id
+            iteration_id=source_iter.id,
         )
 
         response = client.put(
             f"/api/v1/file/{file_obj.id}",
-            json={
-                "iteration_id": target_iter.id,
-                "description": "移动到新迭代"
-            },
-            headers=authHeaders
+            json={"iteration_id": target_iter.id, "description": "移动到新迭代"},
+            headers=authHeaders,
         )
 
         assert response.status_code in [200, 401, 403, 404, 500]
@@ -800,7 +684,7 @@ class TestFileUpdateIteration:
             file_name="zero_test.xlsx",
             file_type="xlsx",
             file_url="/uploads/test/zero.xlsx",
-            iteration_id=test_iteration.id
+            iteration_id=test_iteration.id,
         )
 
         # 模拟API层的转换逻辑（0 -> None）
@@ -816,6 +700,7 @@ class TestFileUpdateIteration:
 
 # ==================== 辅助方法和额外验证 ====================
 
+
 class TestIterationEdgeCases:
     """迭代功能的额外边界场景"""
 
@@ -824,14 +709,11 @@ class TestIterationEdgeCases:
         valid_statuses = ["draft", "in_pipeline", "in_review", "finalized", "archived"]
 
         iteration = iteration_crud.create_iteration(
-            db=db,
-            project_id=test_project.id,
-            name="Status Test",
-            version="v1.0",
-            status="draft"
+            db=db, project_id=test_project.id, name="Status Test", version="v1.0", status="draft"
         )
 
         from app.services.iteration_service import transition_iteration_status
+
         for status in valid_statuses[1:]:  # skip draft since iteration starts at draft
             updated = transition_iteration_status(db, iteration.id, status)
             assert updated.status == status
@@ -842,12 +724,7 @@ class TestIterationEdgeCases:
         end = start + timedelta(days=14)
 
         iteration = iteration_crud.create_iteration(
-            db=db,
-            project_id=test_project.id,
-            name="Two Week Sprint",
-            version="v1.0",
-            start_date=start,
-            end_date=end
+            db=db, project_id=test_project.id, name="Two Week Sprint", version="v1.0", start_date=start, end_date=end
         )
 
         assert iteration.start_date is not None
@@ -857,33 +734,20 @@ class TestIterationEdgeCases:
     def test_empty_iteration_has_no_resources(self, db, test_iteration, test_project):
         """测试空迭代没有任何关联资源"""
         # 该迭代刚创建，应该没有任何文件
-        files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=test_iteration.id
-        )
+        files = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=test_iteration.id)
         assert len(files) == 0
 
     def test_iteration_count_accurate(self, db, test_project):
         """测试迭代计数准确"""
-        initial_count = iteration_crud.get_iterations_count_by_project(
-            db=db,
-            project_id=test_project.id
-        )
+        initial_count = iteration_crud.get_iterations_count_by_project(db=db, project_id=test_project.id)
 
         # 创建3个新迭代
         for i in range(3):
             iteration_crud.create_iteration(
-                db=db,
-                project_id=test_project.id,
-                name=f"Count Test {i}",
-                version=f"v{i}.0"
+                db=db, project_id=test_project.id, name=f"Count Test {i}", version=f"v{i}.0"
             )
 
-        new_count = iteration_crud.get_iterations_count_by_project(
-            db=db,
-            project_id=test_project.id
-        )
+        new_count = iteration_crud.get_iterations_count_by_project(db=db, project_id=test_project.id)
 
         assert new_count == initial_count + 3
 

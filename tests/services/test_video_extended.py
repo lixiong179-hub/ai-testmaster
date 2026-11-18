@@ -150,8 +150,10 @@ class TestFFmpegMixin:
     @pytest.mark.asyncio
     async def test_extract_video_thumbnail_invalid_path(self):
         mixin = FFmpegMixin()
-        with patch.object(mixin, "_check_ffmpeg_available", return_value=True), \
-             patch.object(mixin, "_is_valid_video_path", return_value=False):
+        with (
+            patch.object(mixin, "_check_ffmpeg_available", return_value=True),
+            patch.object(mixin, "_is_valid_video_path", return_value=False),
+        ):
             result = await mixin.extract_video_thumbnail("/tmp/invalid.txt")
             assert result is None
 
@@ -165,8 +167,10 @@ class TestFFmpegMixin:
     @pytest.mark.asyncio
     async def test_get_video_duration_invalid_path(self):
         mixin = FFmpegMixin()
-        with patch.object(mixin, "_check_ffprobe_available", return_value=True), \
-             patch.object(mixin, "_is_valid_video_path", return_value=False):
+        with (
+            patch.object(mixin, "_check_ffprobe_available", return_value=True),
+            patch.object(mixin, "_is_valid_video_path", return_value=False),
+        ):
             result = await mixin.get_video_duration("/tmp/invalid.txt")
             assert result is None
 
@@ -179,9 +183,9 @@ class TestCleanupMixin:
         mixin._retention_days = 30
         mixin._video_base_dir = "/tmp/test_videos"
         # 清理数据库中残留的过期 VideoRecord，避免数据隔离问题
-        db.query(VideoRecord).filter(
-            VideoRecord.created_at < datetime.utcnow() - timedelta(days=30)
-        ).delete(synchronize_session=False)
+        db.query(VideoRecord).filter(VideoRecord.created_at < datetime.utcnow() - timedelta(days=30)).delete(
+            synchronize_session=False
+        )
         db.flush()
         result = await mixin.cleanup_expired_videos()
         assert result["deleted_count"] == 0

@@ -13,6 +13,7 @@
     - artifact：合法 → 转为 Artifact 实例传入；未注册类型 / 缺 artifact_type → 400
     - 异常：Runtime 抛异常 → 500；未注册 agent_type → 400
 """
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -82,6 +83,7 @@ class FakeRuntime:
 def _runtime_factory(calls_sink, **kwargs):
     def _build(db):
         return FakeRuntime(db, calls_sink=calls_sink, **kwargs)
+
     return _build
 
 
@@ -128,12 +130,8 @@ class TestRunSessionSuccess:
         calls = []
         req = SessionCreateRequest(agent_type="locator_healing", project_id=100)
 
-        with patch(
-            _TARGET, side_effect=_runtime_factory(calls, final_status="failed")
-        ):
-            result = await run_session(
-                req=req, db=db, current_user=MagicMock(id=7)
-            )
+        with patch(_TARGET, side_effect=_runtime_factory(calls, final_status="failed")):
+            result = await run_session(req=req, db=db, current_user=MagicMock(id=7))
 
         assert result["code"] == 200
         assert result["data"]["status"] == "failed"
@@ -154,9 +152,7 @@ class TestRunSessionSuccess:
         )
 
         with patch(_TARGET, side_effect=_runtime_factory(calls)):
-            result = await run_session(
-                req=req, db=db, current_user=MagicMock(id=7)
-            )
+            result = await run_session(req=req, db=db, current_user=MagicMock(id=7))
 
         assert result["code"] == 200
         artifacts = calls[0]["initial_artifacts"]
@@ -224,9 +220,7 @@ class TestRunSessionErrorHandling:
 
         with patch(
             _TARGET,
-            side_effect=_runtime_factory(
-                [], raise_exc=AgentError("未注册的 agent_type: unknown_agent")
-            ),
+            side_effect=_runtime_factory([], raise_exc=AgentError("未注册的 agent_type: unknown_agent")),
         ):
             with pytest.raises(HTTPException) as exc:
                 await run_session(req=req, db=db, current_user=MagicMock(id=7))

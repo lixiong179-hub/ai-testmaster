@@ -122,6 +122,7 @@ class TestUpdateLocatorAfterHealing:
     async def test_update_success(self, db, testUser):
         from app.models.test_case import TestCase, TestStep
         from app.models.project import Project
+
         proj = Project(
             name="sh_test_proj",
             description="test",
@@ -154,6 +155,7 @@ class TestUpdateLocatorAfterHealing:
         db.flush()
         mixin = _ConcreteMixin(db)
         from app.models.element_locator import ElementLocator
+
         locator = ElementLocator(
             step_id=step.id,
             css_selector="#old",

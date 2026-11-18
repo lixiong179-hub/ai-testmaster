@@ -7,6 +7,7 @@ M1-T12 场景 2 流水线测试（PRD + 测试点，无 UI）
     - 场景 2 不包含 TestPointAlignment Step
     - 场景注册表查询
 """
+
 import json
 import pytest
 
@@ -23,19 +24,24 @@ from app.pipelines.scenarios import get_scenario
 @pytest.fixture
 def mock_ai():
     client = MockAIClient()
-    client.set_response("case_generation", json.dumps([
-        {
-            "title": "登录功能验证",
-            "module": "用户管理",
-            "precondition": "用户已注册",
-            "steps": [
-                {"action": "输入正确的用户名和密码", "expected": "登录成功"},
-            ],
-            "expected_result": "成功登录",
-            "priority": 1,
-            "case_type": "functional",
-        }
-    ]))
+    client.set_response(
+        "case_generation",
+        json.dumps(
+            [
+                {
+                    "title": "登录功能验证",
+                    "module": "用户管理",
+                    "precondition": "用户已注册",
+                    "steps": [
+                        {"action": "输入正确的用户名和密码", "expected": "登录成功"},
+                    ],
+                    "expected_result": "成功登录",
+                    "priority": 1,
+                    "case_type": "functional",
+                }
+            ]
+        ),
+    )
     return client
 
 
@@ -137,9 +143,13 @@ class TestScenario2E2E:
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
 
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == testProject.id,
-        ).all()
+        cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == testProject.id,
+            )
+            .all()
+        )
         assert len(cases) >= 1
         for case in cases:
             assert case.lifecycle_status in ("draft", "pending_review")

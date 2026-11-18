@@ -3,6 +3,7 @@
 
 目标：将覆盖率提升到95%以上
 """
+
 import pytest
 from unittest.mock import Mock, patch
 from datetime import datetime
@@ -29,11 +30,8 @@ class TestTestDataGeneratorCoverage:
     def test_generate_data_exception_handling(self, generator):
         """测试生成数据 - 异常处理"""
         # 通过传入无效的constraints来触发异常
-        with patch.object(generator, '_generate_random', side_effect=Exception("测试异常")):
-            result = generator.generate_data(
-                field_type=DataType.TEXT,
-                field_name="test"
-            )
+        with patch.object(generator, "_generate_random", side_effect=Exception("测试异常")):
+            result = generator.generate_data(field_type=DataType.TEXT, field_name="test")
         # 应该返回空字符串而不是抛出异常
         assert result == ""
 
@@ -43,7 +41,7 @@ class TestTestDataGeneratorCoverage:
             field_type=DataType.TEXT,
             field_name="test",
             generation_rule=GenerationRule.RANDOM,
-            rule_config={"template": "Test_${date}_${random}"}
+            rule_config={"template": "Test_${date}_${random}"},
         )
         assert "Test_" in result
         assert "${date}" not in result
@@ -51,52 +49,34 @@ class TestTestDataGeneratorCoverage:
 
     def test_generate_text_product_line(self, generator):
         """测试生成文本 - 产品线字段"""
-        result = generator._generate_text(
-            field_name="product_line",
-            constraints=DataConstraints(),
-            rule_config={}
-        )
+        result = generator._generate_text(field_name="product_line", constraints=DataConstraints(), rule_config={})
         # 产品线字段应该返回产品名称格式
         assert len(result) > 0
         assert isinstance(result, str)
 
     def test_generate_text_name_field(self, generator):
         """测试生成文本 - 名称字段"""
-        result = generator._generate_text(
-            field_name="user_name",
-            constraints=DataConstraints(),
-            rule_config={}
-        )
+        result = generator._generate_text(field_name="user_name", constraints=DataConstraints(), rule_config={})
         # 应该是中文姓名
         assert len(result) >= 2
 
     def test_generate_text_description_field(self, generator):
         """测试生成文本 - 描述字段"""
         result = generator._generate_text(
-            field_name="description",
-            constraints=DataConstraints(min_length=20, max_length=30),
-            rule_config={}
+            field_name="description", constraints=DataConstraints(min_length=20, max_length=30), rule_config={}
         )
         assert len(result) >= 20
 
     def test_generate_text_address_field(self, generator):
         """测试生成文本 - 地址字段"""
-        result = generator._generate_text(
-            field_name="address",
-            constraints=DataConstraints(),
-            rule_config={}
-        )
+        result = generator._generate_text(field_name="address", constraints=DataConstraints(), rule_config={})
         # 地址字段应该返回地址格式
         assert len(result) > 0
         assert isinstance(result, str)
 
     def test_generate_text_company_field(self, generator):
         """测试生成文本 - 公司字段"""
-        result = generator._generate_text(
-            field_name="company_name",
-            constraints=DataConstraints(),
-            rule_config={}
-        )
+        result = generator._generate_text(field_name="company_name", constraints=DataConstraints(), rule_config={})
         # 公司字段应该返回公司名称格式
         assert len(result) > 0
         assert isinstance(result, str)
@@ -104,98 +84,67 @@ class TestTestDataGeneratorCoverage:
     def test_generate_text_default(self, generator):
         """测试生成文本 - 默认情况"""
         result = generator._generate_text(
-            field_name="other_field",
-            constraints=DataConstraints(min_length=10, max_length=15),
-            rule_config={}
+            field_name="other_field", constraints=DataConstraints(min_length=10, max_length=15), rule_config={}
         )
         assert 10 <= len(result) <= 15
 
     def test_generate_boundary_min_text(self, generator):
         """测试生成边界最小值 - 文本"""
-        result = generator._generate_boundary_min(
-            field_type=DataType.TEXT,
-            constraints=DataConstraints(min_length=5)
-        )
+        result = generator._generate_boundary_min(field_type=DataType.TEXT, constraints=DataConstraints(min_length=5))
         assert result == "测" * 5
 
     def test_generate_boundary_min_number(self, generator):
         """测试生成边界最小值 - 数字"""
-        result = generator._generate_boundary_min(
-            field_type=DataType.NUMBER,
-            constraints=DataConstraints(min_value=10)
-        )
+        result = generator._generate_boundary_min(field_type=DataType.NUMBER, constraints=DataConstraints(min_value=10))
         assert result == "10"
 
     def test_generate_boundary_min_other(self, generator):
         """测试生成边界最小值 - 其他类型"""
-        result = generator._generate_boundary_min(
-            field_type=DataType.DATE,
-            constraints=DataConstraints()
-        )
+        result = generator._generate_boundary_min(field_type=DataType.DATE, constraints=DataConstraints())
         assert result == ""
 
     def test_generate_boundary_max_text(self, generator):
         """测试生成边界最大值 - 文本"""
-        result = generator._generate_boundary_max(
-            field_type=DataType.TEXT,
-            constraints=DataConstraints(max_length=50)
-        )
+        result = generator._generate_boundary_max(field_type=DataType.TEXT, constraints=DataConstraints(max_length=50))
         assert result == "测" * 50
 
     def test_generate_boundary_max_number(self, generator):
         """测试生成边界最大值 - 数字"""
         result = generator._generate_boundary_max(
-            field_type=DataType.NUMBER,
-            constraints=DataConstraints(max_value=100)
+            field_type=DataType.NUMBER, constraints=DataConstraints(max_value=100)
         )
         assert result == "100"
 
     def test_generate_boundary_max_other(self, generator):
         """测试生成边界最大值 - 其他类型"""
-        result = generator._generate_boundary_max(
-            field_type=DataType.DATE,
-            constraints=DataConstraints()
-        )
+        result = generator._generate_boundary_max(field_type=DataType.DATE, constraints=DataConstraints())
         assert result == ""
 
     def test_generate_boundary_over_text(self, generator):
         """测试生成边界溢出值 - 文本"""
-        result = generator._generate_boundary_over(
-            field_type=DataType.TEXT,
-            constraints=DataConstraints(max_length=50)
-        )
+        result = generator._generate_boundary_over(field_type=DataType.TEXT, constraints=DataConstraints(max_length=50))
         assert result == "测" * 51
 
     def test_generate_boundary_over_number(self, generator):
         """测试生成边界溢出值 - 数字"""
         result = generator._generate_boundary_over(
-            field_type=DataType.NUMBER,
-            constraints=DataConstraints(max_value=100)
+            field_type=DataType.NUMBER, constraints=DataConstraints(max_value=100)
         )
         assert result == "101"
 
     def test_generate_boundary_over_other(self, generator):
         """测试生成边界溢出值 - 其他类型"""
-        result = generator._generate_boundary_over(
-            field_type=DataType.DATE,
-            constraints=DataConstraints()
-        )
+        result = generator._generate_boundary_over(field_type=DataType.DATE, constraints=DataConstraints())
         assert result == ""
 
     def test_generate_special_chars_non_text(self, generator):
         """测试生成特殊字符 - 非文本类型"""
-        result = generator._generate_special_chars(
-            field_type=DataType.NUMBER,
-            constraints=DataConstraints()
-        )
+        result = generator._generate_special_chars(field_type=DataType.NUMBER, constraints=DataConstraints())
         assert result == ""
 
     def test_generate_special_chars_text(self, generator):
         """测试生成特殊字符 - 文本类型"""
-        result = generator._generate_special_chars(
-            field_type=DataType.TEXT,
-            constraints=DataConstraints()
-        )
+        result = generator._generate_special_chars(field_type=DataType.TEXT, constraints=DataConstraints())
         # 应该包含特殊字符
         assert any(c in result for c in "!@#$%^&*()")
 
@@ -221,7 +170,7 @@ class TestTestDataGeneratorCoverage:
         assert len(result) == 10
         # 应该都是中文字符
         for char in result:
-            assert '\u4e00' <= char <= '\u9fff'
+            assert "\u4e00" <= char <= "\u9fff"
 
     def test_generate_product_name(self, generator):
         """测试生成产品名称"""
@@ -239,9 +188,7 @@ class TestTestDataGeneratorCoverage:
 
     def test_generate_description(self, generator):
         """测试生成描述"""
-        result = generator._generate_description(
-            DataConstraints(min_length=20, max_length=25)
-        )
+        result = generator._generate_description(DataConstraints(min_length=20, max_length=25))
         assert 20 <= len(result) <= 25
 
     def test_generate_address(self, generator):
@@ -267,15 +214,15 @@ class TestTestDataGeneratorCoverage:
         result = generator._generate_date(DataConstraints())
         # 验证日期格式
         assert len(result) == 10
-        assert result[4] == '-' and result[7] == '-'
+        assert result[4] == "-" and result[7] == "-"
 
     def test_generate_datetime(self, generator):
         """测试生成日期时间"""
         result = generator._generate_datetime(DataConstraints())
         # 验证格式
         assert len(result) == 19
-        assert result[10] == ' '
-        assert result[13] == ':' and result[16] == ':'
+        assert result[10] == " "
+        assert result[13] == ":" and result[16] == ":"
 
     def test_generate_email(self, generator):
         """测试生成邮箱"""
@@ -331,10 +278,7 @@ class TestTestDataGeneratorCoverage:
 
     def test_generate_test_data_convenience_function(self):
         """测试便捷函数"""
-        result = generate_test_data(
-            field_type=DataType.TEXT,
-            field_name="test"
-        )
+        result = generate_test_data(field_type=DataType.TEXT, field_name="test")
         assert isinstance(result, str)
         assert len(result) > 0
 
@@ -368,7 +312,7 @@ class TestTestDataParameterizerCoverage:
     def test_handle_date_param_today(self, parameterizer):
         """测试处理date参数 - 今天"""
         result = parameterizer._handle_date_param("today")
-        assert result == datetime.now().strftime('%Y-%m-%d')
+        assert result == datetime.now().strftime("%Y-%m-%d")
 
     def test_handle_date_param_now(self, parameterizer):
         """测试处理date参数 - 现在"""
@@ -440,7 +384,7 @@ class TestTestDataParameterizerCoverage:
 
     def test_parse_with_braces_in_text(self, parameterizer):
         """测试解析 - 文本中包含大括号"""
-        template = "JSON: {\"key\": \"${random.number}\"}"
+        template = 'JSON: {"key": "${random.number}"}'
         result = parameterizer.parse(template)
         assert "${random.number}" not in result
         assert "JSON:" in result
@@ -477,15 +421,9 @@ class TestTestDataServiceCoverage:
 
     def test_create_test_data_with_none_values(self, service, db_session):
         """测试创建测试数据 - 各种None值"""
-        with patch.object(db_session, 'add'), \
-             patch.object(db_session, 'commit'), \
-             patch.object(db_session, 'refresh'):
+        with patch.object(db_session, "add"), patch.object(db_session, "commit"), patch.object(db_session, "refresh"):
             result = service.create_test_data(
-                step_id=100,
-                field_name="test",
-                field_type=DataType.TEXT,
-                rule_config=None,
-                enum_values=None
+                step_id=100, field_name="test", field_type=DataType.TEXT, rule_config=None, enum_values=None
             )
         assert result.rule_config is None
         assert result.enum_values is None
@@ -503,7 +441,7 @@ class TestTestDataServiceCoverage:
             min_length=None,
             max_length=None,
             min_value=None,
-            max_value=None
+            max_value=None,
         )
         result = service.generate_value(test_data)
         assert result in ["a", "b", "c"]

@@ -6,6 +6,7 @@ _build_weight_model() 函数单元测试
 - 边界情况：全部False
 - 返回值类型验证：始终返回三元组 (weight_desc, weight_example, weight_warning)
 """
+
 import pytest
 import sys
 import os
@@ -24,9 +25,7 @@ class TestBuildWeightModel:
         has_requirement = True
         has_test_point = True
 
-        weight_desc, weight_example, weight_warning = _build_weight_model(
-            has_ui, has_requirement, has_test_point
-        )
+        weight_desc, weight_example, weight_warning = _build_weight_model(has_ui, has_requirement, has_test_point)
 
         assert "60%" in weight_desc
         assert "核心依据" in weight_desc
@@ -44,9 +43,7 @@ class TestBuildWeightModel:
         has_requirement = True
         has_test_point = False
 
-        weight_desc, weight_example, weight_warning = _build_weight_model(
-            has_ui, has_requirement, has_test_point
-        )
+        weight_desc, weight_example, weight_warning = _build_weight_model(has_ui, has_requirement, has_test_point)
 
         assert "75%" in weight_desc
         assert "核心依据" in weight_desc
@@ -61,9 +58,7 @@ class TestBuildWeightModel:
         has_requirement = True
         has_test_point = True
 
-        weight_desc, weight_example, weight_warning = _build_weight_model(
-            has_ui, has_requirement, has_test_point
-        )
+        weight_desc, weight_example, weight_warning = _build_weight_model(has_ui, has_requirement, has_test_point)
 
         assert "70%" in weight_desc
         assert "核心依据" in weight_desc
@@ -78,9 +73,7 @@ class TestBuildWeightModel:
         has_requirement = True
         has_test_point = False
 
-        weight_desc, weight_example, weight_warning = _build_weight_model(
-            has_ui, has_requirement, has_test_point
-        )
+        weight_desc, weight_example, weight_warning = _build_weight_model(has_ui, has_requirement, has_test_point)
 
         assert "100%" in weight_desc
         assert "唯一" in weight_desc
@@ -93,9 +86,7 @@ class TestBuildWeightModel:
         has_requirement = False
         has_test_point = False
 
-        weight_desc, weight_example, weight_warning = _build_weight_model(
-            has_ui, has_requirement, has_test_point
-        )
+        weight_desc, weight_example, weight_warning = _build_weight_model(has_ui, has_requirement, has_test_point)
 
         assert "缺少需求文档" in weight_desc
         assert "未提供需求文档" in weight_warning
@@ -107,9 +98,7 @@ class TestBuildWeightModel:
         has_requirement = False
         has_test_point = True
 
-        weight_desc, weight_example, weight_warning = _build_weight_model(
-            has_ui, has_requirement, has_test_point
-        )
+        weight_desc, weight_example, weight_warning = _build_weight_model(has_ui, has_requirement, has_test_point)
 
         assert "缺少需求文档" in weight_desc
         assert "未提供需求文档" in weight_warning

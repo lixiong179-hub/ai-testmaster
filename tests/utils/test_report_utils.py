@@ -121,6 +121,7 @@ class TestReportUtilsExportReport:
     def test_export_pdf_format_without_weasyprint(self):
         try:
             import weasyprint
+
             content, content_type, filename = ReportUtils.export_report(
                 {"statistics": {"total": 0}, "test_cases": [], "summary": ""}, "报告", "pdf"
             )
@@ -128,15 +129,14 @@ class TestReportUtilsExportReport:
             assert filename == "报告.pdf"
         except (ImportError, OSError):
             with pytest.raises((ImportError, OSError)):
-                ReportUtils.export_report(
-                    {"statistics": {"total": 0}, "test_cases": [], "summary": ""}, "报告", "pdf"
-                )
+                ReportUtils.export_report({"statistics": {"total": 0}, "test_cases": [], "summary": ""}, "报告", "pdf")
 
 
 class TestReportUtilsGeneratePdf:
     def test_generate_pdf_without_weasyprint(self):
         try:
             import weasyprint
+
             result = ReportUtils.generate_pdf_report("<html><body>test</body></html>")
             assert isinstance(result, bytes)
         except (ImportError, OSError):

@@ -28,9 +28,17 @@ class TestAssignPipelineRole:
     def test_assign_role(self, db, testUser, testProject):
         init_pipeline_roles(db)
         assign_pipeline_role(db, testUser.id, "viewer", testProject.id)
-        assert check_pipeline_permission(
-            db, testUser.id, "test_case", "read", "project", testProject.id,
-        ) is True
+        assert (
+            check_pipeline_permission(
+                db,
+                testUser.id,
+                "test_case",
+                "read",
+                "project",
+                testProject.id,
+            )
+            is True
+        )
 
     def test_assign_nonexistent_role_raises(self, db, testUser, testProject):
         with pytest.raises(ValueError, match="not found"):
@@ -47,9 +55,17 @@ class TestRevokePipelineRole:
         init_pipeline_roles(db)
         assign_pipeline_role(db, testUser.id, "viewer", testProject.id)
         revoke_pipeline_role(db, testUser.id, "viewer", testProject.id)
-        assert check_pipeline_permission(
-            db, testUser.id, "test_case", "read", "project", testProject.id,
-        ) is False
+        assert (
+            check_pipeline_permission(
+                db,
+                testUser.id,
+                "test_case",
+                "read",
+                "project",
+                testProject.id,
+            )
+            is False
+        )
 
     def test_revoke_nonexistent_role_raises(self, db, testUser, testProject):
         with pytest.raises(ValueError, match="not found"):
@@ -60,22 +76,46 @@ class TestCheckPipelinePermission:
     def test_admin_has_all_permissions(self, db, testUser, testProject):
         init_pipeline_roles(db)
         assign_pipeline_role(db, testUser.id, "admin", testProject.id)
-        assert check_pipeline_permission(
-            db, testUser.id, "iteration", "create", "all", testProject.id,
-        ) is True
+        assert (
+            check_pipeline_permission(
+                db,
+                testUser.id,
+                "iteration",
+                "create",
+                "all",
+                testProject.id,
+            )
+            is True
+        )
 
     def test_viewer_no_write_permission(self, db, testUser, testProject):
         init_pipeline_roles(db)
         assign_pipeline_role(db, testUser.id, "viewer", testProject.id)
-        assert check_pipeline_permission(
-            db, testUser.id, "iteration", "create", "project", testProject.id,
-        ) is False
+        assert (
+            check_pipeline_permission(
+                db,
+                testUser.id,
+                "iteration",
+                "create",
+                "project",
+                testProject.id,
+            )
+            is False
+        )
 
     def test_no_role_no_permission(self, db, testUser, testProject):
         init_pipeline_roles(db)
-        assert check_pipeline_permission(
-            db, testUser.id, "iteration", "create", "project", testProject.id,
-        ) is False
+        assert (
+            check_pipeline_permission(
+                db,
+                testUser.id,
+                "iteration",
+                "create",
+                "project",
+                testProject.id,
+            )
+            is False
+        )
 
 
 class TestScopeHierarchy:

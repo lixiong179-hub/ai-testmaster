@@ -11,6 +11,7 @@ AI测试用例生成 - 遗漏分支补充测试
 7. batch-generate/stream端点
 8. ContextMixin: _sort_flow_nodes
 """
+
 import json
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
@@ -61,7 +62,6 @@ def _make_ai_client():
 
 
 class TestAITestCaseMixinAnalyzeRequirements:
-
     def test_analyze_requirements_cache_hit(self):
         ai = _make_ai_client()
         ai._set_to_cache("analyze_requirements:test", [{"module": "M", "point": "P"}])
@@ -111,6 +111,7 @@ class TestAITestCaseMixinAnalyzeRequirements:
     def test_analyze_requirements_retry_then_success(self, mock_sleep, mock_post):
         ai = _make_ai_client()
         import requests
+
         mock_resp_fail = MagicMock()
         mock_resp_fail.raise_for_status.side_effect = requests.RequestException("timeout")
         mock_resp_ok = MagicMock()
@@ -129,6 +130,7 @@ class TestAITestCaseMixinAnalyzeRequirements:
     def test_analyze_requirements_all_retries_fail(self, mock_sleep, mock_post):
         ai = _make_ai_client()
         import requests
+
         mock_resp = MagicMock()
         mock_resp.raise_for_status.side_effect = requests.RequestException("connection error")
         mock_post.return_value = mock_resp
@@ -144,7 +146,6 @@ class TestAITestCaseMixinAnalyzeRequirements:
 
 
 class TestAITestCaseMixinGenerateTestCase:
-
     def test_generate_test_case_cache_hit(self):
         ai = _make_ai_client()
         ai._set_to_cache("generate_test_case:tp", {"title": "cached"})
@@ -186,6 +187,7 @@ class TestAITestCaseMixinGenerateTestCase:
     def test_generate_test_case_retry_on_network_error(self, mock_sleep, mock_post):
         ai = _make_ai_client()
         import requests
+
         mock_resp_fail = MagicMock()
         mock_resp_fail.raise_for_status.side_effect = requests.RequestException("network error")
         case_data = {"title": "T", "precondition": "P", "steps": [{"step": 1, "action": "A", "expected_result": "E"}]}
@@ -210,7 +212,6 @@ class TestAITestCaseMixinGenerateTestCase:
 
 
 class TestAITestCaseMixinParseGenerateResponse:
-
     def test_parse_valid_dict(self):
         ai = _make_ai_client()
         content = json.dumps({"title": "T", "precondition": "P", "steps": []})
@@ -235,7 +236,6 @@ class TestAITestCaseMixinParseGenerateResponse:
 
 
 class TestAITestCaseMixinValidateAndNormalize:
-
     def test_missing_required_fields_raises(self):
         ai = _make_ai_client()
         with pytest.raises(AIResponseFormatError):
@@ -244,7 +244,8 @@ class TestAITestCaseMixinValidateAndNormalize:
     def test_new_format_with_expected_results(self):
         ai = _make_ai_client()
         case = {
-            "title": "T", "precondition": "P",
+            "title": "T",
+            "precondition": "P",
             "steps": [{"step": 1, "action": "A", "expected_result": "E"}],
             "expected_results": ["E1", "E2"],
         }
@@ -254,7 +255,8 @@ class TestAITestCaseMixinValidateAndNormalize:
     def test_old_format_without_expected_results(self):
         ai = _make_ai_client()
         case = {
-            "title": "T", "precondition": "P",
+            "title": "T",
+            "precondition": "P",
             "steps": [{"step": 1, "action": "A", "expected_result": "E"}],
         }
         result = ai._validate_and_normalize_case(case)
@@ -268,9 +270,9 @@ class TestAITestCaseMixinValidateAndNormalize:
 
 
 class TestAiMixinGenerateTestCaseForPoint:
-
     async def test_no_ui_description_manual_category(self):
         from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
+
         mixin = TestCaseGenerationAiMixin()
         mixin._generate_case_with_ai = AsyncMock(return_value={"title": "T"})
         await mixin.generate_test_case_for_point(
@@ -285,10 +287,15 @@ class TestAiMixinGenerateTestCaseForPoint:
 
     async def test_ui_with_interactive_elements(self):
         from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
+
         mixin = TestCaseGenerationAiMixin()
         mixin._generate_case_with_ai = AsyncMock(return_value={"title": "T"})
         await mixin.generate_test_case_for_point(
-            context={"ui_descriptions": [{"description": "\u70b9\u51fb\u6309\u94ae\u63d0\u4ea4\u8868\u5355"}], "requirement_content": "req", "ui_specs": []},
+            context={
+                "ui_descriptions": [{"description": "\u70b9\u51fb\u6309\u94ae\u63d0\u4ea4\u8868\u5355"}],
+                "requirement_content": "req",
+                "ui_specs": [],
+            },
             test_point={"module": "M", "point": "P"},
             project_id=1,
         )
@@ -298,10 +305,15 @@ class TestAiMixinGenerateTestCaseForPoint:
 
     async def test_ui_without_interactive_elements(self):
         from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
+
         mixin = TestCaseGenerationAiMixin()
         mixin._generate_case_with_ai = AsyncMock(return_value={"title": "T"})
         await mixin.generate_test_case_for_point(
-            context={"ui_descriptions": [{"description": "\u9759\u6001\u5c55\u793a\u9875\u9762\u6587\u5b57\u63cf\u8ff0"}], "requirement_content": "req", "ui_specs": []},
+            context={
+                "ui_descriptions": [{"description": "\u9759\u6001\u5c55\u793a\u9875\u9762\u6587\u5b57\u63cf\u8ff0"}],
+                "requirement_content": "req",
+                "ui_specs": [],
+            },
             test_point={"module": "M", "point": "P"},
             project_id=1,
         )
@@ -311,6 +323,7 @@ class TestAiMixinGenerateTestCaseForPoint:
 
     async def test_case_type_override(self):
         from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
+
         mixin = TestCaseGenerationAiMixin()
         mixin._generate_case_with_ai = AsyncMock(return_value={"title": "T"})
         await mixin.generate_test_case_for_point(
@@ -324,29 +337,46 @@ class TestAiMixinGenerateTestCaseForPoint:
 
     def test_build_ui_description_with_summary_fallback(self):
         from app.services.test_case_generation.ai_generator import AiGenerator as TestCaseGenerationAiMixin
+
         mixin = TestCaseGenerationAiMixin()
-        result = mixin._build_ui_description([
-            {"description": "", "summary": "\u5907\u7528\u63cf\u8ff0"},
-            {"description": "\u4e3b\u63cf\u8ff0"},
-        ])
+        result = mixin._build_ui_description(
+            [
+                {"description": "", "summary": "\u5907\u7528\u63cf\u8ff0"},
+                {"description": "\u4e3b\u63cf\u8ff0"},
+            ]
+        )
         assert "\u5907\u7528\u63cf\u8ff0" in result
         assert "\u4e3b\u63cf\u8ff0" in result
 
 
 class TestValidateMixinSaveTestCase:
-
     async def test_save_with_steps_and_test_data(self, db, real_project):
         from app.services.test_case_generation.validator import CaseValidator as TestCaseGenerationValidateMixin
+
         mixin = TestCaseGenerationValidateMixin(db)
         generated_case = {
-            "title": "\u5df2\u767b\u5f55\u7528\u6237\u5728\u8868\u5355\u9875\u586b\u5199\u6570\u636e\u5e76\u4fdd\u5b58", "module": "\u6d4b\u8bd5\u6a21\u5757",
+            "title": "\u5df2\u767b\u5f55\u7528\u6237\u5728\u8868\u5355\u9875\u586b\u5199\u6570\u636e\u5e76\u4fdd\u5b58",
+            "module": "\u6d4b\u8bd5\u6a21\u5757",
             "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u5df2\u6253\u5f00\u6570\u636e\u5f55\u5165\u9875\u9762",
             "steps": [
-                {"step": 1, "action": "\u70b9\u51fb\u65b0\u589e\u6570\u636e\u6309\u94ae", "expected_result": "\u6570\u636e\u5f55\u5165\u8868\u5355\u5c55\u5f00\u4e14\u540d\u79f0\u8f93\u5165\u6846\u53ef\u89c1", "action_type": "click"},
-                {"step": 2, "action": "\u8f93\u5165\u6570\u636e\u540d\u79f0", "expected_result": "\u540d\u79f0\u8f93\u5165\u6846\u663e\u793a\u7528\u6237\u5df2\u8f93\u5165\u7684\u6587\u672c", "action_type": "input", "input_value": "\u81ea\u52a8\u5316\u7528\u6237\u6570\u636e001"},
+                {
+                    "step": 1,
+                    "action": "\u70b9\u51fb\u65b0\u589e\u6570\u636e\u6309\u94ae",
+                    "expected_result": "\u6570\u636e\u5f55\u5165\u8868\u5355\u5c55\u5f00\u4e14\u540d\u79f0\u8f93\u5165\u6846\u53ef\u89c1",
+                    "action_type": "click",
+                },
+                {
+                    "step": 2,
+                    "action": "\u8f93\u5165\u6570\u636e\u540d\u79f0",
+                    "expected_result": "\u540d\u79f0\u8f93\u5165\u6846\u663e\u793a\u7528\u6237\u5df2\u8f93\u5165\u7684\u6587\u672c",
+                    "action_type": "input",
+                    "input_value": "\u81ea\u52a8\u5316\u7528\u6237\u6570\u636e001",
+                },
             ],
-            "expected_result": "\u9875\u9762\u4fdd\u7559\u7528\u6237\u8f93\u5165\u7684\u6570\u636e\u540d\u79f0\uff0c\u4e14\u8868\u5355\u4ecd\u5904\u4e8e\u53ef\u7f16\u8f91\u72b6\u6001", "priority": "P1",
-            "case_type": "ui_automation", "test_category": "ui_automation",
+            "expected_result": "\u9875\u9762\u4fdd\u7559\u7528\u6237\u8f93\u5165\u7684\u6570\u636e\u540d\u79f0\uff0c\u4e14\u8868\u5355\u4ecd\u5904\u4e8e\u53ef\u7f16\u8f91\u72b6\u6001",
+            "priority": "P1",
+            "case_type": "ui_automation",
+            "test_category": "ui_automation",
             "case_category": "positive",
             "test_data": [{"key": "value"}],
         }
@@ -355,49 +385,88 @@ class TestValidateMixinSaveTestCase:
             mock_settings.AUTO_PARSE_PRECONDITION = False
             case = await mixin._save_test_case(real_project.id, generated_case, test_point)
         assert case.id is not None
-        assert case.title == "\u5df2\u767b\u5f55\u7528\u6237\u5728\u8868\u5355\u9875\u586b\u5199\u6570\u636e\u5e76\u4fdd\u5b58"
+        assert (
+            case.title
+            == "\u5df2\u767b\u5f55\u7528\u6237\u5728\u8868\u5355\u9875\u586b\u5199\u6570\u636e\u5e76\u4fdd\u5b58"
+        )
 
     async def test_save_with_auto_parse_precondition(self, db, real_project):
         from app.services.test_case_generation.validator import CaseValidator as TestCaseGenerationValidateMixin
+
         mixin = TestCaseGenerationValidateMixin(db)
         generated_case = {
-            "title": "\u5df2\u767b\u5f55\u7528\u6237\u6253\u5f00\u524d\u7f6e\u914d\u7f6e\u9875\u5e76\u6821\u9a8c\u8868\u5355", "module": "\u6d4b\u8bd5\u6a21\u5757",
+            "title": "\u5df2\u767b\u5f55\u7528\u6237\u6253\u5f00\u524d\u7f6e\u914d\u7f6e\u9875\u5e76\u6821\u9a8c\u8868\u5355",
+            "module": "\u6d4b\u8bd5\u6a21\u5757",
             "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u7528\u6237\u5177\u5907\u524d\u7f6e\u914d\u7f6e\u9875\u8bbf\u95ee\u6743\u9650",
             "steps": [
-                {"step": 1, "action": "\u5bfc\u822a\u5230\u524d\u7f6e\u914d\u7f6e\u9875", "expected_result": "\u524d\u7f6e\u914d\u7f6e\u9875\u6807\u9898\u548c\u4e3b\u8868\u5355\u533a\u57df\u53ef\u89c1", "action_type": "navigate"},
-                {"step": 2, "action": "\u67e5\u770b\u524d\u7f6e\u914d\u7f6e\u8868\u5355\u5185\u5bb9", "expected_result": "\u8868\u5355\u663e\u793a\u5df2\u52a0\u8f7d\u7684\u7528\u6237\u914d\u7f6e\u5b57\u6bb5", "action_type": "verify"},
+                {
+                    "step": 1,
+                    "action": "\u5bfc\u822a\u5230\u524d\u7f6e\u914d\u7f6e\u9875",
+                    "expected_result": "\u524d\u7f6e\u914d\u7f6e\u9875\u6807\u9898\u548c\u4e3b\u8868\u5355\u533a\u57df\u53ef\u89c1",
+                    "action_type": "navigate",
+                },
+                {
+                    "step": 2,
+                    "action": "\u67e5\u770b\u524d\u7f6e\u914d\u7f6e\u8868\u5355\u5185\u5bb9",
+                    "expected_result": "\u8868\u5355\u663e\u793a\u5df2\u52a0\u8f7d\u7684\u7528\u6237\u914d\u7f6e\u5b57\u6bb5",
+                    "action_type": "verify",
+                },
             ],
-            "expected_result": "\u9875\u9762\u5c55\u793a\u5b8c\u6574\u7684\u524d\u7f6e\u914d\u7f6e\u8868\u5355\uff0c\u5e76\u4fdd\u6301\u53ef\u67e5\u770b\u72b6\u6001", "priority": "P2",
-            "case_type": "manual", "test_category": "manual",
+            "expected_result": "\u9875\u9762\u5c55\u793a\u5b8c\u6574\u7684\u524d\u7f6e\u914d\u7f6e\u8868\u5355\uff0c\u5e76\u4fdd\u6301\u53ef\u67e5\u770b\u72b6\u6001",
+            "priority": "P2",
+            "case_type": "manual",
+            "test_category": "manual",
             "case_category": "positive",
         }
         test_point = {"id": None, "module": "\u6d4b\u8bd5\u6a21\u5757"}
-        with patch("app.services.test_case_generation.validator.settings") as mock_settings, \
-             patch("app.utils.ai_client.parse_precondition_to_steps", new_callable=AsyncMock) as mock_parse:
+        with (
+            patch("app.services.test_case_generation.validator.settings") as mock_settings,
+            patch("app.utils.ai_client.parse_precondition_to_steps", new_callable=AsyncMock) as mock_parse,
+        ):
             mock_settings.AUTO_PARSE_PRECONDITION = True
             mock_parse.return_value = [
-                {"action": "\u6253\u5f00\u6d4f\u89c8\u5668", "action_type": "navigate", "expected_result": "\u6d4f\u89c8\u5668\u6253\u5f00"},
+                {
+                    "action": "\u6253\u5f00\u6d4f\u89c8\u5668",
+                    "action_type": "navigate",
+                    "expected_result": "\u6d4f\u89c8\u5668\u6253\u5f00",
+                },
             ]
             case = await mixin._save_test_case(real_project.id, generated_case, test_point)
         assert case.id is not None
 
     async def test_save_auto_parse_exception_handled(self, db, real_project):
         from app.services.test_case_generation.validator import CaseValidator as TestCaseGenerationValidateMixin
+
         mixin = TestCaseGenerationValidateMixin(db)
         generated_case = {
-            "title": "\u5df2\u767b\u5f55\u7528\u6237\u6253\u5f00\u5f02\u5e38\u5904\u7406\u9875\u5e76\u67e5\u770b\u72b6\u6001", "module": "\u6d4b\u8bd5\u6a21\u5757",
+            "title": "\u5df2\u767b\u5f55\u7528\u6237\u6253\u5f00\u5f02\u5e38\u5904\u7406\u9875\u5e76\u67e5\u770b\u72b6\u6001",
+            "module": "\u6d4b\u8bd5\u6a21\u5757",
             "precondition": "\u8d26\u53f7\u5df2\u767b\u5f55\uff0c\u6d4f\u89c8\u5668\u7f51\u7edc\u6b63\u5e38\uff0c\u7528\u6237\u5177\u5907\u5f02\u5e38\u5904\u7406\u9875\u8bbf\u95ee\u6743\u9650",
             "steps": [
-                {"step": 1, "action": "\u5bfc\u822a\u5230\u5f02\u5e38\u5904\u7406\u9875", "expected_result": "\u5f02\u5e38\u5904\u7406\u9875\u6807\u9898\u548c\u72b6\u6001\u5217\u8868\u53ef\u89c1", "action_type": "navigate"},
-                {"step": 2, "action": "\u67e5\u770b\u5f02\u5e38\u72b6\u6001\u5217\u8868", "expected_result": "\u5217\u8868\u663e\u793a\u5f02\u5e38\u7c7b\u578b\u548c\u5904\u7406\u72b6\u6001\u5b57\u6bb5", "action_type": "verify"},
+                {
+                    "step": 1,
+                    "action": "\u5bfc\u822a\u5230\u5f02\u5e38\u5904\u7406\u9875",
+                    "expected_result": "\u5f02\u5e38\u5904\u7406\u9875\u6807\u9898\u548c\u72b6\u6001\u5217\u8868\u53ef\u89c1",
+                    "action_type": "navigate",
+                },
+                {
+                    "step": 2,
+                    "action": "\u67e5\u770b\u5f02\u5e38\u72b6\u6001\u5217\u8868",
+                    "expected_result": "\u5217\u8868\u663e\u793a\u5f02\u5e38\u7c7b\u578b\u548c\u5904\u7406\u72b6\u6001\u5b57\u6bb5",
+                    "action_type": "verify",
+                },
             ],
-            "expected_result": "\u9875\u9762\u5c55\u793a\u5f02\u5e38\u5904\u7406\u72b6\u6001\u5217\u8868\uff0c\u5e76\u4fdd\u6301\u53ef\u67e5\u770b\u72b6\u6001", "priority": "P2",
-            "case_type": "manual", "test_category": "manual",
+            "expected_result": "\u9875\u9762\u5c55\u793a\u5f02\u5e38\u5904\u7406\u72b6\u6001\u5217\u8868\uff0c\u5e76\u4fdd\u6301\u53ef\u67e5\u770b\u72b6\u6001",
+            "priority": "P2",
+            "case_type": "manual",
+            "test_category": "manual",
             "case_category": "positive",
         }
         test_point = {"id": None, "module": "\u6d4b\u8bd5\u6a21\u5757"}
-        with patch("app.services.test_case_generation.validator.settings") as mock_settings, \
-             patch("app.utils.ai_client.parse_precondition_to_steps", new_callable=AsyncMock) as mock_parse:
+        with (
+            patch("app.services.test_case_generation.validator.settings") as mock_settings,
+            patch("app.utils.ai_client.parse_precondition_to_steps", new_callable=AsyncMock) as mock_parse,
+        ):
             mock_settings.AUTO_PARSE_PRECONDITION = True
             mock_parse.side_effect = Exception("parse error")
             case = await mixin._save_test_case(real_project.id, generated_case, test_point)
@@ -405,10 +474,10 @@ class TestValidateMixinSaveTestCase:
 
 
 class TestBatchMixin:
-
     def _make_orchestrator(self):
         """构造带 mock 组件的 BatchOrchestrator（组合模式测试辅助）。"""
         from app.services.test_case_generation.batch_orchestrator import BatchOrchestrator
+
         return BatchOrchestrator(
             db=MagicMock(),
             context_builder=MagicMock(),
@@ -418,9 +487,9 @@ class TestBatchMixin:
 
     async def test_no_test_points_returns_warning(self):
         mixin = self._make_orchestrator()
-        mixin._context_builder.get_context_for_generation = AsyncMock(return_value={
-            "test_points": [], "warnings": [], "pagination": {}
-        })
+        mixin._context_builder.get_context_for_generation = AsyncMock(
+            return_value={"test_points": [], "warnings": [], "pagination": {}}
+        )
         results = []
         async for item in mixin.generate_test_cases_batch(project_id=1, user_id=1):
             results.append(item)
@@ -428,11 +497,13 @@ class TestBatchMixin:
 
     async def test_with_warnings_yields_warning_events(self):
         mixin = self._make_orchestrator()
-        mixin._context_builder.get_context_for_generation = AsyncMock(return_value={
-            "test_points": [{"id": 1, "module": "M", "point": "P"}],
-            "warnings": ["\u8b66\u544a1", "\u8b66\u544a2", "\u8b66\u544a3", "\u8b66\u544a4"],
-            "pagination": {},
-        })
+        mixin._context_builder.get_context_for_generation = AsyncMock(
+            return_value={
+                "test_points": [{"id": 1, "module": "M", "point": "P"}],
+                "warnings": ["\u8b66\u544a1", "\u8b66\u544a2", "\u8b66\u544a3", "\u8b66\u544a4"],
+                "pagination": {},
+            }
+        )
         mixin._ai_generator.generate_test_case_for_point = AsyncMock(return_value={"title": "T", "steps": []})
         # 原始测试中 TestCaseGenerationBatchMixin 未继承 BaseMixin，_build_ui_description
         # 自然抛 AttributeError 被 _enhance_coverage_for_point 的 except 捕获而跳过补全。
@@ -448,14 +519,19 @@ class TestBatchMixin:
 
     async def test_partial_failure_yields_partial_status(self):
         mixin = self._make_orchestrator()
-        mixin._context_builder.get_context_for_generation = AsyncMock(return_value={
-            "test_points": [{"id": 1, "module": "M", "point": "P1"}, {"id": 2, "module": "M", "point": "P2"}],
-            "warnings": [], "pagination": {},
-        })
-        mixin._ai_generator.generate_test_case_for_point = AsyncMock(side_effect=[
-            {"title": "T1", "steps": []},
-            Exception("AI\u5931\u8d25"),
-        ])
+        mixin._context_builder.get_context_for_generation = AsyncMock(
+            return_value={
+                "test_points": [{"id": 1, "module": "M", "point": "P1"}, {"id": 2, "module": "M", "point": "P2"}],
+                "warnings": [],
+                "pagination": {},
+            }
+        )
+        mixin._ai_generator.generate_test_case_for_point = AsyncMock(
+            side_effect=[
+                {"title": "T1", "steps": []},
+                Exception("AI\u5931\u8d25"),
+            ]
+        )
         # 原始测试中 TestCaseGenerationBatchMixin 未继承 BaseMixin，_build_ui_description
         # 自然抛 AttributeError 被 _enhance_coverage_for_point 的 except 捕获而跳过补全。
         # 组合模式下 _ai_generator 为 MagicMock 不会抛错，需显式模拟 AttributeError
@@ -471,10 +547,13 @@ class TestBatchMixin:
 
     async def test_all_success_yields_success_status(self):
         mixin = self._make_orchestrator()
-        mixin._context_builder.get_context_for_generation = AsyncMock(return_value={
-            "test_points": [{"id": 1, "module": "M", "point": "P"}],
-            "warnings": [], "pagination": {},
-        })
+        mixin._context_builder.get_context_for_generation = AsyncMock(
+            return_value={
+                "test_points": [{"id": 1, "module": "M", "point": "P"}],
+                "warnings": [],
+                "pagination": {},
+            }
+        )
         mixin._ai_generator.generate_test_case_for_point = AsyncMock(return_value={"title": "T", "steps": []})
         # 原始测试中 TestCaseGenerationBatchMixin 未继承 BaseMixin，_build_ui_description
         # 自然抛 AttributeError 被 _enhance_coverage_for_point 的 except 捕获而跳过补全。

@@ -4,6 +4,7 @@ M1-T11 Pipeline Steps 辅助函数单元测试
 覆盖各 Step 的辅助函数、分支逻辑和边界场景，
 确保核心分支覆盖率 ≥ 95%。
 """
+
 import json
 import pytest
 from typing import Dict, Any
@@ -36,21 +37,15 @@ from app.pipelines.scenarios import get_scenario, get_scenario_by_version, list_
 
 class TestLoadFileContent:
     def test_none_file_id_returns_empty(self, db, testProject):
-        result = _load_file_content(
-            ctx=_make_ctx(db, testProject), file_id=None, project_id=testProject.id
-        )
+        result = _load_file_content(ctx=_make_ctx(db, testProject), file_id=None, project_id=testProject.id)
         assert result == ""
 
     def test_zero_file_id_returns_empty(self, db, testProject):
-        result = _load_file_content(
-            ctx=_make_ctx(db, testProject), file_id=0, project_id=testProject.id
-        )
+        result = _load_file_content(ctx=_make_ctx(db, testProject), file_id=0, project_id=testProject.id)
         assert result == ""
 
     def test_nonexistent_file_id_returns_empty(self, db, testProject):
-        result = _load_file_content(
-            ctx=_make_ctx(db, testProject), file_id=99999, project_id=testProject.id
-        )
+        result = _load_file_content(ctx=_make_ctx(db, testProject), file_id=99999, project_id=testProject.id)
         assert result == ""
 
 
@@ -71,9 +66,7 @@ class TestLoadUiFromInput:
         db.flush()
 
         inp = _make_input(payload={"screen_ids": [screen.id]})
-        ui_desc, ui_spec, fids = _load_ui_from_input(
-            _make_ctx(db, testProject), inp, testProject.id
-        )
+        ui_desc, ui_spec, fids = _load_ui_from_input(_make_ctx(db, testProject), inp, testProject.id)
         assert len(ui_desc) == 1
         assert ui_desc[0]["screen_name"] == "登录页"
         assert len(ui_spec) == 1
@@ -82,41 +75,41 @@ class TestLoadUiFromInput:
         from app.models.ui_prototype import UIPrototypeScreen
 
         for i in range(2):
-            db.add(UIPrototypeScreen(
-                project_id=testProject.id,
-                prototype_name="proto",
-                screen_name=f"页面{i}",
-                screen_order=i,
-                parse_status="completed",
-                summary=f"页面{i}摘要",
-                ui_spec={"elements": []},
-            ))
+            db.add(
+                UIPrototypeScreen(
+                    project_id=testProject.id,
+                    prototype_name="proto",
+                    screen_name=f"页面{i}",
+                    screen_order=i,
+                    parse_status="completed",
+                    summary=f"页面{i}摘要",
+                    ui_spec={"elements": []},
+                )
+            )
         db.flush()
 
         inp = _make_input(payload=None)
-        ui_desc, ui_spec, fids = _load_ui_from_input(
-            _make_ctx(db, testProject), inp, testProject.id
-        )
+        ui_desc, ui_spec, fids = _load_ui_from_input(_make_ctx(db, testProject), inp, testProject.id)
         assert len(ui_desc) >= 2
 
     def test_empty_payload_screen_ids_falls_back(self, db, testProject):
         from app.models.ui_prototype import UIPrototypeScreen
 
-        db.add(UIPrototypeScreen(
-            project_id=testProject.id,
-            prototype_name="proto",
-            screen_name="回退页面",
-            screen_order=0,
-            parse_status="completed",
-            summary="摘要",
-            ui_spec={"elements": []},
-        ))
+        db.add(
+            UIPrototypeScreen(
+                project_id=testProject.id,
+                prototype_name="proto",
+                screen_name="回退页面",
+                screen_order=0,
+                parse_status="completed",
+                summary="摘要",
+                ui_spec={"elements": []},
+            )
+        )
         db.flush()
 
         inp = _make_input(payload={"screen_ids": []})
-        ui_desc, ui_spec, fids = _load_ui_from_input(
-            _make_ctx(db, testProject), inp, testProject.id
-        )
+        ui_desc, ui_spec, fids = _load_ui_from_input(_make_ctx(db, testProject), inp, testProject.id)
         assert len(ui_desc) >= 1
 
     def test_screen_without_ui_spec(self, db, testProject):
@@ -135,9 +128,7 @@ class TestLoadUiFromInput:
         db.flush()
 
         inp = _make_input(payload={"screen_ids": [screen.id]})
-        ui_desc, ui_spec, fids = _load_ui_from_input(
-            _make_ctx(db, testProject), inp, testProject.id
-        )
+        ui_desc, ui_spec, fids = _load_ui_from_input(_make_ctx(db, testProject), inp, testProject.id)
         assert len(ui_desc) == 1
         assert len(ui_spec) == 0
 
@@ -171,9 +162,7 @@ class TestLoadUiFromInput:
         db.flush()
 
         inp = _make_input(payload=None, file_id=file_record.id)
-        ui_desc, ui_spec, fids = _load_ui_from_input(
-            _make_ctx(db, testProject), inp, testProject.id
-        )
+        ui_desc, ui_spec, fids = _load_ui_from_input(_make_ctx(db, testProject), inp, testProject.id)
         assert len(ui_desc) >= 1
         assert file_record.id in fids
 
@@ -201,12 +190,14 @@ class TestLoadTestPointsFromInput:
         from app.models.test_point import TestPoint
 
         for i in range(3):
-            db.add(TestPoint(
-                project_id=testProject.id,
-                module=f"模块{i}",
-                point=f"测试点{i}",
-                priority=i + 1,
-            ))
+            db.add(
+                TestPoint(
+                    project_id=testProject.id,
+                    module=f"模块{i}",
+                    point=f"测试点{i}",
+                    priority=i + 1,
+                )
+            )
         db.flush()
 
         inp = _make_input(payload=None)
@@ -216,13 +207,16 @@ class TestLoadTestPointsFromInput:
     def test_empty_payload_point_ids(self, db, testProject):
         inp = _make_input(payload={"test_point_ids": []})
         from app.models.test_point import TestPoint
+
         for i in range(2):
-            db.add(TestPoint(
-                project_id=testProject.id,
-                module=f"模块{i}",
-                point=f"测试点{i}",
-                priority=i + 1,
-            ))
+            db.add(
+                TestPoint(
+                    project_id=testProject.id,
+                    module=f"模块{i}",
+                    point=f"测试点{i}",
+                    priority=i + 1,
+                )
+            )
         db.flush()
         results = _load_test_points_from_input(_make_ctx(db, testProject), inp, testProject.id)
         assert len(results) >= 2
@@ -231,10 +225,12 @@ class TestLoadTestPointsFromInput:
 class TestParseXmindToTestpoints:
     def test_valid_json_array(self):
         payload = {
-            "xmind_content": json.dumps([
-                {"module": "登录", "point": "用户名验证", "priority": 1},
-                {"module": "注册", "point": "邮箱格式", "priority": 2},
-            ])
+            "xmind_content": json.dumps(
+                [
+                    {"module": "登录", "point": "用户名验证", "priority": 1},
+                    {"module": "注册", "point": "邮箱格式", "priority": 2},
+                ]
+            )
         }
         results = _parse_xmind_to_testpoints(payload, 1)
         assert len(results) == 2
@@ -242,9 +238,7 @@ class TestParseXmindToTestpoints:
         assert results[1]["id"] == -2
 
     def test_valid_json_object(self):
-        payload = {
-            "xmind_content": json.dumps({"module": "登录", "point": "密码验证"})
-        }
+        payload = {"xmind_content": json.dumps({"module": "登录", "point": "密码验证"})}
         results = _parse_xmind_to_testpoints(payload, 1)
         assert len(results) == 1
 
@@ -283,9 +277,7 @@ class TestParseXmindToTestpoints:
 
 class TestFormatTestPoint:
     def test_with_ai_prompt_json(self):
-        tp = _make_test_point_obj(
-            ai_prompt=json.dumps({"function": "登录功能"})
-        )
+        tp = _make_test_point_obj(ai_prompt=json.dumps({"function": "登录功能"}))
         result = _format_test_point(tp)
         assert result["function"] == "登录功能"
 
@@ -302,19 +294,13 @@ class TestFormatTestPoint:
 
 class TestComputeSignalConfidence:
     def test_all_signals(self):
-        assert _compute_signal_confidence({
-            "has_prd": True, "has_ui": True, "has_testpoints": True
-        }) == 1.0
+        assert _compute_signal_confidence({"has_prd": True, "has_ui": True, "has_testpoints": True}) == 1.0
 
     def test_only_prd(self):
-        assert _compute_signal_confidence({
-            "has_prd": True, "has_ui": False, "has_testpoints": False
-        }) == 0.4
+        assert _compute_signal_confidence({"has_prd": True, "has_ui": False, "has_testpoints": False}) == 0.4
 
     def test_no_signals(self):
-        assert _compute_signal_confidence({
-            "has_prd": False, "has_ui": False, "has_testpoints": False
-        }) == 0.0
+        assert _compute_signal_confidence({"has_prd": False, "has_ui": False, "has_testpoints": False}) == 0.0
 
 
 class TestIsCjk:
@@ -387,7 +373,11 @@ class TestFindMatchingScreens:
     def test_dedup_screen_ids(self):
         tp = {"module": "用户", "point": "", "function": ""}
         ui_specs = [
-            {"screen_id": 1, "screen_name": "用户管理", "ui_spec": {"elements": [{"type": "button", "text": "用户登录"}]}},
+            {
+                "screen_id": 1,
+                "screen_name": "用户管理",
+                "ui_spec": {"elements": [{"type": "button", "text": "用户登录"}]},
+            },
         ]
         result = _find_matching_screens(tp, ui_specs)
         assert len(result) == 1
@@ -521,7 +511,13 @@ class TestComputePriorScore:
         inferred = {"confidence": 0.9}
         aligned = {"conflict_count": 0}
         score, grade, breakdown = _compute_prior_score(
-            case_data, tp, signals, inferred, aligned, 0, db,
+            case_data,
+            tp,
+            signals,
+            inferred,
+            aligned,
+            0,
+            db,
         )
         assert score == 64.0
         assert grade == "C"
@@ -533,7 +529,13 @@ class TestComputePriorScore:
         inferred = {}
         aligned = {}
         score, grade, breakdown = _compute_prior_score(
-            case_data, tp, signals, inferred, aligned, 0, db,
+            case_data,
+            tp,
+            signals,
+            inferred,
+            aligned,
+            0,
+            db,
         )
         assert score == 2.0
         assert grade == "D"
@@ -545,7 +547,13 @@ class TestComputePriorScore:
         inferred = {"confidence": 0.5}
         aligned = {"conflict_count": 0}
         score, grade, breakdown = _compute_prior_score(
-            case_data, tp, signals, inferred, aligned, 0, db,
+            case_data,
+            tp,
+            signals,
+            inferred,
+            aligned,
+            0,
+            db,
         )
         assert breakdown["ui_prototype"] == 25.0
         assert breakdown["inferred_capability_confidence"] == 7.5
@@ -658,6 +666,7 @@ def _make_input(payload=None, file_id=None):
         def __init__(self, p, fid):
             self.payload = p
             self.file_id = fid
+
     return FakeInput(payload, file_id)
 
 
@@ -669,4 +678,5 @@ def _make_test_point_obj(ai_prompt=None):
             self.point = "测试点"
             self.priority = 2
             self.ai_prompt = ap
+
     return FakeTestPoint(ai_prompt)

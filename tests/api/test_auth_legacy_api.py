@@ -12,6 +12,7 @@
     - login 端点必传 captcha_id + captcha_code, 否则 400 "请提供验证码"
     - me 端点 token sub 为 user.id (非 username)
 """
+
 import uuid
 import pytest
 
@@ -198,9 +199,7 @@ class TestAuthLogin:
 class TestAuthGetCurrentUser:
     def test_get_current_user_success(self, db, client, testUser):
         # token sub 必须为 user.id (非 username), 否则 me 端点查询失败返回 401
-        token = create_access_token(
-            {"sub": str(testUser.id), "username": testUser.username}
-        )
+        token = create_access_token({"sub": str(testUser.id), "username": testUser.username})
         headers = {"Authorization": f"Bearer {token}"}
         response = client.get("/api/v1/auth/me", headers=headers)
         data = assertResponseSuccess(response)["data"]
@@ -218,9 +217,8 @@ class TestAuthGetCurrentUser:
 
     def test_get_current_user_expired_token(self, db, client):
         from datetime import timedelta
-        token = create_access_token(
-            {"sub": "1"}, expires_delta=timedelta(seconds=-1)
-        )
+
+        token = create_access_token({"sub": "1"}, expires_delta=timedelta(seconds=-1))
         headers = {"Authorization": f"Bearer {token}"}
         response = client.get("/api/v1/auth/me", headers=headers)
         assert response.status_code == 401

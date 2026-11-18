@@ -6,6 +6,7 @@
     纯逻辑测试（TestMigrationPrompt / TestExcelNormalize / TestAIClientIntegration）
     保持 sync，不依赖 DB。
 """
+
 import json
 from typing import Any, Dict
 
@@ -33,71 +34,140 @@ class MockAIClient:
 
     def chat(self, prompt: str) -> str:
         if self.response_type == "adapted":
-            return json.dumps({
-                "migration_type": "adapted",
-                "confidence": 0.9,
-                "adapted_cases": [{
-                    "title": "手机端-通过底部Tab导航到设置页",
-                    "precondition": "在手机端已登录",
-                    "precondition_changes": [
-                        {"original": "在平板端已登录", "adapted": "在手机端已登录", "reason": "设备描述适配"}
+            return json.dumps(
+                {
+                    "migration_type": "adapted",
+                    "confidence": 0.9,
+                    "adapted_cases": [
+                        {
+                            "title": "手机端-通过底部Tab导航到设置页",
+                            "precondition": "在手机端已登录",
+                            "precondition_changes": [
+                                {"original": "在平板端已登录", "adapted": "在手机端已登录", "reason": "设备描述适配"}
+                            ],
+                            "steps": [
+                                {
+                                    "step": 1,
+                                    "action": "点击底部Tab栏的'更多'",
+                                    "expected_result": "显示更多菜单",
+                                    "action_type": "click",
+                                }
+                            ],
+                            "expected_result": "跳转到设置页面",
+                            "expected_result_changes": [
+                                {
+                                    "original": "右侧显示设置面板",
+                                    "adapted": "跳转到设置页面",
+                                    "reason": "手机端无侧面板",
+                                }
+                            ],
+                            "priority": 2,
+                            "priority_change": None,
+                        }
                     ],
-                    "steps": [
-                        {"step": 1, "action": "点击底部Tab栏的'更多'", "expected_result": "显示更多菜单", "action_type": "click"}
+                    "step_changes": [
+                        {
+                            "case_index": 0,
+                            "step_index": 0,
+                            "change_type": "modified",
+                            "reason": "侧边栏→底部Tab",
+                            "original_step": "点击侧边栏的设置",
+                            "new_step": "点击底部Tab栏的'更多'",
+                        }
                     ],
-                    "expected_result": "跳转到设置页面",
-                    "expected_result_changes": [
-                        {"original": "右侧显示设置面板", "adapted": "跳转到设置页面", "reason": "手机端无侧面板"}
-                    ],
-                    "priority": 2,
-                    "priority_change": None,
-                }],
-                "step_changes": [
-                    {"case_index": 0, "step_index": 0, "change_type": "modified", "reason": "侧边栏→底部Tab", "original_step": "点击侧边栏的设置", "new_step": "点击底部Tab栏的'更多'"}
-                ],
-                "split_reason": None,
-                "new_scenarios": ["手机端需覆盖底部Tab导航切换"],
-                "deprecated_scenarios": [],
-            })
+                    "split_reason": None,
+                    "new_scenarios": ["手机端需覆盖底部Tab导航切换"],
+                    "deprecated_scenarios": [],
+                }
+            )
         elif self.response_type == "split":
-            return json.dumps({
-                "migration_type": "split",
-                "confidence": 0.85,
-                "adapted_cases": [
-                    {"title": "查看答题方案A", "precondition": "在手机端已登录", "steps": [{"step": 1, "action": "点击方案A卡片", "expected_result": "跳转到方案A详情页", "action_type": "click"}], "expected_result": "显示方案A详情", "priority": 2, "priority_change": None, "precondition_changes": [], "expected_result_changes": []},
-                    {"title": "查看答题方案B", "precondition": "在手机端已登录", "steps": [{"step": 1, "action": "点击方案B卡片", "expected_result": "跳转到方案B详情页", "action_type": "click"}], "expected_result": "显示方案B详情", "priority": 2, "priority_change": None, "precondition_changes": [], "expected_result_changes": []},
-                ],
-                "step_changes": [],
-                "split_reason": "手机端无法同屏对比，需拆分为独立查看",
-                "new_scenarios": [],
-                "deprecated_scenarios": [],
-            })
+            return json.dumps(
+                {
+                    "migration_type": "split",
+                    "confidence": 0.85,
+                    "adapted_cases": [
+                        {
+                            "title": "查看答题方案A",
+                            "precondition": "在手机端已登录",
+                            "steps": [
+                                {
+                                    "step": 1,
+                                    "action": "点击方案A卡片",
+                                    "expected_result": "跳转到方案A详情页",
+                                    "action_type": "click",
+                                }
+                            ],
+                            "expected_result": "显示方案A详情",
+                            "priority": 2,
+                            "priority_change": None,
+                            "precondition_changes": [],
+                            "expected_result_changes": [],
+                        },
+                        {
+                            "title": "查看答题方案B",
+                            "precondition": "在手机端已登录",
+                            "steps": [
+                                {
+                                    "step": 1,
+                                    "action": "点击方案B卡片",
+                                    "expected_result": "跳转到方案B详情页",
+                                    "action_type": "click",
+                                }
+                            ],
+                            "expected_result": "显示方案B详情",
+                            "priority": 2,
+                            "priority_change": None,
+                            "precondition_changes": [],
+                            "expected_result_changes": [],
+                        },
+                    ],
+                    "step_changes": [],
+                    "split_reason": "手机端无法同屏对比，需拆分为独立查看",
+                    "new_scenarios": [],
+                    "deprecated_scenarios": [],
+                }
+            )
         elif self.response_type == "deprecated":
-            return json.dumps({
-                "migration_type": "deprecated",
-                "confidence": 0.95,
-                "adapted_cases": [],
-                "step_changes": [],
-                "split_reason": None,
-                "new_scenarios": [],
-                "deprecated_scenarios": ["分屏功能手机端不支持"],
-            })
+            return json.dumps(
+                {
+                    "migration_type": "deprecated",
+                    "confidence": 0.95,
+                    "adapted_cases": [],
+                    "step_changes": [],
+                    "split_reason": None,
+                    "new_scenarios": [],
+                    "deprecated_scenarios": ["分屏功能手机端不支持"],
+                }
+            )
         elif self.response_type == "invalid_json":
             return "这不是JSON格式"
         elif self.response_type == "missing_field":
             return json.dumps({"adapted_cases": []})
         elif self.response_type == "empty":
             return ""
-        return json.dumps({
-            "migration_type": "adapted", "confidence": 0.5,
-            "adapted_cases": [{
-                "title": "默认迁移用例", "precondition": "已登录",
-                "steps": [{"step": 1, "action": "执行操作", "expected_result": "操作成功", "action_type": "click"}],
-                "expected_result": "操作成功", "priority": 2,
-                "precondition_changes": [], "expected_result_changes": [], "priority_change": None,
-            }],
-            "step_changes": [], "new_scenarios": [], "deprecated_scenarios": [],
-        })
+        return json.dumps(
+            {
+                "migration_type": "adapted",
+                "confidence": 0.5,
+                "adapted_cases": [
+                    {
+                        "title": "默认迁移用例",
+                        "precondition": "已登录",
+                        "steps": [
+                            {"step": 1, "action": "执行操作", "expected_result": "操作成功", "action_type": "click"}
+                        ],
+                        "expected_result": "操作成功",
+                        "priority": 2,
+                        "precondition_changes": [],
+                        "expected_result_changes": [],
+                        "priority_change": None,
+                    }
+                ],
+                "step_changes": [],
+                "new_scenarios": [],
+                "deprecated_scenarios": [],
+            }
+        )
 
 
 @pytest_asyncio.fixture
@@ -106,9 +176,7 @@ async def migration_service(async_db: AsyncSession) -> CaseMigrationService:
 
 
 @pytest_asyncio.fixture
-async def tablet_case(
-    async_db: AsyncSession, async_test_project: Project
-) -> TestCase:
+async def tablet_case(async_db: AsyncSession, async_test_project: Project) -> TestCase:
     enable_lifecycle_transition()
     case = TestCase(
         project_id=async_test_project.id,
@@ -116,7 +184,9 @@ async def tablet_case(
         module="设置模块",
         title="通过侧边栏导航到设置页",
         precondition="在平板端已登录",
-        steps_json=[{"step": 1, "action": "点击侧边栏的设置", "expected_result": "右侧显示设置面板", "action_type": "click"}],
+        steps_json=[
+            {"step": 1, "action": "点击侧边栏的设置", "expected_result": "右侧显示设置面板", "action_type": "click"}
+        ],
         expected_result="右侧显示设置面板",
         priority=2,
         case_type="ui_automation",
@@ -131,9 +201,7 @@ async def tablet_case(
 
 
 @pytest_asyncio.fixture
-async def api_case(
-    async_db: AsyncSession, async_test_project: Project
-) -> TestCase:
+async def api_case(async_db: AsyncSession, async_test_project: Project) -> TestCase:
     enable_lifecycle_transition()
     case = TestCase(
         project_id=async_test_project.id,
@@ -159,8 +227,10 @@ class TestMigrateSingleCase:
     """单条用例迁移测试。"""
 
     async def test_api_case_cloned(
-        self, migration_service: CaseMigrationService,
-        api_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        api_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         result = await migration_service.migrate_single_case(
             source_case_id=api_case.id,
@@ -180,8 +250,10 @@ class TestMigrateSingleCase:
         assert new_case.lifecycle_status == "draft"
 
     async def test_ui_case_ai_adapted(
-        self, migration_service: CaseMigrationService,
-        tablet_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("adapted")
         result = await migration_service.migrate_single_case(
@@ -202,8 +274,10 @@ class TestMigrateSingleCase:
         assert "手机端" in new_case.precondition
 
     async def test_ui_case_ai_split(
-        self, migration_service: CaseMigrationService,
-        tablet_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("split")
         result = await migration_service.migrate_single_case(
@@ -218,8 +292,10 @@ class TestMigrateSingleCase:
         assert len(result["new_case_ids"]) == 2
 
     async def test_ui_case_ai_deprecated(
-        self, migration_service: CaseMigrationService,
-        tablet_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("deprecated")
         result = await migration_service.migrate_single_case(
@@ -234,7 +310,9 @@ class TestMigrateSingleCase:
         assert len(result.get("new_case_ids", [])) == 0
 
     async def test_source_case_not_found(
-        self, migration_service: CaseMigrationService, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        async_test_project: Project,
     ) -> None:
         result = await migration_service.migrate_single_case(
             source_case_id=99999,
@@ -245,8 +323,10 @@ class TestMigrateSingleCase:
         assert "不存在" in result["error"]
 
     async def test_ui_case_without_ai_client(
-        self, migration_service: CaseMigrationService,
-        tablet_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
@@ -258,8 +338,10 @@ class TestMigrateSingleCase:
         assert "AI客户端" in result["error"]
 
     async def test_ai_returns_invalid_json(
-        self, migration_service: CaseMigrationService,
-        tablet_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("invalid_json")
         result = await migration_service.migrate_single_case(
@@ -325,8 +407,10 @@ class TestBatchMigration:
         assert batch_after["case_count"] == 0
 
     async def test_ai_returns_missing_field(
-        self, migration_service: CaseMigrationService,
-        tablet_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("missing_field")
         result = await migration_service.migrate_single_case(
@@ -339,8 +423,10 @@ class TestBatchMigration:
         assert "解析失败" in result["error"]
 
     async def test_ai_returns_empty(
-        self, migration_service: CaseMigrationService,
-        tablet_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("empty")
         result = await migration_service.migrate_single_case(
@@ -352,8 +438,10 @@ class TestBatchMigration:
         assert result["success"] is False
 
     async def test_batch_id_consistency(
-        self, migration_service: CaseMigrationService,
-        tablet_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         ai_client = MockAIClient("split")
         result = await migration_service.migrate_single_case(
@@ -369,8 +457,10 @@ class TestBatchMigration:
             assert case.migration_batch_id == batch_id
 
     async def test_same_device_rejected(
-        self, migration_service: CaseMigrationService,
-        tablet_case: TestCase, async_test_project: Project,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
+        async_test_project: Project,
     ) -> None:
         result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
@@ -382,7 +472,9 @@ class TestBatchMigration:
         assert "相同" in result["error"]
 
     async def test_target_project_not_found(
-        self, migration_service: CaseMigrationService, tablet_case: TestCase,
+        self,
+        migration_service: CaseMigrationService,
+        tablet_case: TestCase,
     ) -> None:
         result = await migration_service.migrate_single_case(
             source_case_id=tablet_case.id,
@@ -398,6 +490,7 @@ class TestMigrationPrompt:
 
     def test_build_migration_prompt_tablet_to_phone(self) -> None:
         from app.services.prompt_builder.migration_prompt import build_migration_prompt
+
         source: Dict[str, Any] = {
             "title": "通过侧边栏导航",
             "precondition": "在平板端已登录",
@@ -417,18 +510,28 @@ class TestMigrationPrompt:
 
     def test_build_migration_prompt_with_ui_specs(self) -> None:
         from app.services.prompt_builder.migration_prompt import build_migration_prompt
+
         source: Dict[str, Any] = {
-            "title": "测试", "precondition": "", "steps_json": [],
-            "expected_result": "", "priority": 2, "case_type": "ui_automation",
+            "title": "测试",
+            "precondition": "",
+            "steps_json": [],
+            "expected_result": "",
+            "priority": 2,
+            "case_type": "ui_automation",
         }
         prompt = build_migration_prompt(source, "tablet", "phone", target_ui_specs="底部Tab栏：首页/发现/我的")
         assert "底部Tab栏" in prompt
 
     def test_build_migration_prompt_phone_to_tablet(self) -> None:
         from app.services.prompt_builder.migration_prompt import build_migration_prompt
+
         source: Dict[str, Any] = {
-            "title": "测试", "precondition": "", "steps_json": [],
-            "expected_result": "", "priority": 2, "case_type": "ui_automation",
+            "title": "测试",
+            "precondition": "",
+            "steps_json": [],
+            "expected_result": "",
+            "priority": 2,
+            "case_type": "ui_automation",
         }
         prompt = build_migration_prompt(source, "phone", "tablet")
         assert "phone" in prompt
@@ -441,6 +544,7 @@ class TestExcelNormalize:
     def test_normalize_detects_format(self, tmp_path: Any) -> None:
         import pandas as pd
         from app.services.test_case_view.excel_normalize_mixin import ExcelNormalizeMixin
+
         mixin = ExcelNormalizeMixin()
         file_path = tmp_path / "test_format.xlsx"
         df = pd.DataFrame({"用例描述": ["测试1"], "操作步骤": ["点击按钮"], "期望结果": ["显示成功"]})
@@ -452,6 +556,7 @@ class TestExcelNormalize:
     def test_normalize_empty_file(self, tmp_path: Any) -> None:
         import pandas as pd
         from app.services.test_case_view.excel_normalize_mixin import ExcelNormalizeMixin
+
         mixin = ExcelNormalizeMixin()
         file_path = tmp_path / "test_empty.xlsx"
         df = pd.DataFrame()
@@ -461,6 +566,7 @@ class TestExcelNormalize:
 
     def test_column_mapping_inference(self) -> None:
         from app.services.test_case_view.excel_normalize_mixin import ExcelNormalizeMixin
+
         mixin = ExcelNormalizeMixin()
         columns = ["用例描述", "操作步骤", "期望结果", "前置条件", "优先级"]
         mapping = mixin._infer_column_mapping(columns)
@@ -470,6 +576,7 @@ class TestExcelNormalize:
 
     def test_mapping_confidence(self) -> None:
         from app.services.test_case_view.excel_normalize_mixin import ExcelNormalizeMixin
+
         mixin = ExcelNormalizeMixin()
         full_mapping: Dict[str, str] = {"用例描述": "title", "操作步骤": "action", "期望结果": "expected_result"}
         confidence = mixin._calc_mapping_confidence(full_mapping, ["用例描述", "操作步骤", "期望结果"])
@@ -482,27 +589,49 @@ class TestExcelNormalize:
 class TestDeviceFilter:
     """设备类型筛选测试。"""
 
-    async def test_filter_by_target_device(
-        self, async_db: AsyncSession, async_test_project: Project
-    ) -> None:
+    async def test_filter_by_target_device(self, async_db: AsyncSession, async_test_project: Project) -> None:
         enable_lifecycle_transition()
         tablet_case = TestCase(
-            project_id=async_test_project.id, case_no="FILTER_T_001", module="测试模块",
-            title="平板用例", precondition="无", steps_json=[], expected_result="pass",
-            priority=2, case_type="ui_automation", generate_status=1,
-            target_device="tablet", lifecycle_status="draft",
+            project_id=async_test_project.id,
+            case_no="FILTER_T_001",
+            module="测试模块",
+            title="平板用例",
+            precondition="无",
+            steps_json=[],
+            expected_result="pass",
+            priority=2,
+            case_type="ui_automation",
+            generate_status=1,
+            target_device="tablet",
+            lifecycle_status="draft",
         )
         phone_case = TestCase(
-            project_id=async_test_project.id, case_no="FILTER_P_001", module="测试模块",
-            title="手机用例", precondition="无", steps_json=[], expected_result="pass",
-            priority=2, case_type="ui_automation", generate_status=1,
-            target_device="phone", lifecycle_status="draft",
+            project_id=async_test_project.id,
+            case_no="FILTER_P_001",
+            module="测试模块",
+            title="手机用例",
+            precondition="无",
+            steps_json=[],
+            expected_result="pass",
+            priority=2,
+            case_type="ui_automation",
+            generate_status=1,
+            target_device="phone",
+            lifecycle_status="draft",
         )
         general_case = TestCase(
-            project_id=async_test_project.id, case_no="FILTER_G_001", module="测试模块",
-            title="通用用例", precondition="无", steps_json=[], expected_result="pass",
-            priority=2, case_type="ui_automation", generate_status=1,
-            target_device=None, lifecycle_status="draft",
+            project_id=async_test_project.id,
+            case_no="FILTER_G_001",
+            module="测试模块",
+            title="通用用例",
+            precondition="无",
+            steps_json=[],
+            expected_result="pass",
+            priority=2,
+            case_type="ui_automation",
+            generate_status=1,
+            target_device=None,
+            lifecycle_status="draft",
         )
         async_db.add_all([tablet_case, phone_case, general_case])
         await async_db.flush()
@@ -536,6 +665,7 @@ class TestAIClientIntegration:
     def test_get_ai_client_returns_complete_client(self) -> None:
         """_get_ai_client 返回非 None 且具备 complete() 方法的客户端"""
         from app.api.v1.endpoints import case_migration
+
         case_migration._ai_client_instance = None
         client = case_migration._get_ai_client()
         assert client is not None
@@ -572,6 +702,7 @@ class TestAIClientIntegration:
     def test_call_ai_with_none_client(self) -> None:
         """ai_client=None 时返回 None 不崩溃"""
         from app.services.case_migration._ai_mixin import CaseMigrationAiMixin
+
         mixin = CaseMigrationAiMixin()
         result = mixin._call_ai(None, "test prompt")
         assert result is None

@@ -14,6 +14,7 @@
 作者: 软件测试工程师
 日期: 2026-04-13
 """
+
 import pytest
 import asyncio
 import os
@@ -25,17 +26,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
-from app.models import (
-    User, Project, Iteration, ProjectFile,
-    UIPrototypeProject, UIPrototypeScreen
-)
+from app.models import User, Project, Iteration, ProjectFile, UIPrototypeProject, UIPrototypeScreen
 from app.crud import iteration as iteration_crud
 from app.crud import file as file_crud
 from app.crud import ui_prototype as ui_prototype_crud
 
 
 # ==================== Fixtures ====================
-
 
 
 @pytest.fixture(scope="function")
@@ -52,7 +49,7 @@ def other_user(db):
     user = User(
         username=f"other_edge_user_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         email=f"other_edge_{datetime.now().strftime('%Y%m%d%H%M%S%f')}@test.com",
-        password_hash=get_password_hash("OtherPassword123!")
+        password_hash=get_password_hash("OtherPassword123!"),
     )
     db.add(user)
     db.commit()
@@ -67,7 +64,7 @@ def test_project(db, test_user):
         name=f"边界测试项目_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         description="用于边界场景测试",
         user_id=test_user.id,
-        project_type="web"
+        project_type="web",
     )
     db.add(project)
     db.commit()
@@ -82,7 +79,7 @@ def other_project(db, other_user):
         name=f"其他用户项目_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         description="用于权限测试的项目",
         user_id=other_user.id,
-        project_type="web"
+        project_type="web",
     )
     db.add(project)
     db.commit()
@@ -97,7 +94,7 @@ def test_iteration(db, test_project):
         project_id=test_project.id,
         name=f"Sprint Edge_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         version="v1.0",
-        status="draft"
+        status="draft",
     )
     db.add(iteration)
     db.commit()
@@ -106,6 +103,7 @@ def test_iteration(db, test_project):
 
 
 # ==================== 测试6: 并发和竞态条件 ====================
+
 
 class TestConcurrencyAndRaceConditions:
     """并发操作和竞态条件测试"""
@@ -129,10 +127,7 @@ class TestConcurrencyAndRaceConditions:
             try:
                 with db.begin_nested():
                     iteration = iteration_crud.create_iteration(
-                        db=db,
-                        project_id=test_project.id,
-                        name=iteration_name,
-                        version=f"v{attempt_id}.0"
+                        db=db, project_id=test_project.id, name=iteration_name, version=f"v{attempt_id}.0"
                     )
                 # with 块正常退出即 savepoint commit
                 success_count += 1
@@ -145,10 +140,9 @@ class TestConcurrencyAndRaceConditions:
         assert success_count == 1, f"应该只有1个成功，实际有{success_count}个"
         assert error_count == 4, f"应该有4个失败，实际有{error_count}个"
 
-        iterations = db.query(Iteration).filter(
-            Iteration.project_id == test_project.id,
-            Iteration.name == iteration_name
-        ).all()
+        iterations = (
+            db.query(Iteration).filter(Iteration.project_id == test_project.id, Iteration.name == iteration_name).all()
+        )
         assert len(iterations) == 1
 
     def test_rapid_sequential_delete_same_iteration(self, db, test_iteration):
@@ -160,24 +154,15 @@ class TestConcurrencyAndRaceConditions:
         iteration_id = test_iteration.id
 
         # 第一次删除
-        result1 = iteration_crud.delete_iteration(
-            db=db,
-            iteration_id=iteration_id
-        )
+        result1 = iteration_crud.delete_iteration(db=db, iteration_id=iteration_id)
         assert result1 is True
 
         # 第二次删除（应该返回False）
-        result2 = iteration_crud.delete_iteration(
-            db=db,
-            iteration_id=iteration_id
-        )
+        result2 = iteration_crud.delete_iteration(db=db, iteration_id=iteration_id)
         assert result2 is False
 
         # 第三次删除（仍然返回False）
-        result3 = iteration_crud.delete_iteration(
-            db=db,
-            iteration_id=iteration_id
-        )
+        result3 = iteration_crud.delete_iteration(db=db, iteration_id=iteration_id)
         assert result3 is False
 
     def test_sequential_update_different_fields_persist(self, db, test_iteration):
@@ -198,11 +183,7 @@ class TestConcurrencyAndRaceConditions:
 
         for field_name, value in updates:
             try:
-                iteration_crud.update_iteration(
-                    db=db,
-                    iteration_id=iteration_id,
-                    **{field_name: value}
-                )
+                iteration_crud.update_iteration(db=db, iteration_id=iteration_id, **{field_name: value})
                 db.commit()
                 results.append(("success", field_name, value))
             except Exception:
@@ -213,9 +194,7 @@ class TestConcurrencyAndRaceConditions:
         assert len(successes) == 3, f"应全部成功，实际成功 {len(successes)}/3"
 
         db.expire_all()
-        final_iteration = db.query(Iteration).filter(
-            Iteration.id == iteration_id
-        ).first()
+        final_iteration = db.query(Iteration).filter(Iteration.id == iteration_id).first()
         assert final_iteration is not None
         assert final_iteration.version == "v99.0"
         assert final_iteration.description == "Concurrent Update Test"
@@ -236,7 +215,7 @@ class TestConcurrencyAndRaceConditions:
                 file_name=f"concurrent_file_{file_index}.pdf",
                 file_type="pdf",
                 file_url=f"/uploads/test/concurrent_{file_index}.pdf",
-                iteration_id=test_iteration.id
+                iteration_id=test_iteration.id,
             )
             db.commit()
             db.refresh(file_obj)
@@ -245,20 +224,21 @@ class TestConcurrencyAndRaceConditions:
         assert len(uploaded_files) == 10
 
         files_in_iteration = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=test_iteration.id
+            db=db, project_id=test_project.id, iteration_id=test_iteration.id
         )
         assert len(files_in_iteration) == 10
 
 
 # ==================== 测试7: 权限和安全 ====================
 
+
 class TestPermissionsAndSecurity:
     """权限和安全验证测试"""
 
     @pytest.mark.asyncio
-    async def test_unauthorized_user_cannot_access_iterations(self, client, auth_headers_other_user, test_project, test_iteration):
+    async def test_unauthorized_user_cannot_access_iterations(
+        self, client, auth_headers_other_user, test_project, test_iteration
+    ):
         """测试无权限用户无法访问他人项目的迭代"""
         from httpx import AsyncClient, ASGITransport
         from app.main import app
@@ -266,10 +246,7 @@ class TestPermissionsAndSecurity:
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             # 尝试获取他人项目的迭代列表
-            response = await ac.get(
-                f"/api/v1/iteration/list/{test_project.id}",
-                headers=auth_headers_other_user
-            )
+            response = await ac.get(f"/api/v1/iteration/list/{test_project.id}", headers=auth_headers_other_user)
 
             # 应该返回403 Forbidden
             assert response.status_code == 403
@@ -283,12 +260,8 @@ class TestPermissionsAndSecurity:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/iteration/",
-                json={
-                    "project_id": test_project.id,
-                    "name": "Unauthorized Sprint",
-                    "version": "v1.0"
-                },
-                headers=auth_headers_other_user
+                json={"project_id": test_project.id, "name": "Unauthorized Sprint", "version": "v1.0"},
+                headers=auth_headers_other_user,
             )
 
             # 应该返回403 Forbidden
@@ -303,11 +276,8 @@ class TestPermissionsAndSecurity:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.put(
                 f"/api/v1/iteration/{test_iteration.id}",
-                json={
-                    "name": "Hacked Name",
-                    "version": "v99.0"
-                },
-                headers=auth_headers_other_user
+                json={"name": "Hacked Name", "version": "v99.0"},
+                headers=auth_headers_other_user,
             )
 
             # 应该返回403 Forbidden
@@ -320,10 +290,7 @@ class TestPermissionsAndSecurity:
         from app.main import app
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            response = await ac.delete(
-                f"/api/v1/iteration/{test_iteration.id}",
-                headers=auth_headers_other_user
-            )
+            response = await ac.delete(f"/api/v1/iteration/{test_iteration.id}", headers=auth_headers_other_user)
 
             # 应该返回403 Forbidden
             assert response.status_code == 403
@@ -341,15 +308,12 @@ class TestPermissionsAndSecurity:
             project_id=test_project.id,
             file_name="security_test.pdf",
             file_type="pdf",
-            file_url="/uploads/test/security.pdf"
+            file_url="/uploads/test/security.pdf",
         )
 
         # 在other_project下创建迭代
         other_iteration = iteration_crud.create_iteration(
-            db=db,
-            project_id=other_project.id,
-            name="Other Project Sprint",
-            version="v1.0"
+            db=db, project_id=other_project.id, name="Other Project Sprint", version="v1.0"
         )
 
         # 尝试将文件移动到其他项目的迭代（直接修改DB，绕过API）
@@ -366,10 +330,7 @@ class TestPermissionsAndSecurity:
         """测试不同项目间的迭代数据完全隔离"""
         # 在test_project创建迭代
         iter_in_test = iteration_crud.create_iteration(
-            db=db,
-            project_id=test_project.id,
-            name="Test Project Iteration",
-            version="v1.0"
+            db=db, project_id=test_project.id, name="Test Project Iteration", version="v1.0"
         )
 
         # 在other_project创建同名迭代
@@ -377,27 +338,22 @@ class TestPermissionsAndSecurity:
             db=db,
             project_id=other_project.id,
             name="Test Project Iteration",  # 同名！
-            version="v1.0"
+            version="v1.0",
         )
 
         # 验证两个项目都能有同名迭代（因为唯一约束是project_id + name）
         assert iter_in_test.id != iter_in_other.id
 
         # 查询test_project的迭代不应包含other_project的
-        test_iters = iteration_crud.get_iterations_by_project(
-            db=db,
-            project_id=test_project.id
-        )
+        test_iters = iteration_crud.get_iterations_by_project(db=db, project_id=test_project.id)
         assert all(it.project_id == test_project.id for it in test_iters)
 
-        other_iters = iteration_crud.get_iterations_by_project(
-            db=db,
-            project_id=other_project.id
-        )
+        other_iters = iteration_crud.get_iterations_by_project(db=db, project_id=other_project.id)
         assert all(it.project_id == other_project.id for it in other_iters)
 
 
 # ==================== 测试8: 数据兼容性和向后兼容 ====================
+
 
 class TestBackwardCompatibility:
     """旧数据兼容性和向后兼容测试"""
@@ -416,15 +372,11 @@ class TestBackwardCompatibility:
             file_name="legacy_document.docx",
             file_type="docx",
             file_url="/uploads/test/legacy.docx",
-            iteration_id=None  # 明确设置为None（旧数据特征）
+            iteration_id=None,  # 明确设置为None（旧数据特征）
         )
 
         # 筛选未分类文件（iteration_id=-1）
-        uncategorized_files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=-1
-        )
+        uncategorized_files = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=-1)
 
         # 验证旧数据显示在未分类中
         assert len(uncategorized_files) >= 1
@@ -444,7 +396,7 @@ class TestBackwardCompatibility:
             project_id=test_project.id,
             file_name="no_iter_file1.pdf",
             file_type="pdf",
-            file_url="/uploads/test/noiter1.pdf"
+            file_url="/uploads/test/noiter1.pdf",
         )
 
         file2 = file_crud.create_project_file(
@@ -452,30 +404,21 @@ class TestBackwardCompatibility:
             project_id=test_project.id,
             file_name="no_iter_file2.png",
             file_type="png",
-            file_url="/uploads/test/noiter2.png"
+            file_url="/uploads/test/noiter2.png",
         )
 
         # 查询所有文件（不传iteration_id）
-        all_files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id
-        )
+        all_files = file_crud.get_project_files(db=db, project_id=test_project.id)
         assert len(all_files) == 2
 
         # 查询未分类文件
-        uncategorized = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=-1
-        )
+        uncategorized = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=-1)
         assert len(uncategorized) == 2
 
         # 查询特定迭代的文件（空结果）
         fake_iteration_id = 99999
         specific_iter_files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=fake_iteration_id
+            db=db, project_id=test_project.id, iteration_id=fake_iteration_id
         )
         assert len(specific_iter_files) == 0
 
@@ -495,7 +438,7 @@ class TestBackwardCompatibility:
                 file_name=f"old_file_{i}.docx",
                 file_type="docx",
                 file_url=f"/uploads/test/old_{i}.docx",
-                iteration_id=None
+                iteration_id=None,
             )
             old_files.append(f)
 
@@ -508,32 +451,21 @@ class TestBackwardCompatibility:
                 file_name=f"new_file_{i}.pdf",
                 file_type="pdf",
                 file_url=f"/uploads/test/new_{i}.pdf",
-                iteration_id=test_iteration.id
+                iteration_id=test_iteration.id,
             )
             new_files.append(f)
 
         # 验证全部文件
-        all_files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id
-        )
+        all_files = file_crud.get_project_files(db=db, project_id=test_project.id)
         assert len(all_files) == 6
 
         # 验证未分类文件（只包含旧的）
-        uncategorized = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=-1
-        )
+        uncategorized = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=-1)
         assert len(uncategorized) == 3
         assert all(f.iteration_id is None for f in uncategorized)
 
         # 验证特定迭代的文件（只包含新的）
-        iteration_files = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=test_iteration.id
-        )
+        iteration_files = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=test_iteration.id)
         assert len(iteration_files) == 3
         assert all(f.iteration_id == test_iteration.id for f in iteration_files)
 
@@ -546,19 +478,12 @@ class TestBackwardCompatibility:
         """
         # 创建没有iteration_id的UI原型项目（旧数据）
         proto_legacy = ui_prototype_crud.create_ui_prototype_project(
-            db=db,
-            project_id=test_project.id,
-            name="Legacy UI Prototype",
-            source="manual",
-            iteration_id=None
+            db=db, project_id=test_project.id, name="Legacy UI Prototype", source="manual", iteration_id=None
         )
 
         # 筛选未分类的原型项目
         uncategorized_protos = ui_prototype_crud.get_ui_prototype_projects_by_project(
-            db=db,
-            project_id=test_project.id,
-            user_id=test_project.user_id,
-            iteration_id=-1
+            db=db, project_id=test_project.id, user_id=test_project.user_id, iteration_id=-1
         )
 
         assert len(uncategorized_protos) >= 1
@@ -578,7 +503,7 @@ class TestBackwardCompatibility:
             file_name="zero_compat_test.xlsx",
             file_type="xlsx",
             file_url="/uploads/test/zero_compat.xlsx",
-            iteration_id=test_iteration.id
+            iteration_id=test_iteration.id,
         )
 
         # 模拟前端传0的情况
@@ -593,11 +518,7 @@ class TestBackwardCompatibility:
         # 验证已移到未分类
         assert file_obj.iteration_id is None
 
-        uncategorized = file_crud.get_project_files(
-            db=db,
-            project_id=test_project.id,
-            iteration_id=-1
-        )
+        uncategorized = file_crud.get_project_files(db=db, project_id=test_project.id, iteration_id=-1)
         assert any(f.id == file_obj.id for f in uncategorized)
 
     def test_large_number_of_iterations_performance(self, db, test_project):
@@ -613,22 +534,14 @@ class TestBackwardCompatibility:
         start_time = time.time()
         for i in range(100):
             iteration_crud.create_iteration(
-                db=db,
-                project_id=test_project.id,
-                name=f"Perf Sprint {i+1}",
-                version=f"v{i+1}.0"
+                db=db, project_id=test_project.id, name=f"Perf Sprint {i + 1}", version=f"v{i + 1}.0"
             )
         create_time = time.time() - start_time
         print(f"\n创建100个迭代耗时: {create_time:.2f}秒")
 
         # 测试分页查询性能
         start_time = time.time()
-        page1 = iteration_crud.get_iterations_by_project(
-            db=db,
-            project_id=test_project.id,
-            skip=0,
-            limit=20
-        )
+        page1 = iteration_crud.get_iterations_by_project(db=db, project_id=test_project.id, skip=0, limit=20)
         query_time = time.time() - start_time
         print(f"分页查询耗时: {query_time:.2f}秒")
 
@@ -638,10 +551,7 @@ class TestBackwardCompatibility:
 
         # 测试总数统计
         start_time = time.time()
-        total = iteration_crud.get_iterations_count_by_project(
-            db=db,
-            project_id=test_project.id
-        )
+        total = iteration_crud.get_iterations_count_by_project(db=db, project_id=test_project.id)
         count_time = time.time() - start_time
         print(f"计数查询耗时: {count_time:.2f}秒")
 
@@ -649,6 +559,7 @@ class TestBackwardCompatibility:
 
 
 # ==================== Fixture补充 ====================
+
 
 @pytest.fixture(scope="function")
 def auth_headers(test_user):

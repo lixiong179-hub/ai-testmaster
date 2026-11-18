@@ -9,6 +9,7 @@
 
 被测：app/services/agent/loop_detector.py
 """
+
 from unittest.mock import MagicMock
 
 import fakeredis
@@ -40,9 +41,7 @@ class TestCheckMemory:
         """首次调用 check 返回 False。"""
         detector = LoopDetector(redis_client=None, threshold=3, window_size=10)
         sig = LoopDetector._build_signature("tool", {"a": 1})
-        result = await detector.check(
-            agent_type="default", session_id=1, tool_call_signature=sig
-        )
+        result = await detector.check(agent_type="default", session_id=1, tool_call_signature=sig)
         assert result is False
 
     async def test_check_accumulate_to_threshold_returns_true(self):

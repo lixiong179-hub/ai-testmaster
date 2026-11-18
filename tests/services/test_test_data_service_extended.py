@@ -8,6 +8,7 @@
 - 复制功能
 - 智能生成的各种场景
 """
+
 import json
 import pytest
 from unittest.mock import Mock, patch, MagicMock
@@ -51,7 +52,7 @@ class TestTestDataServiceExtended:
             enum_values='["active", "inactive", "pending"]',
             description="状态",
             is_required=True,
-            sort_order=0
+            sort_order=0,
         )
 
     # ============================================================================
@@ -68,17 +69,13 @@ class TestTestDataServiceExtended:
             field_type=DataType.TEXT,
             generation_rule=GenerationRule.RANDOM,
             rule_config=None,
-            enum_values=None
+            enum_values=None,
         )
         db_session.query.return_value.filter.return_value.first.return_value = existing_data
 
         # 执行
-        with patch.object(db_session, 'commit') as mock_commit:
-            result = service.update_test_data(
-                1,
-                field_name="updated",
-                rule_config={"custom": "value"}
-            )
+        with patch.object(db_session, "commit") as mock_commit:
+            result = service.update_test_data(1, field_name="updated", rule_config={"custom": "value"})
 
         # 验证
         assert result is not None
@@ -95,16 +92,13 @@ class TestTestDataServiceExtended:
             field_type=DataType.TEXT,
             generation_rule=GenerationRule.RANDOM,
             rule_config=None,
-            enum_values=None
+            enum_values=None,
         )
         db_session.query.return_value.filter.return_value.first.return_value = existing_data
 
         # 执行
-        with patch.object(db_session, 'commit') as mock_commit:
-            result = service.update_test_data(
-                1,
-                enum_values=["option1", "option2"]
-            )
+        with patch.object(db_session, "commit") as mock_commit:
+            result = service.update_test_data(1, enum_values=["option1", "option2"])
 
         # 验证
         assert result is not None
@@ -121,16 +115,13 @@ class TestTestDataServiceExtended:
             field_type=DataType.TEXT,
             generation_rule=GenerationRule.RANDOM,
             rule_config='{"old": "value"}',
-            enum_values='["old"]'
+            enum_values='["old"]',
         )
         db_session.query.return_value.filter.return_value.first.return_value = existing_data
 
         # 执行 - 不更新JSON字段
-        with patch.object(db_session, 'commit') as mock_commit:
-            result = service.update_test_data(
-                1,
-                field_name="updated"
-            )
+        with patch.object(db_session, "commit") as mock_commit:
+            result = service.update_test_data(1, field_name="updated")
 
         # 验证
         assert result is not None
@@ -170,7 +161,7 @@ class TestTestDataServiceExtended:
             enum_values=None,
             description="自定义字段",
             is_required=True,
-            sort_order=0
+            sort_order=0,
         )
 
         # 执行
@@ -197,7 +188,7 @@ class TestTestDataServiceExtended:
             enum_values=None,
             description="简单字段",
             is_required=True,
-            sort_order=0
+            sort_order=0,
         )
 
         # 执行
@@ -229,7 +220,7 @@ class TestTestDataServiceExtended:
             enum_values=None,
             description="参数字段",
             is_required=True,
-            sort_order=0
+            sort_order=0,
         )
         db_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = [test_data]
 
@@ -274,19 +265,29 @@ class TestTestDataServiceExtended:
 
         # 模拟步骤数据
         test_data1 = TestData(
-            id=1, step_id=101, field_name="field1", field_type=DataType.TEXT,
-            generation_rule=GenerationRule.RANDOM, rule_config=None,
-            enum_values=None, min_length=5, max_length=10
+            id=1,
+            step_id=101,
+            field_name="field1",
+            field_type=DataType.TEXT,
+            generation_rule=GenerationRule.RANDOM,
+            rule_config=None,
+            enum_values=None,
+            min_length=5,
+            max_length=10,
         )
         test_data2 = TestData(
-            id=2, step_id=102, field_name="field2", field_type=DataType.EMAIL,
-            generation_rule=GenerationRule.RANDOM, rule_config=None,
-            enum_values=None
+            id=2,
+            step_id=102,
+            field_name="field2",
+            field_type=DataType.EMAIL,
+            generation_rule=GenerationRule.RANDOM,
+            rule_config=None,
+            enum_values=None,
         )
 
         # 配置mock返回不同的值 - 使用args[0]获取step_id
         def side_effect(*args, **kwargs):
-            step_id = args[0] if args else kwargs.get('step_id')
+            step_id = args[0] if args else kwargs.get("step_id")
             if step_id == 101:
                 return [test_data1]
             elif step_id == 102:
@@ -335,9 +336,15 @@ class TestTestDataServiceExtended:
         db_session.query.return_value.filter.return_value.first.return_value = test_case
 
         test_data = TestData(
-            id=1, step_id=101, field_name="field1", field_type=DataType.TEXT,
-            generation_rule=GenerationRule.RANDOM, rule_config=None,
-            enum_values=None, min_length=5, max_length=10
+            id=1,
+            step_id=101,
+            field_name="field1",
+            field_type=DataType.TEXT,
+            generation_rule=GenerationRule.RANDOM,
+            rule_config=None,
+            enum_values=None,
+            min_length=5,
+            max_length=10,
         )
         service.get_test_data_by_step = Mock(return_value=[test_data])
 
@@ -358,15 +365,15 @@ class TestTestDataServiceExtended:
         data_list = [
             {"field_name": "field1", "field_type": DataType.TEXT},
             {"field_name": "field2", "field_type": DataType.EMAIL},
-            {"field_name": "field3", "field_type": DataType.NUMBER}
+            {"field_name": "field3", "field_type": DataType.NUMBER},
         ]
 
         # 执行
-        with patch.object(service, 'create_test_data') as mock_create:
+        with patch.object(service, "create_test_data") as mock_create:
             mock_create.side_effect = [
                 Mock(id=1, field_name="field1"),
                 Mock(id=2, field_name="field2"),
-                Mock(id=3, field_name="field3")
+                Mock(id=3, field_name="field3"),
             ]
             result = service.batch_create_test_data(100, data_list)
 
@@ -380,15 +387,15 @@ class TestTestDataServiceExtended:
         data_list = [
             {"field_name": "field1", "field_type": DataType.TEXT},
             {"field_name": "field2", "field_type": DataType.TEXT},  # 会失败
-            {"field_name": "field3", "field_type": DataType.TEXT}
+            {"field_name": "field3", "field_type": DataType.TEXT},
         ]
 
         # 执行
-        with patch.object(service, 'create_test_data') as mock_create:
+        with patch.object(service, "create_test_data") as mock_create:
             mock_create.side_effect = [
                 Mock(id=1, field_name="field1"),
                 Exception("创建失败"),  # 第二个失败
-                Mock(id=3, field_name="field3")
+                Mock(id=3, field_name="field3"),
             ]
             result = service.batch_create_test_data(100, data_list)
 
@@ -414,24 +421,31 @@ class TestTestDataServiceExtended:
         # 准备
         source_data_list = [
             TestData(
-                id=1, step_id=100, field_name="field1", field_type=DataType.TEXT,
-                generation_rule=GenerationRule.RANDOM, rule_config=None,
-                enum_values=None, min_length=5, max_length=10
+                id=1,
+                step_id=100,
+                field_name="field1",
+                field_type=DataType.TEXT,
+                generation_rule=GenerationRule.RANDOM,
+                rule_config=None,
+                enum_values=None,
+                min_length=5,
+                max_length=10,
             ),
             TestData(
-                id=2, step_id=100, field_name="field2", field_type=DataType.EMAIL,
-                generation_rule=GenerationRule.RANDOM, rule_config=None,
-                enum_values=None
-            )
+                id=2,
+                step_id=100,
+                field_name="field2",
+                field_type=DataType.EMAIL,
+                generation_rule=GenerationRule.RANDOM,
+                rule_config=None,
+                enum_values=None,
+            ),
         ]
         service.get_test_data_by_step = Mock(return_value=source_data_list)
 
         # 执行
-        with patch.object(service, 'create_test_data') as mock_create:
-            mock_create.side_effect = [
-                Mock(id=3, field_name="field1"),
-                Mock(id=4, field_name="field2")
-            ]
+        with patch.object(service, "create_test_data") as mock_create:
+            mock_create.side_effect = [Mock(id=3, field_name="field1"), Mock(id=4, field_name="field2")]
             result = service.copy_test_data(100, 200)
 
         # 验证
@@ -443,23 +457,31 @@ class TestTestDataServiceExtended:
         # 准备
         source_data_list = [
             TestData(
-                id=1, step_id=100, field_name="field1", field_type=DataType.TEXT,
-                generation_rule=GenerationRule.RANDOM, rule_config=None,
-                enum_values=None
+                id=1,
+                step_id=100,
+                field_name="field1",
+                field_type=DataType.TEXT,
+                generation_rule=GenerationRule.RANDOM,
+                rule_config=None,
+                enum_values=None,
             ),
             TestData(
-                id=2, step_id=100, field_name="field2", field_type=DataType.TEXT,
-                generation_rule=GenerationRule.RANDOM, rule_config=None,
-                enum_values=None
-            )
+                id=2,
+                step_id=100,
+                field_name="field2",
+                field_type=DataType.TEXT,
+                generation_rule=GenerationRule.RANDOM,
+                rule_config=None,
+                enum_values=None,
+            ),
         ]
         service.get_test_data_by_step = Mock(return_value=source_data_list)
 
         # 执行
-        with patch.object(service, 'create_test_data') as mock_create:
+        with patch.object(service, "create_test_data") as mock_create:
             mock_create.side_effect = [
                 Mock(id=3, field_name="field1"),
-                Exception("复制失败")  # 第二个失败
+                Exception("复制失败"),  # 第二个失败
             ]
             result = service.copy_test_data(100, 200)
 
@@ -484,7 +506,7 @@ class TestTestDataServiceExtended:
     def test_auto_generate_with_product_line(self, service, db_session):
         """测试自动推断生成 - 产品线场景"""
         # 执行
-        with patch.object(service, 'create_test_data') as mock_create:
+        with patch.object(service, "create_test_data") as mock_create:
             mock_create.return_value = Mock(id=1, field_name="product_name")
             result = service.auto_generate_for_step(100, "选择产品线")
 
@@ -492,55 +514,55 @@ class TestTestDataServiceExtended:
         assert len(result) >= 1
         assert mock_create.call_count >= 1
         # 检查是否创建了product_name字段
-        field_names = [call[1].get('field_name') for call in mock_create.call_args_list]
+        field_names = [call[1].get("field_name") for call in mock_create.call_args_list]
         assert "product_name" in field_names
 
     def test_auto_generate_with_input(self, service, db_session):
         """测试自动推断生成 - 输入场景"""
         # 执行
-        with patch.object(service, 'create_test_data') as mock_create:
+        with patch.object(service, "create_test_data") as mock_create:
             mock_create.return_value = Mock(id=1, field_name="input_value")
             result = service.auto_generate_for_step(100, "在搜索框中输入关键词")
 
         # 验证
         assert len(result) == 1
         call_args = mock_create.call_args
-        assert call_args[1]['field_name'] == "input_value"
+        assert call_args[1]["field_name"] == "input_value"
 
     def test_auto_generate_with_select(self, service, db_session):
         """测试自动推断生成 - 选择场景"""
         # 执行
-        with patch.object(service, 'create_test_data') as mock_create:
+        with patch.object(service, "create_test_data") as mock_create:
             mock_create.return_value = Mock(id=1, field_name="select_value")
             result = service.auto_generate_for_step(100, "从下拉列表选择选项")
 
         # 验证
         assert len(result) == 1
         call_args = mock_create.call_args
-        assert call_args[1]['field_type'] == DataType.ENUM
-        assert "选项1" in call_args[1]['enum_values']
+        assert call_args[1]["field_type"] == DataType.ENUM
+        assert "选项1" in call_args[1]["enum_values"]
 
     def test_auto_generate_with_date(self, service, db_session):
         """测试自动推断生成 - 日期场景"""
         # 执行
-        with patch.object(service, 'create_test_data') as mock_create:
+        with patch.object(service, "create_test_data") as mock_create:
             mock_create.return_value = Mock(id=1, field_name="date_value")
             result = service.auto_generate_for_step(100, "选择开始日期")
 
         # 验证 - "选择"和"日期"两个关键词都会匹配
         assert len(result) >= 1
         # 检查是否创建了date_value字段
-        field_names = [call[1].get('field_name') for call in mock_create.call_args_list]
+        field_names = [call[1].get("field_name") for call in mock_create.call_args_list]
         assert "date_value" in field_names
 
     def test_auto_generate_multiple_fields(self, service, db_session):
         """测试自动推断生成 - 多个字段"""
         # 执行 - 包含多种关键词
-        with patch.object(service, 'create_test_data') as mock_create:
+        with patch.object(service, "create_test_data") as mock_create:
             mock_create.side_effect = [
                 Mock(id=1, field_name="product_name"),
                 Mock(id=2, field_name="input_value"),
-                Mock(id=3, field_name="date_value")
+                Mock(id=3, field_name="date_value"),
             ]
             result = service.auto_generate_for_step(100, "输入产品名称和日期")
 
@@ -559,7 +581,7 @@ class TestTestDataServiceExtended:
     def test_auto_generate_fill_keyword(self, service, db_session):
         """测试自动推断生成 - 填写关键词"""
         # 执行
-        with patch.object(service, 'create_test_data') as mock_create:
+        with patch.object(service, "create_test_data") as mock_create:
             mock_create.return_value = Mock(id=1, field_name="input_value")
             result = service.auto_generate_for_step(100, "填写表单信息")
 
@@ -577,10 +599,7 @@ class TestTestDataGeneratorExtended:
 
     def test_generate_data_datetime(self, generator):
         """测试生成日期时间数据"""
-        result = generator.generate_data(
-            field_type=DataType.DATETIME,
-            field_name="datetime"
-        )
+        result = generator.generate_data(field_type=DataType.DATETIME, field_name="datetime")
         assert isinstance(result, str)
         # 应该包含日期和时间
         assert len(result) > 10
@@ -588,9 +607,7 @@ class TestTestDataGeneratorExtended:
     def test_generate_data_with_constraints_min_max_length(self, generator):
         """测试生成数据 - 使用min_length和max_length约束"""
         result = generator.generate_data(
-            field_type=DataType.TEXT,
-            field_name="text",
-            constraints=DataConstraints(min_length=10, max_length=15)
+            field_type=DataType.TEXT, field_name="text", constraints=DataConstraints(min_length=10, max_length=15)
         )
         assert isinstance(result, str)
         assert 10 <= len(result) <= 15
@@ -598,9 +615,7 @@ class TestTestDataGeneratorExtended:
     def test_generate_data_with_pattern(self, generator):
         """测试生成数据 - 使用pattern约束"""
         result = generator.generate_data(
-            field_type=DataType.TEXT,
-            field_name="text",
-            constraints=DataConstraints(pattern="[A-Z]{3}")
+            field_type=DataType.TEXT, field_name="text", constraints=DataConstraints(pattern="[A-Z]{3}")
         )
         assert isinstance(result, str)
 
@@ -609,17 +624,13 @@ class TestTestDataGeneratorExtended:
         result = generator.generate_data(
             field_type=DataType.ENUM,
             field_name="status",
-            constraints=DataConstraints(enum_values=["active", "inactive", "pending"])
+            constraints=DataConstraints(enum_values=["active", "inactive", "pending"]),
         )
         assert result in ["active", "inactive", "pending"]
 
     def test_generate_data_enum_without_values(self, generator):
         """测试生成枚举数据 - 无枚举值"""
-        result = generator.generate_data(
-            field_type=DataType.ENUM,
-            field_name="status",
-            constraints=DataConstraints()
-        )
+        result = generator.generate_data(field_type=DataType.ENUM, field_name="status", constraints=DataConstraints())
         # 应该返回默认值
         assert isinstance(result, str)
 
@@ -629,7 +640,7 @@ class TestTestDataGeneratorExtended:
             field_type=DataType.NUMBER,
             field_name="number",
             generation_rule=GenerationRule.BOUNDARY_OVER,
-            constraints=DataConstraints(min_value=10, max_value=100)
+            constraints=DataConstraints(min_value=10, max_value=100),
         )
         # 应该返回超出边界的值
         num = int(result)
@@ -637,20 +648,13 @@ class TestTestDataGeneratorExtended:
 
     def test_generate_data_unknown_field_type(self, generator):
         """测试生成数据 - 未知字段类型"""
-        result = generator.generate_data(
-            field_type="unknown_type",
-            field_name="unknown"
-        )
+        result = generator.generate_data(field_type="unknown_type", field_name="unknown")
         # 应该返回字符串值
         assert isinstance(result, str)
 
     def test_generate_data_with_empty_constraints(self, generator):
         """测试生成数据 - 空约束"""
-        result = generator.generate_data(
-            field_type=DataType.TEXT,
-            field_name="text",
-            constraints=DataConstraints()
-        )
+        result = generator.generate_data(field_type=DataType.TEXT, field_name="text", constraints=DataConstraints())
         assert isinstance(result, str)
         assert len(result) > 0
 
@@ -785,12 +789,7 @@ class TestDataConstraintsExtended:
     def test_constraints_with_all_fields(self):
         """测试约束 - 所有字段"""
         constraints = DataConstraints(
-            min_length=1,
-            max_length=100,
-            min_value=0,
-            max_value=999,
-            enum_values=["a", "b", "c"],
-            pattern="^[a-z]+$"
+            min_length=1, max_length=100, min_value=0, max_value=999, enum_values=["a", "b", "c"], pattern="^[a-z]+$"
         )
         assert constraints.min_length == 1
         assert constraints.max_length == 100
@@ -801,10 +800,7 @@ class TestDataConstraintsExtended:
 
     def test_constraints_partial_fields(self):
         """测试约束 - 部分字段"""
-        constraints = DataConstraints(
-            min_length=5,
-            max_length=10
-        )
+        constraints = DataConstraints(min_length=5, max_length=10)
         assert constraints.min_length == 5
         assert constraints.max_length == 10
         assert constraints.min_value is None
@@ -817,4 +813,4 @@ class TestDataConstraintsExtended:
         constraints = DataConstraints(min_length=5)
         # 如果约束是可变的，可以修改
         # 这里只是测试创建后属性存在
-        assert hasattr(constraints, 'min_length')
+        assert hasattr(constraints, "min_length")

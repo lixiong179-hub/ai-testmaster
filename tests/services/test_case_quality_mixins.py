@@ -164,7 +164,8 @@ class TestSuggestionMixin:
         complexity = ComplexityScore()
         redundancy = RedundancyScore()
         coverage = CoverageScore(
-            locator_coverage_rate=0.2, uncovered_elements=5,
+            locator_coverage_rate=0.2,
+            uncovered_elements=5,
             level="low",
         )
         suggestions = self.mixin._generate_optimization_suggestions(complexity, redundancy, coverage)

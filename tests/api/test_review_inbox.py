@@ -8,6 +8,7 @@
 
 使用真实 MySQL、HTTP TestClient + JWT。
 """
+
 import pytest
 
 from app.models.iteration import Iteration
@@ -30,10 +31,12 @@ def test_iteration(db, testProject):
 
 @pytest.fixture
 def auth_headers(testUser):
-    token = create_access_token({
-        "sub": str(testUser.id),
-        "username": testUser.username,
-    })
+    token = create_access_token(
+        {
+            "sub": str(testUser.id),
+            "username": testUser.username,
+        }
+    )
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -52,10 +55,12 @@ def other_user_auth_headers(db, testProject):
     db.flush()
     db.commit()
 
-    token = create_access_token({
-        "sub": str(other.id),
-        "username": other.username,
-    })
+    token = create_access_token(
+        {
+            "sub": str(other.id),
+            "username": other.username,
+        }
+    )
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -72,18 +77,41 @@ def test_review(db, test_iteration):
 @pytest.fixture
 def test_decisions(db, test_review):
     d1 = review_service.add_decision(
-        db, test_review.id, "case", 101, "keep", 85, ai_reason="looks good",
+        db,
+        test_review.id,
+        "case",
+        101,
+        "keep",
+        85,
+        ai_reason="looks good",
     )
     d2 = review_service.add_decision(
-        db, test_review.id, "case", 102, "modify", 45,
-        ai_reason="needs adjustment", modification_hint="fix precondition",
+        db,
+        test_review.id,
+        "case",
+        102,
+        "modify",
+        45,
+        ai_reason="needs adjustment",
+        modification_hint="fix precondition",
     )
     d3 = review_service.add_decision(
-        db, test_review.id, "testpoint", 201, "deprecate", 90,
-        ai_reason="no longer needed", deprecate_reason="outdated",
+        db,
+        test_review.id,
+        "testpoint",
+        201,
+        "deprecate",
+        90,
+        ai_reason="no longer needed",
+        deprecate_reason="outdated",
     )
     d4 = review_service.add_decision(
-        db, test_review.id, "case", 103, "keep", 30,
+        db,
+        test_review.id,
+        "case",
+        103,
+        "keep",
+        30,
         ai_reason="low confidence keep",
     )
     db.flush()
@@ -368,7 +396,9 @@ class TestBatchDecideEndpoint:
         d1 = next(d for d in check.json()["data"]["decisions"] if d["id"] == test_decisions[0].id)
         assert d1["human_verdict"] is None
 
-    def test_batch_decide_finalized_review_rejected(self, client, test_review, test_decisions, auth_headers, db, testUser):
+    def test_batch_decide_finalized_review_rejected(
+        self, client, test_review, test_decisions, auth_headers, db, testUser
+    ):
         review_service.finalize_review(db, test_review.id, testUser.id)
         db.commit()
 
@@ -448,9 +478,13 @@ class TestFinalizeEndpoint:
             headers=auth_headers,
         )
 
-        lock_count = db.query(ReviewLock).filter(
-            ReviewLock.review_id == test_review.id,
-        ).count()
+        lock_count = (
+            db.query(ReviewLock)
+            .filter(
+                ReviewLock.review_id == test_review.id,
+            )
+            .count()
+        )
         assert lock_count == 1
 
         client.post(
@@ -458,9 +492,13 @@ class TestFinalizeEndpoint:
             headers=auth_headers,
         )
 
-        lock_count_after = db.query(ReviewLock).filter(
-            ReviewLock.review_id == test_review.id,
-        ).count()
+        lock_count_after = (
+            db.query(ReviewLock)
+            .filter(
+                ReviewLock.review_id == test_review.id,
+            )
+            .count()
+        )
         assert lock_count_after == 0
 
     def test_finalize_twice_rejected(self, client, test_review, test_decisions, auth_headers, db):

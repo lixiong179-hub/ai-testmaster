@@ -8,6 +8,7 @@
     - validate_output 校验
     - 辅助函数: _build_modify_task / _build_create_task / _build_skip_task / _build_deprecation_suggestion
 """
+
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -28,12 +29,14 @@ from app.pipelines.base import StepResult
 def _make_ctx(merged_verdicts=None, aligned=None, fingerprints=None, candidates=None, budget_ok=True):
     """构造 mock PipelineContext。"""
     ctx = MagicMock()
-    ctx.get_artifact = MagicMock(side_effect=lambda kind: {
-        "merged_verdicts": merged_verdicts,
-        "aligned_testpoints": aligned,
-        "history_fingerprints": fingerprints,
-        "scenario_candidates": candidates,
-    }.get(kind))
+    ctx.get_artifact = MagicMock(
+        side_effect=lambda kind: {
+            "merged_verdicts": merged_verdicts,
+            "aligned_testpoints": aligned,
+            "history_fingerprints": fingerprints,
+            "scenario_candidates": candidates,
+        }.get(kind)
+    )
     ctx.check_budget = MagicMock(return_value=budget_ok)
     ctx.iteration_id = 1
     return ctx
@@ -59,10 +62,7 @@ def _make_fingerprints(case_ids=None):
     if case_ids is None:
         case_ids = [100, 101, 102]
     return {
-        "fingerprints": [
-            {"case_id": cid, "title": f"用例{cid}", "module": "测试模块"}
-            for cid in case_ids
-        ],
+        "fingerprints": [{"case_id": cid, "title": f"用例{cid}", "module": "测试模块"} for cid in case_ids],
     }
 
 
@@ -81,8 +81,7 @@ def _make_aligned(count=2):
     return {
         "project_id": 1,
         "aligned_testpoints": [
-            {"test_point": {"point": f"测试点{i}", "module": f"模块{i}", "priority": i + 1}}
-            for i in range(count)
+            {"test_point": {"point": f"测试点{i}", "module": f"模块{i}", "priority": i + 1}} for i in range(count)
         ],
     }
 
@@ -299,9 +298,13 @@ class TestValidateOutput:
         payload = {
             "generation_tasks": [{"task_type": "create"}],
             "stats": {
-                "keep_count": 0, "modify_count": 0, "create_count": 1,
-                "locator_fix_count": 0, "deprecate_count": 0,
-                "skip_count": 0, "conflict_count": 0,
+                "keep_count": 0,
+                "modify_count": 0,
+                "create_count": 1,
+                "locator_fix_count": 0,
+                "deprecate_count": 0,
+                "skip_count": 0,
+                "conflict_count": 0,
             },
         }
         assert step.validate_output(payload) is True
@@ -317,9 +320,13 @@ class TestValidateOutput:
         payload = {
             "generation_tasks": [{"no_task_type": True}],
             "stats": {
-                "keep_count": 0, "modify_count": 0, "create_count": 0,
-                "locator_fix_count": 0, "deprecate_count": 0,
-                "skip_count": 0, "conflict_count": 0,
+                "keep_count": 0,
+                "modify_count": 0,
+                "create_count": 0,
+                "locator_fix_count": 0,
+                "deprecate_count": 0,
+                "skip_count": 0,
+                "conflict_count": 0,
             },
         }
         assert step.validate_output(payload) is False

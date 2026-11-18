@@ -6,18 +6,14 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="rl_test_user",
-        email="rl_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="rl_test_user", email="rl_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(RequirementLink).filter(RequirementLink.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(RequirementLink).filter(
+        RequirementLink.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+    ).delete(synchronize_session=False)
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -39,7 +35,7 @@ class TestRequirementLinkModel:
             link_name="需求文档v1.0",
             link_type="requirement",
             link_url="https://docs.example.com/req",
-            created_by=test_user.id
+            created_by=test_user.id,
         )
         db.add(rl)
         db.commit()
@@ -57,10 +53,7 @@ class TestRequirementLinkModel:
 
     def test_requirement_link_default_values(self, db, test_project):
         rl = RequirementLink(
-            project_id=test_project.id,
-            link_name="默认链接",
-            link_type="requirement",
-            link_url="https://example.com"
+            project_id=test_project.id, link_name="默认链接", link_type="requirement", link_url="https://example.com"
         )
         db.add(rl)
         db.commit()
@@ -80,10 +73,7 @@ class TestRequirementLinkModel:
     def test_requirement_link_type_values(self, db, test_project):
         for lt in ["requirement", "ui_mockup", "api_doc", "other"]:
             rl = RequirementLink(
-                project_id=test_project.id,
-                link_name=f"链接-{lt}",
-                link_type=lt,
-                link_url="https://example.com"
+                project_id=test_project.id, link_name=f"链接-{lt}", link_type=lt, link_url="https://example.com"
             )
             db.add(rl)
             db.commit()
@@ -99,7 +89,7 @@ class TestRequirementLinkModel:
                 link_name=f"认证-{at}",
                 link_type="requirement",
                 link_url="https://example.com",
-                auth_type=at
+                auth_type=at,
             )
             db.add(rl)
             db.commit()
@@ -114,7 +104,7 @@ class TestRequirementLinkModel:
             link_name="认证配置链接",
             link_type="requirement",
             link_url="https://example.com",
-            auth_type="basic"
+            auth_type="basic",
         )
         rl.auth_config = {"username": "admin", "password": "secret"}
         assert rl.auth_config_encrypted is not None
@@ -129,10 +119,7 @@ class TestRequirementLinkModel:
 
     def test_requirement_link_auth_config_set_none(self, db, test_project):
         rl = RequirementLink(
-            project_id=test_project.id,
-            link_name="空认证链接",
-            link_type="requirement",
-            link_url="https://example.com"
+            project_id=test_project.id, link_name="空认证链接", link_type="requirement", link_url="https://example.com"
         )
         rl.auth_config = None
         assert rl.auth_config_encrypted is None
@@ -142,17 +129,14 @@ class TestRequirementLinkModel:
             project_id=test_project.id,
             link_name="空字典认证链接",
             link_type="requirement",
-            link_url="https://example.com"
+            link_url="https://example.com",
         )
         rl.auth_config = {}
         assert rl.auth_config_encrypted is None
 
     def test_requirement_link_auth_config_get_empty(self, db, test_project):
         rl = RequirementLink(
-            project_id=test_project.id,
-            link_name="无认证链接",
-            link_type="requirement",
-            link_url="https://example.com"
+            project_id=test_project.id, link_name="无认证链接", link_type="requirement", link_url="https://example.com"
         )
         db.add(rl)
         db.commit()
@@ -168,7 +152,7 @@ class TestRequirementLinkModel:
                 link_name=f"获取状态-{status}",
                 link_type="requirement",
                 link_url="https://example.com",
-                last_fetch_status=status
+                last_fetch_status=status,
             )
             db.add(rl)
             db.commit()
@@ -178,5 +162,5 @@ class TestRequirementLinkModel:
             db.commit()
 
     def test_requirement_link_relationships(self):
-        assert hasattr(RequirementLink, 'project')
-        assert hasattr(RequirementLink, 'creator')
+        assert hasattr(RequirementLink, "project")
+        assert hasattr(RequirementLink, "creator")

@@ -10,6 +10,7 @@
     - 通过 mock 控制依赖检查结果，验证不同状态响应
     - 真实 DB/Redis 由 conftest.py 提供，无需 mock
 """
+
 from unittest import mock
 
 import pytest
@@ -38,8 +39,10 @@ class TestReadinessProbe:
 
     def test_ready_returns_200_when_deps_ok(self, client):
         """依赖就绪时返回 200。"""
-        with mock.patch("app.db.database.check_db_connection", return_value=True), \
-                mock.patch("redis.from_url") as mock_redis:
+        with (
+            mock.patch("app.db.database.check_db_connection", return_value=True),
+            mock.patch("redis.from_url") as mock_redis,
+        ):
             mock_r = mock.MagicMock()
             mock_redis.return_value = mock_r
             resp = client.get("/ready")
@@ -51,8 +54,10 @@ class TestReadinessProbe:
 
     def test_ready_returns_503_when_db_down(self, client):
         """数据库不可用返回 503。"""
-        with mock.patch("app.db.database.check_db_connection", return_value=False), \
-                mock.patch("redis.from_url") as mock_redis:
+        with (
+            mock.patch("app.db.database.check_db_connection", return_value=False),
+            mock.patch("redis.from_url") as mock_redis,
+        ):
             mock_r = mock.MagicMock()
             mock_redis.return_value = mock_r
             resp = client.get("/ready")
@@ -62,16 +67,20 @@ class TestReadinessProbe:
 
     def test_ready_returns_503_when_redis_down(self, client):
         """Redis 不可用返回 503。"""
-        with mock.patch("app.db.database.check_db_connection", return_value=True), \
-                mock.patch("redis.from_url", side_effect=Exception("redis down")):
+        with (
+            mock.patch("app.db.database.check_db_connection", return_value=True),
+            mock.patch("redis.from_url", side_effect=Exception("redis down")),
+        ):
             resp = client.get("/ready")
             assert resp.status_code == 503
             assert "服务暂不可用" in resp.json()["msg"]
 
     def test_ready_returns_503_when_all_deps_down(self, client):
         """所有依赖不可用返回 503。"""
-        with mock.patch("app.db.database.check_db_connection", return_value=False), \
-                mock.patch("redis.from_url", side_effect=Exception("redis down")):
+        with (
+            mock.patch("app.db.database.check_db_connection", return_value=False),
+            mock.patch("redis.from_url", side_effect=Exception("redis down")),
+        ):
             resp = client.get("/ready")
             assert resp.status_code == 503
             # 安全：响应体不披露具体哪些依赖不可用，防止信息探测
@@ -85,8 +94,10 @@ class TestHealthCheckBackwardCompat:
 
     def test_health_returns_200(self, client):
         """原有 /health 端点仍返回 200。"""
-        with mock.patch("app.db.database.check_db_connection", return_value=True), \
-                mock.patch("redis.from_url") as mock_redis:
+        with (
+            mock.patch("app.db.database.check_db_connection", return_value=True),
+            mock.patch("redis.from_url") as mock_redis,
+        ):
             mock_r = mock.MagicMock()
             mock_redis.return_value = mock_r
             resp = client.get("/health")
@@ -98,8 +109,10 @@ class TestHealthCheckBackwardCompat:
 
     def test_health_degraded_when_db_down(self, client):
         """数据库不可用时 health 返回 degraded 状态（仍 200）。"""
-        with mock.patch("app.db.database.check_db_connection", return_value=False), \
-                mock.patch("redis.from_url") as mock_redis:
+        with (
+            mock.patch("app.db.database.check_db_connection", return_value=False),
+            mock.patch("redis.from_url") as mock_redis,
+        ):
             mock_r = mock.MagicMock()
             mock_redis.return_value = mock_r
             resp = client.get("/health")
@@ -114,16 +127,17 @@ class TestProbeEndpointSemantics:
 
     def test_live_is_lightweight(self, client):
         """live 端点不调用依赖检查函数（性能要求）。"""
-        with mock.patch("app.db.database.check_db_connection") as mock_db, \
-                mock.patch("redis.from_url") as mock_redis:
+        with mock.patch("app.db.database.check_db_connection") as mock_db, mock.patch("redis.from_url") as mock_redis:
             client.get("/live")
             mock_db.assert_not_called()
             mock_redis.assert_not_called()
 
     def test_ready_checks_both_deps(self, client):
         """ready 端点同时检查 DB 和 Redis。"""
-        with mock.patch("app.db.database.check_db_connection", return_value=True) as mock_db, \
-                mock.patch("redis.from_url") as mock_redis:
+        with (
+            mock.patch("app.db.database.check_db_connection", return_value=True) as mock_db,
+            mock.patch("redis.from_url") as mock_redis,
+        ):
             mock_r = mock.MagicMock()
             mock_redis.return_value = mock_r
             client.get("/ready")

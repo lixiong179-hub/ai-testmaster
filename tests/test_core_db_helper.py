@@ -24,27 +24,19 @@ class SampleModel(Base):
 
 class TestQueryHelperBuildFilterConditions:
     def test_basic_filter(self):
-        conditions = QueryHelper.build_filter_conditions(
-            SampleModel, id=1, name="test"
-        )
+        conditions = QueryHelper.build_filter_conditions(SampleModel, id=1, name="test")
         assert len(conditions) == 2
 
     def test_none_values_ignored(self):
-        conditions = QueryHelper.build_filter_conditions(
-            SampleModel, id=1, name=None, status=None
-        )
+        conditions = QueryHelper.build_filter_conditions(SampleModel, id=1, name=None, status=None)
         assert len(conditions) == 1
 
     def test_all_none_values(self):
-        conditions = QueryHelper.build_filter_conditions(
-            SampleModel, id=None, name=None
-        )
+        conditions = QueryHelper.build_filter_conditions(SampleModel, id=None, name=None)
         assert len(conditions) == 0
 
     def test_nonexistent_field_ignored(self):
-        conditions = QueryHelper.build_filter_conditions(
-            SampleModel, id=1, nonexistent_field="val"
-        )
+        conditions = QueryHelper.build_filter_conditions(SampleModel, id=1, nonexistent_field="val")
         assert len(conditions) == 1
 
     def test_empty_filters(self):
@@ -52,9 +44,7 @@ class TestQueryHelperBuildFilterConditions:
         assert len(conditions) == 0
 
     def test_mixed_valid_and_invalid(self):
-        conditions = QueryHelper.build_filter_conditions(
-            SampleModel, id=5, name="hello", missing="x", status=None
-        )
+        conditions = QueryHelper.build_filter_conditions(SampleModel, id=5, name="hello", missing="x", status=None)
         assert len(conditions) == 2
 
 

@@ -7,6 +7,7 @@ PromptBuilder 单元测试
 - _safe_int: 安全转换
 - _find_main_step: 步骤查找
 """
+
 import pytest
 from app.services.prompt_builder import PromptBuilder
 from app.services.prompt_builder.helpers import _safe_int, _find_main_step
@@ -42,7 +43,7 @@ class TestFindMainStep:
         return [
             {"screen_id": 1, "screen_order": 1, "screen_name": "登录页"},
             {"screen_id": 2, "screen_order": 2, "screen_name": "首页"},
-            {"screen_id": 3, "screen_order": 3, "screen_name": "详情页"}
+            {"screen_id": 3, "screen_order": 3, "screen_name": "详情页"},
         ]
 
     def test_find_existing_step(self, main_nodes):
@@ -63,15 +64,27 @@ class TestBuildGraphPrompt:
     @pytest.fixture
     def basic_nodes(self):
         return [
-            {"screen_id": 1, "screen_order": 1, "screen_name": "登录页", "flow_type": "main", "ocr_text": "请输入账号", "ui_spec_elements": [{"type": "input", "label": "用户名"}]},
-            {"screen_id": 2, "screen_order": 2, "screen_name": "首页", "flow_type": "main", "ocr_text": "欢迎回来", "ui_spec_elements": [{"type": "button", "label": "搜索"}]}
+            {
+                "screen_id": 1,
+                "screen_order": 1,
+                "screen_name": "登录页",
+                "flow_type": "main",
+                "ocr_text": "请输入账号",
+                "ui_spec_elements": [{"type": "input", "label": "用户名"}],
+            },
+            {
+                "screen_id": 2,
+                "screen_order": 2,
+                "screen_name": "首页",
+                "flow_type": "main",
+                "ocr_text": "欢迎回来",
+                "ui_spec_elements": [{"type": "button", "label": "搜索"}],
+            },
         ]
 
     @pytest.fixture
     def basic_edges(self):
-        return [
-            {"source": "1", "target": "2", "edge_type": "normal", "condition": None, "label": "登录成功"}
-        ]
+        return [{"source": "1", "target": "2", "edge_type": "normal", "condition": None, "label": "登录成功"}]
 
     def test_prompt_contains_role_definition(self, basic_nodes, basic_edges):
         prompt = PromptBuilder.build_graph_prompt(basic_nodes, basic_edges)
@@ -89,9 +102,7 @@ class TestBuildGraphPrompt:
         assert "button:搜索" in prompt
 
     def test_prompt_contains_requirement(self, basic_nodes, basic_edges):
-        prompt = PromptBuilder.build_graph_prompt(
-            basic_nodes, basic_edges, requirement_content="用户需要登录系统"
-        )
+        prompt = PromptBuilder.build_graph_prompt(basic_nodes, basic_edges, requirement_content="用户需要登录系统")
         assert "用户需要登录系统" in prompt
 
     def test_prompt_contains_test_point(self, basic_nodes, basic_edges):
@@ -108,11 +119,18 @@ class TestBuildGraphPrompt:
 
     def test_prompt_with_branch_flow(self, basic_nodes):
         nodes = basic_nodes + [
-            {"screen_id": 3, "screen_order": 3, "screen_name": "注册页", "flow_type": "branch", "ocr_text": "填写注册信息", "ui_spec_elements": [{"type": "input", "label": "手机号"}]}
+            {
+                "screen_id": 3,
+                "screen_order": 3,
+                "screen_name": "注册页",
+                "flow_type": "branch",
+                "ocr_text": "填写注册信息",
+                "ui_spec_elements": [{"type": "input", "label": "手机号"}],
+            }
         ]
         edges = [
             {"source": "1", "target": "2", "edge_type": "normal", "condition": None, "label": "正常"},
-            {"source": "1", "target": "3", "edge_type": "branch", "condition": "点击注册", "label": "去注册"}
+            {"source": "1", "target": "3", "edge_type": "branch", "condition": "点击注册", "label": "去注册"},
         ]
         prompt = PromptBuilder.build_graph_prompt(nodes, edges)
         assert "分支流程" in prompt
@@ -121,11 +139,18 @@ class TestBuildGraphPrompt:
 
     def test_prompt_with_exception_flow(self, basic_nodes):
         nodes = basic_nodes + [
-            {"screen_id": 4, "screen_order": 4, "screen_name": "错误页", "flow_type": "exception", "ocr_text": "密码错误", "ui_spec_elements": []}
+            {
+                "screen_id": 4,
+                "screen_order": 4,
+                "screen_name": "错误页",
+                "flow_type": "exception",
+                "ocr_text": "密码错误",
+                "ui_spec_elements": [],
+            }
         ]
         edges = [
             {"source": "1", "target": "2", "edge_type": "normal", "condition": None, "label": "正常"},
-            {"source": "1", "target": "4", "edge_type": "exception", "condition": "密码错误", "label": "异常"}
+            {"source": "1", "target": "4", "edge_type": "exception", "condition": "密码错误", "label": "异常"},
         ]
         prompt = PromptBuilder.build_graph_prompt(nodes, edges)
         assert "异常流程" in prompt
@@ -134,11 +159,18 @@ class TestBuildGraphPrompt:
 
     def test_prompt_with_bypass_flow(self, basic_nodes):
         nodes = basic_nodes + [
-            {"screen_id": 5, "screen_order": 5, "screen_name": "广告弹窗", "flow_type": "bypass", "ocr_text": "限时优惠", "ui_spec_elements": [{"type": "button", "label": "关闭"}]}
+            {
+                "screen_id": 5,
+                "screen_order": 5,
+                "screen_name": "广告弹窗",
+                "flow_type": "bypass",
+                "ocr_text": "限时优惠",
+                "ui_spec_elements": [{"type": "button", "label": "关闭"}],
+            }
         ]
         edges = [
             {"source": "1", "target": "2", "edge_type": "normal", "condition": None, "label": "正常"},
-            {"source": "2", "target": "5", "edge_type": "bypass", "condition": "自动弹出广告", "label": "广告"}
+            {"source": "2", "target": "5", "edge_type": "bypass", "condition": "自动弹出广告", "label": "广告"},
         ]
         prompt = PromptBuilder.build_graph_prompt(nodes, edges)
         assert "旁路流程" in prompt
@@ -146,9 +178,7 @@ class TestBuildGraphPrompt:
         assert "广告弹窗" in prompt
 
     def test_prompt_with_invalid_source_target(self, basic_nodes):
-        edges = [
-            {"source": "invalid", "target": "2", "edge_type": "branch", "condition": "条件", "label": "分支"}
-        ]
+        edges = [{"source": "invalid", "target": "2", "edge_type": "branch", "condition": "条件", "label": "分支"}]
         prompt = PromptBuilder.build_graph_prompt(basic_nodes, edges)
         assert "主干流程" in prompt
 
@@ -183,7 +213,7 @@ class TestBuildLinearPrompt:
             module="测试模块",
             function="测试功能",
             point="测试点",
-            priority=2
+            priority=2,
         )
         assert isinstance(prompt, str)
         assert len(prompt) > 0
@@ -191,12 +221,6 @@ class TestBuildLinearPrompt:
     def test_passes_ui_specs(self):
         ui_specs = [{"screen_name": "测试页", "ui_spec": {"elements": []}}]
         prompt = PromptBuilder.build_linear_prompt(
-            requirement_content="",
-            ui_description="",
-            module="",
-            function="",
-            point="",
-            priority=2,
-            ui_specs=ui_specs
+            requirement_content="", ui_description="", module="", function="", point="", priority=2, ui_specs=ui_specs
         )
         assert isinstance(prompt, str)

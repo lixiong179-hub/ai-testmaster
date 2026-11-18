@@ -4,6 +4,7 @@
     - 链长度警告（阈值触发/未触发）
     - 用例不存在返回 None
 """
+
 import pytest
 from unittest.mock import patch
 
@@ -12,8 +13,13 @@ from sqlalchemy.orm import sessionmaker
 
 from app.models.test_case import TestCase, Base as TestCaseBase
 from app.services.lineage_service import (
-    get_lineage, _trace_ancestors, _build_descendant_tree,
-    _to_node, _check_chain_warning, LineageNode, LineageResult,
+    get_lineage,
+    _trace_ancestors,
+    _build_descendant_tree,
+    _to_node,
+    _check_chain_warning,
+    LineageNode,
+    LineageResult,
 )
 
 
@@ -28,8 +34,13 @@ def db():
 
 
 def _make_case(
-    db, case_no: str, title: str, parent_case_id=None,
-    lifecycle_status="active", prior_score=None, posterior_score=None,
+    db,
+    case_no: str,
+    title: str,
+    parent_case_id=None,
+    lifecycle_status="active",
+    prior_score=None,
+    posterior_score=None,
 ) -> TestCase:
     case = TestCase(
         case_no=case_no,
@@ -174,8 +185,12 @@ class TestCheckChainWarning:
 class TestLineageNode:
     def test_to_node(self, db):
         case = _make_case(
-            db, "P1-C001", "测试用例",
-            lifecycle_status="active", prior_score=85.0, posterior_score=90.0,
+            db,
+            "P1-C001",
+            "测试用例",
+            lifecycle_status="active",
+            prior_score=85.0,
+            posterior_score=90.0,
         )
         node = _to_node(case)
         assert node.id == case.id

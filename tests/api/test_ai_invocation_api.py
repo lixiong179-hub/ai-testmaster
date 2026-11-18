@@ -14,6 +14,7 @@ AI 调用审计增强 API 测试
     async_db / async_auth_client / async_test_project fixture。
     TestAIErrorCode / TestAICallLogNewFields 不调用端点，保持同步。
 """
+
 import pytest
 from app.ai.call_log import AICallLog, record_call
 from app.ai.error_codes import AIErrorCode
@@ -232,14 +233,10 @@ class TestAIInvocationStatsAPI:
 
     async def test_stats_no_auth(self, async_client):
         """未认证返回 401"""
-        resp = await async_client.get(
-            "/api/v1/ai-invocation/stats", params={"project_id": 1}
-        )
+        resp = await async_client.get("/api/v1/ai-invocation/stats", params={"project_id": 1})
         assert resp.status_code in (401, 403)
 
-    async def test_stats_empty_result(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_stats_empty_result(self, async_auth_client, async_test_project):
         """无数据时返回空 items 列表"""
         resp = await async_auth_client.get(
             "/api/v1/ai-invocation/stats",
@@ -290,9 +287,7 @@ class TestAIInvocationStatsAPI:
         assert model_row["total_prompt_tokens"] == 300
         assert model_row["total_completion_tokens"] == 150
 
-    async def test_stats_group_by_strategy(
-        self, async_auth_client, async_db, async_test_project, async_test_user
-    ):
+    async def test_stats_group_by_strategy(self, async_auth_client, async_db, async_test_project, async_test_user):
         """按 strategy 聚合"""
         batch = await _create_batch(
             async_db,
@@ -317,11 +312,7 @@ class TestAIInvocationStatsAPI:
         items = resp.json()["data"]["items"]
         assert len(items) >= 1
         strat_row = next(
-            (
-                r
-                for r in items
-                if r["group_key"] == "REQUIREMENT_TESTPOINT_STANDARD_GENERATION"
-            ),
+            (r for r in items if r["group_key"] == "REQUIREMENT_TESTPOINT_STANDARD_GENERATION"),
             None,
         )
         assert strat_row is not None
@@ -344,9 +335,7 @@ class TestAIInvocationListAPI:
         assert data["items"] == []
         assert data["total"] == 0
 
-    async def test_list_by_batch_id(
-        self, async_auth_client, async_db, async_test_project, async_test_user
-    ):
+    async def test_list_by_batch_id(self, async_auth_client, async_db, async_test_project, async_test_user):
         """按 batch_id 筛选，验证新字段透传"""
         batch = await _create_batch(
             async_db,
@@ -378,17 +367,13 @@ class TestAIInvocationListAPI:
         assert item["model"] == "deepseek-v4"
         assert item["generation_batch_id"] == batch.id
         assert item["scenario_type"] == "B1_REQUIREMENT_TESTPOINT"
-        assert (
-            item["generation_strategy"] == "REQUIREMENT_TESTPOINT_STANDARD_GENERATION"
-        )
+        assert item["generation_strategy"] == "REQUIREMENT_TESTPOINT_STANDARD_GENERATION"
         assert item["prompt_key"] == "test_gen"
         assert item["prompt_version"] == 1
         assert item["prompt_hash"] == "sha256abc"
         assert item["error_code"] == "AI_RATE_LIMIT"
 
-    async def test_list_by_project_id(
-        self, async_auth_client, async_db, async_test_project, async_test_user
-    ):
+    async def test_list_by_project_id(self, async_auth_client, async_db, async_test_project, async_test_user):
         """按 project_id 筛选（通过 generation_batch 间接关联）"""
         batch = await _create_batch(
             async_db,
@@ -413,9 +398,7 @@ class TestAIInvocationListAPI:
         data = resp.json()["data"]
         assert data["total"] >= 1
 
-    async def test_list_by_run_id(
-        self, async_auth_client, async_db, async_test_project, async_test_user
-    ):
+    async def test_list_by_run_id(self, async_auth_client, async_db, async_test_project, async_test_user):
         """按 run_id 筛选：只返回该运行下的调用记录（供 Pipeline 成本累计）
 
         前端 usePipelineTokenUsage 轮询 getRunCost(runId)，依赖该过滤生效；
@@ -430,8 +413,12 @@ class TestAIInvocationListAPI:
             batch_no="GB-LIST-RUN",
         )
         await _create_call_log(
-            async_db, batch_id=batch.id, run_id=run.id,
-            prompt_tokens=120, completion_tokens=80, cost_usd=0.004,
+            async_db,
+            batch_id=batch.id,
+            run_id=run.id,
+            prompt_tokens=120,
+            completion_tokens=80,
+            cost_usd=0.004,
         )
         # 同一 batch 下另一条无 run_id 的记录不应被命中
         await _create_call_log(async_db, batch_id=batch.id, run_id=None)
@@ -448,9 +435,7 @@ class TestAIInvocationListAPI:
         assert item["prompt_tokens"] == 120
         assert item["completion_tokens"] == 80
 
-    async def test_list_pagination(
-        self, async_auth_client, async_db, async_test_project, async_test_user
-    ):
+    async def test_list_pagination(self, async_auth_client, async_db, async_test_project, async_test_user):
         """分页查询，page=1, page_size=2 返回 2 条且 total>=5"""
         batch = await _create_batch(
             async_db,

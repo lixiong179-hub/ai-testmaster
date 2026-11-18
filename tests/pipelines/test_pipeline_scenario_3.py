@@ -11,6 +11,7 @@ M3-T05 场景 3 流水线端到端测试（仅 UI 输入的新项目）
     - 场景 3 完整 Pipeline 端到端
     - should_run / cache_key / validate_output / fallback
 """
+
 import json
 import pytest
 
@@ -32,6 +33,7 @@ from app.services import pipeline_service
 
 def _make_artifact(kind: str, payload: dict):
     from app.models.pipeline import Artifact
+
     return Artifact(
         run_id=0,
         kind=kind,
@@ -42,95 +44,103 @@ def _make_artifact(kind: str, payload: dict):
 
 
 def _make_default_infer_response() -> str:
-    return json.dumps({
-        "inferred_capabilities": [
-            {
-                "name": "用户注册",
-                "key": "user_registration",
-                "description": "用户通过填写表单完成账号注册",
-                "confidence": 0.85,
-                "supporting_evidence": "注册页面包含用户名、密码、邮箱输入框和注册按钮",
-            },
-            {
-                "name": "用户登录",
-                "key": "user_login",
-                "description": "已注册用户通过凭证登录系统",
-                "confidence": 0.9,
-                "supporting_evidence": "登录页面包含用户名、密码输入框和登录按钮",
-            },
-        ],
-        "uncertain_questions": [
-            {
-                "question": "是否需要邮箱验证？",
-                "context": "注册页面有邮箱输入框但未见验证码控件",
-                "suggested_answer": "可能使用邮箱链接验证",
-            },
-        ],
-        "overall_confidence": 0.85,
-        "analysis_summary": "UI 显示注册和登录两个核心业务流程，共 2 个业务能力",
-    })
+    return json.dumps(
+        {
+            "inferred_capabilities": [
+                {
+                    "name": "用户注册",
+                    "key": "user_registration",
+                    "description": "用户通过填写表单完成账号注册",
+                    "confidence": 0.85,
+                    "supporting_evidence": "注册页面包含用户名、密码、邮箱输入框和注册按钮",
+                },
+                {
+                    "name": "用户登录",
+                    "key": "user_login",
+                    "description": "已注册用户通过凭证登录系统",
+                    "confidence": 0.9,
+                    "supporting_evidence": "登录页面包含用户名、密码输入框和登录按钮",
+                },
+            ],
+            "uncertain_questions": [
+                {
+                    "question": "是否需要邮箱验证？",
+                    "context": "注册页面有邮箱输入框但未见验证码控件",
+                    "suggested_answer": "可能使用邮箱链接验证",
+                },
+            ],
+            "overall_confidence": 0.85,
+            "analysis_summary": "UI 显示注册和登录两个核心业务流程，共 2 个业务能力",
+        }
+    )
 
 
 def _make_low_confidence_infer_response() -> str:
-    return json.dumps({
-        "inferred_capabilities": [
-            {
-                "name": "不确定功能",
-                "key": "uncertain_feature",
-                "description": "不确定",
-                "confidence": 0.3,
-                "supporting_evidence": "信息不足",
-            },
-        ],
-        "uncertain_questions": [
-            {"question": "这是什么功能？", "context": "页面1", "suggested_answer": ""},
-        ],
-        "overall_confidence": 0.3,
-        "analysis_summary": "不确定",
-    })
+    return json.dumps(
+        {
+            "inferred_capabilities": [
+                {
+                    "name": "不确定功能",
+                    "key": "uncertain_feature",
+                    "description": "不确定",
+                    "confidence": 0.3,
+                    "supporting_evidence": "信息不足",
+                },
+            ],
+            "uncertain_questions": [
+                {"question": "这是什么功能？", "context": "页面1", "suggested_answer": ""},
+            ],
+            "overall_confidence": 0.3,
+            "analysis_summary": "不确定",
+        }
+    )
 
 
 def _make_default_candidates_response() -> str:
-    return json.dumps({
-        "candidates": [
-            {
-                "description": "用户注册流程验证",
-                "module": "用户管理",
-                "priority": 1,
-                "reason": "核心注册流程需完整覆盖",
-            },
-            {
-                "description": "用户登录流程验证",
-                "module": "用户管理",
-                "priority": 1,
-                "reason": "核心登录流程需完整覆盖",
-            },
-            {
-                "description": "密码找回流程验证",
-                "module": "用户管理",
-                "priority": 2,
-                "reason": "忘记密码是常见场景",
-            },
-        ]
-    })
+    return json.dumps(
+        {
+            "candidates": [
+                {
+                    "description": "用户注册流程验证",
+                    "module": "用户管理",
+                    "priority": 1,
+                    "reason": "核心注册流程需完整覆盖",
+                },
+                {
+                    "description": "用户登录流程验证",
+                    "module": "用户管理",
+                    "priority": 1,
+                    "reason": "核心登录流程需完整覆盖",
+                },
+                {
+                    "description": "密码找回流程验证",
+                    "module": "用户管理",
+                    "priority": 2,
+                    "reason": "忘记密码是常见场景",
+                },
+            ]
+        }
+    )
 
 
 def _make_default_cases_response() -> str:
-    return json.dumps([
-        {
-            "title": "用户注册流程验证",
-            "module": "用户管理",
-            "precondition": "用户未注册",
-            "steps": [
-                {"action": "打开注册页面", "expected": "显示注册表单"},
-                {"action": "填写用户名、密码、邮箱", "expected": "表单验证通过"},
-                {"action": "点击注册按钮", "expected": "注册成功并跳转登录页"},
-            ],
-            "expected_result": "用户成功注册账号",
-            "priority": 1,
-            "case_type": "functional",
-        },
-    ])
+    return json.dumps(
+        [
+            {
+                "title": "用户注册流程验证",
+                "module": "用户管理",
+                "precondition": "用户未注册",
+                "steps": [
+                    {"action": "打开注册页面", "expected": "显示注册表单"},
+                    {"action": "填写用户名、密码、邮箱", "expected": "表单验证通过"},
+                    {"action": "点击注册按钮", "expected": "注册成功并跳转登录页"},
+                ],
+                "expected_result": "用户成功注册账号",
+                "priority": 1,
+                "case_type": "functional",
+            },
+        ]
+    )
 
 
 @pytest.fixture
@@ -242,6 +252,7 @@ def make_ctx(db, mock_ai, setup_iteration_ui_only):
 class TestScenario3Registry:
     def test_get_scenario_3(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(3)
         assert scenario is not None
         assert scenario["name"] == "scenario_3_ui_only"
@@ -249,11 +260,13 @@ class TestScenario3Registry:
 
     def test_scenario_3_has_7_steps(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(3)
         assert len(scenario["steps"]) == 7
 
     def test_scenario_3_step_order(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(3)
         step_names = [s.name for s in scenario["steps"]]
         expected = [
@@ -269,12 +282,14 @@ class TestScenario3Registry:
 
     def test_scenario_3_includes_reverse_infer(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(3)
         step_names = [s.name for s in scenario["steps"]]
         assert "reverse_infer" in step_names
 
     def test_scenario_3_no_history_steps(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(3)
         step_names = [s.name for s in scenario["steps"]]
         assert "history_fingerprint" not in step_names
@@ -284,6 +299,7 @@ class TestScenario3Registry:
 
     def test_nonexistent_scenario(self):
         from app.pipelines.scenarios import get_scenario
+
         assert get_scenario(999) is None
 
 
@@ -366,18 +382,24 @@ class TestReverseInferNewProject:
 
     def test_should_run_without_ui(self, make_ctx):
         ctx = make_ctx()
-        ctx.set_artifact("raw_signals", _make_artifact("raw_signals", {
-            "iteration_id": ctx.iteration_id,
-            "project_id": 1,
-            "has_ui": False,
-            "prd_content": "",
-            "ui_descriptions": [],
-            "ui_specs": [],
-            "test_points": [],
-            "file_ids_used": [],
-            "has_prd": False,
-            "has_testpoints": False,
-        }))
+        ctx.set_artifact(
+            "raw_signals",
+            _make_artifact(
+                "raw_signals",
+                {
+                    "iteration_id": ctx.iteration_id,
+                    "project_id": 1,
+                    "has_ui": False,
+                    "prd_content": "",
+                    "ui_descriptions": [],
+                    "ui_specs": [],
+                    "test_points": [],
+                    "file_ids_used": [],
+                    "has_prd": False,
+                    "has_testpoints": False,
+                },
+            ),
+        )
 
         step = ReverseInfer()
         assert step.should_run(ctx) is False
@@ -396,11 +418,16 @@ class TestReverseInferNewProject:
 
     def test_validate_output_valid(self):
         step = ReverseInfer()
-        assert step.validate_output({
-            "iteration_id": 1,
-            "project_id": 1,
-            "parsed": {"overall_confidence": 0.85},
-        }) is True
+        assert (
+            step.validate_output(
+                {
+                    "iteration_id": 1,
+                    "project_id": 1,
+                    "parsed": {"overall_confidence": 0.85},
+                }
+            )
+            is True
+        )
 
     def test_validate_output_missing(self):
         step = ReverseInfer()
@@ -461,8 +488,9 @@ class TestTestPointAlignmentWithInferred:
 
         reverse_infer = ReverseInfer()
         ri_result = reverse_infer.execute(ctx)
-        ctx.set_artifact("inferred_business_summary",
-                         _make_artifact("inferred_business_summary", ri_result.artifact_payload))
+        ctx.set_artifact(
+            "inferred_business_summary", _make_artifact("inferred_business_summary", ri_result.artifact_payload)
+        )
 
         step = TestPointAlignment()
         result = step.execute(ctx)
@@ -478,8 +506,9 @@ class TestTestPointAlignmentWithInferred:
 
         reverse_infer = ReverseInfer()
         ri_result = reverse_infer.execute(ctx)
-        ctx.set_artifact("inferred_business_summary",
-                         _make_artifact("inferred_business_summary", ri_result.artifact_payload))
+        ctx.set_artifact(
+            "inferred_business_summary", _make_artifact("inferred_business_summary", ri_result.artifact_payload)
+        )
 
         step = TestPointAlignment()
         assert step.should_run(ctx) is True
@@ -490,6 +519,7 @@ class TestScenario3E2E:
         ctx = make_ctx()
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(3)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
@@ -501,20 +531,26 @@ class TestScenario3E2E:
         ctx = make_ctx()
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(3)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
 
         db.refresh(ctx.run)
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == testProject.id,
-        ).all()
+        cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == testProject.id,
+            )
+            .all()
+        )
         assert len(cases) >= 1
 
     def test_pipeline_produces_artifacts(self, db, make_ctx):
         ctx = make_ctx()
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(3)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
@@ -535,6 +571,7 @@ class TestScenario3E2E:
         mock_ai.set_response("reverse_infer", _make_low_confidence_infer_response())
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(3)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)

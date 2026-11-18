@@ -4,6 +4,7 @@
 14. 选择器登录成功判定：登录后 _detect_login_page 返回 False 则成功
 15. 选择器登录失败：未定位到密码框/用户名框/提交按钮 返回 False
 """
+
 from typing import Any, Optional, Set
 
 from app.services.url_driven.site_explorer import SiteExplorer
@@ -17,9 +18,7 @@ _USERNAME = 'input[name*="user" i]'
 _SUBMIT = 'button[type="submit"]'
 
 
-def _make_login_page(
-    login_succeeds: bool = True, visible: Optional[Set[str]] = None
-) -> FakePage:
+def _make_login_page(login_succeeds: bool = True, visible: Optional[Set[str]] = None) -> FakePage:
     """构造一个登录页 FakePage（未 goto，由测试显式 _sync_goto 切 _current）。"""
     return FakePage(
         pages_data={ENTRY: PageData(url=ENTRY, title="登录", nav_raw=[], login_state=True)},
@@ -37,18 +36,14 @@ class TestLoginWithSelectorsSuccess:
         controller = FakeController()
         controller._active_page = page
 
-        ok = await explorer._login_with_selectors(
-            controller, {"username": "u", "password": "p"}
-        )
+        ok = await explorer._login_with_selectors(controller, {"username": "u", "password": "p"})
 
         assert ok is True
         assert _SUBMIT in page.click_log
         assert any(sel == _USERNAME and val == "u" for sel, val in page.fill_log)
         assert any(sel == _PASSWORD and val == "p" for sel, val in page.fill_log)
 
-    async def test_login_success_returns_true_after_post_login_check(
-        self, explorer: SiteExplorer
-    ) -> None:
+    async def test_login_success_returns_true_after_post_login_check(self, explorer: SiteExplorer) -> None:
         # login_succeeds=True：click 后 login_state=False，_detect_login_page 返回 False
         page = _make_login_page(login_succeeds=True)
         await page.goto(ENTRY)
@@ -92,20 +87,14 @@ class TestLoginWithSelectorsFailure:
         await page.goto(ENTRY)
         controller = FakeController()
         controller._active_page = page
-        ok_missing_user = await explorer._login_with_selectors(
-            controller, {"password": "p"}
-        )
-        ok_missing_pass = await explorer._login_with_selectors(
-            controller, {"username": "u"}
-        )
+        ok_missing_user = await explorer._login_with_selectors(controller, {"password": "p"})
+        ok_missing_pass = await explorer._login_with_selectors(controller, {"username": "u"})
         assert ok_missing_user is False
         assert ok_missing_pass is False
 
     async def test_no_active_page_returns_false(self, explorer: SiteExplorer) -> None:
         controller = FakeController()  # active_page 默认 None
-        ok = await explorer._login_with_selectors(
-            controller, {"username": "u", "password": "p"}
-        )
+        ok = await explorer._login_with_selectors(controller, {"username": "u", "password": "p"})
         assert ok is False
 
     async def test_post_login_still_login_page_returns_false(self, explorer: SiteExplorer) -> None:
@@ -200,7 +189,5 @@ class TestLoginActionException:
 
         controller = FakeController()
         controller._active_page = _RaisingLocatorPage()
-        ok = await explorer._login_with_selectors(
-            controller, {"username": "u", "password": "p"}
-        )
+        ok = await explorer._login_with_selectors(controller, {"username": "u", "password": "p"})
         assert ok is False

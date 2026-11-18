@@ -1,5 +1,5 @@
-"""浏览器控制器 hover 方法单元测试。
-"""
+"""浏览器控制器 hover 方法单元测试。"""
+
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 

@@ -6,6 +6,7 @@
 3. 覆盖正常路径 + 边界 + 异常路径
 4. 验证业务约束（唯一性、禁用状态等）
 """
+
 import pytest
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
@@ -19,35 +20,44 @@ class TestLazyImports:
     def test_import_role_service(self):
         from app.services.user_service import RoleService
         from app.services.role_service.role_service import RoleService as DirectRoleService
+
         assert RoleService is DirectRoleService
 
     def test_import_permission_service(self):
         from app.services.user_service import PermissionService
         from app.services.permission_service import PermissionService as DirectPS
+
         assert PermissionService is DirectPS
 
     def test_import_user_role_service(self):
         from app.services.user_service import UserRoleService
         from app.services.permission_service import UserRoleService as DirectURS
+
         assert UserRoleService is DirectURS
 
     def test_import_rbac_service(self):
         from app.services.user_service import RBACService
         from app.services.permission_service import RBACService as DirectRBAC
+
         assert RBACService is DirectRBAC
 
     def test_import_nonexistent_raises_attributeerror(self):
         import app.services.user_service as us_mod
+
         with pytest.raises(AttributeError, match="has no attribute"):
             us_mod.NonExistentService
 
 
 def _create_user(db, username="svc_user", email=None, password="Test@123"):
     """Helper: create user via UserService. db fixture auto-converts commit to flush."""
-    return UserService.create_user(db, UserCreate(
-        username=username, password=password,
-        email=email or f"{username}@test.com",
-    ))
+    return UserService.create_user(
+        db,
+        UserCreate(
+            username=username,
+            password=password,
+            email=email or f"{username}@test.com",
+        ),
+    )
 
 
 class TestVerifyPassword:
@@ -95,10 +105,14 @@ class TestCreateUser:
         assert user.is_superuser is False
 
     def test_create_with_dict(self, db):
-        user = UserService.create_user(db, {
-            "username": "dict_user", "password": "Test@123",
-            "email": "dict_user@test.com",
-        })
+        user = UserService.create_user(
+            db,
+            {
+                "username": "dict_user",
+                "password": "Test@123",
+                "email": "dict_user@test.com",
+            },
+        )
         assert user.username == "dict_user"
         assert user.email == "dict_user@test.com"
 
@@ -248,13 +262,16 @@ class TestConcurrencyIntegrityError:
 
         user = _create_user(db, "concurrency_user")
         # db.commit 已被 fixture 替换为 flush，patch flush 以模拟 IntegrityError
-        with patch.object(db, 'commit', side_effect=SAIntegrityError("stmt", "params", None)):
+        with patch.object(db, "commit", side_effect=SAIntegrityError("stmt", "params", None)):
             with pytest.raises(BaseAPIException) as exc_info:
-                UserService.create_user(db, UserCreate(
-                    username="another_concurrent_user",
-                    password="Test@123",
-                    email="concurrent@test.com",
-                ))
+                UserService.create_user(
+                    db,
+                    UserCreate(
+                        username="another_concurrent_user",
+                        password="Test@123",
+                        email="concurrent@test.com",
+                    ),
+                )
             assert exc_info.value.code == 400
 
     def test_update_user_integrity_error_fallback(self, db):
@@ -264,7 +281,7 @@ class TestConcurrencyIntegrityError:
 
         user = _create_user(db, "upd_concurrency_user")
         # db.commit 已被 fixture 替换为 flush，patch commit (=flush) 以模拟 IntegrityError
-        with patch.object(db, 'commit', side_effect=SAIntegrityError("stmt", "params", None)):
+        with patch.object(db, "commit", side_effect=SAIntegrityError("stmt", "params", None)):
             with pytest.raises(BaseAPIException) as exc_info:
                 UserService.update_user(db, user.id, {"email": "dup@test.com"})
             assert exc_info.value.code == 400

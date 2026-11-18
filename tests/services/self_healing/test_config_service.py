@@ -16,6 +16,7 @@
 被测：app/services/self_healing/config_service.py（SelfHealingConfigService）
 使用真实测试库（db fixture 事务隔离）。
 """
+
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -71,15 +72,12 @@ def seed_project_with_config(db: Session, testUser):
 class TestGetProjectConfig:
     """get_project_config 配置读取与合并。"""
 
-    def test_get_config_no_stored_returns_defaults(
-        self, db: Session, seed_project
-    ):
+    def test_get_config_no_stored_returns_defaults(self, db: Session, seed_project):
         """项目无配置 → 返回默认值（全局开关开启时 enabled=True）。"""
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 True,
             )
             config = service.get_project_config(seed_project.id)
@@ -87,29 +85,23 @@ class TestGetProjectConfig:
         assert config["strategies"] == DEFAULT_SELF_HEALING_CONFIG["strategies"]
         assert config["token_limit"] == DEFAULT_SELF_HEALING_CONFIG["token_limit"]
 
-    def test_get_config_no_stored_global_disabled_returns_enabled_false(
-        self, db: Session, seed_project
-    ):
+    def test_get_config_no_stored_global_disabled_returns_enabled_false(self, db: Session, seed_project):
         """项目无配置 + 全局关 → enabled=False。"""
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 False,
             )
             config = service.get_project_config(seed_project.id)
         assert config["enabled"] is False
 
-    def test_get_config_with_stored_returns_merged(
-        self, db: Session, seed_project_with_config
-    ):
+    def test_get_config_with_stored_returns_merged(self, db: Session, seed_project_with_config):
         """项目有配置 → 返回合并值（存储值覆盖默认值）。"""
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 True,
             )
             config = service.get_project_config(seed_project_with_config.id)
@@ -117,15 +109,12 @@ class TestGetProjectConfig:
         assert config["strategies"] == ["mcp", "vision", "stagehand"]
         assert config["token_limit"] == 3000
 
-    def test_get_config_global_disabled_overrides_project(
-        self, db: Session, seed_project_with_config
-    ):
+    def test_get_config_global_disabled_overrides_project(self, db: Session, seed_project_with_config):
         """全局开关关 → enabled=False（即使项目开启）。"""
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 False,
             )
             config = service.get_project_config(seed_project_with_config.id)
@@ -139,9 +128,7 @@ class TestGetProjectConfig:
         assert config["strategies"] == DEFAULT_SELF_HEALING_CONFIG["strategies"]
         assert config["token_limit"] == DEFAULT_SELF_HEALING_CONFIG["token_limit"]
 
-    def test_get_config_partial_stored_merges_with_defaults(
-        self, db: Session, testUser
-    ):
+    def test_get_config_partial_stored_merges_with_defaults(self, db: Session, testUser):
         """项目配置仅含部分字段 → 与默认值合并。"""
         project = Project(
             name="partial_config_project",
@@ -160,9 +147,7 @@ class TestGetProjectConfig:
         assert config["token_limit"] == 5000
         assert config["strategies"] == DEFAULT_SELF_HEALING_CONFIG["strategies"]
 
-    def test_get_config_invalid_stored_type_returns_defaults(
-        self, db: Session, testUser
-    ):
+    def test_get_config_invalid_stored_type_returns_defaults(self, db: Session, testUser):
         """项目 config 字段非 dict → 返回默认值。"""
         project = Project(
             name="invalid_config_project",
@@ -179,9 +164,7 @@ class TestGetProjectConfig:
         config = service.get_project_config(project.id)
         assert config["strategies"] == DEFAULT_SELF_HEALING_CONFIG["strategies"]
 
-    def test_get_config_invalid_self_healing_config_value(
-        self, db: Session, testUser
-    ):
+    def test_get_config_invalid_self_healing_config_value(self, db: Session, testUser):
         """self_healing_config 值非 dict → 返回默认值。"""
         project = Project(
             name="invalid_sh_config_project",
@@ -207,8 +190,7 @@ class TestSetProjectConfig:
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 True,
             )
             result = service.set_project_config(
@@ -228,15 +210,12 @@ class TestSetProjectConfig:
         project = db.query(Project).filter(Project.id == seed_project.id).first()
         assert project.config[CONFIG_KEY]["strategies"] == ["mcp", "vision"]
 
-    def test_set_config_partial_input_filled_with_defaults(
-        self, db: Session, seed_project
-    ):
+    def test_set_config_partial_input_filled_with_defaults(self, db: Session, seed_project):
         """输入仅含部分字段 → 用默认值填充。"""
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 True,
             )
             result = service.set_project_config(
@@ -266,9 +245,7 @@ class TestSetProjectConfig:
         assert exc_info.value.status_code == 400
         assert "strategies 含非法值" in exc_info.value.detail
 
-    def test_set_config_token_limit_below_min_raises_400(
-        self, db: Session, seed_project
-    ):
+    def test_set_config_token_limit_below_min_raises_400(self, db: Session, seed_project):
         """token_limit < TOKEN_LIMIT_MIN → 400。"""
         service = SelfHealingConfigService(db)
         with pytest.raises(HTTPException) as exc_info:
@@ -279,9 +256,7 @@ class TestSetProjectConfig:
         assert exc_info.value.status_code == 400
         assert "token_limit 取值范围" in exc_info.value.detail
 
-    def test_set_config_token_limit_above_max_raises_400(
-        self, db: Session, seed_project
-    ):
+    def test_set_config_token_limit_above_max_raises_400(self, db: Session, seed_project):
         """token_limit > TOKEN_LIMIT_MAX → 400。"""
         service = SelfHealingConfigService(db)
         with pytest.raises(HTTPException) as exc_info:
@@ -295,62 +270,54 @@ class TestSetProjectConfig:
     def test_set_config_token_limit_boundary_min(self, db: Session, seed_project):
         """token_limit = TOKEN_LIMIT_MIN → 成功。"""
         service = SelfHealingConfigService(db)
-        result = service.set_project_config(
-            seed_project.id, {"token_limit": TOKEN_LIMIT_MIN}
-        )
+        result = service.set_project_config(seed_project.id, {"token_limit": TOKEN_LIMIT_MIN})
         assert result["token_limit"] == TOKEN_LIMIT_MIN
 
     def test_set_config_token_limit_boundary_max(self, db: Session, seed_project):
         """token_limit = TOKEN_LIMIT_MAX → 成功。"""
         service = SelfHealingConfigService(db)
-        result = service.set_project_config(
-            seed_project.id, {"token_limit": TOKEN_LIMIT_MAX}
-        )
+        result = service.set_project_config(seed_project.id, {"token_limit": TOKEN_LIMIT_MAX})
         assert result["token_limit"] == TOKEN_LIMIT_MAX
 
-    def test_set_config_invalid_enabled_type_raises_400(
-        self, db: Session, seed_project
-    ):
+    def test_set_config_invalid_enabled_type_raises_400(self, db: Session, seed_project):
         """enabled 非 bool → 400。"""
         service = SelfHealingConfigService(db)
         with pytest.raises(HTTPException) as exc_info:
             service.set_project_config(
-                seed_project.id, {"enabled": "yes"}  # type: ignore[dict-item]
+                seed_project.id,
+                {"enabled": "yes"},  # type: ignore[dict-item]
             )
         assert exc_info.value.status_code == 400
         assert "enabled 必须为布尔值" in exc_info.value.detail
 
-    def test_set_config_strategies_non_list_raises_400(
-        self, db: Session, seed_project
-    ):
+    def test_set_config_strategies_non_list_raises_400(self, db: Session, seed_project):
         """strategies 非 list → 400。"""
         service = SelfHealingConfigService(db)
         with pytest.raises(HTTPException) as exc_info:
             service.set_project_config(
-                seed_project.id, {"strategies": "mcp"}  # type: ignore[dict-item]
+                seed_project.id,
+                {"strategies": "mcp"},  # type: ignore[dict-item]
             )
         assert exc_info.value.status_code == 400
         assert "strategies 必须为字符串列表" in exc_info.value.detail
 
-    def test_set_config_strategies_non_string_element_raises_400(
-        self, db: Session, seed_project
-    ):
+    def test_set_config_strategies_non_string_element_raises_400(self, db: Session, seed_project):
         """strategies 元素非字符串 → 400。"""
         service = SelfHealingConfigService(db)
         with pytest.raises(HTTPException) as exc_info:
             service.set_project_config(
-                seed_project.id, {"strategies": ["mcp", 123]}  # type: ignore[list-item]
+                seed_project.id,
+                {"strategies": ["mcp", 123]},  # type: ignore[list-item]
             )
         assert exc_info.value.status_code == 400
 
-    def test_set_config_token_limit_non_int_raises_400(
-        self, db: Session, seed_project
-    ):
+    def test_set_config_token_limit_non_int_raises_400(self, db: Session, seed_project):
         """token_limit 非 int → 400。"""
         service = SelfHealingConfigService(db)
         with pytest.raises(HTTPException) as exc_info:
             service.set_project_config(
-                seed_project.id, {"token_limit": "2000"}  # type: ignore[dict-item]
+                seed_project.id,
+                {"token_limit": "2000"},  # type: ignore[dict-item]
             )
         assert exc_info.value.status_code == 400
         assert "token_limit 必须为整数" in exc_info.value.detail
@@ -359,9 +326,7 @@ class TestSetProjectConfig:
         """token_limit 为 bool（int 子类）→ 400。"""
         service = SelfHealingConfigService(db)
         with pytest.raises(HTTPException) as exc_info:
-            service.set_project_config(
-                seed_project.id, {"token_limit": True}
-            )
+            service.set_project_config(seed_project.id, {"token_limit": True})
         assert exc_info.value.status_code == 400
 
     def test_set_config_non_dict_raises_400(self, db: Session, seed_project):
@@ -369,31 +334,25 @@ class TestSetProjectConfig:
         service = SelfHealingConfigService(db)
         with pytest.raises(HTTPException) as exc_info:
             service.set_project_config(
-                seed_project.id, "not a dict"  # type: ignore[arg-type]
+                seed_project.id,
+                "not a dict",  # type: ignore[arg-type]
             )
         assert exc_info.value.status_code == 400
         assert "配置必须为字典对象" in exc_info.value.detail
 
-    def test_set_config_global_disabled_returns_enabled_false(
-        self, db: Session, seed_project
-    ):
+    def test_set_config_global_disabled_returns_enabled_false(self, db: Session, seed_project):
         """全局开关关时，set_project_config 返回 enabled=False。"""
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 False,
             )
-            result = service.set_project_config(
-                seed_project.id, {"enabled": True}
-            )
+            result = service.set_project_config(seed_project.id, {"enabled": True})
             # 全局关，即使项目开，返回 enabled=False
             assert result["enabled"] is False
 
-    def test_set_config_preserves_other_project_config_keys(
-        self, db: Session, testUser
-    ):
+    def test_set_config_preserves_other_project_config_keys(self, db: Session, testUser):
         """set_project_config 应保留 Project.config 中的其他 key。"""
         project = Project(
             name="multi_config_project",
@@ -421,15 +380,12 @@ class TestSetProjectConfig:
 class TestIsSelfHealingEnabled:
     """is_self_healing_enabled 快捷判断。"""
 
-    def test_enabled_when_global_and_project_both_on(
-        self, db: Session, seed_project_with_config
-    ):
+    def test_enabled_when_global_and_project_both_on(self, db: Session, seed_project_with_config):
         """全局开 + 项目开 → True。"""
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 True,
             )
             assert service.is_self_healing_enabled(seed_project_with_config.id) is True
@@ -439,8 +395,7 @@ class TestIsSelfHealingEnabled:
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 False,
             )
             assert service.is_self_healing_enabled(seed_project_with_config.id) is False
@@ -454,16 +409,13 @@ class TestIsSelfHealingEnabled:
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 True,
             )
             # 项目无配置，使用默认 enabled=True
             assert service.is_self_healing_enabled(seed_project.id) is True
 
-    def test_disabled_when_project_explicitly_disabled(
-        self, db: Session, testUser
-    ):
+    def test_disabled_when_project_explicitly_disabled(self, db: Session, testUser):
         """项目显式 enabled=False → False。"""
         project = Project(
             name="disabled_project",
@@ -479,8 +431,7 @@ class TestIsSelfHealingEnabled:
         service = SelfHealingConfigService(db)
         with pytest.MonkeyPatch().context() as mp:
             mp.setattr(
-                "app.services.self_healing.config_service.settings"
-                ".AI_SELF_HEALING_ENABLED",
+                "app.services.self_healing.config_service.settings.AI_SELF_HEALING_ENABLED",
                 True,
             )
             assert service.is_self_healing_enabled(project.id) is False

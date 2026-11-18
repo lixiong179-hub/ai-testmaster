@@ -23,10 +23,16 @@ class TestCreateIterationCrud:
 
     def test_create_with_all_fields(self, db, testProject):
         from datetime import datetime
+
         it = create_iteration(
-            db, testProject.id, "full_iter",
-            version="v2.0", description="描述", status="in_pipeline",
-            start_date=datetime.now(), end_date=datetime.now(),
+            db,
+            testProject.id,
+            "full_iter",
+            version="v2.0",
+            description="描述",
+            status="in_pipeline",
+            start_date=datetime.now(),
+            end_date=datetime.now(),
         )
         assert it.version == "v2.0"
         assert it.description == "描述"
@@ -108,8 +114,10 @@ class TestDeleteIteration:
     def test_delete_with_cleanup_callback(self, db, testProject):
         it = create_iteration(db, testProject.id, "callback_iter")
         callback_called = []
+
         def cleanup():
             callback_called.append(True)
+
         result = delete_iteration(db, it.id, cleanup_callback=cleanup)
         assert result is True
         assert len(callback_called) == 1

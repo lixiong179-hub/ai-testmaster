@@ -252,9 +252,11 @@ class TestBuildTestCaseResponse:
         assert result["test_category"] == "functional"
 
     def test_steps_with_display_action(self):
-        case = MockTestCase(steps_json=[
-            {"action": "click", "description": "点击提交按钮"},
-        ])
+        case = MockTestCase(
+            steps_json=[
+                {"action": "click", "description": "点击提交按钮"},
+            ]
+        )
         result = build_test_case_response(case)
         assert result["steps"][0]["display_action"] == "点击提交按钮"
         assert result["steps"][0]["action"] == "click"

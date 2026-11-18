@@ -15,7 +15,7 @@ from app.models.user import User
 
 def _create_task(db, testUser, **kwargs):
     project = Project(
-        name=f"vis_task_proj_{int(time.time()*1000)}",
+        name=f"vis_task_proj_{int(time.time() * 1000)}",
         user_id=testUser.id,
         description="test",
         status=1,
@@ -24,7 +24,7 @@ def _create_task(db, testUser, **kwargs):
     db.add(project)
     db.flush()
     defaults = dict(
-        task_name=f"vis_task_{int(time.time()*1000)}",
+        task_name=f"vis_task_{int(time.time() * 1000)}",
         project_id=project.id,
         executor_id=testUser.id,
         case_ids=[],
@@ -43,7 +43,7 @@ def _create_task(db, testUser, **kwargs):
 
 def _create_case(db, testUser, **kwargs):
     project = Project(
-        name=f"vis_case_proj_{int(time.time()*1000)}",
+        name=f"vis_case_proj_{int(time.time() * 1000)}",
         user_id=testUser.id,
         description="test",
         status=1,

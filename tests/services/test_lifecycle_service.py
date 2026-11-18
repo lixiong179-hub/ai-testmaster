@@ -24,12 +24,12 @@ def lc_user(db):
     db.flush()
     db.refresh(user)
     yield user
-    db.query(CodeReview).filter(
-        (CodeReview.reviewer_id == user.id) | (CodeReview.author_id == user.id)
-    ).delete(synchronize_session=False)
-    db.query(TestCase).filter(TestCase.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(CodeReview).filter((CodeReview.reviewer_id == user.id) | (CodeReview.author_id == user.id)).delete(
+        synchronize_session=False
+    )
+    db.query(TestCase).filter(TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.flush()
@@ -82,9 +82,8 @@ def _make_review(db, user_id):
 
 
 class TestCanTransitionCoverage:
-
     def test_all_rules_valid(self):
-        for (from_s, to_s) in TRANSITION_RULES:
+        for from_s, to_s in TRANSITION_RULES:
             assert can_transition(from_s, to_s) is True
 
     def test_unknown_from_status(self):
@@ -100,7 +99,6 @@ class TestCanTransitionCoverage:
 
 
 class TestTransitionCoverage:
-
     def test_draft_to_deprecated_with_reason(self, db, lc_project):
         tc = _make_case(db, lc_project.id, lifecycle_status="draft")
         result = transition(db, tc.id, "deprecated", reason="不再需要")
@@ -174,15 +172,18 @@ class TestTransitionCoverage:
         result = transition(db, tc.id, "pending_review", modification_hint="修改步骤")
         db.refresh(tc)
         assert tc.lifecycle_status == "archived"
-        new_case = db.query(TestCase).filter(
-            TestCase.parent_case_id == tc.id,
-            TestCase.lifecycle_status == "pending_review",
-        ).first()
+        new_case = (
+            db.query(TestCase)
+            .filter(
+                TestCase.parent_case_id == tc.id,
+                TestCase.lifecycle_status == "pending_review",
+            )
+            .first()
+        )
         assert new_case is not None
 
 
 class TestIllegalStateTransitionDetail:
-
     def test_exception_str_contains_statuses(self):
         exc = IllegalStateTransition("active", "draft", detail="不允许回退")
         assert "active" in str(exc)
@@ -196,7 +197,6 @@ class TestIllegalStateTransitionDetail:
 
 
 class TestMissingDeprecateReasonError:
-
     def test_pending_review_to_deprecated_without_reason(self, db, lc_project):
         tc = _make_case(db, lc_project.id, lifecycle_status="pending_review")
         with pytest.raises(MissingDeprecateReasonError):

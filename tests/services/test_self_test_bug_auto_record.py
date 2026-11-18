@@ -9,6 +9,7 @@
     - Bug记录字段正确性（source、test_result_id等）
     - 自测报告包含Bug列表
 """
+
 import pytest
 from sqlalchemy.orm import Session
 
@@ -189,9 +190,7 @@ def normalProjectResult(
 class TestBugModelSourceField:
     """Bug模型source字段默认值测试"""
 
-    def test_source_default_is_manual(
-        self, db: Session, selfTestProject: Project, testUser: User
-    ) -> None:
+    def test_source_default_is_manual(self, db: Session, selfTestProject: Project, testUser: User) -> None:
         bug = Bug(
             bug_no="BUG-SOURCE-001",
             project_id=selfTestProject.id,
@@ -205,9 +204,7 @@ class TestBugModelSourceField:
         db.flush()
         assert bug.source == "manual"
 
-    def test_source_self_test_value(
-        self, db: Session, selfTestProject: Project, testUser: User
-    ) -> None:
+    def test_source_self_test_value(self, db: Session, selfTestProject: Project, testUser: User) -> None:
         bug = Bug(
             bug_no="BUG-SOURCE-002",
             project_id=selfTestProject.id,
@@ -227,15 +224,17 @@ class TestAutoCreateBugForSelfTest:
     """自测项目失败分析自动创建Bug测试"""
 
     def test_product_bug_auto_creates_bug(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(failedTestResult, failedTestCase, db)
         assert analysis["suggested_type"] == "product_bug"
 
         bug = _auto_create_bug_for_self_test(
-            db=db, project=selfTestProject, result=failedTestResult,
-            test_case=failedTestCase, analysis=analysis,
+            db=db,
+            project=selfTestProject,
+            result=failedTestResult,
+            test_case=failedTestCase,
+            analysis=analysis,
         )
         assert bug is not None
         assert bug.id is not None
@@ -246,15 +245,13 @@ class TestAutoCreateBugForSelfTest:
         assert bug.test_result_id == failedTestResult.id
 
     def test_case_issue_does_not_create_bug(
-        self, db: Session, selfTestProject: Project,
-        caseIssueResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, caseIssueResult: TestResult, failedTestCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(caseIssueResult, failedTestCase, db)
         assert analysis["suggested_type"] == "case_issue"
 
     def test_normal_project_does_not_create_bug(
-        self, db: Session, normalProject: Project,
-        normalProjectResult: TestResult, normalProjectCase: TestCase
+        self, db: Session, normalProject: Project, normalProjectResult: TestResult, normalProjectCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(normalProjectResult, normalProjectCase, db)
         assert analysis["suggested_type"] == "product_bug"
@@ -265,13 +262,15 @@ class TestBugFieldCorrectness:
     """Bug记录字段正确性测试"""
 
     def test_bug_fields_correctness(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(failedTestResult, failedTestCase, db)
         bug = _auto_create_bug_for_self_test(
-            db=db, project=selfTestProject, result=failedTestResult,
-            test_case=failedTestCase, analysis=analysis,
+            db=db,
+            project=selfTestProject,
+            result=failedTestResult,
+            test_case=failedTestCase,
+            analysis=analysis,
         )
 
         assert bug.source == "self_test"
@@ -287,13 +286,15 @@ class TestBugFieldCorrectness:
         assert bug.reproduction_steps is not None
 
     def test_severity_high_confidence(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(failedTestResult, failedTestCase, db)
         bug = _auto_create_bug_for_self_test(
-            db=db, project=selfTestProject, result=failedTestResult,
-            test_case=failedTestCase, analysis=analysis,
+            db=db,
+            project=selfTestProject,
+            result=failedTestResult,
+            test_case=failedTestCase,
+            analysis=analysis,
         )
         if analysis["confidence"] >= 0.7:
             assert bug.severity == 2
@@ -303,38 +304,39 @@ class TestBugFieldCorrectness:
             assert bug.priority == 2
 
     def test_bug_no_generation(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         bug_no = _generate_bug_no(db, selfTestProject.id)
         assert bug_no.startswith(f"BUG-{selfTestProject.id}-")
         assert len(bug_no.split("-")[-1]) == 4
 
     def test_bug_description_contains_analysis(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(failedTestResult, failedTestCase, db)
         bug = _auto_create_bug_for_self_test(
-            db=db, project=selfTestProject, result=failedTestResult,
-            test_case=failedTestCase, analysis=analysis,
+            db=db,
+            project=selfTestProject,
+            result=failedTestResult,
+            test_case=failedTestCase,
+            analysis=analysis,
         )
         assert "AI分析结果" in bug.description
         assert "置信度" in bug.description
 
     def test_bug_screenshot_via_test_result(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(failedTestResult, failedTestCase, db)
         bug = _auto_create_bug_for_self_test(
-            db=db, project=selfTestProject, result=failedTestResult,
-            test_case=failedTestCase, analysis=analysis,
+            db=db,
+            project=selfTestProject,
+            result=failedTestResult,
+            test_case=failedTestCase,
+            analysis=analysis,
         )
         assert bug.test_result_id is not None
-        test_result = db.query(TestResult).filter(
-            TestResult.id == bug.test_result_id
-        ).first()
+        test_result = db.query(TestResult).filter(TestResult.id == bug.test_result_id).first()
         assert test_result is not None
         assert test_result.screenshot_url == failedTestResult.screenshot_url
         assert test_result.ai_analysis == failedTestResult.ai_analysis
@@ -344,13 +346,15 @@ class TestSelfTestReportBugList:
     """自测报告Bug列表测试"""
 
     def test_self_test_report_contains_bug_list(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(failedTestResult, failedTestCase, db)
         _auto_create_bug_for_self_test(
-            db=db, project=selfTestProject, result=failedTestResult,
-            test_case=failedTestCase, analysis=analysis,
+            db=db,
+            project=selfTestProject,
+            result=failedTestResult,
+            test_case=failedTestCase,
+            analysis=analysis,
         )
 
         bug_list = ReportService._build_self_test_bug_list(db, selfTestProject.id)
@@ -361,16 +365,18 @@ class TestSelfTestReportBugList:
         assert "bug_no" in bug_entry
 
     def test_self_test_bug_list_contains_screenshot(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         failedTestResult.screenshot_url = "/screenshots/fail.png"
         db.flush()
 
         analysis = _perform_failure_analysis(failedTestResult, failedTestCase, db)
         _auto_create_bug_for_self_test(
-            db=db, project=selfTestProject, result=failedTestResult,
-            test_case=failedTestCase, analysis=analysis,
+            db=db,
+            project=selfTestProject,
+            result=failedTestResult,
+            test_case=failedTestCase,
+            analysis=analysis,
         )
 
         bug_list = ReportService._build_self_test_bug_list(db, selfTestProject.id)
@@ -378,13 +384,15 @@ class TestSelfTestReportBugList:
         assert bug_list[0]["screenshot_url"] == "/screenshots/fail.png"
 
     def test_self_test_bug_list_contains_ai_analysis(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(failedTestResult, failedTestCase, db)
         _auto_create_bug_for_self_test(
-            db=db, project=selfTestProject, result=failedTestResult,
-            test_case=failedTestCase, analysis=analysis,
+            db=db,
+            project=selfTestProject,
+            result=failedTestResult,
+            test_case=failedTestCase,
+            analysis=analysis,
         )
 
         bug_list = ReportService._build_self_test_bug_list(db, selfTestProject.id)
@@ -392,28 +400,26 @@ class TestSelfTestReportBugList:
         assert bug_list[0]["ai_analysis"] is not None
 
     def test_self_test_bug_list_contains_fix_suggestion(
-        self, db: Session, selfTestProject: Project,
-        failedTestResult: TestResult, failedTestCase: TestCase
+        self, db: Session, selfTestProject: Project, failedTestResult: TestResult, failedTestCase: TestCase
     ) -> None:
         analysis = _perform_failure_analysis(failedTestResult, failedTestCase, db)
         _auto_create_bug_for_self_test(
-            db=db, project=selfTestProject, result=failedTestResult,
-            test_case=failedTestCase, analysis=analysis,
+            db=db,
+            project=selfTestProject,
+            result=failedTestResult,
+            test_case=failedTestCase,
+            analysis=analysis,
         )
 
         bug_list = ReportService._build_self_test_bug_list(db, selfTestProject.id)
         assert len(bug_list) >= 1
         assert bug_list[0]["fix_suggestion"] is not None
 
-    def test_normal_project_bug_list_empty(
-        self, db: Session, normalProject: Project
-    ) -> None:
+    def test_normal_project_bug_list_empty(self, db: Session, normalProject: Project) -> None:
         bug_list = ReportService._build_self_test_bug_list(db, normalProject.id)
         assert bug_list == []
 
-    def test_no_bugs_returns_empty_list(
-        self, db: Session, selfTestProject: Project
-    ) -> None:
+    def test_no_bugs_returns_empty_list(self, db: Session, selfTestProject: Project) -> None:
         bug_list = ReportService._build_self_test_bug_list(db, selfTestProject.id)
         assert bug_list == []
 

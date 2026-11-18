@@ -10,6 +10,7 @@
     - _parse_llm_response() 解析 JSON content
     - _parse_llm_response() 解析失败回退
 """
+
 from __future__ import annotations
 
 import io
@@ -47,6 +48,7 @@ class _MockTokenUsage:
 @dataclass
 class _MockAIResponse:
     """模拟 AIClient.complete() 返回值。"""
+
     content: str = ""
     parsed: Optional[Dict[str, Any]] = None
     usage: Optional[_MockTokenUsage] = None
@@ -253,13 +255,15 @@ class TestParseLLMResponse:
 
         engine = ComparisonEngine()
         response = _MockAIResponse(
-            content=json.dumps({
-                "category": "visual_noise",
-                "confidence": 0.9,
-                "severity": "info",
-                "description": "抗锯齿差异",
-                "suggestion": "忽略",
-            }),
+            content=json.dumps(
+                {
+                    "category": "visual_noise",
+                    "confidence": 0.9,
+                    "severity": "info",
+                    "description": "抗锯齿差异",
+                    "suggestion": "忽略",
+                }
+            ),
             usage=_MockTokenUsage(prompt_tokens=20, completion_tokens=10),
         )
 

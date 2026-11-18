@@ -41,6 +41,7 @@ class TestVisibilityConfigCoreMixin:
     def test_get_task_config_no_vis_config(self):
         class FakeTask:
             visibility_config = None
+
         task = FakeTask()
         config = self.mixin.get_task_config(task)
         assert isinstance(config, VisibilityConfig)
@@ -48,6 +49,7 @@ class TestVisibilityConfigCoreMixin:
     def test_get_task_config_with_vis_config(self):
         class FakeTask:
             visibility_config = {"headless": False, "record_video": True}
+
         task = FakeTask()
         config = self.mixin.get_task_config(task)
         assert config.headless is False
@@ -55,6 +57,7 @@ class TestVisibilityConfigCoreMixin:
     def test_get_case_config_no_vis_config(self):
         class FakeCase:
             visibility_config = None
+
         case = FakeCase()
         config = self.mixin.get_case_config(case)
         assert isinstance(config, VisibilityConfig)
@@ -62,6 +65,7 @@ class TestVisibilityConfigCoreMixin:
     def test_get_case_config_with_vis_config(self):
         class FakeCase:
             visibility_config = {"headless": False}
+
         case = FakeCase()
         config = self.mixin.get_case_config(case)
         assert config.headless is False
@@ -70,6 +74,7 @@ class TestVisibilityConfigCoreMixin:
         class FakeTask:
             id = 1
             visibility_config = None
+
         task = FakeTask()
         new_config = VisibilityConfig(headless=False)
         self.mixin.update_task_config(task, new_config)
@@ -80,6 +85,7 @@ class TestVisibilityConfigCoreMixin:
         class FakeCase:
             id = 1
             visibility_config = None
+
         case = FakeCase()
         new_config = VisibilityConfig(headless=False)
         self.mixin.update_case_config(case, new_config)

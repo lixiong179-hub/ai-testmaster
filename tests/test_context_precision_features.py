@@ -91,6 +91,7 @@ class TestCompletenessScore:
 class TestBuildPriorityRules:
     def test_full_context(self):
         from app.utils.ai_client_enhanced._enhanced import _build_priority_rules
+
         rules = _build_priority_rules(has_ui=True, has_requirement=True, has_test_point=True)
         assert "信息优先级" in rules
         assert "当前测试点 > 关联需求文档" in rules
@@ -99,23 +100,27 @@ class TestBuildPriorityRules:
 
     def test_no_requirement(self):
         from app.utils.ai_client_enhanced._enhanced import _build_priority_rules
+
         rules = _build_priority_rules(has_ui=True, has_requirement=False, has_test_point=True)
         assert "缺少需求文档" in rules
         assert "不得升级为业务事实来源" in rules
 
     def test_no_ui(self):
         from app.utils.ai_client_enhanced._enhanced import _build_priority_rules
+
         rules = _build_priority_rules(has_ui=False, has_requirement=True, has_test_point=True)
         assert "缺少UI原型图" in rules
         assert "待确认UI" in rules
 
     def test_no_test_point(self):
         from app.utils.ai_client_enhanced._enhanced import _build_priority_rules
+
         rules = _build_priority_rules(has_ui=True, has_requirement=True, has_test_point=False)
         assert "缺少测试点" in rules
 
     def test_hard_constraints_present(self):
         from app.utils.ai_client_enhanced._enhanced import _build_priority_rules
+
         rules = _build_priority_rules(has_ui=True, has_requirement=True, has_test_point=True)
         assert "硬约束" in rules
         assert "二级提示策略" in rules
@@ -124,6 +129,7 @@ class TestBuildPriorityRules:
 class TestAssessHistoryTrust:
     def test_high_trust_fresh_case(self):
         from app.services.test_case_generation.history_context import _assess_history_trust
+
         case = MagicMock()
         case.test_point_id = None
         case.update_time = datetime.now(timezone.utc)
@@ -135,6 +141,7 @@ class TestAssessHistoryTrust:
 
     def test_low_trust_requirement_mismatch(self):
         from app.services.test_case_generation.history_context import _assess_history_trust
+
         db_mock = MagicMock()
         tp_mock = MagicMock()
         tp_mock.requirement_id = 999
@@ -150,6 +157,7 @@ class TestAssessHistoryTrust:
 
     def test_medium_trust_stale_case(self):
         from app.services.test_case_generation.history_context import _assess_history_trust
+
         db_mock = MagicMock()
         tp_mock = MagicMock()
         tp_mock.requirement_id = 1
@@ -163,7 +171,7 @@ class TestAssessHistoryTrust:
 
         def query_side_effect(model):
             result = MagicMock()
-            result.filter.return_value.first.return_value = tp_mock if model.__name__ == 'TestPoint' else req_mock
+            result.filter.return_value.first.return_value = tp_mock if model.__name__ == "TestPoint" else req_mock
             return result
 
         db_mock.query.side_effect = query_side_effect
@@ -173,6 +181,7 @@ class TestAssessHistoryTrust:
 
     def test_medium_trust_no_summary(self):
         from app.services.test_case_generation.history_context import _assess_history_trust
+
         case = MagicMock()
         case.test_point_id = None
         case.update_time = datetime.now(timezone.utc)
@@ -186,6 +195,7 @@ class TestAssessHistoryTrust:
 class TestSummarizeHistoryCaseWithTrust:
     def test_includes_trust_fields(self):
         from app.services.test_case_generation.history_context import _summarize_history_case
+
         case = MagicMock()
         case.id = 1
         case.case_no = "TC-001"
@@ -201,6 +211,7 @@ class TestSummarizeHistoryCaseWithTrust:
 
     def test_low_trust_fields(self):
         from app.services.test_case_generation.history_context import _summarize_history_case
+
         case = MagicMock()
         case.id = 2
         case.case_no = "TC-002"
@@ -219,6 +230,7 @@ class TestSummarizeHistoryCaseWithTrust:
 class TestCaseRefreshSuggestionModel:
     def test_model_fields(self):
         from app.models.case_refresh_suggestion import CaseRefreshSuggestion
+
         suggestion = CaseRefreshSuggestion(
             case_id=1,
             trigger_reason="stale",
@@ -233,6 +245,7 @@ class TestCaseRefreshSuggestionModel:
 
     def test_model_with_ai_result(self):
         from app.models.case_refresh_suggestion import CaseRefreshSuggestion
+
         suggestion = CaseRefreshSuggestion(
             case_id=1,
             requirement_id=10,
@@ -255,6 +268,7 @@ class TestCaseRefreshService:
 
     async def test_create_suggestion(self):
         from app.services.case_refresh_service import CaseRefreshService
+
         service = CaseRefreshService(self.db)
         ai_result = {
             "is_valid": True,
@@ -277,6 +291,7 @@ class TestCaseRefreshService:
 
     def test_build_refresh_prompt(self):
         from app.services.case_refresh_service import CaseRefreshService
+
         service = CaseRefreshService(self.db)
         case = MagicMock()
         case.title = "登录验证"
@@ -291,6 +306,7 @@ class TestCaseRefreshService:
 
     def test_parse_refresh_response_valid_json(self):
         from app.services.case_refresh_service import CaseRefreshService
+
         service = CaseRefreshService(self.db)
         response = '{"is_valid": true, "suggested_title": "新标题", "diff_description": "变更"}'
         result = service.parse_refresh_response(response)
@@ -299,6 +315,7 @@ class TestCaseRefreshService:
 
     def test_parse_refresh_response_with_code_block(self):
         from app.services.case_refresh_service import CaseRefreshService
+
         service = CaseRefreshService(self.db)
         response = '```json\n{"is_valid": false, "deprecation_reason": "需求已删除"}\n```'
         result = service.parse_refresh_response(response)
@@ -307,6 +324,7 @@ class TestCaseRefreshService:
 
     def test_parse_refresh_response_invalid(self):
         from app.services.case_refresh_service import CaseRefreshService
+
         service = CaseRefreshService(self.db)
         result = service.parse_refresh_response("not json at all")
         assert "AI响应解析失败" in result["diff_description"]

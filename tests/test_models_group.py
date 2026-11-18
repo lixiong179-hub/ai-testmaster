@@ -5,11 +5,7 @@ from app.models.user import User, Role
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="grp_test_user",
-        email="grp_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="grp_test_user", email="grp_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -20,10 +16,7 @@ def test_user(db):
 
 class TestGroupModel:
     def test_create_group(self, db):
-        group = Group(
-            name="test_group_model",
-            desc="测试用户组"
-        )
+        group = Group(name="test_group_model", desc="测试用户组")
         db.add(group)
         db.commit()
         db.refresh(group)
@@ -67,8 +60,8 @@ class TestGroupModel:
         db.commit()
 
     def test_group_relationships(self):
-        assert hasattr(Group, 'users')
-        assert hasattr(Group, 'roles')
+        assert hasattr(Group, "users")
+        assert hasattr(Group, "roles")
 
     def test_group_with_users(self, db, test_user):
         group = Group(name="user_group_model", desc="带用户的组")

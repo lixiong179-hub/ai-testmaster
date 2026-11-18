@@ -4,6 +4,7 @@
 审批、回滚。使用 async_auth_client 真实调用 HTTP, 测试数据经 async_db
 直接创建(共享事务), 覆盖正常/异常/边界场景。
 """
+
 from app.models.agent_audit import AgentAudit
 from app.models.agent_message import AgentMessage
 from app.models.agent_session import AgentSession
@@ -12,12 +13,18 @@ from app.models.agent_session import AgentSession
 # ── 测试数据辅助函数 ──
 
 
-async def _create_session(async_db, *, project_id, created_by=None,
-                          agent_type="test_generation", status="running") -> AgentSession:
+async def _create_session(
+    async_db, *, project_id, created_by=None, agent_type="test_generation", status="running"
+) -> AgentSession:
     """通过 async_db 创建 AgentSession 记录。"""
     session = AgentSession(
-        project_id=project_id, agent_type=agent_type, status=status,
-        token_cost=0, iteration_count=0, loop_detected=False, created_by=created_by,
+        project_id=project_id,
+        agent_type=agent_type,
+        status=status,
+        token_cost=0,
+        iteration_count=0,
+        loop_detected=False,
+        created_by=created_by,
     )
     async_db.add(session)
     await async_db.flush()
@@ -25,12 +32,13 @@ async def _create_session(async_db, *, project_id, created_by=None,
     return session
 
 
-async def _append_message(async_db, *, session_id, role="assistant",
-                          content=None, token_cost=0) -> AgentMessage:
+async def _append_message(async_db, *, session_id, role="assistant", content=None, token_cost=0) -> AgentMessage:
     """通过 async_db 追加 AgentMessage 记录。"""
     message = AgentMessage(
-        session_id=session_id, role=role,
-        content=content or {"text": "test message"}, token_cost=token_cost,
+        session_id=session_id,
+        role=role,
+        content=content or {"text": "test message"},
+        token_cost=token_cost,
     )
     async_db.add(message)
     await async_db.flush()
@@ -38,13 +46,16 @@ async def _append_message(async_db, *, session_id, role="assistant",
     return message
 
 
-async def _create_audit(async_db, *, session_id, iteration=1,
-                        action_type="tool_call", action_detail=None,
-                        decision_confidence=None) -> AgentAudit:
+async def _create_audit(
+    async_db, *, session_id, iteration=1, action_type="tool_call", action_detail=None, decision_confidence=None
+) -> AgentAudit:
     """通过 async_db 创建 AgentAudit 记录(human_approved=0 待审批)。"""
     audit = AgentAudit(
-        session_id=session_id, iteration=iteration, action_type=action_type,
-        action_detail=action_detail or {}, decision_confidence=decision_confidence,
+        session_id=session_id,
+        iteration=iteration,
+        action_type=action_type,
+        action_detail=action_detail or {},
+        decision_confidence=decision_confidence,
         human_approved=0,
     )
     async_db.add(audit)
@@ -58,6 +69,7 @@ async def _create_other_user(async_db):
     import uuid
     from app.models.user import User
     from app.utils.jwt_utils import get_password_hash
+
     suffix = uuid.uuid4().hex[:8]
     other = User(
         username=f"async_other_user_{suffix}",
@@ -79,8 +91,7 @@ class TestCreateSession:
     async def test_create_session_success(self, async_auth_client, async_test_project, async_test_user):
         resp = await async_auth_client.post(
             "/api/v1/agents/sessions",
-            json={"agent_type": "test_generation", "project_id": async_test_project.id,
-                  "initial_artifacts": []},
+            json={"agent_type": "test_generation", "project_id": async_test_project.id, "initial_artifacts": []},
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -118,10 +129,11 @@ class TestCreateSession:
 
 
 class TestGetSession:
-    async def test_get_session_success(self, async_auth_client, async_test_project,
-                                       async_test_user, async_db):
+    async def test_get_session_success(self, async_auth_client, async_test_project, async_test_user, async_db):
         session = await _create_session(
-            async_db, project_id=async_test_project.id, created_by=async_test_user.id,
+            async_db,
+            project_id=async_test_project.id,
+            created_by=async_test_user.id,
         )
         resp = await async_auth_client.get(f"/api/v1/agents/sessions/{session.id}")
         assert resp.status_code == 200
@@ -137,7 +149,9 @@ class TestGetSession:
     async def test_get_session_forbidden_idor(self, async_auth_client, async_test_project, async_db):
         other = await _create_other_user(async_db)
         session = await _create_session(
-            async_db, project_id=async_test_project.id, created_by=other.id,
+            async_db,
+            project_id=async_test_project.id,
+            created_by=other.id,
         )
         resp = await async_auth_client.get(f"/api/v1/agents/sessions/{session.id}")
         assert resp.status_code == 403
@@ -149,10 +163,8 @@ class TestGetSession:
 class TestListMessages:
     async def test_list_messages_success(self, async_auth_client, async_test_project, async_test_user, async_db):
         session = await _create_session(async_db, project_id=async_test_project.id, created_by=async_test_user.id)
-        await _append_message(async_db, session_id=session.id, role="user",
-                              content={"text": "hello"})
-        await _append_message(async_db, session_id=session.id, role="assistant",
-                              content={"text": "hi"})
+        await _append_message(async_db, session_id=session.id, role="user", content={"text": "hello"})
+        await _append_message(async_db, session_id=session.id, role="assistant", content={"text": "hi"})
         resp = await async_auth_client.get(
             f"/api/v1/agents/sessions/{session.id}/messages",
         )
@@ -167,8 +179,7 @@ class TestListMessages:
     async def test_list_messages_limit(self, async_auth_client, async_test_project, async_test_user, async_db):
         session = await _create_session(async_db, project_id=async_test_project.id, created_by=async_test_user.id)
         for i in range(5):
-            await _append_message(async_db, session_id=session.id,
-                                  content={"text": f"msg-{i}"})
+            await _append_message(async_db, session_id=session.id, content={"text": f"msg-{i}"})
         resp = await async_auth_client.get(
             f"/api/v1/agents/sessions/{session.id}/messages?limit=2",
         )
@@ -178,7 +189,9 @@ class TestListMessages:
     async def test_list_messages_forbidden_idor(self, async_auth_client, async_test_project, async_db):
         other = await _create_other_user(async_db)
         session = await _create_session(
-            async_db, project_id=async_test_project.id, created_by=other.id,
+            async_db,
+            project_id=async_test_project.id,
+            created_by=other.id,
         )
         await _append_message(async_db, session_id=session.id, content={"text": "secret"})
         resp = await async_auth_client.get(
@@ -207,7 +220,9 @@ class TestCancelSession:
     async def test_cancel_session_forbidden_idor(self, async_auth_client, async_test_project, async_db):
         other = await _create_other_user(async_db)
         session = await _create_session(
-            async_db, project_id=async_test_project.id, created_by=other.id,
+            async_db,
+            project_id=async_test_project.id,
+            created_by=other.id,
         )
         resp = await async_auth_client.post(f"/api/v1/agents/sessions/{session.id}/cancel")
         assert resp.status_code == 403
@@ -230,11 +245,9 @@ class TestListSessions:
             assert item["project_id"] == async_test_project.id
 
     async def test_list_by_agent_type(self, async_auth_client, async_test_project, async_db):
-        await _create_session(async_db, project_id=async_test_project.id,
-                              agent_type="failure_analysis")
+        await _create_session(async_db, project_id=async_test_project.id, agent_type="failure_analysis")
         resp = await async_auth_client.get(
-            f"/api/v1/agents/sessions?project_id={async_test_project.id}"
-            "&agent_type=failure_analysis",
+            f"/api/v1/agents/sessions?project_id={async_test_project.id}&agent_type=failure_analysis",
         )
         assert resp.status_code == 200
         for item in resp.json()["data"]["items"]:
@@ -269,7 +282,8 @@ class TestApproveAudit:
         session = await _create_session(async_db, project_id=async_test_project.id, created_by=async_test_user.id)
         audit = await _create_audit(async_db, session_id=session.id)
         resp = await async_auth_client.post(
-            f"/api/v1/agents/audits/{audit.id}/approve", json={"approved": True},
+            f"/api/v1/agents/audits/{audit.id}/approve",
+            json={"approved": True},
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -280,25 +294,30 @@ class TestApproveAudit:
         session = await _create_session(async_db, project_id=async_test_project.id, created_by=async_test_user.id)
         audit = await _create_audit(async_db, session_id=session.id)
         resp = await async_auth_client.post(
-            f"/api/v1/agents/audits/{audit.id}/approve", json={"approved": False},
+            f"/api/v1/agents/audits/{audit.id}/approve",
+            json={"approved": False},
         )
         assert resp.status_code == 200
         assert resp.json()["data"]["human_approved"] == 2
 
     async def test_approve_not_found(self, async_auth_client):
         resp = await async_auth_client.post(
-            "/api/v1/agents/audits/999999/approve", json={"approved": True},
+            "/api/v1/agents/audits/999999/approve",
+            json={"approved": True},
         )
         assert resp.status_code == 400
 
     async def test_approve_forbidden_idor(self, async_auth_client, async_test_project, async_db):
         other = await _create_other_user(async_db)
         session = await _create_session(
-            async_db, project_id=async_test_project.id, created_by=other.id,
+            async_db,
+            project_id=async_test_project.id,
+            created_by=other.id,
         )
         audit = await _create_audit(async_db, session_id=session.id)
         resp = await async_auth_client.post(
-            f"/api/v1/agents/audits/{audit.id}/approve", json={"approved": True},
+            f"/api/v1/agents/audits/{audit.id}/approve",
+            json={"approved": True},
         )
         assert resp.status_code == 403
 
@@ -307,15 +326,19 @@ class TestApproveAudit:
 
 
 class TestRollbackAudit:
-    async def test_rollback_create_test_case_success(self, async_auth_client,
-                                                     async_test_project, async_test_user, async_db):
+    async def test_rollback_create_test_case_success(
+        self, async_auth_client, async_test_project, async_test_user, async_db
+    ):
         session = await _create_session(async_db, project_id=async_test_project.id, created_by=async_test_user.id)
         audit = await _create_audit(
-            async_db, session_id=session.id, action_type="create_test_case",
+            async_db,
+            session_id=session.id,
+            action_type="create_test_case",
             action_detail={"test_case_id": 99999},
         )
         resp = await async_auth_client.post(
-            f"/api/v1/agents/audits/{audit.id}/rollback", json={"reason": "测试回滚"},
+            f"/api/v1/agents/audits/{audit.id}/rollback",
+            json={"reason": "测试回滚"},
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -326,29 +349,35 @@ class TestRollbackAudit:
 
     async def test_rollback_not_found(self, async_auth_client):
         resp = await async_auth_client.post(
-            "/api/v1/agents/audits/999999/rollback", json={"reason": "测试"},
+            "/api/v1/agents/audits/999999/rollback",
+            json={"reason": "测试"},
         )
         assert resp.status_code == 400
 
-    async def test_rollback_unknown_action_type(self, async_auth_client,
-                                                 async_test_project, async_test_user, async_db):
+    async def test_rollback_unknown_action_type(self, async_auth_client, async_test_project, async_test_user, async_db):
         session = await _create_session(async_db, project_id=async_test_project.id, created_by=async_test_user.id)
         audit = await _create_audit(async_db, session_id=session.id, action_type="tool_call")
         resp = await async_auth_client.post(
-            f"/api/v1/agents/audits/{audit.id}/rollback", json={"reason": "测试"},
+            f"/api/v1/agents/audits/{audit.id}/rollback",
+            json={"reason": "测试"},
         )
         assert resp.status_code == 501
 
     async def test_rollback_forbidden_idor(self, async_auth_client, async_test_project, async_db):
         other = await _create_other_user(async_db)
         session = await _create_session(
-            async_db, project_id=async_test_project.id, created_by=other.id,
+            async_db,
+            project_id=async_test_project.id,
+            created_by=other.id,
         )
         audit = await _create_audit(
-            async_db, session_id=session.id, action_type="create_test_case",
+            async_db,
+            session_id=session.id,
+            action_type="create_test_case",
             action_detail={"test_case_id": 99999},
         )
         resp = await async_auth_client.post(
-            f"/api/v1/agents/audits/{audit.id}/rollback", json={"reason": "测试回滚"},
+            f"/api/v1/agents/audits/{audit.id}/rollback",
+            json={"reason": "测试回滚"},
         )
         assert resp.status_code == 403

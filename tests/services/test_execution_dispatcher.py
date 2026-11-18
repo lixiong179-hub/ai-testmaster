@@ -11,6 +11,7 @@
 `docker compose up -d --scale executor=3` 的部署级验收覆盖；
 本文件用「第二次领取返回 None」锁定条件更新的互斥语义。
 """
+
 import uuid
 
 import pytest

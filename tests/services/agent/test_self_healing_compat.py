@@ -24,6 +24,7 @@
     - 外部依赖隔离：Redis 用 fakeredis（项目规则允许）；DB 用 async_db
       事务回滚隔离；prometheus_client 默认 REGISTRY 通过增量断言避免重置。
 """
+
 from __future__ import annotations
 
 import json
@@ -89,9 +90,7 @@ class TestBaseTokenBudgetGuardSharing:
             agent_type="test_generation",
             project_id=1,
         )
-        self_heal_guard = SelfHealingTokenBudgetGuard(
-            redis_client=shared_fake_redis
-        )
+        self_heal_guard = SelfHealingTokenBudgetGuard(redis_client=shared_fake_redis)
 
         agent_guard.consume(1500)
         self_heal_guard.consume(2500)
@@ -100,9 +99,7 @@ class TestBaseTokenBudgetGuardSharing:
         assert agent_guard._get_consumed() == 1500
         assert self_heal_guard._get_consumed() == 2500
 
-    def test_namespace_isolation_by_agent_type_and_project(
-        self, shared_fake_redis
-    ):
+    def test_namespace_isolation_by_agent_type_and_project(self, shared_fake_redis):
         """不同 agent_type + project_id 的 Agent 守卫彼此隔离。"""
         guard_a = AgentTokenBudgetGuard(
             redis_client=shared_fake_redis,
@@ -119,9 +116,7 @@ class TestBaseTokenBudgetGuardSharing:
         assert guard_a._get_consumed() == 800
         assert guard_b._get_consumed() == 1200
 
-    def test_ttl_consistency_between_agent_and_self_heal(
-        self, shared_fake_redis
-    ):
+    def test_ttl_consistency_between_agent_and_self_heal(self, shared_fake_redis):
         """二者 TTL 均为 25h，跨时区覆盖一天的设计一致。"""
         day = datetime.now().strftime("%Y%m%d")
         agent_guard = AgentTokenBudgetGuard(
@@ -129,16 +124,12 @@ class TestBaseTokenBudgetGuardSharing:
             agent_type="test_generation",
             project_id=1,
         )
-        self_heal_guard = SelfHealingTokenBudgetGuard(
-            redis_client=shared_fake_redis
-        )
+        self_heal_guard = SelfHealingTokenBudgetGuard(redis_client=shared_fake_redis)
         agent_guard.consume(100)
         self_heal_guard.consume(100)
 
         agent_ttl = shared_fake_redis.ttl(agent_guard._build_counter_key(day))
-        self_heal_ttl = shared_fake_redis.ttl(
-            self_heal_guard._build_counter_key(day)
-        )
+        self_heal_ttl = shared_fake_redis.ttl(self_heal_guard._build_counter_key(day))
         # 允许 5 秒误差（两个 consume 之间的耗时）
         assert abs(agent_ttl - self_heal_ttl) < 10
         # 均在 25h 附近（25 * 3600 = 90000 秒）
@@ -160,9 +151,7 @@ class TestBaseTokenBudgetGuardSharing:
             agent_type="test_generation",
             project_id=1,
         )
-        self_heal_guard = SelfHealingTokenBudgetGuard(
-            redis_client=broken_redis_b
-        )
+        self_heal_guard = SelfHealingTokenBudgetGuard(redis_client=broken_redis_b)
         agent_guard.consume(500)
         self_heal_guard.consume(700)
 
@@ -170,18 +159,14 @@ class TestBaseTokenBudgetGuardSharing:
         assert agent_guard._memory_counter == 500
         assert self_heal_guard._memory_counter == 700
 
-    def test_agent_daily_budget_check_not_affected_by_self_heal_consumption(
-        self, shared_fake_redis
-    ):
+    def test_agent_daily_budget_check_not_affected_by_self_heal_consumption(self, shared_fake_redis):
         """自愈大量消耗 Token 不应触发 Agent 的日预算熔断。"""
         agent_guard = AgentTokenBudgetGuard(
             redis_client=shared_fake_redis,
             agent_type="test_generation",
             project_id=1,
         )
-        self_heal_guard = SelfHealingTokenBudgetGuard(
-            redis_client=shared_fake_redis
-        )
+        self_heal_guard = SelfHealingTokenBudgetGuard(redis_client=shared_fake_redis)
         # 自愈消耗接近其自身预算
         self_heal_guard.consume(settings.AI_SELF_HEALING_DAILY_TOKEN_BUDGET - 1)
         # Agent 只消耗少量
@@ -191,18 +176,14 @@ class TestBaseTokenBudgetGuardSharing:
         # 自愈自身应接近熔断但未熔断
         assert self_heal_guard.is_daily_budget_exhausted() is False
 
-    def test_self_heal_daily_budget_check_not_affected_by_agent_consumption(
-        self, shared_fake_redis
-    ):
+    def test_self_heal_daily_budget_check_not_affected_by_agent_consumption(self, shared_fake_redis):
         """Agent 大量消耗 Token 不应触发自愈的日预算熔断。"""
         agent_guard = AgentTokenBudgetGuard(
             redis_client=shared_fake_redis,
             agent_type="test_generation",
             project_id=1,
         )
-        self_heal_guard = SelfHealingTokenBudgetGuard(
-            redis_client=shared_fake_redis
-        )
+        self_heal_guard = SelfHealingTokenBudgetGuard(redis_client=shared_fake_redis)
         # Agent 消耗接近其自身预算
         agent_guard.consume(settings.AI_AGENT_DAILY_TOKEN_BUDGET - 1)
         # 自愈只消耗少量
@@ -246,9 +227,7 @@ class TestHealResultImportContract:
 
     def test_heal_result_none_selector_for_failure(self):
         """自愈失败时 selector=None，仍可被 ToolResult 承载。"""
-        result = HealResult(
-            selector=None, confidence=0.0, token_cost=0, strategy="skip"
-        )
+        result = HealResult(selector=None, confidence=0.0, token_cost=0, strategy="skip")
         tool_result = ToolResult(success=False, output=result, error="元素未找到")
         assert tool_result.success is False
         assert tool_result.output.selector is None
@@ -381,20 +360,14 @@ class TestMCPServerSelfHealingAuditInterop:
         assert "offset" in tool.input_schema["properties"]
 
     @pytest.mark.asyncio
-    async def test_handler_returns_empty_when_no_audits(
-        self, async_db, async_test_user
-    ):
+    async def test_handler_returns_empty_when_no_audits(self, async_db, async_test_user):
         """无审计记录时返回空列表与 total=0。"""
-        result = await _query_self_healing_audit_handler(
-            async_db, async_test_user, {}
-        )
+        result = await _query_self_healing_audit_handler(async_db, async_test_user, {})
         assert result["total"] == 0
         assert result["audits"] == []
 
     @pytest.mark.asyncio
-    async def test_handler_returns_audits_with_correct_fields(
-        self, async_db, async_test_user, async_test_project
-    ):
+    async def test_handler_returns_audits_with_correct_fields(self, async_db, async_test_user, async_test_project):
         """有审计记录时返回完整字段，且可 JSON 序列化。"""
         # 构造测试用例与审计记录（TestCase.module 为 NOT NULL，必须设置）
         from app.models.test_case import TestCase
@@ -430,14 +403,10 @@ class TestMCPServerSelfHealingAuditInterop:
         async_db.add(audit)
         await async_db.flush()
 
-        result = await _query_self_healing_audit_handler(
-            async_db, async_test_user, {}
-        )
+        result = await _query_self_healing_audit_handler(async_db, async_test_user, {})
         assert result["total"] >= 1
         # 找到刚插入的审计记录
-        target = next(
-            (a for a in result["audits"] if a["id"] == audit.id), None
-        )
+        target = next((a for a in result["audits"] if a["id"] == audit.id), None)
         assert target is not None
         assert target["test_case_id"] == case.id
         assert target["step_index"] == 0
@@ -454,9 +423,7 @@ class TestMCPServerSelfHealingAuditInterop:
         assert "element_gone" in serialized
 
     @pytest.mark.asyncio
-    async def test_handler_pagination_works(
-        self, async_db, async_test_user, async_test_project
-    ):
+    async def test_handler_pagination_works(self, async_db, async_test_user, async_test_project):
         """分页参数 limit/offset 生效。"""
         from app.models.test_case import TestCase
 
@@ -494,16 +461,12 @@ class TestMCPServerSelfHealingAuditInterop:
         await async_db.flush()
 
         # 第一页：limit=2 offset=0
-        page1 = await _query_self_healing_audit_handler(
-            async_db, async_test_user, {"limit": 2, "offset": 0}
-        )
+        page1 = await _query_self_healing_audit_handler(async_db, async_test_user, {"limit": 2, "offset": 0})
         assert page1["total"] >= 5
         assert len(page1["audits"]) == 2
 
         # 第二页：limit=2 offset=2
-        page2 = await _query_self_healing_audit_handler(
-            async_db, async_test_user, {"limit": 2, "offset": 2}
-        )
+        page2 = await _query_self_healing_audit_handler(async_db, async_test_user, {"limit": 2, "offset": 2})
         assert len(page2["audits"]) == 2
 
         # 两页的 id 不重叠
@@ -512,9 +475,7 @@ class TestMCPServerSelfHealingAuditInterop:
         assert page1_ids.isdisjoint(page2_ids)
 
     @pytest.mark.asyncio
-    async def test_handler_default_limit_is_10(
-        self, async_db, async_test_user, async_test_project
-    ):
+    async def test_handler_default_limit_is_10(self, async_db, async_test_user, async_test_project):
         """不传 limit 时默认返回 10 条。"""
         from app.models.test_case import TestCase
 
@@ -551,17 +512,13 @@ class TestMCPServerSelfHealingAuditInterop:
             async_db.add(audit)
         await async_db.flush()
 
-        result = await _query_self_healing_audit_handler(
-            async_db, async_test_user, {}
-        )
+        result = await _query_self_healing_audit_handler(async_db, async_test_user, {})
         # 默认 limit=10
         assert len(result["audits"]) == 10
         assert result["total"] >= 12
 
     @pytest.mark.asyncio
-    async def test_handler_results_ordered_by_id_desc(
-        self, async_db, async_test_user, async_test_project
-    ):
+    async def test_handler_results_ordered_by_id_desc(self, async_db, async_test_user, async_test_project):
         """结果按 id 倒序返回（最新记录在前）。"""
         from app.models.test_case import TestCase
 
@@ -599,18 +556,14 @@ class TestMCPServerSelfHealingAuditInterop:
             await async_db.flush()
             ids.append(audit.id)
 
-        result = await _query_self_healing_audit_handler(
-            async_db, async_test_user, {"limit": 10}
-        )
+        result = await _query_self_healing_audit_handler(async_db, async_test_user, {"limit": 10})
         # 找到本次插入的记录
         result_ids = [a["id"] for a in result["audits"] if a["id"] in ids]
         # 应按倒序排列
         assert result_ids == sorted(result_ids, reverse=True)
 
     @pytest.mark.asyncio
-    async def test_mcp_server_call_tool_routes_to_handler(
-        self, async_db, async_test_user
-    ):
+    async def test_mcp_server_call_tool_routes_to_handler(self, async_db, async_test_user):
         """MCPServer.call_tool 能正确路由到 query_self_healing_audit。"""
         server = get_mcp_server()
         result = await server.call_tool(
@@ -624,15 +577,11 @@ class TestMCPServerSelfHealingAuditInterop:
         assert isinstance(result["audits"], list)
 
     @pytest.mark.asyncio
-    async def test_mcp_server_call_unknown_tool_raises(
-        self, async_db, async_test_user
-    ):
+    async def test_mcp_server_call_unknown_tool_raises(self, async_db, async_test_user):
         """调用未注册的 MCP 工具抛 KeyError。"""
         server = get_mcp_server()
         with pytest.raises(KeyError, match="MCP 工具未注册"):
-            await server.call_tool(
-                "nonexistent_tool", {}, async_db, async_test_user
-            )
+            await server.call_tool("nonexistent_tool", {}, async_db, async_test_user)
 
     def test_mcp_server_lists_query_self_healing_audit_tool(self):
         """MCPServer.list_tools 包含 query_self_healing_audit。"""
@@ -658,9 +607,7 @@ class TestAgentRuntimeSelfHealBudgetIsolation:
     自愈仍能正常工作（不被 Agent 的 Token 消耗拖垮）。
     """
 
-    def test_agent_consume_does_not_affect_self_heal_budget(
-        self, shared_fake_redis
-    ):
+    def test_agent_consume_does_not_affect_self_heal_budget(self, shared_fake_redis):
         """Agent consume 大量 Token 后，自愈预算检查仍返回 False。
 
         is_daily_budget_exhausted 使用 >= 判断，消耗达预算值即熔断。
@@ -671,9 +618,7 @@ class TestAgentRuntimeSelfHealBudgetIsolation:
             agent_type="test_generation",
             project_id=1,
         )
-        self_heal_guard = SelfHealingTokenBudgetGuard(
-            redis_client=shared_fake_redis
-        )
+        self_heal_guard = SelfHealingTokenBudgetGuard(redis_client=shared_fake_redis)
 
         # Agent 消耗达自身日预算（>= 触发熔断）
         agent_guard.consume(settings.AI_AGENT_DAILY_TOKEN_BUDGET)
@@ -682,18 +627,14 @@ class TestAgentRuntimeSelfHealBudgetIsolation:
         # Agent 自身应已熔断
         assert agent_guard.is_daily_budget_exhausted() is True
 
-    def test_self_heal_consume_does_not_affect_agent_budget(
-        self, shared_fake_redis
-    ):
+    def test_self_heal_consume_does_not_affect_agent_budget(self, shared_fake_redis):
         """自愈 consume 大量 Token 后，Agent 预算检查仍返回 False。"""
         agent_guard = AgentTokenBudgetGuard(
             redis_client=shared_fake_redis,
             agent_type="test_generation",
             project_id=1,
         )
-        self_heal_guard = SelfHealingTokenBudgetGuard(
-            redis_client=shared_fake_redis
-        )
+        self_heal_guard = SelfHealingTokenBudgetGuard(redis_client=shared_fake_redis)
 
         # 自愈消耗达自身日预算（>= 触发熔断）
         self_heal_guard.consume(settings.AI_SELF_HEALING_DAILY_TOKEN_BUDGET)

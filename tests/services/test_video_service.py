@@ -8,6 +8,7 @@ VideoService单元测试
 
 注意: 使用真实环境，不使用Mock
 """
+
 import pytest
 import time
 from pathlib import Path
@@ -27,7 +28,7 @@ from app.models.user import User
 
 @pytest.fixture(scope="module")
 def db_engine():
-    engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
+    engine = create_engine(settings.DATABASE_URL.replace("/ai_testmaster", "/ai_testmaster_test"))
     return engine
 
 
@@ -47,6 +48,7 @@ def video_service(db):
     service = VideoService(db=db, video_base_dir="./test_videos")
     yield service
     import shutil
+
     if Path("./test_videos").exists():
         shutil.rmtree("./test_videos")
 
@@ -54,11 +56,7 @@ def video_service(db):
 @pytest.fixture
 def sample_user(db):
     username = f"video_user_{int(time.time() * 1000)}"
-    user = User(
-        username=username,
-        email=f"{username}@example.com",
-        password_hash="$2b$12$dummy_hash_for_testing"
-    )
+    user = User(username=username, email=f"{username}@example.com", password_hash="$2b$12$dummy_hash_for_testing")
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -69,9 +67,7 @@ def sample_user(db):
 @pytest.fixture
 def sample_project(db, sample_user):
     project = Project(
-        name=f"VideoTestProj_{int(time.time() * 1000)}",
-        user_id=sample_user.id,
-        description="Test Description"
+        name=f"VideoTestProj_{int(time.time() * 1000)}", user_id=sample_user.id, description="Test Description"
     )
     db.add(project)
     db.commit()
@@ -91,7 +87,7 @@ def sample_task(db, sample_project, sample_user):
         total_count=0,
         success_count=0,
         fail_count=0,
-        progress=0
+        progress=0,
     )
     db.add(task)
     db.commit()
@@ -111,7 +107,7 @@ def sample_test_case(db, sample_project):
         steps_json=[{"step": "1", "action": "打开", "param": ""}],
         expected_result="成功",
         priority=2,
-        case_type="UI"
+        case_type="UI",
     )
     db.add(case)
     db.commit()
@@ -133,7 +129,7 @@ def sample_video_record(db, sample_task, sample_test_case):
         file_name="test_video.mp4",
         file_size=1024000,
         duration=10.5,
-        status="completed"
+        status="completed",
     )
     db.add(record)
     db.commit()
@@ -159,7 +155,7 @@ class TestVideoService:
             file_path="./test_videos/new_video.mp4",
             file_name="new_video.mp4",
             file_size=2048000,
-            duration=20.0
+            duration=20.0,
         )
 
         assert isinstance(video_info, VideoInfo)
@@ -226,7 +222,7 @@ class TestVideoModels:
             file_name="video.mp4",
             file_size=1024000,
             duration=15.5,
-            status=VideoStatus.READY
+            status=VideoStatus.READY,
         )
 
         assert info.id == 1

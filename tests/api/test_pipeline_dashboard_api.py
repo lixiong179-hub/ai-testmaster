@@ -23,9 +23,7 @@ def dash_user(db):
                 db.query(PipelineRun.id).filter(
                     PipelineRun.iteration_id.in_(
                         db.query(Iteration.id).filter(
-                            Iteration.project_id.in_(
-                                db.query(Project.id).filter(Project.user_id == user.id)
-                            )
+                            Iteration.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
                         )
                     )
                 )
@@ -36,32 +34,24 @@ def dash_user(db):
                 db.query(PipelineRun.id).filter(
                     PipelineRun.iteration_id.in_(
                         db.query(Iteration.id).filter(
-                            Iteration.project_id.in_(
-                                db.query(Project.id).filter(Project.user_id == user.id)
-                            )
+                            Iteration.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
                         )
                     )
                 )
             )
         ).delete(synchronize_session=False)
         db.query(PipelineMetric).filter(
-            PipelineMetric.project_id.in_(
-                db.query(Project.id).filter(Project.user_id == user.id)
-            )
+            PipelineMetric.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
         ).delete(synchronize_session=False)
         db.query(PipelineRun).filter(
             PipelineRun.iteration_id.in_(
                 db.query(Iteration.id).filter(
-                    Iteration.project_id.in_(
-                        db.query(Project.id).filter(Project.user_id == user.id)
-                    )
+                    Iteration.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
                 )
             )
         ).delete(synchronize_session=False)
         db.query(Iteration).filter(
-            Iteration.project_id.in_(
-                db.query(Project.id).filter(Project.user_id == user.id)
-            )
+            Iteration.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
         ).delete(synchronize_session=False)
         db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
         db.delete(user)
@@ -72,7 +62,9 @@ def dash_user(db):
 
 @pytest.fixture
 def dash_project(db, dash_user):
-    project = Project(name="dash_api_project", user_id=dash_user.id, description="dash test", status=1, project_type="web")
+    project = Project(
+        name="dash_api_project", user_id=dash_user.id, description="dash test", status=1, project_type="web"
+    )
     db.add(project)
     db.flush()
     db.refresh(project)
@@ -138,7 +130,6 @@ def _make_call_log(db, run_id):
 
 
 class TestDashboardOverviewAPI:
-
     def test_overview_empty(self, client, authHeaders):
         response = client.get("/api/v1/pipeline/dashboard/overview", headers=authHeaders)
         assert response.status_code == 200
@@ -183,7 +174,6 @@ class TestDashboardOverviewAPI:
 
 
 class TestTokenUsageAPI:
-
     def test_token_usage_empty(self, client, authHeaders):
         response = client.get("/api/v1/pipeline/token-usage", headers=authHeaders)
         assert response.status_code == 200
@@ -208,7 +198,6 @@ class TestTokenUsageAPI:
 
 
 class TestRunDurationAPI:
-
     def test_run_duration_empty(self, client, authHeaders):
         response = client.get("/api/v1/pipeline/run-duration", headers=authHeaders)
         assert response.status_code == 200
@@ -221,7 +210,6 @@ class TestRunDurationAPI:
 
 
 class TestStepLatencyAPI:
-
     def test_step_latency_empty(self, client, authHeaders):
         response = client.get("/api/v1/pipeline/step-latency", headers=authHeaders)
         assert response.status_code == 200
@@ -235,7 +223,6 @@ class TestStepLatencyAPI:
 
 
 class TestCacheHitRateAPI:
-
     def test_cache_hit_rate_empty(self, client, authHeaders):
         response = client.get("/api/v1/pipeline/cache-hit-rate", headers=authHeaders)
         assert response.status_code == 200

@@ -7,6 +7,7 @@
 清理策略：依赖 db fixture 的事务级回滚，用例执行后全部数据自动清理，
 无需逐用例显式删除（other_user fixture 亦同）。
 """
+
 import json
 from datetime import datetime
 
@@ -154,17 +155,20 @@ class TestDedup:
 class TestInvalidUrl:
     """非法 URL 校验与不创建项目。"""
 
-    @pytest.mark.parametrize("bad_url", [
-        "",
-        "   ",
-        "not-a-url",
-        "example.com",
-        "file:///etc/passwd",
-        "ftp://example.com",
-        "javascript:alert(1)",
-        "http://",
-        "https://",
-    ])
+    @pytest.mark.parametrize(
+        "bad_url",
+        [
+            "",
+            "   ",
+            "not-a-url",
+            "example.com",
+            "file:///etc/passwd",
+            "ftp://example.com",
+            "javascript:alert(1)",
+            "http://",
+            "https://",
+        ],
+    )
     def test_invalid_url_raises_value_error(self, builder, db, testUser, bad_url):
         with pytest.raises(ValueError):
             builder.build(bad_url, None, testUser.id, db)
@@ -213,10 +217,14 @@ class TestSqlInjectionSafety:
         """单引号作为域名一部分被字面存储，不破坏 SQL 语义。"""
         project = builder.build("https://ex'ample.com", None, testUser.id, db)
         assert "'" in project.name
-        cnt = db.query(Project).filter(
-            Project.user_id == testUser.id,
-            Project.name == project.name,
-        ).count()
+        cnt = (
+            db.query(Project)
+            .filter(
+                Project.user_id == testUser.id,
+                Project.name == project.name,
+            )
+            .count()
+        )
         assert cnt == 1
 
     def test_underscore_wildcard_not_false_match(self, builder, db, testUser):
@@ -243,6 +251,7 @@ class TestDbExceptionRollback:
     def test_commit_failure_rolls_back_and_reraises(self, builder, db, testUser, monkeypatch):
         def boom(*args, **kwargs):
             raise RuntimeError("commit failed")
+
         monkeypatch.setattr(db, "commit", boom)
         with pytest.raises(RuntimeError, match="commit failed"):
             builder.build("https://example.com", None, testUser.id, db)

@@ -146,6 +146,7 @@ class TestMCPAwareLLMBatchUnderstand:
 class TestGetMcpLlm:
     def test_get_mcp_llm_creates_instance(self):
         import app.utils.mcp_text_llm as mod
+
         original = mod._mcp_llm
         mod._mcp_llm = None
         try:
@@ -156,6 +157,7 @@ class TestGetMcpLlm:
 
     def test_get_mcp_llm_returns_same_instance(self):
         import app.utils.mcp_text_llm as mod
+
         original = mod._mcp_llm
         mod._mcp_llm = None
         try:

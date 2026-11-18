@@ -12,6 +12,7 @@
     - login 端点必传 captcha_id + captcha_code, 否则 400 "请提供验证码"
     - me 端点 token sub 为 user.id (非 username)
 """
+
 import uuid
 import pytest
 

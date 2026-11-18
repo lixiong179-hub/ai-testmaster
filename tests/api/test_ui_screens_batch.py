@@ -9,6 +9,7 @@
     - 断言批量接口与单条接口 (/api/v1/file/preview-screen/{id}) 的等价性：
       同一组 ids 的批量结果 data URL 解码字节 == 多次单条结果的合并字节
 """
+
 import base64
 import os
 
@@ -77,9 +78,7 @@ class TestBatchGetUiScreens:
         assert str(screen2.id) in data
         assert data[str(screen1.id)].startswith("data:image/png;base64,")
 
-    async def test_batch_equivalent_to_single(
-        self, async_auth_client, async_test_project, async_db, tmp_path
-    ) -> None:
+    async def test_batch_equivalent_to_single(self, async_auth_client, async_test_project, async_db, tmp_path) -> None:
         """等价性：批量接口 data_url 解码字节 == 单条 preview-screen 响应字节。"""
         file_path = _write_png(tmp_path, "eq.png")
         screen = await _make_screen(async_db, async_test_project, file_path, screen_name="EQ")
@@ -129,9 +128,7 @@ class TestBatchGetUiScreens:
             data_url = batch_data[sid_str]
             assert base64.b64decode(data_url.split(",", 1)[1]) == single_bytes
 
-    async def test_batch_without_auth(
-        self, async_client, async_test_project, async_db, tmp_path
-    ) -> None:
+    async def test_batch_without_auth(self, async_client, async_test_project, async_db, tmp_path) -> None:
         """无认证请求返回 401/403。"""
         file_path = _write_png(tmp_path, "noauth.png")
         screen = await _make_screen(async_db, async_test_project, file_path, screen_name="NOAUTH")
@@ -155,16 +152,12 @@ class TestBatchGetUiScreens:
 
     async def test_batch_invalid_id(self, async_auth_client) -> None:
         """ids 含非数字返回 422。"""
-        resp = await async_auth_client.get(
-            "/api/v1/ui-screens/batch?ids=1,abc,3"
-        )
+        resp = await async_auth_client.get("/api/v1/ui-screens/batch?ids=1,abc,3")
         assert resp.status_code == 422
 
     async def test_batch_non_positive_id(self, async_auth_client) -> None:
         """id 为 0 或负数返回 422。"""
-        resp = await async_auth_client.get(
-            "/api/v1/ui-screens/batch?ids=1,0,-3"
-        )
+        resp = await async_auth_client.get("/api/v1/ui-screens/batch?ids=1,0,-3")
         assert resp.status_code == 422
 
     async def test_batch_exceeds_limit(self, async_auth_client) -> None:
@@ -180,9 +173,7 @@ class TestBatchGetUiScreens:
         assert resp.status_code == 200
         assert resp.json()["data"] == {}
 
-    async def test_batch_skips_nonexistent_id(
-        self, async_auth_client, async_test_project, async_db, tmp_path
-    ) -> None:
+    async def test_batch_skips_nonexistent_id(self, async_auth_client, async_test_project, async_db, tmp_path) -> None:
         """不存在的 id 不出现在结果中。"""
         file_path = _write_png(tmp_path, "exist.png")
         screen = await _make_screen(async_db, async_test_project, file_path, screen_name="EXIST")
@@ -194,9 +185,7 @@ class TestBatchGetUiScreens:
         assert str(screen.id) in data
         assert "999999" not in data
 
-    async def test_batch_skips_unauthorized(
-        self, async_auth_client, async_test_project, async_db, tmp_path
-    ) -> None:
+    async def test_batch_skips_unauthorized(self, async_auth_client, async_test_project, async_db, tmp_path) -> None:
         """其他用户项目的 screen 不返回（权限过滤）。"""
         suffix = os.getenv("PYTEST_XDIST_WORKER", "0")
         other_user = User(
@@ -225,22 +214,16 @@ class TestBatchGetUiScreens:
         assert resp.status_code == 200
         assert str(other_screen.id) not in resp.json()["data"]
 
-    async def test_batch_skips_missing_file(
-        self, async_auth_client, async_test_project, async_db, tmp_path
-    ) -> None:
+    async def test_batch_skips_missing_file(self, async_auth_client, async_test_project, async_db, tmp_path) -> None:
         """文件不存在的 screen 跳过。"""
-        screen = await _make_screen(
-            async_db, async_test_project, str(tmp_path / "noexist.png"), screen_name="MISSING"
-        )
+        screen = await _make_screen(async_db, async_test_project, str(tmp_path / "noexist.png"), screen_name="MISSING")
         resp = await async_auth_client.get(
             f"/api/v1/ui-screens/batch?ids={screen.id}",
         )
         assert resp.status_code == 200
         assert str(screen.id) not in resp.json()["data"]
 
-    async def test_batch_skips_unreadable_file(
-        self, async_auth_client, async_test_project, async_db, tmp_path
-    ) -> None:
+    async def test_batch_skips_unreadable_file(self, async_auth_client, async_test_project, async_db, tmp_path) -> None:
         """文件读取失败（路径指向目录）时跳过，覆盖 OSError 分支。"""
         screen = await _make_screen(async_db, async_test_project, str(tmp_path), screen_name="DIR")
         resp = await async_auth_client.get(
@@ -249,14 +232,10 @@ class TestBatchGetUiScreens:
         assert resp.status_code == 200
         assert str(screen.id) not in resp.json()["data"]
 
-    async def test_batch_jpg_to_jpeg_mime(
-        self, async_auth_client, async_test_project, async_db, tmp_path
-    ) -> None:
+    async def test_batch_jpg_to_jpeg_mime(self, async_auth_client, async_test_project, async_db, tmp_path) -> None:
         """file_type=jpg 时 data URL 使用 image/jpeg MIME。"""
         file_path = _write_png(tmp_path, "jpg.png")
-        screen = await _make_screen(
-            async_db, async_test_project, file_path, file_type="jpg", screen_name="JPG"
-        )
+        screen = await _make_screen(async_db, async_test_project, file_path, file_type="jpg", screen_name="JPG")
         resp = await async_auth_client.get(
             f"/api/v1/ui-screens/batch?ids={screen.id}",
         )
@@ -269,9 +248,7 @@ class TestBatchGetUiScreens:
     ) -> None:
         """file_type 为空时兜底为 image/png。"""
         file_path = _write_png(tmp_path, "empty.png")
-        screen = await _make_screen(
-            async_db, async_test_project, file_path, file_type="", screen_name="EMPTY"
-        )
+        screen = await _make_screen(async_db, async_test_project, file_path, file_type="", screen_name="EMPTY")
         resp = await async_auth_client.get(
             f"/api/v1/ui-screens/batch?ids={screen.id}",
         )
@@ -279,9 +256,7 @@ class TestBatchGetUiScreens:
         data_url = resp.json()["data"][str(screen.id)]
         assert data_url.startswith("data:image/png;base64,")
 
-    async def test_batch_dedup_ids(
-        self, async_auth_client, async_test_project, async_db, tmp_path
-    ) -> None:
+    async def test_batch_dedup_ids(self, async_auth_client, async_test_project, async_db, tmp_path) -> None:
         """重复 id 去重，结果仅含唯一 id。"""
         file_path = _write_png(tmp_path, "dedup.png")
         screen1 = await _make_screen(async_db, async_test_project, file_path, screen_name="D1")
@@ -293,9 +268,7 @@ class TestBatchGetUiScreens:
         data = resp.json()["data"]
         assert len(data) == 2
 
-    async def test_batch_internal_error_returns_500(
-        self, async_auth_client, monkeypatch
-    ) -> None:
+    async def test_batch_internal_error_returns_500(self, async_auth_client, monkeypatch) -> None:
         """内部异常返回 500，覆盖兜底 except Exception 分支。"""
         from app.api.v1.endpoints import ui_screens_batch
 
@@ -303,7 +276,5 @@ class TestBatchGetUiScreens:
             raise RuntimeError("boom")
 
         monkeypatch.setattr(ui_screens_batch, "_parse_screen_ids", _boom)
-        resp = await async_auth_client.get(
-            "/api/v1/ui-screens/batch?ids=1"
-        )
+        resp = await async_auth_client.get("/api/v1/ui-screens/batch?ids=1")
         assert resp.status_code == 500

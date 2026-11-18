@@ -1,5 +1,5 @@
-"""测试任务 API 权限校验测试——验证 _verify_project_access / _verify_task_access。
-"""
+"""测试任务 API 权限校验测试——验证 _verify_project_access / _verify_task_access。"""
+
 import uuid
 import pytest
 from sqlalchemy.orm import Session
@@ -91,9 +91,7 @@ def taskInOtherProject(db: Session, otherProject, otherUser):
 class TestCreateTaskPermission:
     """POST /api/v1/test-task/ 的权限校验。"""
 
-    def test_create_with_other_project_returns_403(
-        self, client, myAuthHeaders, otherProject
-    ):
+    def test_create_with_other_project_returns_403(self, client, myAuthHeaders, otherProject):
         response = client.post(
             "/api/v1/test-task/",
             json={
@@ -105,9 +103,7 @@ class TestCreateTaskPermission:
         )
         assertResponseForbidden(response)
 
-    def test_create_with_own_project_succeeds(
-        self, client, myAuthHeaders, testProject
-    ):
+    def test_create_with_own_project_succeeds(self, client, myAuthHeaders, testProject):
         response = client.post(
             "/api/v1/test-task/",
             json={
@@ -124,9 +120,7 @@ class TestCreateTaskPermission:
 class TestGetTaskPermission:
     """GET /api/v1/test-task/{task_id} 的权限校验。"""
 
-    def test_get_other_project_task_returns_403(
-        self, client, myAuthHeaders, taskInOtherProject
-    ):
+    def test_get_other_project_task_returns_403(self, client, myAuthHeaders, taskInOtherProject):
         response = client.get(
             f"/api/v1/test-task/{taskInOtherProject.id}",
             headers=myAuthHeaders,
@@ -144,9 +138,7 @@ class TestGetTaskPermission:
 class TestListTaskPermission:
     """GET /api/v1/test-task/ 的权限校验和筛选。"""
 
-    def test_list_other_project_returns_403(
-        self, client, myAuthHeaders, otherProject
-    ):
+    def test_list_other_project_returns_403(self, client, myAuthHeaders, otherProject):
         response = client.get(
             f"/api/v1/test-task/?project_id={otherProject.id}",
             headers=myAuthHeaders,
@@ -176,9 +168,7 @@ class TestListTaskPermission:
         assert own_task.id in task_ids
         assert taskInOtherProject.id not in task_ids
 
-    def test_list_filters_zero_status(
-        self, client, myAuthHeaders, db: Session, testProject, testUser
-    ):
+    def test_list_filters_zero_status(self, client, myAuthHeaders, db: Session, testProject, testUser):
         from app.models.test_task import TestTask
 
         waiting_task = TestTask(
@@ -215,9 +205,7 @@ class TestListTaskPermission:
 class TestStartTaskPermission:
     """POST /api/v1/test-task/{task_id}/start 的权限校验。"""
 
-    def test_start_other_project_task_returns_403(
-        self, client, myAuthHeaders, taskInOtherProject
-    ):
+    def test_start_other_project_task_returns_403(self, client, myAuthHeaders, taskInOtherProject):
         response = client.post(
             f"/api/v1/test-task/{taskInOtherProject.id}/start",
             headers=myAuthHeaders,
@@ -228,9 +216,7 @@ class TestStartTaskPermission:
 class TestDeleteTaskPermission:
     """DELETE /api/v1/test-task/{task_id} 的权限校验。"""
 
-    def test_delete_other_project_task_returns_403(
-        self, client, myAuthHeaders, taskInOtherProject
-    ):
+    def test_delete_other_project_task_returns_403(self, client, myAuthHeaders, taskInOtherProject):
         response = client.delete(
             f"/api/v1/test-task/{taskInOtherProject.id}",
             headers=myAuthHeaders,
@@ -241,9 +227,7 @@ class TestDeleteTaskPermission:
 class TestRunTaskPermission:
     """POST /api/v1/test-task/{task_id}/run 的权限校验。"""
 
-    def test_run_other_project_task_returns_403(
-        self, client, myAuthHeaders, taskInOtherProject
-    ):
+    def test_run_other_project_task_returns_403(self, client, myAuthHeaders, taskInOtherProject):
         response = client.post(
             f"/api/v1/test-task/{taskInOtherProject.id}/run",
             headers=myAuthHeaders,
@@ -254,9 +238,7 @@ class TestRunTaskPermission:
 class TestSummaryPermission:
     """GET /api/v1/test-task/{task_id}/summary 的权限校验。"""
 
-    def test_summary_other_project_task_returns_403(
-        self, client, myAuthHeaders, taskInOtherProject
-    ):
+    def test_summary_other_project_task_returns_403(self, client, myAuthHeaders, taskInOtherProject):
         response = client.get(
             f"/api/v1/test-task/{taskInOtherProject.id}/summary",
             headers=myAuthHeaders,

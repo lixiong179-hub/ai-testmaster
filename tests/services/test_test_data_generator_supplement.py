@@ -8,12 +8,11 @@
 - 复杂场景
 - 所有数据类型
 """
+
 import pytest
 from datetime import datetime
 
-from app.services.test_data_generator import (
-    TestDataGenerator, DataConstraints, generate_test_data
-)
+from app.services.test_data_generator import TestDataGenerator, DataConstraints, generate_test_data
 from app.models.test_data import DataType, GenerationRule
 
 
@@ -92,31 +91,21 @@ class TestTestDataGeneratorSupplement:
 
     def test_generate_empty_rule(self, generator):
         """测试空值规则"""
-        result = generator.generate_data(
-            DataType.TEXT,
-            "test_field",
-            generation_rule=GenerationRule.EMPTY
-        )
+        result = generator.generate_data(DataType.TEXT, "test_field", generation_rule=GenerationRule.EMPTY)
         assert result == ""
 
     def test_generate_custom_rule(self, generator):
         """测试自定义规则"""
         rule_config = {"custom_value": "my_custom_value"}
         result = generator.generate_data(
-            DataType.TEXT,
-            "test_field",
-            generation_rule=GenerationRule.CUSTOM,
-            rule_config=rule_config
+            DataType.TEXT, "test_field", generation_rule=GenerationRule.CUSTOM, rule_config=rule_config
         )
         assert result == "my_custom_value"
 
     def test_generate_custom_rule_no_value(self, generator):
         """测试自定义规则-无值"""
         result = generator.generate_data(
-            DataType.TEXT,
-            "test_field",
-            generation_rule=GenerationRule.CUSTOM,
-            rule_config={}
+            DataType.TEXT, "test_field", generation_rule=GenerationRule.CUSTOM, rule_config={}
         )
         assert result == ""
 
@@ -256,7 +245,7 @@ class TestTestDataGeneratorSupplement:
         assert len(result) == 5
         # 验证都是中文字符
         for char in result:
-            assert '\u4e00' <= char <= '\u9fff' or char in generator.CHINESE_CHARS
+            assert "\u4e00" <= char <= "\u9fff" or char in generator.CHINESE_CHARS
 
     def test_apply_template(self, generator):
         """测试应用模板"""
@@ -298,7 +287,7 @@ class TestTestDataGeneratorSupplement:
         # 生成一些值
         generator.get_cached_value("key3", DataType.TEXT, "field3")
         assert len(generator._generated_values) > 0
-        
+
         # 重置
         generator.reset_generated_values()
         assert len(generator._generated_values) == 0
@@ -322,19 +311,20 @@ class TestTestDataGeneratorSupplement:
         result = generator.generate_data(
             DataType.TEXT,
             "test",
-            constraints=None  # 应该能处理None
+            constraints=None,  # 应该能处理None
         )
         assert result is not None
 
     def test_generate_data_unknown_type(self, generator):
         """测试生成未知类型数据"""
+
         # 使用不存在的类型
         class UnknownType:
             pass
-        
+
         result = generator.generate_data(
             UnknownType(),  # 无效的类型
-            "test_field"
+            "test_field",
         )
         assert result == ""
 
@@ -344,22 +334,12 @@ class TestTestDataGeneratorSupplement:
 
     def test_generate_test_data_convenience(self):
         """测试便捷生成函数"""
-        result = generate_test_data(
-            DataType.TEXT,
-            "username",
-            GenerationRule.RANDOM
-        )
+        result = generate_test_data(DataType.TEXT, "username", GenerationRule.RANDOM)
         assert result is not None
 
     def test_generate_test_data_with_kwargs(self):
         """测试便捷生成函数带参数"""
-        result = generate_test_data(
-            DataType.NUMBER,
-            "age",
-            GenerationRule.RANDOM,
-            min_value=18,
-            max_value=60
-        )
+        result = generate_test_data(DataType.NUMBER, "age", GenerationRule.RANDOM, min_value=18, max_value=60)
         num = int(result)
         assert 18 <= num <= 60
 
@@ -380,12 +360,7 @@ class TestDataConstraints:
     def test_custom_constraints(self):
         """测试自定义约束"""
         constraints = DataConstraints(
-            min_length=5,
-            max_length=10,
-            min_value=0,
-            max_value=100,
-            enum_values=["A", "B", "C"],
-            pattern=r"^\d+$"
+            min_length=5, max_length=10, min_value=0, max_value=100, enum_values=["A", "B", "C"], pattern=r"^\d+$"
         )
         assert constraints.min_length == 5
         assert constraints.max_length == 10
@@ -403,10 +378,10 @@ class TestTestDataGeneratorSeed:
         # 注意：由于随机数生成器全局状态，此测试可能受其他测试影响
         # 这里仅验证种子设置功能正常工作
         gen = TestDataGenerator(seed=12345)
-        
+
         # 验证种子已设置
         assert gen._seed == 12345
-        
+
         # 验证可以生成数据
         result = gen._random_chinese(5)
         assert len(result) == 5
@@ -415,20 +390,20 @@ class TestTestDataGeneratorSeed:
         """测试不同种子产生不同结果"""
         gen1 = TestDataGenerator(seed=11111)
         gen2 = TestDataGenerator(seed=22222)
-        
+
         result1 = gen1.generate_data(DataType.TEXT, "test")
         result2 = gen2.generate_data(DataType.TEXT, "test")
-        
+
         assert result1 != result2
 
     def test_no_seed_random(self):
         """测试无种子随机性"""
         gen1 = TestDataGenerator()
         gen2 = TestDataGenerator()
-        
+
         # 无种子时，结果应该不同（概率很高）
         results1 = [gen1.generate_data(DataType.TEXT, "test") for _ in range(5)]
         results2 = [gen2.generate_data(DataType.TEXT, "test") for _ in range(5)]
-        
+
         # 至少有一个不同
         assert results1 != results2

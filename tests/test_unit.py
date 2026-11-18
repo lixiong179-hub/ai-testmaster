@@ -3,6 +3,7 @@ AI TestMaster 单元测试套件
 
 运行: python -m pytest tests/ -v
 """
+
 import pytest
 import sys
 import os
@@ -17,6 +18,7 @@ from app.core.exception import create_response, create_error_response, RESPONSE_
 
 
 # ==================== 配置测试 ====================
+
 
 class TestConfig:
     """配置模块测试"""
@@ -39,6 +41,7 @@ class TestConfig:
 
 
 # ==================== 加密工具测试 ====================
+
 
 class TestCrypto:
     """加密工具测试"""
@@ -67,6 +70,7 @@ class TestCrypto:
 
 
 # ==================== 异常处理测试 ====================
+
 
 class TestException:
     """异常处理测试"""
@@ -99,6 +103,7 @@ class TestException:
 
 # ==================== 数据库工具测试 ====================
 
+
 class TestDatabaseHelper:
     """数据库工具测试"""
 
@@ -117,7 +122,7 @@ class TestDatabaseHelper:
             MockModel,
             id=1,
             name="test",
-            status=None  # None值应被忽略
+            status=None,  # None值应被忽略
         )
 
         # 验证None值被过滤
@@ -141,6 +146,7 @@ class TestDatabaseHelper:
 
 # ==================== 项目模型测试 ====================
 
+
 class TestProjectModel:
     """项目模型测试"""
 
@@ -153,6 +159,7 @@ class TestProjectModel:
 
 # ==================== API Schema测试 ====================
 
+
 class TestSchemas:
     """API Schema测试"""
 
@@ -161,11 +168,7 @@ class TestSchemas:
         from app.schemas.project import ProjectCreate
 
         # 有效数据
-        project = ProjectCreate(
-            name="Test Project",
-            description="Test Description",
-            project_type="web"
-        )
+        project = ProjectCreate(name="Test Project", description="Test Description", project_type="web")
         assert project.name == "Test Project"
         assert project.project_type == "web"
 
@@ -187,7 +190,7 @@ class TestSchemas:
         configs = WebEnvConfigs(
             test=WebEnvConfig(url="https://test.com"),
             staging=WebEnvConfig(url="https://staging.com"),
-            prod=WebEnvConfig(url="https://prod.com")
+            prod=WebEnvConfig(url="https://prod.com"),
         )
         assert configs.test.url == "https://test.com"
         assert configs.prod.url == "https://prod.com"

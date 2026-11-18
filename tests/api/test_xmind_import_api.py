@@ -10,6 +10,7 @@
 
 使用真实 MySQL 数据库和 FastAPI TestClient。
 """
+
 import os
 import zipfile
 from unittest.mock import patch, MagicMock
@@ -60,6 +61,7 @@ def client():
 @pytest.fixture(scope="function")
 def auth_headers(client):
     from app.services.captcha_service import captcha_service
+
     captcha_service._store.clear()
     captcha_service._used.clear()
     captcha_service._ip_limits.clear()
@@ -68,12 +70,15 @@ def auth_headers(client):
     assert captcha_resp.status_code == 200
     captcha_data = captcha_resp.json()
 
-    login_resp = client.post("/api/v1/auth/login", data={
-        "username": "admin",
-        "password": "admin123",
-        "captcha_id": captcha_data["data"]["captcha_id"],
-        "captcha_code": captcha_data["data"]["code"],
-    })
+    login_resp = client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": "admin",
+            "password": "admin123",
+            "captcha_id": captcha_data["data"]["captcha_id"],
+            "captcha_code": captcha_data["data"]["code"],
+        },
+    )
 
     if login_resp.status_code == 200:
         token = login_resp.json()["data"]["access_token"]
@@ -117,9 +122,7 @@ def valid_xmind(tmp_path) -> str:
 class TestImportXmindPreview:
     """预览模式测试。"""
 
-    def test_preview_returns_parsed_data(
-        self, client, auth_headers, test_project, valid_xmind
-    ) -> None:
+    def test_preview_returns_parsed_data(self, client, auth_headers, test_project, valid_xmind) -> None:
         with open(valid_xmind, "rb") as f:
             resp = client.post(
                 "/api/v1/test-point/import-xmind",
@@ -138,9 +141,7 @@ class TestImportXmindPreview:
         assert "skipped_reasons" in data
         assert data["total"] >= 1
 
-    def test_preview_does_not_write_to_db(
-        self, client, auth_headers, test_project, valid_xmind
-    ) -> None:
+    def test_preview_does_not_write_to_db(self, client, auth_headers, test_project, valid_xmind) -> None:
         list_resp = client.get(
             f"/api/v1/test-point/list/{test_project}",
             headers=auth_headers,
@@ -163,9 +164,7 @@ class TestImportXmindPreview:
         count_after = len(list_resp2.json().get("data", {}).get("items", []))
         assert count_after == count_before
 
-    def test_preview_second_level_leaf_becomes_test_point(
-        self, client, auth_headers, test_project, tmp_path
-    ) -> None:
+    def test_preview_second_level_leaf_becomes_test_point(self, client, auth_headers, test_project, tmp_path) -> None:
         topics = """<topic id="l1"><title>登录模块</title>
 <children><topics type="attached">
 <topic id="l2"><title>用户登录</title></topic>
@@ -199,9 +198,7 @@ class TestImportXmindPreview:
 class TestImportXmindFull:
     """导入模式测试。"""
 
-    def test_import_saves_to_db(
-        self, client, auth_headers, test_project, valid_xmind
-    ) -> None:
+    def test_import_saves_to_db(self, client, auth_headers, test_project, valid_xmind) -> None:
         with open(valid_xmind, "rb") as f:
             resp = client.post(
                 "/api/v1/test-point/import-xmind",
@@ -218,9 +215,7 @@ class TestImportXmindFull:
         not os.path.exists(SAMPLE_XMIND),
         reason="样例文件不存在",
     )
-    def test_import_sample_file(
-        self, client, auth_headers, test_project
-    ) -> None:
+    def test_import_sample_file(self, client, auth_headers, test_project) -> None:
         with open(SAMPLE_XMIND, "rb") as f:
             resp = client.post(
                 "/api/v1/test-point/import-xmind",
@@ -232,9 +227,7 @@ class TestImportXmindFull:
         data = resp.json()
         assert data["saved_count"] > 0
 
-    def test_import_second_level_leaf_becomes_test_point(
-        self, client, auth_headers, test_project, tmp_path
-    ) -> None:
+    def test_import_second_level_leaf_becomes_test_point(self, client, auth_headers, test_project, tmp_path) -> None:
         topics = """<topic id="l1"><title>登录模块</title>
 <children><topics type="attached">
 <topic id="l2"><title>用户登录</title></topic>
@@ -299,9 +292,7 @@ class TestImportXmindFull:
         assert data["saved_case_count"] == 1
         assert data["total_parsed"] == 1
 
-    def test_preview_case_style_xmind_returns_dual_views(
-        self, client, auth_headers, test_project, tmp_path
-    ) -> None:
+    def test_preview_case_style_xmind_returns_dual_views(self, client, auth_headers, test_project, tmp_path) -> None:
         topics = """<topic id="module"><title>字词听写</title>
 <children><topics type="attached">
 <topic id="content"><title>有教材内容</title>
@@ -386,6 +377,7 @@ class TestImportXmindFull:
 # Mock-based AI enhance tests – 不依赖真实登录和数据库
 # ---------------------------------------------------------------------------
 
+
 def _fake_current_user():
     """构造一个假用户对象，用于依赖注入覆盖。"""
     user = MagicMock()
@@ -422,40 +414,35 @@ class TestImportXmindAiEnhance:
             )
 
     def test_ai_timeout_returns_408(self, ai_client, valid_xmind):
-        with patch(self._PATCH_PERM), \
-             patch(self._PATCH_PARSE) as MockParser:
+        with patch(self._PATCH_PERM), patch(self._PATCH_PARSE) as MockParser:
             MockParser.return_value.parse_paths.side_effect = AITimeoutError()
             resp = self._post_ai(ai_client, valid_xmind)
         assert resp.status_code == 408
         assert "超时" in resp.json()["msg"]
 
     def test_ai_auth_error_returns_503(self, ai_client, valid_xmind):
-        with patch(self._PATCH_PERM), \
-             patch(self._PATCH_PARSE) as MockParser:
+        with patch(self._PATCH_PERM), patch(self._PATCH_PARSE) as MockParser:
             MockParser.return_value.parse_paths.side_effect = AIAuthenticationError()
             resp = self._post_ai(ai_client, valid_xmind)
         assert resp.status_code == 503
         assert "认证" in resp.json()["msg"]
 
     def test_ai_rate_limit_returns_429(self, ai_client, valid_xmind):
-        with patch(self._PATCH_PERM), \
-             patch(self._PATCH_PARSE) as MockParser:
+        with patch(self._PATCH_PERM), patch(self._PATCH_PARSE) as MockParser:
             MockParser.return_value.parse_paths.side_effect = AIRateLimitError()
             resp = self._post_ai(ai_client, valid_xmind)
         assert resp.status_code == 429
         assert "频繁" in resp.json()["msg"]
 
     def test_ai_permission_error_returns_503(self, ai_client, valid_xmind):
-        with patch(self._PATCH_PERM), \
-             patch(self._PATCH_PARSE) as MockParser:
+        with patch(self._PATCH_PERM), patch(self._PATCH_PARSE) as MockParser:
             MockParser.return_value.parse_paths.side_effect = AIPermissionError()
             resp = self._post_ai(ai_client, valid_xmind)
         assert resp.status_code == 503
         assert "权限" in resp.json()["msg"]
 
     def test_ai_service_error_returns_502(self, ai_client, valid_xmind):
-        with patch(self._PATCH_PERM), \
-             patch(self._PATCH_PARSE) as MockParser:
+        with patch(self._PATCH_PERM), patch(self._PATCH_PARSE) as MockParser:
             MockParser.return_value.parse_paths.side_effect = AIServiceError(
                 "模型暂时不可用", error_code="MODEL_UNAVAILABLE"
             )
@@ -464,8 +451,7 @@ class TestImportXmindAiEnhance:
         assert "模型暂时不可用" in resp.json()["msg"]
 
     def test_ai_unknown_error_returns_500(self, ai_client, valid_xmind):
-        with patch(self._PATCH_PERM), \
-             patch(self._PATCH_PARSE) as MockParser:
+        with patch(self._PATCH_PERM), patch(self._PATCH_PARSE) as MockParser:
             MockParser.return_value.parse_paths.side_effect = RuntimeError("unexpected")
             resp = self._post_ai(ai_client, valid_xmind)
         assert resp.status_code == 500
@@ -474,8 +460,7 @@ class TestImportXmindAiEnhance:
         assert "未知错误" in resp.json()["msg"]
 
     def test_ai_empty_result_returns_422(self, ai_client, valid_xmind):
-        with patch(self._PATCH_PERM), \
-             patch(self._PATCH_PARSE) as MockParser:
+        with patch(self._PATCH_PERM), patch(self._PATCH_PARSE) as MockParser:
             MockParser.return_value.parse_paths.return_value = []
             resp = self._post_ai(ai_client, valid_xmind)
         assert resp.status_code == 422
@@ -490,28 +475,44 @@ class TestImportXmindAiEnhance:
             TestPointXmindPreviewCaseItem,
             TestPointXmindPreviewCaseStep,
         )
+
         fake_response = TestPointXmindPreviewResponse(
             preview_mode="test_cases",
             total=1,
-            items=[TestPointXmindPreviewItem(
-                module="登录模块", point="输入正确密码", priority=2,
-            )],
+            items=[
+                TestPointXmindPreviewItem(
+                    module="登录模块",
+                    point="输入正确密码",
+                    priority=2,
+                )
+            ],
             case_total=1,
-            case_items=[TestPointXmindPreviewCaseItem(
-                module="登录模块", title="测试登录",
-                precondition="", expected_result="登录成功", priority=2,
-                step_count=1,
-                steps=[TestPointXmindPreviewCaseStep(
-                    step_number=1, action="输入密码", expected_result="成功",
-                )],
-            )],
+            case_items=[
+                TestPointXmindPreviewCaseItem(
+                    module="登录模块",
+                    title="测试登录",
+                    precondition="",
+                    expected_result="登录成功",
+                    priority=2,
+                    step_count=1,
+                    steps=[
+                        TestPointXmindPreviewCaseStep(
+                            step_number=1,
+                            action="输入密码",
+                            expected_result="成功",
+                        )
+                    ],
+                )
+            ],
             skipped_count=0,
             skipped_reasons=[],
             ai_timeout=False,
         )
-        with patch(self._PATCH_PERM), \
-             patch(self._PATCH_PARSE) as MockParser, \
-             patch(self._PATCH_HANDLE, return_value=fake_response):
+        with (
+            patch(self._PATCH_PERM),
+            patch(self._PATCH_PARSE) as MockParser,
+            patch(self._PATCH_HANDLE, return_value=fake_response),
+        ):
             MockParser.return_value.parse_paths.return_value = [{"fake": True}]
             resp = self._post_ai(ai_client, valid_xmind)
         assert resp.status_code == 200
@@ -525,9 +526,7 @@ class TestImportXmindAiEnhance:
 class TestImportXmindValidation:
     """文件校验测试。"""
 
-    def test_invalid_file_format(
-        self, client, auth_headers, test_project, tmp_path
-    ) -> None:
+    def test_invalid_file_format(self, client, auth_headers, test_project, tmp_path) -> None:
         txt_file = tmp_path / "test.txt"
         txt_file.write_text("not a xmind file")
         with open(str(txt_file), "rb") as f:
@@ -537,13 +536,9 @@ class TestImportXmindValidation:
                 data={"project_id": str(test_project), "preview": "true"},
                 headers=auth_headers,
             )
-        assert resp.status_code == 400 or (
-            resp.status_code == 200 and resp.json().get("code") == 400
-        )
+        assert resp.status_code == 400 or (resp.status_code == 200 and resp.json().get("code") == 400)
 
-    def test_invalid_zip_file(
-        self, client, auth_headers, test_project, tmp_path
-    ) -> None:
+    def test_invalid_zip_file(self, client, auth_headers, test_project, tmp_path) -> None:
         fake_file = tmp_path / "fake.xmind"
         fake_file.write_text("this is not a zip file")
         with open(str(fake_file), "rb") as f:
@@ -553,9 +548,7 @@ class TestImportXmindValidation:
                 data={"project_id": str(test_project), "preview": "true"},
                 headers=auth_headers,
             )
-        assert resp.status_code == 400 or (
-            resp.status_code == 200 and resp.json().get("code") == 400
-        )
+        assert resp.status_code == 400 or (resp.status_code == 200 and resp.json().get("code") == 400)
 
     def test_no_auth_returns_401(self, client, valid_xmind) -> None:
         with open(valid_xmind, "rb") as f:
@@ -574,6 +567,7 @@ class TestImportXmindValidation:
 
 def _ai_key_configured() -> bool:
     from app.core.config import settings
+
     return bool(settings.DEEPSEEK_API_KEY and not settings.DEEPSEEK_API_KEY.startswith("your"))
 
 
@@ -633,9 +627,7 @@ class TestImportXmindAiReal:
     _PATCH_PERM = "app.api.v1.endpoints.test_point_import.check_project_permission"
 
     @pytest.mark.skipif(not _ai_key_configured(), reason="DeepSeek API Key 未配置")
-    def test_ai_preview_returns_structured_cases(
-        self, real_ai_client, ai_xmind
-    ) -> None:
+    def test_ai_preview_returns_structured_cases(self, real_ai_client, ai_xmind) -> None:
         """AI 增强预览模式应返回包含用例的结构化响应。"""
         with patch(self._PATCH_PERM), open(ai_xmind, "rb") as f:
             resp = real_ai_client.post(
@@ -680,9 +672,7 @@ class TestImportXmindAiReal:
         not os.path.exists(SAMPLE_XMIND) or not _ai_key_configured(),
         reason="样例文件不存在或 DeepSeek API Key 未配置",
     )
-    def test_ai_preview_real_sample_file(
-        self, real_ai_client
-    ) -> None:
+    def test_ai_preview_real_sample_file(self, real_ai_client) -> None:
         """使用真实 XMind 样例文件测试 AI 增强预览。"""
         with patch(self._PATCH_PERM), open(SAMPLE_XMIND, "rb") as f:
             resp = real_ai_client.post(

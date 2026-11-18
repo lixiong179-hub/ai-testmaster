@@ -9,6 +9,7 @@
     - 空结果：无审计记录 → 空列表
     - 异常映射：服务层抛异常 → 500
 """
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,8 +27,7 @@ def _make_db() -> MagicMock:
     return db
 
 
-def _make_audit(audit_id=1, session_id=5, iteration=1,
-                action_type="tool_call", human_approved=0) -> AgentAudit:
+def _make_audit(audit_id=1, session_id=5, iteration=1, action_type="tool_call", human_approved=0) -> AgentAudit:
     """构造不落库的 AgentAudit 实例（仅供响应序列化）。"""
     return AgentAudit(
         id=audit_id,
@@ -53,17 +53,14 @@ class TestListSessionAudits:
         db = _make_db()
         audits = [
             _make_audit(audit_id=1, iteration=1, action_type="tool_call"),
-            _make_audit(audit_id=2, iteration=2, action_type="update_locator",
-                        human_approved=1),
+            _make_audit(audit_id=2, iteration=2, action_type="update_locator", human_approved=1),
         ]
 
         with patch(
             "app.api.v1.endpoints.agents._audit_service.get_session_audit",
             new=AsyncMock(return_value=audits),
         ) as mock_get:
-            result = await list_session_audits(
-                session_id=5, db=db, current_user=MagicMock(id=7, is_superuser=False)
-            )
+            result = await list_session_audits(session_id=5, db=db, current_user=MagicMock(id=7, is_superuser=False))
 
         assert result["code"] == 200
         data = result["data"]
@@ -86,9 +83,7 @@ class TestListSessionAudits:
             "app.api.v1.endpoints.agents._audit_service.get_session_audit",
             new=AsyncMock(return_value=[]),
         ):
-            result = await list_session_audits(
-                session_id=5, db=db, current_user=MagicMock(id=7, is_superuser=False)
-            )
+            result = await list_session_audits(session_id=5, db=db, current_user=MagicMock(id=7, is_superuser=False))
 
         assert result["code"] == 200
         assert result["data"] in ([], {})
@@ -96,12 +91,11 @@ class TestListSessionAudits:
     async def test_ownership_check_enforced(self):
         """归属校验被调用（越权场景由 _check_session_ownership 抛 403）。"""
         db = _make_db()
-        with patch(_OWNERSHIP, new=AsyncMock(side_effect=HTTPException(
-            status_code=403, detail="无权限操作此会话"
-        ))):
+        with patch(_OWNERSHIP, new=AsyncMock(side_effect=HTTPException(status_code=403, detail="无权限操作此会话"))):
             with pytest.raises(HTTPException) as exc:
                 await list_session_audits(
-                    session_id=5, db=db,
+                    session_id=5,
+                    db=db,
                     current_user=MagicMock(id=7, is_superuser=False),
                 )
 
@@ -116,7 +110,8 @@ class TestListSessionAudits:
         ):
             with pytest.raises(HTTPException) as exc:
                 await list_session_audits(
-                    session_id=5, db=db,
+                    session_id=5,
+                    db=db,
                     current_user=MagicMock(id=7, is_superuser=False),
                 )
 

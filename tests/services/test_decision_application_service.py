@@ -35,7 +35,8 @@ class TestApplyDecisionDataclass:
 
     def test_with_all_fields(self):
         d = ApplyDecision(
-            target_kind="test_case", target_id=5,
+            target_kind="test_case",
+            target_id=5,
             merged_action="needs_modify",
             modification_hint="更新步骤",
             deprecate_reason="需求变更",
@@ -110,8 +111,11 @@ class TestHandleDeprecate:
 
     def test_nonexistent_target(self, db):
         d = ApplyDecision(
-            target_kind="test_case", target_id=99999,
-            merged_action="deprecate", review_id=10, deprecate_reason="原因",
+            target_kind="test_case",
+            target_id=99999,
+            merged_action="deprecate",
+            review_id=10,
+            deprecate_reason="原因",
         )
         result = _handle_deprecate(db, d, actor_id=1)
         assert result.success is False
@@ -119,8 +123,10 @@ class TestHandleDeprecate:
 
     def test_no_deprecate_reason(self, db):
         d = ApplyDecision(
-            target_kind="test_case", target_id=1,
-            merged_action="deprecate", review_id=10,
+            target_kind="test_case",
+            target_id=1,
+            merged_action="deprecate",
+            review_id=10,
         )
         result = _handle_deprecate(db, d, actor_id=1)
         assert result.success is False
@@ -129,8 +135,10 @@ class TestHandleDeprecate:
 class TestHandleAddNew:
     def test_no_project_id(self, db):
         d = ApplyDecision(
-            target_kind="test_case", target_id=None,
-            merged_action="add_new", case_data={},
+            target_kind="test_case",
+            target_id=None,
+            merged_action="add_new",
+            case_data={},
         )
         result = _handle_add_new(db, d, actor_id=1)
         assert result.success is False
@@ -138,8 +146,10 @@ class TestHandleAddNew:
 
     def test_case_data_none(self, db):
         d = ApplyDecision(
-            target_kind="test_case", target_id=None,
-            merged_action="add_new", case_data=None,
+            target_kind="test_case",
+            target_id=None,
+            merged_action="add_new",
+            case_data=None,
         )
         result = _handle_add_new(db, d, actor_id=1)
         assert result.success is False
@@ -258,22 +268,31 @@ class TestErrorSanitization:
         from app.services.decision_application_service import _core as core_mod
         from app.services.decision_application_service import _handlers as handlers_mod
         from app.models.test_case import TestCase
+
         sentinel = TestCase(
-            project_id=1, case_no="TC-SANIT-0001", module="m",
-            title="t", priority=1, case_type="manual",
-            generate_status="completed", lifecycle_status="active",
+            project_id=1,
+            case_no="TC-SANIT-0001",
+            module="m",
+            title="t",
+            priority=1,
+            case_type="manual",
+            generate_status="completed",
+            lifecycle_status="active",
         )
         sentinel.id = 99999
         monkeypatch.setattr(core_mod, "_ensure_target_exists", lambda db, tid: sentinel)
         monkeypatch.setattr(handlers_mod, "_ensure_target_exists", lambda db, tid: sentinel)
+
         def _raise(*args, **kwargs):
             raise exc
+
         monkeypatch.setattr(core_mod, "lifecycle_transition", _raise)
         monkeypatch.setattr(handlers_mod, "lifecycle_transition", _raise)
         return sentinel
 
     def test_locator_broken_sanitizes_illegal_transition(self, db, monkeypatch):
         from app.services.lifecycle_service import IllegalStateTransition
+
         self._patch_to_raise(monkeypatch, IllegalStateTransition("active", "locator_broken"))
         d = ApplyDecision(target_kind="test_case", target_id=99999, merged_action="locator_broken")
         result = _handle_locator_broken(db, d, actor_id=1)
@@ -283,10 +302,13 @@ class TestErrorSanitization:
 
     def test_needs_modify_sanitizes_business_exceptions(self, db, monkeypatch):
         from app.services.lifecycle_service import IllegalStateTransition
+
         self._patch_to_raise(monkeypatch, IllegalStateTransition("active", "needs_modify"))
         d = ApplyDecision(
-            target_kind="test_case", target_id=99999,
-            merged_action="needs_modify", review_id=10,
+            target_kind="test_case",
+            target_id=99999,
+            merged_action="needs_modify",
+            review_id=10,
         )
         result = apply_single(db, d)
         assert result.success is False
@@ -295,12 +317,17 @@ class TestErrorSanitization:
 
     def test_deprecate_sanitizes_business_exceptions(self, db, monkeypatch):
         from app.services.lifecycle_service import MissingDeprecateReasonError
+
         self._patch_to_raise(monkeypatch, MissingDeprecateReasonError("deprecate"))
         d = ApplyDecision(
-            target_kind="test_case", target_id=99999,
-            merged_action="deprecate", review_id=10, deprecate_reason="原因",
+            target_kind="test_case",
+            target_id=99999,
+            merged_action="deprecate",
+            review_id=10,
+            deprecate_reason="原因",
         )
         from app.services.decision_application_service._handlers import _handle_deprecate
+
         result = _handle_deprecate(db, d, actor_id=1)
         assert result.success is False
         assert result.error == "业务校验失败，请检查 review_id 与 deprecate_reason"
@@ -308,12 +335,16 @@ class TestErrorSanitization:
 
     def test_locator_and_modify_sanitizes_illegal_transition(self, db, monkeypatch):
         from app.services.lifecycle_service import IllegalStateTransition
+
         self._patch_to_raise(monkeypatch, IllegalStateTransition("active", "locator_broken"))
         d = ApplyDecision(
-            target_kind="test_case", target_id=99999,
-            merged_action="locator_and_modify", review_id=10,
+            target_kind="test_case",
+            target_id=99999,
+            merged_action="locator_and_modify",
+            review_id=10,
         )
         from app.services.decision_application_service._handlers import _handle_locator_and_modify
+
         result = _handle_locator_and_modify(db, d, actor_id=1)
         assert result.success is False
         assert result.error == "状态转换不合法"
@@ -321,11 +352,13 @@ class TestErrorSanitization:
 
     def test_add_new_generic_exception_sanitized(self, db, monkeypatch):
         d = ApplyDecision(
-            target_kind="test_case", target_id=None,
+            target_kind="test_case",
+            target_id=None,
             merged_action="add_new",
             case_data={"project_id": "not_a_number"},
         )
         from app.services.decision_application_service._handlers import _handle_add_new
+
         result = _handle_add_new(db, d, actor_id=1)
         assert result.success is False
         assert result.error == "add_new 处理失败，详情见日志"
@@ -334,6 +367,7 @@ class TestErrorSanitization:
 
     def test_errors_never_contain_exception_str(self, db, monkeypatch):
         from app.services.lifecycle_service import IllegalStateTransition
+
         sentinel_marker = "SENTINEL_LEAK_MARKER_xyz"
         exc = IllegalStateTransition("active", "locator_broken")
         exc.args = (sentinel_marker,)

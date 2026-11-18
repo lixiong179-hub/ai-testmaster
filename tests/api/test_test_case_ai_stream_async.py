@@ -21,18 +21,14 @@ class TestCaseAiStreamAsync:
         )
         assert resp.status_code in (401, 403, 404)
 
-    async def test_enhanced_generate_unauthorized_project(
-        self, async_auth_client
-    ):
+    async def test_enhanced_generate_unauthorized_project(self, async_auth_client):
         resp = await async_auth_client.post(
             "/api/v1/test-case/ai-enhanced-generate/stream",
             json={"project_id": 99999, "description": "登录功能测试"},
         )
         assert resp.status_code in (403, 404, 500)
 
-    async def test_enhanced_generate_short_description(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_enhanced_generate_short_description(self, async_auth_client, async_test_project):
         """描述长度 < 5 应被 400 拒绝（权限校验先通过）。"""
         resp = await async_auth_client.post(
             "/api/v1/test-case/ai-enhanced-generate/stream",
@@ -47,9 +43,7 @@ class TestCaseAiStreamAsync:
         )
         assert resp.status_code in (401, 403, 404)
 
-    async def test_batch_generate_unauthorized_project(
-        self, async_auth_client
-    ):
+    async def test_batch_generate_unauthorized_project(self, async_auth_client):
         resp = await async_auth_client.post(
             "/api/v1/test-case/batch-generate/stream",
             json={"project_id": 99999},

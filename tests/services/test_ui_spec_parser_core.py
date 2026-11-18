@@ -128,8 +128,10 @@ class TestParseSingleScreen:
     async def test_text_mode_success(self):
         parser = _ConcreteParser()
         parser.parse_mode = "text"
-        with patch.object(parser, "_read_image_bytes", return_value=b"fake_image_data"), \
-             patch.object(parser, "_parse_with_text_mode", return_value=(True, {"screen_name": "Login"}, "")):
+        with (
+            patch.object(parser, "_read_image_bytes", return_value=b"fake_image_data"),
+            patch.object(parser, "_parse_with_text_mode", return_value=(True, {"screen_name": "Login"}, "")),
+        ):
             success, data, error = await parser.parse_single_screen("/fake/path.png")
             assert success is True
             assert data["screen_name"] == "Login"
@@ -138,8 +140,10 @@ class TestParseSingleScreen:
     async def test_vision_mode_success(self):
         parser = _ConcreteParser()
         parser.parse_mode = "vision"
-        with patch.object(parser, "_read_image_bytes", return_value=b"fake_image_data"), \
-             patch.object(parser, "_parse_with_vision_mode", return_value=(True, {"screen_name": "Home"}, "")):
+        with (
+            patch.object(parser, "_read_image_bytes", return_value=b"fake_image_data"),
+            patch.object(parser, "_parse_with_vision_mode", return_value=(True, {"screen_name": "Home"}, "")),
+        ):
             success, data, error = await parser.parse_single_screen("/fake/path.png")
             assert success is True
 
@@ -147,8 +151,10 @@ class TestParseSingleScreen:
     async def test_with_screen_name_hint(self):
         parser = _ConcreteParser()
         parser.parse_mode = "text"
-        with patch.object(parser, "_read_image_bytes", return_value=b"fake_image_data"), \
-             patch.object(parser, "_parse_with_text_mode", return_value=(True, {}, "")) as mock:
+        with (
+            patch.object(parser, "_read_image_bytes", return_value=b"fake_image_data"),
+            patch.object(parser, "_parse_with_text_mode", return_value=(True, {}, "")) as mock,
+        ):
             await parser.parse_single_screen("/fake/path.png", screen_name_hint="登录页")
             mock.assert_called_once()
 

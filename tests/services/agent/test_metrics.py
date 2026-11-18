@@ -14,6 +14,7 @@
 注意：prometheus_client 默认 REGISTRY 全局，测试间通过 before/after 增量断言
 （不重置 REGISTRY，避免与并行测试冲突）。
 """
+
 from unittest.mock import patch
 
 import app.services.agent.metrics as metrics_module
@@ -56,9 +57,7 @@ def _histogram_count(metric, labels=None) -> float:
     """读取 Histogram 在指定 labels 下的观察次数（_count 样本）。"""
     for sample in metric.collect():
         for s in sample.samples:
-            if s.name.endswith("_count") and (
-                labels is None or all(s.labels.get(k) == v for k, v in labels.items())
-            ):
+            if s.name.endswith("_count") and (labels is None or all(s.labels.get(k) == v for k, v in labels.items())):
                 return s.value
     return 0.0
 
@@ -173,18 +172,20 @@ class TestExceptionSwallow:
     def test_all_methods_swallow_exceptions(self):
         """所有方法 swallow 异常不抛出（Mock 底层指标抛异常，方法不应抛出）。"""
         m = AgentMetrics()
-        with patch.object(metrics_module.AGENT_ACTIVE_SESSIONS, "inc", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_ACTIVE_SESSIONS, "dec", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_SESSIONS_TOTAL, "labels", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_SESSION_DURATION, "labels", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_TOKEN_COST, "labels", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_ITERATIONS_TOTAL, "labels", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_ITERATION_DURATION, "labels", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_TOOL_CALLS_TOTAL, "labels", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_LOOPS_DETECTED_TOTAL, "labels", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_APPROVALS_TOTAL, "labels", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_CIRCUIT_BREAKER_STATE, "labels", side_effect=RuntimeError), \
-             patch.object(metrics_module.AGENT_DAILY_TOKEN_CONSUMED, "labels", side_effect=RuntimeError):
+        with (
+            patch.object(metrics_module.AGENT_ACTIVE_SESSIONS, "inc", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_ACTIVE_SESSIONS, "dec", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_SESSIONS_TOTAL, "labels", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_SESSION_DURATION, "labels", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_TOKEN_COST, "labels", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_ITERATIONS_TOTAL, "labels", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_ITERATION_DURATION, "labels", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_TOOL_CALLS_TOTAL, "labels", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_LOOPS_DETECTED_TOTAL, "labels", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_APPROVALS_TOTAL, "labels", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_CIRCUIT_BREAKER_STATE, "labels", side_effect=RuntimeError),
+            patch.object(metrics_module.AGENT_DAILY_TOKEN_CONSUMED, "labels", side_effect=RuntimeError),
+        ):
             m.record_session_start("test")
             m.record_session_end("test", "success", 1.0, 100)
             m.record_iteration("test", 1.0)

@@ -5,6 +5,7 @@
     - 反推业务能力产物生成
     - 用例持久化到数据库    - 标注集数据结构有效
 使用 Gamma 标注集作为固定输入，MockAIClient 模拟 AI 响应。"""
+
 import json
 import pytest
 
@@ -35,19 +36,26 @@ SCENARIO_3_MOCK_CASES = [
     },
 ]
 
-SCENARIO_3_MOCK_INFERENCE = json.dumps([
-    {"name": "用户登录", "key": "user_login", "description": "用户通过凭证登录", "confidence": 0.9},
-    {"name": "用户注册", "key": "user_register", "description": "新用户注册账号", "confidence": 0.85},
-])
+SCENARIO_3_MOCK_INFERENCE = json.dumps(
+    [
+        {"name": "用户登录", "key": "user_login", "description": "用户通过凭证登录", "confidence": 0.9},
+        {"name": "用户注册", "key": "user_register", "description": "新用户注册账号", "confidence": 0.85},
+    ]
+)
 
 
 @pytest.fixture
 def mock_ai_s3():
     client = _make_mock_ai(SCENARIO_3_MOCK_CASES)
     client.set_response("reverse_infer", SCENARIO_3_MOCK_INFERENCE)
-    client.set_response("scenario_candidates", json.dumps([
-        {"name": "用户登录", "key": "user_login", "priority": 1},
-    ]))
+    client.set_response(
+        "scenario_candidates",
+        json.dumps(
+            [
+                {"name": "用户登录", "key": "user_login", "priority": 1},
+            ]
+        ),
+    )
     return client
 
 
@@ -111,9 +119,7 @@ class TestScenario3Regression:
         run = run_scenario(db, s3_iteration.id, 3, mock_ai_s3, testUser.id)
         db.flush()
         if run.status == "completed":
-            cases = db.query(TestCase).filter(
-                TestCase.project_id == s3_iteration.project_id
-            ).all()
+            cases = db.query(TestCase).filter(TestCase.project_id == s3_iteration.project_id).all()
             assert len(cases) >= 1
 
     def test_inference_artifact_created(self, db, s3_iteration, mock_ai_s3, testUser):

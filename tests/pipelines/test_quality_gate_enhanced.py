@@ -6,6 +6,7 @@
     - _score_expected_result: 量化模式扩充（数值范围/最多最少）
     - _score_precondition: 环境声明检测
 """
+
 import pytest
 
 from app.pipelines.steps.quality_gate import (

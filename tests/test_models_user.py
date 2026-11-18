@@ -37,7 +37,14 @@ class TestUserModel:
         db.commit()
 
     def test_user_security_fields(self, db):
-        user = User(username="security_user", email="security@example.com", password_hash="hash", failed_login_attempts=3, external_id="ldap_001", external_system="LDAP")
+        user = User(
+            username="security_user",
+            email="security@example.com",
+            password_hash="hash",
+            failed_login_attempts=3,
+            external_id="ldap_001",
+            external_system="LDAP",
+        )
         db.add(user)
         db.commit()
         db.refresh(user)
@@ -70,7 +77,14 @@ class TestUserModel:
         nested.rollback()
 
     def test_user_nullable_fields(self, db):
-        user = User(username="nullable_user", email="nullable@example.com", password_hash="hash", phone="13800138000", last_login_time=datetime(2024, 1, 1, 12, 0, 0), locked_until=datetime(2024, 12, 31, 23, 59, 59))
+        user = User(
+            username="nullable_user",
+            email="nullable@example.com",
+            password_hash="hash",
+            phone="13800138000",
+            last_login_time=datetime(2024, 1, 1, 12, 0, 0),
+            locked_until=datetime(2024, 12, 31, 23, 59, 59),
+        )
         db.add(user)
         db.commit()
         db.refresh(user)
@@ -81,9 +95,9 @@ class TestUserModel:
         db.commit()
 
     def test_user_relationships_exist(self):
-        assert hasattr(User, 'projects')
-        assert hasattr(User, 'test_tasks')
-        assert hasattr(User, 'roles')
+        assert hasattr(User, "projects")
+        assert hasattr(User, "test_tasks")
+        assert hasattr(User, "roles")
 
 
 class TestRoleModel:
@@ -221,6 +235,12 @@ class TestTaskStatus:
         assert len(TaskStatus.LABELS) == 6
         assert TaskStatus.LABELS[5] == "已暂停"
         # 每个状态码都必须有中文标签，避免前端展示空值
-        for status in (TaskStatus.PENDING, TaskStatus.RUNNING, TaskStatus.COMPLETED,
-                       TaskStatus.FAILED, TaskStatus.STOPPED, TaskStatus.PAUSED):
+        for status in (
+            TaskStatus.PENDING,
+            TaskStatus.RUNNING,
+            TaskStatus.COMPLETED,
+            TaskStatus.FAILED,
+            TaskStatus.STOPPED,
+            TaskStatus.PAUSED,
+        ):
             assert TaskStatus.LABELS[status]

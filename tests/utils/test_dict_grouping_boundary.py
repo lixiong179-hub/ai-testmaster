@@ -8,6 +8,7 @@
 
 该逻辑模式用于前端 store getter 与后端分组聚合场景。
 """
+
 import pytest
 
 
@@ -45,8 +46,14 @@ class TestGetterBoundaryHandling:
         grouped = {1: [], 2: [], 3: []}
 
         test_data = [
-            {"priority": 0}, {"priority": 1}, {"priority": 2}, {"priority": 3},
-            {"priority": 4}, {"priority": None}, {"priority": -1}, {"priority": 100}
+            {"priority": 0},
+            {"priority": 1},
+            {"priority": 2},
+            {"priority": 3},
+            {"priority": 4},
+            {"priority": None},
+            {"priority": -1},
+            {"priority": 100},
         ]
 
         for point in test_data:

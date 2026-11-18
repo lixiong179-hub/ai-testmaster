@@ -9,24 +9,20 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="tr_test_user",
-        email="tr_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="tr_test_user", email="tr_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(TestResult).filter(TestResult.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
-    db.query(TestTask).filter(TestTask.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
-    db.query(TestCase).filter(TestCase.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(TestResult).filter(
+        TestResult.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+    ).delete(synchronize_session=False)
+    db.query(TestTask).filter(TestTask.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
+    db.query(TestCase).filter(TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -52,7 +48,7 @@ def test_case(db, test_project):
         steps_json=[],
         expected_result="预期",
         priority=1,
-        case_type="UI"
+        case_type="UI",
     )
     db.add(tc)
     db.commit()
@@ -62,12 +58,7 @@ def test_case(db, test_project):
 
 @pytest.fixture
 def test_task(db, test_project, test_user):
-    task = TestTask(
-        task_name="结果测试任务",
-        project_id=test_project.id,
-        executor_id=test_user.id,
-        case_ids=[]
-    )
+    task = TestTask(task_name="结果测试任务", project_id=test_project.id, executor_id=test_user.id, case_ids=[])
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -77,11 +68,7 @@ def test_task(db, test_project, test_user):
 class TestTestResultModel:
     def test_create_test_result(self, db, test_task, test_project, test_case):
         result = TestResult(
-            task_id=test_task.id,
-            project_id=test_project.id,
-            case_id=test_case.id,
-            case_no="TC-TR-001",
-            exec_status=1
+            task_id=test_task.id, project_id=test_project.id, case_id=test_case.id, case_no="TC-TR-001", exec_status=1
         )
         db.add(result)
         db.commit()
@@ -98,12 +85,7 @@ class TestTestResultModel:
         db.commit()
 
     def test_test_result_default_values(self, db, test_task, test_project, test_case):
-        result = TestResult(
-            task_id=test_task.id,
-            project_id=test_project.id,
-            case_id=test_case.id,
-            case_no="TC-TR-DEF"
-        )
+        result = TestResult(task_id=test_task.id, project_id=test_project.id, case_id=test_case.id, case_no="TC-TR-DEF")
         db.add(result)
         db.commit()
         db.refresh(result)
@@ -124,7 +106,7 @@ class TestTestResultModel:
                 project_id=test_project.id,
                 case_id=test_case.id,
                 case_no=f"TC-TR-STA-{status}",
-                exec_status=status
+                exec_status=status,
             )
             db.add(result)
             db.commit()
@@ -141,7 +123,7 @@ class TestTestResultModel:
             case_no="TC-TR-ERR",
             exec_status=2,
             error_msg="元素未找到",
-            screenshot_url="/screenshots/error.png"
+            screenshot_url="/screenshots/error.png",
         )
         db.add(result)
         db.commit()
@@ -161,7 +143,7 @@ class TestTestResultModel:
             exec_status=2,
             ai_analysis="失败原因：定位器过期",
             location_method="css",
-            video_path="/videos/test.webm"
+            video_path="/videos/test.webm",
         )
         db.add(result)
         db.commit()
@@ -173,6 +155,6 @@ class TestTestResultModel:
         db.commit()
 
     def test_test_result_relationships(self):
-        assert hasattr(TestResult, 'project')
-        assert hasattr(TestResult, 'test_case')
-        assert hasattr(TestResult, 'test_task')
+        assert hasattr(TestResult, "project")
+        assert hasattr(TestResult, "test_case")
+        assert hasattr(TestResult, "test_task")

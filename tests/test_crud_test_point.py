@@ -175,15 +175,11 @@ class TestGetTestPointsByProjectAndUser:
             point="user point",
             priority=1,
         )
-        points = get_test_points_by_project_and_user(
-            db=db, project_id=testProject.id, user_id=testUser.id
-        )
+        points = get_test_points_by_project_and_user(db=db, project_id=testProject.id, user_id=testUser.id)
         assert len(points) >= 1
 
     def test_get_test_points_by_project_and_user_wrong_user(self, db, testProject):
-        points = get_test_points_by_project_and_user(
-            db=db, project_id=testProject.id, user_id=99999
-        )
+        points = get_test_points_by_project_and_user(db=db, project_id=testProject.id, user_id=99999)
         assert points == []
 
     def test_get_test_points_by_project_and_user_with_filters(self, db, testProject, testUser):
@@ -254,14 +250,12 @@ class TestUpdateTestPoint:
                 db=db,
                 test_point_id=point.id,
                 project_id=testProject.id,
-                point=f"v{i+2}",
+                point=f"v{i + 2}",
             )
             assert updated.version == i + 2
 
     def test_update_test_point_nonexistent(self, db, testProject):
-        result = update_test_point(
-            db=db, test_point_id=99999, project_id=testProject.id, point="should not update"
-        )
+        result = update_test_point(db=db, test_point_id=99999, project_id=testProject.id, point="should not update")
         assert result is None
 
     def test_update_test_point_wrong_project(self, db, testProject):
@@ -272,9 +266,7 @@ class TestUpdateTestPoint:
             point="original",
             priority=2,
         )
-        result = update_test_point(
-            db=db, test_point_id=point.id, project_id=99999, point="should not update"
-        )
+        result = update_test_point(db=db, test_point_id=point.id, project_id=99999, point="should not update")
         assert result is None
 
     def test_update_test_point_multiple_fields(self, db, testProject):

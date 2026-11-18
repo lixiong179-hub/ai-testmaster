@@ -263,7 +263,9 @@ class TestParseWithRealFile:
             os.unlink(path)
 
     def test_parse_no_topic(self):
-        content = f'<?xml version="1.0" encoding="UTF-8"?><xmap-content xmlns="{XMAP_NS}"><sheet></sheet></xmap-content>'
+        content = (
+            f'<?xml version="1.0" encoding="UTF-8"?><xmap-content xmlns="{XMAP_NS}"><sheet></sheet></xmap-content>'
+        )
         path = _make_xmind_file(content.encode())
         try:
             with pytest.raises(XmindParseError, match="未找到根主题"):
@@ -325,7 +327,5 @@ class TestInferFunctionNameExtended:
 class TestInferCaseTitleExtended:
     def test_truncation(self):
         long_action = "a" * 300
-        title = parser._infer_case_title(
-            ["文本"], [long_action], "预期结果", "模块"
-        )
+        title = parser._infer_case_title(["文本"], [long_action], "预期结果", "模块")
         assert len(title) <= parser.TITLE_MAX_LEN

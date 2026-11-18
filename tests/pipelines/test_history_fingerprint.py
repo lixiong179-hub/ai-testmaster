@@ -14,6 +14,7 @@
 
 使用真实 MySQL 数据库 + MockAIClient。
 """
+
 import pytest
 
 from app.pipelines.steps.history_fingerprint import (

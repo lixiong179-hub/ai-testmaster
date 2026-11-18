@@ -10,6 +10,7 @@
 - IP频率限制
 - 自动清理过期数据
 """
+
 import pytest
 import time
 import sys
@@ -121,11 +122,11 @@ class TestCaptchaOneTimeUse:
     def test_cannot_use_twice(self):
         """测试验证码只能使用一次"""
         captcha_id, code = captcha_service.generate()
-        
+
         # 第一次使用成功
         first_result = captcha_service.verify(captcha_id, code)
         assert first_result is True
-        
+
         # 第二次使用失败
         second_result = captcha_service.verify(captcha_id, code)
         assert second_result is False
@@ -138,12 +139,13 @@ class TestCaptchaExpiry:
         """测试过期的验证码无法使用"""
         # 直接操作内部存储来模拟过期
         old_captcha_id, code = captcha_service.generate()
-        
+
         # 手动将过期时间设置为过去
         import time as _time
+
         if old_captcha_id in captcha_service._store:
             captcha_service._store[old_captcha_id] = (code, _time.time() - 3600)  # 1小时前
-        
+
         result = captcha_service.verify(old_captcha_id, code)
         assert result is False
 
@@ -174,15 +176,16 @@ class TestCaptchaCleanup:
         for _ in range(5):
             cid, _ = captcha_service.generate()
             ids.append(cid)
-        
+
         # 手动设置部分为过期
         import time as _time
+
         if ids[0] in captcha_service._store:
             captcha_service._store[ids[0]] = (captcha_service._store[ids[0]][0], _time.time() - 600)
-        
+
         # 执行清理
         captcha_service._cleanup()
-        
+
         # 验证过期的已被移除
         assert ids[0] not in captcha_service._store
         # 验证未过期的仍在
@@ -209,22 +212,23 @@ class TestCaptchaEdgeCases:
     def test_concurrent_generation(self):
         """测试并发生成不冲突"""
         import threading
+
         results = []
         errors = []
-        
+
         def gen():
             try:
                 cid, code = captcha_service.generate()
                 results.append((cid, code))
             except Exception as e:
                 errors.append(e)
-        
+
         threads = [threading.Thread(target=gen) for _ in range(20)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
-        
+
         # 所有ID应该唯一
         ids = [r[0] for r in results]
         assert len(ids) == len(set(ids))

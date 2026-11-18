@@ -7,18 +7,14 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="tt_test_user",
-        email="tt_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="tt_test_user", email="tt_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(TestTask).filter(TestTask.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(TestTask).filter(TestTask.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -35,12 +31,7 @@ def test_project(db, test_user):
 
 class TestTestTaskModel:
     def test_create_test_task(self, db, test_project, test_user):
-        task = TestTask(
-            task_name="回归测试",
-            project_id=test_project.id,
-            executor_id=test_user.id,
-            case_ids=[1, 2, 3]
-        )
+        task = TestTask(task_name="回归测试", project_id=test_project.id, executor_id=test_user.id, case_ids=[1, 2, 3])
         db.add(task)
         db.commit()
         db.refresh(task)
@@ -55,12 +46,7 @@ class TestTestTaskModel:
         db.commit()
 
     def test_test_task_default_values(self, db, test_project, test_user):
-        task = TestTask(
-            task_name="默认任务",
-            project_id=test_project.id,
-            executor_id=test_user.id,
-            case_ids=[]
-        )
+        task = TestTask(task_name="默认任务", project_id=test_project.id, executor_id=test_user.id, case_ids=[])
         db.add(task)
         db.commit()
         db.refresh(task)
@@ -81,7 +67,7 @@ class TestTestTaskModel:
                 project_id=test_project.id,
                 executor_id=test_user.id,
                 case_ids=[],
-                status=status
+                status=status,
             )
             db.add(task)
             db.commit()
@@ -99,7 +85,7 @@ class TestTestTaskModel:
             total_count=3,
             success_count=2,
             fail_count=1,
-            progress=100
+            progress=100,
         )
         db.add(task)
         db.commit()
@@ -118,7 +104,7 @@ class TestTestTaskModel:
             executor_id=test_user.id,
             case_ids=[],
             start_time=datetime(2024, 1, 1, 10, 0, 0),
-            end_time=datetime(2024, 1, 1, 11, 0, 0)
+            end_time=datetime(2024, 1, 1, 11, 0, 0),
         )
         db.add(task)
         db.commit()
@@ -130,12 +116,7 @@ class TestTestTaskModel:
 
     def test_test_task_case_ids_json(self, db, test_project, test_user):
         case_ids = [1, 2, 3, 4, 5]
-        task = TestTask(
-            task_name="JSON任务",
-            project_id=test_project.id,
-            executor_id=test_user.id,
-            case_ids=case_ids
-        )
+        task = TestTask(task_name="JSON任务", project_id=test_project.id, executor_id=test_user.id, case_ids=case_ids)
         db.add(task)
         db.commit()
         db.refresh(task)
@@ -144,10 +125,10 @@ class TestTestTaskModel:
         db.commit()
 
     def test_test_task_relationships(self):
-        assert hasattr(TestTask, 'project')
-        assert hasattr(TestTask, 'executor')
-        assert hasattr(TestTask, 'test_results')
-        assert hasattr(TestTask, 'video_records')
+        assert hasattr(TestTask, "project")
+        assert hasattr(TestTask, "executor")
+        assert hasattr(TestTask, "test_results")
+        assert hasattr(TestTask, "video_records")
 
 
 class TestTaskStatusConstants:

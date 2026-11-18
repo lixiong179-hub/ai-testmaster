@@ -9,6 +9,7 @@ Playwright 1.58 兼容性覆盖：
 - _parse_aria_yaml：YAML 字符串 → dict 树解析（含嵌套、attrs、text 节点、异常降级）
 - _collect_interactive_elements：page.locator("body").aria_snapshot() 闭环
 """
+
 from typing import Any, Dict, Optional
 
 from app.services.url_driven._snapshot_mixin import (
@@ -65,12 +66,15 @@ class TestExtractInteractiveElements:
         self.m = _SnapshotTester()
 
     def test_only_interactive_roles_collected(self) -> None:
-        tree = make_a11y_node("root", children=[
-            make_a11y_node("button", "提交"),
-            make_a11y_node("link", "首页"),
-            make_a11y_node("heading", "标题"),  # 非交互
-            make_a11y_node("textbox", "用户名"),
-        ])
+        tree = make_a11y_node(
+            "root",
+            children=[
+                make_a11y_node("button", "提交"),
+                make_a11y_node("link", "首页"),
+                make_a11y_node("heading", "标题"),  # 非交互
+                make_a11y_node("textbox", "用户名"),
+            ],
+        )
         els = self.m._extract_interactive_elements(tree)
         roles = [e["role"] for e in els]
         assert roles == ["button", "link", "textbox"]
@@ -78,9 +82,12 @@ class TestExtractInteractiveElements:
         assert all("locator" in e for e in els)
 
     def test_nested_children_traversed(self) -> None:
-        tree = make_a11y_node("root", children=[
-            make_a11y_node("button", "A", children=[make_a11y_node("link", "B")]),
-        ])
+        tree = make_a11y_node(
+            "root",
+            children=[
+                make_a11y_node("button", "A", children=[make_a11y_node("link", "B")]),
+            ],
+        )
         els = self.m._extract_interactive_elements(tree)
         assert [e["name"] for e in els] == ["A", "B"]
 
@@ -175,21 +182,19 @@ class TestCapturePageSnapshotErrorPaths:
     def setup_method(self) -> None:
         self.m = _SnapshotTester()
 
-    async def test_title_failure_degrades_to_empty(
-        self, monkeypatch, tmp_path
-    ) -> None:
+    async def test_title_failure_degrades_to_empty(self, monkeypatch, tmp_path) -> None:
         # title() 抛异常时 url=page.url 不会执行，url 同 title 一起降级为空串
         from app.core.config import settings
+
         monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
         page = _ErrorPage(title_raise=True)
         snap = await self.m._capture_page_snapshot(page)
         assert snap.title == ""
         assert snap.url == ""
 
-    async def test_a11y_failure_returns_empty_elements(
-        self, monkeypatch, tmp_path
-    ) -> None:
+    async def test_a11y_failure_returns_empty_elements(self, monkeypatch, tmp_path) -> None:
         from app.core.config import settings
+
         monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
         snap = await self.m._capture_page_snapshot(_ErrorPage())
         assert snap.elements == []
@@ -197,10 +202,9 @@ class TestCapturePageSnapshotErrorPaths:
         assert snap.navigation == []
         assert snap.is_login_page is False
 
-    async def test_screenshot_failure_returns_none(
-        self, monkeypatch, tmp_path
-    ) -> None:
+    async def test_screenshot_failure_returns_none(self, monkeypatch, tmp_path) -> None:
         from app.core.config import settings
+
         monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
         snap = await self.m._capture_page_snapshot(_ErrorPage(screenshot_raise=True))
         assert snap.screenshot_path is None
@@ -213,6 +217,7 @@ class TestSaveScreenshotOSError:
         import builtins
 
         from app.core.config import settings
+
         monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
         class _Page:
@@ -294,11 +299,7 @@ class TestParseAriaYaml:
         assert node == {"role": "text", "name": "Buy groceries", "children": []}
 
     def test_nested_children_indent_2(self) -> None:
-        yaml_text = (
-            "- listitem:\n"
-            '  - checkbox "Toggle Todo" [ref=e10]\n'
-            '  - text: "Buy groceries"\n'
-        )
+        yaml_text = '- listitem:\n  - checkbox "Toggle Todo" [ref=e10]\n  - text: "Buy groceries"\n'
         tree = _parse_aria_yaml(yaml_text)
         assert tree is not None
         listitem = tree["children"][0]
@@ -309,10 +310,7 @@ class TestParseAriaYaml:
         assert listitem["children"][1] == {"role": "text", "name": "Buy groceries", "children": []}
 
     def test_multi_top_level_nodes(self) -> None:
-        yaml_text = (
-            '- heading "todos" [level=1]\n'
-            '- textbox "What needs to be done?" [ref=e5]\n'
-        )
+        yaml_text = '- heading "todos" [level=1]\n- textbox "What needs to be done?" [ref=e5]\n'
         tree = _parse_aria_yaml(yaml_text)
         assert tree is not None
         assert len(tree["children"]) == 2
@@ -321,13 +319,13 @@ class TestParseAriaYaml:
 
     def test_unknown_line_skipped(self) -> None:
         # 非法行不匹配正则，应跳过不抛错
-        yaml_text = "- button \"OK\"\n!invalid line\n- link \"Next\""
+        yaml_text = '- button "OK"\n!invalid line\n- link "Next"'
         tree = _parse_aria_yaml(yaml_text)
         assert tree is not None
         assert len(tree["children"]) == 2
 
     def test_comment_lines_skipped(self) -> None:
-        yaml_text = "# comment\n- button \"OK\"\n  # indented comment\n- link \"Next\""
+        yaml_text = '# comment\n- button "OK"\n  # indented comment\n- link "Next"'
         tree = _parse_aria_yaml(yaml_text)
         assert tree is not None
         assert len(tree["children"]) == 2
@@ -339,7 +337,7 @@ class TestParseAriaYaml:
         indent_level=2 不弹栈，故 button 正确挂到 listitem 下而非 root。
         覆盖 Playwright aria_snapshot 不同项目缩进风格（2/4 空格）兼容性。
         """
-        yaml_text = "- listitem:\n    - button \"X\""
+        yaml_text = '- listitem:\n    - button "X"'
         tree = _parse_aria_yaml(yaml_text)
         assert tree is not None
         # 根仅 1 个 top-level 节点 listitem
@@ -348,9 +346,7 @@ class TestParseAriaYaml:
         assert listitem["role"] == "listitem"
         # button 挂到 listitem 下
         assert len(listitem["children"]) == 1
-        assert listitem["children"][0] == {
-            "role": "button", "name": "X", "children": []
-        }
+        assert listitem["children"][0] == {"role": "button", "name": "X", "children": []}
 
     def test_round_trip_with_dict_to_aria_yaml(self) -> None:
         """dict_to_aria_yaml 序列化后 _parse_aria_yaml 解析应保持元素清单一致。
@@ -361,14 +357,20 @@ class TestParseAriaYaml:
         """
         from tests.services.url_driven.conftest import dict_to_aria_yaml
 
-        original = make_a11y_node("root", children=[
-            make_a11y_node("button", "提交"),
-            make_a11y_node("link", "首页"),
-            make_a11y_node("listitem", children=[
-                make_a11y_node("textbox", "用户名"),
-                make_a11y_node("text", "提示文本"),
-            ]),
-        ])
+        original = make_a11y_node(
+            "root",
+            children=[
+                make_a11y_node("button", "提交"),
+                make_a11y_node("link", "首页"),
+                make_a11y_node(
+                    "listitem",
+                    children=[
+                        make_a11y_node("textbox", "用户名"),
+                        make_a11y_node("text", "提示文本"),
+                    ],
+                ),
+            ],
+        )
         yaml_text = dict_to_aria_yaml(original)
         parsed = _parse_aria_yaml(yaml_text)
         assert parsed is not None
@@ -428,24 +430,27 @@ class TestCollectInteractiveElements:
     async def test_collect_interactive_elements_from_yaml(self, monkeypatch, tmp_path) -> None:
         """完整链路：page.locator("body").aria_snapshot() → YAML → 解析 → 提取。"""
         from app.core.config import settings
+
         monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
-        a11y = make_a11y_node("root", children=[
-            make_a11y_node("button", "提交"),
-            make_a11y_node("heading", "标题"),  # 非交互
-            make_a11y_node("textbox", "用户名"),
-        ])
+        a11y = make_a11y_node(
+            "root",
+            children=[
+                make_a11y_node("button", "提交"),
+                make_a11y_node("heading", "标题"),  # 非交互
+                make_a11y_node("textbox", "用户名"),
+            ],
+        )
         page = _FakeBodyPage(a11y)
         elements = await self.m._collect_interactive_elements(page)
         assert [e["role"] for e in elements] == ["button", "textbox"]
         assert all(e["css_selector"] == "" for e in elements)
         assert all("locator" in e for e in elements)
 
-    async def test_collect_interactive_elements_empty_a11y(
-        self, monkeypatch, tmp_path
-    ) -> None:
+    async def test_collect_interactive_elements_empty_a11y(self, monkeypatch, tmp_path) -> None:
         """空 a11y 树经 YAML 序列化为空串，解析返回 None，提取返回空列表。"""
         from app.core.config import settings
+
         monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
 
         page = _FakeBodyPage({})  # 空 dict

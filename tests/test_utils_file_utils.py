@@ -217,7 +217,7 @@ class TestValidateUrl:
         mock_response.is_redirect = False
         mock_response.status_code = 200
         with patch("app.utils.file_utils.requests.get", return_value=mock_response):
-            with patch("app.utils.file_utils.socket.getaddrinfo", return_value=[(2, 1, 6, '', ('93.184.216.34', 0))]):
+            with patch("app.utils.file_utils.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("93.184.216.34", 0))]):
                 with patch("app.utils.file_utils.ipaddress.ip_address") as mock_ip:
                     mock_ip.return_value.is_private = False
                     mock_ip.return_value.is_loopback = False
@@ -230,7 +230,7 @@ class TestValidateUrl:
         mock_response.is_redirect = False
         mock_response.status_code = 500
         with patch("app.utils.file_utils.requests.get", return_value=mock_response):
-            with patch("app.utils.file_utils.socket.getaddrinfo", return_value=[(2, 1, 6, '', ('93.184.216.34', 0))]):
+            with patch("app.utils.file_utils.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("93.184.216.34", 0))]):
                 with patch("app.utils.file_utils.ipaddress.ip_address") as mock_ip:
                     mock_ip.return_value.is_private = False
                     mock_ip.return_value.is_loopback = False
@@ -240,7 +240,7 @@ class TestValidateUrl:
 
     def test_request_exception_returns_false(self):
         with patch("app.utils.file_utils.requests.get", side_effect=Exception("network error")):
-            with patch("app.utils.file_utils.socket.getaddrinfo", return_value=[(2, 1, 6, '', ('93.184.216.34', 0))]):
+            with patch("app.utils.file_utils.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("93.184.216.34", 0))]):
                 with patch("app.utils.file_utils.ipaddress.ip_address") as mock_ip:
                     mock_ip.return_value.is_private = False
                     mock_ip.return_value.is_loopback = False

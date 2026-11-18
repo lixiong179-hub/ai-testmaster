@@ -1,4 +1,5 @@
 import os
+
 # 测试环境放宽 captcha 频率限制 (默认 10/分钟, 测试批量执行需要更高)
 os.environ.setdefault("CAPTCHA_RATE_LIMIT", "10000")
 import uuid
@@ -98,6 +99,7 @@ class _SyncBackedAsyncSession:
     def in_transaction(self):
         return self._sync.in_transaction
 
+
 from app.core.config import settings
 from app.db.database import Base, get_db, async_get_db
 from app.db.smart_sync import DatabaseSyncTool
@@ -136,6 +138,7 @@ def ensureEventLoop():
 def resetAiSemaphore():
     """每个测试前重置 AI 生成信号量单例，避免前序用例残留计数影响后续用例。"""
     from app.utils.ai_concurrency import reset_ai_generation_semaphore
+
     reset_ai_generation_semaphore()
     yield
 
@@ -302,13 +305,9 @@ def client(db):
             continue
 
     _patch_managers = []
-    _patch_managers.append(
-        patch.object(db_module, "PrimarySessionLocal", side_effect=_create_shared_session)
-    )
+    _patch_managers.append(patch.object(db_module, "PrimarySessionLocal", side_effect=_create_shared_session))
     for _mod_name in _primary_session_local_modules:
-        _patch_managers.append(
-            patch(f"{_mod_name}.PrimarySessionLocal", side_effect=_create_shared_session)
-        )
+        _patch_managers.append(patch(f"{_mod_name}.PrimarySessionLocal", side_effect=_create_shared_session))
 
     with ExitStack() as _stack:
         for _mgr in _patch_managers:
@@ -496,9 +495,7 @@ async def async_test_user(async_db):
     )
     async_db.add(user)
     await async_db.flush()
-    result = await async_db.execute(
-        select(User).options(selectinload(User.roles)).where(User.id == user.id)
-    )
+    result = await async_db.execute(select(User).options(selectinload(User.roles)).where(User.id == user.id))
     return result.scalar_one()
 
 
@@ -518,21 +515,15 @@ async def async_admin_user(async_db):
     async_db.add(user)
     await async_db.flush()
 
-    admin_role = (
-        await async_db.execute(select(Role).where(Role.name == "admin"))
-    ).scalar_one_or_none()
+    admin_role = (await async_db.execute(select(Role).where(Role.name == "admin"))).scalar_one_or_none()
     if not admin_role:
         admin_role = Role(name="admin", desc="管理员角色", permissions=["*"])
         async_db.add(admin_role)
         await async_db.flush()
-    await async_db.execute(
-        user_role.insert().values(user_id=user.id, role_id=admin_role.id)
-    )
+    await async_db.execute(user_role.insert().values(user_id=user.id, role_id=admin_role.id))
     await async_db.flush()
 
-    result = await async_db.execute(
-        select(User).options(selectinload(User.roles)).where(User.id == user.id)
-    )
+    result = await async_db.execute(select(User).options(selectinload(User.roles)).where(User.id == user.id))
     return result.scalar_one()
 
 
@@ -587,6 +578,7 @@ async def async_client(async_db):
 
     import sys
     from app.db import database as db_module
+
     _patch_targets = []
     for _mod in list(sys.modules.values()):
         if _mod is None:
@@ -651,6 +643,7 @@ async def async_auth_client(async_db, async_test_user):
 
     import sys
     from app.db import database as db_module
+
     _patch_targets = []
     for _mod in list(sys.modules.values()):
         if _mod is None:
@@ -716,6 +709,7 @@ async def async_admin_client(async_db, async_admin_user):
 
     import sys
     from app.db import database as db_module
+
     _patch_targets = []
     for _mod in list(sys.modules.values()):
         if _mod is None:
@@ -756,8 +750,10 @@ def pytest_sessionfinish(session, exitstatus):
     显式 dispose 确保连接池中的连接在新事件循环中干净关闭。
     """
     import asyncio
+
     try:
         from app.db.database._engine import async_primary_engine
+
         loop = asyncio.new_event_loop()
         try:
             loop.run_until_complete(async_primary_engine.dispose())

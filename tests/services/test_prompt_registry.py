@@ -1,4 +1,5 @@
 """PromptRegistry 服务测试 - 版本递增、哈希计算、默认切换、回滚、fallback 到硬编码。"""
+
 import hashlib
 
 import pytest

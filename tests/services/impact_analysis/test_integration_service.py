@@ -9,6 +9,7 @@
     - build_schedule_plan: TIA_ENABLED=False / 无覆盖率 / 有效调度
     - filter_test_case_ids: 全量回退 / 部分筛选 / 无交集回退
 """
+
 import uuid
 
 import pytest
@@ -59,14 +60,16 @@ class TestLoadCoverageEntries:
         """有数据时返回 CoverageEntry 列表。"""
         from app.models.test_coverage_map import TestCoverageMap
 
-        db.add(TestCoverageMap(
-            project_id=test_project.id,
-            test_case_id=test_case.id,
-            file_path="app/foo.py",
-            line_start=1,
-            line_end=10,
-            test_name="test_foo",
-        ))
+        db.add(
+            TestCoverageMap(
+                project_id=test_project.id,
+                test_case_id=test_case.id,
+                file_path="app/foo.py",
+                line_start=1,
+                line_end=10,
+                test_name="test_foo",
+            )
+        )
         db.commit()
 
         service = TIAIntegrationService(db=db, project_root=".")
@@ -82,14 +85,16 @@ class TestLoadCoverageEntries:
         """无效条目（line_start > line_end）被过滤。"""
         from app.models.test_coverage_map import TestCoverageMap
 
-        db.add(TestCoverageMap(
-            project_id=test_project.id,
-            test_case_id=test_case.id,
-            file_path="app/foo.py",
-            line_start=10,
-            line_end=1,  # 反序，无效
-            test_name="",
-        ))
+        db.add(
+            TestCoverageMap(
+                project_id=test_project.id,
+                test_case_id=test_case.id,
+                file_path="app/foo.py",
+                line_start=10,
+                line_end=1,  # 反序，无效
+                test_name="",
+            )
+        )
         db.commit()
 
         service = TIAIntegrationService(db=db, project_root=".")
@@ -217,9 +222,7 @@ class TestBuildSchedulePlan:
         assert plan.is_full_run is True
         assert "TIA_ENABLED=False" in plan.fallback_reason
 
-    def test_plan_no_coverage_returns_full_run(
-        self, db, test_project, monkeypatch
-    ):
+    def test_plan_no_coverage_returns_full_run(self, db, test_project, monkeypatch):
         """TIA_ENABLED=True 但无覆盖率数据时降级全量执行。"""
         from app.core.config import settings
 
@@ -230,12 +233,21 @@ class TestBuildSchedulePlan:
         # 注意：必须 patch 类级方法而非实例——build_schedule_plan 内部会重建
         # self._scheduler（注入覆盖率数据），实例级 patch 会因重建而失效。
         with patch.object(
-            ChangeAnalyzer, "analyze_git_diff",
-            return_value=[type("C", (), {"file_path": "app/foo.py",
-                                          "added_lines": frozenset({1}),
-                                          "deleted_lines": frozenset(),
-                                          "is_new_file": False,
-                                          "is_deleted": False})],
+            ChangeAnalyzer,
+            "analyze_git_diff",
+            return_value=[
+                type(
+                    "C",
+                    (),
+                    {
+                        "file_path": "app/foo.py",
+                        "added_lines": frozenset({1}),
+                        "deleted_lines": frozenset(),
+                        "is_new_file": False,
+                        "is_deleted": False,
+                    },
+                )
+            ],
         ):
             plan = service.build_schedule_plan(
                 project_id=test_project.id,
@@ -273,9 +285,7 @@ class TestFilterTestCaseIds:
         assert case_ids == all_ids
         assert plan.is_full_run is True
 
-    def test_filter_no_intersection_returns_all(
-        self, db, test_project, monkeypatch
-    ):
+    def test_filter_no_intersection_returns_all(self, db, test_project, monkeypatch):
         """TIA 调度结果与待执行用例无交集时回退全量。"""
         from app.core.config import settings
 
@@ -288,9 +298,7 @@ class TestFilterTestCaseIds:
             is_full_run=False,
             reduction_ratio=0.5,
         )
-        with patch.object(
-            service, "build_schedule_plan", return_value=fake_plan
-        ):
+        with patch.object(service, "build_schedule_plan", return_value=fake_plan):
             all_ids = [1, 2, 3]
             case_ids, plan = service.filter_test_case_ids(
                 project_id=test_project.id,
@@ -313,9 +321,7 @@ class TestFilterTestCaseIds:
             is_full_run=False,
             reduction_ratio=0.6,
         )
-        with patch.object(
-            service, "build_schedule_plan", return_value=fake_plan
-        ):
+        with patch.object(service, "build_schedule_plan", return_value=fake_plan):
             all_ids = [1, 2, 3, 4, 5]
             case_ids, plan = service.filter_test_case_ids(
                 project_id=test_project.id,

@@ -13,6 +13,7 @@
     - coverage_insufficient_warning 逻辑
     - 报告生成含缺陷维度数据
 """
+
 import pytest
 from app.services.self_test_service import (
     calculate_defect_metrics,
@@ -115,6 +116,7 @@ def _create_bug(
 ) -> Bug:
     """辅助函数：创建 Bug 记录。"""
     import uuid
+
     bug_no = f"BUG-{project_id}-TEST-{uuid.uuid4().hex[:6]}"
     bug = Bug(
         bug_no=bug_no,
@@ -490,6 +492,7 @@ class TestCalculateDefectMetrics:
 
         # 手动创建的 Bug（source="manual"）
         import uuid
+
         manual_bug = Bug(
             bug_no=f"BUG-{defect_project.id}-MANUAL-{uuid.uuid4().hex[:6]}",
             project_id=defect_project.id,
@@ -601,12 +604,20 @@ class TestBuildDefectDistribution:
         tc_proj = _create_test_case(db, defect_project.id, "项目管理", "TC-DIST-002")
 
         _create_bug(
-            db, defect_project.id, testUser.id,
-            severity=1, ux_category="security", test_case_id=tc_auth.id,
+            db,
+            defect_project.id,
+            testUser.id,
+            severity=1,
+            ux_category="security",
+            test_case_id=tc_auth.id,
         )
         _create_bug(
-            db, defect_project.id, testUser.id,
-            severity=3, ux_category=None, test_case_id=tc_proj.id,
+            db,
+            defect_project.id,
+            testUser.id,
+            severity=3,
+            ux_category=None,
+            test_case_id=tc_proj.id,
         )
 
         dist = ReportService._build_defect_distribution(db, defect_project.id)
@@ -651,8 +662,12 @@ class TestBuildSecurityFindings:
     def test_with_security_bugs(self, db, defect_project, testUser):
         tc = _create_test_case(db, defect_project.id, "认证", "TC-SEC-001")
         _create_bug(
-            db, defect_project.id, testUser.id,
-            severity=1, ux_category="security", test_case_id=tc.id,
+            db,
+            defect_project.id,
+            testUser.id,
+            severity=1,
+            ux_category="security",
+            test_case_id=tc.id,
         )
 
         findings = ReportService._build_security_findings(db, defect_project.id)
@@ -703,14 +718,16 @@ class TestBuildCoverageAssessment:
 class TestReportGenerationWithDefects:
     """报告生成集成测试：验证缺陷维度数据写入 report.content。"""
 
-    def test_report_contains_defect_dimensions(
-        self, db, defect_project, defect_task, testUser
-    ):
+    def test_report_contains_defect_dimensions(self, db, defect_project, defect_task, testUser):
         """生成报告时包含缺陷维度数据。"""
         tc = _create_test_case(db, defect_project.id, "认证", "TC-RPT-001")
         _create_bug(
-            db, defect_project.id, testUser.id,
-            severity=2, ux_category="security", test_case_id=tc.id,
+            db,
+            defect_project.id,
+            testUser.id,
+            severity=2,
+            ux_category="security",
+            test_case_id=tc.id,
         )
         _create_test_result(
             db,
@@ -736,9 +753,7 @@ class TestReportGenerationWithDefects:
         assert "security_findings" in content
         assert "coverage_assessment" in content
 
-    def test_report_defect_overview_values(
-        self, db, defect_project, defect_task, testUser
-    ):
+    def test_report_defect_overview_values(self, db, defect_project, defect_task, testUser):
         """报告 defect_overview 指标值正确。"""
         tc = _create_test_case(db, defect_project.id, "认证", "TC-RPT-002")
         _create_bug(db, defect_project.id, testUser.id, severity=1, test_case_id=tc.id)
@@ -766,9 +781,7 @@ class TestReportGenerationWithDefects:
         assert overview["defect_density"] == 2.0
         assert overview["high_severity_ratio"] == 0.5
 
-    def test_report_coverage_insufficient_warning(
-        self, db, defect_project, defect_task, testUser
-    ):
+    def test_report_coverage_insufficient_warning(self, db, defect_project, defect_task, testUser):
         """报告 coverage_insufficient_warning 在 100% 通过 + 0 缺陷时为 True。"""
         tc = _create_test_case(db, defect_project.id, "认证", "TC-RPT-003")
         _create_test_result(
@@ -790,9 +803,7 @@ class TestReportGenerationWithDefects:
         overview = report.content["defect_overview"]
         assert overview["coverage_insufficient_warning"] is True
 
-    def test_report_without_task_id_no_defect_data(
-        self, db, defect_project, testUser
-    ):
+    def test_report_without_task_id_no_defect_data(self, db, defect_project, testUser):
         """不指定 task_id 时报告不含缺陷维度数据。"""
         tc = _create_test_case(db, defect_project.id, "认证", "TC-RPT-004")
         _create_test_result(
@@ -815,14 +826,16 @@ class TestReportGenerationWithDefects:
         assert "defect_overview" not in content
         assert "defect_list" not in content
 
-    def test_report_defect_distribution_structure(
-        self, db, defect_project, defect_task, testUser
-    ):
+    def test_report_defect_distribution_structure(self, db, defect_project, defect_task, testUser):
         """报告 defect_distribution 结构正确。"""
         tc = _create_test_case(db, defect_project.id, "认证", "TC-RPT-005")
         _create_bug(
-            db, defect_project.id, testUser.id,
-            severity=2, ux_category="loading_experience", test_case_id=tc.id,
+            db,
+            defect_project.id,
+            testUser.id,
+            severity=2,
+            ux_category="loading_experience",
+            test_case_id=tc.id,
         )
         _create_test_result(
             db,
@@ -848,9 +861,7 @@ class TestReportGenerationWithDefects:
         assert dist["by_type"]["loading_experience"] == 1
         assert dist["by_severity"]["p1"] == 1
 
-    def test_report_implicit_defects_in_content(
-        self, db, defect_project, defect_task, testUser
-    ):
+    def test_report_implicit_defects_in_content(self, db, defect_project, defect_task, testUser):
         """报告 implicit_defects 包含隐性缺陷证据。"""
         tc = _create_test_case(db, defect_project.id, "认证", "TC-RPT-006")
         _create_bug(db, defect_project.id, testUser.id, severity=2, test_case_id=tc.id)
@@ -878,14 +889,16 @@ class TestReportGenerationWithDefects:
         assert len(implicit["console_errors"]) == 1
         assert len(implicit["network_failures"]) == 1
 
-    def test_report_security_findings_in_content(
-        self, db, defect_project, defect_task, testUser
-    ):
+    def test_report_security_findings_in_content(self, db, defect_project, defect_task, testUser):
         """报告 security_findings 包含安全发现。"""
         tc = _create_test_case(db, defect_project.id, "认证", "TC-RPT-007")
         _create_bug(
-            db, defect_project.id, testUser.id,
-            severity=1, ux_category="security", test_case_id=tc.id,
+            db,
+            defect_project.id,
+            testUser.id,
+            severity=1,
+            ux_category="security",
+            test_case_id=tc.id,
         )
         _create_test_result(
             db,
@@ -911,9 +924,7 @@ class TestReportGenerationWithDefects:
             "permission_bypass",
         )
 
-    def test_report_coverage_assessment_in_content(
-        self, db, defect_project, defect_task, testUser
-    ):
+    def test_report_coverage_assessment_in_content(self, db, defect_project, defect_task, testUser):
         """报告 coverage_assessment 包含覆盖评估。"""
         tc_auth = _create_test_case(db, defect_project.id, "认证", "TC-RPT-008")
         tc_report = _create_test_case(db, defect_project.id, "报告", "TC-RPT-009")

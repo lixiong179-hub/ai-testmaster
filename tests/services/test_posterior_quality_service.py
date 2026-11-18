@@ -20,6 +20,7 @@ DB 使用真实 MySQL 测试库（tests/conftest.py 的 db fixture，事务隔�
 record_metric 使用独立 Session 提交，会绕过测试事务隔离污染真实库，
 故通过 monkeypatch 替换为 no-op（record_metric 已在 test_metrics_service 中覆盖）。
 """
+
 from datetime import timedelta
 
 import pytest
@@ -39,6 +40,7 @@ from app.utils.db_time import utcnow
 
 
 # ==================== Fixtures ====================
+
 
 @pytest.fixture
 def pq_user(db):
@@ -68,15 +70,15 @@ def _stub_record_metric(monkeypatch):
 
     record_metric 已在 test_metrics_service 中覆盖，本测试聚焦后验质量分计算逻辑。
     """
+
     def _noop(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(
-        "app.services.metrics_service.record_metric", _noop
-    )
+    monkeypatch.setattr("app.services.metrics_service.record_metric", _noop)
 
 
 # ==================== 辅助构造函数 ====================
+
 
 def _make_case(db, project_id, **kwargs):
     case = TestCase(
@@ -115,8 +117,8 @@ def _make_execution(db, test_case_id, status="passed"):
 
 # ==================== compute_posterior_quality ====================
 
-class TestComputePosteriorQuality:
 
+class TestComputePosteriorQuality:
     def test_empty_project_returns_zeros(self, db, pq_project):
         result = compute_posterior_quality(db, pq_project.id)
         assert result["project_id"] == pq_project.id
@@ -192,9 +194,7 @@ class TestComputePosteriorQuality:
         _make_execution(db, c3.id, status="passed")
         # 2 modified of 3 → modification_rate = 2/3
         result = compute_posterior_quality(db, pq_project.id)
-        expected = round(
-            (0.5 * (2 / 3) + 0.3 * 1.0 + 0.2 * (1.0 - 2 / 3)) * 100, 2
-        )
+        expected = round((0.5 * (2 / 3) + 0.3 * 1.0 + 0.2 * (1.0 - 2 / 3)) * 100, 2)
         assert result["posterior_quality_score"] == expected
 
     def test_meets_min_executions_flag(self, db, pq_project):
@@ -222,8 +222,8 @@ class TestComputePosteriorQuality:
 
 # ==================== compute_and_persist_posterior ====================
 
-class TestComputeAndPersistPosterior:
 
+class TestComputeAndPersistPosterior:
     def test_skip_persist_when_below_min_executions(self, db, pq_project):
         case = _make_case(db, pq_project.id, review_status="approved")
         _make_execution(db, case.id, status="passed")
@@ -273,8 +273,8 @@ class TestComputeAndPersistPosterior:
 
 # ==================== check_review_rejection_alert ====================
 
-class TestCheckReviewRejectionAlert:
 
+class TestCheckReviewRejectionAlert:
     def test_no_alert_when_below_threshold(self, db, pq_project):
         for _ in range(6):
             _make_case(db, pq_project.id, review_status="approved")
@@ -315,8 +315,8 @@ class TestCheckReviewRejectionAlert:
 
 # ==================== run_posterior_quality_batch ====================
 
-class TestRunPosteriorQualityBatch:
 
+class TestRunPosteriorQualityBatch:
     def test_empty_project_list_returns_empty(self, db):
         results = run_posterior_quality_batch(db, project_ids=[])
         assert results == []
@@ -353,9 +353,7 @@ class TestRunPosteriorQualityBatch:
 
     def test_error_in_one_project_does_not_block_others(self, db, pq_project):
         """不存在的项目返回零分结果（不报错），其他项目仍正常采集。"""
-        results = run_posterior_quality_batch(
-            db, project_ids=[99999999, pq_project.id]
-        )
+        results = run_posterior_quality_batch(db, project_ids=[99999999, pq_project.id])
         assert len(results) == 2
         ids = {r["project_id"] for r in results}
         assert ids == {99999999, pq_project.id}

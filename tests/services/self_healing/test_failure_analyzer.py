@@ -9,6 +9,7 @@
 
 被测：app/services/self_healing/failure_analyzer.py + models.py
 """
+
 import pytest
 
 from app.services.self_healing.failure_analyzer import FailureAnalyzer
@@ -142,9 +143,7 @@ class TestFailureAnalyzerDomCorrection:
         # 选择器只含标签，无 id/class/name
         result = self.analyzer.analyze(error, "<div></div>", "div > span")
         assert result.failure_type == FailureType.LOAD_DELAY
-        assert result.evidence["dom_check_result"] == {
-            "skipped": "no_keywords_extracted"
-        }
+        assert result.evidence["dom_check_result"] == {"skipped": "no_keywords_extracted"}
 
     def test_xpath_selector_keyword_extraction(self):
         """xpath= 前缀选择器关键词提取。"""
@@ -298,21 +297,15 @@ class TestExtractSelectorKeywords:
         assert "btn-primary" in kws
 
     def test_xpath_with_id_attribute(self):
-        kws = FailureAnalyzer._extract_selector_keywords(
-            "xpath=//button[@id='submit']"
-        )
+        kws = FailureAnalyzer._extract_selector_keywords("xpath=//button[@id='submit']")
         assert "submit" in kws
 
     def test_xpath_with_class_attribute(self):
-        kws = FailureAnalyzer._extract_selector_keywords(
-            "xpath=//div[@class='container']"
-        )
+        kws = FailureAnalyzer._extract_selector_keywords("xpath=//div[@class='container']")
         assert "container" in kws
 
     def test_xpath_with_name_attribute(self):
-        kws = FailureAnalyzer._extract_selector_keywords(
-            "xpath=//input[@name='username']"
-        )
+        kws = FailureAnalyzer._extract_selector_keywords("xpath=//input[@name='username']")
         assert "username" in kws
 
     def test_dedup_keywords(self):

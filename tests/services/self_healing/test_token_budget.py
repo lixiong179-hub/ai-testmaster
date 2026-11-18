@@ -13,6 +13,7 @@
 被测：app/services/self_healing/token_budget.py（TokenBudgetGuard）
 Redis 测试使用 fakeredis（项目规则允许），避免依赖真实 Redis 服务。
 """
+
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
@@ -86,9 +87,7 @@ class TestConsumeWithRedis:
         # TTL 应为 25h（允许 5 秒误差）
         assert _TTL_SECONDS - 10 <= ttl <= _TTL_SECONDS
 
-    def test_consume_does_not_refresh_ttl_on_subsequent_writes(
-        self, fake_redis_client
-    ):
+    def test_consume_does_not_refresh_ttl_on_subsequent_writes(self, fake_redis_client):
         """后续写入不刷新 TTL（避免 key 永生）。"""
         guard = TokenBudgetGuard(redis_client=fake_redis_client)
         guard.consume(100)
@@ -98,6 +97,7 @@ class TestConsumeWithRedis:
 
         # 等待一小段时间后再 consume（TTL 应略减）
         import time
+
         time.sleep(1)
         guard.consume(200)
         ttl_after_second = fake_redis_client.ttl(counter_key)

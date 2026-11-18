@@ -92,6 +92,7 @@ class TestAppendNotesToPoint:
 class TestDetectPriority:
     def test_default_priority(self):
         import xml.etree.ElementTree as ET
+
         topic = ET.Element("topic")
         result = parser._detect_priority(topic)
         assert result == 2
@@ -100,6 +101,7 @@ class TestDetectPriority:
 class TestExtractTopicText:
     def test_no_title_element(self):
         import xml.etree.ElementTree as ET
+
         topic = ET.Element("topic")
         result = parser._extract_topic_text(topic)
         assert result == ""
@@ -108,6 +110,7 @@ class TestExtractTopicText:
 class TestExtractTopicNotes:
     def test_no_notes_element(self):
         import xml.etree.ElementTree as ET
+
         topic = ET.Element("topic")
         result = parser._extract_topic_notes(topic)
         assert result == ""
@@ -116,6 +119,7 @@ class TestExtractTopicNotes:
 class TestCollectNotes:
     def test_no_notes(self):
         import xml.etree.ElementTree as ET
+
         topic = ET.Element("topic")
         result = parser._collect_notes(topic)
         assert result == []
@@ -124,6 +128,7 @@ class TestCollectNotes:
 class TestGetChildTopics:
     def test_no_children(self):
         import xml.etree.ElementTree as ET
+
         topic = ET.Element("topic")
         result = parser._get_child_topics(topic)
         assert result == []

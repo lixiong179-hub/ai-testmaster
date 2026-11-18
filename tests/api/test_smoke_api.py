@@ -10,6 +10,7 @@
 统一响应包络：`{"code": 200, "msg": ..., "message": ..., "data": ..., "timestamp": ...}`
 （例外：`GET /api/v1/report/` 直接返回 `TestReportList`，无 `code/data` 包络）。
 """
+
 from typing import Any
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ API = "/api/v1"
 
 
 # ==================== 契约辅助 ====================
+
 
 def _fetch_captcha(client) -> tuple[str, str]:
     """从进程内端点取验证码（captcha 服务为内存单例，测试无需外部依赖）。"""
@@ -49,6 +51,7 @@ def _assert_envelope(resp, expected_code: int = 200) -> dict[str, Any]:
 
 
 # ==================== 认证模块 ====================
+
 
 class TestAuth:
     """认证模块契约。"""
@@ -83,6 +86,7 @@ class TestAuth:
 
 
 # ==================== 项目管理 ====================
+
 
 class TestProject:
     """项目模块契约。"""
@@ -122,6 +126,7 @@ class TestProject:
 
 # ==================== 测试任务 ====================
 
+
 class TestTestTask:
     """测试任务模块契约。"""
 
@@ -143,9 +148,7 @@ class TestTestTask:
 
     def test_get_task_list(self, client, authHeaders, testProject):
         """任务列表：按项目过滤，返回 items/total。"""
-        resp = client.get(
-            f"{API}/test-task/", headers=authHeaders, params={"project_id": testProject.id}
-        )
+        resp = client.get(f"{API}/test-task/", headers=authHeaders, params={"project_id": testProject.id})
         data = _assert_envelope(resp)
         assert isinstance(data.get("items"), list)
         assert isinstance(data.get("total"), int)
@@ -153,20 +156,20 @@ class TestTestTask:
 
 # ==================== 测试用例 ====================
 
+
 class TestTestCase:
     """测试用例模块契约。"""
 
     def test_get_case_list(self, client, authHeaders, testProject):
         """用例列表：分页包络 + items/total。"""
-        resp = client.get(
-            f"{API}/test-case/", headers=authHeaders, params={"project_id": testProject.id}
-        )
+        resp = client.get(f"{API}/test-case/", headers=authHeaders, params={"project_id": testProject.id})
         data = _assert_envelope(resp)
         assert isinstance(data.get("items"), list)
         assert isinstance(data.get("total"), int)
 
 
 # ==================== 测试点 ====================
+
 
 class TestTestPoint:
     """测试点模块契约。"""
@@ -181,14 +184,13 @@ class TestTestPoint:
 
 # ==================== 测试报告 ====================
 
+
 class TestReport:
     """测试报告模块契约。"""
 
     def test_get_report_list(self, client, authHeaders, testProject):
         """报告列表：该端点直接返回 TestReportList（无 code/data 包络，列表键为 reports）。"""
-        resp = client.get(
-            f"{API}/report/", headers=authHeaders, params={"project_id": testProject.id}
-        )
+        resp = client.get(f"{API}/report/", headers=authHeaders, params={"project_id": testProject.id})
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert isinstance(body.get("reports"), list), body

@@ -12,6 +12,7 @@
 注意: 直接调用端点函数时，create_response 中的 data 为序列化后的 dict
 （经过 _serialize_project_flow_data 处理），通过字典访问（["project_id"]）。
 """
+
 import pytest
 from fastapi import HTTPException, status
 
@@ -75,10 +76,13 @@ class TestPutFlowData:
 
     @pytest.mark.asyncio
     async def test_save_returns_200(self, db, api_project, testUser):
-        request = _make_request(api_project.id, {
-            "nodes": [{"id": "1", "name": "登录"}],
-            "edges": [{"from": "1", "to": "2"}],
-        })
+        request = _make_request(
+            api_project.id,
+            {
+                "nodes": [{"id": "1", "name": "登录"}],
+                "edges": [{"from": "1", "to": "2"}],
+            },
+        )
         response = await save_flow_data(
             project_id=api_project.id,
             flow_request=request,
@@ -101,10 +105,13 @@ class TestPutFlowData:
         )
         assert r1["code"] == 200
 
-        req2 = _make_request(api_project.id, {
-            "nodes": [{"id": "b"}],
-            "edges": [{"from": "b", "to": "c"}],
-        })
+        req2 = _make_request(
+            api_project.id,
+            {
+                "nodes": [{"id": "b"}],
+                "edges": [{"from": "b", "to": "c"}],
+            },
+        )
         r2 = await save_flow_data(
             project_id=api_project.id,
             flow_request=req2,
@@ -165,10 +172,13 @@ class TestGetFlowData:
     @pytest.mark.asyncio
     async def test_returns_saved_data(self, db, api_project, testUser):
         # 先保存数据
-        request = _make_request(api_project.id, {
-            "nodes": [{"id": "1", "name": "首页"}],
-            "edges": [{"from": "1", "to": "2"}],
-        })
+        request = _make_request(
+            api_project.id,
+            {
+                "nodes": [{"id": "1", "name": "首页"}],
+                "edges": [{"from": "1", "to": "2"}],
+            },
+        )
         await save_flow_data(
             project_id=api_project.id,
             flow_request=request,

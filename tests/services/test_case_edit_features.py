@@ -10,6 +10,7 @@
 
 使用真实MySQL数据库，不使用Mock
 """
+
 import pytest
 import json
 import sys
@@ -30,6 +31,7 @@ from app.main import app
 # 1. _normalize_new_format 测试
 # ============================================================
 
+
 class TestNormalizeNewFormat:
     """新格式AI响应标准化测试"""
 
@@ -41,14 +43,8 @@ class TestNormalizeNewFormat:
             "precondition": "已登录并进入至首页",
             "case_type": "功能测试",
             "priority": "P0",
-            "steps": [
-                {"step": 1, "action": "点击'登录按钮'"},
-                {"step": 2, "action": "输入用户名"}
-            ],
-            "expected_results": [
-                "查看登录按钮展示正确",
-                "输入框显示正确"
-            ]
+            "steps": [{"step": 1, "action": "点击'登录按钮'"}, {"step": 2, "action": "输入用户名"}],
+            "expected_results": ["查看登录按钮展示正确", "输入框显示正确"],
         }
         result = _normalize_new_format(input_case)
 
@@ -68,12 +64,8 @@ class TestNormalizeNewFormat:
         """expected_results 应合并为换行分隔的字符串"""
         input_case = {
             "title": "测试",
-            "steps": [
-                {"step": 1, "action": "操作A"},
-                {"step": 2, "action": "操作B"},
-                {"step": 3, "action": "操作C"}
-            ],
-            "expected_results": ["结果A", "结果B", "结果C"]
+            "steps": [{"step": 1, "action": "操作A"}, {"step": 2, "action": "操作B"}, {"step": 3, "action": "操作C"}],
+            "expected_results": ["结果A", "结果B", "结果C"],
         }
         result = _normalize_new_format(input_case)
 
@@ -85,22 +77,14 @@ class TestNormalizeNewFormat:
 
     def test_empty_steps(self):
         """空步骤列表处理"""
-        input_case = {
-            "title": "空步骤用例",
-            "steps": [],
-            "expected_results": []
-        }
+        input_case = {"title": "空步骤用例", "steps": [], "expected_results": []}
         result = _normalize_new_format(input_case)
         assert result["steps"] == []
         assert result["expected_result"] == ""
 
     def test_missing_optional_fields_use_defaults(self):
         """缺少可选字段时使用默认值"""
-        input_case = {
-            "title": "最小输入",
-            "steps": [{"step": 1, "action": "操作"}],
-            "expected_results": ["预期"]
-        }
+        input_case = {"title": "最小输入", "steps": [{"step": 1, "action": "操作"}], "expected_results": ["预期"]}
         result = _normalize_new_format(input_case)
         assert result["module"] == ""
         assert result["precondition"] == ""
@@ -111,11 +95,8 @@ class TestNormalizeNewFormat:
         """step字段为数字类型（AI可能返回number）"""
         input_case = {
             "title": "数字步骤",
-            "steps": [
-                {1: "操作1"},
-                {2: "操作2"}
-            ],
-            "expected_results": ["结果1", "结果2"]
+            "steps": [{1: "操作1"}, {2: "操作2"}],
+            "expected_results": ["结果1", "结果2"],
         }
         result = _normalize_new_format(input_case)
         assert len(result["steps"]) == 2
@@ -124,12 +105,8 @@ class TestNormalizeNewFormat:
         """steps数量多于expected_results时，多余步骤的expected_result应为空字符串"""
         input_case = {
             "title": "不匹配",
-            "steps": [
-                {"step": 1, "action": "A"},
-                {"step": 2, "action": "B"},
-                {"step": 3, "action": "C"}
-            ],
-            "expected_results": ["结果A", "结果B"]
+            "steps": [{"step": 1, "action": "A"}, {"step": 2, "action": "B"}, {"step": 3, "action": "C"}],
+            "expected_results": ["结果A", "结果B"],
         }
         result = _normalize_new_format(input_case)
         assert result["steps"][0]["expected_result"] == "结果A"
@@ -140,10 +117,8 @@ class TestNormalizeNewFormat:
         """expected_results多于steps时，多余的results应被忽略"""
         input_case = {
             "title": "反向不匹配",
-            "steps": [
-                {"step": 1, "action": "A"}
-            ],
-            "expected_results": ["结果A", "多余结果"]
+            "steps": [{"step": 1, "action": "A"}],
+            "expected_results": ["结果A", "多余结果"],
         }
         result = _normalize_new_format(input_case)
         assert result["steps"][0]["expected_result"] == "结果A"
@@ -152,6 +127,7 @@ class TestNormalizeNewFormat:
 # ============================================================
 # 2. _normalize_old_format 测试
 # ============================================================
+
 
 class TestNormalizeOldFormat:
     """旧格式AI响应标准化测试"""
@@ -207,7 +183,7 @@ class TestNormalizeOldFormat:
             "case_type": "functional",
             "expected_result": "总体预期",
             "test_data": {"key": "value"},
-            "steps": [{"step": 1, "action": "操作"}]
+            "steps": [{"step": 1, "action": "操作"}],
         }
         result = _normalize_old_format(case)
         assert result["title"] == "原格式标题"
@@ -227,6 +203,7 @@ class TestNormalizeOldFormat:
 # 3. TestCaseUpdate Schema 测试
 # ============================================================
 
+
 class TestTestCaseUpdateSchema:
     """TestCaseUpdate Pydantic模型校验测试"""
 
@@ -242,10 +219,7 @@ class TestTestCaseUpdateSchema:
 
     def test_update_with_steps_list(self):
         """包含steps列表的更新"""
-        steps = [
-            {"step": 1, "action": "操作1", "param": "参数1"},
-            {"step": 2, "action": "操作2", "param": "参数2"}
-        ]
+        steps = [{"step": 1, "action": "操作1", "param": "参数1"}, {"step": 2, "action": "操作2", "param": "参数2"}]
         data = TestCaseUpdate(steps=steps)
         assert len(data.steps) == 2
         assert data.steps[0].step == 1
@@ -260,7 +234,7 @@ class TestTestCaseUpdateSchema:
             priority=1,
             case_type="ui_automation",
             steps=[{"step": 1, "action": "操作"}],
-            exec_script="# script"
+            exec_script="# script",
         )
         assert data.title == "完整更新"
         assert data.case_type == "ui_automation"
@@ -293,6 +267,7 @@ class TestTestCaseUpdateSchema:
 # 4. PUT /testCase/{id} API 集成测试
 # ============================================================
 
+
 @pytest.fixture(scope="module")
 def client():
     return TestClient(app)
@@ -310,12 +285,10 @@ def auth_headers(client):
     # 直接调用service获取code，不通过API
     captcha_id, captcha_code = captcha_service.generate(ip="testclient")
 
-    login_resp = client.post("/api/v1/auth/login", data={
-        "username": "admin",
-        "password": "admin",
-        "captcha_id": captcha_id,
-        "captcha_code": captcha_code
-    })
+    login_resp = client.post(
+        "/api/v1/auth/login",
+        data={"username": "admin", "password": "admin", "captcha_id": captcha_id, "captcha_code": captcha_code},
+    )
 
     if login_resp.status_code == 200:
         token = login_resp.json()["data"]["access_token"]
@@ -332,9 +305,7 @@ def test_project_id(client, auth_headers):
         if projects:
             return projects[0]["id"]
 
-    create_resp = client.post("/api/v1/project",
-                              json={"name": "编辑功能测试项目"},
-                              headers=auth_headers)
+    create_resp = client.post("/api/v1/project", json={"name": "编辑功能测试项目"}, headers=auth_headers)
     if create_resp.status_code == 200:
         return create_resp.json()["data"]["id"]
 
@@ -344,20 +315,20 @@ def test_project_id(client, auth_headers):
 @pytest.fixture(scope="function")
 def existing_case_id(client, auth_headers, test_project_id):
     """创建一个已存在的测试用例用于更新测试"""
-    create_resp = client.post("/api/v1/test-case",
-                               json={
-                                   "project_id": test_project_id,
-                                   "title": "待更新的测试用例",
-                                   "module": "默认模块",
-                                   "precondition": "系统已通过配置自动登录至目标页面",
-                                   "steps": [
-                                       {"step": 1, "action": "初始操作", "param": "初始预期"}
-                                   ],
-                                   "expected_result": "初始预期结果",
-                                   "priority": 2,
-                                   "case_type": "functional"
-                               },
-                               headers=auth_headers)
+    create_resp = client.post(
+        "/api/v1/test-case",
+        json={
+            "project_id": test_project_id,
+            "title": "待更新的测试用例",
+            "module": "默认模块",
+            "precondition": "系统已通过配置自动登录至目标页面",
+            "steps": [{"step": 1, "action": "初始操作", "param": "初始预期"}],
+            "expected_result": "初始预期结果",
+            "priority": 2,
+            "case_type": "functional",
+        },
+        headers=auth_headers,
+    )
 
     if create_resp.status_code == 200:
         case_id = create_resp.json()["data"]["id"]
@@ -371,9 +342,7 @@ class TestUpdateTestCaseAPI:
 
     def test_update_title_only(self, client, auth_headers, existing_case_id):
         """只更新标题"""
-        resp = client.put(f"/api/v1/test-case/{existing_case_id}",
-                          json={"title": "更新后的标题"},
-                          headers=auth_headers)
+        resp = client.put(f"/api/v1/test-case/{existing_case_id}", json={"title": "更新后的标题"}, headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["title"] == "更新后的标题"
@@ -383,19 +352,21 @@ class TestUpdateTestCaseAPI:
         new_steps = [
             {"step": 1, "action": "点击'新增'按钮", "param": "弹窗出现"},
             {"step": 2, "action": "填写表单", "param": "提交成功"},
-            {"step": 3, "action": "验证保存", "param": "数据持久化"}
+            {"step": 3, "action": "验证保存", "param": "数据持久化"},
         ]
 
-        resp = client.put(f"/api/v1/test-case/{existing_case_id}",
-                          json={
-                              "title": "带步骤更新的用例",
-                              "module": "表单模块",
-                              "precondition": "已登录进入表单页面",
-                              "steps": new_steps,
-                              "priority": 1,
-                              "case_type": "功能测试"
-                          },
-                          headers=auth_headers)
+        resp = client.put(
+            f"/api/v1/test-case/{existing_case_id}",
+            json={
+                "title": "带步骤更新的用例",
+                "module": "表单模块",
+                "precondition": "已登录进入表单页面",
+                "steps": new_steps,
+                "priority": 1,
+                "case_type": "功能测试",
+            },
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
 
         # 验证GET返回的数据包含更新后的步骤
@@ -408,20 +379,15 @@ class TestUpdateTestCaseAPI:
 
     def test_update_clears_steps_with_empty_array(self, client, auth_headers, existing_case_id):
         """发送空数组应清空原有步骤"""
-        resp = client.put(f"/api/v1/test-case/{existing_case_id}",
-                          json={"steps": []},
-                          headers=auth_headers)
+        resp = client.put(f"/api/v1/test-case/{existing_case_id}", json={"steps": []}, headers=auth_headers)
         assert resp.status_code == 200
 
     def test_update_nonexistent_case_returns_404(self, client, auth_headers):
         """更新不存在的用例返回404"""
-        resp = client.put("/api/v1/test-case/99999999",
-                          json={"title": "不存在"},
-                          headers=auth_headers)
+        resp = client.put("/api/v1/test-case/99999999", json={"title": "不存在"}, headers=auth_headers)
         assert resp.status_code == 404
 
     def test_update_without_auth_returns_401(self, client, existing_case_id):
         """未认证返回401"""
-        resp = client.put(f"/api/v1/test-case/{existing_case_id}",
-                          json={"title": "未认证"})
+        resp = client.put(f"/api/v1/test-case/{existing_case_id}", json={"title": "未认证"})
         assert resp.status_code == 401

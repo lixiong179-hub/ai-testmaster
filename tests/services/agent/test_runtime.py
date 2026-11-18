@@ -6,6 +6,7 @@ token 超限 / circuit_breaker 阻断 / LLM 降级 / session 降级 / 工具异�
 测试原则：LLM/loop_detector/circuit_breaker/token_guard/metrics 为外部基础设施使用 Mock；
 session_service=None 时降级为内存 AgentSession，无需真实数据库。
 """
+
 from __future__ import annotations
 
 import json
@@ -195,9 +196,11 @@ def tool_registry_with_tools() -> ToolRegistry:
 
 async def test_run_completes_when_no_tool_calls(runtime_with_test_agent: AgentRuntime) -> None:
     """用例1: LLM 返回无 tool_calls → 立即终止 → status="completed"。"""
-    runtime_with_test_agent.llm_provider = MockLLMProvider([
-        {"content": "任务完成", "tool_calls": [], "token_cost": 100},
-    ])
+    runtime_with_test_agent.llm_provider = MockLLMProvider(
+        [
+            {"content": "任务完成", "tool_calls": [], "token_cost": 100},
+        ]
+    )
     session = await runtime_with_test_agent.run(agent_type="test_agent", project_id=1, initial_artifacts=[])
     assert session.status == "completed"
     assert session.iteration_count == 1
@@ -209,10 +212,16 @@ async def test_run_with_tool_calls_then_final_answer(
     tool_registry_with_tools: ToolRegistry,
 ) -> None:
     """用例2: LLM 返回 tool_calls → 执行工具 → final_answer 终止。"""
-    runtime_with_test_agent.llm_provider = MockLLMProvider([
-        {"content": "调用工具", "tool_calls": [_make_tool_call("noop_tool")], "token_cost": 50},
-        {"content": "最终答案", "tool_calls": [_make_tool_call("final_answer", {"answer": "done"})], "token_cost": 60},
-    ])
+    runtime_with_test_agent.llm_provider = MockLLMProvider(
+        [
+            {"content": "调用工具", "tool_calls": [_make_tool_call("noop_tool")], "token_cost": 50},
+            {
+                "content": "最终答案",
+                "tool_calls": [_make_tool_call("final_answer", {"answer": "done"})],
+                "token_cost": 60,
+            },
+        ]
+    )
     runtime_with_test_agent.tool_registry = tool_registry_with_tools
     session = await runtime_with_test_agent.run(agent_type="test_agent", project_id=1, initial_artifacts=[])
     assert session.status == "completed"
@@ -226,8 +235,7 @@ async def test_run_raises_max_iterations(
 ) -> None:
     """用例3: 持续返回 tool_calls 不终止 → 抛 MaxIterationsExceeded。"""
     responses = [
-        {"content": f"iter {i}", "tool_calls": [_make_tool_call("noop_tool")], "token_cost": 10}
-        for i in range(3)
+        {"content": f"iter {i}", "tool_calls": [_make_tool_call("noop_tool")], "token_cost": 10} for i in range(3)
     ]
     runtime_with_test_agent.llm_provider = MockLLMProvider(responses)
     runtime_with_test_agent.tool_registry = tool_registry_with_tools
@@ -241,10 +249,12 @@ async def test_run_raises_loop_detected(
     tool_registry_with_tools: ToolRegistry,
 ) -> None:
     """用例4: 第二轮 _check_loop 检测到重复签名 → 抛 AgentLoopDetected。"""
-    runtime_with_test_agent.llm_provider = MockLLMProvider([
-        {"content": "调用工具", "tool_calls": [_make_tool_call("noop_tool")], "token_cost": 50},
-        {"content": "再次调用", "tool_calls": [_make_tool_call("noop_tool")], "token_cost": 50},
-    ])
+    runtime_with_test_agent.llm_provider = MockLLMProvider(
+        [
+            {"content": "调用工具", "tool_calls": [_make_tool_call("noop_tool")], "token_cost": 50},
+            {"content": "再次调用", "tool_calls": [_make_tool_call("noop_tool")], "token_cost": 50},
+        ]
+    )
     loop_detector = MockLoopDetector(detect=True)
     runtime_with_test_agent.loop_detector = loop_detector
     runtime_with_test_agent.tool_registry = tool_registry_with_tools
@@ -279,11 +289,16 @@ async def test_run_uses_in_memory_session_when_session_service_none(
     runtime_with_test_agent: AgentRuntime,
 ) -> None:
     """用例8: session_service=None → 使用内存 AgentSession（id=None）。"""
-    runtime_with_test_agent.llm_provider = MockLLMProvider([
-        {"content": "完成", "tool_calls": [], "token_cost": 0},
-    ])
+    runtime_with_test_agent.llm_provider = MockLLMProvider(
+        [
+            {"content": "完成", "tool_calls": [], "token_cost": 0},
+        ]
+    )
     session = await runtime_with_test_agent.run(
-        agent_type="test_agent", project_id=42, initial_artifacts=[], created_by=99,
+        agent_type="test_agent",
+        project_id=42,
+        initial_artifacts=[],
+        created_by=99,
     )
     assert session.id is None
     assert session.project_id == 42
@@ -297,9 +312,11 @@ async def test_run_wraps_tool_exception_as_tool_execution_error(
     tool_registry_with_tools: ToolRegistry,
 ) -> None:
     """用例9: 工具抛异常 → 包装为 ToolExecutionError → session.status="failed"。"""
-    runtime_with_test_agent.llm_provider = MockLLMProvider([
-        {"content": "调用错误工具", "tool_calls": [_make_tool_call("error_tool")], "token_cost": 50},
-    ])
+    runtime_with_test_agent.llm_provider = MockLLMProvider(
+        [
+            {"content": "调用错误工具", "tool_calls": [_make_tool_call("error_tool")], "token_cost": 50},
+        ]
+    )
     runtime_with_test_agent.tool_registry = tool_registry_with_tools
     with pytest.raises(ToolExecutionError) as exc_info:
         await runtime_with_test_agent.run(agent_type="test_agent", project_id=1, initial_artifacts=[])
@@ -309,9 +326,11 @@ async def test_run_wraps_tool_exception_as_tool_execution_error(
 
 async def test_run_records_metrics(runtime_with_test_agent: AgentRuntime) -> None:
     """用例10: metrics 提供时，record_session_start/record_iteration/record_session_end 被调用。"""
-    runtime_with_test_agent.llm_provider = MockLLMProvider([
-        {"content": "完成", "tool_calls": [], "token_cost": 100},
-    ])
+    runtime_with_test_agent.llm_provider = MockLLMProvider(
+        [
+            {"content": "完成", "tool_calls": [], "token_cost": 100},
+        ]
+    )
     metrics = MockMetrics()
     runtime_with_test_agent.metrics = metrics
     await runtime_with_test_agent.run(agent_type="test_agent", project_id=1, initial_artifacts=[])

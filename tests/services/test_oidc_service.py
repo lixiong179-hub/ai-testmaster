@@ -10,6 +10,7 @@
     - 用户名生成: 优先 preferred_username / 清理非法字符 / 唯一后缀
     - 元数据: 单个 IdP / 列表 / 脱敏
 """
+
 from __future__ import annotations
 
 import json
@@ -60,9 +61,7 @@ _TEST_IDP_CONFIGS = [
 def oidc_enabled(monkeypatch):
     """启用 OIDC 并配置测试 IdP。"""
     monkeypatch.setattr(settings, "OIDC_SSO_ENABLED", True)
-    monkeypatch.setattr(
-        settings, "OIDC_IDP_CONFIGS", json.dumps(_TEST_IDP_CONFIGS)
-    )
+    monkeypatch.setattr(settings, "OIDC_IDP_CONFIGS", json.dumps(_TEST_IDP_CONFIGS))
     monkeypatch.setattr(settings, "OIDC_DEFAULT_PROVIDER", "google")
     # 清空内存 state 存储
     _memory_state_store.clear()
@@ -88,9 +87,7 @@ class TestOIDCServiceInit:
         with pytest.raises(OIDCDisabledError):
             OIDCService()
 
-    def test_init_raises_when_no_idp_configured(
-        self, monkeypatch
-    ) -> None:
+    def test_init_raises_when_no_idp_configured(self, monkeypatch) -> None:
         """OIDC_IDP_CONFIGS 为空时抛出 OIDCConfigError。"""
         monkeypatch.setattr(settings, "OIDC_SSO_ENABLED", True)
         monkeypatch.setattr(settings, "OIDC_IDP_CONFIGS", "[]")
@@ -135,9 +132,7 @@ class TestProviderConfig:
         """resolve_provider 透传非 None 值。"""
         assert oidc_service.resolve_provider("azure") == "azure"
 
-    def test_resolve_provider_none_uses_default(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_resolve_provider_none_uses_default(self, oidc_service: OIDCService) -> None:
         """resolve_provider(None) 返回默认 IdP。"""
         assert oidc_service.resolve_provider(None) == "google"
 
@@ -219,9 +214,7 @@ class TestStateManagement:
 class TestAuthorizationUrl:
     """授权 URL 构造测试。"""
 
-    def test_build_authorization_url_default_provider(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_build_authorization_url_default_provider(self, oidc_service: OIDCService) -> None:
         """默认 IdP 构造的授权 URL 含标准 OIDC 参数。"""
         url, state = oidc_service.build_authorization_url()
         assert state  # 非空
@@ -232,24 +225,18 @@ class TestAuthorizationUrl:
         assert f"state={state}" in url
         assert "nonce=" in url
 
-    def test_build_authorization_url_custom_provider(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_build_authorization_url_custom_provider(self, oidc_service: OIDCService) -> None:
         """指定 IdP 构造的授权 URL 使用对应配置。"""
         url, state = oidc_service.build_authorization_url(provider="azure")
         assert url.startswith("https://login.microsoftonline.com/tenant-id/v2.0/authorize?")
         assert "client_id=azure-client-id" in url
 
-    def test_build_authorization_url_unknown_provider(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_build_authorization_url_unknown_provider(self, oidc_service: OIDCService) -> None:
         """未知 IdP 抛出 OIDCConfigError。"""
         with pytest.raises(OIDCConfigError):
             oidc_service.build_authorization_url(provider="unknown")
 
-    def test_derive_authorization_endpoint_from_discovery(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_derive_authorization_endpoint_from_discovery(self, oidc_service: OIDCService) -> None:
         """discovery_url 末尾 /.well-known/openid-configuration 时推导 /authorize。"""
         cfg = {
             "provider": "test",
@@ -258,9 +245,7 @@ class TestAuthorizationUrl:
         endpoint = oidc_service._derive_authorization_endpoint(cfg)
         assert endpoint == "https://idp.example.com/authorize"
 
-    def test_derive_authorization_endpoint_from_issuer(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_derive_authorization_endpoint_from_issuer(self, oidc_service: OIDCService) -> None:
         """仅配置 issuer 时推导 issuer + /authorize。"""
         cfg = {"provider": "test", "issuer": "https://idp.example.com/"}
         endpoint = oidc_service._derive_authorization_endpoint(cfg)
@@ -274,14 +259,9 @@ class TestAuthorizationUrl:
     def test_derive_userinfo_endpoint(self, oidc_service: OIDCService) -> None:
         """推导 userinfo 端点。"""
         cfg = {"provider": "test", "issuer": "https://idp.example.com"}
-        assert (
-            oidc_service._derive_userinfo_endpoint(cfg)
-            == "https://idp.example.com/userinfo"
-        )
+        assert oidc_service._derive_userinfo_endpoint(cfg) == "https://idp.example.com/userinfo"
 
-    def test_explicit_endpoints_take_precedence(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_explicit_endpoints_take_precedence(self, oidc_service: OIDCService) -> None:
         """显式配置的端点优先于推导。"""
         cfg = {
             "provider": "test",
@@ -301,30 +281,30 @@ class TestAuthorizationUrl:
 class TestParseIdToken:
     """id_token 解析测试。"""
 
-    def test_parse_id_token_without_jwks_skips_verification(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_parse_id_token_without_jwks_skips_verification(self, oidc_service: OIDCService) -> None:
         """未配置 jwks 时跳过验签，直接解析 claims（开发模式）。"""
         import base64
         import json as _json
 
         # 构造未签名的 JWT（alg=none）
-        header = base64.urlsafe_b64encode(
-            _json.dumps({"alg": "none", "typ": "JWT"}).encode()
-        ).decode().rstrip("=")
-        payload = base64.urlsafe_b64encode(
-            _json.dumps(
-                {
-                    "sub": "user-123",
-                    "iss": "https://accounts.google.com",
-                    "aud": "google-client-id",
-                    "email": "user@example.com",
-                    "name": "Test User",
-                    "exp": int(time.time()) + 3600,
-                    "iat": int(time.time()),
-                }
-            ).encode()
-        ).decode().rstrip("=")
+        header = base64.urlsafe_b64encode(_json.dumps({"alg": "none", "typ": "JWT"}).encode()).decode().rstrip("=")
+        payload = (
+            base64.urlsafe_b64encode(
+                _json.dumps(
+                    {
+                        "sub": "user-123",
+                        "iss": "https://accounts.google.com",
+                        "aud": "google-client-id",
+                        "email": "user@example.com",
+                        "name": "Test User",
+                        "exp": int(time.time()) + 3600,
+                        "iat": int(time.time()),
+                    }
+                ).encode()
+            )
+            .decode()
+            .rstrip("=")
+        )
         unsigned_jwt = f"{header}.{payload}."
 
         # 调用 service 实际方法（未配置 jwks 走跳过验签分支）
@@ -333,69 +313,63 @@ class TestParseIdToken:
         assert claims["email"] == "user@example.com"
         assert claims["name"] == "Test User"
 
-    def test_parse_id_token_nonce_mismatch_raises(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_parse_id_token_nonce_mismatch_raises(self, oidc_service: OIDCService) -> None:
         """nonce 不匹配时抛出 OIDCTokenError。"""
         import base64
         import json as _json
 
         # 构造 JWT 含 nonce="stored-nonce"
-        header = base64.urlsafe_b64encode(
-            _json.dumps({"alg": "none", "typ": "JWT"}).encode()
-        ).decode().rstrip("=")
-        payload = base64.urlsafe_b64encode(
-            _json.dumps(
-                {
-                    "sub": "user-456",
-                    "iss": "https://accounts.google.com",
-                    "aud": "google-client-id",
-                    "nonce": "stored-nonce",
-                    "exp": int(time.time()) + 3600,
-                    "iat": int(time.time()),
-                }
-            ).encode()
-        ).decode().rstrip("=")
+        header = base64.urlsafe_b64encode(_json.dumps({"alg": "none", "typ": "JWT"}).encode()).decode().rstrip("=")
+        payload = (
+            base64.urlsafe_b64encode(
+                _json.dumps(
+                    {
+                        "sub": "user-456",
+                        "iss": "https://accounts.google.com",
+                        "aud": "google-client-id",
+                        "nonce": "stored-nonce",
+                        "exp": int(time.time()) + 3600,
+                        "iat": int(time.time()),
+                    }
+                ).encode()
+            )
+            .decode()
+            .rstrip("=")
+        )
         unsigned_jwt = f"{header}.{payload}."
 
         # 传入不匹配的 nonce 应抛出 OIDCTokenError
         with pytest.raises(OIDCTokenError, match="nonce"):
-            oidc_service.parse_id_token(
-                "google", unsigned_jwt, nonce="wrong-nonce"
-            )
+            oidc_service.parse_id_token("google", unsigned_jwt, nonce="wrong-nonce")
 
-    def test_parse_id_token_with_matching_nonce_passes(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_parse_id_token_with_matching_nonce_passes(self, oidc_service: OIDCService) -> None:
         """nonce 匹配时不抛出异常。"""
         import base64
         import json as _json
 
-        header = base64.urlsafe_b64encode(
-            _json.dumps({"alg": "none", "typ": "JWT"}).encode()
-        ).decode().rstrip("=")
-        payload = base64.urlsafe_b64encode(
-            _json.dumps(
-                {
-                    "sub": "user-789",
-                    "iss": "https://accounts.google.com",
-                    "aud": "google-client-id",
-                    "nonce": "correct-nonce",
-                    "exp": int(time.time()) + 3600,
-                    "iat": int(time.time()),
-                }
-            ).encode()
-        ).decode().rstrip("=")
+        header = base64.urlsafe_b64encode(_json.dumps({"alg": "none", "typ": "JWT"}).encode()).decode().rstrip("=")
+        payload = (
+            base64.urlsafe_b64encode(
+                _json.dumps(
+                    {
+                        "sub": "user-789",
+                        "iss": "https://accounts.google.com",
+                        "aud": "google-client-id",
+                        "nonce": "correct-nonce",
+                        "exp": int(time.time()) + 3600,
+                        "iat": int(time.time()),
+                    }
+                ).encode()
+            )
+            .decode()
+            .rstrip("=")
+        )
         unsigned_jwt = f"{header}.{payload}."
 
-        claims = oidc_service.parse_id_token(
-            "google", unsigned_jwt, nonce="correct-nonce"
-        )
+        claims = oidc_service.parse_id_token("google", unsigned_jwt, nonce="correct-nonce")
         assert claims["sub"] == "user-789"
 
-    def test_parse_id_token_invalid_jwt_raises(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_parse_id_token_invalid_jwt_raises(self, oidc_service: OIDCService) -> None:
         """无效 JWT 抛出 OIDCTokenError。"""
         with pytest.raises(OIDCTokenError, match="id_token"):
             oidc_service.parse_id_token("google", "not-a-valid-jwt")
@@ -408,9 +382,7 @@ class TestUserProvisioning:
     """用户映射与自动配置测试。"""
 
     @pytest.mark.asyncio
-    async def test_find_user_by_oidc_existing(
-        self, oidc_service: OIDCService, db, sync_backed_async_db
-    ) -> None:
+    async def test_find_user_by_oidc_existing(self, oidc_service: OIDCService, db, sync_backed_async_db) -> None:
         """按 (issuer, sub) 查找已绑定用户。"""
         from app.models.user import User
         from app.utils.jwt_utils import get_password_hash
@@ -428,9 +400,7 @@ class TestUserProvisioning:
         db.flush()
 
         try:
-            found = await oidc_service.find_user_by_oidc(
-                sync_backed_async_db, "https://accounts.google.com", "sub-123"
-            )
+            found = await oidc_service.find_user_by_oidc(sync_backed_async_db, "https://accounts.google.com", "sub-123")
             assert found is not None
             assert found.id == user.id
         finally:
@@ -438,19 +408,13 @@ class TestUserProvisioning:
             db.flush()
 
     @pytest.mark.asyncio
-    async def test_find_user_by_oidc_not_found(
-        self, oidc_service: OIDCService, sync_backed_async_db
-    ) -> None:
+    async def test_find_user_by_oidc_not_found(self, oidc_service: OIDCService, sync_backed_async_db) -> None:
         """未绑定的 (issuer, sub) 返回 None。"""
-        found = await oidc_service.find_user_by_oidc(
-            sync_backed_async_db, "https://unknown.idp.com", "nonexistent-sub"
-        )
+        found = await oidc_service.find_user_by_oidc(sync_backed_async_db, "https://unknown.idp.com", "nonexistent-sub")
         assert found is None
 
     @pytest.mark.asyncio
-    async def test_find_user_by_email_existing(
-        self, oidc_service: OIDCService, db, sync_backed_async_db
-    ) -> None:
+    async def test_find_user_by_email_existing(self, oidc_service: OIDCService, db, sync_backed_async_db) -> None:
         """按 email 查找本地用户。"""
         from app.models.user import User
         from app.utils.jwt_utils import get_password_hash
@@ -540,9 +504,7 @@ class TestUserProvisioning:
             db.flush()
 
     @pytest.mark.asyncio
-    async def test_provision_user_creates_new_user(
-        self, oidc_service: OIDCService, db, sync_backed_async_db
-    ) -> None:
+    async def test_provision_user_creates_new_user(self, oidc_service: OIDCService, db, sync_backed_async_db) -> None:
         """未绑定且无匹配 email 时创建新用户。"""
         from app.models.user import User
 
@@ -578,20 +540,14 @@ class TestUserProvisioning:
             "email": "notbound@test.com",
         }
         with pytest.raises(OIDCUserNotBoundError):
-            await oidc_service.provision_user(
-                sync_backed_async_db, "google", "https://accounts.google.com", claims
-            )
+            await oidc_service.provision_user(sync_backed_async_db, "google", "https://accounts.google.com", claims)
 
     @pytest.mark.asyncio
-    async def test_provision_user_missing_sub_raises(
-        self, oidc_service: OIDCService, sync_backed_async_db
-    ) -> None:
+    async def test_provision_user_missing_sub_raises(self, oidc_service: OIDCService, sync_backed_async_db) -> None:
         """claims 缺少 sub 字段抛出 OIDCConfigError。"""
         claims = {"email": "nosub@test.com"}
         with pytest.raises(OIDCConfigError, match="缺少 sub"):
-            await oidc_service.provision_user(
-                sync_backed_async_db, "google", "https://accounts.google.com", claims
-            )
+            await oidc_service.provision_user(sync_backed_async_db, "google", "https://accounts.google.com", claims)
 
 
 # ── 用户名生成测试 ──
@@ -619,9 +575,7 @@ class TestUsernameGeneration:
         username = oidc_service._generate_username("google", claims)
         assert "Charlie" in username
 
-    def test_provider_sub_used_when_no_claims(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_provider_sub_used_when_no_claims(self, oidc_service: OIDCService) -> None:
         """无任何用户名 claims 时使用 provider + sub。"""
         claims = {"sub": "abcdef1234567890"}
         username = oidc_service._generate_username("google", claims)
@@ -638,9 +592,7 @@ class TestUsernameGeneration:
     def test_username_has_unique_suffix(self, oidc_service: OIDCService) -> None:
         """用户名含唯一后缀。"""
         claims = {"preferred_username": "dave", "sub": "sub-5"}
-        usernames = {
-            oidc_service._generate_username("google", claims) for _ in range(10)
-        }
+        usernames = {oidc_service._generate_username("google", claims) for _ in range(10)}
         # 由于随机后缀，10 次生成的用户名应几乎都不同
         assert len(usernames) >= 8
 
@@ -651,7 +603,7 @@ class TestUsernameGeneration:
         username = oidc_service._generate_username("google", claims)
         # base 截断到 30 字符，加上 prefix + suffix + 下划线
         # 格式：{prefix}{base[:30]}_{6hex}
-        without_prefix = username[len(settings.OIDC_USERNAME_PREFIX):]
+        without_prefix = username[len(settings.OIDC_USERNAME_PREFIX) :]
         # 30 (base) + 1 (underscore) + 6 (hex) = 37
         assert len(without_prefix) <= 37
 
@@ -681,16 +633,12 @@ class TestProviderMetadata:
         assert metadata["scopes"] == "openid email profile"
         assert "client_secret" not in metadata  # 脱敏
 
-    def test_get_metadata_unknown_provider(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_get_metadata_unknown_provider(self, oidc_service: OIDCService) -> None:
         """未知 provider 抛出 OIDCConfigError。"""
         with pytest.raises(OIDCConfigError):
             oidc_service.get_provider_metadata("unknown")
 
-    def test_metadata_includes_authorization_endpoint(
-        self, oidc_service: OIDCService
-    ) -> None:
+    def test_metadata_includes_authorization_endpoint(self, oidc_service: OIDCService) -> None:
         """元数据包含推导的 authorization_endpoint。"""
         metadata = oidc_service.get_provider_metadata("google")
         assert metadata["authorization_endpoint"] == "https://accounts.google.com/authorize"
@@ -703,19 +651,13 @@ class TestExchangeCodeForTokens:
     """授权码换取 token 测试。"""
 
     @pytest.mark.asyncio
-    async def test_exchange_with_invalid_state_raises(
-        self, oidc_service: OIDCService
-    ) -> None:
+    async def test_exchange_with_invalid_state_raises(self, oidc_service: OIDCService) -> None:
         """无效 state 抛出 OIDCStateError。"""
         with pytest.raises(OIDCStateError, match="state 不存在"):
-            await oidc_service.exchange_code_for_tokens(
-                "google", "code-1", "invalid-state"
-            )
+            await oidc_service.exchange_code_for_tokens("google", "code-1", "invalid-state")
 
     @pytest.mark.asyncio
-    async def test_exchange_with_expired_state_raises(
-        self, oidc_service: OIDCService
-    ) -> None:
+    async def test_exchange_with_expired_state_raises(self, oidc_service: OIDCService) -> None:
         """过期 state 抛出 OIDCStateError。"""
         _memory_state_store["expired"] = {
             "provider": "google",
@@ -723,17 +665,11 @@ class TestExchangeCodeForTokens:
             "expires_at": time.time() - 100,
         }
         with pytest.raises(OIDCStateError):
-            await oidc_service.exchange_code_for_tokens(
-                "google", "code-1", "expired"
-            )
+            await oidc_service.exchange_code_for_tokens("google", "code-1", "expired")
 
     @pytest.mark.asyncio
-    async def test_exchange_with_provider_mismatch_raises(
-        self, oidc_service: OIDCService
-    ) -> None:
+    async def test_exchange_with_provider_mismatch_raises(self, oidc_service: OIDCService) -> None:
         """state 与 provider 不匹配抛出 OIDCStateError。"""
         oidc_service._store_state("state-mismatch", "google", "nonce")
         with pytest.raises(OIDCStateError, match="不匹配"):
-            await oidc_service.exchange_code_for_tokens(
-                "azure", "code-1", "state-mismatch"
-            )
+            await oidc_service.exchange_code_for_tokens("azure", "code-1", "state-mismatch")

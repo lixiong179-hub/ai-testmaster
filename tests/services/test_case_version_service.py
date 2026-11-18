@@ -8,6 +8,7 @@
     - changed_fields 完整性
     - create_snapshot / get_version / restore_version
 """
+
 import pytest
 from datetime import datetime, timezone, timedelta
 
@@ -40,9 +41,9 @@ def version_user(db):
     db.flush()
     db.refresh(user)
     yield user
-    db.query(TestCase).filter(TestCase.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(TestCase).filter(TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.flush()
@@ -118,10 +119,14 @@ class TestCreateSnapshot:
         skip_version_snapshot()
         try:
             v1 = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
             v2 = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
         finally:
             resume_version_snapshot()
@@ -144,21 +149,20 @@ class TestAutoSnapshotTrigger:
 
     def test_auto_snapshot_on_title_change(self, db, version_project):
         case = _make_case(db, version_project.id, title="原始标题")
-        old_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        old_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
 
         case.title = "修改后标题"
         db.flush()
 
-        new_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        new_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
         assert new_count == old_count + 1
 
-        version = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).order_by(TestCaseVersion.version_number.desc()).first()
+        version = (
+            db.query(TestCaseVersion)
+            .filter(TestCaseVersion.test_case_id == case.id)
+            .order_by(TestCaseVersion.version_number.desc())
+            .first()
+        )
         assert version.change_type == "update"
         assert version.changed_fields is not None
         assert "title" in version.changed_fields
@@ -170,9 +174,12 @@ class TestAutoSnapshotTrigger:
         case.priority = 2
         db.flush()
 
-        version = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).order_by(TestCaseVersion.version_number.desc()).first()
+        version = (
+            db.query(TestCaseVersion)
+            .filter(TestCaseVersion.test_case_id == case.id)
+            .order_by(TestCaseVersion.version_number.desc())
+            .first()
+        )
         assert version is not None
         assert "priority" in version.changed_fields
         assert version.changed_fields["priority"]["old"] == 1
@@ -183,45 +190,38 @@ class TestAutoSnapshotTrigger:
         case.steps_json = [{"step": "新步骤"}]
         db.flush()
 
-        version = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).order_by(TestCaseVersion.version_number.desc()).first()
+        version = (
+            db.query(TestCaseVersion)
+            .filter(TestCaseVersion.test_case_id == case.id)
+            .order_by(TestCaseVersion.version_number.desc())
+            .first()
+        )
         assert version is not None
         assert "steps_json" in version.changed_fields
 
     def test_no_snapshot_on_untracked_field_change(self, db, version_project):
         case = _make_case(db, version_project.id)
-        old_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        old_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
 
         case.review_status = "approved"
         db.flush()
 
-        new_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        new_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
         assert new_count == old_count
 
     def test_no_snapshot_when_value_unchanged(self, db, version_project):
         case = _make_case(db, version_project.id, title="不变标题")
-        old_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        old_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
 
         case.title = "不变标题"
         db.flush()
 
-        new_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        new_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
         assert new_count == old_count
 
     def test_skip_version_snapshot_flag(self, db, version_project):
         case = _make_case(db, version_project.id, title="跳过测试")
-        old_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        old_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
 
         skip_version_snapshot()
         try:
@@ -230,9 +230,7 @@ class TestAutoSnapshotTrigger:
         finally:
             resume_version_snapshot()
 
-        new_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        new_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
         assert new_count == old_count
 
 
@@ -241,32 +239,24 @@ class TestBulkUpdateOrmTrigger:
 
     def test_posterior_quality_score_update_triggers_snapshot(self, db, version_project):
         case = _make_case(db, version_project.id, title="后验质量分测试")
-        old_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        old_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
 
         case.posterior_quality_score = 85.5
         db.flush()
 
-        new_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        new_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
         # posterior_quality_score 不在 TRACKED_FIELDS 中，不应触发快照
         assert new_count == old_count
 
     def test_orm_update_tracked_field_triggers_snapshot(self, db, version_project):
         case = _make_case(db, version_project.id, title="ORM更新测试")
-        old_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        old_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
 
         # 模拟 posterior_score_service 的 ORM 逐条更新方式
         case.title = "ORM更新后标题"
         db.flush()
 
-        new_count = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).count()
+        new_count = db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id == case.id).count()
         assert new_count == old_count + 1
 
 
@@ -279,7 +269,9 @@ class TestCompareVersions:
         skip_version_snapshot()
         try:
             v1 = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
 
             case.title = "版本B标题"
@@ -287,13 +279,18 @@ class TestCompareVersions:
             db.flush()
 
             v2 = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
         finally:
             resume_version_snapshot()
 
         result = CaseVersionService.compare_versions(
-            db=db, test_case_id=case.id, v1_id=v1.id, v2_id=v2.id,
+            db=db,
+            test_case_id=case.id,
+            v1_id=v1.id,
+            v2_id=v2.id,
         )
         assert "v1" in result
         assert "v2" in result
@@ -313,16 +310,23 @@ class TestCompareVersions:
         skip_version_snapshot()
         try:
             v1 = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
             v2 = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
         finally:
             resume_version_snapshot()
 
         result = CaseVersionService.compare_versions(
-            db=db, test_case_id=case.id, v1_id=v1.id, v2_id=v2.id,
+            db=db,
+            test_case_id=case.id,
+            v1_id=v1.id,
+            v2_id=v2.id,
         )
         assert result["diff"] == {}
 
@@ -331,14 +335,19 @@ class TestCompareVersions:
         skip_version_snapshot()
         try:
             v1 = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
         finally:
             resume_version_snapshot()
 
         with pytest.raises(ValueError, match="版本不存在"):
             CaseVersionService.compare_versions(
-                db=db, test_case_id=case.id, v1_id=v1.id, v2_id=99999,
+                db=db,
+                test_case_id=case.id,
+                v1_id=v1.id,
+                v2_id=99999,
             )
 
 
@@ -377,7 +386,9 @@ class TestRestoreVersion:
         skip_version_snapshot()
         try:
             v1 = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
 
             case.title = "修改后标题"
@@ -385,37 +396,50 @@ class TestRestoreVersion:
             db.flush()
 
             v2 = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
         finally:
             resume_version_snapshot()
 
         # 恢复到 v1
         restored = CaseVersionService.restore_version(
-            db=db, test_case_id=case.id, version_id=v1.id, operator_id=1,
+            db=db,
+            test_case_id=case.id,
+            version_id=v1.id,
+            operator_id=1,
         )
         assert restored is not None
         assert restored.title == "原始标题"
         assert restored.priority == 1
 
         # 应创建 restore 类型的版本记录
-        restore_version = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id,
-            TestCaseVersion.change_type == "restore",
-        ).first()
+        restore_version = (
+            db.query(TestCaseVersion)
+            .filter(
+                TestCaseVersion.test_case_id == case.id,
+                TestCaseVersion.change_type == "restore",
+            )
+            .first()
+        )
         assert restore_version is not None
         assert restore_version.changed_fields is not None
 
     def test_restore_nonexistent_version(self, db, version_project):
         case = _make_case(db, version_project.id)
         result = CaseVersionService.restore_version(
-            db=db, test_case_id=case.id, version_id=99999,
+            db=db,
+            test_case_id=case.id,
+            version_id=99999,
         )
         assert result is None
 
     def test_restore_nonexistent_case(self, db):
         result = CaseVersionService.restore_version(
-            db=db, test_case_id=99999, version_id=1,
+            db=db,
+            test_case_id=99999,
+            version_id=1,
         )
         assert result is None
 
@@ -439,17 +463,25 @@ class TestArchivePolicy:
         finally:
             resume_version_snapshot()
 
-        total = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id,
-        ).count()
+        total = (
+            db.query(TestCaseVersion)
+            .filter(
+                TestCaseVersion.test_case_id == case.id,
+            )
+            .count()
+        )
         assert total == MAX_VERSIONS_PER_CASE + 5
 
         # 由于新创建的版本 created_at 都是当前时间（不超过90天），
         # 归档不会实际清理，但归档逻辑已执行
-        versions_with_data = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id,
-            TestCaseVersion.snapshot_data.isnot(None),
-        ).count()
+        versions_with_data = (
+            db.query(TestCaseVersion)
+            .filter(
+                TestCaseVersion.test_case_id == case.id,
+                TestCaseVersion.snapshot_data.isnot(None),
+            )
+            .count()
+        )
         assert versions_with_data == total
 
     def test_archive_clears_old_snapshot_data(self, db, version_project):
@@ -469,9 +501,7 @@ class TestArchivePolicy:
                 versions.append(version)
                 # 手动将前几个版本设为91天前
                 if i < 3:
-                    version.created_at = datetime.now(timezone.utc) - timedelta(
-                        days=ARCHIVE_OLDER_THAN_DAYS + 1
-                    )
+                    version.created_at = datetime.now(timezone.utc) - timedelta(days=ARCHIVE_OLDER_THAN_DAYS + 1)
             db.flush()
 
             # 手动触发归档（因为 create_snapshot 中 auto_flush=True 时归档已执行，
@@ -495,7 +525,8 @@ class TestChangedFieldsIntegrity:
 
     def test_changed_fields_records_all_tracked_changes(self, db, version_project):
         case = _make_case(
-            db, version_project.id,
+            db,
+            version_project.id,
             title="完整测试",
             module="旧模块",
             precondition="旧前置",
@@ -512,9 +543,12 @@ class TestChangedFieldsIntegrity:
         case.steps_json = [{"step": "新步骤"}]
         db.flush()
 
-        version = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).order_by(TestCaseVersion.version_number.desc()).first()
+        version = (
+            db.query(TestCaseVersion)
+            .filter(TestCaseVersion.test_case_id == case.id)
+            .order_by(TestCaseVersion.version_number.desc())
+            .first()
+        )
         assert version is not None
         assert version.changed_fields is not None
 
@@ -525,7 +559,8 @@ class TestChangedFieldsIntegrity:
 
     def test_changed_fields_only_records_actual_changes(self, db, version_project):
         case = _make_case(
-            db, version_project.id,
+            db,
+            version_project.id,
             title="不变标题",
             module="不变模块",
         )
@@ -534,16 +569,20 @@ class TestChangedFieldsIntegrity:
         case.module = "变化模块"
         db.flush()
 
-        version = db.query(TestCaseVersion).filter(
-            TestCaseVersion.test_case_id == case.id
-        ).order_by(TestCaseVersion.version_number.desc()).first()
+        version = (
+            db.query(TestCaseVersion)
+            .filter(TestCaseVersion.test_case_id == case.id)
+            .order_by(TestCaseVersion.version_number.desc())
+            .first()
+        )
         assert version is not None
         assert "title" not in version.changed_fields
         assert "module" in version.changed_fields
 
     def test_snapshot_data_contains_current_state(self, db, version_project):
         case = _make_case(
-            db, version_project.id,
+            db,
+            version_project.id,
             title="快照验证",
             module="快照模块",
             precondition="快照前置",
@@ -555,7 +594,9 @@ class TestChangedFieldsIntegrity:
         skip_version_snapshot()
         try:
             version = CaseVersionService.create_snapshot(
-                db=db, test_case_id=case.id, change_type="update",
+                db=db,
+                test_case_id=case.id,
+                change_type="update",
             )
         finally:
             resume_version_snapshot()

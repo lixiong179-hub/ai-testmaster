@@ -148,7 +148,5 @@ class TestCapabilityAPI:
         assert "ARCH_INC_CAP" in keys
 
     async def test_unauthenticated(self, async_client, async_test_project):
-        resp = await async_client.get(
-            f"/api/v1/test-capability/?project_id={async_test_project.id}"
-        )
+        resp = await async_client.get(f"/api/v1/test-capability/?project_id={async_test_project.id}")
         assert resp.status_code in (401, 403)

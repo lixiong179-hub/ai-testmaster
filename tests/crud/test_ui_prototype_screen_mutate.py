@@ -26,21 +26,15 @@ def ui_user(db):
         db.query(UIScreenTestCaseLink).filter(
             UIScreenTestCaseLink.screen_id.in_(
                 db.query(UIPrototypeScreen.id).filter(
-                    UIPrototypeScreen.project_id.in_(
-                        db.query(Project.id).filter(Project.user_id == user.id)
-                    )
+                    UIPrototypeScreen.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
                 )
             )
         ).delete(synchronize_session=False)
         db.query(UIPrototypeScreen).filter(
-            UIPrototypeScreen.project_id.in_(
-                db.query(Project.id).filter(Project.user_id == user.id)
-            )
+            UIPrototypeScreen.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
         ).delete(synchronize_session=False)
         db.query(UIPrototypeProject).filter(
-            UIPrototypeProject.project_id.in_(
-                db.query(Project.id).filter(Project.user_id == user.id)
-            )
+            UIPrototypeProject.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
         ).delete(synchronize_session=False)
         db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
         db.delete(user)
@@ -51,7 +45,9 @@ def ui_user(db):
 
 @pytest.fixture
 def ui_project(db, ui_user):
-    project = Project(name="ui_screen_project", user_id=ui_user.id, description="ui screen test", status=1, project_type="web")
+    project = Project(
+        name="ui_screen_project", user_id=ui_user.id, description="ui screen test", status=1, project_type="web"
+    )
     db.add(project)
     db.flush()
     db.refresh(project)
@@ -87,7 +83,6 @@ def _make_proto_project(db, project_id, iteration_id=None, **kwargs):
 
 
 class TestGetUiScreenById:
-
     def test_found(self, db, ui_project):
         screen = _make_screen(db, ui_project.id)
         result = get_ui_screen_by_id(db, screen.id)
@@ -107,7 +102,6 @@ class TestGetUiScreenById:
 
 
 class TestGetUiScreensByProject:
-
     def test_basic_query(self, db, ui_project, ui_user):
         _make_screen(db, ui_project.id, screen_name="S1")
         _make_screen(db, ui_project.id, screen_name="S2")
@@ -153,7 +147,6 @@ class TestGetUiScreensByProject:
 
 
 class TestGetUiScreensCount:
-
     def test_count(self, db, ui_project, ui_user):
         _make_screen(db, ui_project.id, screen_name="C1")
         _make_screen(db, ui_project.id, screen_name="C2")
@@ -168,7 +161,6 @@ class TestGetUiScreensCount:
 
 
 class TestGetTestCasesByScreen:
-
     def test_no_links(self, db, ui_project):
         screen = _make_screen(db, ui_project.id)
         result = get_test_cases_by_screen(db, screen.id)
@@ -197,7 +189,6 @@ class TestGetTestCasesByScreen:
 
 
 class TestGetParsedUiScreensForCaseGeneration:
-
     def test_completed_screens(self, db, ui_project, ui_user):
         _make_screen(db, ui_project.id, parse_status="completed", review_status="approved", screen_name="GC")
         _make_screen(db, ui_project.id, parse_status="pending", screen_name="GP")
@@ -221,16 +212,29 @@ class TestGetParsedUiScreensForCaseGeneration:
 
     def test_filter_by_prototype_project(self, db, ui_project, ui_user):
         proto = _make_proto_project(db, ui_project.id)
-        _make_screen(db, ui_project.id, parse_status="completed", review_status="approved",
-                     prototype_project_id=proto.id, screen_name="GPP")
-        _make_screen(db, ui_project.id, parse_status="completed", review_status="approved",
-                     prototype_project_id=None, screen_name="GPN")
-        screens = get_parsed_ui_screens_for_case_generation(db, ui_project.id, ui_user.id, prototype_project_id=proto.id)
+        _make_screen(
+            db,
+            ui_project.id,
+            parse_status="completed",
+            review_status="approved",
+            prototype_project_id=proto.id,
+            screen_name="GPP",
+        )
+        _make_screen(
+            db,
+            ui_project.id,
+            parse_status="completed",
+            review_status="approved",
+            prototype_project_id=None,
+            screen_name="GPN",
+        )
+        screens = get_parsed_ui_screens_for_case_generation(
+            db, ui_project.id, ui_user.id, prototype_project_id=proto.id
+        )
         assert len(screens) == 1
 
 
 class TestApplyIterationFilter:
-
     def test_none_iteration_no_filter(self, db, ui_project):
         query = db.query(UIPrototypeScreen).filter(UIPrototypeScreen.project_id == ui_project.id)
         result = _apply_iteration_filter(query, None)

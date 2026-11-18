@@ -85,6 +85,7 @@ class TestAnalyzeRequirementsStream:
         mixin.retry_delay = 0
 
         import requests
+
         with patch("requests.post", side_effect=requests.RequestException("connection error")):
             results = []
             async for item in mixin.analyze_requirements_stream("test content"):
@@ -102,20 +103,20 @@ class TestGenerateTestCaseStream:
         mixin.max_retries = 1
         mixin.retry_delay = 0
 
-        case_json = json.dumps({
-            "title": "测试用例",
-            "precondition": "前置条件",
-            "steps": [{"step": 1, "action": "操作"}],
-            "expected_result": "预期结果",
-            "case_type": "UI",
-        })
+        case_json = json.dumps(
+            {
+                "title": "测试用例",
+                "precondition": "前置条件",
+                "steps": [{"step": 1, "action": "操作"}],
+                "expected_result": "预期结果",
+                "case_type": "UI",
+            }
+        )
 
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         mock_response.iter_content = MagicMock(
-            return_value=[
-                b'data: {"choices": [{"delta": {"content": "' + case_json.encode() + b'"}}]\n'
-            ]
+            return_value=[b'data: {"choices": [{"delta": {"content": "' + case_json.encode() + b'"}}]\n']
         )
 
         results = []
@@ -138,9 +139,7 @@ class TestGenerateTestCaseStream:
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         mock_response.iter_content = MagicMock(
-            return_value=[
-                b'data: {"choices": [{"delta": {"content": "' + case_json.encode() + b'"}}]\n'
-            ]
+            return_value=[b'data: {"choices": [{"delta": {"content": "' + case_json.encode() + b'"}}]\n']
         )
 
         results = []
@@ -159,6 +158,7 @@ class TestGenerateTestCaseStream:
         mixin.retry_delay = 0
 
         import requests
+
         with patch("requests.post", side_effect=requests.RequestException("connection error")):
             results = []
             async for item in mixin.generate_test_case_stream({"module": "M1", "point": "P1"}):
@@ -177,9 +177,7 @@ class TestGenerateTestCaseStream:
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         mock_response.iter_content = MagicMock(
-            return_value=[
-                b'data: {"choices": [{"delta": {"content": "not valid json"}}]\n'
-            ]
+            return_value=[b'data: {"choices": [{"delta": {"content": "not valid json"}}]\n']
         )
 
         results = []

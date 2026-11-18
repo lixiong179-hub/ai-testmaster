@@ -134,6 +134,7 @@ class TestGetEncryptionConfig:
 class TestGetFernet:
     def test_returns_fernet_instance(self):
         from cryptography.fernet import Fernet
+
         f = _get_fernet()
         assert isinstance(f, Fernet)
 

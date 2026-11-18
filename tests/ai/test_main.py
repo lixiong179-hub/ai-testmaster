@@ -1,6 +1,7 @@
 """main.py FastAPI 端点测试
 
 覆盖根路径、健康检查、应用工厂各维度场景〿使用真实 TestClient，禁亿Mock〿"""
+
 import pytest
 from fastapi.testclient import TestClient
 

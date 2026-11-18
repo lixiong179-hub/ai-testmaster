@@ -69,13 +69,15 @@ class TestRecognizeLoginForm:
 
     def test_valid_json_response(self):
         vision_model = type("VM", (), {})()
-        vision_model.analyze_image = lambda screenshot, prompt: '''
+        vision_model.analyze_image = lambda screenshot, prompt: (
+            """
         {
             "username_input": {"x": 100, "y": 200, "width": 200, "height": 30},
             "password_input": {"x": 100, "y": 250, "width": 200, "height": 30},
             "submit_button": {"x": 150, "y": 320, "width": 100, "height": 40}
         }
-        '''
+        """
+        )
         result = recognize_login_form(vision_model, b"screenshot")
         assert isinstance(result, LoginFormInfo)
         assert result.username_input is not None
@@ -103,7 +105,8 @@ class TestRecognizeLoginForm:
 
     def test_captcha_fields_parsed(self):
         vision_model = type("VM", (), {})()
-        vision_model.analyze_image = lambda screenshot, prompt: '''
+        vision_model.analyze_image = lambda screenshot, prompt: (
+            """
         {
             "username_input": {"x": 100, "y": 200},
             "password_input": {"x": 100, "y": 250},
@@ -111,7 +114,8 @@ class TestRecognizeLoginForm:
             "captcha_input": {"x": 100, "y": 380},
             "captcha_image": {"x": 260, "y": 380}
         }
-        '''
+        """
+        )
         result = recognize_login_form(vision_model, b"screenshot")
         assert result.captcha_input is not None
         assert result.captcha_image is not None

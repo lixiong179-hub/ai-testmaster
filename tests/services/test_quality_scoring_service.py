@@ -8,6 +8,7 @@
 - score_dimensions: 7 维度连续评分（每维度 0-10）
 - prior_score: prior content 评分（0-100 + breakdown）
 """
+
 import pytest
 
 from app.services.case_quality.quality_scoring_constants import (
@@ -119,15 +120,24 @@ class TestScoreDimensions:
 
     def test_all_seven_dimensions_present(self) -> None:
         dims = QualityScoringService.score_dimensions(_make_valid_case())
-        expected_keys = {"title", "precondition", "steps", "expected_result",
-                         "case_category", "action_type", "atomicity"}
+        expected_keys = {
+            "title",
+            "precondition",
+            "steps",
+            "expected_result",
+            "case_category",
+            "action_type",
+            "atomicity",
+        }
         assert set(dims.keys()) == expected_keys
 
     def test_missing_action_type_scores_seven(self) -> None:
-        case = _make_valid_case(steps=[
-            {"action": "点击登录按钮", "expected_result": "跳转到首页"},
-            {"action": "查看欢迎信息", "expected_result": "显示欢迎文字"},
-        ])
+        case = _make_valid_case(
+            steps=[
+                {"action": "点击登录按钮", "expected_result": "跳转到首页"},
+                {"action": "查看欢迎信息", "expected_result": "显示欢迎文字"},
+            ]
+        )
         dims = QualityScoringService.score_dimensions(case)
         assert dims["action_type"] == 7.0
 
@@ -169,14 +179,17 @@ class TestPriorScore:
 class TestThreeWayConsistency:
     """断言同一用例在三处评分中维度判定一致，覆盖 ≥99% 一致率。"""
 
-    @pytest.mark.parametrize("title,expected_verdict", [
-        ("", "empty"),
-        ("功能验证测试用例标题加长版", "vague"),
-        ("接口测试", "vague"),
-        ("UI测试", "vague"),
-        ("短标题", "length"),
-        ("验证用户登录功能正常工作流程", "ok"),
-    ])
+    @pytest.mark.parametrize(
+        "title,expected_verdict",
+        [
+            ("", "empty"),
+            ("功能验证测试用例标题加长版", "vague"),
+            ("接口测试", "vague"),
+            ("UI测试", "vague"),
+            ("短标题", "length"),
+            ("验证用户登录功能正常工作流程", "ok"),
+        ],
+    )
     def test_title_dimension_consistency(self, title: str, expected_verdict: str) -> None:
         """标题维度在 grade_status / score_dimensions / prior_score 三处判定一致。"""
         case = _make_valid_case(title=title)
@@ -193,34 +206,35 @@ class TestThreeWayConsistency:
         else:
             assert prior_bd["title_quality"] > 0.0
 
-    @pytest.mark.parametrize("precondition,expected_verdict", [
-        ("", "empty"),
-        ("账号已登录但用户未登录，网络正常", "contradictory"),
-        ("测试数据已准备", "missing_login"),
-        ("账号已登录", "short"),
-        ("账号已登录，网络环境正常，测试数据已准备", "ok"),
-    ])
-    def test_precondition_dimension_consistency(
-        self, precondition: str, expected_verdict: str
-    ) -> None:
+    @pytest.mark.parametrize(
+        "precondition,expected_verdict",
+        [
+            ("", "empty"),
+            ("账号已登录但用户未登录，网络正常", "contradictory"),
+            ("测试数据已准备", "missing_login"),
+            ("账号已登录", "short"),
+            ("账号已登录，网络环境正常，测试数据已准备", "ok"),
+        ],
+    )
+    def test_precondition_dimension_consistency(self, precondition: str, expected_verdict: str) -> None:
         """前置条件维度在三处评分中判定一致。"""
         case = _make_valid_case(precondition=precondition)
         verdict = QualityScoringService._classify_precondition(precondition)
         assert verdict == expected_verdict
         dims = QualityScoringService.score_dimensions(case)
-        dim_map = {"empty": 0.0, "contradictory": 4.0, "missing_login": 4.0,
-                   "short": 7.0, "ok": 10.0}
+        dim_map = {"empty": 0.0, "contradictory": 4.0, "missing_login": 4.0, "short": 7.0, "ok": 10.0}
         assert dims["precondition"] == dim_map[expected_verdict]
 
-    @pytest.mark.parametrize("expected_result,expected_verdict", [
-        ("", "empty"),
-        ("功能正常显示", "vague"),
-        ("显示成功", "short"),
-        ("登录成功并显示欢迎页面，用户名正确显示", "ok"),
-    ])
-    def test_expected_result_dimension_consistency(
-        self, expected_result: str, expected_verdict: str
-    ) -> None:
+    @pytest.mark.parametrize(
+        "expected_result,expected_verdict",
+        [
+            ("", "empty"),
+            ("功能正常显示", "vague"),
+            ("显示成功", "short"),
+            ("登录成功并显示欢迎页面，用户名正确显示", "ok"),
+        ],
+    )
+    def test_expected_result_dimension_consistency(self, expected_result: str, expected_verdict: str) -> None:
         """预期结果维度在三处评分中判定一致。"""
         case = _make_valid_case(expected_result=expected_result)
         verdict = QualityScoringService._classify_expected(expected_result)
@@ -289,6 +303,7 @@ class TestIntegrationDelegation:
     def test_validate_single_case_status_delegates_grade_status(self) -> None:
         """validate_single_case_status 委托 grade_status 判定状态。"""
         from app.services.test_case_generation.quality_validator import validate_single_case_status
+
         case = _make_valid_case(title="")
         status, issues = validate_single_case_status(case)
         assert status == QualityScoringService.grade_status(case)
@@ -298,28 +313,40 @@ class TestIntegrationDelegation:
     def test_compute_continuous_score_delegates_score_dimensions(self) -> None:
         """compute_continuous_score 委托 score_dimensions 加权求和。"""
         from app.services.test_case_generation.continuous_scorer import compute_continuous_score
+
         case = _make_valid_case()
         score = compute_continuous_score(case)
         dims = QualityScoringService.score_dimensions(case)
-        expected = round((
-            dims["title"] * WEIGHT_TITLE
-            + dims["precondition"] * WEIGHT_PRECONDITION
-            + dims["steps"] * WEIGHT_STEPS
-            + dims["expected_result"] * WEIGHT_EXPECTED_RESULT
-            + dims["case_category"] * WEIGHT_CASE_CATEGORY
-            + dims["action_type"] * WEIGHT_ACTION_TYPE
-            + dims["atomicity"] * WEIGHT_ATOMICITY
-        ) * 10, 1)
+        expected = round(
+            (
+                dims["title"] * WEIGHT_TITLE
+                + dims["precondition"] * WEIGHT_PRECONDITION
+                + dims["steps"] * WEIGHT_STEPS
+                + dims["expected_result"] * WEIGHT_EXPECTED_RESULT
+                + dims["case_category"] * WEIGHT_CASE_CATEGORY
+                + dims["action_type"] * WEIGHT_ACTION_TYPE
+                + dims["atomicity"] * WEIGHT_ATOMICITY
+            )
+            * 10,
+            1,
+        )
         assert score == expected
 
     def test_compute_prior_score_uses_prior_score(self) -> None:
         """_signal_scoring._compute_prior_score 的 content 部分委托 prior_score。"""
         from app.pipelines.steps._signal_scoring import _compute_prior_score
+
         case = _make_valid_case()
         signals = {"has_prd": True, "has_testpoints": True, "has_ui": True, "is_old_project": False}
         _, _, breakdown = _compute_prior_score(
-            case, {"id": 1}, signals, {}, {"conflict_count": 0},
-            1, None, user_confirmed=False,
+            case,
+            {"id": 1},
+            signals,
+            {},
+            {"conflict_count": 0},
+            1,
+            None,
+            user_confirmed=False,
         )
         _, content_bd = QualityScoringService.prior_score(case)
         assert breakdown["title_quality"] == content_bd["title_quality"]

@@ -12,6 +12,7 @@
 
 使用纯 Pydantic 校验，无需数据库。
 """
+
 import json
 import pytest
 from pydantic import ValidationError
@@ -44,75 +45,61 @@ class TestBackwardVerdict:
 
 class TestBackwardCaseVerdict:
     def test_valid_verdict(self):
-        v = BackwardCaseVerdict(
-            case_id=1, verdict="VALID", confidence=0.9, hint="用例有效"
-        )
+        v = BackwardCaseVerdict(case_id=1, verdict="VALID", confidence=0.9, hint="用例有效")
         assert v.verdict == BackwardVerdict.VALID
 
     def test_normalize_lowercase_verdict(self):
-        v = BackwardCaseVerdict(
-            case_id=2, verdict="valid", confidence=0.8, hint="小写verdict"
-        )
+        v = BackwardCaseVerdict(case_id=2, verdict="valid", confidence=0.8, hint="小写verdict")
         assert v.verdict == BackwardVerdict.VALID
 
     def test_invalid_verdict_raises(self):
         with pytest.raises(ValidationError):
-            BackwardCaseVerdict(
-                case_id=3, verdict="INVALID", confidence=0.5, hint="非法"
-            )
+            BackwardCaseVerdict(case_id=3, verdict="INVALID", confidence=0.5, hint="非法")
 
     def test_confidence_boundary_zero(self):
-        v = BackwardCaseVerdict(
-            case_id=4, verdict="VALID", confidence=0.0, hint="边界"
-        )
+        v = BackwardCaseVerdict(case_id=4, verdict="VALID", confidence=0.0, hint="边界")
         assert v.confidence == 0.0
 
     def test_confidence_boundary_one(self):
-        v = BackwardCaseVerdict(
-            case_id=5, verdict="VALID", confidence=1.0, hint="边界"
-        )
+        v = BackwardCaseVerdict(case_id=5, verdict="VALID", confidence=1.0, hint="边界")
         assert v.confidence == 1.0
 
     def test_empty_hint_raises(self):
         with pytest.raises(ValidationError):
-            BackwardCaseVerdict(
-                case_id=8, verdict="VALID", confidence=0.9, hint=""
-            )
+            BackwardCaseVerdict(case_id=8, verdict="VALID", confidence=0.9, hint="")
 
     def test_all_five_verdicts(self):
         for verdict_str in ["VALID", "LOCATOR_ONLY", "NEEDS_MODIFY", "DEPRECATED", "UNCERTAIN"]:
-            v = BackwardCaseVerdict(
-                case_id=10, verdict=verdict_str, confidence=0.8, hint=f"{verdict_str}测试"
-            )
+            v = BackwardCaseVerdict(case_id=10, verdict=verdict_str, confidence=0.8, hint=f"{verdict_str}测试")
             assert v.verdict == BackwardVerdict(verdict_str)
 
     def test_confidence_above_one_raises(self):
         with pytest.raises(ValidationError):
-            BackwardCaseVerdict(
-                case_id=11, verdict="VALID", confidence=1.5, hint="超限"
-            )
+            BackwardCaseVerdict(case_id=11, verdict="VALID", confidence=1.5, hint="超限")
 
     def test_confidence_below_zero_raises(self):
         with pytest.raises(ValidationError):
-            BackwardCaseVerdict(
-                case_id=12, verdict="VALID", confidence=-0.1, hint="超限"
-            )
+            BackwardCaseVerdict(case_id=12, verdict="VALID", confidence=-0.1, hint="超限")
 
 
 class TestBackwardScanOutput:
     def test_valid_output(self):
-        output = BackwardScanOutput(verdicts=[
-            BackwardCaseVerdict(case_id=1, verdict="VALID", confidence=0.9, hint="有效"),
-            BackwardCaseVerdict(case_id=2, verdict="NEEDS_MODIFY", confidence=0.8, hint="需修改"),
-        ])
+        output = BackwardScanOutput(
+            verdicts=[
+                BackwardCaseVerdict(case_id=1, verdict="VALID", confidence=0.9, hint="有效"),
+                BackwardCaseVerdict(case_id=2, verdict="NEEDS_MODIFY", confidence=0.8, hint="需修改"),
+            ]
+        )
         assert len(output.verdicts) == 2
 
     def test_duplicate_case_id_raises(self):
         with pytest.raises(ValidationError, match="Duplicate"):
-            BackwardScanOutput(verdicts=[
-                BackwardCaseVerdict(case_id=1, verdict="VALID", confidence=0.9, hint="有效"),
-                BackwardCaseVerdict(case_id=1, verdict="DEPRECATED", confidence=0.7, hint="重复"),
-            ])
+            BackwardScanOutput(
+                verdicts=[
+                    BackwardCaseVerdict(case_id=1, verdict="VALID", confidence=0.9, hint="有效"),
+                    BackwardCaseVerdict(case_id=1, verdict="DEPRECATED", confidence=0.7, hint="重复"),
+                ]
+            )
 
     def test_empty_verdicts_list(self):
         output = BackwardScanOutput(verdicts=[])
@@ -143,11 +130,13 @@ class TestValidateBackwardOutput:
         assert "JSON" in result.errors[0]
 
     def test_valid_json_string(self):
-        raw = json.dumps({
-            "verdicts": [
-                {"case_id": 1, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
-            ]
-        })
+        raw = json.dumps(
+            {
+                "verdicts": [
+                    {"case_id": 1, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
+                ]
+            }
+        )
         result = validate_backward_output(raw)
         assert result.valid is True
 
@@ -265,7 +254,14 @@ class TestValidateBackwardOutput:
 class TestBuildBackwardScanPrompt:
     def test_basic_prompt(self):
         cases = [
-            {"case_id": 1, "title": "登录测试", "module": "用户", "summary": "验证登录", "priority": 1, "lifecycle_status": "active"},
+            {
+                "case_id": 1,
+                "title": "登录测试",
+                "module": "用户",
+                "summary": "验证登录",
+                "priority": 1,
+                "lifecycle_status": "active",
+            },
         ]
         prompt = build_backward_scan_prompt(
             change_signals="接口 /api/login 新增 captcha 字段",
@@ -278,7 +274,14 @@ class TestBuildBackwardScanPrompt:
 
     def test_no_module_label(self):
         cases = [
-            {"case_id": 2, "title": "查询测试", "module": "订单", "summary": "验证查询", "priority": 2, "lifecycle_status": "active"},
+            {
+                "case_id": 2,
+                "title": "查询测试",
+                "module": "订单",
+                "summary": "验证查询",
+                "priority": 2,
+                "lifecycle_status": "active",
+            },
         ]
         prompt = build_backward_scan_prompt(
             change_signals="订单查询接口变更",
@@ -304,7 +307,14 @@ class TestBuildBackwardScanPrompt:
 class TestFormatCasesForPrompt:
     def test_format_single_case(self):
         cases = [
-            {"case_id": 1, "title": "测试", "module": "模块A", "summary": "摘要", "priority": 1, "lifecycle_status": "active"},
+            {
+                "case_id": 1,
+                "title": "测试",
+                "module": "模块A",
+                "summary": "摘要",
+                "priority": 1,
+                "lifecycle_status": "active",
+            },
         ]
         text = _format_cases_for_prompt(cases)
         assert "用例 #1" in text
@@ -316,8 +326,22 @@ class TestFormatCasesForPrompt:
 
     def test_format_multiple_cases(self):
         cases = [
-            {"case_id": 1, "title": "用例1", "module": "模块A", "summary": "摘要1", "priority": 1, "lifecycle_status": "active"},
-            {"case_id": 2, "title": "用例2", "module": "模块B", "summary": "摘要2", "priority": 2, "lifecycle_status": "active"},
+            {
+                "case_id": 1,
+                "title": "用例1",
+                "module": "模块A",
+                "summary": "摘要1",
+                "priority": 1,
+                "lifecycle_status": "active",
+            },
+            {
+                "case_id": 2,
+                "title": "用例2",
+                "module": "模块B",
+                "summary": "摘要2",
+                "priority": 2,
+                "lifecycle_status": "active",
+            },
         ]
         text = _format_cases_for_prompt(cases)
         assert "用例 #1" in text
@@ -365,12 +389,8 @@ class TestFormatStepsJson:
 class TestNormalizeVerdictNonString:
     def test_int_verdict_passes_through(self):
         with pytest.raises(ValidationError):
-            BackwardCaseVerdict(
-                case_id=20, verdict=123, confidence=0.9, hint="整数verdict"
-            )
+            BackwardCaseVerdict(case_id=20, verdict=123, confidence=0.9, hint="整数verdict")
 
     def test_non_string_non_matching_upper(self):
         with pytest.raises(ValidationError):
-            BackwardCaseVerdict(
-                case_id=21, verdict="UNKNOWN_VERDICT", confidence=0.9, hint="非法字符串"
-            )
+            BackwardCaseVerdict(case_id=21, verdict="UNKNOWN_VERDICT", confidence=0.9, hint="非法字符串")

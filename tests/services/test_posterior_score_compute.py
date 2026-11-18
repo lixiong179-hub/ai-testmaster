@@ -89,7 +89,11 @@ class TestComputePosteriorScore:
             execution_passed_count=5,
         )
         result = compute_posterior_score(
-            inp, w_review=1.0, w_execution=0.0, w_modification=0.0, min_executions=1,
+            inp,
+            w_review=1.0,
+            w_execution=0.0,
+            w_modification=0.0,
+            min_executions=1,
         )
         assert result.score == 50.0
 

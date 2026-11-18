@@ -228,20 +228,26 @@ class TestNormalizeOldFormatActionFallback:
         assert result["steps"][0]["action"] == "从描述获取操作"
 
     def test_action_used_when_present(self):
-        case = _make_old_case(steps=[{"step": 1, "action": "输入邮箱", "description": "备用描述", "expected_result": ""}])
+        case = _make_old_case(
+            steps=[{"step": 1, "action": "输入邮箱", "description": "备用描述", "expected_result": ""}]
+        )
         result = normalize_old_format(case)
         assert result["steps"][0]["action"] == "输入邮箱"
 
 
 class TestNormalizeOldFormatInputValue:
     def test_input_value_from_action_text(self):
-        case = _make_old_case(steps=[{"step": 1, "action": '输入"用户名"为：admin', "description": "", "expected_result": ""}])
+        case = _make_old_case(
+            steps=[{"step": 1, "action": '输入"用户名"为：admin', "description": "", "expected_result": ""}]
+        )
         result = normalize_old_format(case)
         assert result["steps"][0]["input_value"] != ""
         assert "用户名" in result["steps"][0]["input_value"]
 
     def test_input_value_from_expected(self):
-        case = _make_old_case(steps=[{"step": 1, "action": "enter username", "description": "", "expected_result": "用户名：testuser"}])
+        case = _make_old_case(
+            steps=[{"step": 1, "action": "enter username", "description": "", "expected_result": "用户名：testuser"}]
+        )
         result = normalize_old_format(case)
         assert result["steps"][0]["input_value"] == "testuser"
 
@@ -272,6 +278,8 @@ class TestNormalizeOldFormatDescription:
         assert "输入邮箱" in result["steps"][0]["description"]
 
     def test_description_preserved(self):
-        case = _make_old_case(steps=[{"step": 1, "action": "输入邮箱", "description": "自定义描述", "expected_result": ""}])
+        case = _make_old_case(
+            steps=[{"step": 1, "action": "输入邮箱", "description": "自定义描述", "expected_result": ""}]
+        )
         result = normalize_old_format(case)
         assert result["steps"][0]["description"] == "自定义描述"

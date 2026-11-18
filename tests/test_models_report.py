@@ -9,18 +9,14 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="rpt_test_user",
-        email="rpt_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="rpt_test_user", email="rpt_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(TestReport).filter(TestReport.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(TestReport).filter(
+        TestReport.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+    ).delete(synchronize_session=False)
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -37,10 +33,7 @@ def test_project(db, test_user):
 
 class TestTestReportModel:
     def test_create_report(self, db, test_project):
-        report = TestReport(
-            project_id=test_project.id,
-            name="测试报告1"
-        )
+        report = TestReport(project_id=test_project.id, name="测试报告1")
         db.add(report)
         db.commit()
         db.refresh(report)
@@ -53,10 +46,7 @@ class TestTestReportModel:
         db.commit()
 
     def test_report_default_values(self, db, test_project):
-        report = TestReport(
-            project_id=test_project.id,
-            name="默认报告"
-        )
+        report = TestReport(project_id=test_project.id, name="默认报告")
         db.add(report)
         db.commit()
         db.refresh(report)
@@ -76,11 +66,7 @@ class TestTestReportModel:
 
     def test_report_status_values(self, db, test_project):
         for status in ["pending", "running", "completed", "failed"]:
-            report = TestReport(
-                project_id=test_project.id,
-                name=f"状态报告-{status}",
-                status=status
-            )
+            report = TestReport(project_id=test_project.id, name=f"状态报告-{status}", status=status)
             db.add(report)
             db.commit()
             db.refresh(report)
@@ -96,7 +82,7 @@ class TestTestReportModel:
             passed_cases=80,
             failed_cases=15,
             blocked_cases=5,
-            execution_time=3600
+            execution_time=3600,
         )
         db.add(report)
         db.commit()
@@ -114,7 +100,7 @@ class TestTestReportModel:
             project_id=test_project.id,
             name="内容报告",
             description="测试通过率80%",
-            content={"pass_rate": 0.8, "details": []}
+            content={"pass_rate": 0.8, "details": []},
         )
         db.add(report)
         db.commit()
@@ -129,7 +115,7 @@ class TestTestReportModel:
             project_id=test_project.id,
             name="时间报告",
             start_time=datetime(2024, 1, 1, 10, 0, 0),
-            end_time=datetime(2024, 1, 1, 11, 0, 0)
+            end_time=datetime(2024, 1, 1, 11, 0, 0),
         )
         db.add(report)
         db.commit()
@@ -140,4 +126,4 @@ class TestTestReportModel:
         db.commit()
 
     def test_report_relationship(self):
-        assert hasattr(TestReport, 'project')
+        assert hasattr(TestReport, "project")

@@ -10,6 +10,7 @@ ValidateTestCaseSyntaxTool 校验 / 端到端流程 / run 无 runtime / 工具�
   而 SessionService.create_session(self, db, *, ...) 要求 db 位置参数）。
 - LLM provider 为外部基础设施，按项目规则允许 Mock。
 """
+
 from __future__ import annotations
 
 import json
@@ -51,7 +52,9 @@ class MockLLMProvider:
         self.calls: List[Dict[str, Any]] = []
 
     async def complete(
-        self, messages: List[Dict[str, Any]], tools: List[Dict[str, Any]],
+        self,
+        messages: List[Dict[str, Any]],
+        tools: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         self.calls.append({"messages": messages, "tools": tools})
         if self._index >= len(self._responses):
@@ -103,32 +106,58 @@ class _DbBoundSessionService:
         self._service = service
 
     async def create_session(
-        self, db: Any = None, *, agent_type: str, project_id: int,
+        self,
+        db: Any = None,
+        *,
+        agent_type: str,
+        project_id: int,
         created_by: Optional[int] = None,
     ) -> AgentSession:
         return await self._service.create_session(
-            db or self._db, agent_type=agent_type, project_id=project_id,
+            db or self._db,
+            agent_type=agent_type,
+            project_id=project_id,
             created_by=created_by,
         )
 
     async def append_message(
-        self, db: Any = None, *, session_id: int, role: str, content: dict,
-        tool_name: Optional[str] = None, tool_call_id: Optional[str] = None,
+        self,
+        db: Any = None,
+        *,
+        session_id: int,
+        role: str,
+        content: dict,
+        tool_name: Optional[str] = None,
+        tool_call_id: Optional[str] = None,
         token_cost: int = 0,
     ) -> AgentMessage:
         return await self._service.append_message(
-            db or self._db, session_id=session_id, role=role, content=content,
-            tool_name=tool_name, tool_call_id=tool_call_id, token_cost=token_cost,
+            db or self._db,
+            session_id=session_id,
+            role=role,
+            content=content,
+            tool_name=tool_name,
+            tool_call_id=tool_call_id,
+            token_cost=token_cost,
         )
 
     async def complete_session(
-        self, db: Any = None, *, session_id: int, status: str,
-        token_cost: Optional[int] = None, iteration_count: Optional[int] = None,
+        self,
+        db: Any = None,
+        *,
+        session_id: int,
+        status: str,
+        token_cost: Optional[int] = None,
+        iteration_count: Optional[int] = None,
         loop_detected: Optional[bool] = None,
     ) -> AgentSession:
         return await self._service.complete_session(
-            db or self._db, session_id=session_id, status=status,
-            token_cost=token_cost, iteration_count=iteration_count, loop_detected=loop_detected,
+            db or self._db,
+            session_id=session_id,
+            status=status,
+            token_cost=token_cost,
+            iteration_count=iteration_count,
+            loop_detected=loop_detected,
         )
 
 
@@ -140,12 +169,20 @@ class _DbBoundAuditService:
         self._service = service
 
     async def record_action(
-        self, *, session_id: int, iteration: int, action_type: str,
-        action_detail: dict, decision_confidence: Optional[float] = None,
+        self,
+        *,
+        session_id: int,
+        iteration: int,
+        action_type: str,
+        action_detail: dict,
+        decision_confidence: Optional[float] = None,
     ) -> AgentAudit:
         return await self._service.record_action(
-            self._db, session_id=session_id, iteration=iteration,
-            action_type=action_type, action_detail=action_detail,
+            self._db,
+            session_id=session_id,
+            iteration=iteration,
+            action_type=action_type,
+            action_detail=action_detail,
             decision_confidence=decision_confidence,
         )
 
@@ -159,16 +196,21 @@ def _make_tool_call(tool_name: str, args: Optional[Dict[str, Any]] = None) -> Di
 
 
 def _build_runtime(
-    async_db: Any, llm: MockLLMProvider, tool_registry: ToolRegistry,
+    async_db: Any,
+    llm: MockLLMProvider,
+    tool_registry: ToolRegistry,
     with_audit: bool = True,
 ) -> AgentRuntime:
     """构造真实 AgentRuntime：真实 SessionService/AgentAuditService 经适配器绑定 db。"""
     session_svc = _DbBoundSessionService(async_db, SessionService())
     audit_svc = _DbBoundAuditService(async_db, AgentAuditService()) if with_audit else None
     return AgentRuntime(
-        db=async_db, llm_provider=llm,
-        session_service=session_svc, audit_service=audit_svc,
-        tool_registry=tool_registry, agent_registry=get_global_registry(),
+        db=async_db,
+        llm_provider=llm,
+        session_service=session_svc,
+        audit_service=audit_svc,
+        tool_registry=tool_registry,
+        agent_registry=get_global_registry(),
     )
 
 
@@ -184,8 +226,12 @@ class TestTestGenerationAgentDefinition:
         assert defn.agent_type == "test_generation"
         assert "测试用例生成" in defn.system_prompt
         assert defn.tools == [
-            "get_project_info", "query_similar_test_cases", "query_failure_history",
-            "create_test_case", "validate_test_case_syntax", "final_answer",
+            "get_project_info",
+            "query_similar_test_cases",
+            "query_failure_history",
+            "create_test_case",
+            "validate_test_case_syntax",
+            "final_answer",
         ]
         assert len(defn.tools) == 6
         assert defn.max_iterations is None
@@ -228,17 +274,21 @@ class TestCreateTestCaseTool:
         assert result.output["title"] == "登录-正常登录"
         case_id = result.output["test_case_id"]
 
-        case = (await async_db.execute(
-            select(TestCase).where(TestCase.id == case_id)
-        )).scalar_one()
+        case = (await async_db.execute(select(TestCase).where(TestCase.id == case_id))).scalar_one()
         assert case.title == "登录-正常登录"
         assert case.module == "AI生成"
         assert case.priority == 1
         assert case.case_type == "UI"
 
-        steps = (await async_db.execute(
-            select(TestStep).where(TestStep.test_case_id == case_id).order_by(TestStep.step_number)
-        )).scalars().all()
+        steps = (
+            (
+                await async_db.execute(
+                    select(TestStep).where(TestStep.test_case_id == case_id).order_by(TestStep.step_number)
+                )
+            )
+            .scalars()
+            .all()
+        )
         assert len(steps) == 3
         assert steps[0].action_type == "navigate"
         assert steps[1].action_type == "input"
@@ -320,32 +370,50 @@ class TestTestGenerationAgentEndToEnd:
             ],
             "priority": "medium",
         }
-        llm = MockLLMProvider([
-            {"content": "调用创建工具", "tool_calls": [_make_tool_call("create_test_case", create_args)], "token_cost": 50},
-            {"content": "完成", "tool_calls": [_make_tool_call("final_answer", {"test_case_id": 1, "summary": "完成"})], "token_cost": 30},
-        ])
+        llm = MockLLMProvider(
+            [
+                {
+                    "content": "调用创建工具",
+                    "tool_calls": [_make_tool_call("create_test_case", create_args)],
+                    "token_cost": 50,
+                },
+                {
+                    "content": "完成",
+                    "tool_calls": [_make_tool_call("final_answer", {"test_case_id": 1, "summary": "完成"})],
+                    "token_cost": 30,
+                },
+            ]
+        )
         runtime = _build_runtime(async_db, llm, tool_registry)
 
         user_intent = UserIntentArtifact(
-            natural_language_request="生成登录测试用例", constraints=["覆盖正向流程"],
+            natural_language_request="生成登录测试用例",
+            constraints=["覆盖正向流程"],
         )
         project_context = ProjectContextArtifact(
-            project_id=async_test_project.id, name=async_test_project.name,
-            tech_stack=["Vue3"], base_url="http://test",
+            project_id=async_test_project.id,
+            name=async_test_project.name,
+            tech_stack=["Vue3"],
+            base_url="http://test",
         )
 
         agent = TestGenerationAgent()
         session = await agent.run(
-            artifacts=[user_intent, project_context], runtime=runtime, db=async_db,
-            project_id=async_test_project.id, created_by=async_test_user.id,
+            artifacts=[user_intent, project_context],
+            runtime=runtime,
+            db=async_db,
+            project_id=async_test_project.id,
+            created_by=async_test_user.id,
         )
         assert session.status == "completed"
         assert session.iteration_count == 2
 
         # test_cases 落库
-        cases = (await async_db.execute(
-            select(TestCase).where(TestCase.project_id == async_test_project.id)
-        )).scalars().all()
+        cases = (
+            (await async_db.execute(select(TestCase).where(TestCase.project_id == async_test_project.id)))
+            .scalars()
+            .all()
+        )
         assert any(c.title == "E2E-登录测试" for c in cases)
 
         # agent_sessions 落库
@@ -373,21 +441,33 @@ class TestTestGenerationAgentEndToEnd:
             await agent.run(artifacts=[], runtime=None, db=None, project_id=1, created_by=1)
 
     async def test_run_tool_failure_marks_session_failed(
-        self, async_db, async_test_project, async_test_user,
+        self,
+        async_db,
+        async_test_project,
+        async_test_user,
     ) -> None:
         """用例8: 工具未注册 → ToolExecutionError → session.status=failed。"""
         register_default_agents()
         tool_registry = ToolRegistry()  # 不注册 LLM 调用的工具 → 触发 ToolExecutionError
-        llm = MockLLMProvider([
-            {"content": "调用不存在工具", "tool_calls": [_make_tool_call("nonexistent_tool", {})], "token_cost": 10},
-        ])
+        llm = MockLLMProvider(
+            [
+                {
+                    "content": "调用不存在工具",
+                    "tool_calls": [_make_tool_call("nonexistent_tool", {})],
+                    "token_cost": 10,
+                },
+            ]
+        )
         runtime = _build_runtime(async_db, llm, tool_registry, with_audit=False)
 
         agent = TestGenerationAgent()
         with pytest.raises(ToolExecutionError) as exc_info:
             await agent.run(
-                artifacts=[], runtime=runtime, db=async_db,
-                project_id=async_test_project.id, created_by=async_test_user.id,
+                artifacts=[],
+                runtime=runtime,
+                db=async_db,
+                project_id=async_test_project.id,
+                created_by=async_test_user.id,
             )
         assert exc_info.value.tool_name == "nonexistent_tool"
         assert exc_info.value.session_id is not None

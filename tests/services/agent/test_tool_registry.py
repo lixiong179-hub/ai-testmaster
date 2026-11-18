@@ -14,6 +14,7 @@
 
 测试原则：纯内存操作，无需数据库。
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict
@@ -131,7 +132,13 @@ def test_is_client_side_attribute() -> None:
     for tool_cls in [ClickElementTool, InputElementTool, ScreenshotTool, GetDomTool, ScrollTool, WaitTool]:
         assert tool_cls().is_client_side is True
     # 全部服务端工具
-    for tool_cls in [GetTestCaseTool, QueryProjectTool, QueryAuditTool, QueryLocatorHistoryTool, ValidateTestCaseSyntaxTool]:
+    for tool_cls in [
+        GetTestCaseTool,
+        QueryProjectTool,
+        QueryAuditTool,
+        QueryLocatorHistoryTool,
+        ValidateTestCaseSyntaxTool,
+    ]:
         assert tool_cls().is_client_side is False
 
 
@@ -156,7 +163,10 @@ def test_all_server_tools_can_register_and_instantiate() -> None:
     # list_for_agent 返回所有（agent_types=None 全局可见）
     listed_names = {t.name for t in registry.list_for_agent("any_agent")}
     expected_names = {
-        "get_test_case", "query_project", "query_audit", "query_locator_history",
+        "get_test_case",
+        "query_project",
+        "query_audit",
+        "query_locator_history",
         "validate_test_case_syntax",
     }
     assert expected_names.issubset(listed_names)
@@ -182,8 +192,12 @@ def test_all_client_tools_can_register_and_instantiate() -> None:
         assert registry.get(tool.name) is tool
     listed_names = {t.name for t in registry.list_for_agent("any")}
     expected_names = {
-        "click_element", "input_element", "screenshot",
-        "get_dom", "scroll", "wait",
+        "click_element",
+        "input_element",
+        "screenshot",
+        "get_dom",
+        "scroll",
+        "wait",
     }
     assert expected_names.issubset(listed_names)
 

@@ -59,8 +59,10 @@ class TestPipelineContext:
 
     def test_default_config_empty(self):
         ctx = PipelineContext(
-            db=self.db, ai_client=self.ai_client,
-            run=self.run, iteration_id=1,
+            db=self.db,
+            ai_client=self.ai_client,
+            run=self.run,
+            iteration_id=1,
         )
         assert ctx.config == {}
 

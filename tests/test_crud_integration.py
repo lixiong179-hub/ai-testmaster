@@ -332,9 +332,7 @@ class TestTestPointCRUD:
         assert updated.priority == 1
 
     def test_update_test_point_nonexistent(self, db, testProject):
-        result = update_test_point(
-            db=db, test_point_id=99999, project_id=testProject.id, point="should not update"
-        )
+        result = update_test_point(db=db, test_point_id=99999, project_id=testProject.id, point="should not update")
         assert result is None
 
     def test_delete_test_point_normal(self, db, testProject):
@@ -371,6 +369,7 @@ class TestElementLocatorCRUD:
         )
         from app.models.element_locator import ElementLocator
         from app.models.test_case import TestStep
+
         step = TestStep(
             test_case_id=case.id,
             step_number=1,
@@ -407,6 +406,7 @@ class TestElementLocatorCRUD:
         )
         from app.models.element_locator import ElementLocator
         from app.models.test_case import TestStep
+
         step = TestStep(
             test_case_id=case.id,
             step_number=1,
@@ -442,6 +442,7 @@ class TestElementLocatorCRUD:
         )
         from app.models.element_locator import ElementLocator
         from app.models.test_case import TestStep
+
         step = TestStep(
             test_case_id=case.id,
             step_number=1,
@@ -480,6 +481,7 @@ class TestElementLocatorCRUD:
         )
         from app.models.element_locator import ElementLocator
         from app.models.test_case import TestStep
+
         step = TestStep(
             test_case_id=case.id,
             step_number=1,
@@ -517,6 +519,7 @@ class TestElementLocatorCRUD:
         )
         from app.models.element_locator import ElementLocator
         from app.models.test_case import TestStep
+
         step = TestStep(
             test_case_id=case.id,
             step_number=1,
@@ -553,6 +556,7 @@ class TestElementLocatorCRUD:
         )
         from app.models.element_locator import ElementLocator
         from app.models.test_case import TestStep
+
         step = TestStep(
             test_case_id=case.id,
             step_number=1,
@@ -590,6 +594,7 @@ class TestElementLocatorCRUD:
         )
         from app.models.element_locator import ElementLocator
         from app.models.test_case import TestStep
+
         step = TestStep(
             test_case_id=case.id,
             step_number=1,

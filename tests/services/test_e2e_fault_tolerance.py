@@ -7,6 +7,7 @@
     4. API前置准备: 变量提取→变量替换→断言验证
     5. 失败分类: 产品Bug vs 误报的区分
 """
+
 import asyncio
 import json
 import pytest
@@ -83,12 +84,14 @@ class TestBEndWebSnapshotFlow:
         mock_page = AsyncMock()
         mock_page.url = "https://admin.example.com/orders/123"
         mock_context = AsyncMock()
-        mock_context.storage_state = AsyncMock(return_value={
-            "cookies": [{"name": "token", "value": "abc123", "domain": ".example.com"}],
-            "origins": [{"origin": "https://admin.example.com", "localStorage": [
-                {"name": "user_role", "value": "admin"}
-            ]}],
-        })
+        mock_context.storage_state = AsyncMock(
+            return_value={
+                "cookies": [{"name": "token", "value": "abc123", "domain": ".example.com"}],
+                "origins": [
+                    {"origin": "https://admin.example.com", "localStorage": [{"name": "user_role", "value": "admin"}]}
+                ],
+            }
+        )
 
         engine.browser = MagicMock()
         engine.browser._page = mock_page
@@ -109,8 +112,11 @@ class TestBEndWebSnapshotFlow:
         mock_context.add_cookies = AsyncMock()
 
         branch_case = _StubCase(
-            2, "异常-取消已创建订单", "TC-002",
-            depends_on="正向-创建订单成功", anchor_step=3,
+            2,
+            "异常-取消已创建订单",
+            "TC-002",
+            depends_on="正向-创建订单成功",
+            anchor_step=3,
         )
         engine._title_to_case_no["正向-创建订单成功"] = "TC-001"
         restored = await engine._restore_anchor_snapshot(branch_case)
@@ -126,13 +132,20 @@ class TestBEndWebSnapshotFlow:
         mock_page.url = "https://admin.example.com/dashboard"
         mock_page.evaluate = AsyncMock()
         mock_context = AsyncMock()
-        mock_context.storage_state = AsyncMock(return_value={
-            "cookies": [{"name": "session", "value": "sess_abc", "domain": ".example.com"}],
-            "origins": [{"origin": "https://admin.example.com", "localStorage": [
-                {"name": "theme", "value": "dark"},
-                {"name": "lang", "value": "zh-CN"},
-            ]}],
-        })
+        mock_context.storage_state = AsyncMock(
+            return_value={
+                "cookies": [{"name": "session", "value": "sess_abc", "domain": ".example.com"}],
+                "origins": [
+                    {
+                        "origin": "https://admin.example.com",
+                        "localStorage": [
+                            {"name": "theme", "value": "dark"},
+                            {"name": "lang", "value": "zh-CN"},
+                        ],
+                    }
+                ],
+            }
+        )
 
         engine.browser = MagicMock()
         engine.browser._page = mock_page
@@ -144,8 +157,7 @@ class TestBEndWebSnapshotFlow:
         mock_page.goto = AsyncMock()
         mock_context.add_cookies = AsyncMock()
 
-        branch_case = _StubCase(2, "分支-修改个人资料", "TC-002",
-                                depends_on="正向-登录成功", anchor_step=1)
+        branch_case = _StubCase(2, "分支-修改个人资料", "TC-002", depends_on="正向-登录成功", anchor_step=1)
         engine._title_to_case_no["正向-登录成功"] = "TC-001"
         restored = await engine._restore_anchor_snapshot(branch_case)
         assert restored is True
@@ -201,12 +213,8 @@ class TestCEndMobileSnapshotFlow:
         engine = _FullEngine(is_mobile=True)
 
         mock_adb = AsyncMock()
-        mock_adb.get_current_activity = AsyncMock(
-            return_value="com.shopapp/.OrderDetailActivity"
-        )
-        mock_adb.take_screenshot = AsyncMock(
-            return_value=b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
-        )
+        mock_adb.get_current_activity = AsyncMock(return_value="com.shopapp/.OrderDetailActivity")
+        mock_adb.take_screenshot = AsyncMock(return_value=b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
 
         mock_uiautomator = AsyncMock()
         mock_elem1 = MagicMock()
@@ -217,9 +225,7 @@ class TestCEndMobileSnapshotFlow:
         mock_elem2.resource_id = "com.shopapp:id/tv_order_status"
         mock_elem2.text = "待发货"
         mock_elem2.content_desc = None
-        mock_uiautomator.get_clickable_elements = AsyncMock(
-            return_value=[mock_elem1, mock_elem2]
-        )
+        mock_uiautomator.get_clickable_elements = AsyncMock(return_value=[mock_elem1, mock_elem2])
 
         mock_executor = MagicMock()
         mock_executor.adb = mock_adb
@@ -264,9 +270,7 @@ class TestCEndMobileSnapshotFlow:
         engine._title_to_case_no["正向-下单成功"] = "TC-001"
 
         mock_adb = AsyncMock()
-        mock_adb.get_current_activity = AsyncMock(
-            return_value="com.shopapp/.OrderListActivity"
-        )
+        mock_adb.get_current_activity = AsyncMock(return_value="com.shopapp/.OrderListActivity")
         mock_adb.start_app = AsyncMock()
 
         mock_elem1 = MagicMock()
@@ -279,9 +283,7 @@ class TestCEndMobileSnapshotFlow:
         mock_elem2.content_desc = None
 
         mock_uiautomator = AsyncMock()
-        mock_uiautomator.get_clickable_elements = AsyncMock(
-            return_value=[mock_elem1, mock_elem2]
-        )
+        mock_uiautomator.get_clickable_elements = AsyncMock(return_value=[mock_elem1, mock_elem2])
 
         mock_executor = MagicMock()
         mock_executor.adb = mock_adb
@@ -289,17 +291,18 @@ class TestCEndMobileSnapshotFlow:
         engine._mobile_executor = mock_executor
 
         branch_case = _StubCase(
-            2, "异常-取消订单", "TC-002",
-            depends_on="正向-下单成功", anchor_step=3,
+            2,
+            "异常-取消订单",
+            "TC-002",
+            depends_on="正向-下单成功",
+            anchor_step=3,
         )
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
             restored = await engine._restore_anchor_snapshot(branch_case)
 
         assert restored is True
-        mock_adb.start_app.assert_called_once_with(
-            "com.shopapp", ".OrderDetailActivity"
-        )
+        mock_adb.start_app.assert_called_once_with("com.shopapp", ".OrderDetailActivity")
 
 
 # ============================================================
@@ -313,12 +316,22 @@ class TestFourLevelDegradation:
         engine._init_api_setup_state()
 
         case = _StubCase(
-            2, "异常-取消订单", "TC-002",
-            depends_on="正向-创建订单", anchor_step=3,
-            setup_api_calls=json.dumps([
-                {"method": "POST", "url": "/api/v1/orders", "body": {"product_id": 1},
-                 "assert": {"status_code": 201}, "extract": {"order_id": "$.data.id"}},
-            ]),
+            2,
+            "异常-取消订单",
+            "TC-002",
+            depends_on="正向-创建订单",
+            anchor_step=3,
+            setup_api_calls=json.dumps(
+                [
+                    {
+                        "method": "POST",
+                        "url": "/api/v1/orders",
+                        "body": {"product_id": 1},
+                        "assert": {"status_code": 201},
+                        "extract": {"order_id": "$.data.id"},
+                    },
+                ]
+            ),
         )
 
         mock_page = AsyncMock()
@@ -365,8 +378,11 @@ class TestFourLevelDegradation:
         engine.browser._context = mock_context
 
         case = _StubCase(
-            2, "分支用例", "TC-002",
-            depends_on="主干", anchor_step=3,
+            2,
+            "分支用例",
+            "TC-002",
+            depends_on="主干",
+            anchor_step=3,
         )
         ok, level = await engine._navigate_to_dependency_anchor(case)
         assert ok is True
@@ -389,25 +405,24 @@ class TestFourLevelDegradation:
         engine._title_to_case_no["主干"] = "TC-001"
 
         mock_adb = AsyncMock()
-        mock_adb.get_current_activity = AsyncMock(
-            return_value="com.app/.DetailActivity"
-        )
+        mock_adb.get_current_activity = AsyncMock(return_value="com.app/.DetailActivity")
         mock_elem = MagicMock()
         mock_elem.resource_id = None
         mock_elem.text = "确认"
         mock_elem.content_desc = None
         mock_uiautomator = AsyncMock()
-        mock_uiautomator.get_clickable_elements = AsyncMock(
-            return_value=[mock_elem]
-        )
+        mock_uiautomator.get_clickable_elements = AsyncMock(return_value=[mock_elem])
         mock_executor = MagicMock()
         mock_executor.adb = mock_adb
         mock_executor.uiautomator = mock_uiautomator
         engine._mobile_executor = mock_executor
 
         case = _StubCase(
-            2, "分支用例", "TC-002",
-            depends_on="主干", anchor_step=3,
+            2,
+            "分支用例",
+            "TC-002",
+            depends_on="主干",
+            anchor_step=3,
         )
         ok, level = await engine._navigate_to_dependency_anchor(case)
         assert ok is True
@@ -471,18 +486,20 @@ class TestFailureCategorization:
         results = [
             TestExecutionResult(case_id=1, status=ExecutionStatus.PASSED),
             TestExecutionResult(case_id=2, status=ExecutionStatus.PASSED),
-            TestExecutionResult(case_id=3, status=ExecutionStatus.FAILED,
-                                failure_category=FailureCategory.PRODUCT_BUG),
-            TestExecutionResult(case_id=4, status=ExecutionStatus.FAILED,
-                                failure_category=FailureCategory.CRASH_BUG),
-            TestExecutionResult(case_id=5, status=ExecutionStatus.FAILED,
-                                failure_category=FailureCategory.PERFORMANCE_BUG),
-            TestExecutionResult(case_id=6, status=ExecutionStatus.FAILED,
-                                failure_category=FailureCategory.UPSTREAM_BLOCKED),
-            TestExecutionResult(case_id=7, status=ExecutionStatus.FAILED,
-                                failure_category=FailureCategory.NAVIGATION_FAILURE),
-            TestExecutionResult(case_id=8, status=ExecutionStatus.ERROR,
-                                failure_category=FailureCategory.ENVIRONMENT_ERROR),
+            TestExecutionResult(case_id=3, status=ExecutionStatus.FAILED, failure_category=FailureCategory.PRODUCT_BUG),
+            TestExecutionResult(case_id=4, status=ExecutionStatus.FAILED, failure_category=FailureCategory.CRASH_BUG),
+            TestExecutionResult(
+                case_id=5, status=ExecutionStatus.FAILED, failure_category=FailureCategory.PERFORMANCE_BUG
+            ),
+            TestExecutionResult(
+                case_id=6, status=ExecutionStatus.FAILED, failure_category=FailureCategory.UPSTREAM_BLOCKED
+            ),
+            TestExecutionResult(
+                case_id=7, status=ExecutionStatus.FAILED, failure_category=FailureCategory.NAVIGATION_FAILURE
+            ),
+            TestExecutionResult(
+                case_id=8, status=ExecutionStatus.ERROR, failure_category=FailureCategory.ENVIRONMENT_ERROR
+            ),
         ]
 
         passed = [r for r in results if r.status == ExecutionStatus.PASSED]
@@ -583,14 +600,28 @@ class TestFallbackStepsIntegration:
         from app.pipelines.steps._parsing import _build_fallback_steps
 
         main_steps = [
-            {"step": 1, "action": "访问首页", "action_type": "navigate",
-             "target_element": "", "input_value": "/home"},
-            {"step": 2, "action": "搜索商品", "action_type": "input",
-             "target_element": "搜索框", "input_value": "手机"},
-            {"step": 3, "action": "点击搜索结果", "action_type": "click",
-             "target_element": "搜索结果", "input_value": ""},
-            {"step": 4, "action": "加入购物车", "action_type": "click",
-             "target_element": "加入购物车按钮", "input_value": ""},
+            {"step": 1, "action": "访问首页", "action_type": "navigate", "target_element": "", "input_value": "/home"},
+            {
+                "step": 2,
+                "action": "搜索商品",
+                "action_type": "input",
+                "target_element": "搜索框",
+                "input_value": "手机",
+            },
+            {
+                "step": 3,
+                "action": "点击搜索结果",
+                "action_type": "click",
+                "target_element": "搜索结果",
+                "input_value": "",
+            },
+            {
+                "step": 4,
+                "action": "加入购物车",
+                "action_type": "click",
+                "target_element": "加入购物车按钮",
+                "input_value": "",
+            },
         ]
 
         fallback = _build_fallback_steps(main_steps, 3)
@@ -608,10 +639,20 @@ class TestFallbackStepsIntegration:
         from app.pipelines.steps._parsing import _build_fallback_steps
 
         main_steps = [
-            {"step": 1, "action": "访问登录页", "action_type": "navigate",
-             "target_element": "", "input_value": "/login"},
-            {"step": 2, "action": "输入账号密码", "action_type": "input",
-             "target_element": "账号输入框", "input_value": "admin"},
+            {
+                "step": 1,
+                "action": "访问登录页",
+                "action_type": "navigate",
+                "target_element": "",
+                "input_value": "/login",
+            },
+            {
+                "step": 2,
+                "action": "输入账号密码",
+                "action_type": "input",
+                "target_element": "账号输入框",
+                "input_value": "admin",
+            },
         ]
         fallback = _build_fallback_steps(main_steps, 2)
         json_str = json.dumps(fallback, ensure_ascii=False)
@@ -632,8 +673,7 @@ class TestEndToEndFullFlow:
 
         cases = [
             _StubCase(1, "正向-创建订单", "TC-001"),
-            _StubCase(2, "异常-取消订单", "TC-002",
-                      depends_on="正向-创建订单", anchor_step=3),
+            _StubCase(2, "异常-取消订单", "TC-002", depends_on="正向-创建订单", anchor_step=3),
             _StubCase(3, "正向-查看报表", "TC-003"),
         ]
 
@@ -646,12 +686,14 @@ class TestEndToEndFullFlow:
         engine._pending_cases = sorted_cases
 
         main_result = TestExecutionResult(
-            case_id=1, status=ExecutionStatus.PASSED,
+            case_id=1,
+            status=ExecutionStatus.PASSED,
         )
         engine._case_results[1] = main_result
 
         branch_result = TestExecutionResult(
-            case_id=2, status=ExecutionStatus.FAILED,
+            case_id=2,
+            status=ExecutionStatus.FAILED,
             failure_category=FailureCategory.PRODUCT_BUG,
         )
         assert FailureCategory.is_product_bug(branch_result.failure_category) is True
@@ -663,10 +705,8 @@ class TestEndToEndFullFlow:
 
         cases = [
             _StubCase(1, "正向-创建订单", "TC-001"),
-            _StubCase(2, "异常-取消订单", "TC-002",
-                      depends_on="正向-创建订单", anchor_step=3),
-            _StubCase(3, "边界-重复提交", "TC-003",
-                      depends_on="正向-创建订单", anchor_step=3),
+            _StubCase(2, "异常-取消订单", "TC-002", depends_on="正向-创建订单", anchor_step=3),
+            _StubCase(3, "边界-重复提交", "TC-003", depends_on="正向-创建订单", anchor_step=3),
             _StubCase(4, "正向-查看报表", "TC-004"),
         ]
 

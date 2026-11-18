@@ -3,6 +3,7 @@
 
 目标：将覆盖率提升到95%以上
 """
+
 import pytest
 from unittest.mock import Mock, patch
 
@@ -10,7 +11,7 @@ from app.services.test_data_parameterizer import (
     TestDataParameterizer,
     ParameterContext,
     parse_parameters,
-    create_parameter_context
+    create_parameter_context,
 )
 
 
@@ -35,7 +36,7 @@ class TestParameterizerCoverage:
     def test_parse_exception_handling(self, parameterizer):
         """测试解析 - 异常处理"""
         # 通过mock让replace_param函数抛出异常
-        with patch.object(parameterizer, '_resolve_param', side_effect=Exception("测试异常")):
+        with patch.object(parameterizer, "_resolve_param", side_effect=Exception("测试异常")):
             result = parameterizer.parse("${random.number}")
         # 应该返回原始文本或包含占位符的文本
         assert "${random.number}" in result or result == "${random.number}"
@@ -53,7 +54,7 @@ class TestParameterizerCoverage:
     def test_resolve_param_handler_exception(self, parameterizer):
         """测试解析参数 - 处理器异常"""
         # mock一个会抛出异常的处理器
-        with patch.dict(parameterizer._param_handlers, {'test': lambda x: 1/0}):
+        with patch.dict(parameterizer._param_handlers, {"test": lambda x: 1 / 0}):
             result = parameterizer._resolve_param("test.param")
         assert "${test.param}" in result
 
@@ -315,31 +316,19 @@ class TestParameterContextCoverage:
 
     def test_context_with_user_id(self):
         """测试上下文 - 带用户ID"""
-        context = ParameterContext(
-            execution_id="test-001",
-            user_id=123,
-            project_id=None
-        )
+        context = ParameterContext(execution_id="test-001", user_id=123, project_id=None)
         assert context.user_id == 123
         assert context.project_id is None
 
     def test_context_with_project_id(self):
         """测试上下文 - 带项目ID"""
-        context = ParameterContext(
-            execution_id="test-001",
-            user_id=None,
-            project_id=456
-        )
+        context = ParameterContext(execution_id="test-001", user_id=None, project_id=456)
         assert context.user_id is None
         assert context.project_id == 456
 
     def test_context_with_both_ids(self):
         """测试上下文 - 带用户ID和项目ID"""
-        context = ParameterContext(
-            execution_id="test-001",
-            user_id=123,
-            project_id=456
-        )
+        context = ParameterContext(execution_id="test-001", user_id=123, project_id=456)
         assert context.user_id == 123
         assert context.project_id == 456
 
@@ -367,11 +356,7 @@ class TestConvenienceFunctions:
 
     def test_create_parameter_context_with_params(self):
         """测试创建上下文 - 带参数"""
-        context = create_parameter_context(
-            execution_id="custom-id",
-            user_id=123,
-            project_id=456
-        )
+        context = create_parameter_context(execution_id="custom-id", user_id=123, project_id=456)
         assert context.execution_id == "custom-id"
         assert context.user_id == 123
         assert context.project_id == 456

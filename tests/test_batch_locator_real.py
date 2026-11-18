@@ -7,6 +7,7 @@
 - 覆盖率>=95%
 - 测试数据隔离，测试后清理数据
 """
+
 import pytest
 import asyncio
 from app.utils.db_time import utcnow
@@ -19,13 +20,9 @@ from app.services.batch_locator_service import (
     BatchRecordReport,
     StepRecordResult,
     BatchLocatorConfig,
-    batch_record_locators
+    batch_record_locators,
 )
-from app.api.v1.endpoints.batch_locator import (
-    BatchRecordRequest,
-    BatchRecordResponse,
-    BatchRecordStatusResponse
-)
+from app.api.v1.endpoints.batch_locator import BatchRecordRequest, BatchRecordResponse, BatchRecordStatusResponse
 
 pytestmark = [pytest.mark.integration, pytest.mark.real_browser]
 
@@ -33,6 +30,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.real_browser]
 # ============================================================================
 # 测试数据类
 # ============================================================================
+
 
 class TestBatchLocatorConfig:
     """测试批量定位配置类"""
@@ -87,7 +85,7 @@ class TestStepRecordResult:
             locator_id=100,
             css_selector="#login-btn",
             confidence=0.95,
-            duration=2.5
+            duration=2.5,
         )
         assert result.step_id == 1
         assert result.step_number == 1
@@ -101,13 +99,7 @@ class TestStepRecordResult:
 
     def test_step_result_defaults(self):
         """测试步骤结果默认值"""
-        result = StepRecordResult(
-            step_id=1,
-            step_number=1,
-            action="测试操作",
-            success=False,
-            message="失败"
-        )
+        result = StepRecordResult(step_id=1, step_number=1, action="测试操作", success=False, message="失败")
         assert result.locator_id is None
         assert result.css_selector is None
         assert result.confidence is None
@@ -121,7 +113,7 @@ class TestStepRecordResult:
             action="点击不存在的元素",
             success=False,
             message="AI无法识别目标元素",
-            duration=1.5
+            duration=1.5,
         )
         assert result.success == False
         assert result.message == "AI无法识别目标元素"
@@ -140,7 +132,7 @@ class TestBatchRecordReport:
             failed_count=1,
             skipped_count=0,
             start_time=utcnow(),
-            status=BatchRecordStatus.COMPLETED
+            status=BatchRecordStatus.COMPLETED,
         )
         assert report.case_id == 1
         assert report.case_title == "用户登录测试"
@@ -160,17 +152,13 @@ class TestBatchRecordReport:
             failed_count=0,
             skipped_count=0,
             start_time=utcnow(),
-            status=BatchRecordStatus.RUNNING
+            status=BatchRecordStatus.RUNNING,
         )
 
         # 添加步骤结果
-        result1 = StepRecordResult(
-            step_id=1, step_number=1, action="步骤1",
-            success=True, message="成功", duration=1.0
-        )
+        result1 = StepRecordResult(step_id=1, step_number=1, action="步骤1", success=True, message="成功", duration=1.0)
         result2 = StepRecordResult(
-            step_id=2, step_number=2, action="步骤2",
-            success=False, message="失败", duration=2.0
+            step_id=2, step_number=2, action="步骤2", success=False, message="失败", duration=2.0
         )
         report.step_results.append(result1)
         report.step_results.append(result2)
@@ -192,13 +180,18 @@ class TestBatchRecordReport:
             start_time=start_time,
             end_time=start_time,
             duration=5.5,
-            status=BatchRecordStatus.COMPLETED
+            status=BatchRecordStatus.COMPLETED,
         )
 
         result = StepRecordResult(
-            step_id=1, step_number=1, action="测试步骤",
-            success=True, message="成功",
-            css_selector="#test", confidence=0.9, duration=1.5
+            step_id=1,
+            step_number=1,
+            action="测试步骤",
+            success=True,
+            message="成功",
+            css_selector="#test",
+            confidence=0.9,
+            duration=1.5,
         )
         report.step_results.append(result)
 
@@ -224,7 +217,7 @@ class TestBatchRecordReport:
             failed_count=0,
             skipped_count=0,
             start_time=utcnow(),
-            status=BatchRecordStatus.PENDING
+            status=BatchRecordStatus.PENDING,
         )
 
         report_dict = report.to_dict()
@@ -234,6 +227,7 @@ class TestBatchRecordReport:
 # ============================================================================
 # 测试任务管理器
 # ============================================================================
+
 
 class TestBatchTaskManager:
     """测试批量任务管理器"""
@@ -319,6 +313,7 @@ class TestBatchTaskManager:
 # 测试服务类
 # ============================================================================
 
+
 class TestBatchLocatorService:
     """测试批量定位服务类"""
 
@@ -376,6 +371,7 @@ class TestBatchLocatorService:
 
     def test_notify_progress_callback_exception(self):
         """测试进度通知（回调异常）"""
+
         def bad_callback(data):
             raise ValueError("测试异常")
 
@@ -388,6 +384,7 @@ class TestBatchLocatorService:
 # 测试API请求/响应模型
 # ============================================================================
 
+
 class TestBatchRecordRequest:
     """测试批量记录请求模型"""
 
@@ -399,10 +396,7 @@ class TestBatchRecordRequest:
 
     def test_custom_values(self):
         """测试自定义值"""
-        request = BatchRecordRequest(
-            skip_existing=False,
-            execute_precondition=False
-        )
+        request = BatchRecordRequest(skip_existing=False, execute_precondition=False)
         assert request.skip_existing == False
         assert request.execute_precondition == False
 
@@ -418,12 +412,7 @@ class TestBatchRecordResponse:
 
     def test_response_creation(self):
         """测试创建响应"""
-        response = BatchRecordResponse(
-            success=True,
-            message="任务已启动",
-            case_id=1,
-            task_id="batch_1"
-        )
+        response = BatchRecordResponse(success=True, message="任务已启动", case_id=1, task_id="batch_1")
         assert response.success == True
         assert response.message == "任务已启动"
         assert response.case_id == 1
@@ -431,11 +420,7 @@ class TestBatchRecordResponse:
 
     def test_response_without_task_id(self):
         """测试无任务ID的响应"""
-        response = BatchRecordResponse(
-            success=False,
-            message="启动失败",
-            case_id=1
-        )
+        response = BatchRecordResponse(success=False, message="启动失败", case_id=1)
         assert response.task_id is None
 
 
@@ -445,12 +430,7 @@ class TestBatchRecordStatusResponse:
     def test_status_response_creation(self):
         """测试创建状态响应"""
         response = BatchRecordStatusResponse(
-            case_id=1,
-            status="running",
-            progress=50.0,
-            current_step=3,
-            total_steps=5,
-            message="正在执行"
+            case_id=1, status="running", progress=50.0, current_step=3, total_steps=5, message="正在执行"
         )
         assert response.case_id == 1
         assert response.status == "running"
@@ -461,12 +441,7 @@ class TestBatchRecordStatusResponse:
 
     def test_status_response_without_optional(self):
         """测试无可选字段的状态响应"""
-        response = BatchRecordStatusResponse(
-            case_id=1,
-            status="completed",
-            progress=100.0,
-            total_steps=5
-        )
+        response = BatchRecordStatusResponse(case_id=1, status="completed", progress=100.0, total_steps=5)
         assert response.current_step is None
         assert response.message is None
 
@@ -475,40 +450,40 @@ class TestBatchRecordStatusResponse:
 # 测试便捷函数
 # ============================================================================
 
+
 class TestBatchRecordLocatorsFunction:
     """测试批量记录便捷函数"""
 
     def test_function_signature(self):
         """测试函数签名"""
         import inspect
+
         sig = inspect.signature(batch_record_locators)
         params = list(sig.parameters.keys())
 
-        assert 'case_id' in params
-        assert 'skip_existing' in params
-        assert 'execute_precondition' in params
-        assert 'progress_callback' in params
-        assert 'config' in params
+        assert "case_id" in params
+        assert "skip_existing" in params
+        assert "execute_precondition" in params
+        assert "progress_callback" in params
+        assert "config" in params
 
     def test_default_parameters(self):
         """测试默认参数"""
         import inspect
-        sig = inspect.signature(batch_record_locators)
-        defaults = {
-            k: v.default
-            for k, v in sig.parameters.items()
-            if v.default is not inspect.Parameter.empty
-        }
 
-        assert defaults['skip_existing'] == True
-        assert defaults['execute_precondition'] == True
-        assert defaults['progress_callback'] is None
-        assert defaults['config'] is None
+        sig = inspect.signature(batch_record_locators)
+        defaults = {k: v.default for k, v in sig.parameters.items() if v.default is not inspect.Parameter.empty}
+
+        assert defaults["skip_existing"] == True
+        assert defaults["execute_precondition"] == True
+        assert defaults["progress_callback"] is None
+        assert defaults["config"] is None
 
 
 # ============================================================================
 # 异步测试
 # ============================================================================
+
 
 @pytest.mark.asyncio
 class TestBatchLocatorServiceAsync:
@@ -544,12 +519,14 @@ class TestBatchLocatorServiceAsync:
 
 if __name__ == "__main__":
     # 运行测试并生成覆盖率报告
-    pytest.main([
-        __file__,
-        "-v",
-        "--tb=short",
-        "--cov=app.services.batch_locator_service",
-        "--cov=app.api.v1.endpoints.batch_locator",
-        "--cov-report=term-missing",
-        "--cov-report=html:htmlcov_batch_locator"
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "--cov=app.services.batch_locator_service",
+            "--cov=app.api.v1.endpoints.batch_locator",
+            "--cov-report=term-missing",
+            "--cov-report=html:htmlcov_batch_locator",
+        ]
+    )

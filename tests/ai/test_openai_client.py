@@ -1,6 +1,7 @@
 """OpenAIClient 真实 API 测试
 
 使用真实 DeepSeek API 调用，禁歿Mock〿测试范围：构造函数、complate 调用、系统提示、异常路径〿"""
+
 import os
 import pytest
 from app.ai.client import AIResponse, TokenUsage

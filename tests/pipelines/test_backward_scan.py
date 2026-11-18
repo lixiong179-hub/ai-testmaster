@@ -9,6 +9,7 @@
 
 使用真实 MySQL 数据库 + MockAIClient。
 """
+
 import json
 import pytest
 
@@ -51,14 +52,16 @@ def _make_raw_signals(project_id: int, **overrides) -> dict:
 def _make_fingerprints(project_id: int, count: int = 3, module: str = "用户管理") -> dict:
     fps = []
     for i in range(count):
-        fps.append({
-            "case_id": 100 + i,
-            "title": f"用例{i}",
-            "module": module,
-            "summary": f"摘要{i}",
-            "priority": 1,
-            "lifecycle_status": "active",
-        })
+        fps.append(
+            {
+                "case_id": 100 + i,
+                "title": f"用例{i}",
+                "module": module,
+                "summary": f"摘要{i}",
+                "priority": 1,
+                "lifecycle_status": "active",
+            }
+        )
     return {
         "project_id": project_id,
         "fingerprints": fps,
@@ -211,12 +214,14 @@ class TestBackwardScanFallback:
 class TestBackwardScanServiceScan:
     def test_scan_with_valid_ai_response(self, mock_ai):
         fps = _make_fingerprints(1, count=2)["fingerprints"]
-        ai_response = json.dumps({
-            "verdicts": [
-                {"case_id": 100, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
-                {"case_id": 101, "verdict": "NEEDS_MODIFY", "confidence": 0.8, "hint": "需修改"},
-            ]
-        })
+        ai_response = json.dumps(
+            {
+                "verdicts": [
+                    {"case_id": 100, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
+                    {"case_id": 101, "verdict": "NEEDS_MODIFY", "confidence": 0.8, "hint": "需修改"},
+                ]
+            }
+        )
         mock_ai.set_response("backward_scan", ai_response)
 
         service = BackwardScanService(ai_client=mock_ai, batch_size=50)
@@ -282,11 +287,13 @@ class TestBackwardScanServiceRetry:
 
     def test_retry_on_schema_failure(self, mock_ai):
         fps = _make_fingerprints(1, count=1)["fingerprints"]
-        bad_response = json.dumps({
-            "verdicts": [
-                {"case_id": 100, "verdict": "INVALID_VERDICT", "confidence": 0.9, "hint": "非法"},
-            ]
-        })
+        bad_response = json.dumps(
+            {
+                "verdicts": [
+                    {"case_id": 100, "verdict": "INVALID_VERDICT", "confidence": 0.9, "hint": "非法"},
+                ]
+            }
+        )
         mock_ai.set_response("backward_scan", bad_response)
         service = BackwardScanService(ai_client=mock_ai, batch_size=50)
         verdicts, stats = service.scan(
@@ -321,9 +328,7 @@ class TestBackwardScanServiceMarkUncertain:
     def test_mark_uncertain(self, mock_ai):
         fps = _make_fingerprints(1, count=2)["fingerprints"]
         service = BackwardScanService(ai_client=mock_ai, batch_size=50)
-        verdicts, retries, degraded, auto_corrected = service._mark_uncertain(
-            fps, "测试降级"
-        )
+        verdicts, retries, degraded, auto_corrected = service._mark_uncertain(fps, "测试降级")
         assert len(verdicts) == 2
         assert degraded == 2
         assert all(v.verdict == BackwardVerdict.UNCERTAIN for v in verdicts)
@@ -331,17 +336,21 @@ class TestBackwardScanServiceMarkUncertain:
 
 class TestExtractChangeSignals:
     def test_with_prd(self):
-        signals = _extract_change_signals({
-            "prd_content": "新增验证码",
-            "test_points": [],
-        })
+        signals = _extract_change_signals(
+            {
+                "prd_content": "新增验证码",
+                "test_points": [],
+            }
+        )
         assert "新增验证码" in signals
 
     def test_with_test_points(self):
-        signals = _extract_change_signals({
-            "prd_content": "",
-            "test_points": [{"id": 1, "point": "登录"}],
-        })
+        signals = _extract_change_signals(
+            {
+                "prd_content": "",
+                "test_points": [{"id": 1, "point": "登录"}],
+            }
+        )
         assert "登录" in signals
 
     def test_empty_signals(self):
@@ -369,13 +378,15 @@ class TestComputeScanConfidence:
 
 class TestBackwardScanExecute:
     def test_execute_with_valid_ai(self, db, make_ctx, mock_ai, test_iteration):
-        ai_response = json.dumps({
-            "verdicts": [
-                {"case_id": 100, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
-                {"case_id": 101, "verdict": "NEEDS_MODIFY", "confidence": 0.8, "hint": "需修改"},
-                {"case_id": 102, "verdict": "LOCATOR_ONLY", "confidence": 0.75, "hint": "定位器失效"},
-            ]
-        })
+        ai_response = json.dumps(
+            {
+                "verdicts": [
+                    {"case_id": 100, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
+                    {"case_id": 101, "verdict": "NEEDS_MODIFY", "confidence": 0.8, "hint": "需修改"},
+                    {"case_id": 102, "verdict": "LOCATOR_ONLY", "confidence": 0.75, "hint": "定位器失效"},
+                ]
+            }
+        )
         mock_ai.set_response("backward_scan", ai_response)
 
         ctx = make_ctx(
@@ -409,7 +420,16 @@ class TestBackwardScanExecute:
 
 class TestBackwardScanServiceFallbackSplit:
     def test_single_item_fallback(self, mock_ai):
-        fps = [{"case_id": 1, "title": "单条", "module": "模块A", "summary": "摘要", "priority": 1, "lifecycle_status": "active"}]
+        fps = [
+            {
+                "case_id": 1,
+                "title": "单条",
+                "module": "模块A",
+                "summary": "摘要",
+                "priority": 1,
+                "lifecycle_status": "active",
+            }
+        ]
         mock_ai.set_response("backward_scan", "bad json{{{")
         service = BackwardScanService(ai_client=mock_ai, batch_size=50)
         verdicts, retries, degraded, auto_corrected = service._fallback_split(
@@ -423,14 +443,30 @@ class TestBackwardScanServiceFallbackSplit:
 
     def test_split_then_succeed(self, mock_ai):
         fps = [
-            {"case_id": 1, "title": "用例1", "module": "模块A", "summary": "摘要1", "priority": 1, "lifecycle_status": "active"},
-            {"case_id": 2, "title": "用例2", "module": "模块A", "summary": "摘要2", "priority": 1, "lifecycle_status": "active"},
+            {
+                "case_id": 1,
+                "title": "用例1",
+                "module": "模块A",
+                "summary": "摘要1",
+                "priority": 1,
+                "lifecycle_status": "active",
+            },
+            {
+                "case_id": 2,
+                "title": "用例2",
+                "module": "模块A",
+                "summary": "摘要2",
+                "priority": 1,
+                "lifecycle_status": "active",
+            },
         ]
-        good_response = json.dumps({
-            "verdicts": [
-                {"case_id": 1, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
-            ]
-        })
+        good_response = json.dumps(
+            {
+                "verdicts": [
+                    {"case_id": 1, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
+                ]
+            }
+        )
         mock_ai.set_response("backward_scan", good_response)
         service = BackwardScanService(ai_client=mock_ai, batch_size=50)
         verdicts, retries, degraded, auto_corrected = service._fallback_split(
@@ -444,11 +480,13 @@ class TestBackwardScanServiceFallbackSplit:
 class TestBackwardScanServiceProcessBatch:
     def test_process_batch_auto_corrected(self, mock_ai):
         fps = _make_fingerprints(1, count=1)["fingerprints"]
-        low_conf_response = json.dumps({
-            "verdicts": [
-                {"case_id": 100, "verdict": "VALID", "confidence": 0.3, "hint": "低置信度"},
-            ]
-        })
+        low_conf_response = json.dumps(
+            {
+                "verdicts": [
+                    {"case_id": 100, "verdict": "VALID", "confidence": 0.3, "hint": "低置信度"},
+                ]
+            }
+        )
         mock_ai.set_response("backward_scan", low_conf_response)
         service = BackwardScanService(ai_client=mock_ai, batch_size=50)
         verdicts, retries, degraded, auto_corrected = service._process_batch(
@@ -488,8 +526,22 @@ class TestSliceByModuleUnclassified:
 
     def test_all_modules_empty_string(self):
         fps = [
-            {"case_id": 1, "title": "用例1", "module": "", "summary": "摘要1", "priority": 1, "lifecycle_status": "active"},
-            {"case_id": 2, "title": "用例2", "module": "", "summary": "摘要2", "priority": 2, "lifecycle_status": "active"},
+            {
+                "case_id": 1,
+                "title": "用例1",
+                "module": "",
+                "summary": "摘要1",
+                "priority": 1,
+                "lifecycle_status": "active",
+            },
+            {
+                "case_id": 2,
+                "title": "用例2",
+                "module": "",
+                "summary": "摘要2",
+                "priority": 2,
+                "lifecycle_status": "active",
+            },
         ]
         service = BackwardScanService(ai_client=MockAIClient(), batch_size=50)
         batches = service._slice_by_module(fps)
@@ -510,11 +562,13 @@ class TestCallAiWithRetryException:
                     raise ConnectionError("网络故障")
                 return super().complete(prompt, **kwargs)
 
-        good_response = json.dumps({
-            "verdicts": [
-                {"case_id": 100, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
-            ]
-        })
+        good_response = json.dumps(
+            {
+                "verdicts": [
+                    {"case_id": 100, "verdict": "VALID", "confidence": 0.9, "hint": "有效"},
+                ]
+            }
+        )
         flaky_ai = FlakyAIClient()
         flaky_ai.set_response("backward_scan", good_response)
 

@@ -1,9 +1,16 @@
 """加密工具单元测试 - crypto"""
+
 import os
 import pytest
 from app.utils.crypto import (
-    encrypt_password, decrypt_password, mask_password,
-    verify_password, encrypt, decrypt, _get_fernet, _get_encryption_config,
+    encrypt_password,
+    decrypt_password,
+    mask_password,
+    verify_password,
+    encrypt,
+    decrypt,
+    _get_fernet,
+    _get_encryption_config,
 )
 
 

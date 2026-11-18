@@ -27,7 +27,10 @@ def _make_excel_bytes() -> bytes:
 def _make_xmind_bytes() -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("content.xml", '<?xml version="1.0"?><xmap-content><sheet><topic><title>root</title></topic></sheet></xmap-content>')
+        zf.writestr(
+            "content.xml",
+            '<?xml version="1.0"?><xmap-content><sheet><topic><title>root</title></topic></sheet></xmap-content>',
+        )
         zf.writestr("meta.xml", '<?xml version="1.0"?>')
     return buf.getvalue()
 
@@ -52,7 +55,11 @@ async def _create_test_case(async_db, project_id: int, user_id: int, case_no: st
 
 class TestHistoryAssetPermission:
     async def test_upload_without_token_returns_401(self, async_client):
-        resp = await async_client.post(f"{BASE}/upload", files={"file": ("t.xlsx", b"", "application/octet-stream")}, data={"project_id": "1", "asset_type": "excel"})
+        resp = await async_client.post(
+            f"{BASE}/upload",
+            files={"file": ("t.xlsx", b"", "application/octet-stream")},
+            data={"project_id": "1", "asset_type": "excel"},
+        )
         assert resp.status_code in (401, 403)
 
     async def test_get_asset_without_token_returns_401(self, async_client):
@@ -152,9 +159,7 @@ class TestHistoryAssetListAndGet:
         assert data["parse_status"] == "completed"
         assert len(data["parsed_cases"]) == 1
 
-    async def test_get_other_user_asset_returns_403(
-        self, async_db, async_test_project, async_admin_client
-    ):
+    async def test_get_other_user_asset_returns_403(self, async_db, async_test_project, async_admin_client):
         asset = HistoryAsset(
             project_id=async_test_project.id,
             user_id=async_test_project.user_id,
@@ -202,7 +207,13 @@ class TestHistoryAssetAlign:
         assert data["summary"]["total"] == 2
         assert len(data["items"]) == 2
         for item in data["items"]:
-            assert item["classification"] in ("REUSE_CASE", "UPDATE_CASE", "NEW_CASE", "DEPRECATED_CASE", "CONFIRM_REQUIRED")
+            assert item["classification"] in (
+                "REUSE_CASE",
+                "UPDATE_CASE",
+                "NEW_CASE",
+                "DEPRECATED_CASE",
+                "CONFIRM_REQUIRED",
+            )
             assert item["confidence"] >= 0.0
             assert item["reason"] != ""
 

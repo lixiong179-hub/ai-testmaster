@@ -1,6 +1,7 @@
 """
 用户与权限管理模块单元测试（同步模式 + 真实MySQL数据库）
 """
+
 import pytest
 from app.db.database import PrimarySessionLocal
 from app.models.user import User, Role, Permission
@@ -27,8 +28,8 @@ def test_user(db):
             "username": "testuser_sync",
             "email": "testsync@example.com",
             "phone": "13800138000",
-            "password": "password123"
-        }
+            "password": "password123",
+        },
     )
     yield user
     db.query(User).filter(User.id == user.id).delete()
@@ -39,12 +40,7 @@ def test_user(db):
 def test_role(db):
     """创建测试角色，测试结束后清理"""
     role = RoleService.create_role(
-        db,
-        {
-            "name": "testrole_sync",
-            "desc": "测试角色(同步)",
-            "permissions": ["user:create", "user:list"]
-        }
+        db, {"name": "testrole_sync", "desc": "测试角色(同步)", "permissions": ["user:create", "user:list"]}
     )
     yield role
     db.query(Role).filter(Role.id == role.id).delete()
@@ -55,13 +51,7 @@ def test_role(db):
 def test_permission(db):
     """创建测试权限，测试结束后清理"""
     permission = PermissionService.create_permission(
-        db,
-        {
-            "name": "创建用户(同步)",
-            "code": "user:create:sync",
-            "type": "api",
-            "parent_id": None
-        }
+        db, {"name": "创建用户(同步)", "code": "user:create:sync", "type": "api", "parent_id": None}
     )
     yield permission
     db.query(Permission).filter(Permission.id == permission.id).delete()
@@ -70,19 +60,14 @@ def test_permission(db):
 
 # ==================== 用户服务测试 ====================
 
+
 class TestUserService:
     """用户服务单元测试"""
 
     def test_create_user(self, db):
         """测试创建用户"""
         user = UserService.create_user(
-            db,
-            {
-                "username": "newuser1",
-                "email": "new1@example.com",
-                "phone": "13900139001",
-                "password": "pass123456"
-            }
+            db, {"username": "newuser1", "email": "new1@example.com", "phone": "13900139001", "password": "pass123456"}
         )
         assert user.username == "newuser1"
         assert user.email == "new1@example.com"
@@ -93,45 +78,29 @@ class TestUserService:
 
     def test_create_duplicate_username(self, db):
         """测试创建重复用户名应失败"""
-        UserService.create_user(
-            db,
-            {"username": "dup_user", "email": "dup1@example.com", "password": "pass123"}
-        )
+        UserService.create_user(db, {"username": "dup_user", "email": "dup1@example.com", "password": "pass123"})
         with pytest.raises(Exception):
-            UserService.create_user(
-                db,
-                {"username": "dup_user", "email": "dup2@example.com", "password": "pass123"}
-            )
+            UserService.create_user(db, {"username": "dup_user", "email": "dup2@example.com", "password": "pass123"})
         db.query(User).filter(User.username == "dup_user").delete()
         db.commit()
 
     def test_create_duplicate_email(self, db):
         """测试创建重复邮箱应失败"""
-        UserService.create_user(
-            db,
-            {"username": "email_user1", "email": "same@example.com", "password": "pass123"}
-        )
+        UserService.create_user(db, {"username": "email_user1", "email": "same@example.com", "password": "pass123"})
         with pytest.raises(Exception):
-            UserService.create_user(
-                db,
-                {"username": "email_user2", "email": "same@example.com", "password": "pass123"}
-            )
-        db.query(User).filter(User.email == "same@example.com").delete(synchronize_session='fetch')
+            UserService.create_user(db, {"username": "email_user2", "email": "same@example.com", "password": "pass123"})
+        db.query(User).filter(User.email == "same@example.com").delete(synchronize_session="fetch")
         db.commit()
 
     def test_authenticate_user_success(self, test_user):
         """测试用户认证成功"""
-        user = UserService.authenticate_user(
-            PrimarySessionLocal(), "testuser_sync", "password123"
-        )
+        user = UserService.authenticate_user(PrimarySessionLocal(), "testuser_sync", "password123")
         assert user is not None
         assert user.username == "testuser_sync"
 
     def test_authenticate_user_wrong_password(self, test_user):
         """测试错误密码"""
-        user = UserService.authenticate_user(
-            PrimarySessionLocal(), "testuser_sync", "wrongpassword"
-        )
+        user = UserService.authenticate_user(PrimarySessionLocal(), "testuser_sync", "wrongpassword")
         assert user is None
 
     def test_authenticate_user_not_exists(self, db):
@@ -153,9 +122,7 @@ class TestUserService:
     def test_update_user(self, test_user):
         """测试更新用户"""
         updated = UserService.update_user(
-            db_func_session(test_user.id),
-            test_user.id,
-            {"email": "updated_sync@example.com"}
+            db_func_session(test_user.id), test_user.id, {"email": "updated_sync@example.com"}
         )
         assert updated.email == "updated_sync@example.com"
 
@@ -177,15 +144,13 @@ class TestUserService:
 
 # ==================== 角色服务测试 ====================
 
+
 class TestRoleService:
     """角色服务单元测试"""
 
     def test_create_role(self, db):
         """测试创建角色"""
-        role = RoleService.create_role(
-            db,
-            {"name": "role_new", "desc": "新角色", "permissions": ["perm1"]}
-        )
+        role = RoleService.create_role(db, {"name": "role_new", "desc": "新角色", "permissions": ["perm1"]})
         assert role.name == "role_new"
         assert role.desc == "新角色"
         db.query(Role).filter(Role.id == role.id).delete()
@@ -193,13 +158,9 @@ class TestRoleService:
 
     def test_create_duplicate_role(self, db):
         """测试创建重复角色"""
-        RoleService.create_role(
-            db, {"name": "dup_role", "desc": "原角色"}
-        )
+        RoleService.create_role(db, {"name": "dup_role", "desc": "原角色"})
         with pytest.raises(Exception):
-            RoleService.create_role(
-                db, {"name": "dup_role", "desc": "重复角色"}
-            )
+            RoleService.create_role(db, {"name": "dup_role", "desc": "重复角色"})
         db.query(Role).filter(Role.name == "dup_role").delete()
         db.commit()
 
@@ -211,11 +172,7 @@ class TestRoleService:
 
     def test_update_role(self, test_role):
         """测试更新角色"""
-        updated = RoleService.update_role(
-            db_func_session_role(test_role.id),
-            test_role.id,
-            {"desc": "更新后的描述"}
-        )
+        updated = RoleService.update_role(db_func_session_role(test_role.id), test_role.id, {"desc": "更新后的描述"})
         assert updated.desc == "更新后的描述"
 
     def test_get_roles(self, db, test_role):
@@ -228,14 +185,14 @@ class TestRoleService:
 
 # ==================== 权限服务测试 ====================
 
+
 class TestPermissionService:
     """权限服务单元测试"""
 
     def test_create_permission(self, db):
         """测试创建权限"""
         perm = PermissionService.create_permission(
-            db,
-            {"name": "新权限", "code": "new:perm:code", "type": "api", "parent_id": None}
+            db, {"name": "新权限", "code": "new:perm:code", "type": "api", "parent_id": None}
         )
         assert perm.name == "新权限"
         assert perm.code == "new:perm:code"
@@ -244,30 +201,22 @@ class TestPermissionService:
 
     def test_create_duplicate_permission(self, db):
         """测试创建重复权限编码"""
-        PermissionService.create_permission(
-            db, {"name": "权限A", "code": "dup:perm", "type": "api"}
-        )
+        PermissionService.create_permission(db, {"name": "权限A", "code": "dup:perm", "type": "api"})
         with pytest.raises(Exception):
-            PermissionService.create_permission(
-                db, {"name": "权限B", "code": "dup:perm", "type": "api"}
-            )
+            PermissionService.create_permission(db, {"name": "权限B", "code": "dup:perm", "type": "api"})
         db.query(Permission).filter(Permission.code == "dup:perm").delete()
         db.commit()
 
     def test_get_permission_by_id(self, test_permission):
         """测试根据ID获取权限"""
-        perm = PermissionService.get_permission_by_id(
-            db_func_session_perm(test_permission.id), test_permission.id
-        )
+        perm = PermissionService.get_permission_by_id(db_func_session_perm(test_permission.id), test_permission.id)
         assert perm is not None
         assert perm.id == test_permission.id
 
     def test_update_permission(self, test_permission):
         """测试更新权限"""
         updated = PermissionService.update_permission(
-            db_func_session_perm(test_permission.id),
-            test_permission.id,
-            {"name": "更新后权限名"}
+            db_func_session_perm(test_permission.id), test_permission.id, {"name": "更新后权限名"}
         )
         assert updated.name == "更新后权限名"
 

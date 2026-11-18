@@ -39,9 +39,7 @@ def _backend_available():
 
 
 _BACKEND_OK = _backend_available()
-skip_if_no_backend = pytest.mark.skipif(
-    not _BACKEND_OK, reason=f"后端服务不可用 ({BASE_URL})，请先启动 FastAPI 服务"
-)
+skip_if_no_backend = pytest.mark.skipif(not _BACKEND_OK, reason=f"后端服务不可用 ({BASE_URL})，请先启动 FastAPI 服务")
 
 # B-07：本套件是「对已启动服务的端到端验收」，属手工/联调类。
 # 显式标记 real_api，由 pytest.ini 的 `-m "not real_api"` 排除在默认运行之外，
@@ -115,10 +113,7 @@ class TestAuthAPI:
     def test_05_get_current_user(self):
         lr = login_with_captcha(ADMIN_USERNAME, ADMIN_PASSWORD)
         token = lr.json()["data"]["access_token"]
-        resp = requests.get(
-            f"{API_BASE}/auth/me",
-            headers={"Authorization": f"Bearer {token}"}
-        )
+        resp = requests.get(f"{API_BASE}/auth/me", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["code"] == 200
@@ -139,8 +134,8 @@ class TestAuthAPI:
                 "username": username,
                 "email": f"{username}@test.com",
                 "password": "test123456",
-                "confirm_password": "test123456"
-            }
+                "confirm_password": "test123456",
+            },
         )
         assert resp.status_code == 200
         print(f"[PASS] register user {username}")
@@ -154,7 +149,7 @@ class TestProjectAPI:
         resp = requests.get(
             f"{API_BASE}/project/list",
             params={"page": 1, "page_size": 10},
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -165,8 +160,7 @@ class TestProjectAPI:
 
     def test_09_get_hongen_project_detail(self, auth_token):
         resp = requests.get(
-            f"{API_BASE}/project/{HONGEN_PROJECT_ID}",
-            headers={"Authorization": f"Bearer {auth_token}"}
+            f"{API_BASE}/project/{HONGEN_PROJECT_ID}", headers={"Authorization": f"Bearer {auth_token}"}
         )
         assert resp.status_code in [200, 403]
         if resp.status_code == 403:
@@ -181,8 +175,7 @@ class TestProjectAPI:
 
     def test_10_get_project_config(self, auth_token):
         resp = requests.get(
-            f"{API_BASE}/project/{HONGEN_PROJECT_ID}/config",
-            headers={"Authorization": f"Bearer {auth_token}"}
+            f"{API_BASE}/project/{HONGEN_PROJECT_ID}/config", headers={"Authorization": f"Bearer {auth_token}"}
         )
         assert resp.status_code in [200, 403, 404]
         if resp.status_code in [403, 404]:
@@ -197,15 +190,12 @@ class TestProjectAPI:
         resp = requests.post(
             f"{API_BASE}/project",
             json={"name": name, "description": "auto test", "project_type": "web"},
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code == 200
         pid = resp.json()["data"]["project_id"]
         print(f"[PASS] create project {name} id={pid}")
-        dr = requests.delete(
-            f"{API_BASE}/project/{pid}",
-            headers={"Authorization": f"Bearer {auth_token}"}
-        )
+        dr = requests.delete(f"{API_BASE}/project/{pid}", headers={"Authorization": f"Bearer {auth_token}"})
         assert dr.status_code == 200, f"Cleanup delete failed: {dr.text}"
 
     def test_12_create_duplicate_project_fails(self, auth_token):
@@ -213,7 +203,7 @@ class TestProjectAPI:
         resp1 = requests.post(
             f"{API_BASE}/project",
             json={"name": dup_name, "description": "first"},
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp1.status_code == 200
         created_pid = resp1.json()["data"].get("project_id")
@@ -221,16 +211,13 @@ class TestProjectAPI:
             resp2 = requests.post(
                 f"{API_BASE}/project",
                 json={"name": dup_name, "description": "second"},
-                headers={"Authorization": f"Bearer {auth_token}"}
+                headers={"Authorization": f"Bearer {auth_token}"},
             )
             assert resp2.status_code == 400
             print("[PASS] duplicate project name rejected")
         finally:
             if created_pid:
-                requests.delete(
-                    f"{API_BASE}/project/{created_pid}",
-                    headers={"Authorization": f"Bearer {auth_token}"}
-                )
+                requests.delete(f"{API_BASE}/project/{created_pid}", headers={"Authorization": f"Bearer {auth_token}"})
 
 
 @skip_if_no_backend
@@ -248,7 +235,7 @@ class TestFileUploadAPI:
                     f"{API_BASE}/file/upload",
                     files=files,
                     data={"project_id": HONGEN_PROJECT_ID},
-                    headers={"Authorization": f"Bearer {auth_token}"}
+                    headers={"Authorization": f"Bearer {auth_token}"},
                 )
             assert resp.status_code in [200, 400, 403, 422]
             print(f"[PASS] file upload status={resp.status_code}")
@@ -258,8 +245,7 @@ class TestFileUploadAPI:
 
     def test_14_get_project_files_via_detail(self, auth_token):
         resp = requests.get(
-            f"{API_BASE}/project/{HONGEN_PROJECT_ID}",
-            headers={"Authorization": f"Bearer {auth_token}"}
+            f"{API_BASE}/project/{HONGEN_PROJECT_ID}", headers={"Authorization": f"Bearer {auth_token}"}
         )
         assert resp.status_code in [200, 403]
         if resp.status_code == 403:
@@ -276,7 +262,7 @@ class TestCaseAPI:
         resp = requests.get(
             f"{API_BASE}/testCase/",
             params={"project_id": HONGEN_PROJECT_ID, "page": 1, "page_size": 20},
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code in [200, 400, 403]
         if resp.status_code == 200:
@@ -292,9 +278,9 @@ class TestCaseAPI:
             f"{API_BASE}/testCase/ai-generate",
             json={
                 "project_id": HONGEN_PROJECT_ID,
-                "description": "Test login functionality with valid credentials for hongen project"
+                "description": "Test login functionality with valid credentials for hongen project",
             },
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code in [200, 403, 404, 500, 503]
         if resp.status_code == 200:
@@ -306,13 +292,8 @@ class TestCaseAPI:
     def test_17_get_generation_context(self, auth_token):
         resp = requests.post(
             f"{API_BASE}/testCase/generate-context",
-            json={
-                "project_id": HONGEN_PROJECT_ID,
-                "requirement_file_ids": [],
-                "ui_file_ids": [],
-                "test_point_ids": []
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+            json={"project_id": HONGEN_PROJECT_ID, "requirement_file_ids": [], "ui_file_ids": [], "test_point_ids": []},
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code in [200, 403, 500, 422]
         if resp.status_code == 200:
@@ -332,12 +313,8 @@ class TestTaskAPI:
         ts = int(time.time())
         resp = requests.post(
             f"{API_BASE}/test_task/",
-            json={
-                "project_id": HONGEN_PROJECT_ID,
-                "task_name": f"AutoTask_{ts}",
-                "case_ids": []
-            },
-            headers={"Authorization": f"Bearer {auth_token}"}
+            json={"project_id": HONGEN_PROJECT_ID, "task_name": f"AutoTask_{ts}", "case_ids": []},
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code in [200, 201, 403, 422, 404]
         if resp.status_code in [200, 201]:
@@ -349,7 +326,7 @@ class TestTaskAPI:
         resp = requests.get(
             f"{API_BASE}/test_task/",
             params={"project_id": HONGEN_PROJECT_ID, "page": 1, "page_size": 10},
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code in [200, 403, 404]
         if resp.status_code == 200:
@@ -366,7 +343,7 @@ class TestReportAPI:
         resp = requests.get(
             f"{API_BASE}/report/",
             params={"project_id": HONGEN_PROJECT_ID, "page": 1, "page_size": 10},
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code in [200, 400, 403, 404]
         if resp.status_code == 200:
@@ -385,10 +362,7 @@ class TestPermissionControl:
         print("[PASS] unauthorized access denied")
 
     def test_22_invalid_token_denied(self):
-        resp = requests.get(
-            f"{API_BASE}/project/list",
-            headers={"Authorization": "Bearer invalid_token_12345"}
-        )
+        resp = requests.get(f"{API_BASE}/project/list", headers={"Authorization": "Bearer invalid_token_12345"})
         assert resp.status_code in [401, 403]
         print("[PASS] invalid token denied")
 
@@ -398,10 +372,7 @@ class TestPermissionControl:
         print("[PASS] JSON format login works with captcha")
 
     def test_24_login_without_captcha_rejected(self):
-        resp = requests.post(
-            f"{API_BASE}/auth/login",
-            data={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD}
-        )
+        resp = requests.post(f"{API_BASE}/auth/login", data={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD})
         assert resp.status_code == 400
         print("[PASS] login without captcha rejected")
 
@@ -414,7 +385,7 @@ class TestPermissionControl:
         resp = requests.put(
             f"{API_BASE}/project/{HONGEN_PROJECT_ID}/config",
             json={"project_type": "web"},
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code in [200, 403, 404]
         if resp.status_code in [403, 404]:
@@ -427,14 +398,11 @@ class TestPermissionControl:
         cr = requests.post(
             f"{API_BASE}/project",
             json={"name": name, "description": "to delete", "project_type": "web"},
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         if cr.status_code == 200:
             pid = cr.json()["data"]["project_id"]
-            dr = requests.delete(
-                f"{API_BASE}/project/{pid}",
-                headers={"Authorization": f"Bearer {auth_token}"}
-            )
+            dr = requests.delete(f"{API_BASE}/project/{pid}", headers={"Authorization": f"Bearer {auth_token}"})
             assert dr.status_code == 200, f"Delete failed: {dr.text}"
             print("[PASS] delete project cleanup OK")
         else:
@@ -444,7 +412,7 @@ class TestPermissionControl:
         resp = requests.post(
             f"{API_BASE}/testCase/batch-generate/stream",
             json={"project_id": HONGEN_PROJECT_ID},
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
         assert resp.status_code in [200, 400, 403, 422, 500]
         print(f"[PASS] batch-generate endpoint exists (status={resp.status_code})")

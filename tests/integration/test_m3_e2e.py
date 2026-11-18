@@ -9,6 +9,7 @@
 
 使用真实 MySQL 数据库 + MockAIClient，不使用 FastAPI TestClient。
 """
+
 import json
 import pytest
 
@@ -54,40 +55,51 @@ SCENARIO_5_CASES = [
 
 def _make_artifact(kind: str, payload: dict):
     from app.models.pipeline import Artifact
+
     return Artifact(run_id=0, kind=kind, schema_version="1.0", payload=payload, content_hash="test")
 
 
 @pytest.fixture
 def mock_ai_s3():
     client = MockAIClient()
-    client.set_response("reverse_infer", json.dumps({
-        "inferred_capabilities": [
+    client.set_response(
+        "reverse_infer",
+        json.dumps(
             {
-                "name": "用户登录",
-                "key": "user_login",
-                "description": "用户通过用户名和密码登录系统",
-                "confidence": 0.9,
-            },
+                "inferred_capabilities": [
+                    {
+                        "name": "用户登录",
+                        "key": "user_login",
+                        "description": "用户通过用户名和密码登录系统",
+                        "confidence": 0.9,
+                    },
+                    {
+                        "name": "用户注册",
+                        "key": "user_registration",
+                        "description": "新用户通过填写表单创建账号",
+                        "confidence": 0.85,
+                    },
+                ],
+                "overall_confidence": 0.87,
+                "uncertain_questions": [],
+            }
+        ),
+    )
+    client.set_response(
+        "scenario_candidate_extractor",
+        json.dumps(
             {
-                "name": "用户注册",
-                "key": "user_registration",
-                "description": "新用户通过填写表单创建账号",
-                "confidence": 0.85,
-            },
-        ],
-        "overall_confidence": 0.87,
-        "uncertain_questions": [],
-    }))
-    client.set_response("scenario_candidate_extractor", json.dumps({
-        "candidates": [
-            {
-                "description": "用户登录场景",
-                "module": "用户登录",
-                "precondition": "用户已注册",
-                "expected_result": "成功登录",
-            },
-        ],
-    }))
+                "candidates": [
+                    {
+                        "description": "用户登录场景",
+                        "module": "用户登录",
+                        "precondition": "用户已注册",
+                        "expected_result": "成功登录",
+                    },
+                ],
+            }
+        ),
+    )
     client.set_response("case_generation", json.dumps(SCENARIO_3_CASES))
     client.set_response("case_generation_create", json.dumps(SCENARIO_3_CASES))
     client.set_response("case_generation_modify", json.dumps(SCENARIO_3_CASES))
@@ -99,39 +111,49 @@ def mock_ai_s3():
 @pytest.fixture
 def mock_ai_s5():
     client = MockAIClient()
-    client.set_response("reverse_infer", json.dumps({
-        "change_summary": {
-            "new_capabilities": [
-                {
-                    "name": "手机号验证",
-                    "key": "phone_verification",
-                    "description": "用户注册时需短信验证码验证手机号",
-                    "confidence": 0.88,
-                },
-            ],
-            "modified_capabilities": [
-                {
-                    "name": "用户注册",
-                    "key": "user_registration",
-                    "description": "注册流程新增手机号必填和短信验证",
-                    "confidence": 0.85,
-                },
-            ],
-            "removed_capabilities": [],
-        },
-        "overall_confidence": 0.88,
-        "uncertain_questions": [],
-    }))
-    client.set_response("scenario_candidate_extractor", json.dumps({
-        "candidates": [
+    client.set_response(
+        "reverse_infer",
+        json.dumps(
             {
-                "description": "注册流程变更验证",
-                "module": "用户注册",
-                "precondition": "",
-                "expected_result": "变更后正常",
-            },
-        ],
-    }))
+                "change_summary": {
+                    "new_capabilities": [
+                        {
+                            "name": "手机号验证",
+                            "key": "phone_verification",
+                            "description": "用户注册时需短信验证码验证手机号",
+                            "confidence": 0.88,
+                        },
+                    ],
+                    "modified_capabilities": [
+                        {
+                            "name": "用户注册",
+                            "key": "user_registration",
+                            "description": "注册流程新增手机号必填和短信验证",
+                            "confidence": 0.85,
+                        },
+                    ],
+                    "removed_capabilities": [],
+                },
+                "overall_confidence": 0.88,
+                "uncertain_questions": [],
+            }
+        ),
+    )
+    client.set_response(
+        "scenario_candidate_extractor",
+        json.dumps(
+            {
+                "candidates": [
+                    {
+                        "description": "注册流程变更验证",
+                        "module": "用户注册",
+                        "precondition": "",
+                        "expected_result": "变更后正常",
+                    },
+                ],
+            }
+        ),
+    )
     client.set_response("case_generation", json.dumps(SCENARIO_5_CASES))
     client.set_response("case_generation_create", json.dumps(SCENARIO_5_CASES))
     client.set_response("case_generation_modify", json.dumps(SCENARIO_5_CASES))
@@ -242,8 +264,10 @@ def s5_iteration(db, testProject):
 
 def _run_s3_pipeline(db, iteration, mock_ai):
     run = pipeline_service.create_run(
-        db=db, iteration_id=iteration.id,
-        input_hash="m3_e2e_s3_hash", pipeline_version="3.0",
+        db=db,
+        iteration_id=iteration.id,
+        input_hash="m3_e2e_s3_hash",
+        pipeline_version="3.0",
     )
     db.flush()
 
@@ -273,16 +297,26 @@ def _setup_scenario_5_mocks(ctx, mock_ai):
         verdict = "VALID" if i % 3 == 0 else ("NEEDS_MODIFY" if i % 3 == 1 else "DEPRECATED")
         verdicts.append({"case_id": fp["case_id"], "verdict": verdict, "confidence": 0.9, "hint": "自动判定"})
     mock_ai.set_response("backward_scan", json.dumps({"verdicts": verdicts}))
-    mock_ai.set_response("forward_scan", json.dumps({
-        "label": "MODIFY", "matched_case_id": fps[0]["case_id"], "matched_title": "",
-        "confidence": 0.85, "reason": "变更适配",
-    }))
+    mock_ai.set_response(
+        "forward_scan",
+        json.dumps(
+            {
+                "label": "MODIFY",
+                "matched_case_id": fps[0]["case_id"],
+                "matched_title": "",
+                "confidence": 0.85,
+                "reason": "变更适配",
+            }
+        ),
+    )
 
 
 def _run_s5_pipeline(db, iteration, mock_ai):
     run = pipeline_service.create_run(
-        db=db, iteration_id=iteration.id,
-        input_hash="m3_e2e_s5_hash", pipeline_version="5.0",
+        db=db,
+        iteration_id=iteration.id,
+        input_hash="m3_e2e_s5_hash",
+        pipeline_version="5.0",
     )
     db.flush()
 
@@ -334,9 +368,13 @@ class TestScenario3E2E:
         iteration = s3_iteration["iteration"]
         _run_s3_pipeline(db, iteration, mock_ai_s3)
 
-        db_cases = db.query(TestCase).filter(
-            TestCase.project_id == iteration.project_id,
-        ).all()
+        db_cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == iteration.project_id,
+            )
+            .all()
+        )
         assert len(db_cases) >= 1
         for case in db_cases:
             assert case.lifecycle_status in ("draft", "pending_review")
@@ -411,9 +449,13 @@ class TestScenario5E2E:
         iteration = s5_iteration["iteration"]
         _run_s5_pipeline(db, iteration, mock_ai_s5)
 
-        db_cases = db.query(TestCase).filter(
-            TestCase.project_id == iteration.project_id,
-        ).all()
+        db_cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == iteration.project_id,
+            )
+            .all()
+        )
         assert len(db_cases) >= 3
 
     def test_signals_reflect_old_project(self, db, s5_iteration, mock_ai_s5):

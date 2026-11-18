@@ -54,8 +54,10 @@ class TestPlaywrightMCPClientStart:
         mock_process = MagicMock()
         mock_process.returncode = 1
         mock_process.stdin = MagicMock()
-        with patch("asyncio.create_subprocess_exec", return_value=mock_process), \
-             patch("asyncio.sleep", new_callable=AsyncMock):
+        with (
+            patch("asyncio.create_subprocess_exec", return_value=mock_process),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             result = await client.start()
             assert result is False
 
@@ -134,18 +136,16 @@ class TestPlaywrightMCPClientCallTool:
     @pytest.mark.asyncio
     async def test_call_tool_text_content_json(self):
         client = PlaywrightMCPClient()
-        with patch.object(client, "_send_request", return_value={
-            "content": [{"type": "text", "text": '{"key": "value"}'}]
-        }):
+        with patch.object(
+            client, "_send_request", return_value={"content": [{"type": "text", "text": '{"key": "value"}'}]}
+        ):
             result = await client._call_tool("test_tool", {})
             assert result == {"key": "value"}
 
     @pytest.mark.asyncio
     async def test_call_tool_text_content_plain(self):
         client = PlaywrightMCPClient()
-        with patch.object(client, "_send_request", return_value={
-            "content": [{"type": "text", "text": "plain text"}]
-        }):
+        with patch.object(client, "_send_request", return_value={"content": [{"type": "text", "text": "plain text"}]}):
             result = await client._call_tool("test_tool", {})
             assert result == "plain text"
 
@@ -166,9 +166,7 @@ class TestPlaywrightMCPClientCallTool:
     @pytest.mark.asyncio
     async def test_call_tool_non_text_content(self):
         client = PlaywrightMCPClient()
-        with patch.object(client, "_send_request", return_value={
-            "content": [{"type": "image", "data": "base64data"}]
-        }):
+        with patch.object(client, "_send_request", return_value={"content": [{"type": "image", "data": "base64data"}]}):
             result = await client._call_tool("test_tool", {})
             assert result == ""
 
@@ -220,6 +218,7 @@ class TestPlaywrightMCPClientBrowserMethods:
     @pytest.mark.asyncio
     async def test_browser_screenshot_with_data(self):
         import base64
+
         client = PlaywrightMCPClient()
         fake_data = base64.b64encode(b"fake_image").decode()
         with patch.object(client, "_call_tool", return_value={"data": fake_data}):
@@ -238,7 +237,9 @@ class TestPlaywrightMCPClientBrowserMethods:
         client = PlaywrightMCPClient()
         with patch.object(client, "_call_tool", return_value={"ok": True}) as mock:
             await client.browser_select_option("select", ["opt1"], ref="r1")
-            mock.assert_called_once_with("browser_select_option", {"element": "select", "values": ["opt1"], "ref": "r1"})
+            mock.assert_called_once_with(
+                "browser_select_option", {"element": "select", "values": ["opt1"], "ref": "r1"}
+            )
 
     @pytest.mark.asyncio
     async def test_browser_hover(self):
@@ -303,16 +304,20 @@ class TestPlaywrightMCPClientReconnect:
     @pytest.mark.asyncio
     async def test_reconnect_success(self):
         client = PlaywrightMCPClient()
-        with patch.object(client, "stop", new_callable=AsyncMock), \
-             patch.object(client, "start", new_callable=AsyncMock, return_value=True):
+        with (
+            patch.object(client, "stop", new_callable=AsyncMock),
+            patch.object(client, "start", new_callable=AsyncMock, return_value=True),
+        ):
             result = await client.reconnect(max_retries=1)
             assert result is True
 
     @pytest.mark.asyncio
     async def test_reconnect_failure(self):
         client = PlaywrightMCPClient()
-        with patch.object(client, "stop", new_callable=AsyncMock), \
-             patch.object(client, "start", new_callable=AsyncMock, return_value=False), \
-             patch("asyncio.sleep", new_callable=AsyncMock):
+        with (
+            patch.object(client, "stop", new_callable=AsyncMock),
+            patch.object(client, "start", new_callable=AsyncMock, return_value=False),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             result = await client.reconnect(max_retries=1)
             assert result is False

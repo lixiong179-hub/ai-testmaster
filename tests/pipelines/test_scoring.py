@@ -87,10 +87,7 @@ class TestScoreSteps:
         assert result >= 0
 
     def test_many_complete_steps(self):
-        steps = [
-            {"action": f"action{i}", "expected_result": f"result{i}"}
-            for i in range(5)
-        ]
+        steps = [{"action": f"action{i}", "expected_result": f"result{i}"} for i in range(5)]
         result = _score_steps(steps)
         assert result > 15
 

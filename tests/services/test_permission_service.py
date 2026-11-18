@@ -1,4 +1,5 @@
 """权限服务单元测试 - PermissionService, UserRoleService, RBACService"""
+
 import pytest
 from app.models.user import User, Role, Permission, user_role
 from app.schemas.user import PermissionUpdate
@@ -52,9 +53,7 @@ def _create_permission(db, code="test:perm", name="测试权限"):
         if existing:
             db.delete(existing)
             db.flush()
-    return PermissionService.create_permission(db, {
-        "name": name, "code": code, "type": "menu"
-    })
+    return PermissionService.create_permission(db, {"name": name, "code": code, "type": "menu"})
 
 
 class TestPermissionService:
@@ -64,20 +63,14 @@ class TestPermissionService:
         assert perm.code == "test:perm"
 
     def test_create_permission_dict_input(self, db):
-        perm = PermissionService.create_permission(db, {
-            "name": "字典权限", "code": "dict:perm", "type": "button"
-        })
+        perm = PermissionService.create_permission(db, {"name": "字典权限", "code": "dict:perm", "type": "button"})
         assert perm.code == "dict:perm"
 
     def test_create_duplicate_code(self, db):
         # Create first permission directly (not via helper which would delete existing)
-        PermissionService.create_permission(db, {
-            "name": "重复测试权限", "code": "dup:code", "type": "menu"
-        })
+        PermissionService.create_permission(db, {"name": "重复测试权限", "code": "dup:code", "type": "menu"})
         with pytest.raises(BaseAPIException) as exc_info:
-            PermissionService.create_permission(db, {
-                "name": "重复测试权限2", "code": "dup:code", "type": "menu"
-            })
+            PermissionService.create_permission(db, {"name": "重复测试权限2", "code": "dup:code", "type": "menu"})
         assert exc_info.value.code == 400
 
     def test_get_permission_by_id(self, db):
@@ -92,16 +85,12 @@ class TestPermissionService:
 
     def test_update_permission(self, db):
         perm = _create_permission(db, code="upd:perm")
-        result = PermissionService.update_permission(
-            db, perm.id, PermissionUpdate(name="新名称")
-        )
+        result = PermissionService.update_permission(db, perm.id, PermissionUpdate(name="新名称"))
         assert result.name == "新名称"
 
     def test_update_permission_dict(self, db):
         perm = _create_permission(db, code="upd2:perm")
-        result = PermissionService.update_permission(
-            db, perm.id, {"name": "字典更新"}
-        )
+        result = PermissionService.update_permission(db, perm.id, {"name": "字典更新"})
         assert result.name == "字典更新"
 
     def test_update_nonexistent(self, db):

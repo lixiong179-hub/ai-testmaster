@@ -1,6 +1,7 @@
 """FallbackAIClient 主备切换测试
 
 使用真实客户端验证主备切换逻辑：坏 key 主模垿↿真实 key 备用模型〿禁止 Mock，通过构造失效主客户端实现真实故障场景〿"""
+
 import os
 import pytest
 from app.ai.client import AIResponse

@@ -8,6 +8,7 @@ AI客户端JSON解析工具函数测试
 
 要求: 使用真实环境，不使用Mock
 """
+
 import pytest
 import json
 import os
@@ -31,22 +32,22 @@ class TestCleanJsonString:
         result = clean_json_string(valid)
         assert result is not None
         parsed = json.loads(result)
-        assert parsed['key'] == 'value'
-        assert parsed['num'] == 123
+        assert parsed["key"] == "value"
+        assert parsed["num"] == 123
 
     def test_single_quotes_to_double(self):
         input_str = "{'key': 'value', 'name': 'test'}"
         result = clean_json_string(input_str)
         if result:
             parsed = json.loads(result)
-            assert parsed['key'] == 'value'
+            assert parsed["key"] == "value"
 
     def test_trailing_comma_removal(self):
         input_str = '{"key": "value", "num": 123,}'
         result = clean_json_string(input_str)
         if result:
             parsed = json.loads(result)
-            assert parsed['key'] == 'value'
+            assert parsed["key"] == "value"
 
     def test_missing_space_after_colon(self):
         input_str = '{"key":"value","name":"test"}'
@@ -75,7 +76,7 @@ class TestExtractJsonObjectsFallback:
         assert isinstance(result, (str, list))
 
     def test_no_json_in_text(self):
-        text = 'No JSON here, just plain text'
+        text = "No JSON here, just plain text"
         result = extract_json_objects_fallback(text)
         assert result is None or result == []
 
@@ -94,7 +95,7 @@ class TestAnalyzeRequirementsReturnPaths:
 
     def test_returns_none_for_invalid_json(self):
         """完全无效的JSON返回None"""
-        invalid = 'This is not JSON at all'
+        invalid = "This is not JSON at all"
         result = fix_common_json_issues(invalid)
         assert result is None
 

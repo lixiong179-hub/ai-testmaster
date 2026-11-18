@@ -1,4 +1,5 @@
 """测试报告与测试结果CRUD操作单元测试"""
+
 import pytest
 from app.crud.test_report import (
     create_test_report,
@@ -232,9 +233,13 @@ class TestCreateTestResult:
 
     def test_create_with_details(self, db, test_task, test_case):
         result = _make_test_result(
-            db, test_task, test_case, exec_status=3,
-            exec_log="error log", error_msg="fail msg",
-            screenshot_url="/screens/1.png"
+            db,
+            test_task,
+            test_case,
+            exec_status=3,
+            exec_log="error log",
+            error_msg="fail msg",
+            screenshot_url="/screens/1.png",
         )
         assert result.exec_log == "error log"
         assert result.error_msg == "fail msg"
@@ -257,9 +262,7 @@ class TestGetTestResultsByTask:
 class TestGetTestResultByCase:
     def test_found(self, db, test_task, test_case):
         _make_test_result(db, test_task, test_case, exec_status=1)
-        result = get_test_result_by_case(
-            db, test_task.id, test_case.id, test_task.project_id
-        )
+        result = get_test_result_by_case(db, test_task.id, test_case.id, test_task.project_id)
         assert result is not None
         assert result.case_id == test_case.id
 
@@ -279,18 +282,14 @@ class TestUpdateTestResult:
     def test_update_multiple_fields(self, db, test_task, test_case):
         r = _make_test_result(db, test_task, test_case, exec_status=0)
         result = update_test_result(
-            db, r.id, test_task.project_id,
-            exec_status=3, error_msg="blocked", exec_log="log detail"
+            db, r.id, test_task.project_id, exec_status=3, error_msg="blocked", exec_log="log detail"
         )
         assert result.exec_status == 3
         assert result.error_msg == "blocked"
         assert result.exec_log == "log detail"
 
     def test_update_preserves_unset_fields(self, db, test_task, test_case):
-        r = _make_test_result(
-            db, test_task, test_case, exec_status=0,
-            exec_log="original log"
-        )
+        r = _make_test_result(db, test_task, test_case, exec_status=0, exec_log="original log")
         result = update_test_result(db, r.id, test_task.project_id, exec_status=1)
         assert result.exec_log == "original log"
 
@@ -315,16 +314,12 @@ class TestGetTestResultsCount:
         _make_test_result(db, test_task, test_case, exec_status=1)
         _make_test_result(db, test_task, test_case, exec_status=2)
         _make_test_result(db, test_task, test_case, exec_status=1)
-        count = get_test_results_count(
-            db, test_task.id, test_task.project_id, exec_status=1
-        )
+        count = get_test_results_count(db, test_task.id, test_task.project_id, exec_status=1)
         assert count == 2
 
     def test_count_zero_status(self, db, test_task, test_case):
         _make_test_result(db, test_task, test_case, exec_status=0)
-        count = get_test_results_count(
-            db, test_task.id, test_task.project_id, exec_status=0
-        )
+        count = get_test_results_count(db, test_task.id, test_task.project_id, exec_status=0)
         assert count == 1
 
 

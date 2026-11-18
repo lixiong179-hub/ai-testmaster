@@ -37,18 +37,21 @@ class TestGetFileContent:
         class FakeFile:
             content = "hello"
             extract_status = "completed"
+
         assert get_file_content(FakeFile()) == "hello"
 
     def test_no_content(self):
         class FakeFile:
             content = None
             extract_status = "pending"
+
         assert get_file_content(FakeFile()) is None
 
     def test_not_completed(self):
         class FakeFile:
             content = "hello"
             extract_status = "processing"
+
         assert get_file_content(FakeFile()) is None
 
 
@@ -57,18 +60,21 @@ class TestHasExtractedContent:
         class FakeFile:
             content = "hello"
             extract_status = "completed"
+
         assert has_extracted_content(FakeFile()) is True
 
     def test_no_content(self):
         class FakeFile:
             content = None
             extract_status = "completed"
+
         assert has_extracted_content(FakeFile()) is False
 
     def test_not_completed(self):
         class FakeFile:
             content = "hello"
             extract_status = "pending"
+
         assert has_extracted_content(FakeFile()) is False
 
 
@@ -76,6 +82,7 @@ class TestFileContentExtractor:
     @pytest.mark.asyncio
     async def test_extract_cached_content(self, db, testProject):
         from app.crud.file import create_project_file, update_file_content
+
         f = create_project_file(db, testProject.id, "cached.txt", "txt", "/tmp/cached.txt")
         update_file_content(db, f.id, "cached content", "completed")
         db.refresh(f)
@@ -87,6 +94,7 @@ class TestFileContentExtractor:
     @pytest.mark.asyncio
     async def test_extract_image_file(self, db, testProject):
         from app.crud.file import create_project_file
+
         f = create_project_file(db, testProject.id, "test.png", "png", "/tmp/test.png")
         extractor = FileContentExtractor(db)
         result = await extractor._extract_image(f)
@@ -95,6 +103,7 @@ class TestFileContentExtractor:
     @pytest.mark.asyncio
     async def test_extract_archive_nonexistent(self, db, testProject):
         from app.crud.file import create_project_file
+
         f = create_project_file(db, testProject.id, "test.zip", "zip", "/nonexistent/path.zip")
         extractor = FileContentExtractor(db)
         result = await extractor._extract_archive(f)

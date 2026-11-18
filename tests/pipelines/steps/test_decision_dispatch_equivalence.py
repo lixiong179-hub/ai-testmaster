@@ -8,6 +8,7 @@
     - `stats` 各计数增量
     - 分支特有字段（`need_locator_fix` / `skip_reason`）
 """
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -22,16 +23,14 @@ def _make_ctx(action: str, budget_ok: bool = True):
         verdict["candidate_index"] = 0
 
     ctx = MagicMock()
-    ctx.get_artifact = MagicMock(side_effect=lambda kind: {
-        "merged_verdicts": {"project_id": 1, "verdicts": [verdict], "total_count": 1},
-        "aligned_testpoints": None,
-        "history_fingerprints": {
-            "fingerprints": [{"case_id": 100, "title": "用例100", "module": "模块"}]
-        },
-        "scenario_candidates": {
-            "candidates": [{"description": "候选0", "module": "模块0", "priority": 1}]
-        },
-    }.get(kind))
+    ctx.get_artifact = MagicMock(
+        side_effect=lambda kind: {
+            "merged_verdicts": {"project_id": 1, "verdicts": [verdict], "total_count": 1},
+            "aligned_testpoints": None,
+            "history_fingerprints": {"fingerprints": [{"case_id": 100, "title": "用例100", "module": "模块"}]},
+            "scenario_candidates": {"candidates": [{"description": "候选0", "module": "模块0", "priority": 1}]},
+        }.get(kind)
+    )
     ctx.check_budget = MagicMock(return_value=budget_ok)
     ctx.iteration_id = 1
     return ctx
@@ -119,21 +118,23 @@ def test_mixed_verdicts_keep_order():
     """混合裁决保持输入顺序，统计值可累加。"""
     step = DecisionDispatch()
     ctx = MagicMock()
-    ctx.get_artifact = MagicMock(side_effect=lambda kind: {
-        "merged_verdicts": {
-            "project_id": 1,
-            "verdicts": [
-                {"action": "keep", "case_id": 1},
-                {"action": "needs_modify", "case_id": 2, "reason": "r2"},
-                {"action": "add_new", "candidate_index": 0, "reason": "r3"},
-                {"action": "deprecate", "case_id": 4, "reason": "r4"},
-            ],
-            "total_count": 4,
-        },
-        "aligned_testpoints": None,
-        "history_fingerprints": {"fingerprints": []},
-        "scenario_candidates": {"candidates": [{"description": "c0"}]},
-    }.get(kind))
+    ctx.get_artifact = MagicMock(
+        side_effect=lambda kind: {
+            "merged_verdicts": {
+                "project_id": 1,
+                "verdicts": [
+                    {"action": "keep", "case_id": 1},
+                    {"action": "needs_modify", "case_id": 2, "reason": "r2"},
+                    {"action": "add_new", "candidate_index": 0, "reason": "r3"},
+                    {"action": "deprecate", "case_id": 4, "reason": "r4"},
+                ],
+                "total_count": 4,
+            },
+            "aligned_testpoints": None,
+            "history_fingerprints": {"fingerprints": []},
+            "scenario_candidates": {"candidates": [{"description": "c0"}]},
+        }.get(kind)
+    )
     ctx.check_budget = MagicMock(return_value=True)
     ctx.iteration_id = 1
 

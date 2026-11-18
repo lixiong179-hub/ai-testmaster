@@ -19,12 +19,7 @@ class TestVisibilityConfigService:
 
     def test_set_global_config(self):
         service = VisibilityConfigService()
-        new_config = VisibilityConfig(
-            headless=False,
-            record_video=True,
-            video_resolution=(1280, 720),
-            video_fps=60
-        )
+        new_config = VisibilityConfig(headless=False, record_video=True, video_resolution=(1280, 720), video_fps=60)
         service.set_global_config(new_config)
         config = service.get_global_config()
         assert config.headless is False
@@ -33,6 +28,7 @@ class TestVisibilityConfigService:
     def test_get_task_config(self, db, testUser, testProject):
         service = VisibilityConfigService()
         from app.models.test_task import TestTask
+
         task = TestTask(
             task_name=f"config_task_{uuid.uuid4().hex[:8]}",
             project_id=testProject.id,
@@ -42,7 +38,7 @@ class TestVisibilityConfigService:
             status=0,
             success_count=0,
             fail_count=0,
-            progress=0
+            progress=0,
         )
         db.add(task)
         db.commit()
@@ -62,6 +58,7 @@ class TestVisibilityConfigService:
     def test_speed_delay_map_migrated_to_env_loader(self):
         """VALID_SPEEDS 已迁移至 VisibilityEnvLoader.SPEED_DELAY_MAP（分层配置重构）。"""
         from app.services.visibility_config.env_loader import VisibilityEnvLoader
+
         speed_map = VisibilityEnvLoader.SPEED_DELAY_MAP
         assert "slow" in speed_map
         assert "normal" in speed_map
@@ -87,7 +84,7 @@ class TestCostStatisticsService:
             cost_savings=0.3,
             savings_rate=0.3,
             cache_hit_rate=0.6,
-            ai_dependency_rate=0.5
+            ai_dependency_rate=0.5,
         )
         assert cost.total_steps == 10
         assert cost.ai_vision_calls == 5
@@ -102,7 +99,7 @@ class TestCostStatisticsService:
             case_statistics=[],
             daily_statistics=[],
             optimization_suggestions=[],
-            trend_data=[]
+            trend_data=[],
         )
         assert report.report_id == "r1"
         assert report.project_id == 1
@@ -213,19 +210,13 @@ class TestExecutionModeSelector:
         assert config.record_video is False
 
     def test_get_execution_config_with_strategy(self):
-        config = ExecutionModeSelector.get_execution_config(
-            "UI",
-            case_strategy="strict"
-        )
+        config = ExecutionModeSelector.get_execution_config("UI", case_strategy="strict")
         assert config.strategy == ExecutionStrategy.STRICT
         assert config.strategy_config.max_retries == 3
 
     def test_get_execution_config_strategy_priority(self):
         config = ExecutionModeSelector.get_execution_config(
-            "UI",
-            global_strategy="fast",
-            task_strategy="smart",
-            case_strategy="strict"
+            "UI", global_strategy="fast", task_strategy="smart", case_strategy="strict"
         )
         assert config.strategy == ExecutionStrategy.STRICT
 

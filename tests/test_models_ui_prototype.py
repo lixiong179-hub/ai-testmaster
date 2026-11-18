@@ -7,26 +7,24 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="ui_test_user",
-        email="ui_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="ui_test_user", email="ui_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(UIScreenTestCaseLink).filter(UIScreenTestCaseLink.screen_id.in_(
-        db.query(UIPrototypeScreen.id).filter(UIPrototypeScreen.project_id.in_(
-            db.query(Project.id).filter(Project.user_id == user.id)
-        ))
-    )).delete(synchronize_session=False)
-    db.query(UIPrototypeScreen).filter(UIPrototypeScreen.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
-    db.query(UIPrototypeProject).filter(UIPrototypeProject.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(UIScreenTestCaseLink).filter(
+        UIScreenTestCaseLink.screen_id.in_(
+            db.query(UIPrototypeScreen.id).filter(
+                UIPrototypeScreen.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+            )
+        )
+    ).delete(synchronize_session=False)
+    db.query(UIPrototypeScreen).filter(
+        UIPrototypeScreen.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+    ).delete(synchronize_session=False)
+    db.query(UIPrototypeProject).filter(
+        UIPrototypeProject.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+    ).delete(synchronize_session=False)
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -60,7 +58,7 @@ class TestUIPrototypeScreenModel:
             prototype_name="登录原型",
             source="figma",
             screen_name="登录页",
-            created_by=test_user.id
+            created_by=test_user.id,
         )
         db.add(screen)
         db.commit()
@@ -76,11 +74,7 @@ class TestUIPrototypeScreenModel:
         db.commit()
 
     def test_screen_default_values(self, db, test_project):
-        screen = UIPrototypeScreen(
-            project_id=test_project.id,
-            prototype_name="默认原型",
-            screen_name="默认页"
-        )
+        screen = UIPrototypeScreen(project_id=test_project.id, prototype_name="默认原型", screen_name="默认页")
         db.add(screen)
         db.commit()
         db.refresh(screen)
@@ -115,10 +109,7 @@ class TestUIPrototypeScreenModel:
     def test_screen_source_values(self, db, test_project):
         for source in ["mockingbot", "lannhu", "figma", "axure", "manual", "other"]:
             screen = UIPrototypeScreen(
-                project_id=test_project.id,
-                prototype_name=f"原型-{source}",
-                source=source,
-                screen_name=f"页面-{source}"
+                project_id=test_project.id, prototype_name=f"原型-{source}", source=source, screen_name=f"页面-{source}"
             )
             db.add(screen)
             db.commit()
@@ -133,7 +124,7 @@ class TestUIPrototypeScreenModel:
                 project_id=test_project.id,
                 prototype_name=f"解析-{status}",
                 screen_name=f"页-{status}",
-                parse_status=status
+                parse_status=status,
             )
             db.add(screen)
             db.commit()
@@ -148,7 +139,7 @@ class TestUIPrototypeScreenModel:
                 project_id=test_project.id,
                 prototype_name=f"审核-{status}",
                 screen_name=f"审-{status}",
-                review_status=status
+                review_status=status,
             )
             db.add(screen)
             db.commit()
@@ -165,7 +156,7 @@ class TestUIPrototypeScreenModel:
             ui_spec={"elements": [{"type": "button", "text": "提交"}]},
             element_count=5,
             button_count=2,
-            input_count=1
+            input_count=1,
         )
         db.add(screen)
         db.commit()
@@ -178,19 +169,12 @@ class TestUIPrototypeScreenModel:
         db.commit()
 
     def test_screen_parent_child(self, db, test_project):
-        parent = UIPrototypeScreen(
-            project_id=test_project.id,
-            prototype_name="父原型",
-            screen_name="父页面"
-        )
+        parent = UIPrototypeScreen(project_id=test_project.id, prototype_name="父原型", screen_name="父页面")
         db.add(parent)
         db.commit()
         db.refresh(parent)
         child = UIPrototypeScreen(
-            project_id=test_project.id,
-            prototype_name="子原型",
-            screen_name="子页面",
-            parent_screen_id=parent.id
+            project_id=test_project.id, prototype_name="子原型", screen_name="子页面", parent_screen_id=parent.id
         )
         db.add(child)
         db.commit()
@@ -201,18 +185,15 @@ class TestUIPrototypeScreenModel:
         db.commit()
 
     def test_screen_relationships(self):
-        assert hasattr(UIPrototypeScreen, 'project')
-        assert hasattr(UIPrototypeScreen, 'creator')
-        assert hasattr(UIPrototypeScreen, 'parent')
-        assert hasattr(UIPrototypeScreen, 'linked_test_cases')
+        assert hasattr(UIPrototypeScreen, "project")
+        assert hasattr(UIPrototypeScreen, "creator")
+        assert hasattr(UIPrototypeScreen, "parent")
+        assert hasattr(UIPrototypeScreen, "linked_test_cases")
 
 
 class TestUIPrototypeProjectModel:
     def test_create_prototype_project(self, db, test_project):
-        pp = UIPrototypeProject(
-            project_id=test_project.id,
-            name="原型项目1"
-        )
+        pp = UIPrototypeProject(project_id=test_project.id, name="原型项目1")
         db.add(pp)
         db.commit()
         db.refresh(pp)
@@ -228,10 +209,7 @@ class TestUIPrototypeProjectModel:
         db.commit()
 
     def test_prototype_project_default_values(self, db, test_project):
-        pp = UIPrototypeProject(
-            project_id=test_project.id,
-            name="默认原型项目"
-        )
+        pp = UIPrototypeProject(project_id=test_project.id, name="默认原型项目")
         db.add(pp)
         db.commit()
         db.refresh(pp)
@@ -244,11 +222,7 @@ class TestUIPrototypeProjectModel:
 
     def test_prototype_project_source_values(self, db, test_project):
         for source in ["mockingbot", "lannhu", "figma", "axure", "manual", "other"]:
-            pp = UIPrototypeProject(
-                project_id=test_project.id,
-                name=f"来源-{source}",
-                source=source
-            )
+            pp = UIPrototypeProject(project_id=test_project.id, name=f"来源-{source}", source=source)
             db.add(pp)
             db.commit()
             db.refresh(pp)
@@ -258,18 +232,12 @@ class TestUIPrototypeProjectModel:
 
     def test_prototype_project_with_iteration(self, db, test_project):
         from app.models.iteration import Iteration
-        iteration = Iteration(
-            project_id=test_project.id,
-            name="原型迭代"
-        )
+
+        iteration = Iteration(project_id=test_project.id, name="原型迭代")
         db.add(iteration)
         db.commit()
         db.refresh(iteration)
-        pp = UIPrototypeProject(
-            project_id=test_project.id,
-            name="迭代原型项目",
-            iteration_id=iteration.id
-        )
+        pp = UIPrototypeProject(project_id=test_project.id, name="迭代原型项目", iteration_id=iteration.id)
         db.add(pp)
         db.commit()
         db.refresh(pp)
@@ -282,11 +250,8 @@ class TestUIPrototypeProjectModel:
 class TestUIScreenTestCaseLinkModel:
     def test_create_link(self, db, test_project):
         from app.models.test_case import TestCase
-        screen = UIPrototypeScreen(
-            project_id=test_project.id,
-            prototype_name="链接原型",
-            screen_name="链接页"
-        )
+
+        screen = UIPrototypeScreen(project_id=test_project.id, prototype_name="链接原型", screen_name="链接页")
         db.add(screen)
         db.commit()
         db.refresh(screen)
@@ -299,16 +264,12 @@ class TestUIScreenTestCaseLinkModel:
             steps_json=[],
             expected_result="预期",
             priority=1,
-            case_type="UI"
+            case_type="UI",
         )
         db.add(tc)
         db.commit()
         db.refresh(tc)
-        link = UIScreenTestCaseLink(
-            screen_id=screen.id,
-            test_case_id=tc.id,
-            link_type="source"
-        )
+        link = UIScreenTestCaseLink(screen_id=screen.id, test_case_id=tc.id, link_type="source")
         db.add(link)
         db.commit()
         db.refresh(link)
@@ -324,11 +285,8 @@ class TestUIScreenTestCaseLinkModel:
 
     def test_link_default_type(self, db, test_project):
         from app.models.test_case import TestCase
-        screen = UIPrototypeScreen(
-            project_id=test_project.id,
-            prototype_name="默认链接原型",
-            screen_name="默认链接页"
-        )
+
+        screen = UIPrototypeScreen(project_id=test_project.id, prototype_name="默认链接原型", screen_name="默认链接页")
         db.add(screen)
         db.commit()
         db.refresh(screen)
@@ -341,15 +299,12 @@ class TestUIScreenTestCaseLinkModel:
             steps_json=[],
             expected_result="预期",
             priority=1,
-            case_type="UI"
+            case_type="UI",
         )
         db.add(tc)
         db.commit()
         db.refresh(tc)
-        link = UIScreenTestCaseLink(
-            screen_id=screen.id,
-            test_case_id=tc.id
-        )
+        link = UIScreenTestCaseLink(screen_id=screen.id, test_case_id=tc.id)
         db.add(link)
         db.commit()
         db.refresh(link)

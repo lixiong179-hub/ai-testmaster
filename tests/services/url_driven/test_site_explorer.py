@@ -1,4 +1,5 @@
 """SiteExplorer.explore 主流程单元测试（spec 场景 1-8、10、18）。"""
+
 import json
 
 from app.core.config import settings
@@ -22,14 +23,13 @@ def _use_redis(explorer, fake_redis, monkeypatch) -> None:
 class TestExplorePublicSite:
     """场景 1：公开站点 BFS 多页探索。"""
 
-    async def test_bfs_multiple_pages_returns_sitemap(
-        self, explorer, patch_browser, fake_redis, monkeypatch
-    ) -> None:
+    async def test_bfs_multiple_pages_returns_sitemap(self, explorer, patch_browser, fake_redis, monkeypatch) -> None:
         _use_redis(explorer, fake_redis, monkeypatch)
         page_a, page_b = "https://example.com/a", "https://example.com/b"
         pages_data = {
             ENTRY: PageData(
-                url=ENTRY, title="首页",
+                url=ENTRY,
+                title="首页",
                 a11y=make_a11y_node("root", children=[make_a11y_node("button", "提交")]),
                 nav_raw=[
                     {"text": "A", "href": "/a"},
@@ -67,7 +67,8 @@ class TestExploreLoginSiteSuccess:
         dashboard = "https://app.example.com/dashboard"
         pages_data = {
             entry: PageData(
-                url=entry, title="登录",
+                url=entry,
+                title="登录",
                 nav_raw=[{"text": "主页", "href": "/dashboard"}],
                 login_state=True,
             ),
@@ -97,24 +98,27 @@ class TestExploreLoginSiteSuccess:
 class TestExploreLoginSiteFailure:
     """场景 3：登录页 + 凭据错误，登录失败。"""
 
-    async def test_login_failure_keeps_only_login_page(
-        self, explorer, patch_browser, fake_redis, monkeypatch
-    ) -> None:
+    async def test_login_failure_keeps_only_login_page(self, explorer, patch_browser, fake_redis, monkeypatch) -> None:
         _use_redis(explorer, fake_redis, monkeypatch)
         entry = "https://app.example.com/login"
         pages_data = {
             entry: PageData(
-                url=entry, title="登录",
+                url=entry,
+                title="登录",
                 nav_raw=[{"text": "主页", "href": "/dashboard"}],
                 login_state=True,
             ),
             "https://app.example.com/dashboard": PageData(
-                url="https://app.example.com/dashboard", title="主页",
-                nav_raw=[], login_state=False,
+                url="https://app.example.com/dashboard",
+                title="主页",
+                nav_raw=[],
+                login_state=False,
             ),
         }
         visible = {
-            'input[type="password"]', 'input[name*="user" i]', 'button[type="submit"]',
+            'input[type="password"]',
+            'input[name*="user" i]',
+            'button[type="submit"]',
         }
         # login_succeeds=False：提交后 _detect_login_page 仍 True，登录失败
         page = FakePage(pages_data, visible_selectors=visible, login_succeeds=False)
@@ -138,7 +142,8 @@ class TestExploreLoginSiteNoCredentials:
         entry = "https://app.example.com/login"
         pages_data = {
             entry: PageData(
-                url=entry, title="登录",
+                url=entry,
+                title="登录",
                 nav_raw=[{"text": "X", "href": "/x"}],
                 login_state=True,
             ),
@@ -161,8 +166,12 @@ class TestExploreCacheHit:
     ) -> None:
         _use_redis(explorer, fake_redis, monkeypatch)
         cached = SiteMap(
-            entry_url=ENTRY, pages=[], max_depth_reached=0,
-            explored_count=0, skipped_count=0, cache_key=cache_key_for(ENTRY),
+            entry_url=ENTRY,
+            pages=[],
+            max_depth_reached=0,
+            explored_count=0,
+            skipped_count=0,
+            cache_key=cache_key_for(ENTRY),
         )
         fake_redis.store[cache_key_for(ENTRY)] = json.dumps(cached.to_dict(), ensure_ascii=False)
         patch_browser["page"] = FakePage({})  # 即便配置也不应被使用
@@ -180,9 +189,7 @@ class TestExploreCacheHit:
 class TestExploreCacheWrite:
     """场景 6：探索完成后写入 Redis。"""
 
-    async def test_explore_writes_cache(
-        self, explorer, patch_browser, fake_redis, monkeypatch
-    ) -> None:
+    async def test_explore_writes_cache(self, explorer, patch_browser, fake_redis, monkeypatch) -> None:
         _use_redis(explorer, fake_redis, monkeypatch)
         pages_data = {ENTRY: PageData(url=ENTRY, title="首页", nav_raw=[], login_state=False)}
         patch_browser["page"] = FakePage(pages_data)
@@ -201,9 +208,7 @@ class TestExploreCacheWrite:
 class TestExploreRedisUnavailable:
     """场景 7：Redis 不可用降级，探索正常进行。"""
 
-    async def test_redis_unavailable_degrades_gracefully(
-        self, explorer, patch_browser, monkeypatch
-    ) -> None:
+    async def test_redis_unavailable_degrades_gracefully(self, explorer, patch_browser, monkeypatch) -> None:
         monkeypatch.setattr(explorer, "_get_redis_client", lambda: None)
         pages_data = {ENTRY: PageData(url=ENTRY, title="首页", nav_raw=[], login_state=False)}
         patch_browser["page"] = FakePage(pages_data)
@@ -224,7 +229,8 @@ class TestExplorePageTimeout:
         page_a = "https://example.com/a"
         pages_data = {
             ENTRY: PageData(
-                url=ENTRY, title="首页",
+                url=ENTRY,
+                title="首页",
                 nav_raw=[{"text": "A", "href": "/a"}],
                 login_state=False,
             ),
@@ -243,9 +249,7 @@ class TestExplorePageTimeout:
 class TestExploreMaxDepth:
     """场景 10：BFS 深度受 URL_QUICK_TEST_MAX_DEPTH 限制。"""
 
-    async def test_bfs_respects_max_depth(
-        self, explorer, patch_browser, fake_redis, monkeypatch
-    ) -> None:
+    async def test_bfs_respects_max_depth(self, explorer, patch_browser, fake_redis, monkeypatch) -> None:
         _use_redis(explorer, fake_redis, monkeypatch)
         monkeypatch.setattr(settings, "URL_QUICK_TEST_MAX_DEPTH", 2)
         l1, l2, l3 = (

@@ -87,6 +87,7 @@ class TestDispatchMemory:
 
         async def mock_call_next(request):
             from starlette.responses import JSONResponse
+
             return JSONResponse({"ok": True})
 
         from starlette.testclient import TestClient
@@ -112,6 +113,7 @@ class TestDispatchMemory:
 
         async def mock_call_next(request):
             from starlette.responses import JSONResponse
+
             return JSONResponse({"ok": True})
 
         from starlette.requests import Request
@@ -139,6 +141,7 @@ class TestDispatchMemory:
 
         async def mock_call_next(request):
             from starlette.responses import JSONResponse
+
             return JSONResponse({"ok": True})
 
         from starlette.requests import Request
@@ -166,6 +169,7 @@ class TestDispatchRedisFallback:
 
         async def mock_call_next(request):
             from starlette.responses import JSONResponse
+
             return JSONResponse({"ok": True})
 
         from starlette.requests import Request
@@ -207,6 +211,7 @@ class TestRateLimitEdgeCases:
 
         async def mock_call_next(request):
             from starlette.responses import JSONResponse
+
             return JSONResponse({"ok": True})
 
         from starlette.requests import Request

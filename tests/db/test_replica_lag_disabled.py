@@ -7,6 +7,7 @@
     - `start_lag_monitor()` 不启动后台线程（或显式提前 return）
     - `get_current_lag()` 返回 None 且不建立从库连接（create_engine 零调用）
 """
+
 import threading
 from unittest.mock import patch
 
@@ -19,8 +20,10 @@ class TestLagMonitorDisabled:
     def test_start_lag_monitor_returns_without_thread(self):
         """未配置 slave：直接返回，不构造 APScheduler、不新增线程。"""
         before = threading.active_count()
-        with patch.object(replica_lag, "_has_slave_url", return_value=False), \
-                patch("apscheduler.schedulers.background.BackgroundScheduler") as mock_scheduler:
+        with (
+            patch.object(replica_lag, "_has_slave_url", return_value=False),
+            patch("apscheduler.schedulers.background.BackgroundScheduler") as mock_scheduler,
+        ):
             result = replica_lag.start_lag_monitor()
 
         assert result is None
@@ -29,8 +32,7 @@ class TestLagMonitorDisabled:
 
     def test_probe_replica_lag_skips_without_slave(self):
         """未配置 slave：采样函数直接返回 None，不建立连接。"""
-        with patch.object(replica_lag, "_has_slave_url", return_value=False), \
-                patch("pymysql.connect") as mock_connect:
+        with patch.object(replica_lag, "_has_slave_url", return_value=False), patch("pymysql.connect") as mock_connect:
             assert replica_lag.probe_replica_lag() is None
 
         mock_connect.assert_not_called()
@@ -40,8 +42,7 @@ class TestLagMonitorDisabled:
         original = replica_lag._current_lag
         replica_lag._current_lag = None
         try:
-            with patch("pymysql.connect") as mock_connect, \
-                    patch("sqlalchemy.create_engine") as mock_create_engine:
+            with patch("pymysql.connect") as mock_connect, patch("sqlalchemy.create_engine") as mock_create_engine:
                 assert replica_lag.get_current_lag() is None
             mock_connect.assert_not_called()
             mock_create_engine.assert_not_called()

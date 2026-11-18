@@ -8,6 +8,7 @@
 
 对应 BUG 11: AI 误产 "a".repeat(500) 当 JSON 值导致解析失败 → 0 用例
 """
+
 import pytest
 
 from app.utils.ai_client_parser import (
@@ -19,18 +20,21 @@ from app.utils.ai_client_parser import (
 class TestStripJsStringMethods:
     """strip_js_string_methods: JS 字符串方法调用清理"""
 
-    @pytest.mark.parametrize("raw,expected", [
-        ('"a".repeat(500)', '"a"'),
-        ('"test".repeat(3)', '"test"'),
-        ('"x".padEnd(100, "0")', '"x"'),
-        ('"x".padStart(5, "-")', '"x"'),
-        ('"a".concat("b", "c")', '"a"'),
-        ('"hello".slice(0, 3)', '"hello"'),
-        ('"hello".substring(1)', '"hello"'),
-        ('"a-b".replace("-", "_")', '"a-b"'),
-        ('"a" .repeat(5)', '"a"'),
-        ('"a".repeat (5)', '"a"'),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ('"a".repeat(500)', '"a"'),
+            ('"test".repeat(3)', '"test"'),
+            ('"x".padEnd(100, "0")', '"x"'),
+            ('"x".padStart(5, "-")', '"x"'),
+            ('"a".concat("b", "c")', '"a"'),
+            ('"hello".slice(0, 3)', '"hello"'),
+            ('"hello".substring(1)', '"hello"'),
+            ('"a-b".replace("-", "_")', '"a-b"'),
+            ('"a" .repeat(5)', '"a"'),
+            ('"a".repeat (5)', '"a"'),
+        ],
+    )
     def test_single_method_call(self, raw: str, expected: str) -> None:
         assert strip_js_string_methods(raw) == expected
 
@@ -93,10 +97,7 @@ class TestParseAiJsonResponseWithJsExpressions:
 
     def test_multiple_js_expressions(self) -> None:
         """同一 JSON 含多处 JS 表达式"""
-        raw = (
-            '{"cases": [{"title": "T1", "input_value": "a".repeat(3),'
-            '"expected_result": "x".padEnd(10, "0")}]}'
-        )
+        raw = '{"cases": [{"title": "T1", "input_value": "a".repeat(3),"expected_result": "x".padEnd(10, "0")}]}'
         result = parse_ai_json_response(raw)
         assert result is not None
         assert result["cases"][0]["input_value"] == "a"
@@ -129,11 +130,13 @@ class TestPromptForbidsJsExpressions:
         snapshot = PageSnapshot(
             url="https://example.com",
             title="Example",
-            elements=[{
-                "role": "textbox",
-                "name": "搜索",
-                "locator": "get_by_role('textbox', name='搜索')",
-            }],
+            elements=[
+                {
+                    "role": "textbox",
+                    "name": "搜索",
+                    "locator": "get_by_role('textbox', name='搜索')",
+                }
+            ],
             forms=[],
             navigation=[],
             is_login_page=False,

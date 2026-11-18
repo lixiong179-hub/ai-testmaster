@@ -12,11 +12,16 @@ from app.models.test_case import TestCase
 
 def _make_case(db, testProject, case_no, title, parent_case_id=None):
     case = TestCase(
-        project_id=testProject.id, title=title,
-        case_no=case_no, lifecycle_status="active",
-        module="测试模块", precondition="无",
+        project_id=testProject.id,
+        title=title,
+        case_no=case_no,
+        lifecycle_status="active",
+        module="测试模块",
+        precondition="无",
         steps_json=[{"step": 1, "action": "操作", "param": ""}],
-        expected_result="成功", priority=2, case_type="UI",
+        expected_result="成功",
+        priority=2,
+        case_type="UI",
         parent_case_id=parent_case_id,
     )
     db.add(case)

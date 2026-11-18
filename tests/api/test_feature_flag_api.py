@@ -1,4 +1,4 @@
-﻿"""
+"""
 运行时特性开关 API 测试（R2-1 单范式：同步 Session）
 
 覆盖场景：CRUD、启用/禁用切换、灰度比例评估、项目级定向投放
@@ -11,6 +11,7 @@
 
 测试 fixture 由 tests/api/conftest.py 提供。
 """
+
 import pytest
 
 from app.services.feature_flag_service import FeatureFlagService
@@ -138,17 +139,13 @@ class TestFeatureFlagEvaluateAsync:
     async def test_evaluate_flag_enabled_full_rollout(self, async_db):
         """enabled + rollout=100 评估为 True"""
         service = FeatureFlagService(async_db.sync_session)
-        service.create_flag(
-            key="full_rollout", name="全量", enabled=True, rollout_percentage=100
-        )
+        service.create_flag(key="full_rollout", name="全量", enabled=True, rollout_percentage=100)
         assert service.evaluate("full_rollout") is True
 
     async def test_evaluate_flag_zero_rollout(self, async_db):
         """rollout_percentage=0 评估为 False"""
         service = FeatureFlagService(async_db.sync_session)
-        service.create_flag(
-            key="zero_rollout", name="零灰度", enabled=True, rollout_percentage=0
-        )
+        service.create_flag(key="zero_rollout", name="零灰度", enabled=True, rollout_percentage=0)
         assert service.evaluate("zero_rollout") is False
 
     async def test_evaluate_flag_specific_target_match(self, async_db):

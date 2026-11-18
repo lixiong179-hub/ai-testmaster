@@ -6,6 +6,7 @@
     - 缓存管理: TTL 过期 / clear_cache / 最大条目数
     - generate_local_kek: 格式 / 长度 / 唯一性
 """
+
 from __future__ import annotations
 
 import base64

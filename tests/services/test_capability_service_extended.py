@@ -22,8 +22,12 @@ class TestCreateCapability:
 
     def test_create_with_description(self, db, testProject):
         cap = create_capability(
-            db, testProject.id, "REG", "注册功能",
-            description="用户注册流程", status="deprecated",
+            db,
+            testProject.id,
+            "REG",
+            "注册功能",
+            description="用户注册流程",
+            status="deprecated",
         )
         assert cap.description == "用户注册流程"
         assert cap.status == "deprecated"

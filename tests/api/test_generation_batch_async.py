@@ -9,6 +9,7 @@
     - PATCH /{batch_id}               - 更新批次（状态/上下文统计）
     - POST /{batch_id}/save           - 保存批次（幂等/状态机校验）
 """
+
 import pytest
 from app.models.generation_batch import GenerationBatch
 from app.schemas.generation_batch import (
@@ -24,8 +25,9 @@ GenerationBatchSaveRequest.__test__ = False
 PreviewCasePayload.__test__ = False
 
 
-def _make_batch(project_id: int, user_id: int, batch_no: str = "GB-ASYNC-1",
-                status: str = "created") -> GenerationBatch:
+def _make_batch(
+    project_id: int, user_id: int, batch_no: str = "GB-ASYNC-1", status: str = "created"
+) -> GenerationBatch:
     return GenerationBatch(
         batch_no=batch_no,
         project_id=project_id,
@@ -39,11 +41,14 @@ def _make_batch(project_id: int, user_id: int, batch_no: str = "GB-ASYNC-1",
 
 class TestGenerationBatchAsyncNoAuth:
     async def test_create_without_auth(self, async_client):
-        resp = await async_client.post("/api/v1/generation-batches", json={
-            "project_id": 1,
-            "scenario_type": "B1_REQUIREMENT_TESTPOINT",
-            "generation_strategy": "REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
-        })
+        resp = await async_client.post(
+            "/api/v1/generation-batches",
+            json={
+                "project_id": 1,
+                "scenario_type": "B1_REQUIREMENT_TESTPOINT",
+                "generation_strategy": "REQUIREMENT_TESTPOINT_STANDARD_GENERATION",
+            },
+        )
         assert resp.status_code in (401, 403, 404)
 
     async def test_get_without_auth(self, async_client):
@@ -97,16 +102,12 @@ class TestGenerationBatchAsyncCRUD:
         )
         assert resp.status_code in (403, 404, 500)
 
-    async def test_get_batch(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_get_batch(self, async_db, async_auth_client, async_test_project):
         batch = _make_batch(async_test_project.id, async_test_project.user_id)
         async_db.add(batch)
         await async_db.flush()
 
-        resp = await async_auth_client.get(
-            f"/api/v1/generation-batches/{batch.id}"
-        )
+        resp = await async_auth_client.get(f"/api/v1/generation-batches/{batch.id}")
         assert resp.status_code == 200, resp.text
         data = resp.json()["data"]
         assert data["batch_no"] == "GB-ASYNC-1"
@@ -116,26 +117,18 @@ class TestGenerationBatchAsyncCRUD:
         resp = await async_auth_client.get("/api/v1/generation-batches/99999")
         assert resp.status_code == 404
 
-    async def test_get_other_user_batch(
-        self, async_db, async_admin_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-OTHER")
+    async def test_get_other_user_batch(self, async_db, async_admin_client, async_test_project):
+        batch = _make_batch(async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-OTHER")
         async_db.add(batch)
         await async_db.flush()
 
-        resp = await async_admin_client.get(
-            f"/api/v1/generation-batches/{batch.id}"
-        )
+        resp = await async_admin_client.get(f"/api/v1/generation-batches/{batch.id}")
         assert resp.status_code == 403
 
 
 class TestGenerationBatchAsyncStatusMachine:
-    async def test_valid_transition_created_to_context_ready(
-        self, async_db, async_auth_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-T1")
+    async def test_valid_transition_created_to_context_ready(self, async_db, async_auth_client, async_test_project):
+        batch = _make_batch(async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-T1")
         async_db.add(batch)
         await async_db.flush()
 
@@ -146,11 +139,8 @@ class TestGenerationBatchAsyncStatusMachine:
         assert resp.status_code == 200, resp.text
         assert resp.json()["data"]["status"] == "context_ready"
 
-    async def test_invalid_transition_created_to_saved(
-        self, async_db, async_auth_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-T2")
+    async def test_invalid_transition_created_to_saved(self, async_db, async_auth_client, async_test_project):
+        batch = _make_batch(async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-T2")
         async_db.add(batch)
         await async_db.flush()
 
@@ -160,11 +150,8 @@ class TestGenerationBatchAsyncStatusMachine:
         )
         assert resp.status_code == 400
 
-    async def test_invalid_transition_saved_to_generating(
-        self, async_db, async_auth_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-T3", status="saved")
+    async def test_invalid_transition_saved_to_generating(self, async_db, async_auth_client, async_test_project):
+        batch = _make_batch(async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-T3", status="saved")
         async_db.add(batch)
         await async_db.flush()
 
@@ -174,11 +161,8 @@ class TestGenerationBatchAsyncStatusMachine:
         )
         assert resp.status_code == 400
 
-    async def test_valid_transition_failed_to_context_ready(
-        self, async_db, async_auth_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-T4", status="failed")
+    async def test_valid_transition_failed_to_context_ready(self, async_db, async_auth_client, async_test_project):
+        batch = _make_batch(async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-T4", status="failed")
         async_db.add(batch)
         await async_db.flush()
 
@@ -188,11 +172,10 @@ class TestGenerationBatchAsyncStatusMachine:
         )
         assert resp.status_code == 200, resp.text
 
-    async def test_update_context_stats(
-        self, async_db, async_auth_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-T5", status="context_ready")
+    async def test_update_context_stats(self, async_db, async_auth_client, async_test_project):
+        batch = _make_batch(
+            async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-T5", status="context_ready"
+        )
         async_db.add(batch)
         await async_db.flush()
 
@@ -210,11 +193,10 @@ class TestGenerationBatchAsyncStatusMachine:
 
 
 class TestGenerationBatchAsyncSave:
-    async def test_save_creates_cases(
-        self, async_db, async_auth_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-S1", status="preview_ready")
+    async def test_save_creates_cases(self, async_db, async_auth_client, async_test_project):
+        batch = _make_batch(
+            async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-S1", status="preview_ready"
+        )
         async_db.add(batch)
         await async_db.flush()
 
@@ -243,11 +225,8 @@ class TestGenerationBatchAsyncSave:
         data = resp.json()["data"]
         assert data["saved_count"] == 1
 
-    async def test_save_wrong_status_returns_400(
-        self, async_db, async_auth_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-S2", status="created")
+    async def test_save_wrong_status_returns_400(self, async_db, async_auth_client, async_test_project):
+        batch = _make_batch(async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-S2", status="created")
         async_db.add(batch)
         await async_db.flush()
 
@@ -272,11 +251,10 @@ class TestGenerationBatchAsyncSave:
         )
         assert resp.status_code == 400
 
-    async def test_save_passed_only_filters_rejected(
-        self, async_db, async_auth_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-S3", status="preview_ready")
+    async def test_save_passed_only_filters_rejected(self, async_db, async_auth_client, async_test_project):
+        batch = _make_batch(
+            async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-S3", status="preview_ready"
+        )
         async_db.add(batch)
         await async_db.flush()
 
@@ -313,11 +291,10 @@ class TestGenerationBatchAsyncSave:
         data = resp.json()["data"]
         assert data["saved_count"] == 1
 
-    async def test_save_idempotent_returns_same_result(
-        self, async_db, async_auth_client, async_test_project
-    ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-S4", status="preview_ready")
+    async def test_save_idempotent_returns_same_result(self, async_db, async_auth_client, async_test_project):
+        batch = _make_batch(
+            async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-S4", status="preview_ready"
+        )
         async_db.add(batch)
         await async_db.flush()
 
@@ -353,14 +330,14 @@ class TestGenerationBatchAsyncSave:
             json=save_body,
         )
         assert resp2.status_code == 200
-        assert (resp2.json()["data"]["saved_count"]
-                == resp1.json()["data"]["saved_count"])
+        assert resp2.json()["data"]["saved_count"] == resp1.json()["data"]["saved_count"]
 
     async def test_save_with_invalid_requirement_file_id_returns_400(
         self, async_db, async_auth_client, async_test_project
     ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-S5", status="preview_ready")
+        batch = _make_batch(
+            async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-S5", status="preview_ready"
+        )
         async_db.add(batch)
         await async_db.flush()
 
@@ -390,9 +367,7 @@ class TestGenerationBatchAsyncSave:
 class TestGenerationBatchAsyncHistoryUpdate:
     """历史资产更新批次 save 语义测试（update_existing/deprecate）。"""
 
-    async def test_update_case_not_selected_for_save_is_skipped(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_update_case_not_selected_for_save_is_skipped(self, async_db, async_auth_client, async_test_project):
         from app.models.test_case import TestCase
 
         existing = TestCase(
@@ -412,8 +387,9 @@ class TestGenerationBatchAsyncHistoryUpdate:
 
         original_title = existing.title
 
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-UPD-SKIP", status="preview_ready")
+        batch = _make_batch(
+            async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-UPD-SKIP", status="preview_ready"
+        )
         batch.entry_type = "HISTORY_UPDATE"
         batch.scenario_type = "A2_HISTORY_INCREMENTAL_UPDATE"
         batch.generation_strategy = "HISTORY_INCREMENTAL_UPDATE"
@@ -472,8 +448,9 @@ class TestGenerationBatchAsyncHistoryUpdate:
         async_db.add(existing)
         await async_db.flush()
 
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-DEP-OK", status="preview_ready")
+        batch = _make_batch(
+            async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-DEP-OK", status="preview_ready"
+        )
         batch.entry_type = "HISTORY_UPDATE"
         batch.scenario_type = "A2_HISTORY_INCREMENTAL_UPDATE"
         batch.generation_strategy = "HISTORY_INCREMENTAL_UPDATE"
@@ -520,8 +497,9 @@ class TestGenerationBatchAsyncHashConflict:
     async def test_idempotent_key_with_different_content_returns_409(
         self, async_db, async_auth_client, async_test_project
     ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-HASH-1", status="preview_ready")
+        batch = _make_batch(
+            async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-HASH-1", status="preview_ready"
+        )
         async_db.add(batch)
         await async_db.flush()
 
@@ -577,8 +555,9 @@ class TestGenerationBatchAsyncHashConflict:
     async def test_idempotent_key_with_different_save_mode_returns_409(
         self, async_db, async_auth_client, async_test_project
     ):
-        batch = _make_batch(async_test_project.id, async_test_project.user_id,
-                            batch_no="GB-ASYNC-HASH-2", status="preview_ready")
+        batch = _make_batch(
+            async_test_project.id, async_test_project.user_id, batch_no="GB-ASYNC-HASH-2", status="preview_ready"
+        )
         async_db.add(batch)
         await async_db.flush()
 

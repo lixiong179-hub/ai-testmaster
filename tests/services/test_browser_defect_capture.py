@@ -10,6 +10,7 @@
 7. clear_defect_evidence 清空
 8. _setup_defect_listeners 注册
 """
+
 import asyncio
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
@@ -21,6 +22,7 @@ from app.utils.browser_controller_base import BrowserControllerV2, BrowserConfig
 # ---------------------------------------------------------------------------
 # 辅助：构造 mock 消息对象
 # ---------------------------------------------------------------------------
+
 
 class MockConsoleMessage:
     """模拟 Playwright ConsoleMessage。"""
@@ -62,6 +64,7 @@ class MockResponse:
 # Fixture
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def browser() -> BrowserControllerV2:
     """创建一个 BrowserControllerV2 实例并模拟已初始化状态。"""
@@ -78,8 +81,8 @@ def browser() -> BrowserControllerV2:
 # 1. 控制台错误捕获
 # ---------------------------------------------------------------------------
 
-class TestConsoleErrorCapture:
 
+class TestConsoleErrorCapture:
     def test_capture_error_level_only(self, browser: BrowserControllerV2) -> None:
         """仅收集 type=error 的控制台消息。"""
         msg_error = MockConsoleMessage("error", "Uncaught TypeError: x is not a function", "app.js", 42)
@@ -118,8 +121,8 @@ class TestConsoleErrorCapture:
 # 2. 未捕获异常捕获
 # ---------------------------------------------------------------------------
 
-class TestUncaughtExceptionCapture:
 
+class TestUncaughtExceptionCapture:
     def test_capture_page_error(self, browser: BrowserControllerV2) -> None:
         """收集页面未捕获异常。"""
         error = MockPageError("ReferenceError: foo is not defined", "at bar (app.js:10:5)")
@@ -145,8 +148,8 @@ class TestUncaughtExceptionCapture:
 # 3. 网络失败捕获（5xx + requestfailed）
 # ---------------------------------------------------------------------------
 
-class TestNetworkFailureCapture:
 
+class TestNetworkFailureCapture:
     def test_capture_5xx_response(self, browser: BrowserControllerV2) -> None:
         """收集 5xx 响应。"""
         response = MockResponse(500, "https://api.example.com/users", "GET")
@@ -182,8 +185,8 @@ class TestNetworkFailureCapture:
 # 4. 排除预期 4xx 请求
 # ---------------------------------------------------------------------------
 
-class TestExcludeExpected4xx:
 
+class TestExcludeExpected4xx:
     def test_exclude_401_response(self, browser: BrowserControllerV2) -> None:
         """401 响应不记录为缺陷（登录失败是预期行为）。"""
         response = MockResponse(401, "https://api.example.com/login", "POST")
@@ -223,8 +226,8 @@ class TestExcludeExpected4xx:
 # 5. 内存泄漏嫌疑检测
 # ---------------------------------------------------------------------------
 
-class TestMemoryLeakDetection:
 
+class TestMemoryLeakDetection:
     def test_detect_leak_suspect(self, browser: BrowserControllerV2) -> None:
         """连续 5 步内存增长 > 10MB 标记为泄漏嫌疑。"""
         # 模拟 5 个步骤的内存增长，每步增长 3MB，总计 12MB
@@ -275,11 +278,13 @@ class TestMemoryLeakDetection:
     async def test_collect_memory_sample_chromium(self, browser: BrowserControllerV2) -> None:
         """Chromium 环境 performance.memory 可用时采集内存。"""
         mock_page = AsyncMock()
-        mock_page.evaluate = AsyncMock(return_value={
-            "usedJSHeapSize": 100 * 1024 * 1024,  # 100MB
-            "totalJSHeapSize": 200 * 1024 * 1024,
-            "jsHeapSizeLimit": 500 * 1024 * 1024,
-        })
+        mock_page.evaluate = AsyncMock(
+            return_value={
+                "usedJSHeapSize": 100 * 1024 * 1024,  # 100MB
+                "totalJSHeapSize": 200 * 1024 * 1024,
+                "jsHeapSizeLimit": 500 * 1024 * 1024,
+            }
+        )
         browser._page = mock_page
 
         await browser.collect_memory_sample()
@@ -308,8 +313,8 @@ class TestMemoryLeakDetection:
 # 6. defect_evidence 汇总
 # ---------------------------------------------------------------------------
 
-class TestDefectEvidenceSummary:
 
+class TestDefectEvidenceSummary:
     def test_empty_evidence(self, browser: BrowserControllerV2) -> None:
         """初始状态返回空缺陷证据。"""
         evidence = browser.get_defect_evidence()
@@ -344,8 +349,8 @@ class TestDefectEvidenceSummary:
 # 7. clear_defect_evidence 清空
 # ---------------------------------------------------------------------------
 
-class TestClearDefectEvidence:
 
+class TestClearDefectEvidence:
     def test_clear_resets_collectors(self, browser: BrowserControllerV2) -> None:
         """clear_defect_evidence 清空控制台错误/网络失败/未捕获异常。"""
         browser._on_console_message(MockConsoleMessage("error", "Error"))
@@ -381,8 +386,8 @@ class TestClearDefectEvidence:
 # 8. _setup_defect_listeners 注册
 # ---------------------------------------------------------------------------
 
-class TestSetupDefectListeners:
 
+class TestSetupDefectListeners:
     def test_registers_listeners(self, browser: BrowserControllerV2) -> None:
         """注册四类监听器到 page 对象。"""
         mock_page = MagicMock()
@@ -436,8 +441,8 @@ class TestSetupDefectListeners:
 # 9. 请求耗时计算
 # ---------------------------------------------------------------------------
 
-class TestRequestDurationTracking:
 
+class TestRequestDurationTracking:
     def test_request_start_time_recorded(self, browser: BrowserControllerV2) -> None:
         """请求开始时间被记录。"""
         request = MockRequest("https://api.example.com/data", "GET")
@@ -448,6 +453,7 @@ class TestRequestDurationTracking:
     def test_response_duration_calculated(self, browser: BrowserControllerV2) -> None:
         """5xx 响应包含耗时计算。"""
         import time
+
         url = "https://api.example.com/slow"
         browser._request_start_times[url] = time.monotonic() - 0.5  # 模拟 500ms 前
 
@@ -461,6 +467,7 @@ class TestRequestDurationTracking:
     def test_request_failed_duration_calculated(self, browser: BrowserControllerV2) -> None:
         """请求失败事件包含耗时计算。"""
         import time
+
         url = "https://cdn.example.com/timeout.js"
         browser._request_start_times[url] = time.monotonic() - 1.0  # 模拟 1000ms 前
 
@@ -476,8 +483,8 @@ class TestRequestDurationTracking:
 # 10. StepExecutorMixin 缺陷集成（mock 测试）
 # ---------------------------------------------------------------------------
 
-class TestStepExecutorDefectIntegration:
 
+class TestStepExecutorDefectIntegration:
     def test_clear_browser_defect_evidence(self) -> None:
         """_clear_browser_defect_evidence 正确调用浏览器清空方法。"""
         from app.services.test_execution_engine.step_executor_mixin import StepExecutorMixin
@@ -508,12 +515,14 @@ class TestStepExecutorDefectIntegration:
         mixin = StepExecutorMixin()
         mock_browser = MagicMock()
         mock_browser.collect_memory_sample = AsyncMock()
-        mock_browser.get_defect_evidence = MagicMock(return_value={
-            "console_errors": [{"type": "console_error", "message": "test error", "source": ""}],
-            "network_failures": [],
-            "memory_leak_suspect": None,
-            "uncaught_exceptions": [],
-        })
+        mock_browser.get_defect_evidence = MagicMock(
+            return_value={
+                "console_errors": [{"type": "console_error", "message": "test error", "source": ""}],
+                "network_failures": [],
+                "memory_leak_suspect": None,
+                "uncaught_exceptions": [],
+            }
+        )
         mixin.browser = mock_browser
 
         result = StepExecutionResult(step_number=1)
@@ -532,12 +541,14 @@ class TestStepExecutorDefectIntegration:
         mixin = StepExecutorMixin()
         mock_browser = MagicMock()
         mock_browser.collect_memory_sample = AsyncMock()
-        mock_browser.get_defect_evidence = MagicMock(return_value={
-            "console_errors": [],
-            "network_failures": [],
-            "memory_leak_suspect": None,
-            "uncaught_exceptions": [],
-        })
+        mock_browser.get_defect_evidence = MagicMock(
+            return_value={
+                "console_errors": [],
+                "network_failures": [],
+                "memory_leak_suspect": None,
+                "uncaught_exceptions": [],
+            }
+        )
         mixin.browser = mock_browser
 
         result = StepExecutionResult(step_number=1)
@@ -554,12 +565,14 @@ class TestStepExecutorDefectIntegration:
         mixin = StepExecutorMixin()
         mock_browser = MagicMock()
         mock_browser.collect_memory_sample = AsyncMock()
-        mock_browser.get_defect_evidence = MagicMock(return_value={
-            "console_errors": [{"type": "console_error", "message": "hidden error", "source": ""}],
-            "network_failures": [],
-            "memory_leak_suspect": {"peak_mb": 100.0, "growth_mb": 15.0, "step_count": 5},
-            "uncaught_exceptions": [],
-        })
+        mock_browser.get_defect_evidence = MagicMock(
+            return_value={
+                "console_errors": [{"type": "console_error", "message": "hidden error", "source": ""}],
+                "network_failures": [],
+                "memory_leak_suspect": {"peak_mb": 100.0, "growth_mb": 15.0, "step_count": 5},
+                "uncaught_exceptions": [],
+            }
+        )
         mixin.browser = mock_browser
 
         result = StepExecutionResult(step_number=1, status=ExecutionStatus.PASSED)
@@ -574,17 +587,19 @@ class TestStepExecutorDefectIntegration:
 # 11. TestResult 模型 defect_evidence 字段
 # ---------------------------------------------------------------------------
 
-class TestTestResultDefectEvidenceField:
 
+class TestTestResultDefectEvidenceField:
     def test_model_has_defect_evidence_column(self) -> None:
         """TestResult 模型包含 defect_evidence 列。"""
         from app.models.test_result import TestResult
+
         columns = {c.name for c in TestResult.__table__.columns}
         assert "defect_evidence" in columns
 
     def test_model_defect_evidence_nullable(self) -> None:
         """defect_evidence 列允许 NULL。"""
         from app.models.test_result import TestResult
+
         col = TestResult.__table__.columns["defect_evidence"]
         assert col.nullable is True
 
@@ -593,17 +608,19 @@ class TestTestResultDefectEvidenceField:
 # 12. StepExecutionResult defect_evidence 字段
 # ---------------------------------------------------------------------------
 
-class TestStepExecutionResultDefectEvidence:
 
+class TestStepExecutionResultDefectEvidence:
     def test_default_none(self) -> None:
         """StepExecutionResult 默认 defect_evidence 为 None。"""
         from app.services.test_execution_engine.models import StepExecutionResult
+
         result = StepExecutionResult(step_number=1)
         assert result.defect_evidence is None
 
     def test_assign_evidence(self) -> None:
         """可以赋值 defect_evidence。"""
         from app.services.test_execution_engine.models import StepExecutionResult
+
         evidence = {
             "console_errors": [{"type": "console_error", "message": "err", "source": ""}],
             "network_failures": [],

@@ -5,6 +5,7 @@
       `summary.status=queued`，不再在 Web 进程内执行
     - `EXECUTOR_MODE=inprocess`（默认）→ 走原执行路径（回归由既有测试覆盖）
 """
+
 import uuid
 from unittest.mock import patch
 
@@ -51,13 +52,14 @@ class TestWorkerModeEnqueue:
         task.status = TaskStatus.COMPLETED
         db.flush()
 
-        with patch.object(settings, "EXECUTOR_MODE", "worker"), patch.object(
-            test_task_exec,
-            "TestExecutionEngineV2",
-        ) as engine_cls:
-            resp = await test_task_exec.run_test_task(
-                task_id=task.id, task=task, db=db
-            )
+        with (
+            patch.object(settings, "EXECUTOR_MODE", "worker"),
+            patch.object(
+                test_task_exec,
+                "TestExecutionEngineV2",
+            ) as engine_cls,
+        ):
+            resp = await test_task_exec.run_test_task(task_id=task.id, task=task, db=db)
 
         engine_cls.assert_not_called()
         assert resp["executor_mode"] == "worker"

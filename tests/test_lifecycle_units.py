@@ -8,6 +8,7 @@
 
 全部使用 mock，不触碰真实数据库与 APScheduler。
 """
+
 from unittest.mock import MagicMock, patch
 
 from app.core import lifecycle
@@ -38,9 +39,11 @@ class TestEnsureDefaultAdmin:
     def test_creates_admin_when_missing(self):
         """无 admin 账号时创建、提交并关闭会话。"""
         db = _fake_session(existing_admin=None)
-        with patch("app.core.lifecycle.PrimarySessionLocal", return_value=db), \
-                patch("app.core.lifecycle.get_password_hash", return_value="hashed"), \
-                patch("app.core.lifecycle.settings") as mock_settings:
+        with (
+            patch("app.core.lifecycle.PrimarySessionLocal", return_value=db),
+            patch("app.core.lifecycle.get_password_hash", return_value="hashed"),
+            patch("app.core.lifecycle.settings") as mock_settings,
+        ):
             mock_settings.ADMIN_INITIAL_PASSWORD = "pwd-from-settings"
             lifecycle.startup_ensure_default_admin()
 
@@ -55,8 +58,10 @@ class TestEnsureDefaultAdmin:
     def test_skips_creation_when_admin_exists(self):
         """已存在 admin 时不重复创建，但仍关闭会话。"""
         db = _fake_session(existing_admin=MagicMock())
-        with patch("app.core.lifecycle.PrimarySessionLocal", return_value=db), \
-                patch("app.core.lifecycle.settings") as mock_settings:
+        with (
+            patch("app.core.lifecycle.PrimarySessionLocal", return_value=db),
+            patch("app.core.lifecycle.settings") as mock_settings,
+        ):
             mock_settings.ADMIN_INITIAL_PASSWORD = "pwd"
             lifecycle.startup_ensure_default_admin()
 
@@ -102,11 +107,13 @@ class TestLifecycleOrchestration:
     async def test_startup_runs_units_in_order(self):
         """startup() 必须按 目录 → 数据库 → 管理员 → 调度器 → 延迟监控 的顺序执行。"""
         calls = []
-        with patch.object(lifecycle, "startup_init_directories", lambda: calls.append("directories")), \
-                patch.object(lifecycle, "startup_init_db", lambda: calls.append("db")), \
-                patch.object(lifecycle, "startup_ensure_default_admin", lambda: calls.append("admin")), \
-                patch.object(lifecycle, "startup_scheduler", lambda: calls.append("scheduler")), \
-                patch.object(lifecycle, "startup_lag_monitor", lambda: calls.append("lag_monitor")):
+        with (
+            patch.object(lifecycle, "startup_init_directories", lambda: calls.append("directories")),
+            patch.object(lifecycle, "startup_init_db", lambda: calls.append("db")),
+            patch.object(lifecycle, "startup_ensure_default_admin", lambda: calls.append("admin")),
+            patch.object(lifecycle, "startup_scheduler", lambda: calls.append("scheduler")),
+            patch.object(lifecycle, "startup_lag_monitor", lambda: calls.append("lag_monitor")),
+        ):
             await lifecycle.startup()
 
         assert calls == ["directories", "db", "admin", "scheduler", "lag_monitor"]
@@ -114,8 +121,10 @@ class TestLifecycleOrchestration:
     def test_shutdown_stops_scheduler(self):
         # 一并 patch 后台巡检：本用例只验证编排顺序，真实调用会把其它测试遗留的
         # recovery loop 任务 cancel 在已关闭事件循环上（RuntimeError: Event loop is closed）
-        with patch.object(lifecycle, "shutdown_task_recovery") as mock_recovery, \
-                patch.object(lifecycle, "shutdown_scheduler") as mock_shutdown:
+        with (
+            patch.object(lifecycle, "shutdown_task_recovery") as mock_recovery,
+            patch.object(lifecycle, "shutdown_scheduler") as mock_shutdown,
+        ):
             lifecycle.shutdown()
         mock_shutdown.assert_called_once()
         mock_recovery.assert_called_once()

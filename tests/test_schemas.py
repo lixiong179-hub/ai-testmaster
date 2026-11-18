@@ -338,6 +338,7 @@ class TestProjectSchemas:
 class TestUISpecSchemas:
     def test_technical_locator_info_normal(self):
         from app.schemas.test_case import TechnicalLocatorInfo
+
         locator = TechnicalLocatorInfo(
             css_selector="#login-btn",
             xpath="//button[@id='login']",
@@ -351,6 +352,7 @@ class TestUISpecSchemas:
 
     def test_technical_locator_info_with_ai_coordinate(self):
         from app.schemas.test_case import TechnicalLocatorInfo
+
         locator = TechnicalLocatorInfo(
             element_type="button",
             ai_coordinate={"x": 100, "y": 200, "width": 50, "height": 30},
@@ -362,6 +364,7 @@ class TestUISpecSchemas:
 
     def test_technical_step_view_normal(self):
         from app.schemas.test_case import TechnicalStepView
+
         step = TechnicalStepView(
             step_number=1,
             action="click button",
@@ -375,6 +378,7 @@ class TestUISpecSchemas:
 
     def test_technical_step_view_without_locator(self):
         from app.schemas.test_case import TechnicalStepView
+
         step = TechnicalStepView(
             step_number=1,
             action="wait",
@@ -388,6 +392,7 @@ class TestUISpecSchemas:
     def test_execution_history_item_normal(self):
         from datetime import datetime
         from app.schemas.test_case import ExecutionHistoryItem
+
         history = ExecutionHistoryItem(
             execution_id=1,
             execution_time=datetime.now(),
@@ -400,6 +405,7 @@ class TestUISpecSchemas:
 
     def test_precondition_step_create_normal(self):
         from app.schemas.test_case import PreconditionStepCreate
+
         step = PreconditionStepCreate(
             step_number=1,
             action="login as admin",
@@ -413,6 +419,7 @@ class TestUISpecSchemas:
 
     def test_precondition_step_update_partial(self):
         from app.schemas.test_case import PreconditionStepUpdate
+
         update = PreconditionStepUpdate(
             action="updated action",
         )
@@ -421,6 +428,7 @@ class TestUISpecSchemas:
 
     def test_precondition_step_batch_save_normal(self):
         from app.schemas.test_case import PreconditionStepBatchSave, PreconditionStepCreate
+
         batch = PreconditionStepBatchSave(
             steps=[
                 PreconditionStepCreate(step_number=1, action="step 1"),

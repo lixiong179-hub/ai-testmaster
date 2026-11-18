@@ -4,6 +4,7 @@
 
 使用本地 HTTP 服务器替代 mock，遵循项目"真实环境测试、禁止 Mock"规则。
 """
+
 import os
 import json
 import threading
@@ -26,12 +27,12 @@ from app.utils.unified_vision_model import (
 
 def create_test_image() -> bytes:
     """创建测试图片"""
-    img = Image.new('RGB', (400, 300), color='lightblue')
+    img = Image.new("RGB", (400, 300), color="lightblue")
     draw = ImageDraw.Draw(img)
-    draw.rectangle([50, 50, 150, 150], fill='red')
-    draw.text((100, 200), "Test", fill='black')
+    draw.rectangle([50, 50, 150, 150], fill="red")
+    draw.text((100, 200), "Test", fill="black")
     img_byte_arr = BytesIO()
-    img.save(img_byte_arr, format='PNG')
+    img.save(img_byte_arr, format="PNG")
     img_byte_arr.seek(0)
     return img_byte_arr.getvalue()
 
@@ -47,7 +48,7 @@ class _KimiAPIHandler(BaseHTTPRequestHandler):
     response_body: dict = {}
 
     def do_POST(self):
-        content_length = int(self.headers.get('Content-Length', 0))
+        content_length = int(self.headers.get("Content-Length", 0))
         self.rfile.read(content_length)
 
         body = json.dumps(self.response_body).encode()
@@ -127,6 +128,7 @@ class TestUnifiedVisionModelInit:
     def test_model_init_no_api_key(self, monkeypatch):
         monkeypatch.delenv("KIMI_API_KEY", raising=False)
         from app.core.config import settings
+
         original = getattr(settings, "KIMI_API_KEY", "")
         settings.KIMI_API_KEY = ""
         try:
@@ -186,9 +188,7 @@ class TestPrivateMethods:
         assert payload["messages"][0]["role"] == "system"
 
     def test_parse_response_kimi(self, kimi_model):
-        response = {
-            "choices": [{"message": {"content": "测试响应内容"}}]
-        }
+        response = {"choices": [{"message": {"content": "测试响应内容"}}]}
         result = kimi_model._parse_response(response)
         assert result == "测试响应内容"
 
@@ -382,15 +382,7 @@ class TestElementRecognition:
 
 class TestDescribeScreenshot:
     def test_describe_screenshot_success(self, test_image):
-        response_body = {
-            "choices": [
-                {
-                    "message": {
-                        "content": "这是一个测试页面，包含一个红色方块和文字'Test'。"
-                    }
-                }
-            ]
-        }
+        response_body = {"choices": [{"message": {"content": "这是一个测试页面，包含一个红色方块和文字'Test'。"}}]}
         server = _LocalServer(_KimiAPIHandler, response_body)
         server.start()
         try:
@@ -417,15 +409,7 @@ class TestDescribeScreenshot:
 class TestVerifyActionResult:
     def test_verify_action_success(self, test_image):
         response_body = {
-            "choices": [
-                {
-                    "message": {
-                        "content": json.dumps(
-                            {"success": True, "reason": "成功跳转到首页"}
-                        )
-                    }
-                }
-            ]
+            "choices": [{"message": {"content": json.dumps({"success": True, "reason": "成功跳转到首页"})}}]
         }
         server = _LocalServer(_KimiAPIHandler, response_body)
         server.start()
@@ -437,9 +421,7 @@ class TestVerifyActionResult:
                 max_retries=1,
                 timeout=5,
             )
-            success, reason = model.verify_action_result(
-                test_image, test_image, "点击登录按钮", "跳转到首页"
-            )
+            success, reason = model.verify_action_result(test_image, test_image, "点击登录按钮", "跳转到首页")
             assert success is True
             assert "成功" in reason
         finally:
@@ -447,15 +429,7 @@ class TestVerifyActionResult:
 
     def test_verify_action_failure(self, test_image):
         response_body = {
-            "choices": [
-                {
-                    "message": {
-                        "content": json.dumps(
-                            {"success": False, "reason": "页面未发生变化"}
-                        )
-                    }
-                }
-            ]
+            "choices": [{"message": {"content": json.dumps({"success": False, "reason": "页面未发生变化"})}}]
         }
         server = _LocalServer(_KimiAPIHandler, response_body)
         server.start()
@@ -467,9 +441,7 @@ class TestVerifyActionResult:
                 max_retries=1,
                 timeout=5,
             )
-            success, reason = model.verify_action_result(
-                test_image, test_image, "点击按钮", "预期变化"
-            )
+            success, reason = model.verify_action_result(test_image, test_image, "点击按钮", "预期变化")
             assert success is False
             assert "未发生变化" in reason
         finally:
@@ -478,9 +450,7 @@ class TestVerifyActionResult:
     def test_verify_action_no_api_key(self, test_image):
         model = UnifiedVisionModel(model_type=VisionModelType.KIMI)
         model.api_key = ""
-        success, reason = model.verify_action_result(
-            test_image, test_image, "点击", "预期"
-        )
+        success, reason = model.verify_action_result(test_image, test_image, "点击", "预期")
         assert success is False
         assert "未配置" in reason
 
@@ -547,7 +517,7 @@ class TestErrorHandling:
     def test_http_401_error(self, test_image):
         class _ErrorHandler(BaseHTTPRequestHandler):
             def do_POST(self):
-                content_length = int(self.headers.get('Content-Length', 0))
+                content_length = int(self.headers.get("Content-Length", 0))
                 self.rfile.read(content_length)
                 self.send_response(401)
                 self.send_header("Content-Type", "application/json")
@@ -579,7 +549,7 @@ class TestErrorHandling:
         class _RetryHandler(BaseHTTPRequestHandler):
             def do_POST(self):
                 nonlocal call_count
-                content_length = int(self.headers.get('Content-Length', 0))
+                content_length = int(self.headers.get("Content-Length", 0))
                 self.rfile.read(content_length)
                 call_count += 1
 
@@ -589,9 +559,7 @@ class TestErrorHandling:
                     self.end_headers()
                     self.wfile.write(b'{"error": "server error"}')
                 else:
-                    body = json.dumps(
-                        {"choices": [{"message": {"content": "成功"}}]}
-                    ).encode()
+                    body = json.dumps({"choices": [{"message": {"content": "成功"}}]}).encode()
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.send_header("Content-Length", str(len(body)))

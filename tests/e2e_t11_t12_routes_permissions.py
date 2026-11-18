@@ -5,6 +5,7 @@ T11: 路由兼容与边缘场景 + T12: 权限动态菜单 Playwright 复测脚�
 核心策略：用 page.route 拦截所有后端 API 请求返回模拟数据，
 防止 401 响应触发 Axios 拦截器清除 token。
 """
+
 import base64
 import json
 import time
@@ -14,6 +15,7 @@ BASE_URL = "http://localhost:3001"
 
 
 # ── API Mock ─────────────────────────────────────────────────────────────────
+
 
 def mock_api_route(route: Route) -> None:
     """拦截后端 API 请求返回模拟数据，防止 401 清除 token。
@@ -41,7 +43,9 @@ def mock_api_route(route: Route) -> None:
         route.fulfill(
             status=200,
             content_type="application/json",
-            body=json.dumps({"code": 0, "msg": "success", "message": "success", "data": {"captcha_id": "mock", "image": ""}}),
+            body=json.dumps(
+                {"code": 0, "msg": "success", "message": "success", "data": {"captcha_id": "mock", "image": ""}}
+            ),
         )
         return
 
@@ -50,7 +54,14 @@ def mock_api_route(route: Route) -> None:
         route.fulfill(
             status=200,
             content_type="application/json",
-            body=json.dumps({"code": 0, "msg": "success", "message": "success", "data": {"id": 1, "username": "admin", "permissions": ["*"]}}),
+            body=json.dumps(
+                {
+                    "code": 0,
+                    "msg": "success",
+                    "message": "success",
+                    "data": {"id": 1, "username": "admin", "permissions": ["*"]},
+                }
+            ),
         )
         return
 
@@ -82,9 +93,11 @@ def mock_api_route(route: Route) -> None:
 
 # ── JWT / 权限工具 ────────────────────────────────────────────────────────────
 
+
 def make_fake_jwt(exp_offset: int = 3600) -> str:
     """构造伪造 JWT，使用标准 base64 编码"""
     import time as _t
+
     header = base64.b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).decode()
     payload = base64.b64encode(json.dumps({"sub": 1, "exp": int(_t.time()) + exp_offset}).encode()).decode()
     sig = base64.b64encode(b"fakesignature").decode()
@@ -142,6 +155,7 @@ def logout(page: Page) -> None:
 
 # ── DOM 查询工具 ──────────────────────────────────────────────────────────────
 
+
 def get_menu_items(page: Page) -> list[dict]:
     """获取侧边栏菜单项（含子菜单），先展开所有子菜单"""
     page.evaluate("""() => {
@@ -191,6 +205,7 @@ def get_breadcrumb_texts(page: Page) -> list[str]:
 
 results: list[dict] = []
 
+
 def record(id: str, operation: str, expected: str, actual: str, status: str) -> None:
     results.append({"id": id, "operation": operation, "expected": expected, "actual": actual, "status": status})
     print(f"  {status} {id}: {operation}")
@@ -200,6 +215,7 @@ def record(id: str, operation: str, expected: str, actual: str, status: str) -> 
 
 
 # ── T11: 路由兼容与边缘场景 ──────────────────────────────────────────────────
+
 
 def test_t11(page: Page) -> None:
     print("\n" + "=" * 70)
@@ -213,16 +229,20 @@ def test_t11(page: Page) -> None:
     time.sleep(0.5)
     final_url = page.url
     redirected = "/home/project" in final_url or "/home/dashboard" in final_url
-    record("T11-1", "导航到 /home", "重定向到 /home/project 或 /home/dashboard",
-           f"最终URL: {final_url}", "✅" if redirected else "❌")
+    record(
+        "T11-1",
+        "导航到 /home",
+        "重定向到 /home/project 或 /home/dashboard",
+        f"最终URL: {final_url}",
+        "✅" if redirected else "❌",
+    )
 
     # T11-2: / 重定向到 /login
     logout(page)
     page.goto(BASE_URL + "/", wait_until="networkidle", timeout=15000)
     time.sleep(0.5)
     final_url = page.url
-    record("T11-2", "导航到 /", "重定向到 /login",
-           f"最终URL: {final_url}", "✅" if "/login" in final_url else "❌")
+    record("T11-2", "导航到 /", "重定向到 /login", f"最终URL: {final_url}", "✅" if "/login" in final_url else "❌")
 
     # 恢复认证
     login_as(page, ["*"])
@@ -240,9 +260,13 @@ def test_t11(page: Page) -> None:
         return mc ? mc.innerHTML.trim() : '';
     }""")
     empty_view = len(main_content) < 50
-    record("T11-3", "导航到 /home/nonexistent-page", "显示404页面或重定向到有效页面",
-           f"URL: {final_url}, 404: {has_404}, 空视图: {empty_view}",
-           "✅" if (has_404 or redirected_home or (stays_on_url and empty_view)) else "⚠️")
+    record(
+        "T11-3",
+        "导航到 /home/nonexistent-page",
+        "显示404页面或重定向到有效页面",
+        f"URL: {final_url}, 404: {has_404}, 空视图: {empty_view}",
+        "✅" if (has_404 or redirected_home or (stays_on_url and empty_view)) else "⚠️",
+    )
 
     # T11-4: /home/case/detail/99999
     page.goto(BASE_URL + "/home/case/detail/99999", wait_until="networkidle", timeout=15000)
@@ -254,11 +278,17 @@ def test_t11(page: Page) -> None:
         time.sleep(1.5)
         final_url = page.url
     page_text = page.inner_text("body")
-    has_empty = any(kw in page_text for kw in ["空", "不存在", "未找到", "404", "暂无", "无数据", "Error", "加载", "返回"])
+    has_empty = any(
+        kw in page_text for kw in ["空", "不存在", "未找到", "404", "暂无", "无数据", "Error", "加载", "返回"]
+    )
     stays = "/home/case/detail/99999" in final_url
-    record("T11-4", "导航到 /home/case/detail/99999", "页面显示空状态或错误提示",
-           f"URL: {final_url}, 停留: {stays}, 有提示: {has_empty}",
-           "✅" if (has_empty or stays) else "⚠️")
+    record(
+        "T11-4",
+        "导航到 /home/case/detail/99999",
+        "页面显示空状态或错误提示",
+        f"URL: {final_url}, 停留: {stays}, 有提示: {has_empty}",
+        "✅" if (has_empty or stays) else "⚠️",
+    )
 
     # T11-5: /home/project/detail?id=99999
     page.goto(BASE_URL + "/home/project/detail?id=99999", wait_until="networkidle", timeout=15000)
@@ -270,18 +300,27 @@ def test_t11(page: Page) -> None:
         time.sleep(1.5)
         final_url = page.url
     page_text = page.inner_text("body")
-    has_empty = any(kw in page_text for kw in ["空", "不存在", "未找到", "404", "暂无", "无数据", "Error", "错误", "返回"])
+    has_empty = any(
+        kw in page_text for kw in ["空", "不存在", "未找到", "404", "暂无", "无数据", "Error", "错误", "返回"]
+    )
     stays = "/home/project/detail" in final_url
-    record("T11-5", "导航到 /home/project/detail?id=99999", "页面显示空状态或错误提示",
-           f"URL: {final_url}, 停留: {stays}, 有提示: {has_empty}",
-           "✅" if (has_empty or stays) else "⚠️")
+    record(
+        "T11-5",
+        "导航到 /home/project/detail?id=99999",
+        "页面显示空状态或错误提示",
+        f"URL: {final_url}, 停留: {stays}, 有提示: {has_empty}",
+        "✅" if (has_empty or stays) else "⚠️",
+    )
 
     # T11-6: 面包屑
     print("\n  --- T11-6: 面包屑检查 ---")
     bc_cases = [
-        ("/home/project", "项目中心"), ("/home/case", "用例列表"),
-        ("/home/task", "执行中心"), ("/home/report", "报告中心"),
-        ("/home/system/user", "用户管理"), ("/home/system/role", "角色管理"),
+        ("/home/project", "项目中心"),
+        ("/home/case", "用例列表"),
+        ("/home/task", "执行中心"),
+        ("/home/report", "报告中心"),
+        ("/home/system/user", "用户管理"),
+        ("/home/system/role", "角色管理"),
     ]
     bc_ok = 0
     bc_details = []
@@ -303,17 +342,26 @@ def test_t11(page: Page) -> None:
     if bc_ok == total:
         record("T11-6", f"检查 {total} 个页面的面包屑", "所有页面面包屑正确显示", f"{bc_ok}/{total} 正确", "✅")
     else:
-        record("T11-6", f"检查 {total} 个页面的面包屑", "所有页面面包屑正确显示",
-               f"{bc_ok}/{total} 正确, 详情: {'; '.join(bc_details)}", "❌")
+        record(
+            "T11-6",
+            f"检查 {total} 个页面的面包屑",
+            "所有页面面包屑正确显示",
+            f"{bc_ok}/{total} 正确, 详情: {'; '.join(bc_details)}",
+            "❌",
+        )
 
     # T11-7: activeMenu 高亮
     print("\n  --- T11-7: activeMenu 高亮检查 ---")
     am_cases = [
-        ("/home/project", "项目中心"), ("/home/project/detail?id=1", "项目中心"),
-        ("/home/case", "用例列表"), ("/home/case/detail/1", "用例列表"),
+        ("/home/project", "项目中心"),
+        ("/home/project/detail?id=1", "项目中心"),
+        ("/home/case", "用例列表"),
+        ("/home/case/detail/1", "用例列表"),
         ("/home/case/test-point-management", "测试点管理"),
-        ("/home/task", "执行中心"), ("/home/task/detail/1", "执行中心"),
-        ("/home/report", "报告中心"), ("/home/report/detail?id=1", "报告中心"),
+        ("/home/task", "执行中心"),
+        ("/home/task/detail/1", "执行中心"),
+        ("/home/report", "报告中心"),
+        ("/home/report/detail?id=1", "报告中心"),
         ("/home/system/user", "用户管理"),
     ]
     am_ok = 0
@@ -331,9 +379,13 @@ def test_t11(page: Page) -> None:
             record(f"T11-7({url})", f"导航到 {url} 检查菜单高亮", f"高亮: {label}", f"实际: {active}", "⚠️")
     total_am = len(am_cases)
     if am_ok == total_am:
-        record("T11-7", f"检查 {total_am} 个页面的菜单高亮", "所有子页面正确高亮父菜单", f"{am_ok}/{total_am} 正确", "✅")
+        record(
+            "T11-7", f"检查 {total_am} 个页面的菜单高亮", "所有子页面正确高亮父菜单", f"{am_ok}/{total_am} 正确", "✅"
+        )
     else:
-        record("T11-7", f"检查 {total_am} 个页面的菜单高亮", "所有子页面正确高亮父菜单", f"{am_ok}/{total_am} 正确", "⚠️")
+        record(
+            "T11-7", f"检查 {total_am} 个页面的菜单高亮", "所有子页面正确高亮父菜单", f"{am_ok}/{total_am} 正确", "⚠️"
+        )
 
     # T11-8: 浏览器后退/前进
     print("\n  --- T11-8: 浏览器后退/前进 ---")
@@ -363,13 +415,17 @@ def test_t11(page: Page) -> None:
     url_f = page.url
     f_ok = "/home/case" in url_f
 
-    record("T11-8", "浏览器后退/前进按钮",
-           "后退到 /home/case -> 后退到 /home/project -> 前进到 /home/case",
-           f"后退1: {url_b1}, 后退2: {url_b2}, 前进: {url_f}",
-           "✅" if (b1_ok and b2_ok and f_ok) else "❌")
+    record(
+        "T11-8",
+        "浏览器后退/前进按钮",
+        "后退到 /home/case -> 后退到 /home/project -> 前进到 /home/case",
+        f"后退1: {url_b1}, 后退2: {url_b2}, 前进: {url_f}",
+        "✅" if (b1_ok and b2_ok and f_ok) else "❌",
+    )
 
 
 # ── T12: 权限动态菜单 ────────────────────────────────────────────────────────
+
 
 def test_t12(page: Page) -> None:
     print("\n" + "=" * 70)
@@ -382,15 +438,25 @@ def test_t12(page: Page) -> None:
     top_labels = [item["label"] for item in menu_items]
     expected_top = ["项目中心", "资源中心", "测试资产", "执行中心", "报告中心", "迭代中心", "系统管理"]
     missing = [lbl for lbl in expected_top if not any(lbl in t for t in top_labels)]
-    record("T12-1", "设置超级管理员权限 (permissions: ['*'])", f"所有菜单项可见: {expected_top}",
-           f"可见菜单: {top_labels}, 缺失: {missing}", "✅" if len(missing) == 0 else "❌")
+    record(
+        "T12-1",
+        "设置超级管理员权限 (permissions: ['*'])",
+        f"所有菜单项可见: {expected_top}",
+        f"可见菜单: {top_labels}, 缺失: {missing}",
+        "✅" if len(missing) == 0 else "❌",
+    )
 
     sys_menu = next((item for item in menu_items if "系统管理" in item["label"]), None)
     sys_children = sys_menu["children"] if sys_menu else []
     expected_sys = ["用户管理", "角色管理", "审计日志", "测试能力"]
     missing_c = [c for c in expected_sys if not any(c in sc for sc in sys_children)]
-    record("T12-2", "验证系统管理子菜单全部可见", f"子菜单: {expected_sys}",
-           f"可见: {sys_children}, 缺失: {missing_c}", "✅" if len(missing_c) == 0 else "❌")
+    record(
+        "T12-2",
+        "验证系统管理子菜单全部可见",
+        f"子菜单: {expected_sys}",
+        f"可见: {sys_children}, 缺失: {missing_c}",
+        "✅" if len(missing_c) == 0 else "❌",
+    )
 
     # T12-3: 普通用户
     login_as(page, [])
@@ -398,9 +464,13 @@ def test_t12(page: Page) -> None:
     sys_menu = next((item for item in menu_items if "系统管理" in item["label"]), None)
     sys_children = sys_menu["children"] if sys_menu else []
     sys_hidden = sys_menu is None or len(sys_children) == 0
-    record("T12-3", "设置普通用户权限 (permissions: [])", "系统管理子菜单全部隐藏",
-           f"系统管理: {'不可见或无子菜单' if sys_hidden else f'可见: {sys_children}'}",
-           "✅" if sys_hidden else "❌")
+    record(
+        "T12-3",
+        "设置普通用户权限 (permissions: [])",
+        "系统管理子菜单全部隐藏",
+        f"系统管理: {'不可见或无子菜单' if sys_hidden else f'可见: {sys_children}'}",
+        "✅" if sys_hidden else "❌",
+    )
 
     # T12-4: user:list
     login_as(page, ["user:list"])
@@ -411,10 +481,13 @@ def test_t12(page: Page) -> None:
     r_hid = not any("角色管理" in c for c in sys_children)
     a_hid = not any("审计日志" in c for c in sys_children)
     c_hid = not any("测试能力" in c for c in sys_children)
-    record("T12-4", "设置部分权限 (permissions: ['user:list'])",
-           "只有用户管理可见，其他隐藏",
-           f"用户管理: {u_vis}, 角色管理隐藏: {r_hid}, 审计日志隐藏: {a_hid}, 测试能力隐藏: {c_hid}",
-           "✅" if (u_vis and r_hid and a_hid and c_hid) else "❌")
+    record(
+        "T12-4",
+        "设置部分权限 (permissions: ['user:list'])",
+        "只有用户管理可见，其他隐藏",
+        f"用户管理: {u_vis}, 角色管理隐藏: {r_hid}, 审计日志隐藏: {a_hid}, 测试能力隐藏: {c_hid}",
+        "✅" if (u_vis and r_hid and a_hid and c_hid) else "❌",
+    )
 
     # T12-5: user:list + role:list
     login_as(page, ["user:list", "role:list"])
@@ -425,10 +498,13 @@ def test_t12(page: Page) -> None:
     r_vis = any("角色管理" in c for c in sys_children)
     a_hid = not any("审计日志" in c for c in sys_children)
     c_hid = not any("测试能力" in c for c in sys_children)
-    record("T12-5", "设置部分权限 (permissions: ['user:list', 'role:list'])",
-           "用户管理和角色管理可见，审计日志和测试能力隐藏",
-           f"用户管理: {u_vis}, 角色管理: {r_vis}, 审计日志隐藏: {a_hid}, 测试能力隐藏: {c_hid}",
-           "✅" if (u_vis and r_vis and a_hid and c_hid) else "❌")
+    record(
+        "T12-5",
+        "设置部分权限 (permissions: ['user:list', 'role:list'])",
+        "用户管理和角色管理可见，审计日志和测试能力隐藏",
+        f"用户管理: {u_vis}, 角色管理: {r_vis}, 审计日志隐藏: {a_hid}, 测试能力隐藏: {c_hid}",
+        "✅" if (u_vis and r_vis and a_hid and c_hid) else "❌",
+    )
 
     # T12-6: 无权限访问 /home/system/user
     login_as(page, [])
@@ -438,10 +514,13 @@ def test_t12(page: Page) -> None:
     redirected = "/home/project" in final_url
     page_text = page.inner_text("body")
     no_content = "用户管理" not in page_text
-    record("T12-6", "无权限用户访问 /home/system/user",
-           "路由守卫拦截或页面无内容",
-           f"URL: {final_url}, 重定向: {redirected}, 无用户管理内容: {no_content}",
-           "✅" if (redirected or no_content) else "❌")
+    record(
+        "T12-6",
+        "无权限用户访问 /home/system/user",
+        "路由守卫拦截或页面无内容",
+        f"URL: {final_url}, 重定向: {redirected}, 无用户管理内容: {no_content}",
+        "✅" if (redirected or no_content) else "❌",
+    )
 
     # T12-7: 菜单过滤与路由可达性
     login_as(page, ["*"])
@@ -459,13 +538,17 @@ def test_t12(page: Page) -> None:
     guarded = "/home/project" in direct_url
     filtered = not sys_in_menu
 
-    record("T12-7", "验证菜单过滤与路由可达性",
-           "菜单不显示系统管理，直接URL访问被路由守卫拦截",
-           f"菜单过滤: {filtered}, 路由守卫: {guarded}, URL: {direct_url}",
-           "✅" if (filtered and guarded) else "⚠️")
+    record(
+        "T12-7",
+        "验证菜单过滤与路由可达性",
+        "菜单不显示系统管理，直接URL访问被路由守卫拦截",
+        f"菜单过滤: {filtered}, 路由守卫: {guarded}, URL: {direct_url}",
+        "✅" if (filtered and guarded) else "⚠️",
+    )
 
 
 # ── 主流程 ────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     with sync_playwright() as p:
@@ -480,6 +563,7 @@ def main() -> None:
         except Exception as e:
             print(f"\n  ❌ T11 执行异常: {e}")
             import traceback
+
             traceback.print_exc()
 
         try:
@@ -487,6 +571,7 @@ def main() -> None:
         except Exception as e:
             print(f"\n  ❌ T12 执行异常: {e}")
             import traceback
+
             traceback.print_exc()
 
         browser.close()

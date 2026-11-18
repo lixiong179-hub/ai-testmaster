@@ -12,13 +12,15 @@
 
 要求: 不使用Mock，覆盖率>=95%
 """
+
 import time
 
 import pytest
 from types import SimpleNamespace
 
 from app.services.test_execution_engine.models import (
-    StepExecutionError, VerificationError,
+    StepExecutionError,
+    VerificationError,
 )
 from app.services.test_execution_engine.structured_assertion_mixin import (
     StructuredAssertionMixin,
@@ -147,21 +149,15 @@ class TestParseAssertionSyntax:
         self.engine = _StubEngine()
 
     def test_text_contains_with_locator(self):
-        result = self.engine._parse_assertion_syntax(
-            "[text_contains][data-testid=page-title]项目列表"
-        )
+        result = self.engine._parse_assertion_syntax("[text_contains][data-testid=page-title]项目列表")
         assert result == ("text_contains", "data-testid=page-title", "项目列表")
 
     def test_text_equals_with_locator_in_brackets(self):
-        result = self.engine._parse_assertion_syntax(
-            "[text_equals][h1]AI TestMaster"
-        )
+        result = self.engine._parse_assertion_syntax("[text_equals][h1]AI TestMaster")
         assert result == ("text_equals", "h1", "AI TestMaster")
 
     def test_text_equals_without_locator(self):
-        result = self.engine._parse_assertion_syntax(
-            "[text_equals]AI TestMaster"
-        )
+        result = self.engine._parse_assertion_syntax("[text_equals]AI TestMaster")
         assert result == ("text_equals", None, "AI TestMaster")
 
     def test_text_contains_without_locator(self):
@@ -169,21 +165,15 @@ class TestParseAssertionSyntax:
         assert result == ("text_contains", None, "项目列表")
 
     def test_text_matches_with_locator(self):
-        result = self.engine._parse_assertion_syntax(
-            "[text_matches][data-testid=count]\\d+条记录"
-        )
+        result = self.engine._parse_assertion_syntax("[text_matches][data-testid=count]\\d+条记录")
         assert result == ("text_matches", "data-testid=count", "\\d+条记录")
 
     def test_visible_with_locator(self):
-        result = self.engine._parse_assertion_syntax(
-            "[visible][data-testid=submit-btn]提交按钮"
-        )
+        result = self.engine._parse_assertion_syntax("[visible][data-testid=submit-btn]提交按钮")
         assert result == ("visible", "data-testid=submit-btn", "提交按钮")
 
     def test_not_visible_with_locator(self):
-        result = self.engine._parse_assertion_syntax(
-            "[not_visible][data-testid=loading]加载中"
-        )
+        result = self.engine._parse_assertion_syntax("[not_visible][data-testid=loading]加载中")
         assert result == ("not_visible", "data-testid=loading", "加载中")
 
     def test_visible_without_locator(self):
@@ -195,21 +185,15 @@ class TestParseAssertionSyntax:
         assert result == ("url_contains", None, "/home/project")
 
     def test_url_equals(self):
-        result = self.engine._parse_assertion_syntax(
-            "[url_equals]http://localhost:3000/login"
-        )
+        result = self.engine._parse_assertion_syntax("[url_equals]http://localhost:3000/login")
         assert result == ("url_equals", None, "http://localhost:3000/login")
 
     def test_url_contains_with_bracket_content(self):
-        result = self.engine._parse_assertion_syntax(
-            "[url_contains][/home/project]"
-        )
+        result = self.engine._parse_assertion_syntax("[url_contains][/home/project]")
         assert result == ("url_contains", None, "/home/project")
 
     def test_url_equals_with_bracket_content(self):
-        result = self.engine._parse_assertion_syntax(
-            "[url_equals][http://localhost:3000/login]"
-        )
+        result = self.engine._parse_assertion_syntax("[url_equals][http://localhost:3000/login]")
         assert result == ("url_equals", None, "http://localhost:3000/login")
 
     def test_invalid_syntax_returns_none(self):
@@ -225,9 +209,7 @@ class TestParseAssertionSyntax:
         assert result == ("text_equals", "h1", "")
 
     def test_locator_with_complex_css_selector(self):
-        result = self.engine._parse_assertion_syntax(
-            "[text_contains][data-testid=my-btn]按钮文字"
-        )
+        result = self.engine._parse_assertion_syntax("[text_contains][data-testid=my-btn]按钮文字")
         assert result == ("text_contains", "data-testid=my-btn", "按钮文字")
 
     def test_text_equals_h1_without_brackets(self):
@@ -238,8 +220,13 @@ class TestParseAssertionSyntax:
 class TestAssertionPatternRegex:
     def test_all_assertion_types_recognized(self):
         types = [
-            "text_contains", "text_equals", "text_matches",
-            "visible", "not_visible", "url_contains", "url_equals",
+            "text_contains",
+            "text_equals",
+            "text_matches",
+            "visible",
+            "not_visible",
+            "url_contains",
+            "url_equals",
         ]
         for t in types:
             match = _ASSERTION_PATTERN.match(f"[{t}]value")
@@ -515,9 +502,7 @@ class TestNotVisibleAssertion:
     @pytest.mark.asyncio
     async def test_wait_for_selector_exception_treated_as_not_visible(self):
         page = _StubPage()
-        page.set_wait_for_selector_result(
-            None, exception=TimeoutError("timeout")
-        )
+        page.set_wait_for_selector_result(None, exception=TimeoutError("timeout"))
         browser = _StubBrowser(page=page)
         engine = _StubEngine(browser=browser)
         action_info = {"text": "[not_visible][data-testid=loading]加载中"}
@@ -801,17 +786,13 @@ class TestExecuteStructuredAssertionDirect:
         page.set_element("h1", "Hello World")
         browser = _StubBrowser(page=page)
         engine = _StubEngine(browser=browser)
-        await engine._execute_structured_assertion(
-            "[text_contains][h1]Hello", {"text": "[text_contains][h1]Hello"}
-        )
+        await engine._execute_structured_assertion("[text_contains][h1]Hello", {"text": "[text_contains][h1]Hello"})
 
     @pytest.mark.asyncio
     async def test_direct_call_with_url_contains(self):
         browser = _make_browser_with_page("http://localhost:3000/home")
         engine = _StubEngine(browser=browser)
-        await engine._execute_structured_assertion(
-            "[url_contains]/home", {"text": "[url_contains]/home"}
-        )
+        await engine._execute_structured_assertion("[url_contains]/home", {"text": "[url_contains]/home"})
 
     @pytest.mark.asyncio
     async def test_direct_call_with_invalid_syntax(self):
@@ -819,9 +800,7 @@ class TestExecuteStructuredAssertionDirect:
         browser = _StubBrowser(page=page)
         engine = _StubEngine(browser=browser)
         with pytest.raises(VerificationError, match="无法解析结构化断言语法"):
-            await engine._execute_structured_assertion(
-                "invalid syntax", {"text": "invalid syntax"}
-            )
+            await engine._execute_structured_assertion("invalid syntax", {"text": "invalid syntax"})
 
 
 # ============================================================
@@ -843,9 +822,14 @@ class TestExtendedAssertionPrefixes:
 
     def test_extended_pattern_matches_all_new_types(self):
         types = [
-            "loading_visible", "loading_hidden", "response_time_lt",
-            "no_console_errors", "no_network_errors", "text_not_empty",
-            "no_sensitive_data", "no_xss",
+            "loading_visible",
+            "loading_hidden",
+            "response_time_lt",
+            "no_console_errors",
+            "no_network_errors",
+            "text_not_empty",
+            "no_sensitive_data",
+            "no_xss",
         ]
         for t in types:
             match = _EXTENDED_ASSERTION_PATTERN.match(f"[{t}]value")
@@ -864,17 +848,13 @@ class TestParseExtendedAssertionSyntax:
         self.engine = _StubEngine()
 
     def test_loading_visible_with_locator(self):
-        result = self.engine._parse_extended_assertion_syntax(
-            "[loading_visible][data-testid=loading]加载中"
-        )
+        result = self.engine._parse_extended_assertion_syntax("[loading_visible][data-testid=loading]加载中")
         assert result is not None
         assert result[0] == "loading_visible"
         assert result[1]["locator"] == "data-testid=loading"
 
     def test_loading_hidden_with_locator(self):
-        result = self.engine._parse_extended_assertion_syntax(
-            "[loading_hidden][data-testid=spinner]加载动画"
-        )
+        result = self.engine._parse_extended_assertion_syntax("[loading_hidden][data-testid=spinner]加载动画")
         assert result is not None
         assert result[0] == "loading_hidden"
         assert result[1]["locator"] == "data-testid=spinner"
@@ -900,9 +880,7 @@ class TestParseExtendedAssertionSyntax:
         assert result[1].get("exclude_patterns") is None
 
     def test_no_console_errors_with_exclude(self):
-        result = self.engine._parse_extended_assertion_syntax(
-            "[no_console_errors]exclude:ResizeObserver,WebSocket"
-        )
+        result = self.engine._parse_extended_assertion_syntax("[no_console_errors]exclude:ResizeObserver,WebSocket")
         assert result is not None
         assert result[0] == "no_console_errors"
         assert result[1]["exclude_patterns"] == ["ResizeObserver", "WebSocket"]
@@ -913,9 +891,7 @@ class TestParseExtendedAssertionSyntax:
         assert result[0] == "no_network_errors"
 
     def test_text_not_empty_with_locator(self):
-        result = self.engine._parse_extended_assertion_syntax(
-            "[text_not_empty][data-testid=title]标题"
-        )
+        result = self.engine._parse_extended_assertion_syntax("[text_not_empty][data-testid=title]标题")
         assert result is not None
         assert result[0] == "text_not_empty"
         assert result[1]["locator"] == "data-testid=title"

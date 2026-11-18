@@ -2,6 +2,7 @@
 
 覆盖 archive_iterations / cleanup_audit_logs / backup_tables / migrate_artifacts
 核心逻辑，验证归档、清理、备份、迁移的正确性。"""
+
 import json
 import os
 import stat
@@ -85,10 +86,14 @@ class TestArchiveOldIterations:
     def test_audit_log_created_on_archive(self, db):
         archive_iterations(db, retention_days=180, dry_run=False)
 
-        log = db.query(AuditLog).filter(
-            AuditLog.target_kind == "iteration",
-            AuditLog.action == "lifecycle_transition",
-        ).first()
+        log = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.target_kind == "iteration",
+                AuditLog.action == "lifecycle_transition",
+            )
+            .first()
+        )
         assert log is not None
         detail = log.detail if isinstance(log.detail, dict) else json.loads(log.detail)
         assert detail["from"] == "finalized"
@@ -594,10 +599,14 @@ class TestMigrateArtifacts:
     def test_migrate_audit_log_created(self, db):
         migrate_artifacts(db, "1.0", "2.0", dry_run=False)
 
-        log = db.query(AuditLog).filter(
-            AuditLog.action == "config_change",
-            AuditLog.target_kind == "artifact_schema",
-        ).first()
+        log = (
+            db.query(AuditLog)
+            .filter(
+                AuditLog.action == "config_change",
+                AuditLog.target_kind == "artifact_schema",
+            )
+            .first()
+        )
         assert log is not None
         detail = log.detail if isinstance(log.detail, dict) else json.loads(log.detail)
         assert detail["from_version"] == "1.0"

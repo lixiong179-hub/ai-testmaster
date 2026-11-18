@@ -1,4 +1,5 @@
 """文件CRUD操作单元测试"""
+
 import pytest
 from app.crud.file import (
     create_project_file,
@@ -36,9 +37,7 @@ def test_project(db, testUser):
 
 class TestCreateProjectFile:
     def test_create_basic(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "test.pdf", "pdf", "/uploads/test.pdf"
-        )
+        f = create_project_file(db, test_project.id, "test.pdf", "pdf", "/uploads/test.pdf")
         assert f.id is not None
         assert f.project_id == test_project.id
         assert f.file_name == "test.pdf"
@@ -67,9 +66,7 @@ class TestCreateProjectFile:
 
 class TestUpdateFileContent:
     def test_update_success(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "a.pdf", "pdf", "/uploads/a.pdf"
-        )
+        f = create_project_file(db, test_project.id, "a.pdf", "pdf", "/uploads/a.pdf")
         result = update_file_content(db, f.id, "extracted text", "completed")
         assert result is not None
         assert result.content == "extracted text"
@@ -77,12 +74,8 @@ class TestUpdateFileContent:
         assert result.extracted_at is not None
 
     def test_update_with_error(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "b.pdf", "pdf", "/uploads/b.pdf"
-        )
-        result = update_file_content(
-            db, f.id, "", "failed", extract_error="parse error"
-        )
+        f = create_project_file(db, test_project.id, "b.pdf", "pdf", "/uploads/b.pdf")
+        result = update_file_content(db, f.id, "", "failed", extract_error="parse error")
         assert result.extract_status == "failed"
         assert result.extract_error == "parse error"
 
@@ -93,19 +86,13 @@ class TestUpdateFileContent:
 
 class TestUpdateFileResourceType:
     def test_update_success(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "c.pdf", "pdf", "/uploads/c.pdf"
-        )
-        result = update_file_resource_type(
-            db, f.id, test_project.id, "requirement"
-        )
+        f = create_project_file(db, test_project.id, "c.pdf", "pdf", "/uploads/c.pdf")
+        result = update_file_resource_type(db, f.id, test_project.id, "requirement")
         assert result is not None
         assert result.resource_type == "requirement"
 
     def test_update_wrong_project(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "d.pdf", "pdf", "/uploads/d.pdf"
-        )
+        f = create_project_file(db, test_project.id, "d.pdf", "pdf", "/uploads/d.pdf")
         result = update_file_resource_type(db, f.id, 99999, "requirement")
         assert result is None
 
@@ -131,16 +118,12 @@ class TestGetProjectFiles:
         assert files[0].is_active is True
 
     def test_get_iteration_null(self, db, test_project):
-        create_project_file(
-            db, test_project.id, "n1.pdf", "pdf", "/n1", iteration_id=None
-        )
+        create_project_file(db, test_project.id, "n1.pdf", "pdf", "/n1", iteration_id=None)
         files = get_project_files(db, test_project.id, iteration_id=0)
         assert all(f.iteration_id is None for f in files)
 
     def test_no_iteration_filter(self, db, test_project):
-        create_project_file(
-            db, test_project.id, "x1.pdf", "pdf", "/x1", iteration_id=None
-        )
+        create_project_file(db, test_project.id, "x1.pdf", "pdf", "/x1", iteration_id=None)
         files = get_project_files(db, test_project.id)
         assert len(files) >= 1
 
@@ -184,17 +167,13 @@ class TestGetProjectFilesByType:
 
 class TestGetFileById:
     def test_found(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "g1.pdf", "pdf", "/g1"
-        )
+        f = create_project_file(db, test_project.id, "g1.pdf", "pdf", "/g1")
         result = get_file_by_id(db, f.id, test_project.id)
         assert result is not None
         assert result.id == f.id
 
     def test_wrong_project(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "g2.pdf", "pdf", "/g2"
-        )
+        f = create_project_file(db, test_project.id, "g2.pdf", "pdf", "/g2")
         result = get_file_by_id(db, f.id, 99999)
         assert result is None
 
@@ -205,18 +184,14 @@ class TestGetFileById:
 
 class TestDeleteFile:
     def test_soft_delete(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "d1.pdf", "pdf", "/d1"
-        )
+        f = create_project_file(db, test_project.id, "d1.pdf", "pdf", "/d1")
         result = delete_file(db, f.id, test_project.id)
         assert result is True
         db.refresh(f)
         assert f.is_active is False
 
     def test_hard_delete(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "d2.pdf", "pdf", "/d2"
-        )
+        f = create_project_file(db, test_project.id, "d2.pdf", "pdf", "/d2")
         result = delete_file(db, f.id, test_project.id, permanent=True)
         assert result is True
         assert get_file_by_id(db, f.id, test_project.id) is None
@@ -228,9 +203,7 @@ class TestDeleteFile:
 
 class TestPermanentDeleteFile:
     def test_permanent_delete(self, db, test_project):
-        f = create_project_file(
-            db, test_project.id, "p1.pdf", "pdf", "/p1"
-        )
+        f = create_project_file(db, test_project.id, "p1.pdf", "pdf", "/p1")
         result = permanent_delete_file(db, f.id, test_project.id)
         assert result is True
         assert get_file_by_id(db, f.id, test_project.id) is None
@@ -238,8 +211,6 @@ class TestPermanentDeleteFile:
 
 class TestGetProjectFilesByIteration:
     def test_filter_no_match(self, db, test_project):
-        create_project_file(
-            db, test_project.id, "it1.pdf", "pdf", "/it1", iteration_id=None
-        )
+        create_project_file(db, test_project.id, "it1.pdf", "pdf", "/it1", iteration_id=None)
         files = get_project_files_by_iteration(db, test_project.id, 99999)
         assert len(files) == 0

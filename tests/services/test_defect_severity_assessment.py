@@ -11,6 +11,7 @@
     - 非自测项目不创建 Bug
     - ux_category 非法值校验
 """
+
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, patch, MagicMock
@@ -144,22 +145,16 @@ class TestAssessDefectSeverityP0:
         assert ux_cat == "security"
 
     def test_crash_500_is_p0(self) -> None:
-        severity, ux_cat = _assess_defect_severity(
-            "unknown", error_message="页面白屏，500错误"
-        )
+        severity, ux_cat = _assess_defect_severity("unknown", error_message="页面白屏，500错误")
         assert severity == 1
         assert ux_cat is None
 
     def test_blank_page_is_p0(self) -> None:
-        severity, ux_cat = _assess_defect_severity(
-            "unknown", error_message="blank page detected"
-        )
+        severity, ux_cat = _assess_defect_severity("unknown", error_message="blank page detected")
         assert severity == 1
 
     def test_internal_server_error_is_p0(self) -> None:
-        severity, ux_cat = _assess_defect_severity(
-            "unknown", error_message="internal server error"
-        )
+        severity, ux_cat = _assess_defect_severity("unknown", error_message="internal server error")
         assert severity == 1
 
 
@@ -176,9 +171,7 @@ class TestAssessDefectSeverityP1:
         assert severity == 2
 
     def test_no_such_element_in_error_message_is_p1(self) -> None:
-        severity, ux_cat = _assess_defect_severity(
-            "unknown", error_message="no such element found"
-        )
+        severity, ux_cat = _assess_defect_severity("unknown", error_message="no such element found")
         assert severity == 2
 
     def test_no_network_errors_is_p1(self) -> None:
@@ -187,34 +180,22 @@ class TestAssessDefectSeverityP1:
         assert ux_cat == "response_performance"
 
     def test_5xx_network_failure_is_p1(self) -> None:
-        evidence = {
-            "network_failures": [{"url": "/api/data", "status": 500, "method": "GET"}]
-        }
-        severity, ux_cat = _assess_defect_severity(
-            "unknown", defect_evidence=evidence
-        )
+        evidence = {"network_failures": [{"url": "/api/data", "status": 500, "method": "GET"}]}
+        severity, ux_cat = _assess_defect_severity("unknown", defect_evidence=evidence)
         assert severity == 2
         assert ux_cat == "response_performance"
 
     def test_503_network_failure_is_p1(self) -> None:
-        evidence = {
-            "network_failures": [{"url": "/api/data", "status": 503, "method": "GET"}]
-        }
-        severity, ux_cat = _assess_defect_severity(
-            "unknown", defect_evidence=evidence
-        )
+        evidence = {"network_failures": [{"url": "/api/data", "status": 503, "method": "GET"}]}
+        severity, ux_cat = _assess_defect_severity("unknown", defect_evidence=evidence)
         assert severity == 2
 
     def test_data_inconsistency_is_p1(self) -> None:
-        severity, ux_cat = _assess_defect_severity(
-            "unknown", error_message="数据不一致，显示错误"
-        )
+        severity, ux_cat = _assess_defect_severity("unknown", error_message="数据不一致，显示错误")
         assert severity == 2
 
     def test_permission_bypass_is_p1(self) -> None:
-        severity, ux_cat = _assess_defect_severity(
-            "unknown", error_message="权限绕过漏洞"
-        )
+        severity, ux_cat = _assess_defect_severity("unknown", error_message="权限绕过漏洞")
         assert severity == 2
 
     def test_memory_leak_suspect_is_p1(self) -> None:
@@ -224,9 +205,7 @@ class TestAssessDefectSeverityP1:
 
     def test_memory_leak_in_evidence_is_p1(self) -> None:
         evidence = {"memory_leak_suspect": {"heap_growth_mb": 150}}
-        severity, ux_cat = _assess_defect_severity(
-            "unknown", defect_evidence=evidence
-        )
+        severity, ux_cat = _assess_defect_severity("unknown", defect_evidence=evidence)
         assert severity == 2
         assert ux_cat == "response_performance"
 
@@ -345,8 +324,12 @@ class TestUxCategoryMapping:
     def test_valid_ux_categories_constant(self) -> None:
         """验证 VALID_UX_CATEGORIES 包含所有合法值"""
         expected = {
-            "loading_experience", "error_feedback", "response_performance",
-            "visual_consistency", "empty_state", "security",
+            "loading_experience",
+            "error_feedback",
+            "response_performance",
+            "visual_consistency",
+            "empty_state",
+            "security",
         }
         assert VALID_UX_CATEGORIES == expected
 
@@ -359,9 +342,7 @@ class TestUxCategoryMapping:
 class TestAutoCreateDefectBug:
     """Bug 自动创建测试"""
 
-    async def test_auto_create_bug_for_self_test_project(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_auto_create_bug_for_self_test_project(self, async_db, selfTestProject: Project) -> None:
         bug = await _auto_create_defect_bug(
             db=async_db,
             project=selfTestProject,
@@ -378,9 +359,7 @@ class TestAutoCreateDefectBug:
         assert bug.project_id == selfTestProject.id
         assert bug.reporter_id == selfTestProject.user_id
 
-    async def test_auto_create_bug_with_evidence(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_auto_create_bug_with_evidence(self, async_db, selfTestProject: Project) -> None:
         evidence = {
             "console_errors": [{"type": "error", "message": "Uncaught TypeError"}],
             "network_failures": [],
@@ -398,8 +377,11 @@ class TestAutoCreateDefectBug:
         assert "缺陷证据" in bug.description
 
     async def test_auto_create_bug_with_test_result(
-        self, async_db, selfTestProject: Project,
-        defectTestCase: TestCase, defectTestResult: TestResult,
+        self,
+        async_db,
+        selfTestProject: Project,
+        defectTestCase: TestCase,
+        defectTestResult: TestResult,
     ) -> None:
         bug = await _auto_create_defect_bug(
             db=async_db,
@@ -416,9 +398,7 @@ class TestAutoCreateDefectBug:
         assert bug.severity == 3
         assert bug.ux_category == "loading_experience"
 
-    async def test_no_bug_for_normal_project(
-        self, async_db, normalProject: Project
-    ) -> None:
+    async def test_no_bug_for_normal_project(self, async_db, normalProject: Project) -> None:
         bug = await _auto_create_defect_bug(
             db=async_db,
             project=normalProject,
@@ -427,55 +407,60 @@ class TestAutoCreateDefectBug:
         )
         assert bug is None
 
-    async def test_bug_priority_mapping(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_bug_priority_mapping(self, async_db, selfTestProject: Project) -> None:
         """验证 severity 到 priority 的映射"""
         # P0 → priority 1
         bug_p0 = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
-            failure_type="no_xss", error_message="XSS漏洞",
+            db=async_db,
+            project=selfTestProject,
+            failure_type="no_xss",
+            error_message="XSS漏洞",
         )
         assert bug_p0.priority == 1
 
         # P1 → priority 1
         bug_p1 = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
-            failure_type="element_not_found", error_message="元素未找到",
+            db=async_db,
+            project=selfTestProject,
+            failure_type="element_not_found",
+            error_message="元素未找到",
         )
         assert bug_p1.priority == 1
 
         # P2 → priority 2
         bug_p2 = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
-            failure_type="loading_hidden", error_message="加载超时",
+            db=async_db,
+            project=selfTestProject,
+            failure_type="loading_hidden",
+            error_message="加载超时",
         )
         assert bug_p2.priority == 2
 
         # P3 → priority 3
         bug_p3 = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
-            failure_type="no_console_errors", error_message="控制台错误",
+            db=async_db,
+            project=selfTestProject,
+            failure_type="no_console_errors",
+            error_message="控制台错误",
         )
         assert bug_p3.priority == 3
 
-    async def test_bug_title_contains_severity_prefix(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_bug_title_contains_severity_prefix(self, async_db, selfTestProject: Project) -> None:
         bug = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
+            db=async_db,
+            project=selfTestProject,
             failure_type="no_sensitive_data",
             error_message="敏感数据暴露",
             step_description="安全检查",
         )
         assert "[P1]" in bug.title
 
-    async def test_bug_description_contains_ux_category(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_bug_description_contains_ux_category(self, async_db, selfTestProject: Project) -> None:
         bug = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
-            failure_type="no_xss", error_message="XSS漏洞",
+            db=async_db,
+            project=selfTestProject,
+            failure_type="no_xss",
+            error_message="XSS漏洞",
         )
         assert "UX分类: security" in bug.description
 
@@ -483,8 +468,10 @@ class TestAutoCreateDefectBug:
         self, async_db, selfTestProject: Project
     ) -> None:
         bug = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
-            failure_type="element_not_found", error_message="元素未找到",
+            db=async_db,
+            project=selfTestProject,
+            failure_type="element_not_found",
+            error_message="元素未找到",
         )
         assert "UX分类: 功能Bug" in bug.description
 
@@ -505,12 +492,11 @@ class TestGenerateBugNo:
         assert len(parts[-1]) == 4
         assert parts[-1].isdigit()
 
-    async def test_bug_no_increments(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_bug_no_increments(self, async_db, selfTestProject: Project) -> None:
         bug_no1 = await _generate_bug_no(async_db, selfTestProject.id)
         # 在两次调用之间插入一条 Bug 记录，使 count 递增
         from app.models.bug import Bug as BugModel
+
         temp_bug = BugModel(
             bug_no=bug_no1,
             project_id=selfTestProject.id,
@@ -536,11 +522,10 @@ class TestGenerateBugNo:
 class TestNotifyCriticalDefectBug:
     """P0/P1 缺陷立即通知测试"""
 
-    async def test_p0_bug_triggers_notification(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_p0_bug_triggers_notification(self, async_db, selfTestProject: Project) -> None:
         bug = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
+            db=async_db,
+            project=selfTestProject,
             failure_type="no_sensitive_data",
             error_message="敏感数据暴露",
         )
@@ -560,11 +545,10 @@ class TestNotifyCriticalDefectBug:
             assert message["severity"] == 1
             assert message["ux_category"] == "security"
 
-    async def test_p1_bug_triggers_notification(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_p1_bug_triggers_notification(self, async_db, selfTestProject: Project) -> None:
         bug = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
+            db=async_db,
+            project=selfTestProject,
             failure_type="element_not_found",
             error_message="元素未找到",
         )
@@ -575,13 +559,13 @@ class TestNotifyCriticalDefectBug:
             await _notify_critical_defect_bug(bug, selfTestProject)
             mock_ws.broadcast.assert_called_once()
 
-    async def test_notification_failure_does_not_raise(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_notification_failure_does_not_raise(self, async_db, selfTestProject: Project) -> None:
         """WebSocket 通知失败不应抛出异常"""
         bug = await _auto_create_defect_bug(
-            db=async_db, project=selfTestProject,
-            failure_type="no_xss", error_message="XSS漏洞",
+            db=async_db,
+            project=selfTestProject,
+            failure_type="no_xss",
+            error_message="XSS漏洞",
         )
         assert bug is not None
 
@@ -594,9 +578,7 @@ class TestNotifyCriticalDefectBug:
 class TestSchedulerHandleStepFailure:
     """SelfTestScheduler.handle_step_failure 集成测试"""
 
-    async def test_p0_bug_notified_immediately(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_p0_bug_notified_immediately(self, async_db, selfTestProject: Project) -> None:
         scheduler = SelfTestScheduler()
 
         with patch(
@@ -614,9 +596,7 @@ class TestSchedulerHandleStepFailure:
             assert bug.severity == 1
             mock_notify.assert_called_once()
 
-    async def test_p2_bug_not_notified(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_p2_bug_not_notified(self, async_db, selfTestProject: Project) -> None:
         scheduler = SelfTestScheduler()
 
         with patch(
@@ -635,9 +615,7 @@ class TestSchedulerHandleStepFailure:
             # P2 缺陷不应触发立即通知
             mock_notify.assert_not_called()
 
-    async def test_p3_bug_not_notified(
-        self, async_db, selfTestProject: Project
-    ) -> None:
+    async def test_p3_bug_not_notified(self, async_db, selfTestProject: Project) -> None:
         scheduler = SelfTestScheduler()
 
         with patch(
@@ -655,9 +633,7 @@ class TestSchedulerHandleStepFailure:
             assert bug.severity == 4
             mock_notify.assert_not_called()
 
-    async def test_normal_project_returns_none(
-        self, async_db, normalProject: Project
-    ) -> None:
+    async def test_normal_project_returns_none(self, async_db, normalProject: Project) -> None:
         scheduler = SelfTestScheduler()
 
         with patch(
@@ -692,6 +668,7 @@ class TestBugListUxCategoryFilter:
     ) -> None:
         """测试 ux_category 筛选功能"""
         import uuid
+
         unique_suffix = uuid.uuid4().hex[:8]
         bug1 = Bug(
             bug_no=f"BUG-FILTER-SEC-{unique_suffix}",
@@ -771,9 +748,7 @@ class TestBugListUxCategoryFilter:
 class TestBugModelUxCategory:
     """Bug 模型 ux_category 字段测试"""
 
-    async def test_ux_category_nullable(
-        self, async_db, selfTestProject: Project, bugTestUser: User
-    ) -> None:
+    async def test_ux_category_nullable(self, async_db, selfTestProject: Project, bugTestUser: User) -> None:
         bug = Bug(
             bug_no="BUG-UX-001",
             project_id=selfTestProject.id,
@@ -789,9 +764,7 @@ class TestBugModelUxCategory:
         await async_db.flush()
         assert bug.ux_category is None
 
-    async def test_ux_category_with_value(
-        self, async_db, selfTestProject: Project, bugTestUser: User
-    ) -> None:
+    async def test_ux_category_with_value(self, async_db, selfTestProject: Project, bugTestUser: User) -> None:
         bug = Bug(
             bug_no="BUG-UX-002",
             project_id=selfTestProject.id,
@@ -807,9 +780,7 @@ class TestBugModelUxCategory:
         await async_db.flush()
         assert bug.ux_category == "security"
 
-    async def test_all_valid_ux_categories(
-        self, async_db, selfTestProject: Project, bugTestUser: User
-    ) -> None:
+    async def test_all_valid_ux_categories(self, async_db, selfTestProject: Project, bugTestUser: User) -> None:
         """验证所有合法 ux_category 值均可写入"""
         for idx, cat in enumerate(sorted(VALID_UX_CATEGORIES), start=10):
             bug = Bug(

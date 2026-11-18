@@ -7,6 +7,7 @@
 - 参数化功能
 - 自动推断生成
 """
+
 import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
@@ -50,7 +51,7 @@ class TestTestDataService:
             enum_values=None,
             description="用户名",
             is_required=True,
-            sort_order=0
+            sort_order=0,
         )
 
     def test_create_test_data(self, service, db_session):
@@ -61,13 +62,15 @@ class TestTestDataService:
             "field_name": "email",
             "field_type": DataType.EMAIL,
             "generation_rule": GenerationRule.RANDOM,
-            "is_required": True
+            "is_required": True,
         }
 
         # 执行
-        with patch.object(db_session, 'add') as mock_add, \
-             patch.object(db_session, 'commit') as mock_commit, \
-             patch.object(db_session, 'refresh') as mock_refresh:
+        with (
+            patch.object(db_session, "add") as mock_add,
+            patch.object(db_session, "commit") as mock_commit,
+            patch.object(db_session, "refresh") as mock_refresh,
+        ):
             result = service.create_test_data(**test_data_dict)
 
         # 验证
@@ -120,7 +123,7 @@ class TestTestDataService:
         db_session.query.return_value.filter.return_value.first.return_value = sample_test_data
 
         # 执行
-        with patch.object(db_session, 'commit') as mock_commit:
+        with patch.object(db_session, "commit") as mock_commit:
             result = service.update_test_data(1, field_name="new_username", is_required=False)
 
         # 验证
@@ -134,8 +137,7 @@ class TestTestDataService:
         db_session.query.return_value.filter.return_value.first.return_value = sample_test_data
 
         # 执行
-        with patch.object(db_session, 'delete') as mock_delete, \
-             patch.object(db_session, 'commit') as mock_commit:
+        with patch.object(db_session, "delete") as mock_delete, patch.object(db_session, "commit") as mock_commit:
             result = service.delete_test_data(1)
 
         # 验证
@@ -162,9 +164,11 @@ class TestTestDataService:
         action_description = "输入用户名和密码登录系统"
 
         # 执行
-        with patch.object(db_session, 'add') as mock_add, \
-             patch.object(db_session, 'commit') as mock_commit, \
-             patch.object(db_session, 'refresh') as mock_refresh:
+        with (
+            patch.object(db_session, "add") as mock_add,
+            patch.object(db_session, "commit") as mock_commit,
+            patch.object(db_session, "refresh") as mock_refresh,
+        ):
             result = service.auto_generate_for_step(100, action_description)
 
         # 验证 - 自动推断会返回识别到的字段
@@ -177,9 +181,11 @@ class TestTestDataService:
         action_description = "在搜索框中输入关键词"
 
         # 执行
-        with patch.object(db_session, 'add') as mock_add, \
-             patch.object(db_session, 'commit') as mock_commit, \
-             patch.object(db_session, 'refresh') as mock_refresh:
+        with (
+            patch.object(db_session, "add") as mock_add,
+            patch.object(db_session, "commit") as mock_commit,
+            patch.object(db_session, "refresh") as mock_refresh,
+        ):
             result = service.auto_generate_for_step(100, action_description)
 
         # 验证
@@ -192,9 +198,11 @@ class TestTestDataService:
         action_description = "输入邮箱地址订阅新闻"
 
         # 执行
-        with patch.object(db_session, 'add') as mock_add, \
-             patch.object(db_session, 'commit') as mock_commit, \
-             patch.object(db_session, 'refresh') as mock_refresh:
+        with (
+            patch.object(db_session, "add") as mock_add,
+            patch.object(db_session, "commit") as mock_commit,
+            patch.object(db_session, "refresh") as mock_refresh,
+        ):
             result = service.auto_generate_for_step(100, action_description)
 
         # 验证
@@ -212,28 +220,20 @@ class TestTestDataGenerator:
     def test_generate_data_text(self, generator):
         """测试生成文本数据"""
         result = generator.generate_data(
-            field_type=DataType.TEXT,
-            field_name="test_field",
-            constraints=DataConstraints(min_length=5, max_length=10)
+            field_type=DataType.TEXT, field_name="test_field", constraints=DataConstraints(min_length=5, max_length=10)
         )
         assert isinstance(result, str)
         assert len(result) >= 5
 
     def test_generate_data_email(self, generator):
         """测试生成邮箱数据"""
-        result = generator.generate_data(
-            field_type=DataType.EMAIL,
-            field_name="email"
-        )
+        result = generator.generate_data(field_type=DataType.EMAIL, field_name="email")
         assert isinstance(result, str)
         assert "@" in result
 
     def test_generate_data_phone(self, generator):
         """测试生成手机号数据"""
-        result = generator.generate_data(
-            field_type=DataType.PHONE,
-            field_name="phone"
-        )
+        result = generator.generate_data(field_type=DataType.PHONE, field_name="phone")
         assert isinstance(result, str)
         assert len(result) == 11
         assert result.startswith("1")
@@ -241,9 +241,7 @@ class TestTestDataGenerator:
     def test_generate_data_number(self, generator):
         """测试生成数字数据"""
         result = generator.generate_data(
-            field_type=DataType.NUMBER,
-            field_name="number",
-            constraints=DataConstraints(min_value=10, max_value=100)
+            field_type=DataType.NUMBER, field_name="number", constraints=DataConstraints(min_value=10, max_value=100)
         )
         assert isinstance(result, str)
         num = int(result)
@@ -251,10 +249,7 @@ class TestTestDataGenerator:
 
     def test_generate_data_date(self, generator):
         """测试生成日期数据"""
-        result = generator.generate_data(
-            field_type=DataType.DATE,
-            field_name="date"
-        )
+        result = generator.generate_data(field_type=DataType.DATE, field_name="date")
         assert isinstance(result, str)
         # 验证日期格式 YYYY-MM-DD
         parts = result.split("-")
@@ -262,46 +257,32 @@ class TestTestDataGenerator:
 
     def test_generate_data_boolean(self, generator):
         """测试生成布尔值数据"""
-        result = generator.generate_data(
-            field_type=DataType.BOOLEAN,
-            field_name="boolean"
-        )
+        result = generator.generate_data(field_type=DataType.BOOLEAN, field_name="boolean")
         assert isinstance(result, str)
         assert result in ["true", "false"]
 
     def test_generate_data_url(self, generator):
         """测试生成URL数据"""
-        result = generator.generate_data(
-            field_type=DataType.URL,
-            field_name="url"
-        )
+        result = generator.generate_data(field_type=DataType.URL, field_name="url")
         assert isinstance(result, str)
         assert result.startswith("http")
 
     def test_generate_data_id_card(self, generator):
         """测试生成身份证号数据"""
-        result = generator.generate_data(
-            field_type=DataType.ID_CARD,
-            field_name="id_card"
-        )
+        result = generator.generate_data(field_type=DataType.ID_CARD, field_name="id_card")
         assert isinstance(result, str)
         assert len(result) == 18
 
     def test_generate_data_bank_card(self, generator):
         """测试生成银行卡号数据"""
-        result = generator.generate_data(
-            field_type=DataType.BANK_CARD,
-            field_name="bank_card"
-        )
+        result = generator.generate_data(field_type=DataType.BANK_CARD, field_name="bank_card")
         assert isinstance(result, str)
         assert len(result) >= 16
 
     def test_generate_data_with_random_rule(self, generator):
         """测试使用RANDOM规则生成数据"""
         result = generator.generate_data(
-            field_type=DataType.EMAIL,
-            field_name="email",
-            generation_rule=GenerationRule.RANDOM
+            field_type=DataType.EMAIL, field_name="email", generation_rule=GenerationRule.RANDOM
         )
         assert isinstance(result, str)
         assert "@" in result
@@ -312,16 +293,14 @@ class TestTestDataGenerator:
             field_type=DataType.TEXT,
             field_name="custom",
             generation_rule=GenerationRule.CUSTOM,
-            rule_config={"custom_value": "自定义值"}
+            rule_config={"custom_value": "自定义值"},
         )
         assert result == "自定义值"
 
     def test_generate_data_with_empty_rule(self, generator):
         """测试使用EMPTY规则生成数据"""
         result = generator.generate_data(
-            field_type=DataType.TEXT,
-            field_name="empty",
-            generation_rule=GenerationRule.EMPTY
+            field_type=DataType.TEXT, field_name="empty", generation_rule=GenerationRule.EMPTY
         )
         assert result == ""
 
@@ -331,7 +310,7 @@ class TestTestDataGenerator:
             field_type=DataType.NUMBER,
             field_name="boundary_min",
             generation_rule=GenerationRule.BOUNDARY_MIN,
-            constraints=DataConstraints(min_value=10, max_value=100)
+            constraints=DataConstraints(min_value=10, max_value=100),
         )
         assert result == "10"
 
@@ -341,16 +320,14 @@ class TestTestDataGenerator:
             field_type=DataType.NUMBER,
             field_name="boundary_max",
             generation_rule=GenerationRule.BOUNDARY_MAX,
-            constraints=DataConstraints(min_value=10, max_value=100)
+            constraints=DataConstraints(min_value=10, max_value=100),
         )
         assert result == "100"
 
     def test_generate_data_with_special_chars_rule(self, generator):
         """测试使用SPECIAL_CHARS规则生成数据"""
         result = generator.generate_data(
-            field_type=DataType.TEXT,
-            field_name="special",
-            generation_rule=GenerationRule.SPECIAL_CHARS
+            field_type=DataType.TEXT, field_name="special", generation_rule=GenerationRule.SPECIAL_CHARS
         )
         assert isinstance(result, str)
         # 应该包含特殊字符
@@ -401,7 +378,7 @@ class TestTestDataParameterizer:
         template = "日期: ${date.today}"
         result = parameterizer.parse(template)
         assert "${date.today}" not in result
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now().strftime("%Y-%m-%d")
         assert today in result
 
     def test_parse_date_now(self, parameterizer):
@@ -545,7 +522,7 @@ class TestTestDataModel:
             enum_values=None,
             description="测试字段",
             is_required=True,
-            sort_order=1
+            sort_order=1,
         )
 
         assert test_data.id == 1
@@ -571,7 +548,7 @@ class TestTestDataModel:
             enum_values=None,
             description="测试字段",
             is_required=True,
-            sort_order=1
+            sort_order=1,
         )
 
         result = test_data.to_dict()
@@ -603,7 +580,7 @@ class TestTestDataModel:
             enum_values='["active", "inactive", "pending"]',
             description="状态",
             is_required=True,
-            sort_order=0
+            sort_order=0,
         )
 
         result = test_data.to_dict()
@@ -627,7 +604,7 @@ class TestTestDataModel:
             enum_values=None,
             description="是否激活",
             is_required=True,
-            sort_order=0
+            sort_order=0,
         )
 
         result = test_data.to_dict()
@@ -641,11 +618,7 @@ class TestParameterContext:
 
     def test_context_creation(self):
         """测试上下文创建"""
-        context = ParameterContext(
-            execution_id="test-001",
-            user_id=1,
-            project_id=100
-        )
+        context = ParameterContext(execution_id="test-001", user_id=1, project_id=100)
         assert context.execution_id == "test-001"
         assert context.user_id == 1
         assert context.project_id == 100
@@ -662,10 +635,7 @@ class TestParameterContext:
 
     def test_context_custom_timestamp(self):
         """测试上下文自定义时间戳"""
-        context = ParameterContext(
-            execution_id="test-001",
-            execution_timestamp="20240101120000"
-        )
+        context = ParameterContext(execution_id="test-001", execution_timestamp="20240101120000")
         assert context.execution_timestamp == "20240101120000"
 
 
@@ -675,12 +645,7 @@ class TestDataConstraints:
     def test_constraints_creation(self):
         """测试约束创建"""
         constraints = DataConstraints(
-            min_length=5,
-            max_length=10,
-            min_value=0,
-            max_value=100,
-            enum_values=["a", "b", "c"],
-            pattern="^[a-z]+$"
+            min_length=5, max_length=10, min_value=0, max_value=100, enum_values=["a", "b", "c"], pattern="^[a-z]+$"
         )
         assert constraints.min_length == 5
         assert constraints.max_length == 10

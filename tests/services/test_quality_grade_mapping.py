@@ -7,6 +7,7 @@
 历史避坑：映射基于 grade_status（4档状态）而非 prior_quality_score（分数），
 与 spec SubTask 17.3 对齐。
 """
+
 from typing import Any, Dict, List, Tuple
 
 import pytest
@@ -64,6 +65,7 @@ class TestGradeStatusToLetterConstant:
 
     def test_constant_values_are_valid_grades(self) -> None:
         from app.services.quality.grade import VALID_GRADES
+
         for letter in GRADE_STATUS_TO_LETTER.values():
             assert letter in VALID_GRADES
 
@@ -112,8 +114,10 @@ def _mock_gate_issues(status: str) -> Any:
     返回 ([], status)：空 issues 列表确保不触发 AIGenerationError 阻断入库，
     让 _save_test_case 正常执行到 quality_grade 赋值与持久化。
     """
+
     def mock(cls: Any, *args: Any, **kwargs: Any) -> Tuple[List[str], str]:
         return [], status
+
     return classmethod(mock)  # type: ignore[return-value]
 
 

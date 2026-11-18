@@ -3,6 +3,7 @@
 覆盖 POST /api/v1/pipeline/scenario-4/precheck 端点的正常/异常/权限场景。
 使用 tests/api/conftest.py 的 async_db / async_auth_client fixture。
 """
+
 import pytest
 
 from app.models.project import ProjectFile
@@ -49,8 +50,10 @@ class TestPipelinePrecheckAPI:
         self, async_db, async_auth_client, async_test_project
     ) -> None:
         await _create_test_case(
-            async_db, async_test_project.id,
-            case_no="PRECHECK_REQ_001", title="历史登录用例",
+            async_db,
+            async_test_project.id,
+            case_no="PRECHECK_REQ_001",
+            title="历史登录用例",
         )
         req_file = ProjectFile(
             project_id=async_test_project.id,
@@ -83,8 +86,10 @@ class TestPipelinePrecheckAPI:
         self, async_db, async_auth_client, async_test_project
     ) -> None:
         await _create_test_case(
-            async_db, async_test_project.id,
-            case_no="PRECHECK_UI_001", title="历史设置用例",
+            async_db,
+            async_test_project.id,
+            case_no="PRECHECK_UI_001",
+            title="历史设置用例",
         )
         await async_db.flush()
 

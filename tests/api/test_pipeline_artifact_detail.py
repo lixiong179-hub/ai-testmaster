@@ -14,6 +14,7 @@
 
 使用真实 MySQL、HTTP TestClient + JWT。
 """
+
 import hashlib
 import pytest
 
@@ -86,8 +87,12 @@ def _make_run(db, iteration_id: int, status: str = "completed") -> PipelineRun:
 
 
 def _make_artifact(
-    db, run_id: int, kind: str, payload: dict | None = None,
-    confidence: float | None = 0.9, content_hash: str | None = None,
+    db,
+    run_id: int,
+    kind: str,
+    payload: dict | None = None,
+    confidence: float | None = 0.9,
+    content_hash: str | None = None,
 ) -> Artifact:
     """创建 Artifact 记录。"""
     if content_hash is None:
@@ -291,7 +296,9 @@ class TestGetArtifactDetailNotFound:
     def test_artifact_not_belong_to_run(self, client, db, owner_setup, other_user_setup):
         """artifact 不属于指定 run_id 返回 404。"""
         other_iteration = _make_iteration(
-            db, other_user_setup["project"].id, "other_iter_for_run",
+            db,
+            other_user_setup["project"].id,
+            "other_iter_for_run",
         )
         other_run = _make_run(db, other_iteration.id)
         other_artifact = _make_artifact(

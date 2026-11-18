@@ -13,6 +13,7 @@
 10. 线性Prompt min_case_count参数化
 11. 图模式Prompt min_case_count参数化
 """
+
 import json
 import pytest
 from datetime import datetime, timezone, timedelta
@@ -43,7 +44,9 @@ class TestScenario1HistoryCaseCorruptionGovernance:
         low_case = MagicMock(id=3, title="low", summary="s", lifecycle_status="active")
 
         mixin.db.query.return_value.filter.return_value.all.return_value = [
-            high_case, medium_case, low_case,
+            high_case,
+            medium_case,
+            low_case,
         ]
 
         trust_map = {
@@ -54,12 +57,26 @@ class TestScenario1HistoryCaseCorruptionGovernance:
 
         summarize_map = {
             1: {"id": 1, "title": "high", "module": "mod", "trust_level": "high", "staleness_reason": ""},
-            2: {"id": 2, "title": "medium", "module": "mod", "trust_level": "medium", "staleness_reason": "HISTORY_POTENTIALLY_STALE"},
-            3: {"id": 3, "title": "low", "module": "mod", "trust_level": "low", "staleness_reason": "HISTORY_REQUIREMENT_MISMATCH"},
+            2: {
+                "id": 2,
+                "title": "medium",
+                "module": "mod",
+                "trust_level": "medium",
+                "staleness_reason": "HISTORY_POTENTIALLY_STALE",
+            },
+            3: {
+                "id": 3,
+                "title": "low",
+                "module": "mod",
+                "trust_level": "low",
+                "staleness_reason": "HISTORY_REQUIREMENT_MISMATCH",
+            },
         }
 
         context = {
-            "test_points": [{"id": 1, "point": "p", "module": "m", "function": "f", "priority": 2, "requirement_id": 1}],
+            "test_points": [
+                {"id": 1, "point": "p", "module": "m", "function": "f", "priority": 2, "requirement_id": 1}
+            ],
             "current_requirement_ids": {1},
             "current_ui_screen_ids": set(),
             "requirement_content": "req",
@@ -75,12 +92,16 @@ class TestScenario1HistoryCaseCorruptionGovernance:
             with patch("app.services.test_case_generation.history_context._summarize_history_case") as mock_sum:
                 mock_sum.side_effect = lambda case, *a, **kw: summarize_map[case.id]
 
-                with patch.object(mixin, '_compute_completeness_score') as mock_score:
+                with patch.object(mixin, "_compute_completeness_score") as mock_score:
                     mock_score.return_value = {
-                        "score": 85, "missing_core_context": [], "low_confidence_reasons": [],
+                        "score": 85,
+                        "missing_core_context": [],
+                        "low_confidence_reasons": [],
                     }
                     mixin.enrich_context_with_trust_and_scoring(
-                        context, project_id=1, history_case_ids=[1, 2, 3],
+                        context,
+                        project_id=1,
+                        history_case_ids=[1, 2, 3],
                     )
 
         injected = context.get("history_cases", [])
@@ -90,8 +111,9 @@ class TestScenario1HistoryCaseCorruptionGovernance:
         assert "high" in trust_levels, "high trust cases should be injected"
 
         warning_str = str(context.get("warnings", []))
-        assert "HISTORY_LOW_TRUST_FILTERED" in warning_str or "HISTORY_POTENTIALLY_STALE" in warning_str, \
+        assert "HISTORY_LOW_TRUST_FILTERED" in warning_str or "HISTORY_POTENTIALLY_STALE" in warning_str, (
             "Filtered cases should produce warnings"
+        )
 
     def test_history_case_ids_empty_list_skips_query(self):
         from app.services.test_case_generation.context_builder import ContextBuilder as TestCaseGenerationBaseMixin
@@ -110,12 +132,16 @@ class TestScenario1HistoryCaseCorruptionGovernance:
             "evidence_refs": {"requirements": [], "ui_screens": [], "history_cases": []},
         }
 
-        with patch.object(mixin, '_compute_completeness_score') as mock_score:
+        with patch.object(mixin, "_compute_completeness_score") as mock_score:
             mock_score.return_value = {
-                "score": 50, "missing_core_context": [], "low_confidence_reasons": [],
+                "score": 50,
+                "missing_core_context": [],
+                "low_confidence_reasons": [],
             }
             mixin.enrich_context_with_trust_and_scoring(
-                context, project_id=1, history_case_ids=[],
+                context,
+                project_id=1,
+                history_case_ids=[],
             )
 
         assert context.get("history_cases", []) == []
@@ -155,18 +181,36 @@ class TestScenario2NoUISceneCompleteChain:
         captured = {}
 
         with patch("app.utils.ai_client_enhanced._enhanced.get_ai_client") as mock_client:
+
             def capture_create(**kwargs):
                 captured["prompt"] = kwargs.get("messages", [{}])[0].get("content", "")
                 mock_resp = MagicMock()
                 mock_resp.choices = [MagicMock()]
-                mock_resp.choices[0].message.content = json.dumps([{
-                    "title": "test", "module": "m", "precondition": "logged in",
-                    "steps": [{"step": "1", "action": "click", "action_type": "click",
-                               "input_value": "", "target_element": "btn", "expected_result": "ok",
-                               "description": "click", "param": ""}],
-                    "expected_result": "done", "case_type": "manual",
-                    "case_category": "positive", "priority": 2,
-                }])
+                mock_resp.choices[0].message.content = json.dumps(
+                    [
+                        {
+                            "title": "test",
+                            "module": "m",
+                            "precondition": "logged in",
+                            "steps": [
+                                {
+                                    "step": "1",
+                                    "action": "click",
+                                    "action_type": "click",
+                                    "input_value": "",
+                                    "target_element": "btn",
+                                    "expected_result": "ok",
+                                    "description": "click",
+                                    "param": "",
+                                }
+                            ],
+                            "expected_result": "done",
+                            "case_type": "manual",
+                            "case_category": "positive",
+                            "priority": 2,
+                        }
+                    ]
+                )
                 mock_resp.choices[0].finish_reason = "stop"
                 mock_resp.usage = MagicMock(total_tokens=100)
                 return mock_resp
@@ -189,6 +233,7 @@ class TestScenario3CompletenessScoreWithNavigationFlow:
 
     def _make_mixin(self):
         from app.services.test_case_generation.context_builder import ContextBuilder as TestCaseGenerationBaseMixin
+
         mixin = TestCaseGenerationBaseMixin.__new__(TestCaseGenerationBaseMixin)
         mixin.db = MagicMock()
         mock_project = MagicMock()
@@ -202,11 +247,15 @@ class TestScenario3CompletenessScoreWithNavigationFlow:
         context = {
             "test_points": [{"point": "p", "module": "m", "function": "f", "priority": 2}],
             "requirement_content": "requirement text",
-            "ui_specs": [{
-                "screen_id": 1, "screen_name": "s1", "ui_spec": '{"elements": []}',
-                "navigation_flow": "s1 -> s2 -> s3",
-                "related_screens": ["s2", "s3"],
-            }],
+            "ui_specs": [
+                {
+                    "screen_id": 1,
+                    "screen_name": "s1",
+                    "ui_spec": '{"elements": []}',
+                    "navigation_flow": "s1 -> s2 -> s3",
+                    "related_screens": ["s2", "s3"],
+                }
+            ],
             "ui_descriptions": [{"screen_name": "s1", "confidence": "explicit"}],
             "history_cases": [{"trust_level": "high"}],
         }
@@ -221,8 +270,15 @@ class TestScenario3CompletenessScoreWithNavigationFlow:
         context_with_flow = {
             "test_points": [{"point": "p", "module": "m", "function": "f", "priority": 2}],
             "requirement_content": "req",
-            "ui_specs": [{"screen_id": 1, "screen_name": "s1", "ui_spec": "spec",
-                          "navigation_flow": "s1->s2", "related_screens": ["s2"]}],
+            "ui_specs": [
+                {
+                    "screen_id": 1,
+                    "screen_name": "s1",
+                    "ui_spec": "spec",
+                    "navigation_flow": "s1->s2",
+                    "related_screens": ["s2"],
+                }
+            ],
             "ui_descriptions": [{"screen_name": "s1"}],
             "history_cases": [{"trust_level": "high"}],
         }
@@ -250,7 +306,9 @@ class TestScenario4CaseRefreshStats:
         mock_db.execute = AsyncMock()
         result_mock = MagicMock()
         result_mock.all.return_value = [
-            ("pending", 5), ("applied", 3), ("rejected", 2),
+            ("pending", 5),
+            ("applied", 3),
+            ("rejected", 2),
         ]
         mock_db.execute.return_value = result_mock
 
@@ -292,7 +350,9 @@ class TestScenario5ABTestProjectIsolation:
         mock_row.experiment_id = "exp1"
         mock_row.sample_count = 10
 
-        mock_db.query.return_value.filter.return_value.group_by.return_value.order_by.return_value.all.return_value = [mock_row]
+        mock_db.query.return_value.filter.return_value.group_by.return_value.order_by.return_value.all.return_value = [
+            mock_row
+        ]
 
         service = ABTestService(mock_db)
         result = service.list_experiments(project_ids=[1])
@@ -320,10 +380,12 @@ class TestScenario6SSEFirstFramePush:
             },
         }
 
-        with patch.object(service._context_builder, 'get_context_for_generation', return_value=context):
-            with patch.object(service._context_builder, 'enrich_context_with_trust_and_scoring'):
+        with patch.object(service._context_builder, "get_context_for_generation", return_value=context):
+            with patch.object(service._context_builder, "enrich_context_with_trust_and_scoring"):
                 gen = service.generate_test_cases_batch(
-                    project_id=1, user_id=1, test_point_ids=[1],
+                    project_id=1,
+                    user_id=1,
+                    test_point_ids=[1],
                 )
                 first_frame = asyncio.get_event_loop().run_until_complete(gen.__anext__())
 
@@ -339,8 +401,10 @@ class TestScenario6SSEFirstFramePush:
         }
 
         import json as json_mod
+
         first_frame_data = {
-            "code": 0, "message": "开始生成",
+            "code": 0,
+            "message": "开始生成",
             "data": {
                 "status": "started",
                 "context_stats": context["context_stats"],
@@ -363,24 +427,43 @@ class TestScenario7MinCaseCountEndToEnd:
         context = {
             "requirement": "test",
             "test_points": [{"point": "single", "module": "m", "function": "f", "priority": 2}],
-            "ui_specs": [], "ui_description": "",
+            "ui_specs": [],
+            "ui_description": "",
         }
 
         captured = {}
 
         with patch("app.utils.ai_client_enhanced._enhanced.get_ai_client") as mock_client:
+
             def capture(**kwargs):
                 captured["prompt"] = kwargs.get("messages", [{}])[0].get("content", "")
                 r = MagicMock()
                 r.choices = [MagicMock()]
-                r.choices[0].message.content = json.dumps([{
-                    "title": "t", "module": "m", "precondition": "p",
-                    "steps": [{"step": "1", "action": "a", "action_type": "click",
-                               "input_value": "", "target_element": "e", "expected_result": "ok",
-                               "description": "d", "param": ""}],
-                    "expected_result": "ok", "case_type": "manual",
-                    "case_category": "positive", "priority": 2,
-                }])
+                r.choices[0].message.content = json.dumps(
+                    [
+                        {
+                            "title": "t",
+                            "module": "m",
+                            "precondition": "p",
+                            "steps": [
+                                {
+                                    "step": "1",
+                                    "action": "a",
+                                    "action_type": "click",
+                                    "input_value": "",
+                                    "target_element": "e",
+                                    "expected_result": "ok",
+                                    "description": "d",
+                                    "param": "",
+                                }
+                            ],
+                            "expected_result": "ok",
+                            "case_type": "manual",
+                            "case_category": "positive",
+                            "priority": 2,
+                        }
+                    ]
+                )
                 r.choices[0].finish_reason = "stop"
                 r.usage = MagicMock(total_tokens=100)
                 return r
@@ -405,25 +488,44 @@ class TestScenario7MinCaseCountEndToEnd:
                 {"point": "p1", "module": "m", "function": "f", "priority": 2},
                 {"point": "p2", "module": "m", "function": "f", "priority": 2},
             ],
-            "ui_specs": [], "ui_description": "",
+            "ui_specs": [],
+            "ui_description": "",
         }
 
         captured = {}
 
         with patch("app.utils.ai_client_enhanced._enhanced.get_ai_client") as mock_client:
+
             def capture(**kwargs):
                 captured["prompt"] = kwargs.get("messages", [{}])[0].get("content", "")
                 r = MagicMock()
                 r.choices = [MagicMock()]
-                r.choices[0].message.content = json.dumps([
-                    {"title": f"t{i}", "module": "m", "precondition": "p",
-                     "steps": [{"step": "1", "action": "a", "action_type": "click",
-                                "input_value": "", "target_element": "e", "expected_result": "ok",
-                                "description": "d", "param": ""}],
-                     "expected_result": "ok", "case_type": "manual",
-                     "case_category": "positive", "priority": 2}
-                    for i in range(3)
-                ])
+                r.choices[0].message.content = json.dumps(
+                    [
+                        {
+                            "title": f"t{i}",
+                            "module": "m",
+                            "precondition": "p",
+                            "steps": [
+                                {
+                                    "step": "1",
+                                    "action": "a",
+                                    "action_type": "click",
+                                    "input_value": "",
+                                    "target_element": "e",
+                                    "expected_result": "ok",
+                                    "description": "d",
+                                    "param": "",
+                                }
+                            ],
+                            "expected_result": "ok",
+                            "case_type": "manual",
+                            "case_category": "positive",
+                            "priority": 2,
+                        }
+                        for i in range(3)
+                    ]
+                )
                 r.choices[0].finish_reason = "stop"
                 r.usage = MagicMock(total_tokens=100)
                 return r
@@ -450,15 +552,31 @@ class TestScenario7MinCaseCountEndToEnd:
         with patch("app.utils.ai_client_enhanced._enhanced.get_ai_client") as mock_client:
             r = MagicMock()
             r.choices = [MagicMock()]
-            r.choices[0].message.content = json.dumps([
-                {"title": f"t{i}", "precondition": "p",
-                 "steps": [{"step": "1", "action": "a", "action_type": "click",
-                            "input_value": "", "target_element": "e", "expected_result": "ok",
-                            "description": "d", "param": ""}],
-                 "expected_result": "ok", "case_type": "ui_automation",
-                 "case_category": "positive", "priority": 2}
-                for i in range(3)
-            ])
+            r.choices[0].message.content = json.dumps(
+                [
+                    {
+                        "title": f"t{i}",
+                        "precondition": "p",
+                        "steps": [
+                            {
+                                "step": "1",
+                                "action": "a",
+                                "action_type": "click",
+                                "input_value": "",
+                                "target_element": "e",
+                                "expected_result": "ok",
+                                "description": "d",
+                                "param": "",
+                            }
+                        ],
+                        "expected_result": "ok",
+                        "case_type": "ui_automation",
+                        "case_category": "positive",
+                        "priority": 2,
+                    }
+                    for i in range(3)
+                ]
+            )
             r.choices[0].finish_reason = "stop"
             r.usage = MagicMock(total_tokens=100)
             mc = MagicMock()
@@ -467,7 +585,9 @@ class TestScenario7MinCaseCountEndToEnd:
             mock_client.return_value = mc
 
             with patch("app.utils.ai_client_enhanced._enhanced.time.sleep"):
-                with patch("app.utils.ai_client_enhanced._enhanced.validate_cases_quality", return_value=(True, [])) as mock_val:
+                with patch(
+                    "app.utils.ai_client_enhanced._enhanced.validate_cases_quality", return_value=(True, [])
+                ) as mock_val:
                     generate_test_case_enhanced(context)
 
                     if mock_val.called:
@@ -509,18 +629,36 @@ class TestScenario8UIFileNoParsedScreens:
         captured = {}
 
         with patch("app.utils.ai_client_enhanced._enhanced.get_ai_client") as mock_client:
+
             def capture_create(**kwargs):
                 captured["prompt"] = kwargs.get("messages", [{}])[0].get("content", "")
                 r = MagicMock()
                 r.choices = [MagicMock()]
-                r.choices[0].message.content = json.dumps([{
-                    "title": "test", "module": "m", "precondition": "logged in",
-                    "steps": [{"step": "1", "action": "click", "action_type": "click",
-                               "input_value": "", "target_element": "btn", "expected_result": "ok",
-                               "description": "click", "param": ""}],
-                    "expected_result": "done", "case_type": "manual",
-                    "case_category": "positive", "priority": 2,
-                }])
+                r.choices[0].message.content = json.dumps(
+                    [
+                        {
+                            "title": "test",
+                            "module": "m",
+                            "precondition": "logged in",
+                            "steps": [
+                                {
+                                    "step": "1",
+                                    "action": "click",
+                                    "action_type": "click",
+                                    "input_value": "",
+                                    "target_element": "btn",
+                                    "expected_result": "ok",
+                                    "description": "click",
+                                    "param": "",
+                                }
+                            ],
+                            "expected_result": "done",
+                            "case_type": "manual",
+                            "case_category": "positive",
+                            "priority": 2,
+                        }
+                    ]
+                )
                 r.choices[0].finish_reason = "stop"
                 r.usage = MagicMock(total_tokens=100)
                 return r
@@ -551,7 +689,9 @@ class TestScenario8UIFileNoParsedScreens:
 
         context = {
             "requirement": "test requirement",
-            "ui_specs": [{"screen_id": 1, "screen_name": "login", "ui_spec": {"elements": [{"type": "button", "text": "登录"}]}}],
+            "ui_specs": [
+                {"screen_id": 1, "screen_name": "login", "ui_spec": {"elements": [{"type": "button", "text": "登录"}]}}
+            ],
             "ui_description": "",
             "case_type": "ui_automation",
             "test_points": [{"point": "test", "module": "m", "function": "f", "priority": 2}],
@@ -560,18 +700,36 @@ class TestScenario8UIFileNoParsedScreens:
         captured = {}
 
         with patch("app.utils.ai_client_enhanced._enhanced.get_ai_client") as mock_client:
+
             def capture_create(**kwargs):
                 captured["prompt"] = kwargs.get("messages", [{}])[0].get("content", "")
                 r = MagicMock()
                 r.choices = [MagicMock()]
-                r.choices[0].message.content = json.dumps([{
-                    "title": "test", "module": "m", "precondition": "logged in",
-                    "steps": [{"step": "1", "action": "click", "action_type": "click",
-                               "input_value": "", "target_element": "btn", "expected_result": "ok",
-                               "description": "click", "param": ""}],
-                    "expected_result": "done", "case_type": "ui_automation",
-                    "case_category": "positive", "priority": 2,
-                }])
+                r.choices[0].message.content = json.dumps(
+                    [
+                        {
+                            "title": "test",
+                            "module": "m",
+                            "precondition": "logged in",
+                            "steps": [
+                                {
+                                    "step": "1",
+                                    "action": "click",
+                                    "action_type": "click",
+                                    "input_value": "",
+                                    "target_element": "btn",
+                                    "expected_result": "ok",
+                                    "description": "click",
+                                    "param": "",
+                                }
+                            ],
+                            "expected_result": "done",
+                            "case_type": "ui_automation",
+                            "case_category": "positive",
+                            "priority": 2,
+                        }
+                    ]
+                )
                 r.choices[0].finish_reason = "stop"
                 r.usage = MagicMock(total_tokens=100)
                 return r
@@ -616,8 +774,12 @@ class TestScenario10LinearPromptMinCaseCount:
         from app.services.prompt_builder.linear_prompt import _build_linear_prompt
 
         prompt = _build_linear_prompt(
-            requirement_content="req", ui_description="",
-            module="m", function="f", point="p", priority=2,
+            requirement_content="req",
+            ui_description="",
+            module="m",
+            function="f",
+            point="p",
+            priority=2,
             min_case_count=1,
         )
         assert "最少1条" in prompt
@@ -626,8 +788,12 @@ class TestScenario10LinearPromptMinCaseCount:
         from app.services.prompt_builder.linear_prompt import _build_linear_prompt
 
         prompt = _build_linear_prompt(
-            requirement_content="req", ui_description="",
-            module="m", function="f", point="p", priority=2,
+            requirement_content="req",
+            ui_description="",
+            module="m",
+            function="f",
+            point="p",
+            priority=2,
             min_case_count=3,
         )
         assert "最少3条" in prompt
@@ -636,8 +802,12 @@ class TestScenario10LinearPromptMinCaseCount:
         from app.services.prompt_builder.linear_prompt import _build_linear_prompt
 
         prompt = _build_linear_prompt(
-            requirement_content="req", ui_description="",
-            module="m", function="f", point="p", priority=2,
+            requirement_content="req",
+            ui_description="",
+            module="m",
+            function="f",
+            point="p",
+            priority=2,
         )
         assert "精简版" in prompt
 

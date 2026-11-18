@@ -8,6 +8,7 @@
 使用 tests/api/conftest.py 的 async_db / async_auth_client fixture。
 所有 async fixture 通过 async_db 事务隔离，测试结束 rollback 不落库。
 """
+
 from typing import Any, Dict, List, Optional
 
 from app.models.ab_test_metric import ABTestMetric
@@ -42,9 +43,7 @@ async def _create_metric(
 class TestRecordMetric:
     """POST /api/v1/ab-test/experiments/{experiment_id}/metrics 记录指标。"""
 
-    async def test_record_metric_success_without_project(
-        self, async_auth_client
-    ) -> None:
+    async def test_record_metric_success_without_project(self, async_auth_client) -> None:
         """无 project_id 时直接记录，不触发归属校验"""
         resp = await async_auth_client.post(
             "/api/v1/ab-test/experiments/exp1/metrics",
@@ -65,9 +64,7 @@ class TestRecordMetric:
         assert data["id"] is not None
         assert data["created_at"] is not None
 
-    async def test_record_metric_with_owned_project(
-        self, async_db, async_auth_client, async_test_project
-    ) -> None:
+    async def test_record_metric_with_owned_project(self, async_db, async_auth_client, async_test_project) -> None:
         """project_id 属于当前用户时记录成功"""
         resp = await async_auth_client.post(
             "/api/v1/ab-test/experiments/exp2/metrics",
@@ -85,9 +82,7 @@ class TestRecordMetric:
         assert data["variant"] == "treatment"
         assert data["metric_value"] == 0.92
 
-    async def test_record_metric_with_nonexistent_project(
-        self, async_auth_client
-    ) -> None:
+    async def test_record_metric_with_nonexistent_project(self, async_auth_client) -> None:
         """project_id 不存在时返回 404"""
         resp = await async_auth_client.post(
             "/api/v1/ab-test/experiments/exp3/metrics",
@@ -101,9 +96,7 @@ class TestRecordMetric:
         assert resp.status_code == 404
         assert resp.json()["msg"] == "项目不存在"
 
-    async def test_record_metric_invalid_metric_name(
-        self, async_auth_client
-    ) -> None:
+    async def test_record_metric_invalid_metric_name(self, async_auth_client) -> None:
         """metric_name 不在白名单时返回 422"""
         resp = await async_auth_client.post(
             "/api/v1/ab-test/experiments/exp4/metrics",
@@ -116,9 +109,7 @@ class TestRecordMetric:
         assert resp.status_code == 422
         assert "非法指标名称" in resp.json()["msg"]
 
-    async def test_record_metric_missing_variant_field(
-        self, async_auth_client
-    ) -> None:
+    async def test_record_metric_missing_variant_field(self, async_auth_client) -> None:
         """缺少必填字段 variant 时触发 Pydantic 校验错误，全局处理器返回 400"""
         resp = await async_auth_client.post(
             "/api/v1/ab-test/experiments/exp5/metrics",
@@ -135,36 +126,39 @@ class TestGetExperimentSummary:
 
     async def test_summary_empty_experiment(self, async_auth_client) -> None:
         """无数据时返回空 variants"""
-        resp = await async_auth_client.get(
-            "/api/v1/ab-test/experiments/nonexistent_exp/summary"
-        )
+        resp = await async_auth_client.get("/api/v1/ab-test/experiments/nonexistent_exp/summary")
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["experiment_id"] == "nonexistent_exp"
         assert data["variants"] == {}
 
-    async def test_summary_with_data(
-        self, async_db, async_auth_client, async_test_project
-    ) -> None:
+    async def test_summary_with_data(self, async_db, async_auth_client, async_test_project) -> None:
         """有数据时按变体分组统计"""
         await _create_metric(
-            async_db, experiment_id="exp_s", variant="control",
-            metric_name="completeness_score", metric_value=80.0,
+            async_db,
+            experiment_id="exp_s",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=80.0,
             project_id=async_test_project.id,
         )
         await _create_metric(
-            async_db, experiment_id="exp_s", variant="control",
-            metric_name="completeness_score", metric_value=90.0,
+            async_db,
+            experiment_id="exp_s",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=90.0,
             project_id=async_test_project.id,
         )
         await _create_metric(
-            async_db, experiment_id="exp_s", variant="treatment",
-            metric_name="completeness_score", metric_value=85.0,
+            async_db,
+            experiment_id="exp_s",
+            variant="treatment",
+            metric_name="completeness_score",
+            metric_value=85.0,
             project_id=async_test_project.id,
         )
-        resp = await async_auth_client.get(
-            "/api/v1/ab-test/experiments/exp_s/summary"
-        )
+        resp = await async_auth_client.get("/api/v1/ab-test/experiments/exp_s/summary")
         assert resp.status_code == 200
         variants = resp.json()["data"]["variants"]
         assert "control" in variants
@@ -175,47 +169,51 @@ class TestGetExperimentSummary:
         assert control_stats["std_dev"] == 5.0
         assert variants["treatment"]["completeness_score"]["sample_count"] == 1
 
-    async def test_summary_filters_by_user_project(
-        self, async_db, async_auth_client, async_test_project
-    ) -> None:
+    async def test_summary_filters_by_user_project(self, async_db, async_auth_client, async_test_project) -> None:
         """仅返回当前用户项目下的指标"""
         await _create_metric(
-            async_db, experiment_id="exp_filter", variant="control",
-            metric_name="completeness_score", metric_value=80.0,
+            async_db,
+            experiment_id="exp_filter",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=80.0,
             project_id=async_test_project.id,
         )
         # 别人的项目（project_id 故意设为不存在的大数）
         await _create_metric(
-            async_db, experiment_id="exp_filter", variant="control",
-            metric_name="completeness_score", metric_value=50.0,
+            async_db,
+            experiment_id="exp_filter",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=50.0,
             project_id=99999,
         )
-        resp = await async_auth_client.get(
-            "/api/v1/ab-test/experiments/exp_filter/summary"
-        )
+        resp = await async_auth_client.get("/api/v1/ab-test/experiments/exp_filter/summary")
         assert resp.status_code == 200
         variants = resp.json()["data"]["variants"]
         # 仅自己的项目数据被聚合（sample_count=1）
         assert variants["control"]["completeness_score"]["sample_count"] == 1
         assert variants["control"]["completeness_score"]["mean"] == 80.0
 
-    async def test_summary_multi_metric_per_variant(
-        self, async_db, async_auth_client, async_test_project
-    ) -> None:
+    async def test_summary_multi_metric_per_variant(self, async_db, async_auth_client, async_test_project) -> None:
         """同一变体下多个指标分别统计"""
         await _create_metric(
-            async_db, experiment_id="exp_multi", variant="control",
-            metric_name="completeness_score", metric_value=80.0,
+            async_db,
+            experiment_id="exp_multi",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=80.0,
             project_id=async_test_project.id,
         )
         await _create_metric(
-            async_db, experiment_id="exp_multi", variant="control",
-            metric_name="step_executable_rate", metric_value=0.9,
+            async_db,
+            experiment_id="exp_multi",
+            variant="control",
+            metric_name="step_executable_rate",
+            metric_value=0.9,
             project_id=async_test_project.id,
         )
-        resp = await async_auth_client.get(
-            "/api/v1/ab-test/experiments/exp_multi/summary"
-        )
+        resp = await async_auth_client.get("/api/v1/ab-test/experiments/exp_multi/summary")
         assert resp.status_code == 200
         control = resp.json()["data"]["variants"]["control"]
         assert "completeness_score" in control
@@ -235,18 +233,22 @@ class TestListExperiments:
         assert data["total"] == 0
         assert resp.json()["msg"] == "获取实验列表成功"
 
-    async def test_list_single_experiment(
-        self, async_db, async_auth_client, async_test_project
-    ) -> None:
+    async def test_list_single_experiment(self, async_db, async_auth_client, async_test_project) -> None:
         """单实验记录返回正确 sample_count"""
         await _create_metric(
-            async_db, experiment_id="list_exp1", variant="control",
-            metric_name="completeness_score", metric_value=80.0,
+            async_db,
+            experiment_id="list_exp1",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=80.0,
             project_id=async_test_project.id,
         )
         await _create_metric(
-            async_db, experiment_id="list_exp1", variant="treatment",
-            metric_name="completeness_score", metric_value=85.0,
+            async_db,
+            experiment_id="list_exp1",
+            variant="treatment",
+            metric_name="completeness_score",
+            metric_value=85.0,
             project_id=async_test_project.id,
         )
         resp = await async_auth_client.get("/api/v1/ab-test/experiments")
@@ -257,23 +259,30 @@ class TestListExperiments:
         assert data["items"][0]["experiment_id"] == "list_exp1"
         assert data["items"][0]["sample_count"] == 2
 
-    async def test_list_multi_experiments_ordered(
-        self, async_db, async_auth_client, async_test_project
-    ) -> None:
+    async def test_list_multi_experiments_ordered(self, async_db, async_auth_client, async_test_project) -> None:
         """多实验按 experiment_id 升序返回"""
         await _create_metric(
-            async_db, experiment_id="zzz_exp", variant="control",
-            metric_name="completeness_score", metric_value=1.0,
+            async_db,
+            experiment_id="zzz_exp",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=1.0,
             project_id=async_test_project.id,
         )
         await _create_metric(
-            async_db, experiment_id="aaa_exp", variant="control",
-            metric_name="completeness_score", metric_value=2.0,
+            async_db,
+            experiment_id="aaa_exp",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=2.0,
             project_id=async_test_project.id,
         )
         await _create_metric(
-            async_db, experiment_id="mmm_exp", variant="control",
-            metric_name="completeness_score", metric_value=3.0,
+            async_db,
+            experiment_id="mmm_exp",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=3.0,
             project_id=async_test_project.id,
         )
         resp = await async_auth_client.get("/api/v1/ab-test/experiments")
@@ -281,19 +290,23 @@ class TestListExperiments:
         ids = [item["experiment_id"] for item in resp.json()["data"]["items"]]
         assert ids == ["aaa_exp", "mmm_exp", "zzz_exp"]
 
-    async def test_list_filters_by_user_project(
-        self, async_db, async_auth_client, async_test_project
-    ) -> None:
+    async def test_list_filters_by_user_project(self, async_db, async_auth_client, async_test_project) -> None:
         """仅列出当前用户项目下的实验"""
         await _create_metric(
-            async_db, experiment_id="owned_exp", variant="control",
-            metric_name="completeness_score", metric_value=1.0,
+            async_db,
+            experiment_id="owned_exp",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=1.0,
             project_id=async_test_project.id,
         )
         # 别人项目（不应被列出）
         await _create_metric(
-            async_db, experiment_id="others_exp", variant="control",
-            metric_name="completeness_score", metric_value=1.0,
+            async_db,
+            experiment_id="others_exp",
+            variant="control",
+            metric_name="completeness_score",
+            metric_value=1.0,
             project_id=88888,
         )
         resp = await async_auth_client.get("/api/v1/ab-test/experiments")
@@ -319,9 +332,7 @@ class TestAbTestPermissions:
         assert resp.status_code == 401
 
     async def test_summary_unauthenticated(self, async_client) -> None:
-        resp = await async_client.get(
-            "/api/v1/ab-test/experiments/exp_auth/summary"
-        )
+        resp = await async_client.get("/api/v1/ab-test/experiments/exp_auth/summary")
         assert resp.status_code == 401
 
     async def test_list_unauthenticated(self, async_client) -> None:

@@ -12,6 +12,7 @@
 
 使用真实 MySQL 数据库 + MockAIClient。
 """
+
 import json
 import pytest
 
@@ -60,14 +61,16 @@ def _make_fingerprints(project_id: int, modules: list = None) -> dict:
     mods = modules if modules is not None else ["用户管理", "订单管理"]
     fps = []
     for i, mod in enumerate(mods):
-        fps.append({
-            "case_id": 200 + i,
-            "title": f"用例{i}",
-            "module": mod,
-            "summary": f"摘要{i}",
-            "priority": 1,
-            "lifecycle_status": "active",
-        })
+        fps.append(
+            {
+                "case_id": 200 + i,
+                "title": f"用例{i}",
+                "module": mod,
+                "summary": f"摘要{i}",
+                "priority": 1,
+                "lifecycle_status": "active",
+            }
+        )
     return {
         "project_id": project_id,
         "fingerprints": fps,
@@ -166,7 +169,12 @@ class TestValidateOutput:
         assert ScenarioCandidateExtractor().validate_output(payload) is True
 
     def test_missing_coverage_check(self):
-        assert ScenarioCandidateExtractor().validate_output({"project_id": 1, "candidates": [], "total_count": 0, "existing_modules": []}) is False
+        assert (
+            ScenarioCandidateExtractor().validate_output(
+                {"project_id": 1, "candidates": [], "total_count": 0, "existing_modules": []}
+            )
+            is False
+        )
 
 
 class TestFallback:
@@ -184,10 +192,12 @@ class TestFallback:
 
 class TestExecute:
     def test_execute_with_valid_ai(self, db, make_ctx, mock_ai, test_iteration):
-        ai_response = json.dumps([
-            {"description": "验证码输入校验", "module": "用户管理", "priority": 1, "reason": "新增验证码功能"},
-            {"description": "验证码过期重发", "module": "用户管理", "priority": 2, "reason": "验证码有效期场景"},
-        ])
+        ai_response = json.dumps(
+            [
+                {"description": "验证码输入校验", "module": "用户管理", "priority": 1, "reason": "新增验证码功能"},
+                {"description": "验证码过期重发", "module": "用户管理", "priority": 2, "reason": "验证码有效期场景"},
+            ]
+        )
         mock_ai.set_response("scenario_candidate_extractor", ai_response)
 
         ctx = make_ctx(
@@ -238,9 +248,11 @@ class TestExecute:
         assert "AI 调用失败" in result.error
 
     def test_execute_without_fingerprints(self, db, make_ctx, mock_ai, test_iteration):
-        ai_response = json.dumps([
-            {"description": "无指纹场景", "module": "新模块", "priority": 1, "reason": "无历史指纹"},
-        ])
+        ai_response = json.dumps(
+            [
+                {"description": "无指纹场景", "module": "新模块", "priority": 1, "reason": "无历史指纹"},
+            ]
+        )
         mock_ai.set_response("scenario_candidate_extractor", ai_response)
 
         ctx = make_ctx(raw_signals_payload=_make_raw_signals(test_iteration.project_id))
@@ -250,15 +262,16 @@ class TestExecute:
         assert result.artifact_kind == "scenario_candidates"
 
     def test_execute_coverage_check_fails(self, db, make_ctx, mock_ai, test_iteration):
-        ai_response = json.dumps([
-            {"description": "只有1个场景", "module": "用户管理", "priority": 1, "reason": "场景偏少"},
-        ])
+        ai_response = json.dumps(
+            [
+                {"description": "只有1个场景", "module": "用户管理", "priority": 1, "reason": "场景偏少"},
+            ]
+        )
         mock_ai.set_response("scenario_candidate_extractor", ai_response)
 
         raw_signals = _make_raw_signals(test_iteration.project_id)
         raw_signals["ui_specs"] = [
-            {"screen_name": "复杂页面",
-             "ui_spec": {"components": [{"t": str(i)} for i in range(20)]}},
+            {"screen_name": "复杂页面", "ui_spec": {"components": [{"t": str(i)} for i in range(20)]}},
         ]
         ctx = make_ctx(
             raw_signals_payload=raw_signals,
@@ -581,6 +594,6 @@ class TestTryExtractJsonArray:
         assert _try_extract_json_array("no array here") is None
 
     def test_invalid_json_inside_brackets(self):
-        text = '结果: [invalid json here] 结束'
+        text = "结果: [invalid json here] 结束"
         result = _try_extract_json_array(text)
         assert result is None

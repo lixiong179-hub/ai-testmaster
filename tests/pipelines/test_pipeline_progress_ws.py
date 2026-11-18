@@ -8,6 +8,7 @@
     - _push_pipeline_progress 无订阅者时不报错
     - WebSocket 端点连接与消息接收
 """
+
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, patch
@@ -71,14 +72,22 @@ class TestPushPipelineProgress:
         mock_service = AsyncMock()
         with patch("app.services.push_service.get_push_service", return_value=mock_service):
             _push_pipeline_progress(
-                run_id=42, step_name="case_generation",
-                status="done", progress=60.0, pipeline_status="running",
+                run_id=42,
+                step_name="case_generation",
+                status="done",
+                progress=60.0,
+                pipeline_status="running",
             )
             await asyncio.sleep(0.05)
 
         data = mock_service.push.call_args[0][1]
         assert set(data.keys()) == {
-            "type", "run_id", "step_name", "status", "progress", "pipeline_status",
+            "type",
+            "run_id",
+            "step_name",
+            "status",
+            "progress",
+            "pipeline_status",
         }
         assert data["type"] == "pipeline_progress"
         assert data["run_id"] == 42
@@ -105,18 +114,14 @@ class TestPipelineProgressWebSocketEndpoint:
     async def test_endpoint_rejects_invalid_token(self, client):
         """验证无效 token 时 WebSocket 连接被拒绝。"""
         with pytest.raises(Exception):
-            with client.websocket_connect(
-                "/api/v1/ws/pipeline/1?token=invalid_token"
-            ) as ws:
+            with client.websocket_connect("/api/v1/ws/pipeline/1?token=invalid_token") as ws:
                 ws.receive_json()
 
     @pytest.mark.asyncio
     async def test_endpoint_accepts_valid_token(self, client, authHeaders):
         """验证有效 token 时 WebSocket 连接成功并收到 connected 消息。"""
         token = authHeaders["Authorization"].replace("Bearer ", "")
-        with client.websocket_connect(
-            f"/api/v1/ws/pipeline/1?token={token}"
-        ) as ws:
+        with client.websocket_connect(f"/api/v1/ws/pipeline/1?token={token}") as ws:
             data = ws.receive_json()
             assert data["type"] == "connected"
             assert data["run_id"] == 1
@@ -126,9 +131,7 @@ class TestPipelineProgressWebSocketEndpoint:
     async def test_endpoint_heartbeat(self, client, authHeaders):
         """验证 WebSocket 心跳 ping/pong 机制。"""
         token = authHeaders["Authorization"].replace("Bearer ", "")
-        with client.websocket_connect(
-            f"/api/v1/ws/pipeline/1?token={token}"
-        ) as ws:
+        with client.websocket_connect(f"/api/v1/ws/pipeline/1?token={token}") as ws:
             ws.receive_json()
             ws.send_json({"type": "ping"})
             data = ws.receive_json()

@@ -6,6 +6,7 @@
     - IgnoreColorsMatchLevel: 纯色彩变更 0% 差异 / 亮度变更有差异
     - MatchLevelFactory: 创建策略 / 未知 level 抛异常 / supported_levels
 """
+
 from __future__ import annotations
 
 import io
@@ -34,9 +35,7 @@ def _make_solid_image(width: int, height: int, color: tuple) -> bytes:
     return buf.getvalue()
 
 
-def _make_image_with_rect(
-    width: int, height: int, bg_color: tuple, rect: tuple, rect_color: tuple
-) -> bytes:
+def _make_image_with_rect(width: int, height: int, bg_color: tuple, rect: tuple, rect_color: tuple) -> bytes:
     """生成带矩形的 PNG 图片字节流。
 
     Args:

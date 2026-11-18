@@ -7,6 +7,7 @@
     - 跨模块联动：后验分 + 血缘 + 埋点联合验证
 
 使用真实 MySQL 数据库，不使用 Mock。"""
+
 import json
 import pytest
 from datetime import datetime, timedelta, timezone
@@ -63,6 +64,7 @@ def _make_test_case(
 @pytest.fixture
 def m4_project(db, testUser):
     from app.models.project import Project
+
     project = Project(
         name="m4_e2e_project",
         user_id=testUser.id,
@@ -90,14 +92,18 @@ def m4_iteration(db, m4_project):
 @pytest.fixture
 def m4_cases_with_lineage(db, m4_project):
     grandparent = _make_test_case(
-        m4_project.id, "TC-GP-001", "祖父用例",
+        m4_project.id,
+        "TC-GP-001",
+        "祖父用例",
         prior_quality_score=85.0,
     )
     db.add(grandparent)
     db.flush()
 
     parent = _make_test_case(
-        m4_project.id, "TC-P-001", "父用例",
+        m4_project.id,
+        "TC-P-001",
+        "父用例",
         prior_quality_score=80.0,
         parent_case_id=grandparent.id,
     )
@@ -105,7 +111,9 @@ def m4_cases_with_lineage(db, m4_project):
     db.flush()
 
     child = _make_test_case(
-        m4_project.id, "TC-C-001", "子用例",
+        m4_project.id,
+        "TC-C-001",
+        "子用例",
         prior_quality_score=75.0,
         parent_case_id=parent.id,
     )
@@ -118,7 +126,9 @@ def m4_cases_with_lineage(db, m4_project):
 @pytest.fixture
 def m4_cases_with_review_and_exec(db, m4_project, m4_iteration):
     case = _make_test_case(
-        m4_project.id, "TC-POST-001", "后验质量分测试用例",
+        m4_project.id,
+        "TC-POST-001",
+        "后验质量分测试用例",
         prior_quality_score=70.0,
     )
     db.add(case)
@@ -275,7 +285,9 @@ class TestPosteriorScoreE2E:
 
     def test_no_executions_returns_empty(self, db, m4_project):
         case = _make_test_case(
-            m4_project.id, "TC-NO-EXEC", "无执行记录用例",
+            m4_project.id,
+            "TC-NO-EXEC",
+            "无执行记录用例",
             lifecycle_status="draft",
         )
         db.add(case)
@@ -398,6 +410,7 @@ class TestDashboardE2E:
     @pytest.mark.asyncio
     async def test_overview_returns_structure(self, db, sync_backed_async_db, m4_pipeline_run, m4_project, testUser):
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
+
         try:
             result = await get_dashboard_overview(
                 project_id=m4_project.id,
@@ -421,6 +434,7 @@ class TestDashboardE2E:
     @pytest.mark.asyncio
     async def test_overview_cache_hit_rate(self, db, sync_backed_async_db, m4_pipeline_run, m4_project, testUser):
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
+
         try:
             result = await get_dashboard_overview(
                 project_id=m4_project.id,
@@ -436,6 +450,7 @@ class TestDashboardE2E:
     @pytest.mark.asyncio
     async def test_overview_no_project_filter(self, db, sync_backed_async_db, m4_pipeline_run, testUser):
         from app.api.v1.endpoints.pipeline_dashboard import get_dashboard_overview
+
         try:
             result = await get_dashboard_overview(
                 project_id=None,
@@ -528,14 +543,18 @@ class TestOpsScriptsE2E:
 class TestM4CrossModule:
     def test_lineage_with_posterior_score(self, db, m4_project, m4_iteration):
         parent = _make_test_case(
-            m4_project.id, "TC-CROSS-P", "跨模块父用例",
+            m4_project.id,
+            "TC-CROSS-P",
+            "跨模块父用例",
             prior_quality_score=80.0,
         )
         db.add(parent)
         db.flush()
 
         child = _make_test_case(
-            m4_project.id, "TC-CROSS-C", "跨模块子用例",
+            m4_project.id,
+            "TC-CROSS-C",
+            "跨模块子用例",
             prior_quality_score=70.0,
             parent_case_id=parent.id,
         )
@@ -559,12 +578,14 @@ class TestM4CrossModule:
         db.flush()
 
         for _ in range(3):
-            db.add(TestCaseExecution(
-                test_case_id=child.id,
-                status="passed",
-                started_at=datetime.now(timezone.utc),
-                completed_at=datetime.now(timezone.utc),
-            ))
+            db.add(
+                TestCaseExecution(
+                    test_case_id=child.id,
+                    status="passed",
+                    started_at=datetime.now(timezone.utc),
+                    completed_at=datetime.now(timezone.utc),
+                )
+            )
         db.flush()
 
         backfill_posterior_scores(db, case_ids=[child.id])
@@ -600,9 +621,11 @@ class TestM4CrossModule:
 
     def test_risk_register_exists(self):
         import os
+
         risk_register_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "docs", "risk-register.md",
+            "docs",
+            "risk-register.md",
         )
         assert os.path.exists(risk_register_path), "risk-register.md must exist"
 

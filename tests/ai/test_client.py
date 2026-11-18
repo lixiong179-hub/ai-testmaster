@@ -8,6 +8,7 @@ M1-T08 AI Client 抽象层单元测试
 4. FallbackAIClient：主备切换、degraded 标记、失败计数
 5. AICallLog 模型 + record_call + check_budget + get_run_cost
 """
+
 import pytest
 
 from app.ai.client import AIClient, AIResponse, TokenUsage
@@ -22,6 +23,7 @@ from app.models.enums import PipelineRunStatus
 
 
 # ==================== Fixtures ====================
+
 
 @pytest.fixture
 def test_user(db):
@@ -66,6 +68,7 @@ def test_run(db, test_iteration):
 
 # ==================== 数据类 ====================
 
+
 class TestDataClasses:
     """AIResponse / TokenUsage 数据类测试"""
 
@@ -107,6 +110,7 @@ class TestDataClasses:
 
 # ==================== AIClient Protocol ====================
 
+
 class TestAIClientProtocol:
     """AIClient Protocol 兼容性测试"""
 
@@ -116,18 +120,20 @@ class TestAIClientProtocol:
 
     def test_custom_impl_is_aiclient(self):
         class MyClient:
-            def complete(self, prompt, *, system=None, schema=None,
-                         temperature=None, max_tokens=None, metadata=None):
+            def complete(self, prompt, *, system=None, schema=None, temperature=None, max_tokens=None, metadata=None):
                 return AIResponse(content="ok")
+
         assert isinstance(MyClient(), AIClient)
 
     def test_non_impl_not_aiclient(self):
         class NotAClient:
             pass
+
         assert not isinstance(NotAClient(), AIClient)
 
 
 # ==================== MockAIClient ====================
+
 
 class TestMockAIClient:
     """MockAIClient 测试"""
@@ -195,6 +201,7 @@ class TestMockAIClient:
 
 # ==================== FallbackAIClient ====================
 
+
 class TestFallbackAIClient:
     """FallbackAIClient 主备切换测试"""
 
@@ -212,6 +219,7 @@ class TestFallbackAIClient:
         class FailingClient:
             def complete(self, prompt, **kwargs):
                 raise RuntimeError("primary down")
+
         mock_fallback = MockAIClient(default_response={"from": "fallback"})
         client = FallbackAIClient(FailingClient(), mock_fallback, max_failures=3)
 
@@ -224,6 +232,7 @@ class TestFallbackAIClient:
         class FailingClient:
             def complete(self, prompt, **kwargs):
                 raise RuntimeError("primary down")
+
         mock_fallback = MockAIClient(default_response={"from": "fallback"})
         client = FallbackAIClient(FailingClient(), mock_fallback, max_failures=3)
 
@@ -240,6 +249,7 @@ class TestFallbackAIClient:
         class FailingClient:
             def complete(self, prompt, **kwargs):
                 raise RuntimeError("primary down")
+
         mock_fallback = MockAIClient(default_response={"from": "fallback"})
         client = FallbackAIClient(FailingClient(), mock_fallback, max_failures=1)
 
@@ -261,6 +271,7 @@ class TestFallbackAIClient:
                 if call_count == 1:
                     raise RuntimeError("transient error")
                 return AIResponse(content="ok")
+
         mock_fallback = MockAIClient()
         client = FallbackAIClient(SometimesFailingClient(), mock_fallback, max_failures=3)
 
@@ -276,6 +287,7 @@ class TestFallbackAIClient:
         class FailingClient:
             def complete(self, prompt, **kwargs):
                 raise RuntimeError("down")
+
         mock_fallback = MockAIClient()
         client = FallbackAIClient(FailingClient(), mock_fallback, max_failures=1)
 
@@ -290,6 +302,7 @@ class TestFallbackAIClient:
         class FailingClient:
             def complete(self, prompt, **kwargs):
                 raise RuntimeError("down")
+
         mock_fallback = MockAIClient()
         client = FallbackAIClient(FailingClient(), mock_fallback, max_failures=5)
 
@@ -303,6 +316,7 @@ class TestFallbackAIClient:
 
 
 # ==================== AICallLog ====================
+
 
 class TestAICallLog:
     """AICallLog 模型 + record_call + check_budget 测试"""
@@ -350,20 +364,18 @@ class TestAICallLog:
         assert log.id is None
 
     def test_check_budget_within(self, db, test_run):
-        record_call(db, model="deepseek-chat", prompt_tokens=100,
-                    completion_tokens=50, run_id=test_run.id)
+        record_call(db, model="deepseek-chat", prompt_tokens=100, completion_tokens=50, run_id=test_run.id)
         assert check_budget(db, test_run.id) is True
 
     def test_check_budget_exceeded(self, db, test_run):
         for _ in range(5):
-            record_call(db, model="deepseek-chat",
-                        prompt_tokens=25000, completion_tokens=1000,
-                        run_id=test_run.id)
+            record_call(db, model="deepseek-chat", prompt_tokens=25000, completion_tokens=1000, run_id=test_run.id)
         assert check_budget(db, test_run.id) is False
 
     def test_check_budget_ignores_failed(self, db, test_run):
-        record_call(db, model="deepseek-chat", prompt_tokens=50000,
-                    completion_tokens=50000, run_id=test_run.id, status="failed")
+        record_call(
+            db, model="deepseek-chat", prompt_tokens=50000, completion_tokens=50000, run_id=test_run.id, status="failed"
+        )
         assert check_budget(db, test_run.id) is True
 
     def test_get_run_cost(self, db, test_run):

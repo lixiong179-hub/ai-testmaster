@@ -73,7 +73,7 @@ class TestRepairJsonText:
         assert "," not in result[-2:]
 
     def test_trailing_comma_in_array(self):
-        text = '[1, 2, 3,]'
+        text = "[1, 2, 3,]"
         result = _repair_json_text(text)
         assert ",]" not in result
 
@@ -100,7 +100,7 @@ class TestExtractCaseObjects:
         assert len(result) == 2
 
     def test_no_objects(self):
-        text = 'no json here'
+        text = "no json here"
         result = _extract_case_objects(text)
         assert result == []
 

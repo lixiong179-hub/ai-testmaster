@@ -13,7 +13,11 @@ from app.crud.test_task import (
 class TestCreateTestTask:
     def test_create_basic(self, db, testProject, testUser):
         task = create_test_task(
-            db, "回归测试", testProject.id, [1, 2, 3], testUser.id,
+            db,
+            "回归测试",
+            testProject.id,
+            [1, 2, 3],
+            testUser.id,
         )
         assert task.id is not None
         assert task.task_name == "回归测试"
@@ -23,7 +27,11 @@ class TestCreateTestTask:
 
     def test_create_empty_cases(self, db, testProject, testUser):
         task = create_test_task(
-            db, "空任务", testProject.id, [], testUser.id,
+            db,
+            "空任务",
+            testProject.id,
+            [],
+            testUser.id,
         )
         assert task.total_count == 0
 
@@ -31,7 +39,11 @@ class TestCreateTestTask:
 class TestGetTestTaskById:
     def test_found(self, db, testProject, testUser):
         task = create_test_task(
-            db, "查询任务", testProject.id, [1], testUser.id,
+            db,
+            "查询任务",
+            testProject.id,
+            [1],
+            testUser.id,
         )
         found = get_test_task_by_id(db, task.id, testProject.id)
         assert found is not None
@@ -39,7 +51,11 @@ class TestGetTestTaskById:
 
     def test_wrong_project(self, db, testProject, testUser):
         task = create_test_task(
-            db, "隔离任务", testProject.id, [1], testUser.id,
+            db,
+            "隔离任务",
+            testProject.id,
+            [1],
+            testUser.id,
         )
         found = get_test_task_by_id(db, task.id, 99999)
         assert found is None

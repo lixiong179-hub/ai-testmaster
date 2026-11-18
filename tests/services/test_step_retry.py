@@ -11,6 +11,7 @@
     - retry_count 字段默认值
     - to_dict 包含 retry_count
 """
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,11 +19,15 @@ import pytest
 
 from app.models.test_case import TestStep
 from app.services.test_execution_engine.models import (
-    ExecutionStatus, ActionType, StepExecutionError,
-    VerificationError, StepExecutionResult,
+    ExecutionStatus,
+    ActionType,
+    StepExecutionError,
+    VerificationError,
+    StepExecutionResult,
 )
 from app.services.test_execution_engine.step_executor_mixin import (
-    StepExecutorMixin, _UNRECOVERABLE_ERROR_PATTERNS,
+    StepExecutorMixin,
+    _UNRECOVERABLE_ERROR_PATTERNS,
 )
 
 
@@ -84,10 +89,16 @@ class TestStepRetrySuccessPath:
         engine = _StubEngine()
         step = _make_step()
 
-        with patch.object(engine, "_prepare_step_data", return_value=({}, step.action)), \
-             patch.object(engine, "_resolve_action_type", return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action})), \
-             patch.object(engine, "_resolve_locator", return_value=(None, None, False)), \
-             patch.object(engine, "_dispatch_step_action", new_callable=AsyncMock):
+        with (
+            patch.object(engine, "_prepare_step_data", return_value=({}, step.action)),
+            patch.object(
+                engine,
+                "_resolve_action_type",
+                return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action}),
+            ),
+            patch.object(engine, "_resolve_locator", return_value=(None, None, False)),
+            patch.object(engine, "_dispatch_step_action", new_callable=AsyncMock),
+        ):
             result = await engine._execute_step(step)
 
         assert result.status == ExecutionStatus.PASSED
@@ -107,11 +118,17 @@ class TestStepRetrySuccessPath:
             if call_count == 1:
                 raise StepExecutionError("元素暂时不可点击")
 
-        with patch.object(engine, "_prepare_step_data", return_value=({}, step.action)), \
-             patch.object(engine, "_resolve_action_type", return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action})), \
-             patch.object(engine, "_resolve_locator", return_value=(None, None, False)), \
-             patch.object(engine, "_dispatch_step_action", side_effect=flaky_dispatch), \
-             patch.object(engine, "RETRY_DELAY", 0.0):
+        with (
+            patch.object(engine, "_prepare_step_data", return_value=({}, step.action)),
+            patch.object(
+                engine,
+                "_resolve_action_type",
+                return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action}),
+            ),
+            patch.object(engine, "_resolve_locator", return_value=(None, None, False)),
+            patch.object(engine, "_dispatch_step_action", side_effect=flaky_dispatch),
+            patch.object(engine, "RETRY_DELAY", 0.0),
+        ):
             result = await engine._execute_step(step)
 
         assert result.status == ExecutionStatus.PASSED
@@ -133,13 +150,19 @@ class TestStepRetrySuccessPath:
             verify_call_count += 1
             return verify_call_count > 1
 
-        with patch.object(engine, "_prepare_step_data", return_value=({}, step.action)), \
-             patch.object(engine, "_resolve_action_type", return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action})), \
-             patch.object(engine, "_resolve_locator", return_value=(None, None, False)), \
-             patch.object(engine, "_dispatch_step_action", new_callable=AsyncMock), \
-             patch.object(engine, "verify_execution_result", side_effect=flaky_verify), \
-             patch("app.services.test_execution_engine.step_executor_mixin.asyncio.sleep", new_callable=AsyncMock), \
-             patch.object(engine, "RETRY_DELAY", 0.0):
+        with (
+            patch.object(engine, "_prepare_step_data", return_value=({}, step.action)),
+            patch.object(
+                engine,
+                "_resolve_action_type",
+                return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action}),
+            ),
+            patch.object(engine, "_resolve_locator", return_value=(None, None, False)),
+            patch.object(engine, "_dispatch_step_action", new_callable=AsyncMock),
+            patch.object(engine, "verify_execution_result", side_effect=flaky_verify),
+            patch("app.services.test_execution_engine.step_executor_mixin.asyncio.sleep", new_callable=AsyncMock),
+            patch.object(engine, "RETRY_DELAY", 0.0),
+        ):
             result = await engine._execute_step(step)
 
         assert result.status == ExecutionStatus.PASSED
@@ -154,11 +177,22 @@ class TestStepRetryAllFailed:
         engine = _StubEngine()
         step = _make_step()
 
-        with patch.object(engine, "_prepare_step_data", return_value=({}, step.action)), \
-             patch.object(engine, "_resolve_action_type", return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action})), \
-             patch.object(engine, "_resolve_locator", return_value=(None, None, False)), \
-             patch.object(engine, "_dispatch_step_action", new_callable=AsyncMock, side_effect=StepExecutionError("元素始终不可点击")), \
-             patch.object(engine, "RETRY_DELAY", 0.0):
+        with (
+            patch.object(engine, "_prepare_step_data", return_value=({}, step.action)),
+            patch.object(
+                engine,
+                "_resolve_action_type",
+                return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action}),
+            ),
+            patch.object(engine, "_resolve_locator", return_value=(None, None, False)),
+            patch.object(
+                engine,
+                "_dispatch_step_action",
+                new_callable=AsyncMock,
+                side_effect=StepExecutionError("元素始终不可点击"),
+            ),
+            patch.object(engine, "RETRY_DELAY", 0.0),
+        ):
             result = await engine._execute_step(step)
 
         assert result.status == ExecutionStatus.FAILED
@@ -170,10 +204,21 @@ class TestStepRetryAllFailed:
         engine = _StubEngine()
         step = _make_step()
 
-        with patch.object(engine, "_prepare_step_data", return_value=({}, step.action)), \
-             patch.object(engine, "_resolve_action_type", return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action})), \
-             patch.object(engine, "_resolve_locator", return_value=(None, None, False)), \
-             patch.object(engine, "_dispatch_step_action", new_callable=AsyncMock, side_effect=StepExecutionError("浏览器未初始化，无法执行操作")):
+        with (
+            patch.object(engine, "_prepare_step_data", return_value=({}, step.action)),
+            patch.object(
+                engine,
+                "_resolve_action_type",
+                return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action}),
+            ),
+            patch.object(engine, "_resolve_locator", return_value=(None, None, False)),
+            patch.object(
+                engine,
+                "_dispatch_step_action",
+                new_callable=AsyncMock,
+                side_effect=StepExecutionError("浏览器未初始化，无法执行操作"),
+            ),
+        ):
             result = await engine._execute_step(step)
 
         assert result.status == ExecutionStatus.FAILED
@@ -185,10 +230,18 @@ class TestStepRetryAllFailed:
         engine = _StubEngine()
         step = _make_step()
 
-        with patch.object(engine, "_prepare_step_data", return_value=({}, step.action)), \
-             patch.object(engine, "_resolve_action_type", return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action})), \
-             patch.object(engine, "_resolve_locator", return_value=(None, None, False)), \
-             patch.object(engine, "_dispatch_step_action", new_callable=AsyncMock, side_effect=StepExecutionError("页面未初始化")):
+        with (
+            patch.object(engine, "_prepare_step_data", return_value=({}, step.action)),
+            patch.object(
+                engine,
+                "_resolve_action_type",
+                return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action}),
+            ),
+            patch.object(engine, "_resolve_locator", return_value=(None, None, False)),
+            patch.object(
+                engine, "_dispatch_step_action", new_callable=AsyncMock, side_effect=StepExecutionError("页面未初始化")
+            ),
+        ):
             result = await engine._execute_step(step)
 
         assert result.status == ExecutionStatus.FAILED
@@ -203,10 +256,16 @@ class TestStepRetryNonRetryableException:
         engine = _StubEngine()
         step = _make_step()
 
-        with patch.object(engine, "_prepare_step_data", return_value=({}, step.action)), \
-             patch.object(engine, "_resolve_action_type", return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action})), \
-             patch.object(engine, "_resolve_locator", return_value=(None, None, False)), \
-             patch.object(engine, "_dispatch_step_action", new_callable=AsyncMock, side_effect=RuntimeError("意外错误")):
+        with (
+            patch.object(engine, "_prepare_step_data", return_value=({}, step.action)),
+            patch.object(
+                engine,
+                "_resolve_action_type",
+                return_value=(ActionType.CLICK, {"type": ActionType.CLICK, "text": step.action}),
+            ),
+            patch.object(engine, "_resolve_locator", return_value=(None, None, False)),
+            patch.object(engine, "_dispatch_step_action", new_callable=AsyncMock, side_effect=RuntimeError("意外错误")),
+        ):
             result = await engine._execute_step(step)
 
         assert result.status == ExecutionStatus.FAILED

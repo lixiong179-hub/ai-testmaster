@@ -16,6 +16,7 @@ fixture 清单:
 in-memory）不受影响 — 它们使用各自文件内定义的局部 db fixture，与本文件
 的 async_db 互不冲突。
 """
+
 import os
 
 import pytest
@@ -84,9 +85,7 @@ async def async_test_user(async_db):
     )
     async_db.add(user)
     await async_db.flush()
-    result = await async_db.execute(
-        select(User).options(selectinload(User.roles)).where(User.id == user.id)
-    )
+    result = await async_db.execute(select(User).options(selectinload(User.roles)).where(User.id == user.id))
     return result.scalar_one()
 
 

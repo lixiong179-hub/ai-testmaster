@@ -5,6 +5,7 @@ Prometheus /metrics 端点集成测试
 依赖: 真实 app 实例（通过 tests/conftest.py 的 client fixture 注入，禁止 Mock）
 运行: python -m pytest tests/test_metrics_endpoint.py -v --tb=short
 """
+
 import pytest
 
 
@@ -44,8 +45,7 @@ def test_metrics_endpoint_returns_prometheus_format(client):
     )
     matchedMetrics = [m for m in expectedMetrics if m in body]
     assert matchedMetrics, (
-        f"/metrics 响应未包含任何 Prometheus HTTP 指标，"
-        f"期望包含 {expectedMetrics} 之一，实际前 500 字符: {body[:500]}"
+        f"/metrics 响应未包含任何 Prometheus HTTP 指标，期望包含 {expectedMetrics} 之一，实际前 500 字符: {body[:500]}"
     )
 
     # 验证响应符合 Prometheus exposition format（包含 # HELP 或 # TYPE 注释行）
@@ -64,14 +64,11 @@ def test_metrics_endpoint_accessible_without_auth(client):
     response = client.get("/metrics")
 
     # 必须返回 200（非 401 未认证 / 403 禁止访问）
-    assert response.status_code == 200, (
-        f"/metrics 无认证访问失败，状态码: {response.status_code}（应为 200）"
-    )
+    assert response.status_code == 200, f"/metrics 无认证访问失败，状态码: {response.status_code}（应为 200）"
 
     # 再次确认响应体有效（非空且为 Prometheus 文本格式）
     body = response.text
     assert body.strip(), "/metrics 无认证访问响应体为空"
     assert "text/plain" in response.headers.get("content-type", ""), (
-        f"/metrics 无认证访问 Content-Type 非 text/plain: "
-        f"{response.headers.get('content-type', '')}"
+        f"/metrics 无认证访问 Content-Type 非 text/plain: {response.headers.get('content-type', '')}"
     )

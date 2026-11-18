@@ -97,7 +97,10 @@ class TestUIPrototypeProjectCreate:
 class TestUIPrototypeProjectResponse:
     def test_from_attributes(self):
         proj = UIPrototypeProjectResponse(
-            id=1, name="项目", source="upload", screen_count=5,
+            id=1,
+            name="项目",
+            source="upload",
+            screen_count=5,
         )
         assert proj.id == 1
         assert proj.screen_count == 5
@@ -122,7 +125,9 @@ class TestUIScreenCreate:
 
     def test_with_image_data(self):
         screen = UIScreenCreate(
-            project_id=1, title="T", image_data="base64data",
+            project_id=1,
+            title="T",
+            image_data="base64data",
         )
         assert screen.image_data == "base64data"
 

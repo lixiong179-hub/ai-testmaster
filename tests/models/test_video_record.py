@@ -11,15 +11,24 @@ VideoRecord模型单元测试
 1. 使用共享 db fixture，自动事务隔离（commit 降级为 flush）
 2. 不硬编码 id，让数据库自动生成
 """
+
 import pytest
 import time
 from datetime import datetime
 from sqlalchemy import select
 
 from app.models import (
-    User, Project, TestTask, TestCase, TestPoint,
-    TestStep, TestData, TestResult, TestReport, ElementLocator,
-    VideoRecord
+    User,
+    Project,
+    TestTask,
+    TestCase,
+    TestPoint,
+    TestStep,
+    TestData,
+    TestResult,
+    TestReport,
+    ElementLocator,
+    VideoRecord,
 )
 
 
@@ -239,9 +248,7 @@ class TestVideoRecordModel:
             db.add(video)
         db.commit()
 
-        videos = db.query(VideoRecord).filter(
-            VideoRecord.task_id == video_test_task.id
-        ).all()
+        videos = db.query(VideoRecord).filter(VideoRecord.task_id == video_test_task.id).all()
         assert len(videos) == 3
 
     def test_video_record_query_by_case(self, db, video_test_task, video_test_case):
@@ -257,9 +264,7 @@ class TestVideoRecordModel:
         db.commit()
         db.refresh(video)
 
-        result = db.query(VideoRecord).filter(
-            VideoRecord.case_id == video_test_case.id
-        ).first()
+        result = db.query(VideoRecord).filter(VideoRecord.case_id == video_test_case.id).first()
         assert result is not None
         assert result.file_name == "case_video.webm"
 
@@ -278,9 +283,7 @@ class TestVideoRecordModel:
         db.commit()
         db.refresh(video)
 
-        result = db.query(VideoRecord).filter(
-            VideoRecord.execution_id == execution_id
-        ).first()
+        result = db.query(VideoRecord).filter(VideoRecord.execution_id == execution_id).first()
         assert result is not None
         assert result.execution_id == execution_id
 

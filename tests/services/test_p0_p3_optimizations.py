@@ -12,6 +12,7 @@ P0-P3优化项单元测试
     AIGenerateRequest / BatchGenerateRequest / AIGenerateEnhancedRequest 现统一从
     test_case_ai_schemas 导入。
 """
+
 import pytest
 import json
 import sys
@@ -40,7 +41,7 @@ class TestConfigSecurity:
             ENVIRONMENT="test",
             JWT_SECRET_KEY="test-secret-key",
             ENCRYPTION_KEY="test-enc-key",
-            ENCRYPTION_SALT="test-salt"
+            ENCRYPTION_SALT="test-salt",
         )
 
         assert s.DATABASE_URL == "mysql+pymysql://user:pass@localhost:3306/testdb"
@@ -53,7 +54,7 @@ class TestConfigSecurity:
             DATABASE_URL="mysql+pymysql://user:pass@localhost:3306/testdb",
             JWT_SECRET_KEY="test-secret-key",
             ENCRYPTION_KEY="test-enc-key",
-            ENCRYPTION_SALT="test-salt"
+            ENCRYPTION_SALT="test-salt",
         )
 
         assert s.CORS_ORIGINS == "*"
@@ -65,8 +66,7 @@ class TestConfigSecurity:
 
         # 检查类定义中的默认值（不受.env影响）
         source = inspect.getsource(Settings)
-        assert "DEBUG: bool = False" in source, \
-            "Settings.DEBUG默认值应为False"
+        assert "DEBUG: bool = False" in source, "Settings.DEBUG默认值应为False"
 
     def test_dev_settings_debug_true(self):
         """P1-5: DevSettings中DEBUG为True"""
@@ -74,8 +74,7 @@ class TestConfigSecurity:
         import inspect
 
         source = inspect.getsource(DevSettings)
-        assert "DEBUG: bool = True" in source, \
-            "DevSettings.DEBUG应为True"
+        assert "DEBUG: bool = True" in source, "DevSettings.DEBUG应为True"
 
 
 class TestRateLimitMiddleware:
@@ -119,12 +118,12 @@ class TestRateLimitMiddleware:
 
         async def run_test():
             scope = {
-                'type': 'http',
-                'method': 'GET',
-                'path': '/test',
-                'headers': [],
-                'query_string': b'',
-                'client': ('127.0.0.1', 12345),
+                "type": "http",
+                "method": "GET",
+                "path": "/test",
+                "headers": [],
+                "query_string": b"",
+                "client": ("127.0.0.1", 12345),
             }
 
             receive = AsyncMock()
@@ -214,8 +213,9 @@ class TestUserEndpointAuthProtection:
 
         assert "get_current_user" in source, "user.py应导入get_current_user"
         assert "create_access_token" in source, "user.py应导入create_access_token"
-        assert "oauth2_scheme" not in source or "Depends(get_current_user)" in source, \
+        assert "oauth2_scheme" not in source or "Depends(get_current_user)" in source, (
             "user.py应使用get_current_user而非oauth2_scheme直接依赖"
+        )
 
 
 class TestTestCaseSoftDelete:
@@ -240,8 +240,9 @@ class TestTestCaseSoftDelete:
         assert "is_deleted" in source, "TestCase缺少is_deleted字段"
         assert "deleted_at" in source, "TestCase缺少deleted_at字段"
         # 验证默认值定义
-        assert "default=False" in source or 'default = False' in source or "default=False" in source, \
+        assert "default=False" in source or "default = False" in source or "default=False" in source, (
             "is_deleted默认应为False"
+        )
 
     def test_soft_delete_column_type(self):
         """软删除字段类型正确"""
@@ -250,8 +251,9 @@ class TestTestCaseSoftDelete:
 
         columns = {c.name: c.type for c in TestCase.__table__.columns}
 
-        assert isinstance(columns.get("is_deleted"), type(Boolean())), \
+        assert isinstance(columns.get("is_deleted"), type(Boolean())), (
             f"is_deleted应为Boolean类型，实际: {type(columns.get('is_deleted'))}"
+        )
         assert columns.get("deleted_at") is not None, "deleted_at字段应存在"
 
 
@@ -268,8 +270,7 @@ class TestProjectFileSortIndex:
         # 验证__table_args__中定义了索引
         assert "__table_args__" in source, "ProjectFile应有__table_args__定义索引"
         assert "sort_order" in source, "ProjectFile索引应包含sort_order"
-        assert "Index" in source or "ix_project_file_sort" in source, \
-            "ProjectFile应定义sort相关索引"
+        assert "Index" in source or "ix_project_file_sort" in source, "ProjectFile应定义sort相关索引"
 
     def test_project_file_has_sort_order_column(self):
         """ProjectFile有sort_order字段"""
@@ -317,22 +318,14 @@ class TestBatchGenerateValidation:
         too_many_ids = list(range(201))
 
         with pytest.raises(Exception):  # ValidationError
-            BatchGenerateRequest(
-                project_id=1,
-                test_point_ids=too_many_ids,
-                requirement_file_ids=[],
-                ui_file_ids=[]
-            )
+            BatchGenerateRequest(project_id=1, test_point_ids=too_many_ids, requirement_file_ids=[], ui_file_ids=[])
 
     def test_batch_generate_valid_list(self):
         """合法列表大小通过校验"""
         from app.api.v1.endpoints.test_case_ai_schemas import BatchGenerateRequest
 
         req = BatchGenerateRequest(
-            project_id=1,
-            test_point_ids=[1, 2, 3],
-            requirement_file_ids=[10, 20],
-            ui_file_ids=[100]
+            project_id=1, test_point_ids=[1, 2, 3], requirement_file_ids=[10, 20], ui_file_ids=[100]
         )
 
         assert len(req.test_point_ids) == 3
@@ -348,10 +341,7 @@ class TestBatchGenerateValidation:
 
         # 最少5字符
         req = AIGenerateEnhancedRequest(
-            project_id=1,
-            description="这是一个有效的测试描述",
-            case_type="functional",
-            priority=1
+            project_id=1, description="这是一个有效的测试描述", case_type="functional", priority=1
         )
 
         assert req.priority == 1

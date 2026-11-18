@@ -43,40 +43,52 @@ class TestCheckUserConfirmed:
 
 class TestComputeAnalyzerScore:
     def test_good_analyzer(self):
-        analyzer = type("Analyzer", (), {
-            "analyze_case": lambda self, data: {
-                "complexity_score": 2,
-                "coverage_score": 8,
-                "redundancy_score": 1,
-                "suggestion_count": 1,
-            }
-        })()
+        analyzer = type(
+            "Analyzer",
+            (),
+            {
+                "analyze_case": lambda self, data: {
+                    "complexity_score": 2,
+                    "coverage_score": 8,
+                    "redundancy_score": 1,
+                    "suggestion_count": 1,
+                }
+            },
+        )()
         score, grade, breakdown = _compute_analyzer_score(analyzer, {"title": "test"})
         assert 0 <= score <= 100
         assert grade in ("A", "B", "C", "D")
         assert "analyzer_complexity" in breakdown
 
     def test_bad_analyzer(self):
-        analyzer = type("Analyzer", (), {
-            "analyze_case": lambda self, data: {
-                "complexity_score": 9,
-                "coverage_score": 1,
-                "redundancy_score": 8,
-                "suggestion_count": 10,
-            }
-        })()
+        analyzer = type(
+            "Analyzer",
+            (),
+            {
+                "analyze_case": lambda self, data: {
+                    "complexity_score": 9,
+                    "coverage_score": 1,
+                    "redundancy_score": 8,
+                    "suggestion_count": 10,
+                }
+            },
+        )()
         score, grade, breakdown = _compute_analyzer_score(analyzer, {})
         assert grade in ("C", "D")
 
     def test_score_bounded(self):
-        analyzer = type("Analyzer", (), {
-            "analyze_case": lambda self, data: {
-                "complexity_score": 0,
-                "coverage_score": 10,
-                "redundancy_score": 0,
-                "suggestion_count": 0,
-            }
-        })()
+        analyzer = type(
+            "Analyzer",
+            (),
+            {
+                "analyze_case": lambda self, data: {
+                    "complexity_score": 0,
+                    "coverage_score": 10,
+                    "redundancy_score": 0,
+                    "suggestion_count": 0,
+                }
+            },
+        )()
         score, _, _ = _compute_analyzer_score(analyzer, {})
         assert 0 <= score <= 100
 

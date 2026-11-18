@@ -15,6 +15,7 @@
 
 使用真实 MySQL 数据库 + MockAIClient。
 """
+
 import json
 import pytest
 
@@ -88,14 +89,16 @@ def _make_raw_signals(project_id: int, **overrides) -> dict:
 def _make_fingerprints(project_id: int) -> dict:
     fps = []
     for i, mod_info in enumerate([("用户管理", "user_mgmt"), ("订单管理", "order_mgmt")]):
-        fps.append({
-            "case_id": 200 + i,
-            "title": f"旧用例{i}",
-            "module": mod_info[0],
-            "summary": f"旧用例摘要{i}",
-            "priority": 1,
-            "lifecycle_status": "active",
-        })
+        fps.append(
+            {
+                "case_id": 200 + i,
+                "title": f"旧用例{i}",
+                "module": mod_info[0],
+                "summary": f"旧用例摘要{i}",
+                "priority": 1,
+                "lifecycle_status": "active",
+            }
+        )
     return {
         "project_id": project_id,
         "fingerprints": fps,
@@ -165,10 +168,12 @@ def make_ctx(db, mock_ai, test_iteration):
             ctx.set_artifact("history_fingerprints", artifact)
 
         return ctx
+
     return _make_ctx
 
 
 # ==================== 类级方法测试 ====================
+
 
 class TestShouldRun:
     def test_has_ui(self, make_ctx):
@@ -255,35 +260,39 @@ class TestFallback:
 
 # ==================== execute 测试 ====================
 
+
 class TestExecuteNewProject:
     def test_success(self, make_ctx, mock_ai):
-        mock_ai.set_response("reverse_infer", {
-            "inferred_capabilities": [
-                {
-                    "name": "用户认证",
-                    "key": "user_auth",
-                    "description": "用户通过账号密码登录系统",
-                    "confidence": 0.9,
-                    "supporting_evidence": "登录页有username/password输入框和登录按钮",
-                },
-                {
-                    "name": "用户注册",
-                    "key": "user_registration",
-                    "description": "新用户填写邮箱和昵称注册",
-                    "confidence": 0.85,
-                    "supporting_evidence": "注册页有email/nickname输入框和注册按钮",
-                },
-            ],
-            "uncertain_questions": [
-                {
-                    "question": "登录失败是否有锁定机制？",
-                    "context": "登录页",
-                    "suggested_answer": "通常3次失败后锁定30分钟",
-                }
-            ],
-            "overall_confidence": 0.85,
-            "analysis_summary": "系统包含用户认证和注册两大核心能力",
-        })
+        mock_ai.set_response(
+            "reverse_infer",
+            {
+                "inferred_capabilities": [
+                    {
+                        "name": "用户认证",
+                        "key": "user_auth",
+                        "description": "用户通过账号密码登录系统",
+                        "confidence": 0.9,
+                        "supporting_evidence": "登录页有username/password输入框和登录按钮",
+                    },
+                    {
+                        "name": "用户注册",
+                        "key": "user_registration",
+                        "description": "新用户填写邮箱和昵称注册",
+                        "confidence": 0.85,
+                        "supporting_evidence": "注册页有email/nickname输入框和注册按钮",
+                    },
+                ],
+                "uncertain_questions": [
+                    {
+                        "question": "登录失败是否有锁定机制？",
+                        "context": "登录页",
+                        "suggested_answer": "通常3次失败后锁定30分钟",
+                    }
+                ],
+                "overall_confidence": 0.85,
+                "analysis_summary": "系统包含用户认证和注册两大核心能力",
+            },
+        )
         step = ReverseInfer()
         ctx = make_ctx(raw_signals_payload=_make_raw_signals(1))
         result = step.execute(ctx)
@@ -297,20 +306,23 @@ class TestExecuteNewProject:
         assert result.pause_for_confirmation is False
 
     def test_only_ui_specs_no_descriptions(self, make_ctx, mock_ai):
-        mock_ai.set_response("reverse_infer", {
-            "inferred_capabilities": [
-                {
-                    "name": "用户认证",
-                    "key": "user_auth",
-                    "description": "用户通过账号密码登录",
-                    "confidence": 0.9,
-                    "supporting_evidence": "登录页控件",
-                }
-            ],
-            "uncertain_questions": [],
-            "overall_confidence": 0.9,
-            "analysis_summary": "包含用户认证能力",
-        })
+        mock_ai.set_response(
+            "reverse_infer",
+            {
+                "inferred_capabilities": [
+                    {
+                        "name": "用户认证",
+                        "key": "user_auth",
+                        "description": "用户通过账号密码登录",
+                        "confidence": 0.9,
+                        "supporting_evidence": "登录页控件",
+                    }
+                ],
+                "uncertain_questions": [],
+                "overall_confidence": 0.9,
+                "analysis_summary": "包含用户认证能力",
+            },
+        )
         signals = _make_raw_signals(1)
         signals["ui_descriptions"] = []
         step = ReverseInfer()
@@ -319,22 +331,25 @@ class TestExecuteNewProject:
         assert result.success is True
 
     def test_low_confidence_pause(self, make_ctx, mock_ai):
-        mock_ai.set_response("reverse_infer", {
-            "inferred_capabilities": [
-                {
-                    "name": "未知功能",
-                    "key": "unknown",
-                    "description": "无法确定的功能",
-                    "confidence": 0.3,
-                    "supporting_evidence": "模糊的UI元素",
-                }
-            ],
-            "uncertain_questions": [
-                {"question": "这是什么功能？", "context": "页面1", "suggested_answer": ""},
-            ],
-            "overall_confidence": 0.4,
-            "analysis_summary": "无法确定业务能力",
-        })
+        mock_ai.set_response(
+            "reverse_infer",
+            {
+                "inferred_capabilities": [
+                    {
+                        "name": "未知功能",
+                        "key": "unknown",
+                        "description": "无法确定的功能",
+                        "confidence": 0.3,
+                        "supporting_evidence": "模糊的UI元素",
+                    }
+                ],
+                "uncertain_questions": [
+                    {"question": "这是什么功能？", "context": "页面1", "suggested_answer": ""},
+                ],
+                "overall_confidence": 0.4,
+                "analysis_summary": "无法确定业务能力",
+            },
+        )
         step = ReverseInfer()
         ctx = make_ctx(raw_signals_payload=_make_raw_signals(1))
         result = step.execute(ctx)
@@ -383,40 +398,43 @@ class TestExecuteNewProject:
 
 class TestExecuteOldProject:
     def test_success(self, make_ctx, mock_ai):
-        mock_ai.set_response("reverse_infer", {
-            "change_summary": {
-                "new_capabilities": [
+        mock_ai.set_response(
+            "reverse_infer",
+            {
+                "change_summary": {
+                    "new_capabilities": [
+                        {
+                            "name": "验证码校验",
+                            "key": "captcha_verify",
+                            "description": "登录时需输入图形验证码",
+                            "confidence": 0.9,
+                            "supporting_evidence": "登录页新增captcha输入框和验证码图片",
+                        }
+                    ],
+                    "modified_capabilities": [
+                        {
+                            "old_key": "user_auth",
+                            "old_name": "用户认证",
+                            "new_name": "用户认证",
+                            "change_description": "登录流程增加验证码校验步骤",
+                            "change_type": "business_logic",
+                            "confidence": 0.85,
+                        }
+                    ],
+                    "removed_capabilities": [],
+                    "ui_only_changes": "登录按钮样式从蓝色变为绿色",
+                },
+                "uncertain_questions": [
                     {
-                        "name": "验证码校验",
-                        "key": "captcha_verify",
-                        "description": "登录时需输入图形验证码",
-                        "confidence": 0.9,
-                        "supporting_evidence": "登录页新增captcha输入框和验证码图片",
+                        "question": "验证码是否有失效时间？",
+                        "context": "登录页",
+                        "suggested_answer": "通常60秒失效",
                     }
                 ],
-                "modified_capabilities": [
-                    {
-                        "old_key": "user_auth",
-                        "old_name": "用户认证",
-                        "new_name": "用户认证",
-                        "change_description": "登录流程增加验证码校验步骤",
-                        "change_type": "business_logic",
-                        "confidence": 0.85,
-                    }
-                ],
-                "removed_capabilities": [],
-                "ui_only_changes": "登录按钮样式从蓝色变为绿色",
+                "overall_confidence": 0.85,
+                "analysis_summary": "主要变更为登录增加验证码校验",
             },
-            "uncertain_questions": [
-                {
-                    "question": "验证码是否有失效时间？",
-                    "context": "登录页",
-                    "suggested_answer": "通常60秒失效",
-                }
-            ],
-            "overall_confidence": 0.85,
-            "analysis_summary": "主要变更为登录增加验证码校验",
-        })
+        )
         step = ReverseInfer()
         ctx = make_ctx(
             raw_signals_payload=_make_raw_signals(1),
@@ -433,19 +451,22 @@ class TestExecuteOldProject:
         assert result.pause_for_confirmation is False
 
     def test_low_confidence_pause(self, make_ctx, mock_ai):
-        mock_ai.set_response("reverse_infer", {
-            "change_summary": {
-                "new_capabilities": [],
-                "modified_capabilities": [],
-                "removed_capabilities": [],
-                "ui_only_changes": "",
+        mock_ai.set_response(
+            "reverse_infer",
+            {
+                "change_summary": {
+                    "new_capabilities": [],
+                    "modified_capabilities": [],
+                    "removed_capabilities": [],
+                    "ui_only_changes": "",
+                },
+                "uncertain_questions": [
+                    {"question": "完全不确定变更内容", "context": "全部页面", "suggested_answer": ""},
+                ],
+                "overall_confidence": 0.3,
+                "analysis_summary": "无法确定变更",
             },
-            "uncertain_questions": [
-                {"question": "完全不确定变更内容", "context": "全部页面", "suggested_answer": ""},
-            ],
-            "overall_confidence": 0.3,
-            "analysis_summary": "无法确定变更",
-        })
+        )
         step = ReverseInfer()
         ctx = make_ctx(
             raw_signals_payload=_make_raw_signals(1),
@@ -459,20 +480,23 @@ class TestExecuteOldProject:
 
     def test_empty_fingerprints(self, make_ctx, mock_ai):
         """空指纹列表（total_count=0）视为新项目模式"""
-        mock_ai.set_response("reverse_infer", {
-            "inferred_capabilities": [
-                {
-                    "name": "用户认证",
-                    "key": "user_auth",
-                    "description": "用户登录",
-                    "confidence": 0.9,
-                    "supporting_evidence": "登录页控件",
-                }
-            ],
-            "uncertain_questions": [],
-            "overall_confidence": 0.9,
-            "analysis_summary": "包含认证能力",
-        })
+        mock_ai.set_response(
+            "reverse_infer",
+            {
+                "inferred_capabilities": [
+                    {
+                        "name": "用户认证",
+                        "key": "user_auth",
+                        "description": "用户登录",
+                        "confidence": 0.9,
+                        "supporting_evidence": "登录页控件",
+                    }
+                ],
+                "uncertain_questions": [],
+                "overall_confidence": 0.9,
+                "analysis_summary": "包含认证能力",
+            },
+        )
         empty_fp = {
             "project_id": 1,
             "fingerprints": [],
@@ -490,6 +514,7 @@ class TestExecuteOldProject:
 
 
 # ==================== 纯函数测试 ====================
+
 
 class TestHashDict:
     def test_dict(self):
@@ -575,104 +600,124 @@ class TestParseInferResponse:
 
 class TestValidateNewProjectOutput:
     def test_valid(self):
-        ok, err = _validate_new_project_output({
-            "inferred_capabilities": [
-                {
-                    "name": "test",
-                    "key": "t",
-                    "description": "desc",
-                    "confidence": 0.9,
-                }
-            ],
-            "uncertain_questions": [],
-            "overall_confidence": 0.9,
-        })
+        ok, err = _validate_new_project_output(
+            {
+                "inferred_capabilities": [
+                    {
+                        "name": "test",
+                        "key": "t",
+                        "description": "desc",
+                        "confidence": 0.9,
+                    }
+                ],
+                "uncertain_questions": [],
+                "overall_confidence": 0.9,
+            }
+        )
         assert ok is True
         assert err is None
 
     def test_missing_confidence(self):
-        ok, err = _validate_new_project_output({
-            "inferred_capabilities": [],
-            "uncertain_questions": [],
-        })
+        ok, err = _validate_new_project_output(
+            {
+                "inferred_capabilities": [],
+                "uncertain_questions": [],
+            }
+        )
         assert ok is False
         assert "overall_confidence" in (err or "")
 
     def test_capabilities_not_list(self):
-        ok, err = _validate_new_project_output({
-            "inferred_capabilities": "not a list",
-            "uncertain_questions": [],
-            "overall_confidence": 0.9,
-        })
+        ok, err = _validate_new_project_output(
+            {
+                "inferred_capabilities": "not a list",
+                "uncertain_questions": [],
+                "overall_confidence": 0.9,
+            }
+        )
         assert ok is False
 
     def test_capability_missing_field(self):
-        ok, err = _validate_new_project_output({
-            "inferred_capabilities": [{"name": "test"}],
-            "uncertain_questions": [],
-            "overall_confidence": 0.9,
-        })
+        ok, err = _validate_new_project_output(
+            {
+                "inferred_capabilities": [{"name": "test"}],
+                "uncertain_questions": [],
+                "overall_confidence": 0.9,
+            }
+        )
         assert ok is False
         assert "缺少" in (err or "")
 
     def test_questions_not_list(self):
-        ok, err = _validate_new_project_output({
-            "inferred_capabilities": [],
-            "uncertain_questions": "not a list",
-            "overall_confidence": 0.9,
-        })
+        ok, err = _validate_new_project_output(
+            {
+                "inferred_capabilities": [],
+                "uncertain_questions": "not a list",
+                "overall_confidence": 0.9,
+            }
+        )
         assert ok is False
 
 
 class TestValidateOldProjectOutput:
     def test_valid(self):
-        ok, err = _validate_old_project_output({
-            "change_summary": {
-                "new_capabilities": [],
-                "modified_capabilities": [],
-                "removed_capabilities": [],
-            },
-            "uncertain_questions": [],
-            "overall_confidence": 0.9,
-        })
+        ok, err = _validate_old_project_output(
+            {
+                "change_summary": {
+                    "new_capabilities": [],
+                    "modified_capabilities": [],
+                    "removed_capabilities": [],
+                },
+                "uncertain_questions": [],
+                "overall_confidence": 0.9,
+            }
+        )
         assert ok is True
         assert err is None
 
     def test_missing_change_summary(self):
-        ok, err = _validate_old_project_output({
-            "uncertain_questions": [],
-            "overall_confidence": 0.9,
-        })
+        ok, err = _validate_old_project_output(
+            {
+                "uncertain_questions": [],
+                "overall_confidence": 0.9,
+            }
+        )
         assert ok is False
 
     def test_change_summary_not_dict(self):
-        ok, err = _validate_old_project_output({
-            "change_summary": "not a dict",
-            "uncertain_questions": [],
-            "overall_confidence": 0.9,
-        })
+        ok, err = _validate_old_project_output(
+            {
+                "change_summary": "not a dict",
+                "uncertain_questions": [],
+                "overall_confidence": 0.9,
+            }
+        )
         assert ok is False
 
     def test_sub_field_not_list(self):
-        ok, err = _validate_old_project_output({
-            "change_summary": {
-                "new_capabilities": "not a list",
-                "modified_capabilities": [],
-                "removed_capabilities": [],
-            },
-            "uncertain_questions": [],
-            "overall_confidence": 0.9,
-        })
+        ok, err = _validate_old_project_output(
+            {
+                "change_summary": {
+                    "new_capabilities": "not a list",
+                    "modified_capabilities": [],
+                    "removed_capabilities": [],
+                },
+                "uncertain_questions": [],
+                "overall_confidence": 0.9,
+            }
+        )
         assert ok is False
 
     def test_questions_not_list(self):
-        ok, err = _validate_old_project_output({
-            "change_summary": {
-                "new_capabilities": [],
-                "modified_capabilities": [],
-                "removed_capabilities": [],
-            },
-            "uncertain_questions": "not a list",
-            "overall_confidence": 0.9,
-        })
+        ok, err = _validate_old_project_output(
+            {
+                "change_summary": {
+                    "new_capabilities": [],
+                    "modified_capabilities": [],
+                    "removed_capabilities": [],
+                },
+                "uncertain_questions": "not a list",
+                "overall_confidence": 0.9,
+            }
+        )
         assert ok is False

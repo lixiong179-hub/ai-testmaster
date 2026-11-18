@@ -22,6 +22,7 @@
 
 测试原则：AgentRuntime 通过 MockRuntime 替换，不依赖真实 LLM/DB/工具系统。
 """
+
 from __future__ import annotations
 
 import uuid
@@ -508,7 +509,7 @@ def test_extract_output_artifacts_returns_empty_for_invalid_final_answer() -> No
     assert AgentOrchestrator._extract_output_artifacts(session1) == []  # type: ignore[arg-type]
 
     # JSON 但非 dict（list）
-    session2 = _MockSession(session_id=2, final_answer='[1, 2, 3]')
+    session2 = _MockSession(session_id=2, final_answer="[1, 2, 3]")
     assert AgentOrchestrator._extract_output_artifacts(session2) == []  # type: ignore[arg-type]
 
     # JSON dict 但无 artifacts 字段

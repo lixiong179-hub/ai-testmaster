@@ -7,6 +7,7 @@
     - 「重启后无裸 RUNNING」：恢复后该项目的 RUNNING 计数为 0
     - `TIMEOUT_CHECK_INTERVAL<=0` 时不启动巡检（灰度关闭）
 """
+
 import asyncio
 import uuid
 from datetime import timedelta
@@ -81,16 +82,12 @@ class TestOrphanRecovery:
         """超时 RUNNING → FAILED，reason=marked_interrupted，写 end_time。"""
         recovered = TaskRecoveryService(db).scan_orphan_running()
 
-        stale_entry = next(
-            item for item in recovered if item["task_id"] == recovery_task["stale"].id
-        )
+        stale_entry = next(item for item in recovered if item["task_id"] == recovery_task["stale"].id)
         assert stale_entry["reason"] == INTERRUPTED_REASON
         assert stale_entry["stale_seconds"] >= int(settings.TASK_TIMEOUT_SECONDS)
 
         db.expire_all()
-        stale = db.query(TestTask).filter(
-            TestTask.id == recovery_task["stale"].id
-        ).first()
+        stale = db.query(TestTask).filter(TestTask.id == recovery_task["stale"].id).first()
         assert stale.status == TaskStatus.FAILED
         assert stale.end_time is not None
 
@@ -98,13 +95,9 @@ class TestOrphanRecovery:
         """未超时的 RUNNING 任务不参与恢复。"""
         recovered = TaskRecoveryService(db).scan_orphan_running()
 
-        assert all(
-            item["task_id"] != recovery_task["fresh"].id for item in recovered
-        )
+        assert all(item["task_id"] != recovery_task["fresh"].id for item in recovered)
         db.expire_all()
-        fresh = db.query(TestTask).filter(
-            TestTask.id == recovery_task["fresh"].id
-        ).first()
+        fresh = db.query(TestTask).filter(TestTask.id == recovery_task["fresh"].id).first()
         assert fresh.status == TaskStatus.RUNNING
 
     def test_no_bare_running_after_recovery(self, db, recovery_task):
@@ -129,12 +122,8 @@ class TestOrphanRecovery:
         first = service.scan_orphan_running()
         second = service.scan_orphan_running()
 
-        assert any(
-            item["task_id"] == recovery_task["stale"].id for item in first
-        )
-        assert all(
-            item["task_id"] != recovery_task["stale"].id for item in second
-        )
+        assert any(item["task_id"] == recovery_task["stale"].id for item in first)
+        assert all(item["task_id"] != recovery_task["stale"].id for item in second)
 
     def test_custom_timeout_threshold(self, db, recovery_task):
         """显式传入更小阈值时，fresh 任务也会被判为孤儿（阈值可配）。"""

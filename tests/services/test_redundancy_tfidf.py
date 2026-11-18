@@ -2,6 +2,7 @@
 
 测试策略: 真实数据构造，不使用 Mock，覆盖正常/空值/异常/边界场景。
 """
+
 import math
 import pytest
 import numpy as np
@@ -20,8 +21,8 @@ from app.services.case_quality.tfidf_utils import (
 # tokenize 函数测试
 # ============================================================
 
-class TestTokenize:
 
+class TestTokenize:
     def test_chinese_text(self) -> None:
         """中文文本应产生 bigram token。"""
         tokens = tokenize("点击登录按钮")
@@ -74,8 +75,8 @@ class TestTokenize:
 # LightweightTfidfVectorizer 测试
 # ============================================================
 
-class TestLightweightTfidfVectorizer:
 
+class TestLightweightTfidfVectorizer:
     def test_fit_transform_basic(self) -> None:
         """基本 fit_transform 应返回正确形状的矩阵。"""
         docs = [
@@ -174,8 +175,8 @@ class TestLightweightTfidfVectorizer:
 # cosineSimilarity 函数测试
 # ============================================================
 
-class TestCosineSimilarity:
 
+class TestCosineSimilarity:
     def test_identical_vectors(self) -> None:
         """相同向量相似度应为 1.0。"""
         vec = np.array([1.0, 0.0, 0.0])
@@ -215,8 +216,8 @@ class TestCosineSimilarity:
 # cosineSimilarityMatrix 函数测试
 # ============================================================
 
-class TestCosineSimilarityMatrix:
 
+class TestCosineSimilarityMatrix:
     def test_diagonal_is_one(self) -> None:
         """对角线元素应为 1.0。"""
         docs = ["点击登录", "输入密码", "验证结果"]
@@ -253,8 +254,8 @@ class TestCosineSimilarityMatrix:
 # computeDynamicThreshold 函数测试
 # ============================================================
 
-class TestComputeDynamicThreshold:
 
+class TestComputeDynamicThreshold:
     def test_tiny_project_high_threshold(self) -> None:
         """极小项目（<=10 用例）阈值应最高。"""
         threshold = computeDynamicThreshold(5)
@@ -287,7 +288,7 @@ class TestComputeDynamicThreshold:
         for i in range(len(thresholds) - 1):
             assert thresholds[i] >= thresholds[i + 1], (
                 f"阈值应单调递减: size={sizes[i]} threshold={thresholds[i]} "
-                f">= size={sizes[i+1]} threshold={thresholds[i+1]}"
+                f">= size={sizes[i + 1]} threshold={thresholds[i + 1]}"
             )
 
     def test_threshold_within_range(self) -> None:
@@ -306,8 +307,8 @@ class TestComputeDynamicThreshold:
 # batchComputeSimilarity 函数测试
 # ============================================================
 
-class TestBatchComputeSimilarity:
 
+class TestBatchComputeSimilarity:
     def test_basic_batch(self) -> None:
         """基本批量计算应返回正确形状。"""
         targets = ["点击登录 输入密码"]
@@ -359,8 +360,8 @@ class TestBatchComputeSimilarity:
 # TF-IDF vs SequenceMatcher 精度对比测试
 # ============================================================
 
-class TestTfidfVsSequenceMatcher:
 
+class TestTfidfVsSequenceMatcher:
     def test_partial_overlap_not_false_positive(self) -> None:
         """部分重叠但语义不同的文档不应被误判为高相似。
 
@@ -374,13 +375,11 @@ class TestTfidfVsSequenceMatcher:
 
         # SequenceMatcher 的相似度（作为对比基准）
         from difflib import SequenceMatcher as SM
+
         seqSim = SM(None, targets[0], candidates[0]).ratio()
 
         # TF-IDF 相似度应低于 SequenceMatcher，因为 TF-IDF 更关注区分性词汇
-        assert tfidfSim < seqSim, (
-            f"TF-IDF ({tfidfSim:.4f}) 应低于 SequenceMatcher ({seqSim:.4f}) "
-            f"以减少误杀"
-        )
+        assert tfidfSim < seqSim, f"TF-IDF ({tfidfSim:.4f}) 应低于 SequenceMatcher ({seqSim:.4f}) 以减少误杀"
 
     def test_truly_similar_docs_still_detected(self) -> None:
         """真正相似的文档仍应被检测出来。"""
@@ -402,6 +401,7 @@ class TestTfidfVsSequenceMatcher:
 # ============================================================
 # RedundancyMixin 集成测试（纯逻辑，不依赖数据库）
 # ============================================================
+
 
 class TestRedundancyMixinLogic:
     """测试 RedundancyMixin 的核心逻辑，通过直接调用内部方法验证。"""
@@ -432,5 +432,6 @@ class TestRedundancyMixinLogic:
     def test_redundancy_score_capped_at_10(self) -> None:
         """冗余度评分上限为 10。"""
         from app.services.case_quality.models import RedundancyScore
+
         score = RedundancyScore(similar_case_count=10, duplicate_step_count=10, score=10.0)
         assert score.score <= 10

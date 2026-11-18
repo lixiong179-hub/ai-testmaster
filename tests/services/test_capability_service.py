@@ -1,4 +1,5 @@
 """TestCapability 服务单元测试 - 覆盖创建、查询、列表、状态过滤、唯一约束、软删除"""
+
 import pytest
 from app.models.test_capability import TestCapability
 from app.models.enums import CapabilityStatus
@@ -25,16 +26,12 @@ class TestCreateCapability:
 
     def test_create_with_description(self, db, testProject):
         cap = create_capability(
-            db, project_id=testProject.id, key="order", title="订单处理",
-            description="订单相关业务能力"
+            db, project_id=testProject.id, key="order", title="订单处理", description="订单相关业务能力"
         )
         assert cap.description == "订单相关业务能力"
 
     def test_create_with_status(self, db, testProject):
-        cap = create_capability(
-            db, project_id=testProject.id, key="legacy", title="遗留模块",
-            status="deprecated"
-        )
+        cap = create_capability(db, project_id=testProject.id, key="legacy", title="遗留模块", status="deprecated")
         assert cap.status == "deprecated"
 
     def test_create_duplicate_key_same_project_raises(self, db, testProject):
@@ -165,7 +162,10 @@ class TestDeleteCapability:
     def test_delete_archived_capability_idempotent(self, db, testProject):
         """已归档能力再次删除应幂等返回该能力，不抛异常"""
         cap = create_capability(
-            db, project_id=testProject.id, key="del_archived", title="已归档",
+            db,
+            project_id=testProject.id,
+            key="del_archived",
+            title="已归档",
             status=CapabilityStatus.ARCHIVED.value,
         )
         result = delete_capability(db, cap.id)

@@ -5,6 +5,7 @@
 2. 验证 SQLAlchemy Column 定义是否与文档一致
 3. 发现模型定义中的隐藏问题
 """
+
 import pytest
 from datetime import datetime
 from app.models.bug import Bug
@@ -146,10 +147,12 @@ class TestTestCaseVersionModel:
     def test_correct_field_names(self):
         """验证字段名与模型定义一致 — 发现文档与实现不一致的问题"""
         tcv = TestCaseVersion(
-            test_case_id=1, version_number=1,
+            test_case_id=1,
+            version_number=1,
             change_description="initial",
             snapshot_data={"title": "test"},
-            operator_id=1, operator_name="admin",
+            operator_id=1,
+            operator_name="admin",
         )
         assert tcv.test_case_id == 1
         assert tcv.operator_id == 1
@@ -176,8 +179,10 @@ class TestElementLocatorModel:
 
     def test_priority_order_all_strategies(self):
         el = ElementLocator(
-            css_selector=".btn", xpath="//button",
-            element_id="submit", element_name="action",
+            css_selector=".btn",
+            xpath="//button",
+            element_id="submit",
+            element_name="action",
             ai_coordinate={"x": 100, "y": 200},
         )
         assert el.priority_order == ["css", "xpath", "id", "name", "ai"]

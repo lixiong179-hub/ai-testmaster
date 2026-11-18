@@ -32,7 +32,9 @@ class TestRedundancyScore:
 
     def test_to_dict(self):
         score = RedundancyScore(
-            similar_case_count=3, score=0.6, level="high",
+            similar_case_count=3,
+            score=0.6,
+            level="high",
             similar_cases=[{"id": 1, "similarity": 0.9}],
         )
         d = score.to_dict()
@@ -48,8 +50,11 @@ class TestCoverageScore:
 
     def test_to_dict(self):
         score = CoverageScore(
-            total_elements=10, covered_elements=8,
-            coverage_rate=0.8, score=80.0, level="high",
+            total_elements=10,
+            covered_elements=8,
+            coverage_rate=0.8,
+            score=80.0,
+            level="high",
         )
         d = score.to_dict()
         assert d["coverage_rate"] == 0.8
@@ -66,8 +71,10 @@ class TestQualityReport:
 
     def test_to_dict(self):
         report = QualityReport(
-            case_id=1, case_name="测试",
-            overall_score=85.0, overall_level="good",
+            case_id=1,
+            case_name="测试",
+            overall_score=85.0,
+            overall_level="good",
             complexity=ComplexityScore(step_count=5),
         )
         d = report.to_dict()

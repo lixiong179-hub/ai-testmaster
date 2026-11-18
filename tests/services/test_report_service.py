@@ -1,4 +1,5 @@
 """报告服务单元测试 - ReportService"""
+
 import pytest
 from datetime import datetime
 from app.services.report_service import ReportService
@@ -146,9 +147,7 @@ class TestGenerateReport:
     def test_generate_basic(self, db, test_project, test_task, test_case_obj):
         _make_result(db, test_task, test_case_obj, exec_status=1)
         _make_result(db, test_task, test_case_obj, exec_status=2)
-        report = ReportService.generate_report(
-            db, test_project.id, test_task_id=test_task.id, name="测试报告"
-        )
+        report = ReportService.generate_report(db, test_project.id, test_task_id=test_task.id, name="测试报告")
         assert report is not None
         assert report.name == "测试报告"
         assert report.total_cases == 2
@@ -159,15 +158,11 @@ class TestGenerateReport:
 
     def test_generate_default_name(self, db, test_project, test_task, test_case_obj):
         _make_result(db, test_task, test_case_obj, exec_status=1)
-        report = ReportService.generate_report(
-            db, test_project.id, test_task_id=test_task.id
-        )
+        report = ReportService.generate_report(db, test_project.id, test_task_id=test_task.id)
         assert "测试报告_" in report.name
 
     def test_generate_no_results(self, db, test_project, test_task):
-        report = ReportService.generate_report(
-            db, test_project.id, test_task_id=test_task.id, name="空报告"
-        )
+        report = ReportService.generate_report(db, test_project.id, test_task_id=test_task.id, name="空报告")
         assert report.total_cases == 0
 
 
@@ -177,9 +172,7 @@ class TestGetReportDetail:
             ReportService.get_report_detail(db, 99999, test_project.id)
 
     def test_no_content(self, db, test_project):
-        report_data = TestReportCreate(
-            name="空内容报告", project_id=test_project.id
-        )
+        report_data = TestReportCreate(name="空内容报告", project_id=test_project.id)
         report = create_test_report(db, report_data, user_id=1)
         with pytest.raises(ValueError, match="content not found"):
             ReportService.get_report_detail(db, report.id, test_project.id)

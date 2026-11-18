@@ -1,5 +1,5 @@
-"""ai_recognition_mixin SelectorRegistry 缓存行为测试。
-"""
+"""ai_recognition_mixin SelectorRegistry 缓存行为测试。"""
+
 import pytest
 
 
@@ -13,14 +13,14 @@ class TestSelectorRegistryCache:
         )
 
         instance = AIRecognitionMixin()
-        if hasattr(instance, '_selector_registry'):
+        if hasattr(instance, "_selector_registry"):
             del instance._selector_registry
         return instance
 
     def test_first_call_creates_cache(self, mixin):
-        assert not hasattr(mixin, '_selector_registry')
+        assert not hasattr(mixin, "_selector_registry")
         mixin._get_element_selector("用户名")
-        assert hasattr(mixin, '_selector_registry')
+        assert hasattr(mixin, "_selector_registry")
         assert mixin._selector_registry is not None
 
     def test_second_call_reuses_same_instance(self, mixin):

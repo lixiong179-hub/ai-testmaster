@@ -464,15 +464,11 @@ class TestGetTestCasesByProjectAndUser:
             priority=2,
             case_type="UI",
         )
-        cases = get_test_cases_by_project_and_user(
-            db=db, project_id=testProject.id, user_id=testUser.id
-        )
+        cases = get_test_cases_by_project_and_user(db=db, project_id=testProject.id, user_id=testUser.id)
         assert len(cases) >= 1
 
     def test_get_test_cases_by_project_and_user_wrong_user(self, db, testProject):
-        cases = get_test_cases_by_project_and_user(
-            db=db, project_id=testProject.id, user_id=99999
-        )
+        cases = get_test_cases_by_project_and_user(db=db, project_id=testProject.id, user_id=99999)
         assert cases == []
 
     def test_get_test_cases_by_project_and_user_with_filters(self, db, testProject, testUser):

@@ -7,6 +7,7 @@
 
 使用 conftest.py 提供的 db（事务回滚隔离）、testUser 夹具。
 """
+
 import time
 import pytest
 
@@ -66,9 +67,7 @@ class TestSaveProjectFlowData:
         assert second.update_time >= first.update_time
 
         # 确认表中仅有一条记录
-        count = db.query(ProjectFlowData).filter(
-            ProjectFlowData.project_id == test_project.id
-        ).count()
+        count = db.query(ProjectFlowData).filter(ProjectFlowData.project_id == test_project.id).count()
         assert count == 1
 
     def test_returned_object_has_correct_fields(self, db, test_project):

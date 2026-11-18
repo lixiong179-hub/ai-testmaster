@@ -6,11 +6,16 @@ from app.models.test_case import TestCase, TestStep
 
 def _make_case(db, testProject, case_no, title):
     case = TestCase(
-        project_id=testProject.id, title=title,
-        case_no=case_no, lifecycle_status="active",
-        module="成本模块", precondition="无",
+        project_id=testProject.id,
+        title=title,
+        case_no=case_no,
+        lifecycle_status="active",
+        module="成本模块",
+        precondition="无",
         steps_json=[{"step": 1, "action": "操作", "param": ""}],
-        expected_result="成功", priority=2, case_type="UI",
+        expected_result="成功",
+        priority=2,
+        case_type="UI",
     )
     db.add(case)
     db.flush()
@@ -36,7 +41,9 @@ class TestGetCaseCostStatistics:
     def test_case_with_steps_no_locators(self, db, testProject):
         case = _make_case(db, testProject, "STPC-001", "steps_cost_case")
         step = TestStep(
-            test_case_id=case.id, step_number=1, action="click",
+            test_case_id=case.id,
+            step_number=1,
+            action="click",
             expected_result="成功",
         )
         db.add(step)

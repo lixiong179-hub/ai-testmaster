@@ -13,6 +13,7 @@
 
 使用真实 MySQL 测试库，依赖 tests/conftest.py 的 async_db fixture 提供事务隔离。
 """
+
 import json
 from datetime import timedelta
 
@@ -35,6 +36,7 @@ from app.utils.db_time import utcnow
 
 
 # ==================== Fixtures ====================
+
 
 @pytest_asyncio.fixture
 async def cr_user(async_db):
@@ -61,6 +63,7 @@ async def cr_project(async_db, cr_user):
 
 
 # ==================== 辅助构造函数 ====================
+
 
 async def _make_case(db, project_id, **kwargs):
     """构造 TestCase，绕过 lifecycle guard 设置初始 lifecycle_status。"""
@@ -126,8 +129,8 @@ async def _make_test_point(db, project_id, requirement_id, **kwargs):
 
 # ==================== create_suggestion ====================
 
-class TestCreateSuggestion:
 
+class TestCreateSuggestion:
     async def test_create_minimal(self, async_db, cr_project):
         case = await _make_case(async_db, cr_project.id)
         svc = CaseRefreshService(async_db)
@@ -201,8 +204,8 @@ class TestCreateSuggestion:
 
 # ==================== build_refresh_prompt ====================
 
-class TestBuildRefreshPrompt:
 
+class TestBuildRefreshPrompt:
     async def test_build_prompt_with_list_steps(self, async_db, cr_project):
         steps = [{"step": "1", "action": "点击"}]
         case = await _make_case(async_db, cr_project.id, steps_json=steps)
@@ -249,8 +252,8 @@ class TestBuildRefreshPrompt:
 
 # ==================== parse_refresh_response ====================
 
-class TestParseRefreshResponse:
 
+class TestParseRefreshResponse:
     async def test_parse_plain_json(self, async_db):
         svc = CaseRefreshService(async_db)
         text = json.dumps({"is_valid": True, "suggested_title": "标题"}, ensure_ascii=False)
@@ -293,8 +296,8 @@ class TestParseRefreshResponse:
 
 # ==================== get_suggestion_by_id / get_case_by_id ====================
 
-class TestGetById:
 
+class TestGetById:
     async def test_get_suggestion_existing(self, async_db, cr_project):
         case = await _make_case(async_db, cr_project.id)
         svc = CaseRefreshService(async_db)
@@ -321,8 +324,8 @@ class TestGetById:
 
 # ==================== list_suggestions ====================
 
-class TestListSuggestions:
 
+class TestListSuggestions:
     async def test_list_empty(self, async_db, cr_project):
         svc = CaseRefreshService(async_db)
         result = await svc.list_suggestions(cr_project.id)
@@ -400,8 +403,8 @@ class TestListSuggestions:
 
 # ==================== get_suggestions_stats ====================
 
-class TestGetSuggestionsStats:
 
+class TestGetSuggestionsStats:
     async def test_stats_empty(self, async_db, cr_project):
         svc = CaseRefreshService(async_db)
         stats = await svc.get_suggestions_stats(cr_project.id)
@@ -438,8 +441,8 @@ class TestGetSuggestionsStats:
 
 # ==================== review_suggestion ====================
 
-class TestReviewSuggestion:
 
+class TestReviewSuggestion:
     async def test_review_reject(self, async_db, cr_project):
         case = await _make_case(async_db, cr_project.id)
         svc = CaseRefreshService(async_db)
@@ -480,9 +483,7 @@ class TestReviewSuggestion:
             ai_result={
                 "is_valid": True,
                 "suggested_title": "更新后的标题",
-                "suggested_steps": [
-                    {"action": "点击按钮", "expected_result": "弹出对话框", "action_type": "click"}
-                ],
+                "suggested_steps": [{"action": "点击按钮", "expected_result": "弹出对话框", "action_type": "click"}],
                 "suggested_expected_result": "更新后的预期",
                 "diff_description": "差异说明",
             },
@@ -502,9 +503,7 @@ class TestReviewSuggestion:
         steps = (
             (
                 await async_db.execute(
-                    select(TestStep)
-                    .where(TestStep.test_case_id == case.id)
-                    .order_by(TestStep.step_number)
+                    select(TestStep).where(TestStep.test_case_id == case.id).order_by(TestStep.step_number)
                 )
             )
             .scalars()
@@ -536,11 +535,7 @@ class TestReviewSuggestion:
         assert result.review_status == "approved"
         assert result.suggestion_status == "applied"
         # lifecycle_transition 内部 flush 会令原实例脱离 persistent 状态，需重新查询
-        refreshed = (
-            await async_db.execute(
-                select(TestCase).where(TestCase.id == case.id)
-            )
-        ).scalar_one_or_none()
+        refreshed = (await async_db.execute(select(TestCase).where(TestCase.id == case.id))).scalar_one_or_none()
         assert refreshed.lifecycle_status == "deprecated"
         assert refreshed.deprecated_at is not None
 
@@ -587,8 +582,8 @@ class TestReviewSuggestion:
 
 # ==================== scan_stale_cases ====================
 
-class TestScanStaleCases:
 
+class TestScanStaleCases:
     async def test_scan_empty_project(self, async_db, cr_project):
         svc = CaseRefreshService(async_db)
         assert await svc.scan_stale_cases(cr_project.id) == []
@@ -683,8 +678,8 @@ class TestScanStaleCases:
 
 # ==================== auto_scan_and_suggest（空扫描路径） ====================
 
-class TestAutoScanAndSuggest:
 
+class TestAutoScanAndSuggest:
     async def test_auto_scan_no_stale_returns_empty(self, async_db, cr_project):
         """无 stale 用例时不触发 AI 调用，返回空 created 列表。"""
         svc = CaseRefreshService(async_db)

@@ -11,6 +11,7 @@
     - _extract_url_from_text: URL提取
     - FailureCategory: 失败根因分类
 """
+
 import json
 import pytest
 from unittest.mock import MagicMock
@@ -57,12 +58,14 @@ class _StubCase:
 
 class _InferMixin:
     """用于测试 _infer_failure_category 系列方法的独立Mixin。"""
+
     _mobile_device_id = None
     _mobile_executor = None
 
     def _infer_failure_category(self, failed_steps, test_case):
         from app.services.test_execution_engine.models import FailureCategory
-        is_mobile = getattr(self, '_mobile_device_id', None) is not None
+
+        is_mobile = getattr(self, "_mobile_device_id", None) is not None
         for step in failed_steps:
             error_msg = (step.error_message or "").lower()
             if self._is_crash_error(error_msg, is_mobile):
@@ -77,11 +80,22 @@ class _InferMixin:
 
     def _is_crash_error(self, error_msg, is_mobile):
         crash_keywords = [
-            "crashed", "crash", "not responding", "anr",
-            "blank page", "white screen", "页面空白", "白屏",
-            "sigsegv", "sigabrt", "native crash",
-            "out of memory", "oom", "内存溢出",
-            "force close", "unfortunately",
+            "crashed",
+            "crash",
+            "not responding",
+            "anr",
+            "blank page",
+            "white screen",
+            "页面空白",
+            "白屏",
+            "sigsegv",
+            "sigabrt",
+            "native crash",
+            "out of memory",
+            "oom",
+            "内存溢出",
+            "force close",
+            "unfortunately",
         ]
         return any(kw in error_msg for kw in crash_keywords)
 
@@ -89,19 +103,25 @@ class _InferMixin:
         if not is_mobile:
             return False
         perf_keywords = [
-            "timeout", "timed out", "超时",
-            "network error", "网络错误", "连接超时",
-            "err_connection", "err_name_not_resolved",
-            "net::err", "load failed",
+            "timeout",
+            "timed out",
+            "超时",
+            "network error",
+            "网络错误",
+            "连接超时",
+            "err_connection",
+            "err_name_not_resolved",
+            "net::err",
+            "load failed",
         ]
         return any(kw in error_msg for kw in perf_keywords)
 
     def _is_device_compatibility_issue(self):
         try:
-            mobile_executor = getattr(self, '_mobile_executor', None)
+            mobile_executor = getattr(self, "_mobile_executor", None)
             if not mobile_executor:
                 return False
-            adb = getattr(mobile_executor, 'adb', None)
+            adb = getattr(mobile_executor, "adb", None)
             if not adb:
                 return False
             connected = adb.is_device_connected()
@@ -241,7 +261,13 @@ class TestBuildFallbackSteps:
         main_steps = [
             {"step": 1, "action": "访问首页", "action_type": "navigate", "target_element": "", "input_value": "/home"},
             {"step": 2, "action": "点击商品", "action_type": "click", "target_element": "商品卡片", "input_value": ""},
-            {"step": 3, "action": "加入购物车", "action_type": "click", "target_element": "加入购物车按钮", "input_value": ""},
+            {
+                "step": 3,
+                "action": "加入购物车",
+                "action_type": "click",
+                "target_element": "加入购物车按钮",
+                "input_value": "",
+            },
             {"step": 4, "action": "确认订单", "action_type": "click", "target_element": "确认按钮", "input_value": ""},
         ]
         result = _build_fallback_steps(main_steps, 2)
@@ -253,8 +279,20 @@ class TestBuildFallbackSteps:
 
     def test_anchor_at_first_step(self):
         main_steps = [
-            {"step": 1, "action": "访问登录页", "action_type": "navigate", "target_element": "", "input_value": "/login"},
-            {"step": 2, "action": "输入账号", "action_type": "input", "target_element": "账号输入框", "input_value": "admin"},
+            {
+                "step": 1,
+                "action": "访问登录页",
+                "action_type": "navigate",
+                "target_element": "",
+                "input_value": "/login",
+            },
+            {
+                "step": 2,
+                "action": "输入账号",
+                "action_type": "input",
+                "target_element": "账号输入框",
+                "input_value": "admin",
+            },
         ]
         result = _build_fallback_steps(main_steps, 1)
         assert len(result) == 1
@@ -345,9 +383,7 @@ class TestMarkDependentsBlocked:
         dep_case2 = _StubCase(3, "异常用例", depends_on="主干用例")
         other_case = _StubCase(4, "独立用例")
 
-        blocked = mixin._mark_dependents_blocked(
-            main_case, [main_case, dep_case1, dep_case2, other_case], {}
-        )
+        blocked = mixin._mark_dependents_blocked(main_case, [main_case, dep_case1, dep_case2, other_case], {})
         assert 2 in blocked
         assert 3 in blocked
         assert 4 not in blocked
@@ -490,11 +526,13 @@ class TestFailureCategory:
             failure_category=FailureCategory.UPSTREAM_BLOCKED,
         )
         real_bugs = [
-            r for r in [product_bug, nav_failure, upstream_blocked]
+            r
+            for r in [product_bug, nav_failure, upstream_blocked]
             if FailureCategory.is_product_bug(r.failure_category)
         ]
         false_positives = [
-            r for r in [product_bug, nav_failure, upstream_blocked]
+            r
+            for r in [product_bug, nav_failure, upstream_blocked]
             if FailureCategory.is_false_positive(r.failure_category)
         ]
         assert len(real_bugs) == 1
@@ -532,13 +570,25 @@ class TestCEndFailureCategories:
     def test_c_end_full_scenario_filtering(self):
         results = [
             TestExecutionResult(case_id=30, status=ExecutionStatus.PASSED),
-            TestExecutionResult(case_id=31, status=ExecutionStatus.FAILED, failure_category=FailureCategory.PRODUCT_BUG),
+            TestExecutionResult(
+                case_id=31, status=ExecutionStatus.FAILED, failure_category=FailureCategory.PRODUCT_BUG
+            ),
             TestExecutionResult(case_id=32, status=ExecutionStatus.FAILED, failure_category=FailureCategory.CRASH_BUG),
-            TestExecutionResult(case_id=33, status=ExecutionStatus.FAILED, failure_category=FailureCategory.PERFORMANCE_BUG),
-            TestExecutionResult(case_id=34, status=ExecutionStatus.FAILED, failure_category=FailureCategory.COMPATIBILITY_BUG),
-            TestExecutionResult(case_id=35, status=ExecutionStatus.FAILED, failure_category=FailureCategory.UPSTREAM_BLOCKED),
-            TestExecutionResult(case_id=36, status=ExecutionStatus.FAILED, failure_category=FailureCategory.NAVIGATION_FAILURE),
-            TestExecutionResult(case_id=37, status=ExecutionStatus.ERROR, failure_category=FailureCategory.ENVIRONMENT_ERROR),
+            TestExecutionResult(
+                case_id=33, status=ExecutionStatus.FAILED, failure_category=FailureCategory.PERFORMANCE_BUG
+            ),
+            TestExecutionResult(
+                case_id=34, status=ExecutionStatus.FAILED, failure_category=FailureCategory.COMPATIBILITY_BUG
+            ),
+            TestExecutionResult(
+                case_id=35, status=ExecutionStatus.FAILED, failure_category=FailureCategory.UPSTREAM_BLOCKED
+            ),
+            TestExecutionResult(
+                case_id=36, status=ExecutionStatus.FAILED, failure_category=FailureCategory.NAVIGATION_FAILURE
+            ),
+            TestExecutionResult(
+                case_id=37, status=ExecutionStatus.ERROR, failure_category=FailureCategory.ENVIRONMENT_ERROR
+            ),
         ]
         real_bugs = [r for r in results if FailureCategory.is_product_bug(r.failure_category)]
         false_positives = [r for r in results if FailureCategory.is_false_positive(r.failure_category)]
@@ -724,9 +774,8 @@ class TestApiSetupMixin:
         case = MagicMock()
         case.setup_api_calls = None
         import asyncio
-        ok, desc = asyncio.get_event_loop().run_until_complete(
-            stub._execute_setup_api_calls(case)
-        )
+
+        ok, desc = asyncio.get_event_loop().run_until_complete(stub._execute_setup_api_calls(case))
         assert ok is False
 
     def test_invalid_json_returns_false(self):
@@ -739,9 +788,8 @@ class TestApiSetupMixin:
         case = MagicMock()
         case.setup_api_calls = "not valid json{{{"
         import asyncio
-        ok, desc = asyncio.get_event_loop().run_until_complete(
-            stub._execute_setup_api_calls(case)
-        )
+
+        ok, desc = asyncio.get_event_loop().run_until_complete(stub._execute_setup_api_calls(case))
         assert ok is False
         assert "JSON" in desc
 
@@ -754,7 +802,7 @@ class TestNavigationPriorityBEndVsCEnd:
         case.setup_api_calls = json.dumps([{"method": "GET", "url": "/api/test"}])
         case.depends_on = "主干用例"
         case.anchor_step = 3
-        assert bool(getattr(case, 'setup_api_calls', None)) is True
+        assert bool(getattr(case, "setup_api_calls", None)) is True
 
     def test_c_end_snapshot_takes_priority_over_api(self):
         mixin = _StubMixin()
@@ -763,9 +811,9 @@ class TestNavigationPriorityBEndVsCEnd:
         case.setup_api_calls = None
         case.depends_on = "主干用例"
         case.anchor_step = 3
-        is_mobile = getattr(mixin, '_mobile_device_id', None) is not None
+        is_mobile = getattr(mixin, "_mobile_device_id", None) is not None
         assert is_mobile is True
-        assert bool(getattr(case, 'setup_api_calls', None)) is False
+        assert bool(getattr(case, "setup_api_calls", None)) is False
 
 
 class TestMobileSnapshot:

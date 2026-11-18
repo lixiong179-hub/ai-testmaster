@@ -135,9 +135,7 @@ class TestUpdateProject:
             name=f"updated_{uuid.uuid4().hex[:8]}",
             description="updated description",
         )
-        updated = update_project(
-            db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id
-        )
+        updated = update_project(db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id)
         assert updated is not None
         assert updated.description == "updated description"
 
@@ -148,18 +146,14 @@ class TestUpdateProject:
         )
         project = create_project(db=db, project=projectCreate, user_id=testUser.id)
         projectUpdate = ProjectUpdate(status=2)
-        updated = update_project(
-            db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id
-        )
+        updated = update_project(db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id)
         assert updated is not None
         assert updated.status == 2
         assert updated.description == "keep this"
 
     def test_update_project_nonexistent(self, db, testUser):
         projectUpdate = ProjectUpdate(description="should not update")
-        result = update_project(
-            db=db, project_id=99999, project_update=projectUpdate, user_id=testUser.id
-        )
+        result = update_project(db=db, project_id=99999, project_update=projectUpdate, user_id=testUser.id)
         assert result is None
 
     def test_update_project_wrong_user(self, db, testUser):
@@ -168,9 +162,7 @@ class TestUpdateProject:
         )
         project = create_project(db=db, project=projectCreate, user_id=testUser.id)
         projectUpdate = ProjectUpdate(description="should not update")
-        result = update_project(
-            db=db, project_id=project.id, project_update=projectUpdate, user_id=99999
-        )
+        result = update_project(db=db, project_id=project.id, project_update=projectUpdate, user_id=99999)
         assert result is None
 
     def test_update_project_status_to_archived(self, db, testUser):
@@ -179,9 +171,7 @@ class TestUpdateProject:
         )
         project = create_project(db=db, project=projectCreate, user_id=testUser.id)
         projectUpdate = ProjectUpdate(status=2)
-        updated = update_project(
-            db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id
-        )
+        updated = update_project(db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id)
         assert updated.status == 2
 
     def test_update_project_status_to_inactive(self, db, testUser):
@@ -190,9 +180,7 @@ class TestUpdateProject:
         )
         project = create_project(db=db, project=projectCreate, user_id=testUser.id)
         projectUpdate = ProjectUpdate(status=0)
-        updated = update_project(
-            db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id
-        )
+        updated = update_project(db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id)
         assert updated.status == 0
 
     def test_update_project_name_only(self, db, testUser):
@@ -203,9 +191,7 @@ class TestUpdateProject:
         project = create_project(db=db, project=projectCreate, user_id=testUser.id)
         newName = f"renamed_{uuid.uuid4().hex[:8]}"
         projectUpdate = ProjectUpdate(name=newName)
-        updated = update_project(
-            db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id
-        )
+        updated = update_project(db=db, project_id=project.id, project_update=projectUpdate, user_id=testUser.id)
         assert updated.name == newName
         assert updated.description == "keep description"
 

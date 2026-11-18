@@ -8,26 +8,24 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="vr_test_user",
-        email="vr_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="vr_test_user", email="vr_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(VideoRecord).filter(VideoRecord.task_id.in_(
-        db.query(TestTask.id).filter(TestTask.project_id.in_(
-            db.query(Project.id).filter(Project.user_id == user.id)
-        ))
-    )).delete(synchronize_session=False)
-    db.query(TestTask).filter(TestTask.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
-    db.query(TestCase).filter(TestCase.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(VideoRecord).filter(
+        VideoRecord.task_id.in_(
+            db.query(TestTask.id).filter(
+                TestTask.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+            )
+        )
+    ).delete(synchronize_session=False)
+    db.query(TestTask).filter(TestTask.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
+    db.query(TestCase).filter(TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -44,12 +42,7 @@ def test_project(db, test_user):
 
 @pytest.fixture
 def test_task(db, test_project, test_user):
-    task = TestTask(
-        task_name="视频测试任务",
-        project_id=test_project.id,
-        executor_id=test_user.id,
-        case_ids=[]
-    )
+    task = TestTask(task_name="视频测试任务", project_id=test_project.id, executor_id=test_user.id, case_ids=[])
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -67,7 +60,7 @@ def test_case(db, test_project):
         steps_json=[],
         expected_result="预期",
         priority=1,
-        case_type="UI"
+        case_type="UI",
     )
     db.add(tc)
     db.commit()
@@ -82,7 +75,7 @@ class TestVideoRecordModel:
             case_id=test_case.id,
             file_path="/videos/test.webm",
             file_name="test.webm",
-            file_size=1024000
+            file_size=1024000,
         )
         db.add(vr)
         db.commit()
@@ -99,11 +92,7 @@ class TestVideoRecordModel:
 
     def test_video_record_default_values(self, db, test_task, test_case):
         vr = VideoRecord(
-            task_id=test_task.id,
-            case_id=test_case.id,
-            file_path="/videos/min.webm",
-            file_name="min.webm",
-            file_size=0
+            task_id=test_task.id, case_id=test_case.id, file_path="/videos/min.webm", file_name="min.webm", file_size=0
         )
         db.add(vr)
         db.commit()
@@ -128,7 +117,7 @@ class TestVideoRecordModel:
                 file_path=f"/videos/{status}.webm",
                 file_name=f"{status}.webm",
                 file_size=1024,
-                status=status
+                status=status,
             )
             db.add(vr)
             db.commit()
@@ -150,7 +139,7 @@ class TestVideoRecordModel:
                 case_id=test_case.id,
                 file_path="/videos/size.webm",
                 file_name="size.webm",
-                file_size=size
+                file_size=size,
             )
             db.add(vr)
             db.commit()
@@ -166,7 +155,7 @@ class TestVideoRecordModel:
             file_path="/videos/dict.webm",
             file_name="dict.webm",
             file_size=2048,
-            duration=60.0
+            duration=60.0,
         )
         db.add(vr)
         db.commit()
@@ -189,7 +178,7 @@ class TestVideoRecordModel:
             file_name="err.webm",
             file_size=0,
             status="failed",
-            error_message="录制失败：浏览器崩溃"
+            error_message="录制失败：浏览器崩溃",
         )
         db.add(vr)
         db.commit()
@@ -205,7 +194,7 @@ class TestVideoRecordModel:
             case_id=test_case.id,
             file_path="/videos/repr.webm",
             file_name="repr.webm",
-            file_size=1024
+            file_size=1024,
         )
         db.add(vr)
         db.commit()
@@ -216,5 +205,5 @@ class TestVideoRecordModel:
         db.commit()
 
     def test_video_record_relationships(self):
-        assert hasattr(VideoRecord, 'task')
-        assert hasattr(VideoRecord, 'case')
+        assert hasattr(VideoRecord, "task")
+        assert hasattr(VideoRecord, "case")

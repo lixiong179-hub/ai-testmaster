@@ -3,18 +3,20 @@
 覆盖 /api/v1/iteration/ 下的创建、列表、详情、更新、删除、定稿端点。
 使用 tests/api/conftest.py 的 async fixture。
 """
+
 from app.crud import iteration as iteration_crud
 
 
 async def _create_iteration(async_db, project_id, name="测试迭代"):
     """通过 run_sync 调用 sync crud 创建迭代。"""
+
     def _create(sync_db):
         return iteration_crud.create_iteration(db=sync_db, project_id=project_id, name=name)
+
     return await async_db.run_sync(_create)
 
 
 class TestCreateIterationAPI:
-
     async def test_create_success(self, async_auth_client, async_test_project):
         payload = {
             "project_id": async_test_project.id,
@@ -57,7 +59,6 @@ class TestCreateIterationAPI:
 
 
 class TestGetIterationsAPI:
-
     async def test_list_iterations(self, async_auth_client, async_db, async_test_project):
         await _create_iteration(async_db, async_test_project.id, "列表迭代")
         response = await async_auth_client.get(
@@ -78,7 +79,6 @@ class TestGetIterationsAPI:
 
 
 class TestGetIterationDetailAPI:
-
     async def test_get_detail(self, async_auth_client, async_db, async_test_project):
         iteration = await _create_iteration(async_db, async_test_project.id, "详情迭代")
         response = await async_auth_client.get(
@@ -94,7 +94,6 @@ class TestGetIterationDetailAPI:
 
 
 class TestUpdateIterationAPI:
-
     async def test_update_name(self, async_auth_client, async_db, async_test_project):
         iteration = await _create_iteration(async_db, async_test_project.id, "更新前")
         response = await async_auth_client.put(
@@ -122,7 +121,6 @@ class TestUpdateIterationAPI:
 
 
 class TestDeleteIterationAPI:
-
     async def test_delete_success(self, async_auth_client, async_db, async_test_project):
         iteration = await _create_iteration(async_db, async_test_project.id, "删除迭代")
         response = await async_auth_client.delete(
@@ -136,7 +134,6 @@ class TestDeleteIterationAPI:
 
 
 class TestFinalizeIterationAPI:
-
     async def test_finalize_wrong_status(self, async_auth_client, async_db, async_test_project):
         iteration = await _create_iteration(async_db, async_test_project.id, "定稿测试")
         response = await async_auth_client.post(

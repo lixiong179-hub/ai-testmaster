@@ -9,10 +9,12 @@ M1-T10 backfill_case_summary 测试模块
     - run_backfill AI 返回空结果
     - run_backfill 指定 project_id
 """
+
 import pytest
 
 try:
     from scripts.backfill_case_summary import _build_prompt, _get_model_version
+
     _BACKFILL_AVAILABLE = True
 except ImportError:
     _BACKFILL_AVAILABLE = False
@@ -139,9 +141,11 @@ class TestRunBackfillDryRun:
 
         from scripts.backfill_case_summary import run_backfill
 
-        stats = run_backfill.__wrapped__(dry_run=True, project_id=testProject.id) \
-            if hasattr(run_backfill, '__wrapped__') \
+        stats = (
+            run_backfill.__wrapped__(dry_run=True, project_id=testProject.id)
+            if hasattr(run_backfill, "__wrapped__")
             else _run_backfill_direct(db, testProject.id, dry_run=True)
+        )
 
         assert "total" in stats
         assert "skipped" in stats

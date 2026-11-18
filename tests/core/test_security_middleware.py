@@ -7,6 +7,7 @@
     - generate_csrf_token: 长度 / 唯一性
     - config.hsts_header_value: 构造正确性
 """
+
 from __future__ import annotations
 
 import pytest
@@ -132,9 +133,7 @@ class TestCSRFMiddleware:
         CSRF Origin 校验放行所有源，使拒绝场景测试失效。
         """
 
-        monkeypatch.setattr(
-            settings, "CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
-        )
+        monkeypatch.setattr(settings, "CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
 
     def test_safe_method_exempt(self) -> None:
         """GET 请求（安全方法）直接放行。"""

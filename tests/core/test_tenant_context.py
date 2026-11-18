@@ -6,6 +6,7 @@
     - tenant_scope 嵌套场景
     - TenantAwareMixin 继承验证
 """
+
 import pytest
 
 from app.core.tenant_context import (
@@ -116,21 +117,29 @@ class TestTenantAwareMixin:
         )
 
         tenant_aware_models = [
-            User, Project, ProjectFile,
-            TestCase, TestTask, TestResult, TestReport,
-            Iteration, TestPoint, TestCapability, Requirement,
+            User,
+            Project,
+            ProjectFile,
+            TestCase,
+            TestTask,
+            TestResult,
+            TestReport,
+            Iteration,
+            TestPoint,
+            TestCapability,
+            Requirement,
         ]
         for model in tenant_aware_models:
-            assert issubclass(model, TenantAwareMixin), (
-                f"{model.__name__} 应继承 TenantAwareMixin"
-            )
+            assert issubclass(model, TenantAwareMixin), f"{model.__name__} 应继承 TenantAwareMixin"
 
     def test_tenant_model_not_aware(self) -> None:
         """Tenant 模型本身不应继承 TenantAwareMixin（无 tenant_id 列）。"""
         from app.models import Tenant
+
         assert not issubclass(Tenant, TenantAwareMixin)
 
     def test_role_not_aware(self) -> None:
         """Role 模型是全局的，不应继承 TenantAwareMixin。"""
         from app.models import Role
+
         assert not issubclass(Role, TenantAwareMixin)

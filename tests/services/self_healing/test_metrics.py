@@ -10,6 +10,7 @@
 注意：prometheus_client 默认 REGISTRY 全局，测试间通过 .get_sample_value()
 读取当前累计值并断言增量（不重置 REGISTRY，避免与并行测试冲突）。
 """
+
 import pytest
 from prometheus_client import REGISTRY
 
@@ -129,63 +130,39 @@ class TestRecordFailure:
 
     def test_record_failure_type_label_element_gone(self):
         """failure_type=element_gone 标签正确递增。"""
-        before = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "element_gone"
-        )
+        before = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "element_gone")
         record_failure(failure_type="element_gone", duration=1.0)
-        after = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "element_gone"
-        )
+        after = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "element_gone")
         assert after == before + 1
 
     def test_record_failure_type_label_dom_changed(self):
         """failure_type=dom_changed 标签正确递增。"""
-        before = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "dom_changed"
-        )
+        before = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "dom_changed")
         record_failure(failure_type="dom_changed", duration=1.0)
-        after = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "dom_changed"
-        )
+        after = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "dom_changed")
         assert after == before + 1
 
     def test_record_failure_type_label_load_delay(self):
         """failure_type=load_delay 标签正确递增。"""
-        before = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "load_delay"
-        )
+        before = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "load_delay")
         record_failure(failure_type="load_delay", duration=1.0)
-        after = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "load_delay"
-        )
+        after = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "load_delay")
         assert after == before + 1
 
     def test_record_failure_type_label_env_noise(self):
         """failure_type=env_noise 标签正确递增。"""
-        before = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "env_noise"
-        )
+        before = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "env_noise")
         record_failure(failure_type="env_noise", duration=1.0)
-        after = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "env_noise"
-        )
+        after = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "env_noise")
         assert after == before + 1
 
     def test_record_failure_type_labels_isolated(self):
         """不同 failure_type 标签互不影响。"""
-        before_gone = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "element_gone"
-        )
-        before_noise = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "env_noise"
-        )
+        before_gone = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "element_gone")
+        before_noise = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "env_noise")
         record_failure(failure_type="element_gone", duration=1.0)
-        after_gone = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "element_gone"
-        )
-        after_noise = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "env_noise"
-        )
+        after_gone = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "element_gone")
+        after_noise = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "env_noise")
         assert after_gone == before_gone + 1
         assert after_noise == before_noise  # env_noise 不受影响
 
@@ -208,22 +185,14 @@ class TestRecordFailure:
 
     def test_record_failure_multiple_types_accumulate(self):
         """多次不同类型失败累计，每个标签独立计数。"""
-        before_gone = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "element_gone"
-        )
-        before_changed = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "dom_changed"
-        )
+        before_gone = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "element_gone")
+        before_changed = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "dom_changed")
         for _ in range(3):
             record_failure(failure_type="element_gone", duration=1.0)
         for _ in range(2):
             record_failure(failure_type="dom_changed", duration=1.0)
-        after_gone = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "element_gone"
-        )
-        after_changed = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "dom_changed"
-        )
+        after_gone = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "element_gone")
+        after_changed = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "dom_changed")
         assert after_gone == before_gone + 3
         assert after_changed == before_changed + 2
 
@@ -295,18 +264,14 @@ class TestEndToEndMetricsFlow:
         """尝试 → 失败流程的指标递增。"""
         before_attempts = _get_counter_value(SELF_HEAL_ATTEMPTS)
         before_failure = _get_counter_value(SELF_HEAL_FAILURE)
-        before_failure_type = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "load_delay"
-        )
+        before_failure_type = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "load_delay")
 
         record_attempt()
         record_failure(failure_type="load_delay", duration=1.8)
 
         after_attempts = _get_counter_value(SELF_HEAL_ATTEMPTS)
         after_failure = _get_counter_value(SELF_HEAL_FAILURE)
-        after_failure_type = _get_labeled_counter_value(
-            SELF_HEAL_FAILURE_TYPE, "type", "load_delay"
-        )
+        after_failure_type = _get_labeled_counter_value(SELF_HEAL_FAILURE_TYPE, "type", "load_delay")
 
         assert after_attempts == before_attempts + 1
         assert after_failure == before_failure + 1

@@ -19,8 +19,10 @@ class TestOCRExtractorInit:
     def test_init_ocr_available(self):
         extractor = OCRExtractor()
         mock_rapid = MagicMock()
-        with patch("app.utils.ocr_extractor._ocr_available", True), \
-             patch("app.utils.ocr_extractor.RapidOCR", return_value=mock_rapid, create=True):
+        with (
+            patch("app.utils.ocr_extractor._ocr_available", True),
+            patch("app.utils.ocr_extractor.RapidOCR", return_value=mock_rapid, create=True),
+        ):
             extractor._init_ocr()
             assert extractor._ocr is not None
 
@@ -42,9 +44,9 @@ class TestOCRExtractorRunOcr:
         ]
         mock_ocr = MagicMock(return_value=(mock_result, 0.1))
         extractor._ocr = mock_ocr
-        with patch("cv2.imdecode") as mock_decode, \
-             patch("numpy.frombuffer") as mock_frombuf:
+        with patch("cv2.imdecode") as mock_decode, patch("numpy.frombuffer") as mock_frombuf:
             import numpy as np
+
             fake_img = np.zeros((100, 100, 3), dtype=np.uint8)
             mock_decode.return_value = fake_img
             result = extractor._run_ocr(b"fake_image")
@@ -55,6 +57,7 @@ class TestOCRExtractorRunOcr:
         mock_ocr = MagicMock(return_value=(None, 0.1))
         extractor._ocr = mock_ocr
         import numpy as np
+
         fake_img = np.zeros((100, 100, 3), dtype=np.uint8)
         with patch("cv2.imdecode", return_value=fake_img):
             result = extractor._run_ocr(b"fake_image")

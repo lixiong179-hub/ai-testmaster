@@ -167,6 +167,7 @@ class TestProdWeakDefaultKeyPattern:
     def test_prod_strong_random_keys_pass(self, tmp_path):
         """prod 环境强随机密钥（无弱模式关键字、长度足够）通过校验。"""
         import secrets
+
         s = Settings(
             DATABASE_URL="mysql+pymysql://root:pass@localhost/db",
             ENVIRONMENT="prod",

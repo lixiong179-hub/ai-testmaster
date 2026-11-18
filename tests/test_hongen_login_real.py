@@ -145,10 +145,7 @@ class TestHongenLoginReal(unittest.TestCase):
             await self._save_diagnostics(page, controller, "hongen_login_failed")
             page_text = (await page.locator("body").inner_text()).strip()
             current_url = page.url
-            self.fail(
-                "Hongen login did not enter the home page. "
-                f"url={current_url}, page_text={page_text[:500]!r}"
-            )
+            self.fail(f"Hongen login did not enter the home page. url={current_url}, page_text={page_text[:500]!r}")
 
         current_url = page.url
         self.assertNotEqual(current_url.rstrip("/"), self.base_url.rstrip("/"))

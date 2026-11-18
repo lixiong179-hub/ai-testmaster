@@ -27,6 +27,7 @@ class TestPermissionDenied:
 
     def test_is_http_exception(self):
         from fastapi import HTTPException
+
         exc = PermissionDenied()
         assert isinstance(exc, HTTPException)
 
@@ -108,6 +109,7 @@ class TestCheckRole:
     def test_user_without_is_superuser_attr(self):
         class FakeUser:
             pass
+
         fake = FakeUser()
         fake.roles = []
         assert check_role(fake, ["admin"]) is False
@@ -115,15 +117,18 @@ class TestCheckRole:
     def test_user_without_roles_attr(self):
         class FakeUser:
             is_superuser = False
+
         fake = FakeUser()
         assert check_role(fake, ["admin"]) is False
 
     def test_user_roles_raises_exception(self):
         class FakeUser:
             is_superuser = False
+
             @property
             def roles(self):
                 raise RuntimeError("db error")
+
         fake = FakeUser()
         assert check_role(fake, ["admin"]) is False
 

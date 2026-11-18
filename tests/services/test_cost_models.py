@@ -24,10 +24,17 @@ class TestCostStatistics:
 
     def test_default_created_at(self):
         stats = CostStatistics(
-            total_steps=0, ai_vision_calls=0, cache_hits=0,
-            css_selector_used=0, xpath_used=0,
-            estimated_cost=0, actual_cost=0, cost_savings=0,
-            savings_rate=0, cache_hit_rate=0, ai_dependency_rate=0,
+            total_steps=0,
+            ai_vision_calls=0,
+            cache_hits=0,
+            css_selector_used=0,
+            xpath_used=0,
+            estimated_cost=0,
+            actual_cost=0,
+            cost_savings=0,
+            savings_rate=0,
+            cache_hit_rate=0,
+            ai_dependency_rate=0,
         )
         assert isinstance(stats.created_at, datetime)
 

@@ -23,11 +23,13 @@ class _StreamClient:
 
     def _get_cache_key(self, fn, *args, **kwargs):
         import hashlib
+
         key_data = f"{fn}:{str(args)}:{str(kwargs)}"
         return hashlib.md5(key_data.encode()).hexdigest()
 
     def _get_from_cache(self, key):
         import time
+
         if key in self.cache:
             data, ts = self.cache[key]
             if time.time() - ts < self.cache_expiry:
@@ -37,11 +39,11 @@ class _StreamClient:
 
     def _set_to_cache(self, key, data):
         import time
+
         self.cache[key] = (data, time.time())
 
 
 class TestGenerateTestCaseBasic:
-
     @patch("app.utils.ai_client_enhanced._basic.generate_test_case_enhanced")
     def test_with_context_calls_enhanced(self, mock_enhanced):
         mock_enhanced.return_value = [{"title": "增强用例", "steps": []}]
@@ -69,10 +71,17 @@ class TestGenerateTestCaseBasic:
         case_data = {
             "title": "基础用例",
             "precondition": "前置",
-            "steps": [{"step": 1, "action": "A", "action_type": "click",
-                       "input_value": "", "target_element": "E",
-                       "expected_result": "R"}],
-            "expected_result": "R"
+            "steps": [
+                {
+                    "step": 1,
+                    "action": "A",
+                    "action_type": "click",
+                    "input_value": "",
+                    "target_element": "E",
+                    "expected_result": "R",
+                }
+            ],
+            "expected_result": "R",
         }
         mock_resp = MagicMock()
         mock_resp.raise_for_status = MagicMock()
@@ -84,7 +93,6 @@ class TestGenerateTestCaseBasic:
 
 
 class TestParsePreconditionToSteps:
-
     def test_empty_precondition(self):
         result = parse_precondition_to_steps("")
         assert result == []
@@ -147,7 +155,6 @@ class TestParsePreconditionToSteps:
 
 
 class TestAnalyzeRequirementsStream:
-
     @pytest.mark.asyncio
     async def test_stream_yields_chunks(self):
         from app.utils.ai_client_stream import AIStreamMixin
@@ -156,9 +163,11 @@ class TestAnalyzeRequirementsStream:
             pass
 
         with patch.object(_MockStreamClient, "analyze_requirements_stream") as mock_stream:
+
             async def _gen(content):
                 yield "chunk1"
                 yield "chunk2"
+
             mock_stream.side_effect = _gen
             client = _MockStreamClient()
             chunks = []
@@ -168,7 +177,6 @@ class TestAnalyzeRequirementsStream:
 
 
 class TestGenerateTestCaseStream:
-
     @pytest.mark.asyncio
     async def test_stream_yields_chunks(self):
         from app.utils.ai_client_stream import AIStreamMixin
@@ -177,8 +185,10 @@ class TestGenerateTestCaseStream:
             pass
 
         with patch.object(_MockStreamClient, "generate_test_case_stream") as mock_stream:
+
             async def _gen(tp):
                 yield {"title": "T"}
+
             mock_stream.side_effect = _gen
             client = _MockStreamClient()
             chunks = []

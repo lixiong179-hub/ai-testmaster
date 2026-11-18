@@ -16,6 +16,7 @@
       测试断言 task.status/end_time 时需重新查询（async_db 中的实例已过期），
       禁止使用 async_db.refresh(task)，否则会抛 InvalidRequestError。
 """
+
 import pytest
 from sqlalchemy import select
 from app.models.test_task import TestTask
@@ -61,16 +62,16 @@ def mock_executor(monkeypatch):
 
     mock_executor.calls = []
     mock_executor.raise_exc = None
-    monkeypatch.setattr(
-        "app.api.v1.endpoints.test_task.TestExecutionEngineV2", _MockExecutor
-    )
+    monkeypatch.setattr("app.api.v1.endpoints.test_task.TestExecutionEngineV2", _MockExecutor)
     return mock_executor
 
 
 class TestExecutionModeWhitelist:
     """execution_mode 白名单逻辑测试（test_task.py L287-296）。"""
 
-    async def test_default_mode_when_config_none(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    async def test_default_mode_when_config_none(
+        self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """不传 body（config=None）时 execution_mode 应回退到默认 'smart'。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         resp = await async_auth_client.post(f"/api/v1/test-task/{task.id}/start")
@@ -80,7 +81,9 @@ class TestExecutionModeWhitelist:
         assert data["execution_mode"] == "smart"
         assert mock_executor.calls[0].kwargs["execution_mode"] == "smart"
 
-    async def test_default_mode_when_config_empty(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    async def test_default_mode_when_config_empty(
+        self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """传空 body（config={}）时 execution_mode 应回退到 'smart'。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         resp = await async_auth_client.post(
@@ -91,10 +94,10 @@ class TestExecutionModeWhitelist:
         assert resp.status_code == 200
         assert resp.json()["data"]["execution_mode"] == "smart"
 
-    @pytest.mark.parametrize("mode", [
-        "preprocess", "realtime", "smart", "mobile_realtime", "mobile_smart"
-    ])
-    async def test_valid_mode_accepted(self, mode, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    @pytest.mark.parametrize("mode", ["preprocess", "realtime", "smart", "mobile_realtime", "mobile_smart"])
+    async def test_valid_mode_accepted(
+        self, mode, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """合法 execution_mode 应被原样接受并透传给 executor。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         resp = await async_auth_client.post(
@@ -106,7 +109,9 @@ class TestExecutionModeWhitelist:
         assert resp.json()["data"]["execution_mode"] == mode
         assert mock_executor.calls[0].kwargs["execution_mode"] == mode
 
-    async def test_invalid_mode_falls_back_to_smart(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    async def test_invalid_mode_falls_back_to_smart(
+        self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """非法 execution_mode 应回退到 'smart' 而非报错。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         resp = await async_auth_client.post(
@@ -118,7 +123,9 @@ class TestExecutionModeWhitelist:
         assert resp.json()["data"]["execution_mode"] == "smart"
         assert mock_executor.calls[0].kwargs["execution_mode"] == "smart"
 
-    async def test_empty_string_mode_falls_back_to_smart(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    async def test_empty_string_mode_falls_back_to_smart(
+        self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """空字符串 execution_mode 应回退到 'smart'（L290: config.execution_mode or 'smart'）。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         resp = await async_auth_client.post(
@@ -129,7 +136,9 @@ class TestExecutionModeWhitelist:
         assert resp.status_code == 200
         assert resp.json()["data"]["execution_mode"] == "smart"
 
-    async def test_null_mode_falls_back_to_smart(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    async def test_null_mode_falls_back_to_smart(
+        self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """null execution_mode 应回退到 'smart'（L290: config.execution_mode or 'smart'）。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         resp = await async_auth_client.post(
@@ -144,7 +153,9 @@ class TestExecutionModeWhitelist:
 class TestMobileDeviceIdPassThrough:
     """mobile_device_id 透传测试（L291）。"""
 
-    async def test_mobile_device_id_passed_to_executor(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    async def test_mobile_device_id_passed_to_executor(
+        self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """mobile_device_id 应透传给 executor。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         resp = await async_auth_client.post(
@@ -155,7 +166,9 @@ class TestMobileDeviceIdPassThrough:
         assert resp.status_code == 200
         assert mock_executor.calls[0].kwargs["mobile_device_id"] == "device-001"
 
-    async def test_mobile_device_id_none_when_not_provided(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    async def test_mobile_device_id_none_when_not_provided(
+        self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """未提供 mobile_device_id 时应传 None。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         await async_auth_client.post(
@@ -177,10 +190,16 @@ class TestStartTaskErrorPaths:
         )
         assert resp.status_code == 404
 
-    @pytest.mark.parametrize("status, label", [
-        (1, "RUNNING"), (2, "COMPLETED"),
-    ])
-    async def test_disallowed_status_returns_400(self, status, label, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    @pytest.mark.parametrize(
+        "status, label",
+        [
+            (1, "RUNNING"),
+            (2, "COMPLETED"),
+        ],
+    )
+    async def test_disallowed_status_returns_400(
+        self, status, label, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """任务状态不在 [0, 3, 4] 时应返回 400（端点已允许 STOPPED 重试）。"""
         task = await _make_task(async_db, async_test_project, async_test_user, status=status)
         resp = await async_auth_client.post(
@@ -191,7 +210,9 @@ class TestStartTaskErrorPaths:
         assert "状态不允许" in resp.json()["msg"]
         assert mock_executor.calls == []
 
-    async def test_failed_status_allows_restart(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    async def test_failed_status_allows_restart(
+        self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """status=3（FAILED）允许重新启动（L281: status in [0, 3]）。"""
         task = await _make_task(async_db, async_test_project, async_test_user, status=3)
         resp = await async_auth_client.post(
@@ -201,7 +222,9 @@ class TestStartTaskErrorPaths:
         assert resp.status_code == 200
         assert len(mock_executor.calls) == 1
 
-    async def test_executor_exception_marks_task_failed(self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor):
+    async def test_executor_exception_marks_task_failed(
+        self, async_auth_client, async_test_project, async_test_user, async_db, mock_executor
+    ):
         """executor 抛异常时应将 task.status 标记为 3（FAILED）。"""
         task = await _make_task(async_db, async_test_project, async_test_user)
         mock_executor.raise_exc = RuntimeError("executor boom")
@@ -214,9 +237,7 @@ class TestStartTaskErrorPaths:
         assert resp.status_code == 200
         # 端点用请求级 db 会话独立 commit，async_db 中的 task 实例已过期，
         # 必须重新查询以拿到最新 status/end_time。
-        result = await async_db.execute(
-            select(TestTask).where(TestTask.id == task.id)
-        )
+        result = await async_db.execute(select(TestTask).where(TestTask.id == task.id))
         task = result.scalars().first()
         assert task.status == 3
         assert task.end_time is not None

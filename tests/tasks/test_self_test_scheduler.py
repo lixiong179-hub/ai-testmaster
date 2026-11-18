@@ -11,6 +11,7 @@ APScheduler 自测定时调度器测试模块
 使用真实 BackgroundScheduler + CronTrigger，不使用 Mock。
 每个测试后调用 stop() 确保无残留调度器。
 """
+
 import pytest
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -131,9 +132,7 @@ class TestSelfTestSchedulerAddRemoveJob:
         self.scheduler.add_job(1, "0 2 * * *")
         self.scheduler.add_job(1, "0 3 * * *")
         jobId = SelfTestScheduler._make_job_id(1)
-        jobs = [
-            j for j in self.scheduler._scheduler.get_jobs() if j.id == jobId
-        ]
+        jobs = [j for j in self.scheduler._scheduler.get_jobs() if j.id == jobId]
         assert len(jobs) == 1
 
     def test_remove_job_deletes_job(self) -> None:
@@ -217,9 +216,7 @@ class TestRefreshJobs:
         await self.scheduler.refresh_jobs(sync_backed_async_db)
         assert self.scheduler._scheduler.get_job(orphanId) is None
 
-    async def test_refresh_skips_project_without_schedule(
-        self, db, testUser, sync_backed_async_db
-    ) -> None:
+    async def test_refresh_skips_project_without_schedule(self, db, testUser, sync_backed_async_db) -> None:
         """无 schedule 的自测项目应被跳过（不添加任务）。"""
         from app.models.project import Project
 
@@ -349,9 +346,7 @@ class TestHandleStepFailure:
     时 handle_step_failure 直接返回 None 的分支，不触发 WebSocket 通知。
     """
 
-    async def test_non_self_test_project_returns_none(
-        self, db, testProject
-    ) -> None:
+    async def test_non_self_test_project_returns_none(self, db, testProject) -> None:
         """非自测项目调用 handle_step_failure 应返回 None。
 
         _auto_create_defect_bug 校验 is_self_test 为 False 时直接返回 None，

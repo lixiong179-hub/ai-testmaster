@@ -34,12 +34,16 @@ class TestCreateIteration:
         transition_iteration_status(db, base.id, IterationPipelineStatus.IN_REVIEW.value)
         transition_iteration_status(db, base.id, IterationPipelineStatus.FINALIZED.value)
         child = create_iteration(
-            db, testProject.id, "child_iter", base_iteration_id=base.id,
+            db,
+            testProject.id,
+            "child_iter",
+            base_iteration_id=base.id,
         )
         assert child.base_iteration_id == base.id
 
     def test_base_iteration_wrong_project(self, db, testProject):
         from app.models.project import Project
+
         other_project = Project(name="other_proj", user_id=testProject.user_id, status=1, project_type="web")
         db.add(other_project)
         db.flush()
@@ -103,6 +107,7 @@ class TestListIterations:
 
     def test_list_empty_project(self, db, testProject):
         from app.models.project import Project
+
         empty_proj = Project(name="empty_proj", user_id=testProject.user_id, status=1, project_type="web")
         db.add(empty_proj)
         db.flush()

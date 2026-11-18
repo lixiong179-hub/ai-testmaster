@@ -141,23 +141,27 @@ class TestShouldTreatAsCaseTree:
         assert should_treat_as_case_tree([]) is False
 
     def test_single_case_like_item(self):
-        parsed = [{
-            "source_depth": 4,
-            "action_count": 2,
-            "expected_count": 1,
-            "condition_count": 1,
-            "ignored_count": 0,
-        }]
+        parsed = [
+            {
+                "source_depth": 4,
+                "action_count": 2,
+                "expected_count": 1,
+                "condition_count": 1,
+                "ignored_count": 0,
+            }
+        ]
         assert should_treat_as_case_tree(parsed) is True
 
     def test_single_non_case_like_item(self):
-        parsed = [{
-            "source_depth": 2,
-            "action_count": 0,
-            "expected_count": 0,
-            "condition_count": 0,
-            "ignored_count": 0,
-        }]
+        parsed = [
+            {
+                "source_depth": 2,
+                "action_count": 0,
+                "expected_count": 0,
+                "condition_count": 0,
+                "ignored_count": 0,
+            }
+        ]
         assert should_treat_as_case_tree(parsed) is False
 
     def test_multiple_items_majority_case_like(self):
@@ -224,8 +228,24 @@ class TestHandleCaseStyleImportPreview:
 
     def test_preview_with_multiple_cases(self, db, testProject):
         parsed_cases = [
-            {"module": "模块A", "point": "测试点1", "priority": 1, "title": "用例1", "precondition": "", "expected_result": "", "steps": []},
-            {"module": "模块B", "point": "测试点2", "priority": 3, "title": "用例2", "precondition": "", "expected_result": "", "steps": []},
+            {
+                "module": "模块A",
+                "point": "测试点1",
+                "priority": 1,
+                "title": "用例1",
+                "precondition": "",
+                "expected_result": "",
+                "steps": [],
+            },
+            {
+                "module": "模块B",
+                "point": "测试点2",
+                "priority": 3,
+                "title": "用例2",
+                "precondition": "",
+                "expected_result": "",
+                "steps": [],
+            },
         ]
         result = handle_case_style_import(
             db=db,
@@ -250,7 +270,15 @@ class TestHandleCaseStyleImportPreview:
 
     def test_preview_with_ai_timeout(self, db, testProject):
         parsed_cases = [
-            {"module": "模块A", "point": "测试点1", "priority": 2, "title": "用例1", "precondition": "", "expected_result": "", "steps": []},
+            {
+                "module": "模块A",
+                "point": "测试点1",
+                "priority": 2,
+                "title": "用例1",
+                "precondition": "",
+                "expected_result": "",
+                "steps": [],
+            },
         ]
         result = handle_case_style_import(
             db=db,
@@ -292,8 +320,24 @@ class TestHandleCaseStyleImportSave:
 
     def test_save_multiple_cases(self, db, testProject):
         parsed_cases = [
-            {"module": "模块A", "point": "测试点1", "priority": 1, "title": "用例1", "precondition": "", "expected_result": "", "steps": []},
-            {"module": "模块B", "point": "测试点2", "priority": 2, "title": "用例2", "precondition": "", "expected_result": "", "steps": []},
+            {
+                "module": "模块A",
+                "point": "测试点1",
+                "priority": 1,
+                "title": "用例1",
+                "precondition": "",
+                "expected_result": "",
+                "steps": [],
+            },
+            {
+                "module": "模块B",
+                "point": "测试点2",
+                "priority": 2,
+                "title": "用例2",
+                "precondition": "",
+                "expected_result": "",
+                "steps": [],
+            },
         ]
         result = handle_case_style_import(
             db=db,
@@ -309,7 +353,15 @@ class TestHandleCaseStyleImportSave:
 class TestHandleAiEnhancedImport:
     def test_delegates_to_case_style_import(self, db, testProject):
         ai_cases = [
-            {"module": "AI模块", "point": "AI测试点", "priority": 2, "title": "AI用例", "precondition": "", "expected_result": "", "steps": []},
+            {
+                "module": "AI模块",
+                "point": "AI测试点",
+                "priority": 2,
+                "title": "AI用例",
+                "precondition": "",
+                "expected_result": "",
+                "steps": [],
+            },
         ]
         result = handle_ai_enhanced_import(
             db=db,
@@ -323,7 +375,15 @@ class TestHandleAiEnhancedImport:
 
     def test_save_mode(self, db, testProject):
         ai_cases = [
-            {"module": "AI模块", "point": "AI测试点", "priority": 2, "title": "AI用例", "precondition": "", "expected_result": "", "steps": []},
+            {
+                "module": "AI模块",
+                "point": "AI测试点",
+                "priority": 2,
+                "title": "AI用例",
+                "precondition": "",
+                "expected_result": "",
+                "steps": [],
+            },
         ]
         result = handle_ai_enhanced_import(
             db=db,

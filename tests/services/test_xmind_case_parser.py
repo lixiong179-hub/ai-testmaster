@@ -69,7 +69,10 @@ class TestClassifyText:
 class TestInferCaseTitle:
     def test_with_actions_and_expected(self):
         title = parser._infer_case_title(
-            ["文本"], ["点击登录"], "界面显示首页", "模块",
+            ["文本"],
+            ["点击登录"],
+            "界面显示首页",
+            "模块",
         )
         assert "点击登录" in title
         assert "界面显示首页" in title
@@ -144,12 +147,16 @@ class TestDedupeCases:
     def test_deduplication(self):
         cases = [
             {
-                "module": "M", "title": "T", "precondition": "P",
+                "module": "M",
+                "title": "T",
+                "precondition": "P",
                 "expected_result": "E",
                 "steps": [{"action": "A", "expected_result": "E"}],
             },
             {
-                "module": "M", "title": "T", "precondition": "P",
+                "module": "M",
+                "title": "T",
+                "precondition": "P",
                 "expected_result": "E",
                 "steps": [{"action": "A", "expected_result": "E"}],
             },
@@ -160,12 +167,16 @@ class TestDedupeCases:
     def test_different_cases_kept(self):
         cases = [
             {
-                "module": "M1", "title": "T1", "precondition": "P",
+                "module": "M1",
+                "title": "T1",
+                "precondition": "P",
                 "expected_result": "E",
                 "steps": [{"action": "A1", "expected_result": "E"}],
             },
             {
-                "module": "M2", "title": "T2", "precondition": "P",
+                "module": "M2",
+                "title": "T2",
+                "precondition": "P",
                 "expected_result": "E",
                 "steps": [{"action": "A2", "expected_result": "E"}],
             },
@@ -237,18 +248,21 @@ class TestUtilMixin:
 
     def test_extract_topic_text_no_title(self):
         import xml.etree.ElementTree as ET
+
         topic = ET.Element("topic")
         result = parser._extract_topic_text(topic)
         assert result == ""
 
     def test_get_child_topics_no_children(self):
         import xml.etree.ElementTree as ET
+
         topic = ET.Element("topic")
         result = parser._get_child_topics(topic)
         assert result == []
 
     def test_extract_priority_no_marker(self):
         import xml.etree.ElementTree as ET
+
         topic = ET.Element("topic")
         result = parser._extract_priority_marker(topic)
         assert result is None

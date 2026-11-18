@@ -75,7 +75,9 @@ class TestVisibilityLevel:
 class TestResourceVisibilityRequest:
     def test_create(self):
         req = ResourceVisibilityRequest(
-            resource_type="test_case", resource_id=1, user_id=1,
+            resource_type="test_case",
+            resource_id=1,
+            user_id=1,
         )
         assert req.resource_type == "test_case"
         assert req.user_roles == []

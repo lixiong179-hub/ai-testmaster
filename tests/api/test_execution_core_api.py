@@ -3,6 +3,7 @@
 覆盖 /api/v1/execution/ 下的设备列表、开始/暂停/恢复/停止执行、
 失败分析、快速验证端点。使用 tests/api/conftest.py 的 async fixture。
 """
+
 from app.models.test_task import TestTask
 from app.models.test_case import TestCase
 from app.models.test_result import TestResult
@@ -39,7 +40,9 @@ async def _make_case(async_db, project_id):
     return case
 
 
-async def _make_result(async_db, task_id, project_id, case_id, case_no, exec_status=ExecStatus.FAILED, error_msg="", ai_analysis=""):
+async def _make_result(
+    async_db, task_id, project_id, case_id, case_no, exec_status=ExecStatus.FAILED, error_msg="", ai_analysis=""
+):
     result = TestResult(
         task_id=task_id,
         project_id=project_id,
@@ -55,7 +58,6 @@ async def _make_result(async_db, task_id, project_id, case_id, case_no, exec_sta
 
 
 class TestListDevicesAPI:
-
     async def test_devices_endpoint(self, async_auth_client):
         response = await async_auth_client.get("/api/v1/execution/devices")
         assert response.status_code == 200
@@ -66,7 +68,6 @@ class TestListDevicesAPI:
 
 
 class TestStartExecutionAPI:
-
     async def test_start_nonexistent_task(self, async_auth_client):
         response = await async_auth_client.post(
             "/api/v1/execution/99999/start",
@@ -79,7 +80,6 @@ class TestStartExecutionAPI:
 
 
 class TestPauseExecutionAPI:
-
     async def test_pause_nonexistent_task(self, async_auth_client):
         response = await async_auth_client.post("/api/v1/execution/99999/pause")
         assert response.status_code == 404
@@ -90,7 +90,6 @@ class TestPauseExecutionAPI:
 
 
 class TestResumeExecutionAPI:
-
     async def test_resume_nonexistent_task(self, async_auth_client):
         response = await async_auth_client.post("/api/v1/execution/99999/resume")
         assert response.status_code == 404
@@ -101,7 +100,6 @@ class TestResumeExecutionAPI:
 
 
 class TestStopExecutionAPI:
-
     async def test_stop_nonexistent_task(self, async_auth_client):
         response = await async_auth_client.post("/api/v1/execution/99999/stop")
         assert response.status_code == 404
@@ -112,7 +110,6 @@ class TestStopExecutionAPI:
 
 
 class TestAnalyzeFailureAPI:
-
     async def test_analyze_nonexistent_result(self, async_auth_client):
         response = await async_auth_client.post(
             "/api/v1/execution/results/99999/analyze-failure",
@@ -122,7 +119,9 @@ class TestAnalyzeFailureAPI:
     async def test_analyze_non_failed_result(self, async_auth_client, async_db, async_test_project, async_test_user):
         task = await _make_task(async_db, async_test_project.id, async_test_user.id)
         case = await _make_case(async_db, async_test_project.id)
-        result = await _make_result(async_db, task.id, async_test_project.id, case.id, case.case_no, exec_status=ExecStatus.PASSED)
+        result = await _make_result(
+            async_db, task.id, async_test_project.id, case.id, case.case_no, exec_status=ExecStatus.PASSED
+        )
         response = await async_auth_client.post(
             f"/api/v1/execution/results/{result.id}/analyze-failure",
         )
@@ -131,7 +130,15 @@ class TestAnalyzeFailureAPI:
     async def test_analyze_failed_result(self, async_auth_client, async_db, async_test_project, async_test_user):
         task = await _make_task(async_db, async_test_project.id, async_test_user.id)
         case = await _make_case(async_db, async_test_project.id)
-        result = await _make_result(async_db, task.id, async_test_project.id, case.id, case.case_no, exec_status=ExecStatus.FAILED, error_msg="元素未找到")
+        result = await _make_result(
+            async_db,
+            task.id,
+            async_test_project.id,
+            case.id,
+            case.case_no,
+            exec_status=ExecStatus.FAILED,
+            error_msg="元素未找到",
+        )
         response = await async_auth_client.post(
             f"/api/v1/execution/results/{result.id}/analyze-failure",
         )
@@ -145,9 +152,14 @@ class TestAnalyzeFailureAPI:
         task = await _make_task(async_db, async_test_project.id, async_test_user.id)
         case = await _make_case(async_db, async_test_project.id)
         result = await _make_result(
-            async_db, task.id, async_test_project.id, case.id, case.case_no,
+            async_db,
+            task.id,
+            async_test_project.id,
+            case.id,
+            case.case_no,
             exec_status=ExecStatus.FAILED,
-            error_msg="功能缺陷", ai_analysis="产品问题需要修复bug"
+            error_msg="功能缺陷",
+            ai_analysis="产品问题需要修复bug",
         )
         response = await async_auth_client.post(
             f"/api/v1/execution/results/{result.id}/analyze-failure",
@@ -159,13 +171,14 @@ class TestAnalyzeFailureAPI:
     async def test_analyze_unauthenticated(self, async_client, async_db, async_test_project, async_test_user):
         task = await _make_task(async_db, async_test_project.id, async_test_user.id)
         case = await _make_case(async_db, async_test_project.id)
-        result = await _make_result(async_db, task.id, async_test_project.id, case.id, case.case_no, exec_status=ExecStatus.FAILED)
+        result = await _make_result(
+            async_db, task.id, async_test_project.id, case.id, case.case_no, exec_status=ExecStatus.FAILED
+        )
         response = await async_client.post(f"/api/v1/execution/results/{result.id}/analyze-failure")
         assert response.status_code == 401
 
 
 class TestQuickVerifyAPI:
-
     async def test_quick_verify_nonexistent_case(self, async_auth_client):
         response = await async_auth_client.post(
             "/api/v1/execution/quick-verify",
@@ -219,12 +232,14 @@ class TestStartExecutionFailureSemantics:
         # 端点 commit 后 async_db 中的实例已过期，用 populate_existing 在
         # 绿色上下文内刷新，避免访问过期属性触发同步懒加载（MissingGreenlet）
         refreshed = (
-            await async_db.execute(
-                select(TestTask)
-                .where(TestTask.id == task.id)
-                .execution_options(populate_existing=True)
+            (
+                await async_db.execute(
+                    select(TestTask).where(TestTask.id == task.id).execution_options(populate_existing=True)
+                )
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
         assert refreshed.status == 3
         assert refreshed.end_time is not None
         assert "engine boom" in (refreshed.error_message or "")

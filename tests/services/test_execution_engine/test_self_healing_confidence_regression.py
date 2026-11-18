@@ -6,6 +6,7 @@
     3. `get_self_healing_summary()` 暴露三项可查询指标：
        成功率、命中层级分布、平均自愈耗时。
 """
+
 import pytest
 
 from app.core.config import settings
@@ -72,10 +73,7 @@ def test_monotonic_by_hit_count():
 
 def test_monotonic_by_model_confidence():
     """坐标与属性固定时，模型置信度提升 → 总分单调上升。"""
-    scores = [
-        compute_confidence({**COORD_ONLY, "confidence": conf}, ATTRS)
-        for conf in (0.0, 0.25, 0.5, 0.75, 1.0)
-    ]
+    scores = [compute_confidence({**COORD_ONLY, "confidence": conf}, ATTRS) for conf in (0.0, 0.25, 0.5, 0.75, 1.0)]
     assert scores == sorted(scores)
     assert scores[-1] == pytest.approx(1.0)
 
@@ -90,8 +88,8 @@ def test_weights_come_from_settings(monkeypatch):
 
     adjusted = compute_confidence({**COORD_ONLY, "confidence": 0.5}, ATTRS)
 
-    assert baseline == pytest.approx(0.9)      # 0.4 + 0.4 + 0.2*0.5
-    assert adjusted == pytest.approx(0.95)     # 0.6 + 0.3 + 0.1*0.5
+    assert baseline == pytest.approx(0.9)  # 0.4 + 0.4 + 0.2*0.5
+    assert adjusted == pytest.approx(0.95)  # 0.6 + 0.3 + 0.1*0.5
     assert adjusted > baseline
 
 
@@ -160,7 +158,9 @@ def test_summary_empty_buckets_are_zero():
     assert summary["healing_success_rate"] == 0.0
     assert summary["avg_healing_duration_seconds"] == 0.0
     assert summary["healing_layer_hit_distribution"] == {
-        "coordinate": 0.0, "attribute": 0.0, "model": 0.0,
+        "coordinate": 0.0,
+        "attribute": 0.0,
+        "model": 0.0,
     }
 
 
@@ -168,9 +168,7 @@ def test_record_healing_confidence_accumulates():
     """层级计数按「命中即 +1」累计，非互斥。"""
     host = _SummaryHost(attempts=1, successes=1, layer_hits={}, duration=0.0)
 
-    host._record_healing_confidence(
-        {"confidence": 0.9, "hits": {"coordinate": True, "attribute": True, "model": True}}
-    )
+    host._record_healing_confidence({"confidence": 0.9, "hits": {"coordinate": True, "attribute": True, "model": True}})
     host._record_healing_confidence(
         {"confidence": 0.1, "hits": {"coordinate": False, "attribute": False, "model": True}}
     )

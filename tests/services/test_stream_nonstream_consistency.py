@@ -14,6 +14,7 @@
 2. AI 生成本质非确定（temperature > 0），需多次采样统计才有意义
 3. 项目规则禁止 CI 中调用真实 AI（token 成本 + 不稳定）
 """
+
 from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, patch
 
@@ -62,11 +63,13 @@ def _build_spy() -> tuple[list, Any]:
         max_rounds: int = 3,
         on_round: Optional[Any] = None,
     ) -> Any:
-        calls.append({
-            "case": case,
-            "feedback_builder": feedback_builder,
-            "max_rounds": max_rounds,
-        })
+        calls.append(
+            {
+                "case": case,
+                "feedback_builder": feedback_builder,
+                "max_rounds": max_rounds,
+            }
+        )
         return await original(case, regen_fn, feedback_builder, max_rounds, on_round)
 
     return calls, spy_loop
@@ -89,7 +92,8 @@ class TestStreamNonstreamSharedFeedbackLoop:
 
         with patch.object(test_case_ai_stream, "run_quality_feedback_loop", spy_loop):
             final_cases, regen_events = await test_case_ai_stream._run_quality_feedback_for_cases(
-                [bad_case], regen_fn,
+                [bad_case],
+                regen_fn,
             )
 
         assert len(calls) == 1, "流式端点应对每条用例调用一次 run_quality_feedback_loop"
@@ -130,10 +134,14 @@ class TestStreamNonstreamSharedFeedbackLoop:
             "project_id": 1,
         }
 
-        with patch.object(feedback_loop_module, "run_quality_feedback_loop", spy_loop), \
-                patch.object(service, "_call_ai_and_parse", mock_call_ai), \
-                patch("app.services.test_case_generation.ai_generator.PromptBuilder.build_linear_prompt",
-                      return_value="mocked prompt"):
+        with (
+            patch.object(feedback_loop_module, "run_quality_feedback_loop", spy_loop),
+            patch.object(service, "_call_ai_and_parse", mock_call_ai),
+            patch(
+                "app.services.test_case_generation.ai_generator.PromptBuilder.build_linear_prompt",
+                return_value="mocked prompt",
+            ),
+        ):
             final_case = await service._generate_case_with_ai(context)
 
         assert len(calls) == 1, "非流式入口应调用一次 run_quality_feedback_loop"

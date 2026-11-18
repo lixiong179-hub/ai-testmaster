@@ -16,6 +16,7 @@ AI自愈功能测试
 - _execute_with_self_healing: 自愈包装器（集成测试）
 - 配置开关控制
 """
+
 import time
 import pytest
 import pytest_asyncio
@@ -151,33 +152,25 @@ async def test_get_nl_description_empty_for_missing_step(db_session, engine_no_b
 
 
 @pytest.mark.asyncio
-async def test_update_locator_after_healing_success(
-    db_session, engine_no_browser, seed_locator
-):
+async def test_update_locator_after_healing_success(db_session, engine_no_browser, seed_locator):
     """测试自愈后定位器回写成功"""
     new_selector = ".new-login-btn"
     old_selector = seed_locator.css_selector
     old_version = seed_locator.version
 
-    result = await engine_no_browser._update_locator_after_healing(
-        seed_locator.id, new_selector, old_selector
-    )
+    result = await engine_no_browser._update_locator_after_healing(seed_locator.id, new_selector, old_selector)
 
     assert result is True
 
     db_session.expire_all()
-    updated = db_session.query(ElementLocator).filter(
-        ElementLocator.id == seed_locator.id
-    ).first()
+    updated = db_session.query(ElementLocator).filter(ElementLocator.id == seed_locator.id).first()
     assert updated.css_selector == new_selector
     assert updated.source == "ai_self_healing"
     assert updated.version == old_version + 1
 
 
 @pytest.mark.asyncio
-async def test_update_locator_after_healing_optimistic_lock(
-    db_session, engine_no_browser, seed_locator
-):
+async def test_update_locator_after_healing_optimistic_lock(db_session, engine_no_browser, seed_locator):
     """测试乐观锁：使用过期版本更新时回写失败"""
     new_selector_v1 = ".new-btn-v1"
     new_selector_v2 = ".new-btn-v2"
@@ -188,9 +181,7 @@ async def test_update_locator_after_healing_optimistic_lock(
     assert result1 is True
 
     db_session.expire_all()
-    updated = db_session.query(ElementLocator).filter(
-        ElementLocator.id == seed_locator.id
-    ).first()
+    updated = db_session.query(ElementLocator).filter(ElementLocator.id == seed_locator.id).first()
     assert updated.version == 1
 
     stale_version = 0
@@ -199,35 +190,28 @@ async def test_update_locator_after_healing_optimistic_lock(
             "UPDATE element_locators SET css_selector = :s, "
             "source = 'stale', updated_at = UTC_TIMESTAMP(), version = version + 1 "
             "WHERE id = :id AND version = :v"
-        ), {"s": new_selector_v2, "id": seed_locator.id, "v": stale_version}
+        ),
+        {"s": new_selector_v2, "id": seed_locator.id, "v": stale_version},
     )
     db_session.commit()
     assert result.rowcount == 0
 
     db_session.expire_all()
-    final = db_session.query(ElementLocator).filter(
-        ElementLocator.id == seed_locator.id
-    ).first()
+    final = db_session.query(ElementLocator).filter(ElementLocator.id == seed_locator.id).first()
     assert final.css_selector == new_selector_v1
 
 
 @pytest.mark.asyncio
-async def test_update_locator_after_healing_empty_selector(
-    db_session, engine_no_browser, seed_locator
-):
+async def test_update_locator_after_healing_empty_selector(db_session, engine_no_browser, seed_locator):
     """测试空选择器不执行回写"""
-    result = await engine_no_browser._update_locator_after_healing(
-        seed_locator.id, "", ".old-btn"
-    )
+    result = await engine_no_browser._update_locator_after_healing(seed_locator.id, "", ".old-btn")
     assert result is False
 
 
 @pytest.mark.asyncio
 async def test_update_locator_after_healing_nonexistent_record(db_session, engine_no_browser):
     """测试不存在的定位器记录回写失败"""
-    result = await engine_no_browser._update_locator_after_healing(
-        9999999, ".some-selector", ".old"
-    )
+    result = await engine_no_browser._update_locator_after_healing(9999999, ".some-selector", ".old")
     assert result is False
 
 
@@ -403,6 +387,7 @@ async def test_execute_with_self_healing_disabled_raises_original(
     monkeypatch.setattr(settings, "AI_SELF_HEALING_ENABLED", False)
 
     from app.utils.browser_controller_v2 import BrowserControllerV2
+
     browser = BrowserControllerV2.__new__(BrowserControllerV2)
     browser.page = None
     browser.browser = None
@@ -422,39 +407,30 @@ async def test_execute_with_self_healing_disabled_raises_original(
 
 
 @pytest.mark.asyncio
-async def test_healing_updates_locator_in_db(
-    db_session, engine_no_browser, seed_test_step, seed_locator
-):
+async def test_healing_updates_locator_in_db(db_session, engine_no_browser, seed_test_step, seed_locator):
     """测试自愈成功后ElementLocator表中的选择器已被更新"""
     new_selector = ".healed-login-btn"
     old_selector = seed_locator.css_selector
 
-    result = await engine_no_browser._update_locator_after_healing(
-        seed_locator.id, new_selector, old_selector
-    )
+    result = await engine_no_browser._update_locator_after_healing(seed_locator.id, new_selector, old_selector)
     assert result is True
 
     db_session.expire_all()
-    updated = db_session.query(ElementLocator).filter(
-        ElementLocator.id == seed_locator.id
-    ).first()
+    updated = db_session.query(ElementLocator).filter(ElementLocator.id == seed_locator.id).first()
     assert updated.css_selector == new_selector
     assert updated.css_selector != old_selector
     assert updated.source == "ai_self_healing"
 
 
 @pytest.mark.asyncio
-async def test_healed_selector_persists_on_next_read(
-    db_session, engine_no_browser, seed_test_step, seed_locator
-):
+async def test_healed_selector_persists_on_next_read(db_session, engine_no_browser, seed_test_step, seed_locator):
     """测试自愈后的新选择器在下次读取时可用"""
     new_selector = ".persistent-btn"
-    await engine_no_browser._update_locator_after_healing(
-        seed_locator.id, new_selector, seed_locator.css_selector
-    )
+    await engine_no_browser._update_locator_after_healing(seed_locator.id, new_selector, seed_locator.css_selector)
 
     db_session.expire_all()
     from app.services.element_locator_service import ElementLocatorService
+
     locator_service = ElementLocatorService.__new__(ElementLocatorService)
     locator_service.db = db_session
 

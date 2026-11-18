@@ -232,6 +232,7 @@ class TestNavigationMixin:
     async def test_navigate_invalid_url(self):
         class Ctrl(NavigationMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         with pytest.raises(BrowserError):
@@ -241,6 +242,7 @@ class TestNavigationMixin:
     async def test_navigate_not_initialized(self):
         class Ctrl(NavigationMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         with pytest.raises(BrowserNotInitializedError):
             await ctrl.navigate("https://example.com")
@@ -251,6 +253,7 @@ class TestActionMixin:
     async def test_click_negative_coords(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         with pytest.raises(BrowserError, match="坐标必须非负"):
@@ -260,6 +263,7 @@ class TestActionMixin:
     async def test_hover_negative_coords(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         with pytest.raises(BrowserError, match="坐标必须非负"):
@@ -269,6 +273,7 @@ class TestActionMixin:
     async def test_click_element_empty_selector(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         with pytest.raises(BrowserError, match="CSS选择器不能为空"):
@@ -278,6 +283,7 @@ class TestActionMixin:
     async def test_fill_empty_selector(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         with pytest.raises(BrowserError, match="CSS选择器不能为空"):
@@ -287,6 +293,7 @@ class TestActionMixin:
     async def test_type_text_empty_selector(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         with pytest.raises(BrowserError, match="CSS选择器不能为空"):
@@ -296,6 +303,7 @@ class TestActionMixin:
     async def test_press_key_empty_key(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         with pytest.raises(BrowserError, match="按键名称不能为空"):
@@ -305,6 +313,7 @@ class TestActionMixin:
     async def test_wait_for_selector_empty(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         with pytest.raises(BrowserError, match="CSS选择器不能为空"):
@@ -314,6 +323,7 @@ class TestActionMixin:
     async def test_execute_javascript_empty(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         with pytest.raises(BrowserError, match="JavaScript代码不能为空"):
@@ -323,6 +333,7 @@ class TestActionMixin:
     async def test_get_element_info_empty_selector(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         result = await ctrl.get_element_info("")
@@ -332,6 +343,7 @@ class TestActionMixin:
     async def test_highlight_element_empty_selector(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         ctrl._is_initialized = True
         result = await ctrl.highlight_element("")
@@ -341,6 +353,7 @@ class TestActionMixin:
     async def test_not_initialized_actions(self):
         class Ctrl(ActionMixin, BaseBrowserControllerV2):
             pass
+
         ctrl = Ctrl()
         with pytest.raises(BrowserNotInitializedError):
             await ctrl.click(10, 20)

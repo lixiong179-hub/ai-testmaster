@@ -10,6 +10,7 @@
 
 使用真实 MySQL 数据库 + MockAIClient。
 """
+
 import json
 
 import pytest
@@ -51,14 +52,16 @@ def _make_candidates(project_id: int, descs: list = None) -> dict:
 def _make_fingerprints(project_id: int, count: int = 5) -> dict:
     fps = []
     for i in range(count):
-        fps.append({
-            "case_id": 100 + i,
-            "title": f"用例{i}",
-            "module": "用户管理",
-            "summary": f"摘要{i}",
-            "priority": 1,
-            "lifecycle_status": "active",
-        })
+        fps.append(
+            {
+                "case_id": 100 + i,
+                "title": f"用例{i}",
+                "module": "用户管理",
+                "summary": f"摘要{i}",
+                "priority": 1,
+                "lifecycle_status": "active",
+            }
+        )
     return {
         "project_id": project_id,
         "fingerprints": fps,
@@ -242,13 +245,15 @@ class TestForwardScanExecute:
         assert result.artifact_payload["stats"]["new"] == len(verdicts)
 
     def test_execute_with_matches(self, db, make_ctx, mock_ai, test_iteration):
-        ai_response = json.dumps({
-            "label": "EXISTING",
-            "matched_case_id": 100,
-            "matched_title": "用例0",
-            "confidence": 0.9,
-            "reason": "场景一致",
-        })
+        ai_response = json.dumps(
+            {
+                "label": "EXISTING",
+                "matched_case_id": 100,
+                "matched_title": "用例0",
+                "confidence": 0.9,
+                "reason": "场景一致",
+            }
+        )
         mock_ai.set_response("forward_scan", ai_response)
 
         ctx = make_ctx(
@@ -306,7 +311,14 @@ class TestForwardScanExecute:
         fingerprints_payload = {
             "project_id": test_iteration.project_id,
             "fingerprints": [
-                {"case_id": 100, "title": "验证码校验", "module": "用户管理", "summary": "验证码", "priority": 1, "lifecycle_status": "active"},
+                {
+                    "case_id": 100,
+                    "title": "验证码校验",
+                    "module": "用户管理",
+                    "summary": "验证码",
+                    "priority": 1,
+                    "lifecycle_status": "active",
+                },
             ],
             "total_count": 1,
             "stale_backfilled_count": 0,
@@ -359,19 +371,27 @@ class TestForwardScanService:
         assert result[0].confidence == 0.85
 
     def test_scan_with_llm_existing(self, mock_ai):
-        ai_response = json.dumps({
-            "label": "EXISTING",
-            "matched_case_id": 100,
-            "matched_title": "用例0",
-            "confidence": 0.92,
-            "reason": "描述完全一致",
-        })
+        ai_response = json.dumps(
+            {
+                "label": "EXISTING",
+                "matched_case_id": 100,
+                "matched_title": "用例0",
+                "confidence": 0.92,
+                "reason": "描述完全一致",
+            }
+        )
         mock_ai.set_response("forward_scan", ai_response)
 
         service = ForwardScanService(ai_client=mock_ai)
         candidates = [{"description": "登录验证码校验", "module": "用户管理", "priority": 1, "reason": "验证码功能"}]
         fingerprints = [
-            {"case_id": 100, "title": "登录验证码校验", "module": "用户管理", "summary": "登录时输入验证码校验", "priority": 1},
+            {
+                "case_id": 100,
+                "title": "登录验证码校验",
+                "module": "用户管理",
+                "summary": "登录时输入验证码校验",
+                "priority": 1,
+            },
             {"case_id": 101, "title": "注册流程", "module": "用户管理", "summary": "邮箱注册", "priority": 1},
         ]
         result = service.scan(candidates, fingerprints)
@@ -381,19 +401,34 @@ class TestForwardScanService:
         assert result[0].confidence == 0.92
 
     def test_scan_with_llm_modify(self, mock_ai):
-        ai_response = json.dumps({
-            "label": "MODIFY",
-            "matched_case_id": 100,
-            "matched_title": "登录验证码校验",
-            "confidence": 0.78,
-            "reason": "需要新增校验步骤",
-        })
+        ai_response = json.dumps(
+            {
+                "label": "MODIFY",
+                "matched_case_id": 100,
+                "matched_title": "登录验证码校验",
+                "confidence": 0.78,
+                "reason": "需要新增校验步骤",
+            }
+        )
         mock_ai.set_response("forward_scan", ai_response)
 
         service = ForwardScanService(ai_client=mock_ai)
-        candidates = [{"description": "登录验证码增强校验", "module": "用户管理", "priority": 2, "reason": "多因素验证 登录时验证码校验"}]
+        candidates = [
+            {
+                "description": "登录验证码增强校验",
+                "module": "用户管理",
+                "priority": 2,
+                "reason": "多因素验证 登录时验证码校验",
+            }
+        ]
         fingerprints = [
-            {"case_id": 100, "title": "登录验证码校验", "module": "用户管理", "summary": "登录时输入验证码校验用户身份", "priority": 1},
+            {
+                "case_id": 100,
+                "title": "登录验证码校验",
+                "module": "用户管理",
+                "summary": "登录时输入验证码校验用户身份",
+                "priority": 1,
+            },
             {"case_id": 101, "title": "注册流程", "module": "用户管理", "summary": "邮箱注册", "priority": 1},
         ]
         result = service.scan(candidates, fingerprints)
@@ -402,13 +437,15 @@ class TestForwardScanService:
         assert result[0].matched_case_id == 100
 
     def test_scan_with_llm_new(self, mock_ai):
-        ai_response = json.dumps({
-            "label": "NEW",
-            "matched_case_id": None,
-            "matched_title": "",
-            "confidence": 0.88,
-            "reason": "无匹配用例",
-        })
+        ai_response = json.dumps(
+            {
+                "label": "NEW",
+                "matched_case_id": None,
+                "matched_title": "",
+                "confidence": 0.88,
+                "reason": "无匹配用例",
+            }
+        )
         mock_ai.set_response("forward_scan", ai_response)
 
         service = ForwardScanService(ai_client=mock_ai)
@@ -423,22 +460,35 @@ class TestForwardScanService:
         assert result[0].matched_case_id is None
 
     def test_scan_multiple_candidates(self, mock_ai):
-        ai_response = json.dumps({
-            "label": "EXISTING",
-            "matched_case_id": 100,
-            "matched_title": "登录验证码校验",
-            "confidence": 0.9,
-            "reason": "已存在",
-        })
+        ai_response = json.dumps(
+            {
+                "label": "EXISTING",
+                "matched_case_id": 100,
+                "matched_title": "登录验证码校验",
+                "confidence": 0.9,
+                "reason": "已存在",
+            }
+        )
         mock_ai.set_response("forward_scan", ai_response)
 
         service = ForwardScanService(ai_client=mock_ai)
         candidates = [
             {"description": "登录验证码校验", "module": "用户管理", "priority": 1, "reason": "验证码 登录校验"},
-            {"description": "XXAA支付回调通知处理接口对接", "module": "支付", "priority": 1, "reason": "新增 第三方 回调"},
+            {
+                "description": "XXAA支付回调通知处理接口对接",
+                "module": "支付",
+                "priority": 1,
+                "reason": "新增 第三方 回调",
+            },
         ]
         fingerprints = [
-            {"case_id": 100, "title": "登录验证码校验", "module": "用户管理", "summary": "登录时输入验证码校验用户身份", "priority": 1},
+            {
+                "case_id": 100,
+                "title": "登录验证码校验",
+                "module": "用户管理",
+                "summary": "登录时输入验证码校验用户身份",
+                "priority": 1,
+            },
             {"case_id": 101, "title": "注册流程", "module": "用户管理", "summary": "邮箱注册流程", "priority": 1},
         ]
         result = service.scan(candidates, fingerprints)
@@ -452,7 +502,15 @@ class TestParseForwardResponse:
     def test_existing_valid(self):
         top_matches = [CoarseMatch(case_id=100, title="用例0", summary="摘要0", similarity=0.85)]
         result = _parse_forward_response(
-            json.dumps({"label": "EXISTING", "matched_case_id": 100, "matched_title": "用例0", "confidence": 0.9, "reason": "一致"}),
+            json.dumps(
+                {
+                    "label": "EXISTING",
+                    "matched_case_id": 100,
+                    "matched_title": "用例0",
+                    "confidence": 0.9,
+                    "reason": "一致",
+                }
+            ),
             {"description": "场景", "reason": "理由"},
             top_matches,
         )
@@ -462,7 +520,15 @@ class TestParseForwardResponse:
     def test_modify_valid(self):
         top_matches = [CoarseMatch(case_id=101, title="用例1", summary="摘要1", similarity=0.72)]
         result = _parse_forward_response(
-            json.dumps({"label": "MODIFY", "matched_case_id": 101, "matched_title": "用例1", "confidence": 0.7, "reason": "需修改"}),
+            json.dumps(
+                {
+                    "label": "MODIFY",
+                    "matched_case_id": 101,
+                    "matched_title": "用例1",
+                    "confidence": 0.7,
+                    "reason": "需修改",
+                }
+            ),
             {"description": "场景", "reason": "理由"},
             top_matches,
         )
@@ -471,7 +537,9 @@ class TestParseForwardResponse:
 
     def test_new_valid(self):
         result = _parse_forward_response(
-            json.dumps({"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": 0.8, "reason": "无匹配"}),
+            json.dumps(
+                {"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": 0.8, "reason": "无匹配"}
+            ),
             {"description": "场景", "reason": "理由"},
             [],
         )
@@ -490,7 +558,9 @@ class TestParseForwardResponse:
 
     def test_invalid_label_corrected(self):
         result = _parse_forward_response(
-            json.dumps({"label": "UNKNOWN", "matched_case_id": None, "matched_title": "", "confidence": 0.8, "reason": "未知"}),
+            json.dumps(
+                {"label": "UNKNOWN", "matched_case_id": None, "matched_title": "", "confidence": 0.8, "reason": "未知"}
+            ),
             {"description": "场景", "reason": "理由"},
             [],
         )
@@ -499,7 +569,9 @@ class TestParseForwardResponse:
     def test_existing_without_title_fallback(self):
         top_matches = [CoarseMatch(case_id=100, title="用例0", summary="摘要0", similarity=0.8)]
         result = _parse_forward_response(
-            json.dumps({"label": "EXISTING", "matched_case_id": 100, "matched_title": "", "confidence": 0.9, "reason": "一致"}),
+            json.dumps(
+                {"label": "EXISTING", "matched_case_id": 100, "matched_title": "", "confidence": 0.9, "reason": "一致"}
+            ),
             {"description": "场景", "reason": "理由"},
             top_matches,
         )
@@ -508,7 +580,15 @@ class TestParseForwardResponse:
     def test_existing_invalid_case_id_fallback(self):
         top_matches = [CoarseMatch(case_id=100, title="用例0", summary="摘要0", similarity=0.8)]
         result = _parse_forward_response(
-            json.dumps({"label": "EXISTING", "matched_case_id": 999, "matched_title": "不存在", "confidence": 0.9, "reason": ""}),
+            json.dumps(
+                {
+                    "label": "EXISTING",
+                    "matched_case_id": 999,
+                    "matched_title": "不存在",
+                    "confidence": 0.9,
+                    "reason": "",
+                }
+            ),
             {"description": "场景", "reason": "理由"},
             top_matches,
         )
@@ -517,7 +597,15 @@ class TestParseForwardResponse:
     def test_modify_invalid_case_id_fallback(self):
         top_matches = [CoarseMatch(case_id=100, title="用例0", summary="摘要0", similarity=0.8)]
         result = _parse_forward_response(
-            json.dumps({"label": "MODIFY", "matched_case_id": 999, "matched_title": "不存在", "confidence": 0.6, "reason": "要改"}),
+            json.dumps(
+                {
+                    "label": "MODIFY",
+                    "matched_case_id": 999,
+                    "matched_title": "不存在",
+                    "confidence": 0.6,
+                    "reason": "要改",
+                }
+            ),
             {"description": "场景", "reason": "理由"},
             top_matches,
         )
@@ -526,7 +614,9 @@ class TestParseForwardResponse:
     def test_modify_without_title_fallback(self):
         top_matches = [CoarseMatch(case_id=100, title="用例0", summary="摘要0", similarity=0.8)]
         result = _parse_forward_response(
-            json.dumps({"label": "MODIFY", "matched_case_id": 100, "matched_title": "", "confidence": 0.6, "reason": "要改"}),
+            json.dumps(
+                {"label": "MODIFY", "matched_case_id": 100, "matched_title": "", "confidence": 0.6, "reason": "要改"}
+            ),
             {"description": "场景", "reason": "理由"},
             top_matches,
         )
@@ -535,7 +625,15 @@ class TestParseForwardResponse:
     def test_existing_matched_case_id_is_bool(self):
         top_matches = [CoarseMatch(case_id=100, title="用例0", summary="摘要0", similarity=0.8)]
         result = _parse_forward_response(
-            json.dumps({"label": "EXISTING", "matched_case_id": True, "matched_title": "用例0", "confidence": 0.9, "reason": "bool"}),
+            json.dumps(
+                {
+                    "label": "EXISTING",
+                    "matched_case_id": True,
+                    "matched_title": "用例0",
+                    "confidence": 0.9,
+                    "reason": "bool",
+                }
+            ),
             {"description": "场景", "reason": "理由"},
             top_matches,
         )
@@ -543,14 +641,18 @@ class TestParseForwardResponse:
 
     def test_confidence_bounds_corrected(self):
         result = _parse_forward_response(
-            json.dumps({"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": 1.5, "reason": "高自信"}),
+            json.dumps(
+                {"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": 1.5, "reason": "高自信"}
+            ),
             {"description": "场景", "reason": "理由"},
             [],
         )
         assert result.confidence == 1.0
 
         result = _parse_forward_response(
-            json.dumps({"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": -0.5, "reason": "负自信"}),
+            json.dumps(
+                {"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": -0.5, "reason": "负自信"}
+            ),
             {"description": "场景", "reason": "理由"},
             [],
         )
@@ -558,7 +660,9 @@ class TestParseForwardResponse:
 
     def test_non_numeric_confidence_default(self):
         result = _parse_forward_response(
-            json.dumps({"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": "high", "reason": "字符串"}),
+            json.dumps(
+                {"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": "high", "reason": "字符串"}
+            ),
             {"description": "场景", "reason": "理由"},
             [],
         )
@@ -574,7 +678,9 @@ class TestParseForwardResponse:
 
     def test_reason_truncated(self):
         result = _parse_forward_response(
-            json.dumps({"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": 0.8, "reason": "R" * 200}),
+            json.dumps(
+                {"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": 0.8, "reason": "R" * 200}
+            ),
             {"description": "场景", "reason": "理由"},
             [],
         )
@@ -582,7 +688,9 @@ class TestParseForwardResponse:
 
     def test_empty_matched_title_for_new(self):
         result = _parse_forward_response(
-            json.dumps({"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": 0.8, "reason": "新场景"}),
+            json.dumps(
+                {"label": "NEW", "matched_case_id": None, "matched_title": "", "confidence": 0.8, "reason": "新场景"}
+            ),
             {"description": "场景", "reason": "理由"},
             [],
         )
@@ -609,7 +717,7 @@ class TestTryParseJson:
         assert result == {"a": 1}
 
     def test_invalid_braces_content(self):
-        result = _try_parse_json('结果: {not valid json}')
+        result = _try_parse_json("结果: {not valid json}")
         assert result is None
 
 
@@ -637,7 +745,13 @@ class TestCoarseScreening:
         service = ForwardScanService(ai_client=mock_ai, top_k=2)
         candidate = {"description": "登录验证码校验", "reason": "新增"}
         fingerprints = [
-            {"case_id": 100, "title": "登录验证码校验", "module": "用户管理", "summary": "登录时输入验证码校验用户身份", "priority": 1},
+            {
+                "case_id": 100,
+                "title": "登录验证码校验",
+                "module": "用户管理",
+                "summary": "登录时输入验证码校验用户身份",
+                "priority": 1,
+            },
             {"case_id": 101, "title": "注册流程", "module": "用户管理", "summary": "邮箱注册", "priority": 1},
             {"case_id": 102, "title": "密码重置", "module": "用户管理", "summary": "重置密码", "priority": 1},
         ]

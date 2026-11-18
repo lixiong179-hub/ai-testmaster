@@ -5,6 +5,7 @@
     - T2: _classify_case_type — 显式字段优先、标题关键词 fallback、步骤内容级匹配、默认正向
     - T6: _dedup_cases_global — 跨测试点 Jaccard 去重
 """
+
 import pytest
 
 from app.pipelines.steps.case_generation import (

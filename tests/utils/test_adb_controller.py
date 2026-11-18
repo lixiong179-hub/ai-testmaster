@@ -67,7 +67,9 @@ class TestAdbControllerBase:
 
     def test_init_custom_params(self):
         ctrl = _AdbControllerBase(
-            udid="dev1", adb_path="/usr/bin/adb", default_timeout=60,
+            udid="dev1",
+            adb_path="/usr/bin/adb",
+            default_timeout=60,
         )
         assert ctrl.adb_path == "/usr/bin/adb"
         assert ctrl.default_timeout == 60

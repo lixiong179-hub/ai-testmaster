@@ -10,6 +10,7 @@
 
 使用真实 MySQL 数据库，零 AI 调用。
 """
+
 import json
 
 import pytest
@@ -165,7 +166,9 @@ class TestReconciliationCacheKey:
         )
         key2 = Reconciliation().cache_key(
             make_ctx(
-                backward_payload=_bw_artifact(test_iteration.project_id, [_bw_v(100, "VALID"), _bw_v(101, "DEPRECATED")]),
+                backward_payload=_bw_artifact(
+                    test_iteration.project_id, [_bw_v(100, "VALID"), _bw_v(101, "DEPRECATED")]
+                ),
                 forward_payload=_fw_artifact(test_iteration.project_id, [_fw_v(0, "NEW")]),
             )
         )
@@ -391,8 +394,16 @@ class TestLookupMatrix:
 
 class TestMergedActionEnum:
     def test_all_values_in_matrix(self):
-        values = {"keep", "needs_modify", "locator_broken", "locator_and_modify",
-                  "deprecate", "add_new", "conflict", "pending_review"}
+        values = {
+            "keep",
+            "needs_modify",
+            "locator_broken",
+            "locator_and_modify",
+            "deprecate",
+            "add_new",
+            "conflict",
+            "pending_review",
+        }
         assert set(a.value for a in MergedAction) == values
 
     def test_conflict_pairs(self):

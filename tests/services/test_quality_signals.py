@@ -6,6 +6,7 @@ format_quality_signals 正确格式化为 Prompt 文本段（含具体问题与�
 历史避坑要点 4：禁止盲重试，quality_signals 必须携带具体失败原因与低分维度，
 让 AI 在下一轮针对具体问题修复而非无信息地重复生成。
 """
+
 from typing import Any, Dict, List
 
 from app.services.case_quality.quality_signals import (
@@ -70,7 +71,10 @@ class TestBuildQualitySignals:
 
     def test_low_dimensions_below_threshold(self) -> None:
         dim_scores: Dict[str, float] = {
-            "title": 10.0, "precondition": 4.0, "steps": 6.9, "expected_result": 7.0,
+            "title": 10.0,
+            "precondition": 4.0,
+            "steps": 6.9,
+            "expected_result": 7.0,
         }
         signals = build_quality_signals([], dim_scores)
         # precondition(4.0) 与 steps(6.9) 低于阈值，expected_result(7.0) 不低于
@@ -150,7 +154,8 @@ class TestFormatQualitySignals:
     def test_full_format_structure(self) -> None:
         """完整信号格式化后包含所有段落且顺序正确。"""
         signals = build_quality_signals(
-            ["标题为空"], {"title": 0.0, "steps": 10.0},
+            ["标题为空"],
+            {"title": 0.0, "steps": 10.0},
         )
         text = format_quality_signals(signals)
         header_pos = text.index("## 质量信号")

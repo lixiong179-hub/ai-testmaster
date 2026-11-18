@@ -4,6 +4,7 @@
     - 依赖链完整（5 个 Step）    - Pipeline 端到端运行完成    - 生成用例数量与标注集一致    - 用例持久化到数据库    - 用例 lifecycle_status 正确
 
 使用 Alpha 标注集作为固定输入，MockAIClient 模拟 AI 响应。"""
+
 import json
 import pytest
 
@@ -113,18 +114,14 @@ class TestScenario1Regression:
         run_scenario(db, s1_iteration.id, 1, mock_ai_s1, testUser.id)
         db.flush()
 
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == s1_iteration.project_id
-        ).all()
+        cases = db.query(TestCase).filter(TestCase.project_id == s1_iteration.project_id).all()
         assert len(cases) >= 1
 
     def test_case_fields_match_mock(self, db, s1_iteration, mock_ai_s1, testUser):
         run_scenario(db, s1_iteration.id, 1, mock_ai_s1, testUser.id)
         db.flush()
 
-        case = db.query(TestCase).filter(
-            TestCase.project_id == s1_iteration.project_id
-        ).first()
+        case = db.query(TestCase).filter(TestCase.project_id == s1_iteration.project_id).first()
         assert case is not None
         assert case.title == SCENARIO_1_MOCK_CASES[0]["title"]
         assert case.module == SCENARIO_1_MOCK_CASES[0]["module"]

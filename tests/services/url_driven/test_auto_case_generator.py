@@ -10,6 +10,7 @@ JSON 解析失败、持久化字段与回滚。
 AI 隔离：FakeAIClient 实现 AIClient Protocol，可控返回内容/抛异常/空响应，
 不真实调用 DeepSeek，避免网络与费用。
 """
+
 import json
 from typing import Any, Dict, List, Optional
 
@@ -27,7 +28,12 @@ from app.services.url_driven.site_explorer import PageSnapshot, SiteMap
 
 def make_element(role: str, name: str, locator: str = "") -> Dict[str, Any]:
     """构造 PageSnapshot.elements 项，对齐 _snapshot_mixin 输出结构。"""
-    return {"role": role, "name": name, "locator": locator or f'get_by_role("{role}", name="{name}")', "css_selector": ""}
+    return {
+        "role": role,
+        "name": name,
+        "locator": locator or f'get_by_role("{role}", name="{name}")',
+        "css_selector": "",
+    }
 
 
 def make_page(
@@ -81,10 +87,14 @@ class FakeAIClient:
         max_tokens: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> AIResponse:
-        self.calls.append({
-            "prompt": prompt, "system": system, "metadata": metadata,
-            "max_tokens": max_tokens,
-        })
+        self.calls.append(
+            {
+                "prompt": prompt,
+                "system": system,
+                "metadata": metadata,
+                "max_tokens": max_tokens,
+            }
+        )
         if self._raise is not None:
             raise self._raise
         return AIResponse(content=self._content, model_version="fake-model", latency_ms=10)
@@ -151,9 +161,15 @@ class TestDeriveTestPoints:
         assert points[0]["test_point_type"] == "search"
 
     def test_form_derives_form_point(self, generator):
-        page = make_page(forms=[{"action": "/submit", "method": "post", "fields": [
-            {"tag": "input", "type": "text", "name": "email", "placeholder": "邮箱", "text": ""}
-        ]}])
+        page = make_page(
+            forms=[
+                {
+                    "action": "/submit",
+                    "method": "post",
+                    "fields": [{"tag": "input", "type": "text", "name": "email", "placeholder": "邮箱", "text": ""}],
+                }
+            ]
+        )
         points = generator._derive_test_points(make_site_map([page]))
         assert points[0]["test_point_type"] == "form"
         assert len(points[0]["related_elements"]) == 1
@@ -249,10 +265,12 @@ class TestValidateElements:
     def test_all_match_returns_one(self, generator):
         elements = [make_element("textbox", "用户名"), make_element("button", "登录")]
         page = make_page(elements=elements)
-        case = {"steps": [
-            {"target_element": "用户名", "action_type": "input"},
-            {"target_element": "登录", "action_type": "click"},
-        ]}
+        case = {
+            "steps": [
+                {"target_element": "用户名", "action_type": "input"},
+                {"target_element": "登录", "action_type": "click"},
+            ]
+        }
         assert generator._validate_elements(case, page) == 1.0
 
     def test_no_match_returns_zero(self, generator):
@@ -264,10 +282,12 @@ class TestValidateElements:
     def test_partial_match_returns_ratio(self, generator):
         elements = [make_element("textbox", "用户名"), make_element("button", "登录")]
         page = make_page(elements=elements)
-        case = {"steps": [
-            {"target_element": "用户名", "action_type": "input"},
-            {"target_element": "不存在", "action_type": "input"},
-        ]}
+        case = {
+            "steps": [
+                {"target_element": "用户名", "action_type": "input"},
+                {"target_element": "不存在", "action_type": "input"},
+            ]
+        }
         assert generator._validate_elements(case, page) == 0.5
 
     def test_action_role_incompatible_not_counted(self, generator):
@@ -286,10 +306,12 @@ class TestValidateElements:
     def test_step_without_target_excluded_from_denominator(self, generator):
         elements = [make_element("textbox", "用户名")]
         page = make_page(elements=elements)
-        case = {"steps": [
-            {"target_element": "用户名", "action_type": "input"},
-            {"action": "等待页面加载", "action_type": "navigate"},
-        ]}
+        case = {
+            "steps": [
+                {"target_element": "用户名", "action_type": "input"},
+                {"action": "等待页面加载", "action_type": "navigate"},
+            ]
+        }
         assert generator._validate_elements(case, page) == 1.0
 
     def test_empty_elements_returns_zero(self, generator):
@@ -408,6 +430,7 @@ class TestCallAi:
         不依赖 .env 全局配置的具体值，避免环境差异导致测试不稳定。
         """
         from app.core.config import settings
+
         monkeypatch.setattr(settings, "AI_MAX_TOKENS", 2048)
         monkeypatch.setattr(settings, "URL_QUICK_TEST_AI_MAX_TOKENS", 4096)
         fake = FakeAIClient(content="ok")
@@ -441,10 +464,10 @@ class TestGenerateSuccess:
             assert case.case_no.startswith(f"TC-{project.id:03d}-")
 
     def test_generate_assigns_module_from_test_point(self, generator, db, project):
-        page = make_page(is_login_page=True, elements=[make_element("textbox", "用户名"), make_element("button", "登录")])
-        gen = AutoCaseGenerator(ai_client=FakeAIClient(
-            content=json.dumps({"cases": [make_ai_case("登录", "用户名")]})
-        ))
+        page = make_page(
+            is_login_page=True, elements=[make_element("textbox", "用户名"), make_element("button", "登录")]
+        )
+        gen = AutoCaseGenerator(ai_client=FakeAIClient(content=json.dumps({"cases": [make_ai_case("登录", "用户名")]})))
         cases = gen.generate(make_site_map([page]), project.id, None, project.user_id, db)
         assert cases[0].module == "login"
 
@@ -456,10 +479,22 @@ class TestGenerateSuccess:
         assert "重点测试登录" in fake.calls[0]["prompt"]
 
     def test_generate_case_no_incremental(self, generator, db, project):
-        page = make_page(is_login_page=True, elements=[make_element("textbox", "用户名"), make_element("button", "登录")])
-        gen = AutoCaseGenerator(ai_client=FakeAIClient(
-            content=json.dumps({"cases": [make_ai_case("c1", "用户名"), make_ai_case("c2", "用户名"), make_ai_case("c3", "用户名")]})
-        ))
+        page = make_page(
+            is_login_page=True, elements=[make_element("textbox", "用户名"), make_element("button", "登录")]
+        )
+        gen = AutoCaseGenerator(
+            ai_client=FakeAIClient(
+                content=json.dumps(
+                    {
+                        "cases": [
+                            make_ai_case("c1", "用户名"),
+                            make_ai_case("c2", "用户名"),
+                            make_ai_case("c3", "用户名"),
+                        ]
+                    }
+                )
+            )
+        )
         cases = gen.generate(make_site_map([page]), project.id, None, project.user_id, db)
         seqs = [int(c.case_no.split("-")[-1]) for c in cases]
         assert seqs == sorted(seqs)
@@ -470,9 +505,14 @@ class TestGenerateFallback:
     """AI 失败/降级：异常降级登录用例、JSON 失败降级、无登录页降级空。"""
 
     def test_generate_ai_exception_falls_back_to_login(self, generator, db, project):
-        page = make_page(is_login_page=True, elements=[
-            make_element("textbox", "用户名"), make_element("textbox", "密码"), make_element("button", "登录")
-        ])
+        page = make_page(
+            is_login_page=True,
+            elements=[
+                make_element("textbox", "用户名"),
+                make_element("textbox", "密码"),
+                make_element("button", "登录"),
+            ],
+        )
         gen = AutoCaseGenerator(ai_client=FakeAIClient(raise_exc=RuntimeError("ai down")))
         cases = gen.generate(make_site_map([page]), project.id, None, project.user_id, db)
         assert len(cases) == 1
@@ -481,16 +521,18 @@ class TestGenerateFallback:
         assert cases[0].element_verified_ratio == 1.0
 
     def test_generate_ai_invalid_json_falls_back_to_login(self, generator, db, project):
-        page = make_page(is_login_page=True, elements=[
-            make_element("textbox", "用户名"), make_element("button", "登录")
-        ])
+        page = make_page(
+            is_login_page=True, elements=[make_element("textbox", "用户名"), make_element("button", "登录")]
+        )
         gen = AutoCaseGenerator(ai_client=FakeAIClient(content="not json"))
         cases = gen.generate(make_site_map([page]), project.id, None, project.user_id, db)
         assert len(cases) == 1
         assert cases[0].title == "用户使用有效凭据登录成功"
 
     def test_generate_ai_empty_response_falls_back(self, generator, db, project):
-        page = make_page(is_login_page=True, elements=[make_element("textbox", "用户名"), make_element("button", "登录")])
+        page = make_page(
+            is_login_page=True, elements=[make_element("textbox", "用户名"), make_element("button", "登录")]
+        )
         gen = AutoCaseGenerator(ai_client=FakeAIClient(content=""))
         cases = gen.generate(make_site_map([page]), project.id, None, project.user_id, db)
         assert len(cases) == 1
@@ -511,25 +553,30 @@ class TestGenerateFallback:
         # 登录页但无 search/form/nav，_derive 仍识别为 login，故不走 fallback_login_test_points
         # 这里验证纯登录页路径：AI 成功时正常生成
         page = make_page(is_login_page=True, elements=[make_element("textbox", "用户名")])
-        gen = AutoCaseGenerator(ai_client=FakeAIClient(
-            content=json.dumps({"cases": [make_ai_case("登录用例", "用户名")]})
-        ))
+        gen = AutoCaseGenerator(
+            ai_client=FakeAIClient(content=json.dumps({"cases": [make_ai_case("登录用例", "用户名")]}))
+        )
         cases = gen.generate(make_site_map([page]), project.id, None, project.user_id, db)
         assert len(cases) == 1
 
     def test_fallback_login_cases_single_textbox(self, generator):
-        page = make_page(is_login_page=True, elements=[
-            make_element("textbox", "用户名"), make_element("button", "登录")
-        ])
+        page = make_page(
+            is_login_page=True, elements=[make_element("textbox", "用户名"), make_element("button", "登录")]
+        )
         cases = generator._fallback_login_cases(make_site_map([page]))
         assert len(cases) == 1
         # 单 textbox 时只生成用户名输入 + 点击登录两步
         assert len(cases[0]["steps"]) == 2
 
     def test_fallback_login_cases_two_textboxes(self, generator):
-        page = make_page(is_login_page=True, elements=[
-            make_element("textbox", "用户名"), make_element("textbox", "密码"), make_element("button", "登录")
-        ])
+        page = make_page(
+            is_login_page=True,
+            elements=[
+                make_element("textbox", "用户名"),
+                make_element("textbox", "密码"),
+                make_element("button", "登录"),
+            ],
+        )
         cases = generator._fallback_login_cases(make_site_map([page]))
         assert len(cases[0]["steps"]) == 3
 
@@ -552,7 +599,11 @@ class TestGenerateEdgeCases:
     def test_generate_one_point_failure_does_not_block_others(self, generator, db, project):
         # 第一个测试点 AI 失败，第二个测试点 AI 成功：单 FakeAIClient 全失败
         # 这里用两个页面但同一 AI 客户端，验证一处失败不阻断整体（最终降级登录）
-        login_page = make_page(url="https://example.com/login", is_login_page=True, elements=[make_element("textbox", "用户名"), make_element("button", "登录")])
+        login_page = make_page(
+            url="https://example.com/login",
+            is_login_page=True,
+            elements=[make_element("textbox", "用户名"), make_element("button", "登录")],
+        )
         gen = AutoCaseGenerator(ai_client=FakeAIClient(raise_exc=RuntimeError("fail")))
         cases = gen.generate(make_site_map([login_page]), project.id, None, project.user_id, db)
         assert len(cases) == 1
@@ -564,6 +615,7 @@ class TestPersistCases:
     def test_persist_commit_failure_rolls_back_and_reraises(self, generator, db, project, monkeypatch):
         def boom(*args, **kwargs):
             raise RuntimeError("commit failed")
+
         monkeypatch.setattr(db, "commit", boom)
         case_dicts = [make_ai_case("回滚用例", "用户名")]
         with pytest.raises(RuntimeError, match="commit failed"):
@@ -576,10 +628,10 @@ class TestPersistCases:
     def test_normalize_steps_invalid_action_type_downgrades(self, generator, db, project):
         page = make_page(is_login_page=True, elements=[make_element("textbox", "用户名")])
         ai_case = {
-            "title": "非法动作", "steps": [
-                {"action": "奇怪操作", "action_type": "unknown_action", "target_element": "用户名"}
-            ],
-            "precondition": "前置", "expected_result": "预期",
+            "title": "非法动作",
+            "steps": [{"action": "奇怪操作", "action_type": "unknown_action", "target_element": "用户名"}],
+            "precondition": "前置",
+            "expected_result": "预期",
         }
         gen = AutoCaseGenerator(ai_client=FakeAIClient(content=json.dumps({"cases": [ai_case]})))
         cases = gen.generate(make_site_map([page]), project.id, None, project.user_id, db)
@@ -616,11 +668,13 @@ class TestElementIndexEdgeCases:
 
     def test_build_index_skips_empty_name_element(self, generator):
         # name 为空字符串元素不进索引
-        index = generator._build_element_index([
-            {"role": "button", "name": ""},
-            {"role": "button", "name": "   "},
-            make_element("button", "登录"),
-        ])
+        index = generator._build_element_index(
+            [
+                {"role": "button", "name": ""},
+                {"role": "button", "name": "   "},
+                make_element("button", "登录"),
+            ]
+        )
         assert list(index.keys()) == ["登录"]
 
     def test_match_element_empty_target_returns_none(self, generator):
@@ -702,12 +756,24 @@ class TestGenerateFallbackEdgeCases:
     def test_generate_skips_non_pagesnapshot_point(self, generator, db, project, monkeypatch):
         # test_point 的 page_snapshot 非 PageSnapshot 时跳过该测试点
         page = make_page(is_login_page=True, elements=[make_element("textbox", "用户名")])
-        gen = AutoCaseGenerator(ai_client=FakeAIClient(content=json.dumps({"cases": [make_ai_case("登录用例", "用户名")]})))
+        gen = AutoCaseGenerator(
+            ai_client=FakeAIClient(content=json.dumps({"cases": [make_ai_case("登录用例", "用户名")]}))
+        )
 
         def fake_derive(site_map):
             return [
-                {"test_point_type": "login", "target_page_url": "https://example.com", "related_elements": [], "page_snapshot": "not-a-page-snapshot"},
-                {"test_point_type": "login", "target_page_url": page.url, "related_elements": [], "page_snapshot": page},
+                {
+                    "test_point_type": "login",
+                    "target_page_url": "https://example.com",
+                    "related_elements": [],
+                    "page_snapshot": "not-a-page-snapshot",
+                },
+                {
+                    "test_point_type": "login",
+                    "target_page_url": page.url,
+                    "related_elements": [],
+                    "page_snapshot": page,
+                },
             ]
 
         monkeypatch.setattr(gen, "_derive_test_points", fake_derive)

@@ -1,4 +1,5 @@
 """UI原型CRUD操作单元测试"""
+
 import pytest
 from app.crud.ui_prototype_project import (
     create_ui_prototype_project,
@@ -49,9 +50,7 @@ def test_project(db, testUser):
 
 @pytest.fixture
 def proto_project(db, test_project, testUser):
-    pp = create_ui_prototype_project(
-        db, test_project.id, "原型项目1", created_by=testUser.id
-    )
+    pp = create_ui_prototype_project(db, test_project.id, "原型项目1", created_by=testUser.id)
     return pp
 
 
@@ -85,26 +84,18 @@ class TestCreateUIPrototypeProject:
         assert pp.source == "mockingbot"
 
     def test_create_without_iteration(self, db, test_project):
-        pp = create_ui_prototype_project(
-            db, test_project.id, "无迭代原型", iteration_id=None
-        )
+        pp = create_ui_prototype_project(db, test_project.id, "无迭代原型", iteration_id=None)
         assert pp.iteration_id is None
 
 
 class TestGetUIPrototypeProjectsByProject:
     def test_basic_query(self, db, test_project, testUser, proto_project):
-        pps = get_ui_prototype_projects_by_project(
-            db, test_project.id, testUser.id
-        )
+        pps = get_ui_prototype_projects_by_project(db, test_project.id, testUser.id)
         assert len(pps) >= 1
 
     def test_iteration_null_filter(self, db, test_project, testUser):
-        create_ui_prototype_project(
-            db, test_project.id, "无迭代", iteration_id=None
-        )
-        pps = get_ui_prototype_projects_by_project(
-            db, test_project.id, testUser.id, iteration_id=0
-        )
+        create_ui_prototype_project(db, test_project.id, "无迭代", iteration_id=None)
+        pps = get_ui_prototype_projects_by_project(db, test_project.id, testUser.id, iteration_id=0)
         assert all(pp.iteration_id is None for pp in pps)
 
 
@@ -118,14 +109,8 @@ class TestGetUIPrototypeProjectsCount:
 
 class TestUpdatePrototypeProjectStats:
     def test_update_with_screens(self, db, test_project, proto_project):
-        create_ui_screen(
-            db, test_project.id, "原型1", "页面1",
-            prototype_project_id=proto_project.id
-        )
-        screen2 = create_ui_screen(
-            db, test_project.id, "原型1", "页面2",
-            prototype_project_id=proto_project.id
-        )
+        create_ui_screen(db, test_project.id, "原型1", "页面1", prototype_project_id=proto_project.id)
+        screen2 = create_ui_screen(db, test_project.id, "原型1", "页面2", prototype_project_id=proto_project.id)
         screen2.parse_status = "completed"
         db.commit()
         result = update_prototype_project_stats(db, proto_project.id)
@@ -135,20 +120,14 @@ class TestUpdatePrototypeProjectStats:
         assert result.parse_status == "partial"
 
     def test_all_completed(self, db, test_project, proto_project):
-        s1 = create_ui_screen(
-            db, test_project.id, "原型1", "页面1",
-            prototype_project_id=proto_project.id
-        )
+        s1 = create_ui_screen(db, test_project.id, "原型1", "页面1", prototype_project_id=proto_project.id)
         s1.parse_status = "completed"
         db.commit()
         result = update_prototype_project_stats(db, proto_project.id)
         assert result.parse_status == "completed"
 
     def test_none_completed(self, db, test_project, proto_project):
-        create_ui_screen(
-            db, test_project.id, "原型1", "页面1",
-            prototype_project_id=proto_project.id
-        )
+        create_ui_screen(db, test_project.id, "原型1", "页面1", prototype_project_id=proto_project.id)
         result = update_prototype_project_stats(db, proto_project.id)
         assert result.parse_status == "pending"
 
@@ -198,9 +177,7 @@ class TestGetUIScreensByProject:
         s1.parse_status = "completed"
         db.commit()
         create_ui_screen(db, test_project.id, "原型", "待解析")
-        screens = get_ui_screens_by_project(
-            db, test_project.id, testUser.id, parse_status="completed"
-        )
+        screens = get_ui_screens_by_project(db, test_project.id, testUser.id, parse_status="completed")
         assert len(screens) == 1
 
 
@@ -232,9 +209,7 @@ class TestGetParsedUIScreensForCaseGeneration:
         s1.review_status = "approved"
         db.commit()
         create_ui_screen(db, test_project.id, "原型", "待解析")
-        screens = get_parsed_ui_screens_for_case_generation(
-            db, test_project.id, testUser.id
-        )
+        screens = get_parsed_ui_screens_for_case_generation(db, test_project.id, testUser.id)
         assert len(screens) == 1
 
     def test_approved_only(self, db, test_project, testUser):
@@ -246,9 +221,7 @@ class TestGetParsedUIScreensForCaseGeneration:
         s2.parse_status = "completed"
         s2.review_status = "rejected"
         db.commit()
-        screens = get_parsed_ui_screens_for_case_generation(
-            db, test_project.id, testUser.id, approved_only=True
-        )
+        screens = get_parsed_ui_screens_for_case_generation(db, test_project.id, testUser.id, approved_only=True)
         assert len(screens) == 1
 
     def test_all_including_rejected(self, db, test_project, testUser):
@@ -256,9 +229,7 @@ class TestGetParsedUIScreensForCaseGeneration:
         s1.parse_status = "completed"
         s1.review_status = "rejected"
         db.commit()
-        screens = get_parsed_ui_screens_for_case_generation(
-            db, test_project.id, testUser.id, approved_only=False
-        )
+        screens = get_parsed_ui_screens_for_case_generation(db, test_project.id, testUser.id, approved_only=False)
         assert len(screens) == 1
 
 
@@ -274,7 +245,10 @@ class TestCreateUIScreen:
 
     def test_create_with_all_fields(self, db, test_project, proto_project, testUser):
         screen = create_ui_screen(
-            db, test_project.id, "原型", "完整页面",
+            db,
+            test_project.id,
+            "原型",
+            "完整页面",
             original_file_path="/screens/1.png",
             original_file_name="1.png",
             file_type="jpg",
@@ -292,7 +266,8 @@ class TestUpdateUIScreenParseResult:
     def test_update_success(self, db, test_project):
         screen = create_ui_screen(db, test_project.id, "原型", "解析页面")
         result = update_ui_screen_parse_result(
-            db, screen.id,
+            db,
+            screen.id,
             ui_spec={"elements": []},
             parse_model="gpt-4o",
             summary="登录页面",
@@ -307,9 +282,7 @@ class TestUpdateUIScreenParseResult:
         assert result.element_count == 5
 
     def test_nonexistent(self, db, test_project):
-        result = update_ui_screen_parse_result(
-            db, 99999, ui_spec={}, parse_model="gpt-4o"
-        )
+        result = update_ui_screen_parse_result(db, 99999, ui_spec={}, parse_model="gpt-4o")
         assert result is None
 
 
@@ -321,9 +294,7 @@ class TestUpdateUIScreenParseStatus:
 
     def test_set_failed(self, db, test_project):
         screen = create_ui_screen(db, test_project.id, "原型", "失败")
-        result = update_ui_screen_parse_status(
-            db, screen.id, "failed", error_message="timeout"
-        )
+        result = update_ui_screen_parse_status(db, screen.id, "failed", error_message="timeout")
         assert result.parse_status == "failed"
         assert result.parse_error == "timeout"
 
@@ -335,18 +306,13 @@ class TestUpdateUIScreenParseStatus:
 class TestUpdateUIScreenReview:
     def test_approve(self, db, test_project):
         screen = create_ui_screen(db, test_project.id, "原型", "审核页面")
-        result = update_ui_screen_review(
-            db, screen.id, "approved", reviewer="admin"
-        )
+        result = update_ui_screen_review(db, screen.id, "approved", reviewer="admin")
         assert result.review_status == "approved"
         assert result.reviewed_by == "admin"
 
     def test_reject_with_comment(self, db, test_project):
         screen = create_ui_screen(db, test_project.id, "原型", "拒绝页面")
-        result = update_ui_screen_review(
-            db, screen.id, "rejected",
-            reviewer="admin", review_comment="解析不准确"
-        )
+        result = update_ui_screen_review(db, screen.id, "rejected", reviewer="admin", review_comment="解析不准确")
         assert result.review_status == "rejected"
         assert result.review_comment == "解析不准确"
 

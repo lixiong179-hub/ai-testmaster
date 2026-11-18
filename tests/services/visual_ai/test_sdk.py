@@ -8,6 +8,7 @@
     - compare 基线不存在抛 ValueError
     - approve_diff Diff 不存在抛 ValueError
 """
+
 from __future__ import annotations
 
 import io
@@ -344,7 +345,11 @@ class TestApproveDiff:
         mock_db.refresh = AsyncMock(side_effect=_refresh)
 
         approval = await sdk.approve_diff(
-            project_id=1, diff_id=10, action="approve", comment="ok", reviewer_id=2,
+            project_id=1,
+            diff_id=10,
+            action="approve",
+            comment="ok",
+            reviewer_id=2,
         )
         assert approval.action == "approve"
         assert approval.comment == "ok"
@@ -379,7 +384,10 @@ class TestBaselineDelegationMethods:
         sdk._baseline_service.get_active_baseline = AsyncMock(return_value=expected)
 
         result = await sdk.get_baseline(
-            project_id=1, page_url="http://x", viewport_width=100, viewport_height=100,
+            project_id=1,
+            page_url="http://x",
+            viewport_width=100,
+            viewport_height=100,
         )
         assert result is expected
         sdk._baseline_service.get_active_baseline.assert_awaited_once()
@@ -407,7 +415,9 @@ class TestBaselineDelegationMethods:
         sdk._baseline_service.update_baseline = AsyncMock(return_value=expected)
 
         result = await sdk.update_baseline(
-            baseline_id=1, new_image_bytes=b"png", dom_html="<html></html>",
+            baseline_id=1,
+            new_image_bytes=b"png",
+            dom_html="<html></html>",
         )
         assert result is expected
         # 验证 dom_html 被编码为 bytes 传入

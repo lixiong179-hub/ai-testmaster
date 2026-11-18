@@ -13,6 +13,7 @@
 DB 使用真实 MySQL 测试库 (tests/conftest.py 的 db fixture, 事务隔离回滚)。
 browser/recognizer 为真实 stub 类 (非 MagicMock), 仅满足异步接口契约。
 """
+
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -30,6 +31,7 @@ from app.services.element_locator import ElementLocatorService
 
 # ==================== Stub 类 (真实类, 非 Mock) ====================
 
+
 class _StubBrowser:
     """浏览器 stub, 满足 service 调用的异步接口。
 
@@ -39,8 +41,9 @@ class _StubBrowser:
         - 含 elementFromPoint → attrs dict
     """
 
-    def __init__(self, screenshot: bytes = b"png", js_map: Optional[Dict[str, Any]] = None,
-                 js_exc: Optional[Exception] = None):
+    def __init__(
+        self, screenshot: bytes = b"png", js_map: Optional[Dict[str, Any]] = None, js_exc: Optional[Exception] = None
+    ):
         self._screenshot = screenshot
         self._js_map = js_map or {}
         self._js_exc = js_exc
@@ -80,6 +83,7 @@ class _StubRecognizer:
 
 
 # ==================== Fixtures 与数据构造 ====================
+
 
 @pytest.fixture
 def el_user(db):
@@ -126,9 +130,7 @@ def _make_step(db, case_id, step_number=1, action="点击登录按钮"):
 
 
 def _make_precondition_step(db, case_id, step_number=1, action="导航到首页"):
-    step = TestCasePreconditionStep(
-        test_case_id=case_id, step_number=step_number, action=action, expected_result=""
-    )
+    step = TestCasePreconditionStep(test_case_id=case_id, step_number=step_number, action=action, expected_result="")
     db.add(step)
     db.flush()
     db.refresh(step)
@@ -164,8 +166,8 @@ def _make_service(db, browser=None, recognizer=None, confidence_threshold=None):
 
 # ==================== 服务构造测试 ====================
 
-class TestServiceConstruction:
 
+class TestServiceConstruction:
     def test_init_sets_default_confidence_threshold(self, db):
         svc = _make_service(db)
         assert svc.confidence_threshold == ElementLocatorService.MIN_CONFIDENCE_THRESHOLD
@@ -181,18 +183,21 @@ class TestServiceConstruction:
 
     def test_create_default_recognizer_vision_when_disabled(self, db, monkeypatch):
         from app.services.recognizers.vision_recognizer import VisionRecognizer
+
         monkeypatch.setattr(settings, "PLAYWRIGHT_MCP_ENABLED", False)
         svc = ElementLocatorService(db=db, browser=_StubBrowser(), vision_model=object())
         assert isinstance(svc.recognizer, VisionRecognizer)
 
     def test_create_default_recognizer_mcp_when_enabled(self, db, monkeypatch):
         from app.services.recognizers.mcp_recognizer import MCPRecognizer
+
         monkeypatch.setattr(settings, "PLAYWRIGHT_MCP_ENABLED", True)
         svc = ElementLocatorService(db=db, browser=_StubBrowser(), vision_model=object())
         assert isinstance(svc.recognizer, MCPRecognizer)
 
     def test_create_locator_service_vision(self, db):
         from app.services.recognizers.vision_recognizer import VisionRecognizer
+
         svc = ElementLocatorService.create_locator_service(
             db=db, browser=_StubBrowser(), vision_model=object(), use_mcp=False
         )
@@ -200,6 +205,7 @@ class TestServiceConstruction:
 
     def test_create_locator_service_mcp(self, db):
         from app.services.recognizers.mcp_recognizer import MCPRecognizer
+
         svc = ElementLocatorService.create_locator_service(
             db=db, browser=_StubBrowser(), vision_model=object(), use_mcp=True
         )
@@ -208,8 +214,8 @@ class TestServiceConstruction:
 
 # ==================== LocatorQueryMixin 测试 ====================
 
-class TestLocatorQuery:
 
+class TestLocatorQuery:
     def test_get_locator_returns_none_when_not_found(self, db):
         assert _make_service(db).get_locator(999999) is None
 
@@ -258,9 +264,7 @@ class TestLocatorQuery:
         case = _make_case(db, el_project.id)
         step = _make_step(db, case.id)
         locator = _make_locator(db, step.id)
-        result = _make_service(db).update_locator(
-            step.id, css_selector="#new", xpath="//new", element_id="new-id"
-        )
+        result = _make_service(db).update_locator(step.id, css_selector="#new", xpath="//new", element_id="new-id")
         assert result is True
         db.refresh(locator)
         assert locator.css_selector == "#new"
@@ -313,8 +317,8 @@ class TestLocatorQuery:
 
 # ==================== transaction() 上下文管理器测试 ====================
 
-class TestTransaction:
 
+class TestTransaction:
     def test_transaction_commits_on_success(self, db, el_project):
         case = _make_case(db, el_project.id)
         svc = _make_service(db)
@@ -343,16 +347,13 @@ class TestTransaction:
                 db.flush()
                 raise ValueError("boom")
         # rollback 撤销 savepoint 内所有变更，新记录不应存在
-        assert (
-            db.query(TestCase).filter(TestCase.case_no == "EL-ROLLBACK-TEST").first()
-            is None
-        )
+        assert db.query(TestCase).filter(TestCase.case_no == "EL-ROLLBACK-TEST").first() is None
 
 
 # ==================== SelectorGenerationMixin 测试 ====================
 
-class TestSelectorGeneration:
 
+class TestSelectorGeneration:
     def test_sanitize_for_css_escapes_special_chars(self, db):
         svc = _make_service(db)
         assert svc._sanitize_for_css("a.b#c") == "a\\.b\\#c"
@@ -367,7 +368,7 @@ class TestSelectorGeneration:
         assert _make_service(db)._sanitize_for_xpath('has"quote') == "'has\"quote'"
 
     def test_sanitize_for_xpath_both_quotes_uses_concat(self, db):
-        result = _make_service(db)._sanitize_for_xpath('a"b\'c')
+        result = _make_service(db)._sanitize_for_xpath("a\"b'c")
         assert result.startswith("concat(")
 
     def test_generate_css_selector_by_id(self, db):
@@ -382,9 +383,7 @@ class TestSelectorGeneration:
         assert result == "[name='pwd']"
 
     def test_generate_css_selector_by_class_limits_count(self, db):
-        result = _make_service(db)._generate_css_selector(
-            {"tag": "button", "class": "btn primary large"}
-        )
+        result = _make_service(db)._generate_css_selector({"tag": "button", "class": "btn primary large"})
         assert result == "button.btn.primary"
 
     def test_generate_css_selector_by_type_and_placeholder(self, db):
@@ -424,9 +423,7 @@ class TestSelectorGeneration:
         assert result == {"x": 10, "y": 20, "width": 0, "height": 0}
 
     def test_normalize_coordinate_list_and_none_values(self, db):
-        result = _make_service(db)._normalize_coordinate(
-            {"x": [5, 10], "y": [None], "width": None, "height": []}
-        )
+        result = _make_service(db)._normalize_coordinate({"x": [5, 10], "y": [None], "width": None, "height": []})
         assert result == {"x": 5, "y": 0, "width": 0, "height": 0}
 
     def test_normalize_coordinate_inplace(self, db):
@@ -438,8 +435,8 @@ class TestSelectorGeneration:
 
 # ==================== SmartLocateMixin 同步辅助方法测试 ====================
 
-class TestSmartLocateHelpers:
 
+class TestSmartLocateHelpers:
     def test_should_direct_execute_disabled_by_default(self, db, monkeypatch):
         monkeypatch.setattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", False)
         assert _make_service(db)._should_direct_execute("click") is False
@@ -450,10 +447,9 @@ class TestSmartLocateHelpers:
 
     def test_should_direct_execute_true_when_enabled_and_mcp(self, db, monkeypatch):
         from app.services.recognizers.mcp_recognizer import MCPRecognizer
+
         monkeypatch.setattr(settings, "MCP_DIRECT_EXECUTION_ENABLED", True)
-        svc = ElementLocatorService(
-            db=db, browser=_StubBrowser(), vision_model=object(), recognizer=MCPRecognizer()
-        )
+        svc = ElementLocatorService(db=db, browser=_StubBrowser(), vision_model=object(), recognizer=MCPRecognizer())
         assert svc._should_direct_execute("click") is True
         assert svc._should_direct_execute("unknown") is False
 
@@ -473,19 +469,23 @@ class TestSmartLocateHelpers:
 
 # ==================== record_locator (async) 测试 ====================
 
-class TestRecordLocator:
 
+class TestRecordLocator:
     @pytest.mark.asyncio
     async def test_record_locator_success_creates_locator(self, db, el_project):
         case = _make_case(db, el_project.id)
         step = _make_step(db, case.id)
-        recognizer = _StubRecognizer(result=RecognitionResult(
-            locator_type="vision", locator_value="#btn", confidence=0.9,
-            element_info={"x": 10, "y": 20, "width": 50, "height": 30, "confidence": 0.9},
-        ))
-        browser = _StubBrowser(js_map={
-            "attrs": {"tag": "button", "id": "submit", "class": "btn primary", "text": "登录"}
-        })
+        recognizer = _StubRecognizer(
+            result=RecognitionResult(
+                locator_type="vision",
+                locator_value="#btn",
+                confidence=0.9,
+                element_info={"x": 10, "y": 20, "width": 50, "height": 30, "confidence": 0.9},
+            )
+        )
+        browser = _StubBrowser(
+            js_map={"attrs": {"tag": "button", "id": "submit", "class": "btn primary", "text": "登录"}}
+        )
         svc = _make_service(db, browser=browser, recognizer=recognizer)
         locator = await svc.record_locator(step.id, "点击登录按钮")
         assert locator is not None
@@ -502,9 +502,13 @@ class TestRecordLocator:
     async def test_record_locator_returns_none_when_recognizer_fails(self, db, el_project):
         case = _make_case(db, el_project.id)
         step = _make_step(db, case.id)
-        recognizer = _StubRecognizer(result=RecognitionResult(
-            locator_type="vision", locator_value="", confidence=0,
-        ))
+        recognizer = _StubRecognizer(
+            result=RecognitionResult(
+                locator_type="vision",
+                locator_value="",
+                confidence=0,
+            )
+        )
         svc = _make_service(db, recognizer=recognizer)
         assert await svc.record_locator(step.id, "点击按钮") is None
 
@@ -512,10 +516,14 @@ class TestRecordLocator:
     async def test_record_locator_with_screenshot_arg(self, db, el_project):
         case = _make_case(db, el_project.id)
         step = _make_step(db, case.id)
-        recognizer = _StubRecognizer(result=RecognitionResult(
-            locator_type="vision", locator_value="#x", confidence=0.9,
-            element_info={"x": 1, "y": 2, "width": 3, "height": 4, "confidence": 0.9},
-        ))
+        recognizer = _StubRecognizer(
+            result=RecognitionResult(
+                locator_type="vision",
+                locator_value="#x",
+                confidence=0.9,
+                element_info={"x": 1, "y": 2, "width": 3, "height": 4, "confidence": 0.9},
+            )
+        )
         browser = _StubBrowser(js_map={"attrs": {"tag": "a"}})
         svc = _make_service(db, browser=browser, recognizer=recognizer)
         locator = await svc.record_locator(step.id, "点击", screenshot=b"explicit")
@@ -527,10 +535,14 @@ class TestRecordLocator:
     async def test_record_precondition_step_locator_success(self, db, el_project):
         case = _make_case(db, el_project.id)
         pc_step = _make_precondition_step(db, case.id)
-        recognizer = _StubRecognizer(result=RecognitionResult(
-            locator_type="vision", locator_value="#nav", confidence=0.85,
-            element_info={"x": 0, "y": 0, "width": 100, "height": 30, "confidence": 0.85},
-        ))
+        recognizer = _StubRecognizer(
+            result=RecognitionResult(
+                locator_type="vision",
+                locator_value="#nav",
+                confidence=0.85,
+                element_info={"x": 0, "y": 0, "width": 100, "height": 30, "confidence": 0.85},
+            )
+        )
         browser = _StubBrowser(js_map={"attrs": {"tag": "a", "id": "home", "text": "首页"}})
         svc = _make_service(db, browser=browser, recognizer=recognizer)
         locator = await svc.record_precondition_step_locator(pc_step.id, "点击首页链接")
@@ -545,31 +557,43 @@ class TestRecordLocator:
     async def test_record_precondition_step_locator_returns_none_when_fails(self, db, el_project):
         case = _make_case(db, el_project.id)
         pc_step = _make_precondition_step(db, case.id)
-        recognizer = _StubRecognizer(result=RecognitionResult(
-            locator_type="vision", locator_value="", confidence=0,
-        ))
+        recognizer = _StubRecognizer(
+            result=RecognitionResult(
+                locator_type="vision",
+                locator_value="",
+                confidence=0,
+            )
+        )
         svc = _make_service(db, recognizer=recognizer)
         assert await svc.record_precondition_step_locator(pc_step.id, "点击链接") is None
 
 
 # ==================== smart_locate_element (async) 测试 ====================
 
-class TestSmartLocateElement:
 
+class TestSmartLocateElement:
     @pytest.mark.asyncio
     async def test_returns_none_when_recognizer_fails(self, db):
-        recognizer = _StubRecognizer(result=RecognitionResult(
-            locator_type="vision", locator_value="", confidence=0,
-        ))
+        recognizer = _StubRecognizer(
+            result=RecognitionResult(
+                locator_type="vision",
+                locator_value="",
+                confidence=0,
+            )
+        )
         svc = _make_service(db, recognizer=recognizer)
         assert await svc.smart_locate_element("点击按钮") is None
 
     @pytest.mark.asyncio
     async def test_returns_element_info_with_vision_result(self, db):
-        recognizer = _StubRecognizer(result=RecognitionResult(
-            locator_type="vision", locator_value="#btn", confidence=0.9,
-            element_info={"x": 5, "y": 10, "width": 30, "height": 20, "css_selector": "#btn"},
-        ))
+        recognizer = _StubRecognizer(
+            result=RecognitionResult(
+                locator_type="vision",
+                locator_value="#btn",
+                confidence=0.9,
+                element_info={"x": 5, "y": 10, "width": 30, "height": 20, "css_selector": "#btn"},
+            )
+        )
         svc = _make_service(db, recognizer=recognizer)
         result = await svc.smart_locate_element("点击提交按钮")
         assert result is not None
@@ -577,10 +601,14 @@ class TestSmartLocateElement:
 
     @pytest.mark.asyncio
     async def test_vision_result_generates_css_when_missing(self, db):
-        recognizer = _StubRecognizer(result=RecognitionResult(
-            locator_type="vision", locator_value="coord", confidence=0.9,
-            element_info={"x": 5, "y": 10, "width": 30, "height": 20},
-        ))
+        recognizer = _StubRecognizer(
+            result=RecognitionResult(
+                locator_type="vision",
+                locator_value="coord",
+                confidence=0.9,
+                element_info={"x": 5, "y": 10, "width": 30, "height": 20},
+            )
+        )
         browser = _StubBrowser(js_map={"attrs": {"tag": "button", "id": "gen"}})
         svc = _make_service(db, browser=browser, recognizer=recognizer)
         result = await svc.smart_locate_element("点击按钮")
@@ -589,10 +617,14 @@ class TestSmartLocateElement:
 
     @pytest.mark.asyncio
     async def test_returns_result_with_role_locator_type(self, db):
-        recognizer = _StubRecognizer(result=RecognitionResult(
-            locator_type="role", locator_value="button[name='提交']", confidence=0.8,
-            element_info={"x": 1, "y": 2},
-        ))
+        recognizer = _StubRecognizer(
+            result=RecognitionResult(
+                locator_type="role",
+                locator_value="button[name='提交']",
+                confidence=0.8,
+                element_info={"x": 1, "y": 2},
+            )
+        )
         svc = _make_service(db, recognizer=recognizer)
         result = await svc.smart_locate_element("点击提交")
         assert result is not None
@@ -602,8 +634,8 @@ class TestSmartLocateElement:
 
 # ==================== _get_element_attributes (async) 测试 ====================
 
-class TestGetElementAttributes:
 
+class TestGetElementAttributes:
     @pytest.mark.asyncio
     async def test_returns_attrs(self, db):
         browser = _StubBrowser(js_map={"attrs": {"tag": "input", "id": "user"}})

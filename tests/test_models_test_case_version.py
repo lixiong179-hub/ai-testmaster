@@ -8,23 +8,21 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="tcv_test_user",
-        email="tcv_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="tcv_test_user", email="tcv_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(TestCaseVersion).filter(TestCaseVersion.test_case_id.in_(
-        db.query(TestCase.id).filter(TestCase.project_id.in_(
-            db.query(Project.id).filter(Project.user_id == user.id)
-        ))
-    )).delete(synchronize_session=False)
-    db.query(TestCase).filter(TestCase.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(TestCaseVersion).filter(
+        TestCaseVersion.test_case_id.in_(
+            db.query(TestCase.id).filter(
+                TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+            )
+        )
+    ).delete(synchronize_session=False)
+    db.query(TestCase).filter(TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -50,7 +48,7 @@ def test_case(db, test_project):
         steps_json=[],
         expected_result="预期",
         priority=1,
-        case_type="UI"
+        case_type="UI",
     )
     db.add(tc)
     db.commit()
@@ -64,7 +62,7 @@ class TestTestCaseVersionModel:
             test_case_id=test_case.id,
             version_number=1,
             change_type="create",
-            snapshot_data={"title": "版本测试用例", "priority": 1}
+            snapshot_data={"title": "版本测试用例", "priority": 1},
         )
         db.add(version)
         db.commit()
@@ -79,11 +77,7 @@ class TestTestCaseVersionModel:
         db.commit()
 
     def test_version_default_values(self, db, test_case):
-        version = TestCaseVersion(
-            test_case_id=test_case.id,
-            version_number=2,
-            snapshot_data={}
-        )
+        version = TestCaseVersion(test_case_id=test_case.id, version_number=2, snapshot_data={})
         db.add(version)
         db.commit()
         db.refresh(version)
@@ -97,12 +91,7 @@ class TestTestCaseVersionModel:
 
     def test_version_change_type_values(self, db, test_case):
         for ct in ["create", "update", "delete", "restore", "correction"]:
-            version = TestCaseVersion(
-                test_case_id=test_case.id,
-                version_number=1,
-                change_type=ct,
-                snapshot_data={}
-            )
+            version = TestCaseVersion(test_case_id=test_case.id, version_number=1, change_type=ct, snapshot_data={})
             db.add(version)
             db.commit()
             db.refresh(version)
@@ -117,7 +106,7 @@ class TestTestCaseVersionModel:
             change_type="update",
             change_description="修改了用例标题",
             changed_fields={"title": {"old": "旧标题", "new": "新标题"}},
-            snapshot_data={"title": "新标题"}
+            snapshot_data={"title": "新标题"},
         )
         db.add(version)
         db.commit()
@@ -129,11 +118,7 @@ class TestTestCaseVersionModel:
 
     def test_version_with_operator(self, db, test_case):
         version = TestCaseVersion(
-            test_case_id=test_case.id,
-            version_number=1,
-            snapshot_data={},
-            operator_id=1,
-            operator_name="管理员"
+            test_case_id=test_case.id, version_number=1, snapshot_data={}, operator_id=1, operator_name="管理员"
         )
         db.add(version)
         db.commit()
@@ -146,10 +131,7 @@ class TestTestCaseVersionModel:
     def test_version_increment(self, db, test_case):
         for vn in [1, 2, 3]:
             version = TestCaseVersion(
-                test_case_id=test_case.id,
-                version_number=vn,
-                change_type="update",
-                snapshot_data={"version": vn}
+                test_case_id=test_case.id, version_number=vn, change_type="update", snapshot_data={"version": vn}
             )
             db.add(version)
             db.commit()
@@ -159,4 +141,4 @@ class TestTestCaseVersionModel:
             db.commit()
 
     def test_version_relationship(self):
-        assert hasattr(TestCaseVersion, 'test_case')
+        assert hasattr(TestCaseVersion, "test_case")

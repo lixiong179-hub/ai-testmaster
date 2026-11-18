@@ -40,9 +40,16 @@ class TestVisibilityConfigMerger:
 
 class TestVisibilityEnvLoader:
     def test_default_values(self):
-        for key in ["TEST_HEADLESS", "TEST_RECORD_VIDEO", "TEST_VIDEO_WIDTH",
-                     "TEST_VIDEO_HEIGHT", "TEST_VIDEO_FPS", "TEST_TAKE_SCREENSHOT",
-                     "TEST_SCREENSHOT_ON_FAILURE", "TEST_EXECUTION_SPEED"]:
+        for key in [
+            "TEST_HEADLESS",
+            "TEST_RECORD_VIDEO",
+            "TEST_VIDEO_WIDTH",
+            "TEST_VIDEO_HEIGHT",
+            "TEST_VIDEO_FPS",
+            "TEST_TAKE_SCREENSHOT",
+            "TEST_SCREENSHOT_ON_FAILURE",
+            "TEST_EXECUTION_SPEED",
+        ]:
             os.environ.pop(key, None)
         config = VisibilityEnvLoader.load_from_env()
         assert config.headless is True

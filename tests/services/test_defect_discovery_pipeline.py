@@ -7,6 +7,7 @@
     - 汇总通知
     - 定时执行模式切换
 """
+
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -33,6 +34,7 @@ from app.tasks.self_test_scheduler import SelfTestScheduler
 # ---------------------------------------------------------------------------
 # 辅助方法测试
 # ---------------------------------------------------------------------------
+
 
 class TestBuildStepResult:
     """步骤结果构建测试"""
@@ -64,6 +66,7 @@ class TestBuildStepResult:
 # ---------------------------------------------------------------------------
 # 步骤1: 需求确认
 # ---------------------------------------------------------------------------
+
 
 class TestStepRequirementConfirmation:
     """需求确认步骤测试"""
@@ -171,12 +174,11 @@ class TestStepRequirementConfirmation:
 # 步骤2: 测试点提取
 # ---------------------------------------------------------------------------
 
+
 class TestStepExtractTestPoints:
     """测试点提取步骤测试"""
 
-    async def test_existing_points_skip_extraction(
-        self, async_db, async_test_user: User
-    ) -> None:
+    async def test_existing_points_skip_extraction(self, async_db, async_test_user: User) -> None:
         """已有测试点时跳过提取"""
         from app.models.test_point import TestPoint
         from app.models.enums import TestPointStatus
@@ -207,9 +209,7 @@ class TestStepExtractTestPoints:
         assert len(point_ids) >= 1
 
     @patch("app.services.ai_analysis_service.extract_test_points_from_content", new_callable=AsyncMock)
-    async def test_extract_from_requirement_content(
-        self, mock_extract, async_db, async_test_user: User
-    ) -> None:
+    async def test_extract_from_requirement_content(self, mock_extract, async_db, async_test_user: User) -> None:
         """无已有测试点时从需求文档提取"""
         mock_extract.return_value = [
             {"module": "登录模块", "point": "边界值测试", "priority": 1, "function": "登录"},
@@ -281,6 +281,7 @@ class TestStepExtractTestPoints:
 # 步骤3: 用例生成
 # ---------------------------------------------------------------------------
 
+
 class TestStepGenerateCases:
     """用例生成步骤测试"""
 
@@ -335,6 +336,7 @@ class TestStepGenerateCases:
 # 步骤4: 评审保存
 # ---------------------------------------------------------------------------
 
+
 class TestStepReviewAndSave:
     """评审保存步骤测试"""
 
@@ -344,9 +346,7 @@ class TestStepReviewAndSave:
         assert ok is True
         assert err is None
 
-    async def test_no_iteration_skip_review(
-        self, async_db, async_test_user: User
-    ) -> None:
+    async def test_no_iteration_skip_review(self, async_db, async_test_user: User) -> None:
         """无迭代时跳过评审"""
         project = Project(
             name="no_iteration_project",
@@ -367,6 +367,7 @@ class TestStepReviewAndSave:
 # 步骤5: 任务创建
 # ---------------------------------------------------------------------------
 
+
 class TestStepCreateTask:
     """任务创建步骤测试"""
 
@@ -377,9 +378,7 @@ class TestStepCreateTask:
         assert "无可用用例" in err
         assert task_id is None
 
-    async def test_create_task_success(
-        self, async_db, async_test_user: User
-    ) -> None:
+    async def test_create_task_success(self, async_db, async_test_user: User) -> None:
         """创建任务成功"""
         from app.models.test_case import TestCase
 
@@ -417,6 +416,7 @@ class TestStepCreateTask:
 # 步骤7: 严重度评估
 # ---------------------------------------------------------------------------
 
+
 class TestStepAssessSeverity:
     """严重度评估步骤测试"""
 
@@ -432,9 +432,7 @@ class TestStepAssessSeverity:
         assert "不存在" in err
         assert counts == {"p0": 0, "p1": 0, "p2": 0, "p3": 0}
 
-    async def test_no_failed_results(
-        self, async_db, async_test_user: User
-    ) -> None:
+    async def test_no_failed_results(self, async_db, async_test_user: User) -> None:
         """无失败结果时缺陷统计全为0"""
         project = Project(
             name="severity_no_fail_project",
@@ -455,6 +453,7 @@ class TestStepAssessSeverity:
 # ---------------------------------------------------------------------------
 # 步骤8: 报告生成
 # ---------------------------------------------------------------------------
+
 
 class TestStepGenerateReport:
     """报告生成步骤测试"""
@@ -490,6 +489,7 @@ class TestStepGenerateReport:
 # 步骤9: 数据清理
 # ---------------------------------------------------------------------------
 
+
 class TestStepCleanup:
     """数据清理步骤测试"""
 
@@ -513,6 +513,7 @@ class TestStepCleanup:
 # ---------------------------------------------------------------------------
 # 全链路执行集成测试
 # ---------------------------------------------------------------------------
+
 
 class TestRunDefectDiscoverySelfTest:
     """全链路执行测试"""
@@ -722,6 +723,7 @@ class TestRunDefectDiscoverySelfTest:
 # 汇总通知测试
 # ---------------------------------------------------------------------------
 
+
 class TestNotifyPipelineSummary:
     """汇总通知测试"""
 
@@ -778,6 +780,7 @@ class TestNotifyPipelineSummary:
 # 定时执行模式切换测试
 # ---------------------------------------------------------------------------
 
+
 class TestSelfTestModeSwitch:
     """定时执行模式切换测试"""
 
@@ -825,9 +828,7 @@ class TestSelfTestModeSwitch:
 
     @patch("app.tasks.self_test_scheduler.run_defect_discovery_self_test", new_callable=AsyncMock)
     @patch("app.db.database.AsyncPrimarySessionLocal")
-    async def test_full_pipeline_mode_calls_run_defect_discovery(
-        self, mock_session_local, mock_run_pipeline
-    ) -> None:
+    async def test_full_pipeline_mode_calls_run_defect_discovery(self, mock_session_local, mock_run_pipeline) -> None:
         """full_pipeline 模式调用 run_defect_discovery_self_test"""
         mock_db = AsyncMock()
         mock_session_local.return_value = mock_db
@@ -848,15 +849,11 @@ class TestSelfTestModeSwitch:
         scheduler = SelfTestScheduler()
         await scheduler._execute_self_test(42)
 
-        mock_run_pipeline.assert_called_once_with(
-            db=mock_db, project_id=42, user_id=1
-        )
+        mock_run_pipeline.assert_called_once_with(db=mock_db, project_id=42, user_id=1)
         mock_db.close.assert_called_once()
 
     @patch("app.db.database.AsyncPrimarySessionLocal")
-    async def test_ui_automation_mode_calls_execute_ui(
-        self, mock_session_local
-    ) -> None:
+    async def test_ui_automation_mode_calls_execute_ui(self, mock_session_local) -> None:
         """ui_automation 模式调用 _execute_ui_automation"""
         mock_db = AsyncMock()
         mock_session_local.return_value = mock_db
@@ -870,9 +867,7 @@ class TestSelfTestModeSwitch:
         mock_db.execute.return_value = execute_result
 
         scheduler = SelfTestScheduler()
-        with patch.object(
-            scheduler, "_execute_ui_automation", new_callable=AsyncMock
-        ) as mock_ui_exec:
+        with patch.object(scheduler, "_execute_ui_automation", new_callable=AsyncMock) as mock_ui_exec:
             await scheduler._execute_self_test(42)
             mock_ui_exec.assert_called_once_with(mock_db, project)
 

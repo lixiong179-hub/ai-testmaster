@@ -8,6 +8,7 @@
 测试数据隔离：每个用例使用唯一 key，互不干扰。
 依赖：minio 容器需通过 docker-compose up minio 启动。
 """
+
 import os
 import tempfile
 from pathlib import Path
@@ -150,6 +151,7 @@ class TestS3Storage:
     def storage(self) -> S3Storage:
         """每个用例使用独立 bucket，避免数据干扰。"""
         import uuid as _uuid
+
         bucket = f"test-{_uuid.uuid4().hex[:8]}"
         return S3Storage(
             endpoint_url=_MINIO_ENDPOINT,
@@ -329,8 +331,10 @@ class TestStorageBackendAbstract:
 
     def test_incomplete_subclass_raises(self):
         """未实现所有方法的子类不能实例化。"""
+
         class Incomplete(StorageBackend):
             async def save(self, key, data, content_type=None):
                 pass
+
         with pytest.raises(TypeError):
             Incomplete()  # type: ignore[abstract]

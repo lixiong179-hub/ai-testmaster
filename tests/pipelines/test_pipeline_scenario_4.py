@@ -8,6 +8,7 @@ M2-T13 场景 4 流水线端到端测试（旧项目，双向扫描 + 评审交�
     - 双向扫描 + Reconciliation 合并矩阵
     - should_run / cache_key / validate_output / fallback
 """
+
 import json
 import pytest
 
@@ -32,6 +33,7 @@ from app.services import pipeline_service
 
 def _make_artifact(kind: str, payload: dict):
     from app.models.pipeline import Artifact
+
     return Artifact(
         run_id=0,
         kind=kind,
@@ -44,20 +46,25 @@ def _make_artifact(kind: str, payload: dict):
 @pytest.fixture
 def mock_ai():
     client = MockAIClient()
-    client.set_response("case_generation", json.dumps([
-        {
-            "title": "登录功能回归验证",
-            "module": "用户管理",
-            "precondition": "用户已注册",
-            "steps": [
-                {"action": "输入正确的用户名和密码", "expected": "登录成功"},
-                {"action": "点击登录按钮", "expected": "跳转到首页"},
-            ],
-            "expected_result": "成功登录并跳转首页",
-            "priority": 1,
-            "case_type": "functional",
-        }
-    ]))
+    client.set_response(
+        "case_generation",
+        json.dumps(
+            [
+                {
+                    "title": "登录功能回归验证",
+                    "module": "用户管理",
+                    "precondition": "用户已注册",
+                    "steps": [
+                        {"action": "输入正确的用户名和密码", "expected": "登录成功"},
+                        {"action": "点击登录按钮", "expected": "跳转到首页"},
+                    ],
+                    "expected_result": "成功登录并跳转首页",
+                    "priority": 1,
+                    "case_type": "functional",
+                }
+            ]
+        ),
+    )
     return client
 
 
@@ -147,6 +154,7 @@ def make_ctx(db, mock_ai, setup_iteration_with_history):
 class TestScenario4Registry:
     def test_get_scenario_4(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(4)
         assert scenario is not None
         assert scenario["name"] == "scenario_4_regression"
@@ -154,11 +162,13 @@ class TestScenario4Registry:
 
     def test_scenario_4_has_10_steps(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(4)
         assert len(scenario["steps"]) == 11
 
     def test_scenario_4_step_order(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(4)
         step_names = [s.name for s in scenario["steps"]]
         expected = [
@@ -178,6 +188,7 @@ class TestScenario4Registry:
 
     def test_scenario_4_includes_bidirectional_scan(self):
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(4)
         step_names = [s.name for s in scenario["steps"]]
         assert "backward_scan" in step_names
@@ -186,6 +197,7 @@ class TestScenario4Registry:
 
     def test_get_scenario_4_not_1_or_2(self):
         from app.pipelines.scenarios import get_scenario
+
         s4 = get_scenario(4)
         s1 = get_scenario(1)
         s2 = get_scenario(2)
@@ -196,6 +208,7 @@ class TestScenario4Registry:
 
     def test_nonexistent_scenario(self):
         from app.pipelines.scenarios import get_scenario
+
         assert get_scenario(999) is None
 
 
@@ -296,12 +309,17 @@ class TestBackwardScan:
         ctx.set_artifact("history_fingerprints", _make_artifact("history_fingerprints", f_result.artifact_payload))
 
         fps = f_result.artifact_payload.get("fingerprints", [])
-        mock_ai.set_response("backward_scan", json.dumps({
-            "verdicts": [
-                {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "仍然有效"}
-                for fp in fps
-            ]
-        }))
+        mock_ai.set_response(
+            "backward_scan",
+            json.dumps(
+                {
+                    "verdicts": [
+                        {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "仍然有效"}
+                        for fp in fps
+                    ]
+                }
+            ),
+        )
 
         step = BackwardScan()
         result = step.execute(ctx)
@@ -353,12 +371,21 @@ class TestScenarioCandidateExtractor:
         f_result = fingerprinter.execute(ctx)
         ctx.set_artifact("history_fingerprints", _make_artifact("history_fingerprints", f_result.artifact_payload))
 
-        mock_ai.set_response("scenario_candidate_extractor", json.dumps({
-            "candidates": [
-                {"description": "登录功能回归", "module": "用户管理",
-                 "precondition": "", "expected_result": ""},
-            ]
-        }))
+        mock_ai.set_response(
+            "scenario_candidate_extractor",
+            json.dumps(
+                {
+                    "candidates": [
+                        {
+                            "description": "登录功能回归",
+                            "module": "用户管理",
+                            "precondition": "",
+                            "expected_result": "",
+                        },
+                    ]
+                }
+            ),
+        )
 
         step = ScenarioCandidateExtractor()
         result = step.execute(ctx)
@@ -402,24 +429,38 @@ class TestForwardScan:
         f_result = fingerprinter.execute(ctx)
         ctx.set_artifact("history_fingerprints", _make_artifact("history_fingerprints", f_result.artifact_payload))
 
-        mock_ai.set_response("scenario_candidate_extractor", json.dumps({
-            "candidates": [
-                {"description": "登录功能回归", "module": "用户管理",
-                 "precondition": "", "expected_result": ""},
-            ]
-        }))
+        mock_ai.set_response(
+            "scenario_candidate_extractor",
+            json.dumps(
+                {
+                    "candidates": [
+                        {
+                            "description": "登录功能回归",
+                            "module": "用户管理",
+                            "precondition": "",
+                            "expected_result": "",
+                        },
+                    ]
+                }
+            ),
+        )
 
         candidate_extractor = ScenarioCandidateExtractor()
         c_result = candidate_extractor.execute(ctx)
         ctx.set_artifact("scenario_candidates", _make_artifact("scenario_candidates", c_result.artifact_payload))
 
-        mock_ai.set_response("forward_scan", json.dumps({
-            "label": "NEW",
-            "matched_case_id": None,
-            "matched_title": "",
-            "confidence": 0.85,
-            "reason": "新功能",
-        }))
+        mock_ai.set_response(
+            "forward_scan",
+            json.dumps(
+                {
+                    "label": "NEW",
+                    "matched_case_id": None,
+                    "matched_title": "",
+                    "confidence": 0.85,
+                    "reason": "新功能",
+                }
+            ),
+        )
 
         step = ForwardScan()
         result = step.execute(ctx)
@@ -468,31 +509,49 @@ class TestReconciliation:
         ctx.set_artifact("history_fingerprints", _make_artifact("history_fingerprints", f_result.artifact_payload))
 
         fps = f_result.artifact_payload.get("fingerprints", [])
-        mock_ai.set_response("backward_scan", json.dumps({
-            "verdicts": [
-                {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"}
-                for fp in fps
-            ]
-        }))
+        mock_ai.set_response(
+            "backward_scan",
+            json.dumps(
+                {
+                    "verdicts": [
+                        {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"} for fp in fps
+                    ]
+                }
+            ),
+        )
 
-        mock_ai.set_response("scenario_candidate_extractor", json.dumps({
-            "candidates": [
-                {"description": "登录功能回归", "module": "用户管理",
-                 "precondition": "", "expected_result": ""},
-            ]
-        }))
+        mock_ai.set_response(
+            "scenario_candidate_extractor",
+            json.dumps(
+                {
+                    "candidates": [
+                        {
+                            "description": "登录功能回归",
+                            "module": "用户管理",
+                            "precondition": "",
+                            "expected_result": "",
+                        },
+                    ]
+                }
+            ),
+        )
 
         candidate_extractor = ScenarioCandidateExtractor()
         c_result = candidate_extractor.execute(ctx)
         ctx.set_artifact("scenario_candidates", _make_artifact("scenario_candidates", c_result.artifact_payload))
 
-        mock_ai.set_response("forward_scan", json.dumps({
-            "label": "NEW",
-            "matched_case_id": None,
-            "matched_title": "",
-            "confidence": 0.85,
-            "reason": "新功能",
-        }))
+        mock_ai.set_response(
+            "forward_scan",
+            json.dumps(
+                {
+                    "label": "NEW",
+                    "matched_case_id": None,
+                    "matched_title": "",
+                    "confidence": 0.85,
+                    "reason": "新功能",
+                }
+            ),
+        )
 
         backward_scan = BackwardScan()
         b_result = backward_scan.execute(ctx)
@@ -554,32 +613,52 @@ class TestScenario4E2E:
         ctx.set_artifact("history_fingerprints", _make_artifact("history_fingerprints", f_result.artifact_payload))
 
         fps = f_result.artifact_payload.get("fingerprints", [])
-        mock_ai.set_response("backward_scan", json.dumps({
-            "verdicts": [
-                {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"}
-                for fp in fps
-            ]
-        }))
-        mock_ai.set_response("scenario_candidate_extractor", json.dumps({
-            "candidates": [
-                {"description": "登录功能回归", "module": "用户管理",
-                 "precondition": "", "expected_result": ""},
-            ]
-        }))
-        mock_ai.set_response("forward_scan", json.dumps({
-            "label": "NEW",
-            "matched_case_id": None,
-            "matched_title": "",
-            "confidence": 0.85,
-            "reason": "新功能",
-        }))
-        mock_ai.set_response("case_generation_create", json.dumps({
-            "cases": [
-                {"title": "登录功能测试", "steps": [{"action": "输入用户名", "expected": "显示用户名"}]}
-            ]
-        }))
+        mock_ai.set_response(
+            "backward_scan",
+            json.dumps(
+                {
+                    "verdicts": [
+                        {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"} for fp in fps
+                    ]
+                }
+            ),
+        )
+        mock_ai.set_response(
+            "scenario_candidate_extractor",
+            json.dumps(
+                {
+                    "candidates": [
+                        {
+                            "description": "登录功能回归",
+                            "module": "用户管理",
+                            "precondition": "",
+                            "expected_result": "",
+                        },
+                    ]
+                }
+            ),
+        )
+        mock_ai.set_response(
+            "forward_scan",
+            json.dumps(
+                {
+                    "label": "NEW",
+                    "matched_case_id": None,
+                    "matched_title": "",
+                    "confidence": 0.85,
+                    "reason": "新功能",
+                }
+            ),
+        )
+        mock_ai.set_response(
+            "case_generation_create",
+            json.dumps(
+                {"cases": [{"title": "登录功能测试", "steps": [{"action": "输入用户名", "expected": "显示用户名"}]}]}
+            ),
+        )
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(4)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
@@ -599,35 +678,58 @@ class TestScenario4E2E:
         ctx.set_artifact("history_fingerprints", _make_artifact("history_fingerprints", f_result.artifact_payload))
 
         fps = f_result.artifact_payload.get("fingerprints", [])
-        mock_ai.set_response("backward_scan", json.dumps({
-            "verdicts": [
-                {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"}
-                for fp in fps
-            ]
-        }))
-        mock_ai.set_response("scenario_candidate_extractor", json.dumps({
-            "candidates": [
-                {"description": "登录功能回归", "module": "用户管理",
-                 "precondition": "", "expected_result": ""},
-            ]
-        }))
-        mock_ai.set_response("forward_scan", json.dumps({
-            "label": "NEW",
-            "matched_case_id": None,
-            "matched_title": "",
-            "confidence": 0.85,
-            "reason": "新功能",
-        }))
+        mock_ai.set_response(
+            "backward_scan",
+            json.dumps(
+                {
+                    "verdicts": [
+                        {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"} for fp in fps
+                    ]
+                }
+            ),
+        )
+        mock_ai.set_response(
+            "scenario_candidate_extractor",
+            json.dumps(
+                {
+                    "candidates": [
+                        {
+                            "description": "登录功能回归",
+                            "module": "用户管理",
+                            "precondition": "",
+                            "expected_result": "",
+                        },
+                    ]
+                }
+            ),
+        )
+        mock_ai.set_response(
+            "forward_scan",
+            json.dumps(
+                {
+                    "label": "NEW",
+                    "matched_case_id": None,
+                    "matched_title": "",
+                    "confidence": 0.85,
+                    "reason": "新功能",
+                }
+            ),
+        )
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(4)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)
 
         db.refresh(ctx.run)
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == testProject.id,
-        ).all()
+        cases = (
+            db.query(TestCase)
+            .filter(
+                TestCase.project_id == testProject.id,
+            )
+            .all()
+        )
         assert len(cases) >= 1
 
     def test_pipeline_produces_artifacts(self, db, make_ctx, mock_ai):
@@ -642,27 +744,46 @@ class TestScenario4E2E:
         ctx.set_artifact("history_fingerprints", _make_artifact("history_fingerprints", f_result.artifact_payload))
 
         fps = f_result.artifact_payload.get("fingerprints", [])
-        mock_ai.set_response("backward_scan", json.dumps({
-            "verdicts": [
-                {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"}
-                for fp in fps
-            ]
-        }))
-        mock_ai.set_response("scenario_candidate_extractor", json.dumps({
-            "candidates": [
-                {"description": "登录功能回归", "module": "用户管理",
-                 "precondition": "", "expected_result": ""},
-            ]
-        }))
-        mock_ai.set_response("forward_scan", json.dumps({
-            "label": "NEW",
-            "matched_case_id": None,
-            "matched_title": "",
-            "confidence": 0.85,
-            "reason": "新功能",
-        }))
+        mock_ai.set_response(
+            "backward_scan",
+            json.dumps(
+                {
+                    "verdicts": [
+                        {"case_id": fp["case_id"], "verdict": "VALID", "confidence": 0.9, "hint": "有效"} for fp in fps
+                    ]
+                }
+            ),
+        )
+        mock_ai.set_response(
+            "scenario_candidate_extractor",
+            json.dumps(
+                {
+                    "candidates": [
+                        {
+                            "description": "登录功能回归",
+                            "module": "用户管理",
+                            "precondition": "",
+                            "expected_result": "",
+                        },
+                    ]
+                }
+            ),
+        )
+        mock_ai.set_response(
+            "forward_scan",
+            json.dumps(
+                {
+                    "label": "NEW",
+                    "matched_case_id": None,
+                    "matched_title": "",
+                    "confidence": 0.85,
+                    "reason": "新功能",
+                }
+            ),
+        )
 
         from app.pipelines.scenarios import get_scenario
+
         scenario = get_scenario(4)
         runner = PipelineRunner(scenario["name"], scenario["steps"])
         runner.run(ctx)

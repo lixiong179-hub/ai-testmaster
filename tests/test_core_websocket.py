@@ -355,4 +355,5 @@ class TestGlobalManager:
 
     def test_manager_is_singleton(self):
         from app.core.websocket import manager as manager2
+
         assert manager is manager2

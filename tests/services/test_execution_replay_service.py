@@ -8,6 +8,7 @@ ExecutionReplayService单元测试
 
 注意: 使用真实环境，不使用Mock
 """
+
 import pytest
 from datetime import datetime
 from sqlalchemy import create_engine
@@ -16,9 +17,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 from app.db.database import Base
 from app.services.execution_replay import ExecutionReplayService
-from app.services.execution_replay.models import (
-    ReplayEvent, ExecutionTimeline, ReplayEventType
-)
+from app.services.execution_replay.models import ReplayEvent, ExecutionTimeline, ReplayEventType
 from app.models.test_task import TestTask
 from app.models.test_case import TestCase
 from app.models.project import Project
@@ -27,7 +26,7 @@ from app.models.user import User
 
 @pytest.fixture(scope="module")
 def db_engine():
-    engine = create_engine(settings.DATABASE_URL.replace('/ai_testmaster', '/ai_testmaster_test'))
+    engine = create_engine(settings.DATABASE_URL.replace("/ai_testmaster", "/ai_testmaster_test"))
     return engine
 
 
@@ -71,11 +70,7 @@ def sample_project(db):
 
 @pytest.fixture
 def sample_test_case(db, sample_project):
-    case = TestCase(
-        title="Test Case",
-        case_type="web",
-        project_id=sample_project.id
-    )
+    case = TestCase(title="Test Case", case_type="web", project_id=sample_project.id)
     db.add(case)
     db.commit()
     db.refresh(case)
@@ -87,11 +82,7 @@ def sample_test_case(db, sample_project):
 
 @pytest.fixture
 def sample_task(db, sample_project):
-    task = TestTask(
-        name="Test Task",
-        project_id=sample_project.id,
-        status="pending"
-    )
+    task = TestTask(name="Test Task", project_id=sample_project.id, status="pending")
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -106,12 +97,7 @@ class TestReplayEvent:
 
     def test_replay_event_creation(self):
         """测试回放事件创建"""
-        event = ReplayEvent(
-            timestamp=5.0,
-            event_type=ReplayEventType.CLICK,
-            action="点击按钮",
-            step_number=1
-        )
+        event = ReplayEvent(timestamp=5.0, event_type=ReplayEventType.CLICK, action="点击按钮", step_number=1)
 
         assert event.timestamp == 5.0
         assert event.event_type == ReplayEventType.CLICK
@@ -119,12 +105,7 @@ class TestReplayEvent:
 
     def test_replay_event_to_dict(self):
         """测试回放事件转字典"""
-        event = ReplayEvent(
-            timestamp=10.0,
-            event_type=ReplayEventType.SCREENSHOT,
-            action="截图",
-            step_number=2
-        )
+        event = ReplayEvent(timestamp=10.0, event_type=ReplayEventType.SCREENSHOT, action="截图", step_number=2)
 
         event_dict = event.to_dict()
 
@@ -134,12 +115,7 @@ class TestReplayEvent:
 
     def test_replay_event_default_fields(self):
         """测试回放事件默认字段"""
-        event = ReplayEvent(
-            timestamp=0.0,
-            event_type=ReplayEventType.NAVIGATE,
-            action="开始导航",
-            step_number=0
-        )
+        event = ReplayEvent(timestamp=0.0, event_type=ReplayEventType.NAVIGATE, action="开始导航", step_number=0)
 
         assert event.screenshot_path is None
         assert event.element_info is None
@@ -154,7 +130,7 @@ class TestReplayEvent:
             action="执行失败",
             step_number=3,
             screenshot_path="/screenshots/step3.png",
-            error_message="元素未找到"
+            error_message="元素未找到",
         )
 
         assert event.screenshot_path == "/screenshots/step3.png"
@@ -167,12 +143,7 @@ class TestExecutionTimeline:
     def test_execution_timeline_creation(self):
         """测试执行时间轴创建"""
         now = datetime.now()
-        timeline = ExecutionTimeline(
-            execution_id=1,
-            test_case_id=1,
-            start_time=now,
-            total_duration_ms=60000
-        )
+        timeline = ExecutionTimeline(execution_id=1, test_case_id=1, start_time=now, total_duration_ms=60000)
 
         assert timeline.execution_id == 1
         assert timeline.test_case_id == 1
@@ -190,8 +161,8 @@ class TestExecutionTimeline:
             total_duration_ms=30000,
             events=[
                 ReplayEvent(timestamp=0.0, event_type=ReplayEventType.NAVIGATE, action="开始", step_number=0),
-                ReplayEvent(timestamp=10.0, event_type=ReplayEventType.CLICK, action="点击", step_number=1)
-            ]
+                ReplayEvent(timestamp=10.0, event_type=ReplayEventType.CLICK, action="点击", step_number=1),
+            ],
         )
 
         assert timeline.total_duration_ms == 30000
@@ -208,8 +179,8 @@ class TestExecutionTimeline:
             total_duration_ms=30000,
             events=[
                 ReplayEvent(timestamp=0.0, event_type=ReplayEventType.NAVIGATE, action="开始", step_number=0),
-                ReplayEvent(timestamp=10.0, event_type=ReplayEventType.CLICK, action="点击", step_number=1)
-            ]
+                ReplayEvent(timestamp=10.0, event_type=ReplayEventType.CLICK, action="点击", step_number=1),
+            ],
         )
 
         timeline_dict = timeline.to_dict()
@@ -223,11 +194,7 @@ class TestExecutionTimeline:
 
     def test_execution_timeline_empty_events(self):
         """测试空事件的执行时间轴"""
-        timeline = ExecutionTimeline(
-            execution_id=1,
-            test_case_id=1,
-            start_time=datetime.now()
-        )
+        timeline = ExecutionTimeline(execution_id=1, test_case_id=1, start_time=datetime.now())
 
         assert timeline.events == []
         assert timeline.total_duration_ms == 0
@@ -244,15 +211,12 @@ class TestReplayDataTypes:
             ReplayEventType.INPUT,
             ReplayEventType.VERIFY,
             ReplayEventType.WAIT,
-            ReplayEventType.SCROLL
+            ReplayEventType.SCROLL,
         ]
 
         for idx, event_type in enumerate(event_types):
             event = ReplayEvent(
-                timestamp=float(idx * 5),
-                event_type=event_type,
-                action=f"执行动作{idx}",
-                step_number=idx
+                timestamp=float(idx * 5), event_type=event_type, action=f"执行动作{idx}", step_number=idx
             )
 
             assert event.event_type == event_type

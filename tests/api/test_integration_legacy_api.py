@@ -421,6 +421,7 @@ class TestTestCaseAPI:
 
     def test_get_test_cases_list(self, db, client, authHeaders, testProject):
         from app.crud.test_case_mutate import create_test_case
+
         for i in range(3):
             create_test_case(
                 db=db,
@@ -445,6 +446,7 @@ class TestTestCaseAPI:
 
     def test_get_test_cases_pagination(self, db, client, authHeaders, testProject):
         from app.crud.test_case_mutate import create_test_case
+
         for i in range(5):
             create_test_case(
                 db=db,
@@ -477,6 +479,7 @@ class TestTestCaseAPI:
 
     def test_get_test_case_detail(self, db, client, authHeaders, testProject):
         from app.crud.test_case_mutate import create_test_case
+
         case = create_test_case(
             db=db,
             case_no=f"CASE-GET-{uuid.uuid4().hex[:8]}",
@@ -504,6 +507,7 @@ class TestTestCaseAPI:
 
     def test_update_test_case_normal(self, db, client, authHeaders, testProject):
         from app.crud.test_case_mutate import create_test_case
+
         case = create_test_case(
             db=db,
             case_no=f"CASE-UPD-{uuid.uuid4().hex[:8]}",
@@ -533,6 +537,7 @@ class TestTestCaseAPI:
 
     def test_delete_test_case_normal(self, db, client, authHeaders, testProject):
         from app.crud.test_case_mutate import create_test_case
+
         case = create_test_case(
             db=db,
             case_no=f"CASE-DEL-{uuid.uuid4().hex[:8]}",
@@ -560,6 +565,7 @@ class TestTestCaseAPI:
 
     def test_batch_delete_normal(self, db, client, authHeaders, testProject):
         from app.crud.test_case_mutate import create_test_case
+
         case1 = create_test_case(
             db=db,
             case_no=f"CASE-BD1-{uuid.uuid4().hex[:8]}",
@@ -613,6 +619,7 @@ class TestTestCaseAPI:
     def test_batch_restore_normal(self, db, client, authHeaders, testProject):
         from app.crud.test_case_mutate import create_test_case
         from app.models.test_case import TestCase
+
         case = create_test_case(
             db=db,
             case_no=f"CASE-BR-{uuid.uuid4().hex[:8]}",

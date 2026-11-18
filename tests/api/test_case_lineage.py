@@ -1,5 +1,6 @@
 """用例血缘服务单元测试
 覆盖 lineage_service.get_lineage 的正常路径、边界场景、异常路径。全部使用真实数据库，禁止 Mock。"""
+
 import pytest
 from sqlalchemy import text
 
@@ -138,7 +139,7 @@ class TestGetLineageService:
     def test_case_id_not_in_case_map_covers_L210(self, db):
         """覆盖 L210-211: case_id 不在 case_map 中的分支
 
-        当查询的用例本身不是 root 且不在 children_map 的 values 中时，        case_id 不在 case_map 中，需要手动添加。        """
+        当查询的用例本身不是 root 且不在 children_map 的 values 中时，        case_id 不在 case_map 中，需要手动添加。"""
         result = get_lineage(db, self.child.id)
         assert result is not None
         assert result.root.id == self.grandparent.id
@@ -291,9 +292,7 @@ class TestCycleDetection:
         db.add(self.case_b)
         db.flush()
 
-        db.query(TestCase).filter(TestCase.id == self.case_a.id).update(
-            {TestCase.parent_case_id: self.case_b.id}
-        )
+        db.query(TestCase).filter(TestCase.id == self.case_a.id).update({TestCase.parent_case_id: self.case_b.id})
         db.flush()
 
     def test_cycle_detected_no_infinite_loop(self, db):
@@ -306,7 +305,7 @@ class TestParentNotFoundInDB:
     """父用例不在 DB — 覆盖 L88-91
 
     通过 raw SQL 绕过 FK 约束，创建 parent_case_id 指向不存在 ID 的孤儿用例，
-    触发 _fetch_ancestors 中 parent = db.query(...).first() 返回 None 的分支。    """
+    触发 _fetch_ancestors 中 parent = db.query(...).first() 返回 None 的分支。"""
 
     def test_orphan_parent_not_found_returns_empty_ancestors(self, db, testProject, testUser):
         case = TestCase(
@@ -341,7 +340,7 @@ class TestParentNotFoundInDB:
 class TestCaseIdNotInCaseMap:
     """case_id 不在 case_map — 覆盖 L221-222
 
-    场景: 查询一个用例，它的 parent_case_id 指向的父用例存在，    但该用例自身不在 children_map 中（即它不是任何用例的子用例），    当 case 本身不是 root 且不在 children_map 的 values 中时触发。    """
+    场景: 查询一个用例，它的 parent_case_id 指向的父用例存在，    但该用例自身不在 children_map 中（即它不是任何用例的子用例），    当 case 本身不是 root 且不在 children_map 的 values 中时触发。"""
 
     @pytest.fixture(autouse=True)
     def setup_data(self, db, testProject, testUser):

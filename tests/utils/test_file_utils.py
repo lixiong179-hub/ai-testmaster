@@ -1,4 +1,5 @@
 """文件工具单元测试 - file_utils"""
+
 import os
 import tempfile
 import time
@@ -7,9 +8,17 @@ import pytest
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from app.utils.file_utils import (
-    validate_file_format, detect_resource_type, validate_file_mime,
-    get_file_size, ensure_dir, clean_old_files, parse_file, parse_url,
-    validate_url, SUPPORTED_FILE_TYPES, DANGEROUS_MIMES,
+    validate_file_format,
+    detect_resource_type,
+    validate_file_mime,
+    get_file_size,
+    ensure_dir,
+    clean_old_files,
+    parse_file,
+    parse_url,
+    validate_url,
+    SUPPORTED_FILE_TYPES,
+    DANGEROUS_MIMES,
 )
 
 

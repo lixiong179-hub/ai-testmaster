@@ -122,6 +122,7 @@ class TestUIAutomatorHelper:
 
     def test_parse_node(self):
         import xml.etree.ElementTree as ET
+
         helper = UIAutomatorHelper(MagicMock())
         node = ET.Element("node")
         node.set("bounds", "[10,20][110,220]")
@@ -142,6 +143,7 @@ class TestUIAutomatorHelper:
 
     def test_parse_node_no_bounds(self):
         import xml.etree.ElementTree as ET
+
         helper = UIAutomatorHelper(MagicMock())
         node = ET.Element("node")
         el = helper._parse_node(node)
@@ -150,6 +152,7 @@ class TestUIAutomatorHelper:
 
     def test_parse_node_disabled(self):
         import xml.etree.ElementTree as ET
+
         helper = UIAutomatorHelper(MagicMock())
         node = ET.Element("node")
         node.set("enabled", "false")

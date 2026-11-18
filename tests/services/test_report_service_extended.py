@@ -5,12 +5,18 @@ from app.models.enums import ExecStatus
 
 def _make_case(db, testProject, case_no, title):
     from app.models.test_case import TestCase
+
     case = TestCase(
-        project_id=testProject.id, title=title,
-        case_no=case_no, lifecycle_status="active",
-        module="报告模块", precondition="无",
+        project_id=testProject.id,
+        title=title,
+        case_no=case_no,
+        lifecycle_status="active",
+        module="报告模块",
+        precondition="无",
         steps_json=[{"step": 1, "action": "操作", "param": ""}],
-        expected_result="成功", priority=2, case_type="UI",
+        expected_result="成功",
+        priority=2,
+        case_type="UI",
     )
     db.add(case)
     db.flush()
@@ -19,6 +25,7 @@ def _make_case(db, testProject, case_no, title):
 
 def _make_task(db, testProject, testUser):
     from app.crud.test_task import create_test_task
+
     task = create_test_task(db, "报告任务", testProject.id, [1], testUser.id)
     return task
 
@@ -34,15 +41,22 @@ class TestCalculateStatistics:
 
     def test_all_passed(self, db, testProject, testUser):
         from app.models.test_result import TestResult
+
         case = _make_case(db, testProject, "STAT-001", "stat_case")
         task = _make_task(db, testProject, testUser)
         r1 = TestResult(
-            project_id=testProject.id, case_id=case.id, case_no=case.case_no,
-            exec_status=ExecStatus.PASSED, task_id=task.id,
+            project_id=testProject.id,
+            case_id=case.id,
+            case_no=case.case_no,
+            exec_status=ExecStatus.PASSED,
+            task_id=task.id,
         )
         r2 = TestResult(
-            project_id=testProject.id, case_id=case.id, case_no=case.case_no,
-            exec_status=ExecStatus.PASSED, task_id=task.id,
+            project_id=testProject.id,
+            case_id=case.id,
+            case_no=case.case_no,
+            exec_status=ExecStatus.PASSED,
+            task_id=task.id,
         )
         db.add_all([r1, r2])
         db.flush()
@@ -53,19 +67,29 @@ class TestCalculateStatistics:
 
     def test_mixed_results(self, db, testProject, testUser):
         from app.models.test_result import TestResult
+
         case = _make_case(db, testProject, "MIX-001", "mix_case")
         task = _make_task(db, testProject, testUser)
         r1 = TestResult(
-            project_id=testProject.id, case_id=case.id, case_no=case.case_no,
-            exec_status=ExecStatus.PASSED, task_id=task.id,
+            project_id=testProject.id,
+            case_id=case.id,
+            case_no=case.case_no,
+            exec_status=ExecStatus.PASSED,
+            task_id=task.id,
         )
         r2 = TestResult(
-            project_id=testProject.id, case_id=case.id, case_no=case.case_no,
-            exec_status=ExecStatus.FAILED, task_id=task.id,
+            project_id=testProject.id,
+            case_id=case.id,
+            case_no=case.case_no,
+            exec_status=ExecStatus.FAILED,
+            task_id=task.id,
         )
         r3 = TestResult(
-            project_id=testProject.id, case_id=case.id, case_no=case.case_no,
-            exec_status=ExecStatus.BLOCKED, task_id=task.id,
+            project_id=testProject.id,
+            case_id=case.id,
+            case_no=case.case_no,
+            exec_status=ExecStatus.BLOCKED,
+            task_id=task.id,
         )
         db.add_all([r1, r2, r3])
         db.flush()
@@ -94,11 +118,15 @@ class TestGenerateSummary:
 class TestGenerateReportContent:
     def test_content_structure(self, db, testProject, testUser):
         from app.models.test_result import TestResult
+
         case = _make_case(db, testProject, "CONT-001", "content_case")
         task = _make_task(db, testProject, testUser)
         r = TestResult(
-            project_id=testProject.id, case_id=case.id, case_no=case.case_no,
-            exec_status=ExecStatus.PASSED, task_id=task.id,
+            project_id=testProject.id,
+            case_id=case.id,
+            case_no=case.case_no,
+            exec_status=ExecStatus.PASSED,
+            task_id=task.id,
         )
         db.add(r)
         db.flush()
@@ -123,9 +151,12 @@ class TestGetReportDetail:
     def test_report_no_content(self, db, testProject):
         from app.crud.test_report import create_test_report
         from app.schemas.test_report import TestReportCreate
+
         data = TestReportCreate(
-            name="empty_report", description="test",
-            project_id=testProject.id, test_task_id=None,
+            name="empty_report",
+            description="test",
+            project_id=testProject.id,
+            test_task_id=None,
         )
         report = create_test_report(db, data, user_id=1)
         with pytest.raises(ValueError, match="Report content not found"):

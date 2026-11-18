@@ -4,6 +4,7 @@
 依赖：纯函数测试，无 DB/Redis 调用
 运行：python -m pytest tests/services/impact_analysis/ -v --tb=short
 """
+
 import json
 import os
 import tempfile
@@ -12,7 +13,10 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from app.services.impact_analysis.models import (
-    CoverageEntry, CodeChange, ImpactResult, ImpactRange,
+    CoverageEntry,
+    CodeChange,
+    ImpactResult,
+    ImpactRange,
 )
 from app.services.impact_analysis.coverage_collector import CoverageCollector
 from app.services.impact_analysis.change_analyzer import ChangeAnalyzer
@@ -241,6 +245,7 @@ diff --git a/app/b.py b/app/b.py
     def test_analyze_git_diff_timeout(self, tmp_path):
         """git 命令超时时返回空列表。"""
         import subprocess
+
         analyzer = ChangeAnalyzer(project_root=str(tmp_path))
         with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="git", timeout=1)):
             changes = analyzer.analyze_git_diff("HEAD~1", "HEAD", timeout=1)

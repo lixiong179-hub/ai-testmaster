@@ -11,6 +11,7 @@
     - 启用模式：mock OIDCService 验证端点路由与异常处理
     - 不依赖真实 IdP，全部通过 mock service 验证端点契约
 """
+
 from __future__ import annotations
 
 import json
@@ -40,9 +41,7 @@ _TEST_IDP_CONFIGS = [
 def oidc_enabled(monkeypatch):
     """启用 OIDC 并配置测试 IdP。"""
     monkeypatch.setattr(settings, "OIDC_SSO_ENABLED", True)
-    monkeypatch.setattr(
-        settings, "OIDC_IDP_CONFIGS", json.dumps(_TEST_IDP_CONFIGS)
-    )
+    monkeypatch.setattr(settings, "OIDC_IDP_CONFIGS", json.dumps(_TEST_IDP_CONFIGS))
     monkeypatch.setattr(settings, "OIDC_DEFAULT_PROVIDER", "google")
     yield
 
@@ -54,36 +53,28 @@ class TestOIDCDisabled:
     """OIDC_SSO_ENABLED=False 时所有端点返回 503。"""
 
     @pytest.mark.asyncio
-    async def test_providers_returns_503_when_disabled(
-        self, async_client: AsyncClient, monkeypatch
-    ) -> None:
+    async def test_providers_returns_503_when_disabled(self, async_client: AsyncClient, monkeypatch) -> None:
         """禁用时 /providers 返回 503。"""
         monkeypatch.setattr(settings, "OIDC_SSO_ENABLED", False)
         resp = await async_client.get("/api/v1/auth/oidc/providers")
         assert resp.status_code == 503
 
     @pytest.mark.asyncio
-    async def test_metadata_returns_503_when_disabled(
-        self, async_client: AsyncClient, monkeypatch
-    ) -> None:
+    async def test_metadata_returns_503_when_disabled(self, async_client: AsyncClient, monkeypatch) -> None:
         """禁用时 /metadata 返回 503。"""
         monkeypatch.setattr(settings, "OIDC_SSO_ENABLED", False)
         resp = await async_client.get("/api/v1/auth/oidc/metadata")
         assert resp.status_code == 503
 
     @pytest.mark.asyncio
-    async def test_login_returns_503_when_disabled(
-        self, async_client: AsyncClient, monkeypatch
-    ) -> None:
+    async def test_login_returns_503_when_disabled(self, async_client: AsyncClient, monkeypatch) -> None:
         """禁用时 /login 返回 503。"""
         monkeypatch.setattr(settings, "OIDC_SSO_ENABLED", False)
         resp = await async_client.get("/api/v1/auth/oidc/login")
         assert resp.status_code == 503
 
     @pytest.mark.asyncio
-    async def test_callback_returns_503_when_disabled(
-        self, async_client: AsyncClient, monkeypatch
-    ) -> None:
+    async def test_callback_returns_503_when_disabled(self, async_client: AsyncClient, monkeypatch) -> None:
         """禁用时 /callback 返回 503。"""
         monkeypatch.setattr(settings, "OIDC_SSO_ENABLED", False)
         resp = await async_client.get(
@@ -100,9 +91,7 @@ class TestListProvidersEndpoint:
     """GET /auth/oidc/providers 端点测试。"""
 
     @pytest.mark.asyncio
-    async def test_list_providers_success(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_list_providers_success(self, async_client: AsyncClient, oidc_enabled) -> None:
         """启用时返回 IdP 列表。"""
         resp = await async_client.get("/api/v1/auth/oidc/providers")
         assert resp.status_code == 200
@@ -122,9 +111,7 @@ class TestMetadataEndpoint:
     """GET /auth/oidc/metadata 端点测试。"""
 
     @pytest.mark.asyncio
-    async def test_get_all_metadata(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_get_all_metadata(self, async_client: AsyncClient, oidc_enabled) -> None:
         """不传 provider 返回所有 IdP 列表。"""
         resp = await async_client.get("/api/v1/auth/oidc/metadata")
         assert resp.status_code == 200
@@ -132,13 +119,9 @@ class TestMetadataEndpoint:
         assert "providers" in data
 
     @pytest.mark.asyncio
-    async def test_get_single_metadata(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_get_single_metadata(self, async_client: AsyncClient, oidc_enabled) -> None:
         """指定 provider 返回单个 IdP 元数据。"""
-        resp = await async_client.get(
-            "/api/v1/auth/oidc/metadata", params={"provider": "google"}
-        )
+        resp = await async_client.get("/api/v1/auth/oidc/metadata", params={"provider": "google"})
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert data["provider"] == "google"
@@ -147,13 +130,9 @@ class TestMetadataEndpoint:
         assert "client_secret" not in data
 
     @pytest.mark.asyncio
-    async def test_get_metadata_unknown_provider(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_get_metadata_unknown_provider(self, async_client: AsyncClient, oidc_enabled) -> None:
         """未知 provider 返回 404。"""
-        resp = await async_client.get(
-            "/api/v1/auth/oidc/metadata", params={"provider": "unknown"}
-        )
+        resp = await async_client.get("/api/v1/auth/oidc/metadata", params={"provider": "unknown"})
         assert resp.status_code == 404
 
 
@@ -164,9 +143,7 @@ class TestLoginEndpoint:
     """GET /auth/oidc/login 端点测试。"""
 
     @pytest.mark.asyncio
-    async def test_login_redirects_to_idp(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_login_redirects_to_idp(self, async_client: AsyncClient, oidc_enabled) -> None:
         """login 端点 302 重定向到 IdP 授权 URL。"""
         # httpx AsyncClient 默认 follow_redirects=False，应返回 302
         resp = await async_client.get("/api/v1/auth/oidc/login")
@@ -179,9 +156,7 @@ class TestLoginEndpoint:
         assert "nonce=" in location
 
     @pytest.mark.asyncio
-    async def test_login_with_custom_provider(
-        self, async_client: AsyncClient, oidc_enabled, monkeypatch
-    ) -> None:
+    async def test_login_with_custom_provider(self, async_client: AsyncClient, oidc_enabled, monkeypatch) -> None:
         """指定 provider 时使用对应 IdP 配置。"""
         # 添加 azure 配置
         configs = _TEST_IDP_CONFIGS + [
@@ -196,34 +171,22 @@ class TestLoginEndpoint:
         ]
         monkeypatch.setattr(settings, "OIDC_IDP_CONFIGS", json.dumps(configs))
 
-        resp = await async_client.get(
-            "/api/v1/auth/oidc/login", params={"provider": "azure"}
-        )
+        resp = await async_client.get("/api/v1/auth/oidc/login", params={"provider": "azure"})
         assert resp.status_code == 302
         location = resp.headers.get("location", "")
-        assert location.startswith(
-            "https://login.microsoftonline.com/tenant/v2.0/authorize?"
-        )
+        assert location.startswith("https://login.microsoftonline.com/tenant/v2.0/authorize?")
         assert "client_id=azure-id" in location
 
     @pytest.mark.asyncio
-    async def test_login_with_unknown_provider_returns_400(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_login_with_unknown_provider_returns_400(self, async_client: AsyncClient, oidc_enabled) -> None:
         """未知 provider 返回 400。"""
-        resp = await async_client.get(
-            "/api/v1/auth/oidc/login", params={"provider": "unknown"}
-        )
+        resp = await async_client.get("/api/v1/auth/oidc/login", params={"provider": "unknown"})
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_login_with_redirect_to(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_login_with_redirect_to(self, async_client: AsyncClient, oidc_enabled) -> None:
         """redirect_to 参数不影响 302 跳转（存入 state 上下文）。"""
-        resp = await async_client.get(
-            "/api/v1/auth/oidc/login", params={"redirect_to": "/dashboard"}
-        )
+        resp = await async_client.get("/api/v1/auth/oidc/login", params={"redirect_to": "/dashboard"})
         assert resp.status_code == 302
 
 
@@ -234,9 +197,7 @@ class TestCallbackEndpoint:
     """GET /auth/oidc/callback 端点测试。"""
 
     @pytest.mark.asyncio
-    async def test_callback_with_idp_error(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_callback_with_idp_error(self, async_client: AsyncClient, oidc_enabled) -> None:
         """IdP 返回 error 时返回 400 + 错误信息。"""
         resp = await async_client.get(
             "/api/v1/auth/oidc/callback",
@@ -252,29 +213,19 @@ class TestCallbackEndpoint:
         assert body["data"]["error"] == "access_denied"
 
     @pytest.mark.asyncio
-    async def test_callback_missing_code_returns_400(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_callback_missing_code_returns_400(self, async_client: AsyncClient, oidc_enabled) -> None:
         """缺少 code 参数返回 400。"""
-        resp = await async_client.get(
-            "/api/v1/auth/oidc/callback", params={"state": "some-state"}
-        )
+        resp = await async_client.get("/api/v1/auth/oidc/callback", params={"state": "some-state"})
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_callback_missing_state_returns_400(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_callback_missing_state_returns_400(self, async_client: AsyncClient, oidc_enabled) -> None:
         """缺少 state 参数返回 400。"""
-        resp = await async_client.get(
-            "/api/v1/auth/oidc/callback", params={"code": "some-code"}
-        )
+        resp = await async_client.get("/api/v1/auth/oidc/callback", params={"code": "some-code"})
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_callback_with_invalid_state_returns_400(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_callback_with_invalid_state_returns_400(self, async_client: AsyncClient, oidc_enabled) -> None:
         """无效 state 返回 400（state 不存在或已过期）。"""
         resp = await async_client.get(
             "/api/v1/auth/oidc/callback",
@@ -283,9 +234,7 @@ class TestCallbackEndpoint:
         assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_callback_success(
-        self, async_client: AsyncClient, oidc_enabled
-    ) -> None:
+    async def test_callback_success(self, async_client: AsyncClient, oidc_enabled) -> None:
         """完整回调流程成功（mock service 验证端点契约）。"""
         # 1. 先调用 /login 获取有效 state（state 存入内存 store）
         login_resp = await async_client.get("/api/v1/auth/oidc/login")

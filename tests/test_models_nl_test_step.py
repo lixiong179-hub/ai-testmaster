@@ -8,23 +8,21 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="nl_test_user",
-        email="nl_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="nl_test_user", email="nl_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(NLTestStep).filter(NLTestStep.task_id.in_(
-        db.query(TestTask.id).filter(TestTask.project_id.in_(
-            db.query(Project.id).filter(Project.user_id == user.id)
-        ))
-    )).delete(synchronize_session=False)
-    db.query(TestTask).filter(TestTask.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(NLTestStep).filter(
+        NLTestStep.task_id.in_(
+            db.query(TestTask.id).filter(
+                TestTask.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+            )
+        )
+    ).delete(synchronize_session=False)
+    db.query(TestTask).filter(TestTask.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -41,12 +39,7 @@ def test_project(db, test_user):
 
 @pytest.fixture
 def test_task(db, test_project, test_user):
-    task = TestTask(
-        task_name="NL步骤测试任务",
-        project_id=test_project.id,
-        executor_id=test_user.id,
-        case_ids=[]
-    )
+    task = TestTask(task_name="NL步骤测试任务", project_id=test_project.id, executor_id=test_user.id, case_ids=[])
     db.add(task)
     db.commit()
     db.refresh(task)
@@ -55,12 +48,7 @@ def test_task(db, test_project, test_user):
 
 class TestNLTestStepModel:
     def test_create_nl_test_step(self, db, test_task):
-        step = NLTestStep(
-            task_id=test_task.id,
-            step_index=1,
-            action="click",
-            target_desc="点击登录按钮"
-        )
+        step = NLTestStep(task_id=test_task.id, step_index=1, action="click", target_desc="点击登录按钮")
         db.add(step)
         db.commit()
         db.refresh(step)
@@ -73,12 +61,7 @@ class TestNLTestStepModel:
         db.commit()
 
     def test_nl_test_step_default_values(self, db, test_task):
-        step = NLTestStep(
-            task_id=test_task.id,
-            step_index=1,
-            action="input",
-            target_desc="输入用户名"
-        )
+        step = NLTestStep(task_id=test_task.id, step_index=1, action="input", target_desc="输入用户名")
         db.add(step)
         db.commit()
         db.refresh(step)
@@ -94,12 +77,7 @@ class TestNLTestStepModel:
 
     def test_nl_test_step_action_values(self, db, test_task):
         for action in ["click", "input", "wait", "assert", "navigate"]:
-            step = NLTestStep(
-                task_id=test_task.id,
-                step_index=1,
-                action=action,
-                target_desc=f"操作{action}"
-            )
+            step = NLTestStep(task_id=test_task.id, step_index=1, action=action, target_desc=f"操作{action}")
             db.add(step)
             db.commit()
             db.refresh(step)
@@ -114,7 +92,7 @@ class TestNLTestStepModel:
             action="input",
             target_desc="用户名输入框",
             param="testuser",
-            expected="输入框显示testuser"
+            expected="输入框显示testuser",
         )
         db.add(step)
         db.commit()
@@ -131,7 +109,7 @@ class TestNLTestStepModel:
             action="click",
             target_desc="登录按钮",
             error_message="元素未找到",
-            screenshot_path="/screenshots/error.png"
+            screenshot_path="/screenshots/error.png",
         )
         db.add(step)
         db.commit()
@@ -147,7 +125,7 @@ class TestNLTestStepModel:
             step_index=1,
             action="click",
             target_desc="按钮",
-            ai_analysis="定位器可能已过期，建议更新CSS选择器"
+            ai_analysis="定位器可能已过期，建议更新CSS选择器",
         )
         db.add(step)
         db.commit()
@@ -163,7 +141,7 @@ class TestNLTestStepModel:
             action="click",
             target_desc="按钮",
             start_time=datetime(2024, 1, 1, 10, 0, 0),
-            end_time=datetime(2024, 1, 1, 10, 0, 5)
+            end_time=datetime(2024, 1, 1, 10, 0, 5),
         )
         db.add(step)
         db.commit()
@@ -174,12 +152,7 @@ class TestNLTestStepModel:
         db.commit()
 
     def test_nl_test_step_repr(self, db, test_task):
-        step = NLTestStep(
-            task_id=test_task.id,
-            step_index=1,
-            action="click",
-            target_desc="按钮"
-        )
+        step = NLTestStep(task_id=test_task.id, step_index=1, action="click", target_desc="按钮")
         db.add(step)
         db.commit()
         db.refresh(step)
@@ -189,4 +162,4 @@ class TestNLTestStepModel:
         db.commit()
 
     def test_nl_test_step_relationship(self):
-        assert hasattr(NLTestStep, 'test_task')
+        assert hasattr(NLTestStep, "test_task")

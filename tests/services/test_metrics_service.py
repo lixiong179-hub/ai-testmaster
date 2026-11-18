@@ -15,6 +15,7 @@
     保持 sync，对应测试类不变。_date_trunc_* / _build_filters /
     _get_dialect_name 保持 sync 纯函数，对应测试类不变。
 """
+
 import pytest
 from datetime import timedelta
 from unittest.mock import patch, MagicMock
@@ -42,9 +43,11 @@ def db():
 @pytest.fixture
 def mock_db_context(db):
     """Mock get_db_context to use in-memory SQLite session（sync record_metric 测试用）。"""
+
     @contextmanager
     def _get_db_context():
         yield db
+
     return _get_db_context
 
 
@@ -166,9 +169,7 @@ class TestQueryMetrics:
         await _create_metric(async_db, metric_name="low_confidence_pause", project_id=1)
         await _create_metric(async_db, metric_name="json_validation_failure", project_id=1)
 
-        result = await metrics_service.query_metrics(
-            async_db, metric_name="low_confidence_pause"
-        )
+        result = await metrics_service.query_metrics(async_db, metric_name="low_confidence_pause")
         assert len(result) == 1
         assert result[0]["metric_name"] == "low_confidence_pause"
 
@@ -218,7 +219,10 @@ class TestGetMetricTimeseries:
 
         since = utcnow() - timedelta(days=7)
         result = await metrics_service.get_metric_timeseries(
-            async_db, "low_confidence_pause", project_id=1, since=since,
+            async_db,
+            "low_confidence_pause",
+            project_id=1,
+            since=since,
         )
         assert len(result) >= 1
         assert "time_bucket" in result[0]
@@ -229,14 +233,20 @@ class TestGetMetricTimeseries:
 
         since = utcnow() - timedelta(hours=24)
         result = await metrics_service.get_metric_timeseries(
-            async_db, "low_confidence_pause", project_id=1, since=since, interval="hour",
+            async_db,
+            "low_confidence_pause",
+            project_id=1,
+            since=since,
+            interval="hour",
         )
         assert len(result) >= 1
 
     async def test_timeseries_no_data(self, async_db):
         since = utcnow() - timedelta(days=7)
         result = await metrics_service.get_metric_timeseries(
-            async_db, "low_confidence_pause", since=since,
+            async_db,
+            "low_confidence_pause",
+            since=since,
         )
         assert result == []
 
@@ -249,9 +259,7 @@ class TestGetDashboardSummary:
         await _create_metric(async_db, metric_name="json_validation_failure", project_id=1)
 
         since = utcnow() - timedelta(days=30)
-        result = await metrics_service.get_dashboard_summary(
-            async_db, project_id=1, since=since
-        )
+        result = await metrics_service.get_dashboard_summary(async_db, project_id=1, since=since)
         assert "metrics" in result
         assert result["total_metric_types"] == len(FMEA_METRICS)
         assert result["active_metric_types"] == 2

@@ -5,6 +5,7 @@
     - 依赖链完整（10 个 Step，含 BackwardScan + ForwardScan + Reconciliation）    - Pipeline 端到端运行完成    - 双向扫描产物生成
     - 用例持久化到数据库    - 标注集数据结构有效
 使用 Beta 标注集作为固定输入，MockAIClient 模拟 AI 响应。"""
+
 import json
 import pytest
 
@@ -31,13 +32,24 @@ SCENARIO_4_MOCK_CASES = [
     },
 ]
 
-SCENARIO_4_MOCK_BACKWARD = json.dumps([
-    {"case_no": "HIST-001", "case_id": -1, "verdict": "VALID", "confidence": 0.95, "reason": "功能未变", "hint": "保持现有用例"},
-])
+SCENARIO_4_MOCK_BACKWARD = json.dumps(
+    [
+        {
+            "case_no": "HIST-001",
+            "case_id": -1,
+            "verdict": "VALID",
+            "confidence": 0.95,
+            "reason": "功能未变",
+            "hint": "保持现有用例",
+        },
+    ]
+)
 
-SCENARIO_4_MOCK_FORWARD = json.dumps([
-    {"title": "新增验证码登录", "module": "用户登录", "priority": 1},
-])
+SCENARIO_4_MOCK_FORWARD = json.dumps(
+    [
+        {"title": "新增验证码登录", "module": "用户登录", "priority": 1},
+    ]
+)
 
 
 @pytest.fixture
@@ -83,16 +95,18 @@ def s4_iteration(db, testProject):
     db.add(tp)
     db.flush()
 
-    backward_mock = json.dumps([
-        {
-            "case_no": "HIST-001",
-            "case_id": historical_case.id,
-            "verdict": "VALID",
-            "confidence": 0.95,
-            "reason": "功能未变",
-            "hint": "保持现有用例",
-        },
-    ])
+    backward_mock = json.dumps(
+        [
+            {
+                "case_no": "HIST-001",
+                "case_id": historical_case.id,
+                "verdict": "VALID",
+                "confidence": 0.95,
+                "reason": "功能未变",
+                "hint": "保持现有用例",
+            },
+        ]
+    )
 
     inp = IterationInput(
         iteration_id=iteration.id,
@@ -133,9 +147,7 @@ class TestScenario4Regression:
         run_scenario(db, s4_iteration["iteration"].id, 4, mock_ai_s4, testUser.id)
         db.flush()
 
-        cases = db.query(TestCase).filter(
-            TestCase.project_id == s4_iteration["iteration"].project_id
-        ).all()
+        cases = db.query(TestCase).filter(TestCase.project_id == s4_iteration["iteration"].project_id).all()
         assert len(cases) >= 1
 
     def test_artifacts_created(self, db, s4_iteration, mock_ai_s4, testUser):

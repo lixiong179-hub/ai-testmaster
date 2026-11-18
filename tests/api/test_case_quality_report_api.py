@@ -85,17 +85,13 @@ class TestCaseQualityReport:
         assert resp.status_code in (404, 500)
 
     async def test_pending_reviews_empty(self, async_auth_client, async_test_project):
-        resp = await async_auth_client.get(
-            f"/api/v1/quality/projects/{async_test_project.id}/pending-reviews"
-        )
+        resp = await async_auth_client.get(f"/api/v1/quality/projects/{async_test_project.id}/pending-reviews")
         assert resp.status_code == 200
         data = resp.json()
         assert data["pending_count"] == 0
         assert data["cases"] == []
 
-    async def test_review_case_success(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_review_case_success(self, async_db, async_auth_client, async_test_project):
         """测试审核成功场景。
 
         NOTE: 已修复预存 bug — 原端点 response_model=CaseReviewResponse 与 DB
@@ -127,9 +123,7 @@ class TestCaseQualityReport:
         assert data["status"] == "approved"
         assert data["review_comment"] == "通过"
 
-    async def test_get_review_status(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_get_review_status(self, async_db, async_auth_client, async_test_project):
         from app.models.test_case import TestCase
 
         case = TestCase(
@@ -147,17 +141,13 @@ class TestCaseQualityReport:
         async_db.add(case)
         await async_db.flush()
 
-        resp = await async_auth_client.get(
-            f"/api/v1/quality/cases/{case.id}/review"
-        )
+        resp = await async_auth_client.get(f"/api/v1/quality/cases/{case.id}/review")
         assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["case_id"] == case.id
         assert data["status"] == "pending"
 
-    async def test_pending_reviews_with_data(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_pending_reviews_with_data(self, async_db, async_auth_client, async_test_project):
         from app.models.test_case import TestCase
 
         case = TestCase(
@@ -175,17 +165,13 @@ class TestCaseQualityReport:
         async_db.add(case)
         await async_db.flush()
 
-        resp = await async_auth_client.get(
-            f"/api/v1/quality/projects/{async_test_project.id}/pending-reviews"
-        )
+        resp = await async_auth_client.get(f"/api/v1/quality/projects/{async_test_project.id}/pending-reviews")
         assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["pending_count"] >= 1
         assert any(c["case_id"] == case.id for c in data["cases"])
 
-    async def test_edit_case_success(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_edit_case_success(self, async_db, async_auth_client, async_test_project):
         from app.models.test_case import TestCase
 
         case = TestCase(
@@ -210,17 +196,11 @@ class TestCaseQualityReport:
         data = resp.json()
         assert data["message"] == "用例更新成功"
 
-    async def test_project_cost_statistics(
-        self, async_auth_client, async_test_project
-    ):
-        resp = await async_auth_client.get(
-            f"/api/v1/quality/projects/{async_test_project.id}/cost-statistics"
-        )
+    async def test_project_cost_statistics(self, async_auth_client, async_test_project):
+        resp = await async_auth_client.get(f"/api/v1/quality/projects/{async_test_project.id}/cost-statistics")
         assert resp.status_code in (200, 500)
 
-    async def test_project_cost_report(
-        self, async_auth_client, async_test_project
-    ):
+    async def test_project_cost_report(self, async_auth_client, async_test_project):
         resp = await async_auth_client.get(
             f"/api/v1/quality/projects/{async_test_project.id}/cost-report",
             params={"days": 7},
@@ -228,7 +208,5 @@ class TestCaseQualityReport:
         assert resp.status_code in (200, 500)
 
     async def test_case_cost_statistics_nonexistent(self, async_auth_client):
-        resp = await async_auth_client.get(
-            "/api/v1/quality/cases/99999/cost-statistics"
-        )
+        resp = await async_auth_client.get("/api/v1/quality/cases/99999/cost-statistics")
         assert resp.status_code in (404, 500)

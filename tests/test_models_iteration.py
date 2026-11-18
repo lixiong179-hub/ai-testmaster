@@ -7,18 +7,14 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="iter_test_user",
-        email="iter_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="iter_test_user", email="iter_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(Iteration).filter(Iteration.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(Iteration).filter(
+        Iteration.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+    ).delete(synchronize_session=False)
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -35,11 +31,7 @@ def test_project(db, test_user):
 
 class TestIterationModel:
     def test_create_iteration(self, db, test_project):
-        iteration = Iteration(
-            project_id=test_project.id,
-            name="Sprint 1",
-            version="v1.0"
-        )
+        iteration = Iteration(project_id=test_project.id, name="Sprint 1", version="v1.0")
         db.add(iteration)
         db.commit()
         db.refresh(iteration)
@@ -53,10 +45,7 @@ class TestIterationModel:
         db.commit()
 
     def test_iteration_default_values(self, db, test_project):
-        iteration = Iteration(
-            project_id=test_project.id,
-            name="默认迭代"
-        )
+        iteration = Iteration(project_id=test_project.id, name="默认迭代")
         db.add(iteration)
         db.commit()
         db.refresh(iteration)
@@ -70,11 +59,7 @@ class TestIterationModel:
 
     def test_iteration_status_values(self, db, test_project):
         for status in ["draft", "in_pipeline", "in_review", "finalized", "archived"]:
-            iteration = Iteration(
-                project_id=test_project.id,
-                name=f"迭代-{status}",
-                status=status
-            )
+            iteration = Iteration(project_id=test_project.id, name=f"迭代-{status}", status=status)
             db.add(iteration)
             db.commit()
             db.refresh(iteration)
@@ -84,10 +69,7 @@ class TestIterationModel:
 
     def test_iteration_with_dates(self, db, test_project):
         iteration = Iteration(
-            project_id=test_project.id,
-            name="日期迭代",
-            start_date=datetime(2024, 1, 1),
-            end_date=datetime(2024, 1, 31)
+            project_id=test_project.id, name="日期迭代", start_date=datetime(2024, 1, 1), end_date=datetime(2024, 1, 31)
         )
         db.add(iteration)
         db.commit()
@@ -132,11 +114,7 @@ class TestIterationModel:
         db.commit()
 
     def test_iteration_with_description(self, db, test_project):
-        iteration = Iteration(
-            project_id=test_project.id,
-            name="描述迭代",
-            description="第一个冲刺迭代"
-        )
+        iteration = Iteration(project_id=test_project.id, name="描述迭代", description="第一个冲刺迭代")
         db.add(iteration)
         db.commit()
         db.refresh(iteration)
@@ -146,11 +124,7 @@ class TestIterationModel:
 
     def test_iteration_version_values(self, db, test_project):
         for ver in ["v1.0", "v2.0", "v1.1-beta"]:
-            iteration = Iteration(
-                project_id=test_project.id,
-                name=f"版本迭代-{ver}",
-                version=ver
-            )
+            iteration = Iteration(project_id=test_project.id, name=f"版本迭代-{ver}", version=ver)
             db.add(iteration)
             db.commit()
             db.refresh(iteration)
@@ -159,4 +133,4 @@ class TestIterationModel:
             db.commit()
 
     def test_iteration_relationship(self):
-        assert hasattr(Iteration, 'project')
+        assert hasattr(Iteration, "project")

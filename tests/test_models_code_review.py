@@ -6,40 +6,32 @@ from app.models.user import User
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="cr_test_user",
-        email="cr_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="cr_test_user", email="cr_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
     db.query(ReviewComment).filter(ReviewComment.user_id == user.id).delete(synchronize_session=False)
-    db.query(ReviewMetric).filter(ReviewMetric.review_id.in_(
-        db.query(CodeReview.id).filter(
-            (CodeReview.reviewer_id == user.id) | (CodeReview.author_id == user.id)
+    db.query(ReviewMetric).filter(
+        ReviewMetric.review_id.in_(
+            db.query(CodeReview.id).filter((CodeReview.reviewer_id == user.id) | (CodeReview.author_id == user.id))
         )
-    )).delete(synchronize_session=False)
-    db.query(ReviewItem).filter(ReviewItem.review_id.in_(
-        db.query(CodeReview.id).filter(
-            (CodeReview.reviewer_id == user.id) | (CodeReview.author_id == user.id)
-        )
-    )).delete(synchronize_session=False)
-    db.query(CodeReview).filter(
-        (CodeReview.reviewer_id == user.id) | (CodeReview.author_id == user.id)
     ).delete(synchronize_session=False)
+    db.query(ReviewItem).filter(
+        ReviewItem.review_id.in_(
+            db.query(CodeReview.id).filter((CodeReview.reviewer_id == user.id) | (CodeReview.author_id == user.id))
+        )
+    ).delete(synchronize_session=False)
+    db.query(CodeReview).filter((CodeReview.reviewer_id == user.id) | (CodeReview.author_id == user.id)).delete(
+        synchronize_session=False
+    )
     db.delete(user)
     db.commit()
 
 
 @pytest.fixture
 def second_user(db):
-    user = User(
-        username="cr_second_user",
-        email="cr_second@example.com",
-        password_hash="hash"
-    )
+    user = User(username="cr_second_user", email="cr_second@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -55,7 +47,7 @@ class TestCodeReviewModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
@@ -77,7 +69,7 @@ class TestCodeReviewModel:
             repository="https://github.com/test/repo",
             branch="dev",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
@@ -98,7 +90,7 @@ class TestCodeReviewModel:
                 branch="main",
                 reviewer_id=test_user.id,
                 author_id=second_user.id,
-                status=status
+                status=status,
             )
             db.add(cr)
             db.commit()
@@ -115,7 +107,7 @@ class TestCodeReviewModel:
                 branch="main",
                 reviewer_id=test_user.id,
                 author_id=second_user.id,
-                review_type=rtype
+                review_type=rtype,
             )
             db.add(cr)
             db.commit()
@@ -132,7 +124,7 @@ class TestCodeReviewModel:
             commit_id="abc123def456",
             reviewer_id=test_user.id,
             author_id=second_user.id,
-            completed_at=datetime(2024, 6, 1)
+            completed_at=datetime(2024, 6, 1),
         )
         db.add(cr)
         db.commit()
@@ -148,7 +140,7 @@ class TestCodeReviewModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
@@ -166,7 +158,7 @@ class TestReviewItemModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
@@ -177,7 +169,7 @@ class TestReviewItemModel:
             line_start=10,
             line_end=20,
             issue_type="bug",
-            description="空指针风险"
+            description="空指针风险",
         )
         db.add(item)
         db.commit()
@@ -200,7 +192,7 @@ class TestReviewItemModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
@@ -211,7 +203,7 @@ class TestReviewItemModel:
             line_start=1,
             line_end=5,
             issue_type="style",
-            description="格式问题"
+            description="格式问题",
         )
         db.add(item)
         db.commit()
@@ -229,7 +221,7 @@ class TestReviewItemModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
@@ -242,7 +234,7 @@ class TestReviewItemModel:
                 line_end=2,
                 issue_type="bug",
                 description="问题",
-                severity=sev
+                severity=sev,
             )
             db.add(item)
             db.commit()
@@ -259,7 +251,7 @@ class TestReviewItemModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
@@ -272,7 +264,7 @@ class TestReviewItemModel:
                 line_end=2,
                 issue_type="bug",
                 description="问题",
-                status=status
+                status=status,
             )
             db.add(item)
             db.commit()
@@ -291,16 +283,12 @@ class TestReviewCommentModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
         db.refresh(cr)
-        comment = ReviewComment(
-            review_id=cr.id,
-            user_id=test_user.id,
-            content="这段代码需要优化"
-        )
+        comment = ReviewComment(review_id=cr.id, user_id=test_user.id, content="这段代码需要优化")
         db.add(comment)
         db.commit()
         db.refresh(comment)
@@ -319,16 +307,12 @@ class TestReviewCommentModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
         db.refresh(cr)
-        comment = ReviewComment(
-            review_id=cr.id,
-            user_id=test_user.id,
-            content="总体评价"
-        )
+        comment = ReviewComment(review_id=cr.id, user_id=test_user.id, content="总体评价")
         db.add(comment)
         db.commit()
         db.refresh(comment)
@@ -345,16 +329,12 @@ class TestReviewMetricModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
         db.refresh(cr)
-        metric = ReviewMetric(
-            review_id=cr.id,
-            metric_name="total_issues",
-            metric_value="5"
-        )
+        metric = ReviewMetric(review_id=cr.id, metric_name="total_issues", metric_value="5")
         db.add(metric)
         db.commit()
         db.refresh(metric)
@@ -373,17 +353,13 @@ class TestReviewMetricModel:
             repository="https://github.com/test/repo",
             branch="main",
             reviewer_id=test_user.id,
-            author_id=second_user.id
+            author_id=second_user.id,
         )
         db.add(cr)
         db.commit()
         db.refresh(cr)
         for name in ["total_issues", "coverage_score", "complexity_avg"]:
-            metric = ReviewMetric(
-                review_id=cr.id,
-                metric_name=name,
-                metric_value="10"
-            )
+            metric = ReviewMetric(review_id=cr.id, metric_name=name, metric_value="10")
             db.add(metric)
             db.commit()
             db.refresh(metric)

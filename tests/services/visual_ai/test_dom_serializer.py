@@ -5,6 +5,7 @@
     - compare_doms: 相同 DOM 无差异 / 新增元素 / 删除元素 / 属性变更
     - generate_diff_report: Markdown 格式报告生成
 """
+
 from __future__ import annotations
 
 import pytest
@@ -129,17 +130,12 @@ class TestCompareDoms:
         result = compare_doms(baseline, current)
 
         assert result.has_diff
-        assert any(
-            e.change_type == "attribute_changed" and "tag" in e.detail
-            for e in result.entries
-        )
+        assert any(e.change_type == "attribute_changed" and "tag" in e.detail for e in result.entries)
 
     def test_diff_result_to_dict(self) -> None:
         """DOMDiffResult.to_dict 返回完整结构。"""
         result = DOMDiffResult()
-        result.entries.append(
-            DOMDiffEntry(change_type="added", path="div > span#new", detail="tag=span")
-        )
+        result.entries.append(DOMDiffEntry(change_type="added", path="div > span#new", detail="tag=span"))
 
         d = result.to_dict()
         assert d["total_count"] == 1
@@ -160,9 +156,7 @@ class TestGenerateDiffReport:
     def test_report_with_dom_diff(self) -> None:
         """含 DOM 差异时生成表格。"""
         dom_diff = DOMDiffResult()
-        dom_diff.entries.append(
-            DOMDiffEntry(change_type="added", path="div > span", detail="tag=span")
-        )
+        dom_diff.entries.append(DOMDiffEntry(change_type="added", path="div > span", detail="tag=span"))
 
         report = generate_diff_report(
             pixel_diff_percentage=10.0,
@@ -186,9 +180,7 @@ class TestGenerateDiffReport:
     def test_report_with_all_components(self) -> None:
         """所有组件同时存在。"""
         dom_diff = DOMDiffResult()
-        dom_diff.entries.append(
-            DOMDiffEntry(change_type="removed", path="div > nav", detail="tag=nav")
-        )
+        dom_diff.entries.append(DOMDiffEntry(change_type="removed", path="div > nav", detail="tag=nav"))
 
         report = generate_diff_report(
             pixel_diff_percentage=20.0,

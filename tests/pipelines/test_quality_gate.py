@@ -2,6 +2,7 @@
 
 覆盖 plan §7.1 信号完整性公式的所有分支和边界场景。
 """
+
 import pytest
 
 from app.pipelines.steps.quality_gate import _compute_prior_score, _score_to_grade
@@ -268,27 +269,37 @@ class TestScoreClamping:
 class TestNoneArtifactSafety:
     def test_none_signals(self):
         score, grade, _ = _compute_prior_score(
-            case_data={}, tp={},
-            signals=None, inferred={}, aligned={},
-            iteration_id=0, db=_MOCK_DB,
+            case_data={},
+            tp={},
+            signals=None,
+            inferred={},
+            aligned={},
+            iteration_id=0,
+            db=_MOCK_DB,
         )
         assert score >= 0.0
 
     def test_none_inferred(self):
         score, grade, _ = _compute_prior_score(
-            case_data={}, tp={},
+            case_data={},
+            tp={},
             signals=_make_signals(has_ui=True),
-            inferred=None, aligned={},
-            iteration_id=0, db=_MOCK_DB,
+            inferred=None,
+            aligned={},
+            iteration_id=0,
+            db=_MOCK_DB,
         )
         assert score >= 0.0
 
     def test_none_aligned(self):
         score, grade, _ = _compute_prior_score(
-            case_data={}, tp={},
+            case_data={},
+            tp={},
             signals=_make_signals(has_ui=True),
-            inferred=_make_inferred(0.8), aligned=None,
-            iteration_id=0, db=_MOCK_DB,
+            inferred=_make_inferred(0.8),
+            aligned=None,
+            iteration_id=0,
+            db=_MOCK_DB,
         )
         assert score >= 0.0
 

@@ -14,6 +14,7 @@
 
 使用真实 MySQL 数据库。
 """
+
 import pytest
 from datetime import datetime, timedelta
 
@@ -66,7 +67,9 @@ def test_review_in_progress(db, test_review):
 class TestCreateReview:
     def test_creates_draft_review(self, db, test_iteration):
         review = review_service.create_review(
-            db=db, iteration_id=test_iteration.id, kind="forward",
+            db=db,
+            iteration_id=test_iteration.id,
+            kind="forward",
         )
         assert review.id is not None
         assert review.status == "draft"
@@ -75,7 +78,9 @@ class TestCreateReview:
     def test_invalid_kind_raises(self, db, test_iteration):
         with pytest.raises(ReviewError, match="Invalid review kind"):
             review_service.create_review(
-                db=db, iteration_id=test_iteration.id, kind="invalid",
+                db=db,
+                iteration_id=test_iteration.id,
+                kind="invalid",
             )
 
 
@@ -96,9 +101,12 @@ class TestStartReview:
 class TestAddDecision:
     def test_adds_decision(self, db, test_review):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=1,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=1,
+            ai_verdict="keep",
+            ai_confidence=90,
             ai_reason="No changes detected",
         )
         assert decision.id is not None
@@ -108,40 +116,54 @@ class TestAddDecision:
 
     def test_low_confidence_flag(self, db, test_review):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=2,
-            ai_verdict="modify", ai_confidence=50,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=2,
+            ai_verdict="modify",
+            ai_confidence=50,
         )
         assert decision.accepted_low_confidence is True
 
     def test_invalid_target_kind_raises(self, db, test_review):
         with pytest.raises(ReviewError, match="Invalid target_kind"):
             review_service.add_decision(
-                db=db, review_id=test_review.id,
-                target_kind="invalid", target_id=1,
-                ai_verdict="keep", ai_confidence=90,
+                db=db,
+                review_id=test_review.id,
+                target_kind="invalid",
+                target_id=1,
+                ai_verdict="keep",
+                ai_confidence=90,
             )
 
     def test_finalized_review_raises(self, db, test_review_in_progress, reviewer_id):
         review_service.finalize_review(db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id)
         with pytest.raises(ReviewFinalizedError):
             review_service.add_decision(
-                db=db, review_id=test_review_in_progress.id,
-                target_kind="case", target_id=1,
-                ai_verdict="keep", ai_confidence=90,
+                db=db,
+                review_id=test_review_in_progress.id,
+                target_kind="case",
+                target_id=1,
+                ai_verdict="keep",
+                ai_confidence=90,
             )
 
 
 class TestSetHumanVerdict:
     def test_overrides_ai_verdict(self, db, test_review, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=10,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=10,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         updated = review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="modify", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="modify",
+            human_user_id=reviewer_id,
             human_reason="Need more steps",
         )
         assert updated.final_verdict == "modify"
@@ -149,34 +171,46 @@ class TestSetHumanVerdict:
 
     def test_same_verdict_no_conflict(self, db, test_review, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=11,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=11,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         updated = review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="keep", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="keep",
+            human_user_id=reviewer_id,
         )
         assert updated.final_verdict == "keep"
         assert updated.conflict_marker is False
 
     def test_finalized_review_raises(self, db, test_review_in_progress, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review_in_progress.id,
-            target_kind="case", target_id=12,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review_in_progress.id,
+            target_kind="case",
+            target_id=12,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.finalize_review(db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id)
         with pytest.raises(ReviewFinalizedError):
             review_service.set_human_verdict(
-                db=db, decision_id=decision.id,
-                human_verdict="modify", human_user_id=reviewer_id,
+                db=db,
+                decision_id=decision.id,
+                human_verdict="modify",
+                human_user_id=reviewer_id,
             )
 
     def test_nonexistent_returns_none(self, db, reviewer_id):
         result = review_service.set_human_verdict(
-            db=db, decision_id=999999,
-            human_verdict="keep", human_user_id=reviewer_id,
+            db=db,
+            decision_id=999999,
+            human_verdict="keep",
+            human_user_id=reviewer_id,
         )
         assert result is None
 
@@ -184,16 +218,23 @@ class TestSetHumanVerdict:
 class TestRollbackDecision:
     def test_rollback_resets_human_verdict(self, db, test_review, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=20,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=20,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="modify", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="modify",
+            human_user_id=reviewer_id,
         )
         rolled_back = review_service.rollback_decision(
-            db=db, decision_id=decision.id, user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            user_id=reviewer_id,
         )
         assert rolled_back.human_verdict is None
         assert rolled_back.final_verdict == "keep"
@@ -201,14 +242,19 @@ class TestRollbackDecision:
 
     def test_finalized_review_raises(self, db, test_review_in_progress, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review_in_progress.id,
-            target_kind="case", target_id=21,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review_in_progress.id,
+            target_kind="case",
+            target_id=21,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.finalize_review(db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id)
         with pytest.raises(ReviewDecisionImmutableError):
             review_service.rollback_decision(
-                db=db, decision_id=decision.id, user_id=reviewer_id,
+                db=db,
+                decision_id=decision.id,
+                user_id=reviewer_id,
             )
 
     def test_nonexistent_returns_none(self, db):
@@ -219,11 +265,15 @@ class TestRollbackDecision:
 class TestFinalizeReview:
     def test_finalize_clears_locks(self, db, test_review_in_progress, reviewer_id):
         review_service.acquire_lock(
-            db=db, review_id=test_review_in_progress.id,
-            target_kind="case", target_id=30,
+            db=db,
+            review_id=test_review_in_progress.id,
+            target_kind="case",
+            target_id=30,
         )
         review = review_service.finalize_review(
-            db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id,
+            db=db,
+            review_id=test_review_in_progress.id,
+            finalized_by=reviewer_id,
         )
         assert review.status == "finalized"
         assert review.finalized_at is not None
@@ -253,37 +303,47 @@ class TestCancelReview:
 class TestAcquireLock:
     def test_acquire_lock(self, db, test_review):
         lock = review_service.acquire_lock(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=40,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=40,
         )
         assert lock.id is not None
         assert lock.expires_at > utcnow()
 
     def test_duplicate_lock_raises(self, db, test_review):
         review_service.acquire_lock(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=41,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=41,
         )
         with pytest.raises(ReviewLockConflictError):
             review_service.acquire_lock(
-                db=db, review_id=test_review.id,
-                target_kind="case", target_id=41,
+                db=db,
+                review_id=test_review.id,
+                target_kind="case",
+                target_id=41,
             )
 
     def test_finalized_review_raises(self, db, test_review_in_progress, reviewer_id):
         review_service.finalize_review(db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id)
         with pytest.raises(ReviewFinalizedError):
             review_service.acquire_lock(
-                db=db, review_id=test_review_in_progress.id,
-                target_kind="case", target_id=42,
+                db=db,
+                review_id=test_review_in_progress.id,
+                target_kind="case",
+                target_id=42,
             )
 
 
 class TestReleaseLock:
     def test_release_lock(self, db, test_review):
         lock = review_service.acquire_lock(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=50,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=50,
         )
         result = review_service.release_lock(db=db, lock_id=lock.id)
         assert result is True
@@ -340,7 +400,9 @@ class TestListReviews:
     def test_filter_by_status(self, db, test_iteration):
         review_service.create_review(db=db, iteration_id=test_iteration.id, kind="backward")
         reviews = review_service.list_reviews(
-            db=db, iteration_id=test_iteration.id, status="draft",
+            db=db,
+            iteration_id=test_iteration.id,
+            status="draft",
         )
         assert all(r.status == "draft" for r in reviews)
 
@@ -349,40 +411,55 @@ class TestAddDecisionValidation:
     def test_invalid_ai_verdict_raises(self, db, test_review):
         with pytest.raises(ReviewError, match="Invalid ai_verdict"):
             review_service.add_decision(
-                db=db, review_id=test_review.id,
-                target_kind="case", target_id=1,
-                ai_verdict="invalid", ai_confidence=90,
+                db=db,
+                review_id=test_review.id,
+                target_kind="case",
+                target_id=1,
+                ai_verdict="invalid",
+                ai_confidence=90,
             )
 
     def test_confidence_below_zero_raises(self, db, test_review):
         with pytest.raises(ReviewError, match="Invalid ai_confidence"):
             review_service.add_decision(
-                db=db, review_id=test_review.id,
-                target_kind="case", target_id=1,
-                ai_verdict="keep", ai_confidence=-1,
+                db=db,
+                review_id=test_review.id,
+                target_kind="case",
+                target_id=1,
+                ai_verdict="keep",
+                ai_confidence=-1,
             )
 
     def test_confidence_above_100_raises(self, db, test_review):
         with pytest.raises(ReviewError, match="Invalid ai_confidence"):
             review_service.add_decision(
-                db=db, review_id=test_review.id,
-                target_kind="case", target_id=1,
-                ai_verdict="keep", ai_confidence=101,
+                db=db,
+                review_id=test_review.id,
+                target_kind="case",
+                target_id=1,
+                ai_verdict="keep",
+                ai_confidence=101,
             )
 
     def test_confidence_boundary_zero(self, db, test_review):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=2,
-            ai_verdict="keep", ai_confidence=0,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=2,
+            ai_verdict="keep",
+            ai_confidence=0,
         )
         assert decision.accepted_low_confidence is True
 
     def test_confidence_boundary_100(self, db, test_review):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=3,
-            ai_verdict="keep", ai_confidence=100,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=3,
+            ai_verdict="keep",
+            ai_confidence=100,
         )
         assert decision.accepted_low_confidence is False
 
@@ -390,26 +467,36 @@ class TestAddDecisionValidation:
 class TestSetHumanVerdictValidation:
     def test_invalid_human_verdict_raises(self, db, test_review, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=70,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=70,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         with pytest.raises(ReviewError, match="Invalid human_verdict"):
             review_service.set_human_verdict(
-                db=db, decision_id=decision.id,
-                human_verdict="invalid", human_user_id=reviewer_id,
+                db=db,
+                decision_id=decision.id,
+                human_verdict="invalid",
+                human_user_id=reviewer_id,
             )
 
     def test_human_verdict_resets_low_confidence(self, db, test_review, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=71,
-            ai_verdict="modify", ai_confidence=50,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=71,
+            ai_verdict="modify",
+            ai_confidence=50,
         )
         assert decision.accepted_low_confidence is True
         updated = review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="modify", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="modify",
+            human_user_id=reviewer_id,
         )
         assert updated.accepted_low_confidence is False
 
@@ -417,17 +504,24 @@ class TestSetHumanVerdictValidation:
 class TestRollbackDecisionRecalculation:
     def test_rollback_restores_low_confidence_flag(self, db, test_review, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=80,
-            ai_verdict="modify", ai_confidence=50,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=80,
+            ai_verdict="modify",
+            ai_confidence=50,
         )
         assert decision.accepted_low_confidence is True
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="modify", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="modify",
+            human_user_id=reviewer_id,
         )
         rolled_back = review_service.rollback_decision(
-            db=db, decision_id=decision.id, user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            user_id=reviewer_id,
         )
         assert rolled_back.accepted_low_confidence is True
 
@@ -435,8 +529,10 @@ class TestRollbackDecisionRecalculation:
 class TestCancelReviewClearsLocks:
     def test_cancel_clears_locks(self, db, test_review):
         review_service.acquire_lock(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=90,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=90,
         )
         review = review_service.cancel_review(db=db, review_id=test_review.id)
         assert review.status == "cancelled"
@@ -447,9 +543,12 @@ class TestAddDecisionReviewNotFound:
     def test_add_decision_nonexistent_review_raises(self, db):
         with pytest.raises(ReviewError, match="not found"):
             review_service.add_decision(
-                db=db, review_id=99999,
-                target_kind="case", target_id=1,
-                ai_verdict="keep", ai_confidence=90,
+                db=db,
+                review_id=99999,
+                target_kind="case",
+                target_id=1,
+                ai_verdict="keep",
+                ai_confidence=90,
             )
 
 
@@ -463,8 +562,10 @@ class TestAcquireLockReviewNotFound:
     def test_acquire_lock_nonexistent_review_raises(self, db):
         with pytest.raises(ReviewError, match="not found"):
             review_service.acquire_lock(
-                db=db, review_id=99999,
-                target_kind="case", target_id=1,
+                db=db,
+                review_id=99999,
+                target_kind="case",
+                target_id=1,
             )
 
 
@@ -482,32 +583,45 @@ class TestGetReview:
 class TestGetDecisions:
     def test_get_decisions_without_filter(self, db, test_review):
         review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=200,
-            ai_verdict="keep", ai_confidence=80,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=200,
+            ai_verdict="keep",
+            ai_confidence=80,
         )
         decisions = review_service.get_decisions(db=db, review_id=test_review.id)
         assert len(decisions) >= 1
 
     def test_get_decisions_with_target_kind_filter(self, db, test_review):
         review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=201,
-            ai_verdict="keep", ai_confidence=80,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=201,
+            ai_verdict="keep",
+            ai_confidence=80,
         )
         review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="testpoint", target_id=202,
-            ai_verdict="modify", ai_confidence=60,
+            db=db,
+            review_id=test_review.id,
+            target_kind="testpoint",
+            target_id=202,
+            ai_verdict="modify",
+            ai_confidence=60,
         )
         decisions = review_service.get_decisions(
-            db=db, review_id=test_review.id, target_kind="case",
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
         )
         assert all(d.target_kind == "case" for d in decisions)
 
     def test_get_decisions_empty_result(self, db, test_review):
         decisions = review_service.get_decisions(
-            db=db, review_id=test_review.id, target_kind="nonexistent",
+            db=db,
+            review_id=test_review.id,
+            target_kind="nonexistent",
         )
         assert len(decisions) == 0
 
@@ -533,13 +647,18 @@ class TestUndoDecision:
 
     def test_undo_deprecate_restores_active(self, db, test_review_in_progress, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review_in_progress.id,
-            target_kind="case", target_id=self.case_id,
-            ai_verdict="deprecate", ai_confidence=90,
+            db=db,
+            review_id=test_review_in_progress.id,
+            target_kind="case",
+            target_id=self.case_id,
+            ai_verdict="deprecate",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="deprecate", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="deprecate",
+            human_user_id=reviewer_id,
         )
         enable_lifecycle_transition()
         self.case.lifecycle_status = "deprecated"
@@ -547,7 +666,9 @@ class TestUndoDecision:
         disable_lifecycle_transition()
 
         review_service.finalize_review(
-            db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id,
+            db=db,
+            review_id=test_review_in_progress.id,
+            finalized_by=reviewer_id,
         )
         db.flush()
 
@@ -561,16 +682,23 @@ class TestUndoDecision:
 
     def test_undo_within_window_succeeds(self, db, test_review_in_progress, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review_in_progress.id,
-            target_kind="case", target_id=self.case_id,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review_in_progress.id,
+            target_kind="case",
+            target_id=self.case_id,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="keep", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="keep",
+            human_user_id=reviewer_id,
         )
         review_service.finalize_review(
-            db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id,
+            db=db,
+            review_id=test_review_in_progress.id,
+            finalized_by=reviewer_id,
         )
         db.flush()
 
@@ -582,16 +710,23 @@ class TestUndoDecision:
 
     def test_undo_window_expired_raises(self, db, test_review_in_progress, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review_in_progress.id,
-            target_kind="case", target_id=self.case_id,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review_in_progress.id,
+            target_kind="case",
+            target_id=self.case_id,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="keep", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="keep",
+            human_user_id=reviewer_id,
         )
         review = review_service.finalize_review(
-            db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id,
+            db=db,
+            review_id=test_review_in_progress.id,
+            finalized_by=reviewer_id,
         )
         review.finalized_at = utcnow() - timedelta(minutes=61)
         db.flush()
@@ -601,9 +736,12 @@ class TestUndoDecision:
 
     def test_undo_not_finalized_raises(self, db, test_review, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review.id,
-            target_kind="case", target_id=self.case_id,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review.id,
+            target_kind="case",
+            target_id=self.case_id,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         with pytest.raises(ReviewNotFinalizedError):
             review_service.undo_decision(db, decision.id, reviewer_id)
@@ -630,13 +768,18 @@ class TestUndoDecision:
         db.flush()
 
         decision = review_service.add_decision(
-            db=db, review_id=test_review_in_progress.id,
-            target_kind="case", target_id=self.case_id,
-            ai_verdict="modify", ai_confidence=90,
+            db=db,
+            review_id=test_review_in_progress.id,
+            target_kind="case",
+            target_id=self.case_id,
+            ai_verdict="modify",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="modify", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="modify",
+            human_user_id=reviewer_id,
         )
         enable_lifecycle_transition()
         self.case.lifecycle_status = "needs_modify"
@@ -644,7 +787,9 @@ class TestUndoDecision:
         disable_lifecycle_transition()
 
         review_service.finalize_review(
-            db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id,
+            db=db,
+            review_id=test_review_in_progress.id,
+            finalized_by=reviewer_id,
         )
         db.flush()
 
@@ -660,22 +805,23 @@ class TestUndoDecision:
         disable_lifecycle_transition()
 
         decision = review_service.add_decision(
-            db=db, review_id=test_review_in_progress.id,
-            target_kind="case", target_id=self.case_id,
-            ai_verdict="keep", ai_confidence=90,
+            db=db,
+            review_id=test_review_in_progress.id,
+            target_kind="case",
+            target_id=self.case_id,
+            ai_verdict="keep",
+            ai_confidence=90,
         )
         review_service.finalize_review(
-            db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id,
+            db=db,
+            review_id=test_review_in_progress.id,
+            finalized_by=reviewer_id,
         )
         db.flush()
 
         review_service.undo_decision(db, decision.id, reviewer_id)
 
-        restored_cases = (
-            db.query(TestCase)
-            .filter(TestCase.case_no.like(f"{self.case.case_no}%-restored%"))
-            .all()
-        )
+        restored_cases = db.query(TestCase).filter(TestCase.case_no.like(f"{self.case.case_no}%-restored%")).all()
         assert len(restored_cases) >= 1
         assert restored_cases[0].lifecycle_status == "draft"
 
@@ -701,13 +847,18 @@ class TestUndoFinalize:
 
     def test_undo_finalize_restores_in_progress(self, db, test_review_in_progress, reviewer_id):
         decision = review_service.add_decision(
-            db=db, review_id=test_review_in_progress.id,
-            target_kind="case", target_id=self.case_id,
-            ai_verdict="deprecate", ai_confidence=90,
+            db=db,
+            review_id=test_review_in_progress.id,
+            target_kind="case",
+            target_id=self.case_id,
+            ai_verdict="deprecate",
+            ai_confidence=90,
         )
         review_service.set_human_verdict(
-            db=db, decision_id=decision.id,
-            human_verdict="deprecate", human_user_id=reviewer_id,
+            db=db,
+            decision_id=decision.id,
+            human_verdict="deprecate",
+            human_user_id=reviewer_id,
         )
         enable_lifecycle_transition()
         self.case.lifecycle_status = "deprecated"
@@ -715,7 +866,9 @@ class TestUndoFinalize:
         disable_lifecycle_transition()
 
         review_service.finalize_review(
-            db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id,
+            db=db,
+            review_id=test_review_in_progress.id,
+            finalized_by=reviewer_id,
         )
         db.flush()
 
@@ -733,7 +886,9 @@ class TestUndoFinalize:
 
     def test_undo_finalize_window_expired_raises(self, db, test_review_in_progress, reviewer_id):
         review = review_service.finalize_review(
-            db=db, review_id=test_review_in_progress.id, finalized_by=reviewer_id,
+            db=db,
+            review_id=test_review_in_progress.id,
+            finalized_by=reviewer_id,
         )
         review.finalized_at = utcnow() - timedelta(minutes=61)
         db.flush()

@@ -117,9 +117,7 @@ class TestTestCaseCrudAPI:
         resp = await async_auth_client.get("/api/v1/test-case/99999")
         assert resp.status_code in (404, 500)
 
-    async def test_delete_with_project_scope(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_delete_with_project_scope(self, async_db, async_auth_client, async_test_project):
         from app.models.test_case import TestCase
 
         case = TestCase(
@@ -146,9 +144,7 @@ class TestTestCaseCrudAPI:
         assert case.is_deleted is True
 
     # 以下 2 个测试针对 test_case_crud_batch.py 的 batch 端点（已迁移至 async，Task 15）。
-    async def test_batch_delete_with_project_scope(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_batch_delete_with_project_scope(self, async_db, async_auth_client, async_test_project):
         from app.models.test_case import TestCase
 
         case = TestCase(
@@ -176,9 +172,7 @@ class TestTestCaseCrudAPI:
         await async_db.refresh(case)
         assert case.is_deleted is True
 
-    async def test_batch_restore_with_project_scope(
-        self, async_db, async_auth_client, async_test_project
-    ):
+    async def test_batch_restore_with_project_scope(self, async_db, async_auth_client, async_test_project):
         from app.models.test_case import TestCase
 
         case = TestCase(

@@ -13,6 +13,7 @@ M1-T06 IterationService 单元测试
 9. IterationPipelineStatus 枚举值正确性
 10. IterationInput 枚举值正确性
 """
+
 import pytest
 from datetime import datetime, timezone
 
@@ -36,6 +37,7 @@ from app.services.iteration_service import (
 
 # ==================== Fixtures ====================
 
+
 @pytest.fixture
 def test_user(db):
     user = User(username="iter_test_user", email="iter_test@example.com", password_hash="hash")
@@ -45,14 +47,14 @@ def test_user(db):
     yield user
     db.query(IterationInput).filter(
         IterationInput.iteration_id.in_(
-            db.query(Iteration.id).filter(Iteration.project_id.in_(
-                db.query(Project.id).filter(Project.user_id == user.id)
-            ))
+            db.query(Iteration.id).filter(
+                Iteration.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+            )
         )
     ).delete(synchronize_session=False)
-    db.query(Iteration).filter(Iteration.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(Iteration).filter(
+        Iteration.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+    ).delete(synchronize_session=False)
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.flush()
@@ -85,13 +87,17 @@ def _create_iteration(db, project_id, name="Sprint 1", **kwargs):
 
 # ==================== create_iteration ====================
 
+
 class TestCreateIteration:
     """迭代创建测试"""
 
     def test_create_success(self, db, test_project, test_user):
         it = create_iteration(
-            db, test_project.id, "Sprint 1",
-            version="v1.0", created_by=test_user.id,
+            db,
+            test_project.id,
+            "Sprint 1",
+            version="v1.0",
+            created_by=test_user.id,
         )
         assert it.id is not None
         assert it.project_id == test_project.id
@@ -107,10 +113,11 @@ class TestCreateIteration:
 
     def test_create_with_base_iteration(self, db, test_project, test_user):
         # 先创建一个 finalized 的基线迭代
-        base = _create_iteration(db, test_project.id, "Base Sprint",
-                                 status=IterationPipelineStatus.FINALIZED.value)
+        base = _create_iteration(db, test_project.id, "Base Sprint", status=IterationPipelineStatus.FINALIZED.value)
         it = create_iteration(
-            db, test_project.id, "Sprint 2",
+            db,
+            test_project.id,
+            "Sprint 2",
             base_iteration_id=base.id,
             created_by=test_user.id,
         )
@@ -119,7 +126,9 @@ class TestCreateIteration:
     def test_base_iteration_not_found(self, db, test_project, test_user):
         with pytest.raises(BaseIterationValidationError, match="不存在"):
             create_iteration(
-                db, test_project.id, "Sprint 1",
+                db,
+                test_project.id,
+                "Sprint 1",
                 base_iteration_id=99999,
                 created_by=test_user.id,
             )
@@ -131,27 +140,30 @@ class TestCreateIteration:
         db.add_all([proj_a, proj_b])
         db.flush()
 
-        base = _create_iteration(db, proj_a.id, "Base",
-                                 status=IterationPipelineStatus.FINALIZED.value)
+        base = _create_iteration(db, proj_a.id, "Base", status=IterationPipelineStatus.FINALIZED.value)
         with pytest.raises(BaseIterationValidationError, match="不属于项目"):
             create_iteration(
-                db, proj_b.id, "Sprint 1",
+                db,
+                proj_b.id,
+                "Sprint 1",
                 base_iteration_id=base.id,
                 created_by=test_user.id,
             )
 
     def test_base_iteration_not_finalized(self, db, test_project, test_user):
-        base = _create_iteration(db, test_project.id, "Base Sprint",
-                                 status=IterationPipelineStatus.DRAFT.value)
+        base = _create_iteration(db, test_project.id, "Base Sprint", status=IterationPipelineStatus.DRAFT.value)
         with pytest.raises(BaseIterationValidationError, match="必须为 finalized"):
             create_iteration(
-                db, test_project.id, "Sprint 2",
+                db,
+                test_project.id,
+                "Sprint 2",
                 base_iteration_id=base.id,
                 created_by=test_user.id,
             )
 
 
 # ==================== add_input ====================
+
 
 class TestAddInput:
     """迭代输入添加测试"""
@@ -160,6 +172,7 @@ class TestAddInput:
         it = create_iteration(db, test_project.id, "Sprint 1", created_by=test_user.id)
         # 创建真实 ProjectFile 以满足 FK 约束
         from app.models.project import ProjectFile
+
         pf = ProjectFile(
             project_id=test_project.id,
             file_name="test_prd.docx",
@@ -170,8 +183,11 @@ class TestAddInput:
         db.add(pf)
         db.flush()
         inp = add_input(
-            db, it.id, IterationInputKind.PRD.value,
-            file_id=pf.id, hash_value="abc123",
+            db,
+            it.id,
+            IterationInputKind.PRD.value,
+            file_id=pf.id,
+            hash_value="abc123",
         )
         assert inp.id is not None
         assert inp.iteration_id == it.id
@@ -183,8 +199,11 @@ class TestAddInput:
         it = create_iteration(db, test_project.id, "Sprint 1", created_by=test_user.id)
         payload = {"form_field": "value", "priority": "high"}
         inp = add_input(
-            db, it.id, IterationInputKind.SUPPLEMENT_FORM.value,
-            payload=payload, hash_value="def456",
+            db,
+            it.id,
+            IterationInputKind.SUPPLEMENT_FORM.value,
+            payload=payload,
+            hash_value="def456",
         )
         assert inp.payload == payload
         assert inp.file_id is None
@@ -225,6 +244,7 @@ class TestAddInput:
 
 # ==================== list_iterations / get_iteration ====================
 
+
 class TestListAndGetIteration:
     """迭代查询测试"""
 
@@ -236,7 +256,7 @@ class TestListAndGetIteration:
 
     def test_list_iterations_pagination(self, db, test_project, test_user):
         for i in range(5):
-            create_iteration(db, test_project.id, f"Sprint {i+1}", created_by=test_user.id)
+            create_iteration(db, test_project.id, f"Sprint {i + 1}", created_by=test_user.id)
         page1 = list_iterations(db, test_project.id, skip=0, limit=2)
         page2 = list_iterations(db, test_project.id, skip=2, limit=2)
         assert len(page1) == 2
@@ -263,31 +283,28 @@ class TestListAndGetIteration:
 
 # ==================== finalize_iteration ====================
 
+
 class TestFinalizeIteration:
     """迭代定稿测试"""
 
     def test_finalize_success(self, db, test_project, test_user):
-        it = _create_iteration(db, test_project.id, "Sprint 1",
-                               status=IterationPipelineStatus.IN_REVIEW.value)
+        it = _create_iteration(db, test_project.id, "Sprint 1", status=IterationPipelineStatus.IN_REVIEW.value)
         result = finalize_iteration(db, it.id)
         assert result.status == IterationPipelineStatus.FINALIZED.value
         assert result.finalized_at is not None
 
     def test_finalize_wrong_status_draft(self, db, test_project, test_user):
-        it = _create_iteration(db, test_project.id, "Sprint 1",
-                               status=IterationPipelineStatus.DRAFT.value)
+        it = _create_iteration(db, test_project.id, "Sprint 1", status=IterationPipelineStatus.DRAFT.value)
         with pytest.raises(IterationStatusTransitionError):
             finalize_iteration(db, it.id)
 
     def test_finalize_wrong_status_in_pipeline(self, db, test_project, test_user):
-        it = _create_iteration(db, test_project.id, "Sprint 1",
-                               status=IterationPipelineStatus.IN_PIPELINE.value)
+        it = _create_iteration(db, test_project.id, "Sprint 1", status=IterationPipelineStatus.IN_PIPELINE.value)
         with pytest.raises(IterationStatusTransitionError):
             finalize_iteration(db, it.id)
 
     def test_finalize_already_finalized(self, db, test_project, test_user):
-        it = _create_iteration(db, test_project.id, "Sprint 1",
-                               status=IterationPipelineStatus.FINALIZED.value)
+        it = _create_iteration(db, test_project.id, "Sprint 1", status=IterationPipelineStatus.FINALIZED.value)
         with pytest.raises(IterationStatusTransitionError):
             finalize_iteration(db, it.id)
 
@@ -298,6 +315,7 @@ class TestFinalizeIteration:
 
 # ==================== transition_iteration_status ====================
 
+
 class TestTransitionIterationStatus:
     """迭代状态迁移测试"""
 
@@ -307,21 +325,18 @@ class TestTransitionIterationStatus:
         assert result.status == IterationPipelineStatus.IN_PIPELINE.value
 
     def test_in_pipeline_to_in_review(self, db, test_project):
-        it = _create_iteration(db, test_project.id, "Sprint 1",
-                               status=IterationPipelineStatus.IN_PIPELINE.value)
+        it = _create_iteration(db, test_project.id, "Sprint 1", status=IterationPipelineStatus.IN_PIPELINE.value)
         result = transition_iteration_status(db, it.id, IterationPipelineStatus.IN_REVIEW.value)
         assert result.status == IterationPipelineStatus.IN_REVIEW.value
 
     def test_in_review_to_finalized(self, db, test_project):
-        it = _create_iteration(db, test_project.id, "Sprint 1",
-                               status=IterationPipelineStatus.IN_REVIEW.value)
+        it = _create_iteration(db, test_project.id, "Sprint 1", status=IterationPipelineStatus.IN_REVIEW.value)
         result = transition_iteration_status(db, it.id, IterationPipelineStatus.FINALIZED.value)
         assert result.status == IterationPipelineStatus.FINALIZED.value
         assert result.finalized_at is not None
 
     def test_finalized_to_archived(self, db, test_project):
-        it = _create_iteration(db, test_project.id, "Sprint 1",
-                               status=IterationPipelineStatus.FINALIZED.value)
+        it = _create_iteration(db, test_project.id, "Sprint 1", status=IterationPipelineStatus.FINALIZED.value)
         result = transition_iteration_status(db, it.id, IterationPipelineStatus.ARCHIVED.value)
         assert result.status == IterationPipelineStatus.ARCHIVED.value
 
@@ -331,14 +346,12 @@ class TestTransitionIterationStatus:
             transition_iteration_status(db, it.id, IterationPipelineStatus.FINALIZED.value)
 
     def test_illegal_in_pipeline_to_archived(self, db, test_project):
-        it = _create_iteration(db, test_project.id, "Sprint 1",
-                               status=IterationPipelineStatus.IN_PIPELINE.value)
+        it = _create_iteration(db, test_project.id, "Sprint 1", status=IterationPipelineStatus.IN_PIPELINE.value)
         with pytest.raises(IterationStatusTransitionError):
             transition_iteration_status(db, it.id, IterationPipelineStatus.ARCHIVED.value)
 
     def test_illegal_reverse_transition(self, db, test_project):
-        it = _create_iteration(db, test_project.id, "Sprint 1",
-                               status=IterationPipelineStatus.IN_PIPELINE.value)
+        it = _create_iteration(db, test_project.id, "Sprint 1", status=IterationPipelineStatus.IN_PIPELINE.value)
         with pytest.raises(IterationStatusTransitionError):
             transition_iteration_status(db, it.id, IterationPipelineStatus.DRAFT.value)
 
@@ -348,6 +361,7 @@ class TestTransitionIterationStatus:
 
 
 # ==================== Enum ====================
+
 
 class TestEnums:
     """枚举值正确性测试"""

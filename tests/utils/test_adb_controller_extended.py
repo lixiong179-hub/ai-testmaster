@@ -107,7 +107,11 @@ class TestDeviceMixin:
     @pytest.mark.asyncio
     async def test_list_devices(self):
         ctrl = _ConcreteController()
-        with patch.object(ctrl, "_execute_command", return_value=(0, "List of devices attached\ndevice123\tdevice\tmodel:Pixel6\n", "")):
+        with patch.object(
+            ctrl,
+            "_execute_command",
+            return_value=(0, "List of devices attached\ndevice123\tdevice\tmodel:Pixel6\n", ""),
+        ):
             devices = await ctrl.list_devices()
             assert len(devices) == 1
             assert devices[0].udid == "device123"

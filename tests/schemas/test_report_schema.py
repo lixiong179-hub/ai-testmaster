@@ -22,8 +22,10 @@ class TestTestReportBase:
 
     def test_with_optional_fields(self):
         base = TestReportBase(
-            name="报告", project_id=1,
-            description="描述", test_task_id=2,
+            name="报告",
+            project_id=1,
+            description="描述",
+            test_task_id=2,
         )
         assert base.description == "描述"
         assert base.test_task_id == 2
@@ -56,8 +58,11 @@ class TestTestCaseResult:
 
     def test_with_all_fields(self):
         result = TestCaseResult(
-            case_id=1, case_name="测试", status="failed",
-            execution_time=1.5, error_message="超时",
+            case_id=1,
+            case_name="测试",
+            status="failed",
+            execution_time=1.5,
+            error_message="超时",
             steps=[{"step": 1, "action": "click"}],
         )
         assert result.error_message == "超时"

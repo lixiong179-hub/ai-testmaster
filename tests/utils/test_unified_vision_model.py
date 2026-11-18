@@ -42,7 +42,13 @@ class TestElementInfo:
 
     def test_boundary_confidence(self):
         elem = ElementInfo(
-            type="input", text="", x=0, y=0, width=1, height=1, confidence=0.0,
+            type="input",
+            text="",
+            x=0,
+            y=0,
+            width=1,
+            height=1,
+            confidence=0.0,
         )
         assert elem.confidence == 0.0
 
@@ -74,15 +80,18 @@ class TestModelProviderConfigs:
 class TestCreateVisionModel:
     def test_create_default(self):
         from app.utils.unified_vision_model._model import create_vision_model
+
         model = create_vision_model("mimo")
         assert model is not None
 
     def test_create_with_invalid_type(self):
         from app.utils.unified_vision_model._model import create_vision_model
+
         model = create_vision_model("nonexistent_type")
         assert model is not None
 
     def test_create_with_none(self):
         from app.utils.unified_vision_model._model import create_vision_model
+
         model = create_vision_model(None)
         assert model is not None

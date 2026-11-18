@@ -9,6 +9,7 @@
     - legacy_case_no保留: Excel导入场景原始编号保留
     - 批量生成: generate_batch连续编号
 """
+
 import re
 import threading
 from typing import List
@@ -27,6 +28,7 @@ import app.models  # noqa: F401
 
 
 # ==================== Fixtures ====================
+
 
 @pytest.fixture(scope="module")
 def _engine():
@@ -73,6 +75,7 @@ _PROJECT_ID_2 = 9992
 
 # ==================== 格式校验 ====================
 
+
 class TestCaseNumberFormat:
     """编号格式校验。"""
 
@@ -98,6 +101,7 @@ class TestCaseNumberFormat:
 
 # ==================== 连续递增 ====================
 
+
 class TestCaseNumberSequence:
     """编号连续递增。"""
 
@@ -116,6 +120,7 @@ class TestCaseNumberSequence:
 
 
 # ==================== 并发安全 ====================
+
 
 class TestCaseNumberConcurrency:
     """并发安全测试。"""
@@ -140,9 +145,7 @@ class TestCaseNumberConcurrency:
 
         # 预创建序列行，避免并发INSERT导致UNIQUE冲突
         with sessionmaker(bind=_engine)() as prepSession:
-            existing = prepSession.query(CaseNumberSeq).filter(
-                CaseNumberSeq.project_id == concurrentProjectId
-            ).first()
+            existing = prepSession.query(CaseNumberSeq).filter(CaseNumberSeq.project_id == concurrentProjectId).first()
             if not existing:
                 prepSession.add(CaseNumberSeq(project_id=concurrentProjectId, current_seq=0))
                 prepSession.commit()
@@ -180,6 +183,7 @@ class TestCaseNumberConcurrency:
 
 # ==================== seq溢出扩展 ====================
 
+
 class TestCaseNumberOverflow:
     """seq溢出自动扩展位数。"""
 
@@ -207,6 +211,7 @@ class TestCaseNumberOverflow:
 
 # ==================== 跳号不复用 ====================
 
+
 class TestCaseNumberNoReuse:
     """跳号不复用测试。"""
 
@@ -228,17 +233,20 @@ class TestCaseNumberNoReuse:
 
 # ==================== legacy_case_no保留 ====================
 
+
 class TestLegacyCaseNo:
     """Excel导入场景原始编号保留到legacy_case_no。"""
 
     def test_legacy_case_no_field_exists(self):
         """验证TestCase模型有legacy_case_no字段。"""
         from app.models.test_case import TestCase
+
         assert hasattr(TestCase, "legacy_case_no"), "TestCase应有legacy_case_no字段"
 
     def test_legacy_case_no_saved(self, db):
         """验证Excel导入时原始编号保留到legacy_case_no字段。"""
         from app.models.test_case import TestCase
+
         legacyProjectId = 9006
         caseNo = CaseNumberService.generate(legacyProjectId, db)
         originalNo = "CASE-LEGACY-001"
@@ -264,6 +272,7 @@ class TestLegacyCaseNo:
     def test_legacy_case_no_none_when_empty(self, db):
         """验证无原始编号时legacy_case_no为None。"""
         from app.models.test_case import TestCase
+
         legacyProjectId2 = 9007
         caseNo = CaseNumberService.generate(legacyProjectId2, db)
 
@@ -286,6 +295,7 @@ class TestLegacyCaseNo:
 
 
 # ==================== 批量生成 ====================
+
 
 class TestCaseNumberBatch:
     """批量生成编号测试。"""
@@ -318,12 +328,11 @@ class TestCaseNumberBatch:
         batchLastSeq = int(batchNos[-1].split("-")[-1])
         singleSeq = int(singleNo.split("-")[-1])
 
-        assert singleSeq == batchLastSeq + 1, (
-            f"批量后单条编号应连续: batch_last={batchLastSeq}, single={singleSeq}"
-        )
+        assert singleSeq == batchLastSeq + 1, f"批量后单条编号应连续: batch_last={batchLastSeq}, single={singleSeq}"
 
 
 # ==================== 多项目隔离 ====================
+
 
 class TestCaseNumberProjectIsolation:
     """多项目编号隔离测试。"""

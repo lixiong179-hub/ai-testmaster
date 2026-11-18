@@ -75,7 +75,9 @@ class TestTestObjectInfo:
 
     def test_validate_app_success(self):
         info = TestObjectInfo(
-            type=TestObjectType.APP, device_id="device1", app_package="com.example",
+            type=TestObjectType.APP,
+            device_id="device1",
+            app_package="com.example",
         )
         info.validate_app()
 
@@ -93,7 +95,9 @@ class TestTestObjectInfo:
 class TestLoginFormInfo:
     def test_is_complete(self):
         form = LoginFormInfo(
-            username_input={"x": 1}, password_input={"x": 2}, submit_button={"x": 3},
+            username_input={"x": 1},
+            password_input={"x": 2},
+            submit_button={"x": 3},
         )
         assert form.is_complete() is True
 
@@ -113,13 +117,17 @@ class TestLoginFormInfo:
 class TestMobileLoginFormInfo:
     def test_is_complete_account_login(self):
         form = MobileLoginFormInfo(
-            username_input={"x": 1}, password_input={"x": 2}, submit_button={"x": 3},
+            username_input={"x": 1},
+            password_input={"x": 2},
+            submit_button={"x": 3},
         )
         assert form.is_complete() is True
 
     def test_is_complete_phone_login(self):
         form = MobileLoginFormInfo(
-            phone_input={"x": 1}, sms_code_input={"x": 2}, submit_button={"x": 3},
+            phone_input={"x": 1},
+            sms_code_input={"x": 2},
+            submit_button={"x": 3},
         )
         assert form.is_complete() is True
 

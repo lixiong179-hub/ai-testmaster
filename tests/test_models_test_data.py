@@ -9,8 +9,17 @@ from app.models.user import User
 class TestDataTypeEnum:
     def test_all_values(self):
         expected = {
-            "text", "number", "date", "datetime", "email",
-            "phone", "enum", "boolean", "url", "id_card", "bank_card"
+            "text",
+            "number",
+            "date",
+            "datetime",
+            "email",
+            "phone",
+            "enum",
+            "boolean",
+            "url",
+            "id_card",
+            "bank_card",
         }
         actual = {e.value for e in DataType}
         assert actual == expected
@@ -33,10 +42,7 @@ class TestDataTypeEnum:
 
 class TestGenerationRuleEnum:
     def test_all_values(self):
-        expected = {
-            "random", "boundary_min", "boundary_max",
-            "boundary_over", "special_chars", "empty", "custom"
-        }
+        expected = {"random", "boundary_min", "boundary_max", "boundary_over", "special_chars", "empty", "custom"}
         actual = {e.value for e in GenerationRule}
         assert actual == expected
 
@@ -57,30 +63,32 @@ class TestGenerationRuleEnum:
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        username="td_test_user",
-        email="td_test@example.com",
-        password_hash="hash"
-    )
+    user = User(username="td_test_user", email="td_test@example.com", password_hash="hash")
     db.add(user)
     db.commit()
     db.refresh(user)
     yield user
-    db.query(TestData).filter(TestData.step_id.in_(
-        db.query(TestStep.id).filter(TestStep.test_case_id.in_(
-            db.query(TestCase.id).filter(TestCase.project_id.in_(
-                db.query(Project.id).filter(Project.user_id == user.id)
-            ))
-        ))
-    )).delete(synchronize_session=False)
-    db.query(TestStep).filter(TestStep.test_case_id.in_(
-        db.query(TestCase.id).filter(TestCase.project_id.in_(
-            db.query(Project.id).filter(Project.user_id == user.id)
-        ))
-    )).delete(synchronize_session=False)
-    db.query(TestCase).filter(TestCase.project_id.in_(
-        db.query(Project.id).filter(Project.user_id == user.id)
-    )).delete(synchronize_session=False)
+    db.query(TestData).filter(
+        TestData.step_id.in_(
+            db.query(TestStep.id).filter(
+                TestStep.test_case_id.in_(
+                    db.query(TestCase.id).filter(
+                        TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+                    )
+                )
+            )
+        )
+    ).delete(synchronize_session=False)
+    db.query(TestStep).filter(
+        TestStep.test_case_id.in_(
+            db.query(TestCase.id).filter(
+                TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))
+            )
+        )
+    ).delete(synchronize_session=False)
+    db.query(TestCase).filter(TestCase.project_id.in_(db.query(Project.id).filter(Project.user_id == user.id))).delete(
+        synchronize_session=False
+    )
     db.query(Project).filter(Project.user_id == user.id).delete(synchronize_session=False)
     db.delete(user)
     db.commit()
@@ -106,17 +114,12 @@ def test_step(db, test_project):
         steps_json=[],
         expected_result="预期",
         priority=1,
-        case_type="UI"
+        case_type="UI",
     )
     db.add(tc)
     db.commit()
     db.refresh(tc)
-    step = TestStep(
-        test_case_id=tc.id,
-        step_number=1,
-        action="输入",
-        expected_result="显示"
-    )
+    step = TestStep(test_case_id=tc.id, step_number=1, action="输入", expected_result="显示")
     db.add(step)
     db.commit()
     db.refresh(step)
@@ -125,12 +128,7 @@ def test_step(db, test_project):
 
 class TestTestDataModel:
     def test_create_test_data(self, db, test_step):
-        td = TestData(
-            step_id=test_step.id,
-            field_name="username",
-            field_type=DataType.TEXT,
-            data_value="testuser"
-        )
+        td = TestData(step_id=test_step.id, field_name="username", field_type=DataType.TEXT, data_value="testuser")
         db.add(td)
         db.commit()
         db.refresh(td)
@@ -145,10 +143,7 @@ class TestTestDataModel:
         db.commit()
 
     def test_test_data_default_values(self, db, test_step):
-        td = TestData(
-            step_id=test_step.id,
-            field_name="field1"
-        )
+        td = TestData(step_id=test_step.id, field_name="field1")
         db.add(td)
         db.commit()
         db.refresh(td)
@@ -175,7 +170,7 @@ class TestTestDataModel:
             generation_rule=GenerationRule.BOUNDARY_MIN,
             min_value=0,
             max_value=150,
-            data_value="25"
+            data_value="25",
         )
         db.add(td)
         db.commit()
@@ -189,10 +184,7 @@ class TestTestDataModel:
 
     def test_test_data_with_enum_values(self, db, test_step):
         td = TestData(
-            step_id=test_step.id,
-            field_name="gender",
-            field_type=DataType.ENUM,
-            enum_values='["male","female"]'
+            step_id=test_step.id, field_name="gender", field_type=DataType.ENUM, enum_values='["male","female"]'
         )
         db.add(td)
         db.commit()
@@ -203,11 +195,7 @@ class TestTestDataModel:
 
     def test_test_data_field_types(self, db, test_step):
         for ftype in [DataType.TEXT, DataType.NUMBER, DataType.DATE, DataType.EMAIL, DataType.PHONE]:
-            td = TestData(
-                step_id=test_step.id,
-                field_name=f"field_{ftype.value}",
-                field_type=ftype
-            )
+            td = TestData(step_id=test_step.id, field_name=f"field_{ftype.value}", field_type=ftype)
             db.add(td)
             db.commit()
             db.refresh(td)
@@ -216,13 +204,15 @@ class TestTestDataModel:
             db.commit()
 
     def test_test_data_generation_rules(self, db, test_step):
-        for rule in [GenerationRule.RANDOM, GenerationRule.BOUNDARY_MIN, GenerationRule.BOUNDARY_MAX,
-                     GenerationRule.SPECIAL_CHARS, GenerationRule.EMPTY, GenerationRule.CUSTOM]:
-            td = TestData(
-                step_id=test_step.id,
-                field_name=f"field_{rule.value}",
-                generation_rule=rule
-            )
+        for rule in [
+            GenerationRule.RANDOM,
+            GenerationRule.BOUNDARY_MIN,
+            GenerationRule.BOUNDARY_MAX,
+            GenerationRule.SPECIAL_CHARS,
+            GenerationRule.EMPTY,
+            GenerationRule.CUSTOM,
+        ]:
+            td = TestData(step_id=test_step.id, field_name=f"field_{rule.value}", generation_rule=rule)
             db.add(td)
             db.commit()
             db.refresh(td)
@@ -239,7 +229,7 @@ class TestTestDataModel:
             generation_rule=GenerationRule.RANDOM,
             min_length=5,
             max_length=100,
-            description="邮箱字段"
+            description="邮箱字段",
         )
         db.add(td)
         db.commit()
@@ -263,7 +253,7 @@ class TestTestDataModel:
             field_name="options",
             field_type=DataType.ENUM,
             enum_values='["a","b","c"]',
-            rule_config='{"pattern":"seq"}'
+            rule_config='{"pattern":"seq"}',
         )
         db.add(td)
         db.commit()
@@ -275,10 +265,7 @@ class TestTestDataModel:
         db.commit()
 
     def test_test_data_repr(self, db, test_step):
-        td = TestData(
-            step_id=test_step.id,
-            field_name="repr_field"
-        )
+        td = TestData(step_id=test_step.id, field_name="repr_field")
         db.add(td)
         db.commit()
         db.refresh(td)
