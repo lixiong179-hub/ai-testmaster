@@ -53,7 +53,8 @@ jobs:
       - name: Ruff lint
         run: ruff check app
       - name: AsyncSession convergence gate
-        # R2-1 阶段三：async_get_db 只减不增（白名单 + 总量预算见 scripts/check_async_session_convergence.py）
+        # R2-1 已结项（2026-11-17）：async_get_db 使用面 0，仅余 app/db/database/ 定义与再导出；
+        # 白名单只减不增，任何端点/服务新增 async_get_db 即失败（预算见 scripts/check_async_session_convergence.py）
         run: python scripts/check_async_session_convergence.py
       - name: Alembic migrations
         env:
