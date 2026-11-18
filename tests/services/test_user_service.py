@@ -235,9 +235,12 @@ class TestGetUsers:
     def test_get_users_returns_created_user(self, db):
         user = _create_user(db, "list_user_a")
         db.flush()
-        users = UserService.get_users(db, limit=1000)
-        usernames = [u.username for u in users]
-        assert "list_user_a" in usernames
+        # 共享测试库跨运行累积（O-24），不能写死 1000：按当前总行数取全量，
+        # 断言与表规模无关（get_users 无 ORDER BY，只有 limit >= total 才能保证不漏行）
+        total = db.query(User).count()
+        users = UserService.get_users(db, limit=total)
+        assert len(users) == total
+        assert user.username in [u.username for u in users]
 
     def test_get_users_pagination_limit(self, db):
         # 先创建用户确保有数据
@@ -246,10 +249,15 @@ class TestGetUsers:
         assert len(users) <= 1  # limit=1 最多返回1条
 
     def test_get_users_skip(self, db):
-        all_users = UserService.get_users(db, skip=0, limit=1000)
-        if len(all_users) > 1:
-            skipped = UserService.get_users(db, skip=1, limit=1000)
-            assert len(skipped) == len(all_users) - 1
+        # 同上：limit 取表内总行数，避免共享库超过写死的上限后 skip 语义被截断；
+        # 先建一行保证 total >= 1（空库时 skip=1 的期望值会变成 -1）
+        _create_user(db, "skip_user")
+        db.flush()
+        total = db.query(User).count()
+        all_users = UserService.get_users(db, skip=0, limit=total)
+        assert len(all_users) == total
+        skipped = UserService.get_users(db, skip=1, limit=total)
+        assert len(skipped) == total - 1
 
 
 class TestConcurrencyIntegrityError:
