@@ -12,6 +12,7 @@
 Token 预算检查 / 构建 prompt / 调用 LLM / 执行工具 / 记录消息与审计 / 检查终止）
 → complete_session + metrics 埋点。
 """
+
 from __future__ import annotations
 
 import json
@@ -22,6 +23,7 @@ from loguru import logger
 
 from app.core.config import settings
 from app.models.agent_session import AgentSession
+from app.services.agent._runtime_metrics_mixin import RuntimeMetricsMixin
 from app.services.agent._tool_executor import execute_tool_call as _execute_tool_call
 from app.services.agent.artifacts.base import Artifact
 from app.services.agent.base import AgentDefinition
@@ -39,7 +41,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-class AgentRuntime:
+class AgentRuntime(RuntimeMetricsMixin):
     """Agent 执行引擎。
 
     所有依赖通过构造函数注入，Optional 依赖为 None 时降级，保证最小可用循环。
@@ -110,7 +112,9 @@ class AgentRuntime:
                 llm_resp = await self._invoke_llm(messages, definition)
                 assistant_msg = self._parse_assistant_message(llm_resp)
                 await self._append_message(
-                    session.id, "assistant", assistant_msg,
+                    session.id,
+                    "assistant",
+                    assistant_msg,
                     tool_name=assistant_msg.get("tool_name"),
                     token_cost=llm_resp.get("token_cost", 0),
                 )
@@ -125,10 +129,15 @@ class AgentRuntime:
                     break
                 for tc in tool_calls:
                     await _execute_tool_call(
-                        tool_call=tc, session_id=session.id, iteration=iteration,
-                        agent_type=agent_type, project_id=project_id,
-                        execution_callback=execution_callback, history=history,
-                        db=self.db, tool_registry=self.tool_registry,
+                        tool_call=tc,
+                        session_id=session.id,
+                        iteration=iteration,
+                        agent_type=agent_type,
+                        project_id=project_id,
+                        execution_callback=execution_callback,
+                        history=history,
+                        db=self.db,
+                        tool_registry=self.tool_registry,
                         audit_service=self.audit_service,
                         circuit_breaker=self.circuit_breaker,
                         metrics=self.metrics,
@@ -139,7 +148,8 @@ class AgentRuntime:
             else:
                 raise MaxIterationsExceeded(
                     f"迭代次数触达上限: {max_iterations}",
-                    agent_type=agent_type, session_id=session.id,
+                    agent_type=agent_type,
+                    session_id=session.id,
                 )
 
             await self._complete_session(session, "completed")
@@ -171,7 +181,8 @@ class AgentRuntime:
         if not allowed:
             self._safe(lambda m: m.record_circuit_breaker_state(agent_type, "open"))
             raise CircuitBreakerOpen(
-                f"熔断器开启: {agent_type}", agent_type=agent_type,
+                f"熔断器开启: {agent_type}",
+                agent_type=agent_type,
             )
 
     async def _check_token_budget(self, agent_type: str, project_id: int) -> None:
@@ -182,7 +193,10 @@ class AgentRuntime:
             )
 
     async def _create_session(
-        self, agent_type: str, project_id: int, created_by: int | None,
+        self,
+        agent_type: str,
+        project_id: int,
+        created_by: int | None,
     ) -> AgentSession:
         """创建会话：有会话语义服务且已绑定 db 时持久化，否则降级为内存对象。
 
@@ -197,13 +211,21 @@ class AgentRuntime:
                 created_by=created_by,
             )
         return AgentSession(
-            project_id=project_id, agent_type=agent_type, status="running",
-            token_cost=0, iteration_count=0, loop_detected=False, created_by=created_by,
+            project_id=project_id,
+            agent_type=agent_type,
+            status="running",
+            token_cost=0,
+            iteration_count=0,
+            loop_detected=False,
+            created_by=created_by,
         )
 
     async def _check_loop(
-        self, agent_type: str, session_id: int | None,
-        iteration: int, history: list[dict[str, Any]],
+        self,
+        agent_type: str,
+        session_id: int | None,
+        iteration: int,
+        history: list[dict[str, Any]],
     ) -> None:
         """循环检测：基于最近工具调用签名判重，超阈值抛 AgentLoopDetected。"""
         if self.loop_detector is None:
@@ -220,31 +242,41 @@ class AgentRuntime:
                 args = {}
             signature = self.loop_detector._build_signature(tool_name, args)
             detected = await self.loop_detector.check(
-                agent_type=agent_type, session_id=session_id,
+                agent_type=agent_type,
+                session_id=session_id,
                 tool_call_signature=signature,
             )
             if detected:
                 self._safe(lambda m: m.record_loop_detected(agent_type))
                 raise AgentLoopDetected(
-                    f"检测到循环: {agent_type}", agent_type=agent_type, session_id=session_id,
+                    f"检测到循环: {agent_type}",
+                    agent_type=agent_type,
+                    session_id=session_id,
                 )
 
     def _build_messages(
-        self, definition: AgentDefinition, artifacts: list[Artifact],
+        self,
+        definition: AgentDefinition,
+        artifacts: list[Artifact],
         history: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         system_prompt = self._build_system_prompt(definition, artifacts, history)
         history_limit = settings.AI_AGENT_HISTORY_MESSAGE_COUNT
         recent = history[-history_limit:]
         messages: list[dict[str, Any]] = [{"role": "system", "content": system_prompt}]
-        messages.extend({
-            "role": m["role"],
-            "content": json.dumps(m["content"], ensure_ascii=False, default=str),
-        } for m in recent)
+        messages.extend(
+            {
+                "role": m["role"],
+                "content": json.dumps(m["content"], ensure_ascii=False, default=str),
+            }
+            for m in recent
+        )
         return messages
 
     def _build_system_prompt(
-        self, definition: AgentDefinition, artifacts: list[Artifact],
+        self,
+        definition: AgentDefinition,
+        artifacts: list[Artifact],
         history: list[dict[str, Any]],
     ) -> str:
         parts = [definition.system_prompt]
@@ -261,7 +293,9 @@ class AgentRuntime:
         return "\n\n".join(parts)
 
     async def _invoke_llm(
-        self, messages: list[dict[str, Any]], definition: AgentDefinition,
+        self,
+        messages: list[dict[str, Any]],
+        definition: AgentDefinition,
     ) -> dict[str, Any]:
         if self.llm_provider is None:
             return {"content": "LLM provider 不可用", "tool_calls": [], "token_cost": 0}
@@ -273,13 +307,16 @@ class AgentRuntime:
             return []
         schema = []
         for tool in self.tool_registry.list_for_agent(definition.agent_type):
-            schema.append({
-                "type": "function",
-                "function": {
-                    "name": tool.name, "description": tool.description,
-                    "parameters": tool.parameters_schema,
-                },
-            })
+            schema.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.parameters_schema,
+                    },
+                }
+            )
         return schema
 
     def _parse_assistant_message(self, llm_resp: dict[str, Any]) -> dict[str, Any]:
@@ -291,15 +328,24 @@ class AgentRuntime:
         }
 
     async def _append_message(
-        self, session_id: int | None, role: str, content: dict[str, Any],
-        tool_name: str | None = None, tool_call_id: str | None = None,
+        self,
+        session_id: int | None,
+        role: str,
+        content: dict[str, Any],
+        tool_name: str | None = None,
+        tool_call_id: str | None = None,
         token_cost: int = 0,
     ) -> None:
         if self.session_service is None or self.db is None or session_id is None:
             return
         await self.session_service.append_message(
-            self.db, session_id=session_id, role=role, content=content,
-            tool_name=tool_name, tool_call_id=tool_call_id, token_cost=token_cost,
+            self.db,
+            session_id=session_id,
+            role=role,
+            content=content,
+            tool_name=tool_name,
+            tool_call_id=tool_call_id,
+            token_cost=token_cost,
         )
 
     def _consume_token(self, agent_type: str, project_id: int, amount: int) -> None:
@@ -310,10 +356,7 @@ class AgentRuntime:
         tool_calls = assistant_msg.get("tool_calls", []) or []
         if not tool_calls:
             return True
-        return any(
-            tc.get("function", {}).get("name") == "final_answer"
-            for tc in tool_calls
-        )
+        return any(tc.get("function", {}).get("name") == "final_answer" for tc in tool_calls)
 
     async def _complete_session(self, session: AgentSession, status: str) -> None:
         session.status = status
@@ -321,32 +364,13 @@ class AgentRuntime:
             session.loop_detected = True
         if self.session_service is not None and self.db is not None and session.id is not None:
             await self.session_service.complete_session(
-                self.db, session_id=session.id, status=status,
+                self.db,
+                session_id=session.id,
+                status=status,
                 token_cost=session.token_cost,
                 iteration_count=session.iteration_count,
                 loop_detected=session.loop_detected,
             )
-
-    def _safe(self, fn: Any) -> None:
-        """安全执行 metrics 埋点调用，吞掉异常不阻断主流程。"""
-        if self.metrics is None:
-            return
-        try:
-            fn(self.metrics)
-        except Exception as e:
-            logger.warning(f"metrics 埋点失败: {e}")
-
-    def _record_session_end(
-        self, agent_type: str, status: str,
-        session: AgentSession, start_time: float,
-    ) -> None:
-        """会话结束埋点：sessions_total{status} + active_sessions-1 + 时长与 token 观察。"""
-        if self.metrics is None:
-            return
-        duration = time.monotonic() - start_time
-        self._safe(lambda m: m.record_session_end(
-            agent_type, status, duration, session.token_cost or 0,
-        ))
 
 
 __all__ = ["AgentRuntime"]
