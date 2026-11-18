@@ -181,6 +181,59 @@ async def get_file_list(
         raise HTTPException(status_code=500, detail="获取文件列表失败")
 
 
+async def _ensure_project_owned(db: Session, file: ProjectFile, user: User) -> None:
+    """文件所属项目必须属于当前用户，否则 403。"""
+    project_result = await _execute(
+        db,
+        select(Project).where(
+            Project.id == file.project_id,
+            Project.user_id == user.id,
+        ),
+    )
+    if not project_result.scalars().first():
+        raise HTTPException(status_code=403, detail="无权限操作此项目")
+
+
+async def _validate_iteration_scope(db: Session, file: ProjectFile, iteration_id: int) -> None:
+    """迭代必须存在且属于文件所在项目，否则 400。"""
+    iteration_result = await _execute(
+        db,
+        select(Iteration).where(
+            Iteration.id == iteration_id,
+            Iteration.project_id == file.project_id,
+        ),
+    )
+    if not iteration_result.scalars().first():
+        raise HTTPException(
+            status_code=400,
+            detail=f"迭代 ID {iteration_id} 不存在或不属于此项目",
+        )
+
+
+async def _apply_file_updates(db: Session, file: ProjectFile, update_data: FileUpdateRequest) -> None:
+    """按请求体逐字段更新（未提供的字段保持原值）。"""
+    if update_data.resource_type:
+        file.resource_type = (
+            update_data.resource_type.value
+            if hasattr(update_data.resource_type, "value")
+            else update_data.resource_type
+        )
+
+    if update_data.description is not None:
+        file.description = update_data.description
+
+    if update_data.is_active is not None:
+        file.is_active = update_data.is_active
+
+    if update_data.iteration_id is None:
+        return
+
+    iteration_value = update_data.iteration_id if update_data.iteration_id > 0 else None
+    if iteration_value:
+        await _validate_iteration_scope(db, file, iteration_value)
+    file.iteration_id = iteration_value
+
+
 @router.put("/{file_id}", response_model=ApiResponse)
 async def update_file(
     file_id: int,
@@ -194,50 +247,8 @@ async def update_file(
         if not file:
             raise HTTPException(status_code=404, detail="文件不存在")
 
-        project_result = await _execute(
-            db,
-            select(Project).where(
-                Project.id == file.project_id,
-                Project.user_id == current_user.id,
-            ),
-        )
-        project = project_result.scalars().first()
-
-        if not project:
-            raise HTTPException(status_code=403, detail="无权限操作此项目")
-
-        if update_data.resource_type:
-            file.resource_type = (
-                update_data.resource_type.value
-                if hasattr(update_data.resource_type, "value")
-                else update_data.resource_type
-            )
-
-        if update_data.description is not None:
-            file.description = update_data.description
-
-        if update_data.is_active is not None:
-            file.is_active = update_data.is_active
-
-        if update_data.iteration_id is not None:
-            iteration_value = update_data.iteration_id if update_data.iteration_id > 0 else None
-
-            if iteration_value:
-                iteration_result = await _execute(
-                    db,
-                    select(Iteration).where(
-                        Iteration.id == iteration_value,
-                        Iteration.project_id == file.project_id,
-                    ),
-                )
-                iteration = iteration_result.scalars().first()
-                if not iteration:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"迭代 ID {iteration_value} 不存在或不属于此项目",
-                    )
-
-            file.iteration_id = iteration_value
+        await _ensure_project_owned(db, file, current_user)
+        await _apply_file_updates(db, file, update_data)
 
         await asyncio.to_thread(db.commit)
         await asyncio.to_thread(db.refresh, file)

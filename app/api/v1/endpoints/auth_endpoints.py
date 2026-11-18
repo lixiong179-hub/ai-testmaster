@@ -86,6 +86,42 @@ async def get_captcha(request: Request) -> dict:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=f"验证码获取失败: {str(e)}")
 
 
+async def _resolve_login_form(
+    request: Request,
+    username: str | None,
+    password: str | None,
+    captcha_id: str | None,
+    captcha_code: str | None,
+) -> tuple[str | None, str | None, str | None, str | None]:
+    """表单缺用户名或密码时回退到 JSON body（与原实现一致：缺任一即整体取 JSON 字段）。"""
+    if username is not None and password is not None:
+        return username, password, captcha_id, captcha_code
+    try:
+        json_data = await request.json()
+    except (ValueError, KeyError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="参数验证失败") from None
+    return (
+        json_data.get("username"),
+        json_data.get("password"),
+        captcha_id or json_data.get("captcha_id"),
+        captcha_code or json_data.get("captcha_code"),
+    )
+
+
+async def _authenticate_user(db: Session, username: str, password: str, request: Request) -> User:
+    """校验用户存在/启用/密码正确；失败抛 401/403（状态码与文案保持原样）。"""
+    result = await _execute(db, select(User).where(User.username == username))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
+    if not verify_password(password, user.password_hash):
+        logger.warning(f"登录失败(密码错误): username={username}, ip={get_client_ip(request)}")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
+    return user
+
+
 @router.post(
     "/login",
     response_model=ApiResponse,
@@ -101,15 +137,13 @@ async def login(
     db: Session = Depends(get_db),
 ):
     try:
-        if username is None or password is None:
-            try:
-                json_data = await request.json()
-                username = json_data.get("username")
-                password = json_data.get("password")
-                captcha_id = captcha_id or json_data.get("captcha_id")
-                captcha_code = captcha_code or json_data.get("captcha_code")
-            except (ValueError, KeyError):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="参数验证失败")
+        username, password, captcha_id, captcha_code = await _resolve_login_form(
+            request,
+            username,
+            password,
+            captcha_id,
+            captcha_code,
+        )
 
         if not username or not password:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请提供用户名和密码")
@@ -120,15 +154,7 @@ async def login(
         if not captcha_service.verify(captcha_id, captcha_code, ip=get_client_ip(request)):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="验证码错误或已过期")
 
-        result = await _execute(db, select(User).where(User.username == username))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
-        if not user.is_active:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="账号已被禁用")
-        if not verify_password(password, user.password_hash):
-            logger.warning(f"登录失败(密码错误): username={username}, ip={get_client_ip(request)}")
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户名或密码错误")
+        user = await _authenticate_user(db, username, password, request)
         logger.info(f"用户登录成功: username={user.username}, ip={get_client_ip(request)}")
         access_token = create_access_token({"sub": str(user.id), "username": user.username})
         return create_response(
